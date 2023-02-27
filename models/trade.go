@@ -35,14 +35,3 @@ func (tr *Trade) Side() TradeType {
 
 	return TradeTypeUnknown
 }
-
-//func (tr *Trade) GetProfit(currentPrice float64) float64 {
-//	switch tr.Side() {
-//	case TradeTypeBuy:
-//		return tr.Volume * (currentPrice - tr.Price)
-//	case TradeTypeSell:
-//		return math.Abs(tr.Volume) * (tr.Price - currentPrice)
-//	default:
-//		panic(fmt.Errorf("GetProfit not implemented for %v", tr.Side()))
-//	}
-//}

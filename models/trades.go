@@ -1,8 +1,26 @@
 package models
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 type Trades []Trade
+
+func (trades *Trades) ToRows() [][]interface{} {
+	results := make([][]interface{}, 0)
+
+	for _, tr := range *trades {
+		results = append(results, []interface{}{
+			tr.Time.Format(time.RFC3339),
+			tr.Symbol,
+			tr.Volume,
+			tr.Price,
+		})
+	}
+
+	return results
+}
 
 func (trades *Trades) Add(trade *Trade) {
 	*trades = append(*trades, *trade)
