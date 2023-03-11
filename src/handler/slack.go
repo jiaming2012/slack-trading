@@ -15,7 +15,7 @@ func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 
-	log.Info("payload: ", payload)
+	log.Infof("payload: %s", payload)
 
 	decoder := json.NewDecoder(r.Body)
 
