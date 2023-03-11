@@ -5,7 +5,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/sheets/v4"
-	"slack-trading/models"
+	"slack-trading/src/models"
 )
 
 func appendRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, values [][]interface{}) error {

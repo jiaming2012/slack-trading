@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"slack-trading/models"
+	"slack-trading/src/models"
 	"time"
 )
 

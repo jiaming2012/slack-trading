@@ -8,6 +8,7 @@ import (
 func Setup() *mux.Router {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/", handler.SlackApiEventHandler)
 	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
 
 	return router

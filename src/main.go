@@ -20,6 +20,7 @@ func main() {
 		port = "3000"
 	}
 
+	router.HandleFunc("/", handler.SlackApiEventHandler)
 	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
 
 	srv := &http.Server{
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("listening on :%s\n", port)
+		log.Infof("listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil {
 			if err.Error() != "http: Server closed" {
 				panic(err)
