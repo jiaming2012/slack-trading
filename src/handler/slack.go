@@ -4,11 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"slack-trading/src/models"
 )
 
 func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Error(err)
+	}
+
+	log.Info("payload: ", payload)
+
 	decoder := json.NewDecoder(r.Body)
 
 	// currently we always return 200 back to the slack server as we do not have any advanced
