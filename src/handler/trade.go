@@ -47,6 +47,8 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 		return models.Trade{}, fmt.Errorf("Could not find text\n")
 	}
 
+	fmt.Println("len: ", len(paramsPayload))
+
 	if len(paramsPayload) != 1 {
 		return models.Trade{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
 	}
@@ -68,7 +70,7 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 		}
 	}
 
-	return models.Trade{}, nil
+	return trade, nil
 }
 
 func Trade(w http.ResponseWriter, r *http.Request) {
