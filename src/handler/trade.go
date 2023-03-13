@@ -60,7 +60,7 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 
 	fmt.Println(coin.Symbol)
 
-	var btcPrice *float64
+	var btcPrice = new(float64)
 	for _, ticker := range coin.Tickers {
 		if ticker.Base == "BTC" && ticker.Target == "USD" {
 			if ticker.Market.Identifier == "gdax" {
