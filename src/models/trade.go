@@ -18,10 +18,11 @@ type Profit struct {
 }
 
 type Trade struct {
-	Symbol string
-	Time   time.Time
-	Volume float64
-	Price  float64
+	Symbol         string
+	Time           time.Time
+	Volume         float64
+	RequestedPrice float64
+	ExecutedPrice  float64
 }
 
 func (tr *Trade) Side() TradeType {

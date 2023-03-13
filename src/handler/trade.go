@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
+	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
 	"slack-trading/src/slack"
 	"strconv"
@@ -41,13 +42,10 @@ func parseVolume(input string) (float64, error) {
 
 func parseBTCRequest(data url.Values) (models.Trade, error) {
 	paramsPayload, ok := data["text"]
-	fmt.Println("data: ", data)
-	fmt.Println(paramsPayload)
+
 	if !ok {
 		return models.Trade{}, fmt.Errorf("Could not find text\n")
 	}
-
-	fmt.Println("len: ", len(paramsPayload))
 
 	if len(paramsPayload) != 1 {
 		return models.Trade{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
@@ -55,18 +53,40 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 
 	params := strings.Fields(paramsPayload[0])
 
+	coin, err := coingecko.FetchPrice("bitcoin")
+	if err != nil {
+		return models.Trade{}, nil
+	}
+
+	fmt.Println(coin.Symbol)
+
+	var btcPrice *float64
+	for _, ticker := range coin.Tickers {
+		if ticker.Base == "BTC" && ticker.Target == "USD" {
+			if ticker.Market.Identifier == "gdax" {
+				*btcPrice = ticker.LastPrice
+				break
+			}
+		}
+	}
+
+	if btcPrice == nil {
+		return models.Trade{}, fmt.Errorf("failed to find btc price from coingecko")
+	}
+
 	trade := models.Trade{
-		Symbol: "btc",
-		Time:   time.Now(),
+		Symbol:        "btc",
+		Time:          time.Now(),
+		ExecutedPrice: *btcPrice,
 	}
 
 	for _, param := range params {
 		if price, err := parsePrice(param); err == nil {
-			trade.Price = price
+			trade.RequestedPrice = price
 		} else if volume, err := parseVolume(param); err == nil {
 			trade.Volume = volume
 		} else {
-			return models.Trade{}, fmt.Errorf("")
+			return models.Trade{}, fmt.Errorf("failed to parse payload param: %v", param)
 		}
 	}
 

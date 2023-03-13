@@ -15,7 +15,7 @@ func (trades *Trades) ToRows() [][]interface{} {
 			tr.Time.Format(time.RFC3339),
 			tr.Symbol,
 			tr.Volume,
-			tr.Price,
+			tr.RequestedPrice,
 		})
 	}
 
@@ -35,22 +35,22 @@ func (trades *Trades) Vwap() float64 {
 
 		if volume > 0 {
 			if tr.Volume > 0 {
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.Price)
+				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.RequestedPrice)
 			} else {
 				if math.Abs(tr.Volume) > volume {
-					vwap = tr.Price
+					vwap = tr.RequestedPrice
 				}
 			}
 		} else if volume < 0 {
 			if tr.Volume < 0 {
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.Price)
+				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.RequestedPrice)
 			} else {
 				if tr.Volume > math.Abs(volume) {
-					vwap = tr.Price
+					vwap = tr.RequestedPrice
 				}
 			}
 		} else {
-			vwap = tr.Price
+			vwap = tr.RequestedPrice
 		}
 
 		volume += tr.Volume
@@ -69,11 +69,11 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 
 		if volume > 0 {
 			if tr.Side() == TradeTypeSell {
-				realizedPL += math.Abs(tr.Volume) * (tr.Price - vwap)
+				realizedPL += math.Abs(tr.Volume) * (tr.RequestedPrice - vwap)
 			}
 		} else if volume < 0 {
 			if tr.Side() == TradeTypeBuy {
-				realizedPL += math.Abs(tr.Volume) * (vwap - tr.Price)
+				realizedPL += math.Abs(tr.Volume) * (vwap - tr.RequestedPrice)
 			}
 		} else {
 		}

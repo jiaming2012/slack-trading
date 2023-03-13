@@ -65,7 +65,7 @@ func main() {
 	//	Time:   time.Now(),
 	//	Symbol: "ETHUSD",
 	//	Volume: -1.2,
-	//	Price:  2340.60,
+	//	RequestedPrice:  2340.60,
 	//}
 	//
 	//err = sheets.AppendTrade(ctx, srv, trade)

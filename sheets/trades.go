@@ -60,10 +60,10 @@ func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (model
 		}
 
 		trades = append(trades, models2.Trade{
-			Time:   timestamp,
-			Symbol: _symbol,
-			Volume: volume,
-			Price:  price,
+			Time:           timestamp,
+			Symbol:         _symbol,
+			Volume:         volume,
+			RequestedPrice: price,
 		})
 	}
 
