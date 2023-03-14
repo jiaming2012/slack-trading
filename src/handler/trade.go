@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -8,6 +9,7 @@ import (
 	"net/url"
 	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
+	"slack-trading/src/sheets"
 	"slack-trading/src/slack"
 	"strconv"
 	"strings"
@@ -104,18 +106,29 @@ func Trade(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cmd == "/add" {
+		if cmd == "/btc" {
 			trade, validationErr := parseBTCRequest(r.Form)
 			if validationErr != nil {
 				log.Error(validationErr)
+				slack.SendResponse(fmt.Sprintf("Failed to parse BTC request: %v", validationErr), responseURL, true)
 				return
 			}
 
-			fmt.Println(trade)
-
-			msg := fmt.Sprintf("cool")
-			//go defitrader.InsertToken(token)
-			go slack.SendResponse(msg, responseURL, true)
+			err = sheets.AppendTrade(context.Background(), &trade)
+			if err != nil {
+				log.Error(err)
+				slack.SendResponse(fmt.Sprintf("Failed to add trade to google sheets: %v", err), responseURL, true)
+				return
+			}
+			////appendRow(ctx, srv, spreadsheetId, "Sheet1")
+			////updateRow(ctx, srv, spreadsheetId, "Sheet2")
+			////rows, err := fetchRows(ctx, srv, spreadsheetId, "Sheet1", "A3:C7")
+			////if err != nil {
+			////	log.Fatal(err)
+			////}
+			//
+			//trades, err := sheets.FetchTrades(ctx, srv, "ETHUSD")
+			slack.SendResponse("Trading successfully added.", responseURL, true)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

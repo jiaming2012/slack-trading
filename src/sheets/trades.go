@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/api/sheets/v4"
-	models2 "slack-trading/src/models"
+	"slack-trading/src/models"
 	"strconv"
 	"time"
 )
@@ -15,8 +15,8 @@ import (
 const spreadsheetId = "1_bTrqV8RTAQY6j33f_G0myA2-rF-s60FI4HwLbyvYo0"
 const sheetName = "Trades"
 
-func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (models2.Trades, error) {
-	trades := make(models2.Trades, 0)
+func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (models.Trades, error) {
+	trades := make(models.Trades, 0)
 
 	fetched, err := fetchRows(ctx, srv, spreadsheetId, sheetName, "2:1010")
 	if err != nil {
@@ -59,7 +59,7 @@ func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (model
 			return nil, parseErr
 		}
 
-		trades = append(trades, models2.Trade{
+		trades = append(trades, models.Trade{
 			Time:           timestamp,
 			Symbol:         _symbol,
 			Volume:         volume,
@@ -70,9 +70,15 @@ func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (model
 	return trades, nil
 }
 
-func AppendTrade(ctx context.Context, srv *sheets.Service, tr *models2.Trade) error {
-	trades := make(models2.Trades, 0)
+func appendTrade(ctx context.Context, srv *sheets.Service, tr *models.Trade) error {
+	trades := make(models.Trades, 0)
 	trades.Add(tr)
 	values := trades.ToRows()
 	return appendRows(ctx, srv, spreadsheetId, sheetName, values)
+}
+
+func AppendTrade(ctx context.Context, trade *models.Trade) error {
+	var trades models.Trades
+	trades.Add(trade)
+	return appendTrade(ctx, service, trade)
 }

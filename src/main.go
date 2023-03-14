@@ -9,11 +9,20 @@ import (
 	"os"
 	"os/signal"
 	"slack-trading/src/handler"
+	"slack-trading/src/sheets"
 	"syscall"
 	"time"
 )
 
 func main() {
+	ctx := context.Background()
+
+	// setup google sheets
+	if err := sheets.Init(ctx); err != nil {
+		panic(fmt.Errorf("failed to initialize google sheets: %v", err))
+	}
+
+	// setup router
 	router := mux.NewRouter()
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
@@ -51,38 +60,4 @@ func main() {
 	} else {
 		log.Println("Server gracefully stopped")
 	}
-
-	//// create api context
-	//ctx := context.Background()
-	//
-	//// authenticate and setup service
-	//srv, err := sheets.Setup(ctx)
-	//if err != nil {
-	//	log.Fatalf("setup failed: %v", err)
-	//}
-	//
-	//trade := &models.Trade{
-	//	Time:   time.Now(),
-	//	Symbol: "ETHUSD",
-	//	Volume: -1.2,
-	//	RequestedPrice:  2340.60,
-	//}
-	//
-	//err = sheets.AppendTrade(ctx, srv, trade)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	////appendRow(ctx, srv, spreadsheetId, "Sheet1")
-	////updateRow(ctx, srv, spreadsheetId, "Sheet2")
-	////rows, err := fetchRows(ctx, srv, spreadsheetId, "Sheet1", "A3:C7")
-	////if err != nil {
-	////	log.Fatal(err)
-	////}
-	//
-	//trades, err := sheets.FetchTrades(ctx, srv, "ETHUSD")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//fmt.Println(trades)
 }
