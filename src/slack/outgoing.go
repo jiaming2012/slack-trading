@@ -15,7 +15,10 @@ func SendResponse(msg string, url string, isEphemeral bool) {
 	body["text"] = msg
 	if isEphemeral {
 		body["response_type"] = "ephemeral"
+	} else {
+		body["response_type"] = "in_channel"
 	}
+
 	go PostJSON(url, body)
 }
 
