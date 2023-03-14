@@ -30,8 +30,8 @@ func main() {
 	}
 
 	router.HandleFunc("/", handler.SlackApiEventHandler)
-	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
 	router.HandleFunc("/dataplane/token/balance", handler.Balance)
+	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
 
 	srv := &http.Server{
 		Handler: router,
