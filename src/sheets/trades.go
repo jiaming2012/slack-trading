@@ -52,12 +52,22 @@ func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error
 			return nil, parseErr
 		}
 
-		priceString, ok := row[3].(string)
+		requestedPriceString, ok := row[3].(string)
 		if !ok {
 			return nil, fmt.Errorf("failed to parse row[3]=%v", row[3])
 		}
 
-		price, parseErr := strconv.ParseFloat(priceString, 64)
+		requestedPrice, parseErr := strconv.ParseFloat(requestedPriceString, 64)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+
+		executedPriceString, ok := row[4].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse row[4]=%v", row[4])
+		}
+
+		executedPrice, parseErr := strconv.ParseFloat(executedPriceString, 64)
 		if parseErr != nil {
 			return nil, parseErr
 		}
@@ -66,7 +76,8 @@ func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error
 			Time:           timestamp,
 			Symbol:         _symbol,
 			Volume:         volume,
-			RequestedPrice: price,
+			RequestedPrice: requestedPrice,
+			ExecutedPrice:  executedPrice,
 		})
 	}
 
