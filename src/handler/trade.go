@@ -112,9 +112,8 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			}
 
 			profit := trades.PL(btcPrice)
-			fmt.Println("Profit: ", profit.Realized, profit.Floating, profit.Volume)
 			successMsg := p.Sprintf("Open volume: %.2f BTC\nFloating profit: $%.2f\nRealized profit: $%.2f", profit.Volume, profit.Floating, profit.Realized)
-			slack.SendResponse(successMsg, responseURL, true)
+			slack.SendResponse(successMsg, responseURL, false)
 		} else {
 			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)
 			return
