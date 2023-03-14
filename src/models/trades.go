@@ -1,6 +1,7 @@
 package models
 
 import (
+	log "github.com/sirupsen/logrus"
 	"math"
 	"time"
 )
@@ -67,15 +68,18 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 	volume := 0.0
 	placedTrades := make(Trades, 0)
 
-	for _, tr := range *trades {
+	for i, tr := range *trades {
 		vwap, _ := placedTrades.Vwap()
-
+		log.Info("Vwap ", i, ": ", vwap)
+		log.Info(i, "C: ", tr)
 		if volume > 0 {
 			if tr.Side() == TradeTypeSell {
+				log.Info(i, "A: ", tr.Volume, tr.ExecutedPrice, float64(vwap))
 				realizedPL += math.Abs(tr.Volume) * (tr.ExecutedPrice - float64(vwap))
 			}
 		} else if volume < 0 {
 			if tr.Side() == TradeTypeBuy {
+				log.Info(i, "B: ", tr.Volume, tr.ExecutedPrice, float64(vwap))
 				realizedPL += math.Abs(tr.Volume) * (float64(vwap) - tr.ExecutedPrice)
 			}
 		} else {
