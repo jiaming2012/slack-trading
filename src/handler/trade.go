@@ -6,6 +6,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/message"
+	"math"
 	"net/http"
 	"net/url"
 	"slack-trading/src/coingecko"
@@ -112,7 +113,14 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			}
 
 			profit := trades.PL(btcPrice)
-			successMsg := p.Sprintf("Open volume: %.2f BTC\nFloating profit: $%.2f\nRealized profit: $%.2f", profit.Volume, profit.Floating, profit.Realized)
+			volume, vwap := trades.Vwap()
+
+			// todo: remove profit.Volume in favor of volume
+			if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {
+				log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
+			}
+
+			successMsg := p.Sprintf("Open volume: %.2f BTC\nVWAP: %.2f\nFloating profit: $%.2f\nRealized profit: $%.2f", volume, vwap, profit.Floating, profit.Realized)
 			slack.SendResponse(successMsg, responseURL, false)
 		} else {
 			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)
