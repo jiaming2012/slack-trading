@@ -6,6 +6,7 @@ import (
 	"google.golang.org/api/sheets/v4"
 	"slack-trading/src/models"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -15,7 +16,9 @@ import (
 const spreadsheetId = "1_bTrqV8RTAQY6j33f_G0myA2-rF-s60FI4HwLbyvYo0"
 const sheetName = "Trades"
 
-func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (models.Trades, error) {
+var mu sync.Mutex
+
+func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error) {
 	trades := make(models.Trades, 0)
 
 	fetched, err := fetchRows(ctx, srv, spreadsheetId, sheetName, "2:1010")
@@ -70,15 +73,24 @@ func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (model
 	return trades, nil
 }
 
+func FetchTrades(ctx context.Context) (models.Trades, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	return fetchTrades(ctx, service)
+}
+
 func appendTrade(ctx context.Context, srv *sheets.Service, tr *models.Trade) error {
 	trades := make(models.Trades, 0)
 	trades.Add(tr)
-	fmt.Println("tr: ", tr)
 	values := trades.ToRows()
 	return appendRows(ctx, srv, spreadsheetId, sheetName, values)
 }
 
 func AppendTrade(ctx context.Context, trade *models.Trade) error {
+	mu.Lock()
+	defer mu.Unlock()
+
 	var trades models.Trades
 	trades.Add(trade)
 	return appendTrade(ctx, service, trade)

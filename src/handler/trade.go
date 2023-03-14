@@ -55,31 +55,15 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 
 	params := strings.Fields(paramsPayload[0])
 
-	coin, err := coingecko.FetchPrice("bitcoin")
+	btcPrice, err := coingecko.FetchCoinbaseBTCPrice()
 	if err != nil {
-		return models.Trade{}, nil
-	}
-
-	fmt.Println(coin.Symbol)
-
-	var btcPrice = new(float64)
-	for _, ticker := range coin.Tickers {
-		if ticker.Base == "BTC" && ticker.Target == "USD" {
-			if ticker.Market.Identifier == "gdax" {
-				*btcPrice = ticker.LastPrice
-				break
-			}
-		}
-	}
-
-	if btcPrice == nil {
-		return models.Trade{}, fmt.Errorf("failed to find btc price from coingecko")
+		return models.Trade{}, fmt.Errorf("failed to fetch coinbase btc price: %v", err)
 	}
 
 	trade := models.Trade{
 		Symbol:        "btc",
 		Time:          time.Now(),
-		ExecutedPrice: *btcPrice,
+		ExecutedPrice: btcPrice,
 	}
 
 	for _, param := range params {
@@ -95,9 +79,49 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 	return trade, nil
 }
 
+func Balance(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		ctx := context.Background()
+
+		r.ParseForm()
+
+		cmd, responseURL, err := validateForm(r.Form)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		if cmd == "/balance" {
+			trades, fetchErr := sheets.FetchTrades(ctx)
+			if fetchErr != nil {
+				log.Errorf("failed to fetch trades: %v", fetchErr)
+				return
+			}
+
+			btcPrice, fetchErr := coingecko.FetchCoinbaseBTCPrice()
+			if fetchErr != nil {
+				slack.SendResponse(fmt.Sprintf("Failed to fetch coinbase btc price: %v", fetchErr), responseURL, true)
+				return
+			}
+
+			profit := trades.PL(btcPrice)
+			successMsg := fmt.Sprintf("Floating profit: %.2f\nRealized profit: %.2f", profit.Floating, profit.Realized)
+			slack.SendResponse(successMsg, responseURL, false)
+		}
+
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		log.Errorf("tradeHandler: unsuppored method %s", r.Method)
+		fmt.Fprintf(w, "traderHandler: unsupported method")
+	}
+}
+
 func Trade(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		ctx := context.Background()
+
 		r.ParseForm()
 
 		cmd, responseURL, err := validateForm(r.Form)
@@ -107,14 +131,14 @@ func Trade(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if cmd == "/btc" {
-			trade, validationErr := parseBTCRequest(r.Form)
+			trade, validationErr := parseBTCRequest(r.Form) // todo: refactor parseBTCRequest into service
 			if validationErr != nil {
 				log.Error(validationErr)
 				slack.SendResponse(fmt.Sprintf("Failed to parse BTC request: %v", validationErr), responseURL, true)
 				return
 			}
 
-			err = sheets.AppendTrade(context.Background(), &trade)
+			err = sheets.AppendTrade(ctx, &trade)
 			if err != nil {
 				log.Error(err)
 				slack.SendResponse(fmt.Sprintf("Failed to add trade to google sheets: %v", err), responseURL, true)
@@ -123,15 +147,12 @@ func Trade(w http.ResponseWriter, r *http.Request) {
 			////appendRow(ctx, srv, spreadsheetId, "Sheet1")
 			////updateRow(ctx, srv, spreadsheetId, "Sheet2")
 			////rows, err := fetchRows(ctx, srv, spreadsheetId, "Sheet1", "A3:C7")
-			////if err != nil {
-			////	log.Fatal(err)
-			////}
-			//
-			//trades, err := sheets.FetchTrades(ctx, srv, "ETHUSD")
-			slack.SendResponse(fmt.Sprintf("%v successfully recorded.", trade), responseURL, true)
+
+			slack.SendResponse(fmt.Sprintf("%v successfully placed", trade), responseURL, false)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		log.Errorf("tradeHandler: unsuppored method %s", r.Method)
 		fmt.Fprintf(w, "traderHandler: unsupported method")
 	}
 }

@@ -8,7 +8,30 @@ import (
 	"slack-trading/src/utils"
 )
 
-func FetchPrice(symbol string) (*models.GeckoCoin, error) {
+func FetchCoinbaseBTCPrice() (float64, error) {
+	coin, err := fetchPrice("bitcoin")
+	if err != nil {
+		return 0, err
+	}
+
+	var btcPrice = new(float64)
+	for _, ticker := range coin.Tickers {
+		if ticker.Base == "BTC" && ticker.Target == "USD" {
+			if ticker.Market.Identifier == "gdax" {
+				*btcPrice = ticker.LastPrice
+				break
+			}
+		}
+	}
+
+	if btcPrice == nil {
+		return 0, fmt.Errorf("failed to find btc price from coingecko")
+	}
+
+	return *btcPrice, nil
+}
+
+func fetchPrice(symbol string) (*models.GeckoCoin, error) {
 	switch symbol {
 	case "bitcoin":
 	default:
