@@ -128,7 +128,7 @@ func Trade(w http.ResponseWriter, r *http.Request) {
 			////}
 			//
 			//trades, err := sheets.FetchTrades(ctx, srv, "ETHUSD")
-			slack.SendResponse("Trading successfully added.", responseURL, true)
+			slack.SendResponse(fmt.Sprintf("%v successfully recorded.", trade), responseURL, true)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

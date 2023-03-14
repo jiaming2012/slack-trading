@@ -13,6 +13,8 @@ func appendRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, 
 		Values: values,
 	}
 
+	fmt.Println("apR: ", values)
+
 	response, err := srv.Spreadsheets.Values.Append(spreadsheetId, sheetName, row).ValueInputOption("USER_ENTERED").InsertDataOption("INSERT_ROWS").Context(ctx).Do()
 	if err != nil {
 		return err

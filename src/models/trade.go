@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -35,4 +37,9 @@ func (tr *Trade) Side() TradeType {
 	}
 
 	return TradeTypeUnknown
+}
+
+func (tr Trade) String() string {
+	volumeStr := strconv.FormatFloat(tr.Volume, 'f', -1, 64)
+	return fmt.Sprintf("%s %s @%.2f", volumeStr, tr.Symbol, tr.ExecutedPrice)
 }

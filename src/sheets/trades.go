@@ -73,6 +73,7 @@ func FetchTrades(ctx context.Context, srv *sheets.Service, symbol string) (model
 func appendTrade(ctx context.Context, srv *sheets.Service, tr *models.Trade) error {
 	trades := make(models.Trades, 0)
 	trades.Add(tr)
+	fmt.Println("tr: ", tr)
 	values := trades.ToRows()
 	return appendRows(ctx, srv, spreadsheetId, sheetName, values)
 }
