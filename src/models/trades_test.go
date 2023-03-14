@@ -133,12 +133,19 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		assert.Equal(t, 1000.0, trades.Vwap())
+		vwap, volume := trades.Vwap()
+
+		assert.Equal(t, 0.5, volume)
+		assert.Equal(t, 1000.0, vwap)
 	})
 
 	t.Run("no trades", func(t *testing.T) {
 		trades := Trades([]Trade{})
-		assert.Equal(t, 0.0, trades.Vwap())
+
+		vwap, volume := trades.Vwap()
+
+		assert.Equal(t, 0.0, volume)
+		assert.Equal(t, 0.0, vwap)
 	})
 
 	t.Run("switch volume direction: long -> short", func(t *testing.T) {
@@ -157,7 +164,10 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		assert.Equal(t, 1200.0, trades.Vwap())
+		vwap, volume := trades.Vwap()
+
+		assert.Equal(t, -0.2, volume)
+		assert.Equal(t, 1200.0, vwap)
 	})
 
 	t.Run("switch volume direction: short -> long", func(t *testing.T) {
@@ -176,6 +186,9 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		assert.Equal(t, 1300.0, trades.Vwap())
+		vwap, volume := trades.Vwap()
+
+		assert.Equal(t, 0.5, volume)
+		assert.Equal(t, 1300.0, vwap)
 	})
 }

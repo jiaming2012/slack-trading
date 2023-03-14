@@ -93,7 +93,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			log.Error(err)
 			return
 		}
-		log.Info("cmd: ", cmd)
+
 		if cmd == "/balance" {
 			trades, fetchErr := sheets.FetchTrades(ctx)
 			if fetchErr != nil {
@@ -112,7 +112,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			}
 
 			profit := trades.PL(btcPrice)
-			successMsg := p.Sprintf("Floating profit: $%.2f\nRealized profit: $%.2f", profit.Floating, profit.Realized)
+			successMsg := p.Sprintf("Open volume: %.2f BTC\nFloating profit: $%.2f\nRealized profit: $%.2f", profit.Volume, profit.Floating, profit.Realized)
 			slack.SendResponse(successMsg, responseURL, true)
 		} else {
 			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)

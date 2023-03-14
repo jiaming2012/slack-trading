@@ -17,6 +17,7 @@ const (
 type Profit struct {
 	Floating float64
 	Realized float64
+	Volume   Volume
 }
 
 type Trade struct {

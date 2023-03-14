@@ -6,6 +6,8 @@ import (
 )
 
 type Trades []Trade
+type Vwap float64
+type Volume float64
 
 func (trades *Trades) ToRows() [][]interface{} {
 	results := make([][]interface{}, 0)
@@ -27,7 +29,7 @@ func (trades *Trades) Add(trade *Trade) {
 	*trades = append(*trades, *trade)
 }
 
-func (trades *Trades) Vwap() float64 {
+func (trades *Trades) Vwap() (Vwap, Volume) {
 	vwap := 0.0
 	volume := 0.0
 
@@ -57,7 +59,7 @@ func (trades *Trades) Vwap() float64 {
 		volume += tr.Volume
 	}
 
-	return vwap
+	return Vwap(vwap), Volume(volume)
 }
 
 func (trades *Trades) PL(currentPrice float64) Profit {
@@ -66,15 +68,15 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 	placedTrades := make(Trades, 0)
 
 	for _, tr := range *trades {
-		vwap := placedTrades.Vwap()
+		vwap, _ := placedTrades.Vwap()
 
 		if volume > 0 {
 			if tr.Side() == TradeTypeSell {
-				realizedPL += math.Abs(tr.Volume) * (tr.RequestedPrice - vwap)
+				realizedPL += math.Abs(tr.Volume) * (tr.RequestedPrice - float64(vwap))
 			}
 		} else if volume < 0 {
 			if tr.Side() == TradeTypeBuy {
-				realizedPL += math.Abs(tr.Volume) * (vwap - tr.RequestedPrice)
+				realizedPL += math.Abs(tr.Volume) * (float64(vwap) - tr.RequestedPrice)
 			}
 		} else {
 		}
@@ -84,16 +86,17 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 	}
 
 	floatingPL := 0.0
-	vwap := placedTrades.Vwap()
+	vwap, _ := placedTrades.Vwap()
 	if volume > 0 {
-		floatingPL = (currentPrice - vwap) * volume
+		floatingPL = (currentPrice - float64(vwap)) * volume
 	} else if volume < 0 {
-		floatingPL = (vwap - currentPrice) * math.Abs(volume)
+		floatingPL = (float64(vwap) - currentPrice) * math.Abs(volume)
 	} else {
 	}
 
 	return Profit{
 		Floating: floatingPL,
 		Realized: realizedPL,
+		Volume:   Volume(volume),
 	}
 }
