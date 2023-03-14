@@ -91,17 +91,21 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			log.Error(err)
 			return
 		}
-
-		if cmd == "/btc" {
+		log.Info("cmd: ", cmd)
+		if cmd == "/balance" {
 			trades, fetchErr := sheets.FetchTrades(ctx)
 			if fetchErr != nil {
-				log.Errorf("failed to fetch trades: %v", fetchErr)
+				errMsg := fmt.Sprintf("Failed to fetch coinbase btc price: %v", fetchErr)
+				log.Errorf(errMsg)
+				slack.SendResponse(errMsg, responseURL, true)
 				return
 			}
 
 			btcPrice, fetchErr := coingecko.FetchCoinbaseBTCPrice()
 			if fetchErr != nil {
-				slack.SendResponse(fmt.Sprintf("Failed to fetch coinbase btc price: %v", fetchErr), responseURL, true)
+				errMsg := fmt.Sprintf("Failed to fetch coinbase btc price: %v", fetchErr)
+				log.Errorf(errMsg)
+				slack.SendResponse(errMsg, responseURL, true)
 				return
 			}
 
