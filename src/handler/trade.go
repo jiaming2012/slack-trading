@@ -31,7 +31,7 @@ func parsePrice(input string) (float64, error) {
 
 func parseVolume(input string) (float64, error) {
 	if input[:1] == "+" || input[:1] == "-" {
-		val, err := strconv.ParseFloat(input[1:], 64)
+		val, err := strconv.ParseFloat(input, 64)
 		if err != nil {
 			return 0, err
 		}
