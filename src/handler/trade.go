@@ -92,7 +92,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cmd == "/balance" {
+		if cmd == "/btc" {
 			trades, fetchErr := sheets.FetchTrades(ctx)
 			if fetchErr != nil {
 				log.Errorf("failed to fetch trades: %v", fetchErr)
@@ -107,7 +107,10 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 
 			profit := trades.PL(btcPrice)
 			successMsg := fmt.Sprintf("Floating profit: %.2f\nRealized profit: %.2f", profit.Floating, profit.Realized)
-			slack.SendResponse(successMsg, responseURL, false)
+			slack.SendResponse(successMsg, responseURL, true)
+		} else {
+			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)
+			return
 		}
 
 	default:
@@ -149,6 +152,9 @@ func Trade(w http.ResponseWriter, r *http.Request) {
 			////rows, err := fetchRows(ctx, srv, spreadsheetId, "Sheet1", "A3:C7")
 
 			slack.SendResponse(fmt.Sprintf("%v successfully placed", trade), responseURL, false)
+		} else {
+			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)
+			return
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
