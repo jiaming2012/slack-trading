@@ -38,22 +38,22 @@ func (trades *Trades) Vwap() (Vwap, Volume) {
 
 		if volume > 0 {
 			if tr.Volume > 0 {
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.RequestedPrice)
+				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
 				if math.Abs(tr.Volume) > volume {
-					vwap = tr.RequestedPrice
+					vwap = tr.ExecutedPrice
 				}
 			}
 		} else if volume < 0 {
 			if tr.Volume < 0 {
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.RequestedPrice)
+				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
 				if tr.Volume > math.Abs(volume) {
-					vwap = tr.RequestedPrice
+					vwap = tr.ExecutedPrice
 				}
 			}
 		} else {
-			vwap = tr.RequestedPrice
+			vwap = tr.ExecutedPrice
 		}
 
 		volume += tr.Volume
@@ -72,11 +72,11 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 
 		if volume > 0 {
 			if tr.Side() == TradeTypeSell {
-				realizedPL += math.Abs(tr.Volume) * (tr.RequestedPrice - float64(vwap))
+				realizedPL += math.Abs(tr.Volume) * (tr.ExecutedPrice - float64(vwap))
 			}
 		} else if volume < 0 {
 			if tr.Side() == TradeTypeBuy {
-				realizedPL += math.Abs(tr.Volume) * (float64(vwap) - tr.RequestedPrice)
+				realizedPL += math.Abs(tr.Volume) * (float64(vwap) - tr.ExecutedPrice)
 			}
 		} else {
 		}
