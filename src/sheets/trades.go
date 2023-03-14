@@ -27,6 +27,7 @@ func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error
 	}
 
 	for _, row := range fetched {
+		fmt.Println("row: ", row)
 		timestampStr, ok := row[0].(string)
 		if !ok {
 			return nil, fmt.Errorf("failed to parse row[0]=%v", row[0])
