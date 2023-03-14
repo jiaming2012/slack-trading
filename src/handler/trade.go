@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/text/message"
 	"net/http"
 	"net/url"
 	"slack-trading/src/coingecko"
@@ -86,6 +87,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 
 		r.ParseForm()
 
+		p := message.NewPrinter(message.MatchLanguage("en"))
 		cmd, responseURL, err := validateForm(r.Form)
 		if err != nil {
 			log.Error(err)
@@ -110,7 +112,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			}
 
 			profit := trades.PL(btcPrice)
-			successMsg := fmt.Sprintf("Floating profit: %.2f\nRealized profit: %.2f", profit.Floating, profit.Realized)
+			successMsg := p.Sprintf("Floating profit: $%.2f\nRealized profit: $%.2f", profit.Floating, profit.Realized)
 			slack.SendResponse(successMsg, responseURL, true)
 		} else {
 			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)
