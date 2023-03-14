@@ -16,6 +16,7 @@ func (trades *Trades) ToRows() [][]interface{} {
 			tr.Symbol,
 			tr.Volume,
 			tr.RequestedPrice,
+			tr.ExecutedPrice,
 		})
 	}
 
