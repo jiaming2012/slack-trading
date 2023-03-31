@@ -24,7 +24,7 @@ func fetchPrice() (float64, error) {
 	return btcPrice, nil
 }
 
-func fiveMinuteTicker() *time.Ticker {
+func fiveMinuteTicker() *time.Timer {
 	// Current time
 	now := time.Now()
 
@@ -40,7 +40,7 @@ func fiveMinuteTicker() *time.Ticker {
 	diff := nextTick.Sub(time.Now())
 
 	// Return new ticker
-	return time.NewTicker(diff)
+	return time.NewTimer(diff)
 }
 
 func Run(initialPrice float64) {
