@@ -23,13 +23,13 @@ func fetchPrice() (float64, error) {
 	return btcPrice, nil
 }
 
-func minuteTicker() *time.Ticker {
+func fiveMinuteTicker() *time.Ticker {
 	// Current time
 	now := time.Now()
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	d = time.Second * time.Duration(60-now.Second())
+	d = time.Second * time.Duration(300-now.Second())
 
 	// Time of the next tick
 	nextTick := now.Add(d)
@@ -44,7 +44,7 @@ func minuteTicker() *time.Ticker {
 func Run(initialPrice float64) {
 	ctx := context.Background()
 	timer := time.NewTicker(timerFrequencyInSeconds * time.Second)
-	ticker := minuteTicker()
+	ticker := fiveMinuteTicker()
 	candle := models.NewCandle(initialPrice)
 
 	for {
@@ -70,7 +70,7 @@ func Run(initialPrice float64) {
 			}
 
 			candle = models.NewCandle(price)
-			ticker = minuteTicker()
+			ticker = fiveMinuteTicker()
 		}
 	}
 }
