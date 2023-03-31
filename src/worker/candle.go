@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"math"
 	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
@@ -29,7 +30,8 @@ func fiveMinuteTicker() *time.Ticker {
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	d = time.Second * time.Duration(300-now.Second())
+	minutes := math.Mod(float64(time.Now().Minute()), 5)
+	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
 
 	// Time of the next tick
 	nextTick := now.Add(d)
