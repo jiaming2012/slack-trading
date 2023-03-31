@@ -11,6 +11,29 @@ type Candle struct {
 	Close       float64
 }
 
+type Candles []Candle
+
+func (candles *Candles) ToRows() [][]interface{} {
+	results := make([][]interface{}, 0)
+
+	for _, c := range *candles {
+		results = append(results, []interface{}{
+			c.Timestamp.Format(time.RFC3339),
+			c.LastUpdated.Format(time.RFC3339),
+			c.Open,
+			c.High,
+			c.Low,
+			c.Close,
+		})
+	}
+
+	return results
+}
+
+func (candles *Candles) Add(candle *Candle) {
+	*candles = append(*candles, *candle)
+}
+
 func (c *Candle) Update(price float64) {
 	if price > c.High {
 		c.High = price
