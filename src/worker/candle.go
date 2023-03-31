@@ -24,13 +24,13 @@ func fetchPrice() (float64, error) {
 	return btcPrice, nil
 }
 
-func fiveMinuteTicker() *time.Timer {
+func fiveMinuteTimer() *time.Timer {
 	// Current time
 	now := time.Now()
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	minutes := math.Mod(float64(time.Now().Minute()), 5)
+	minutes := 4 - math.Mod(float64(time.Now().Minute()), 5)
 	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
 
 	// Time of the next tick
@@ -45,13 +45,13 @@ func fiveMinuteTicker() *time.Timer {
 
 func Run(initialPrice float64) {
 	ctx := context.Background()
-	timer := time.NewTicker(timerFrequencyInSeconds * time.Second)
-	ticker := fiveMinuteTicker()
+	ticker := time.NewTicker(timerFrequencyInSeconds * time.Second)
+	timer := fiveMinuteTimer()
 	candle := models.NewCandle(initialPrice)
 
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			price, err := fetchPrice()
 			if err != nil {
 				log.Error(fmt.Errorf("failed to fetch price during candle tick: %w", err))
@@ -60,7 +60,7 @@ func Run(initialPrice float64) {
 
 			fmt.Println("price: ", price)
 			candle.Update(price)
-		case <-ticker.C:
+		case <-timer.C:
 			price, err := fetchPrice()
 			if err != nil {
 				log.Error(fmt.Errorf("failed to fetch price during candle upload: %w", err))
@@ -72,7 +72,7 @@ func Run(initialPrice float64) {
 			}
 
 			candle = models.NewCandle(price)
-			ticker = fiveMinuteTicker()
+			timer = fiveMinuteTimer()
 		}
 	}
 }
