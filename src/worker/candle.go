@@ -8,6 +8,7 @@ import (
 	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
+	"strconv"
 	"time"
 )
 
@@ -43,27 +44,43 @@ func fiveMinuteTimer() *time.Timer {
 	return time.NewTimer(diff)
 }
 
-func Run(initialPrice float64) {
+func Run(tickerCh chan CoinbaseDTO) {
+	go WsTest(tickerCh)
+
 	ctx := context.Background()
-	ticker := time.NewTicker(timerFrequencyInSeconds * time.Second)
+	//ticker := time.NewTicker(timerFrequencyInSeconds * time.Second)
 	timer := fiveMinuteTimer()
+	ev := <-tickerCh
+	initialPriceStr := ev.Events[0].Tickers[0].Price
+	initialPrice, err := strconv.ParseFloat(initialPriceStr, 64)
+	if err != nil {
+		panic(err)
+	}
+
 	candle := models.NewCandle(initialPrice)
 
 	for {
 		select {
-		case <-ticker.C:
-			price, err := fetchPrice()
+		case t := <-tickerCh:
+			//price, err := fetchPrice()
+			//if err != nil {
+			//	log.Error(fmt.Errorf("failed to fetch price during candle tick: %w", err))
+			//	continue
+			//}
+			priceStr := t.Events[0].Tickers[0].Price
+			price, err := strconv.ParseFloat(priceStr, 64)
 			if err != nil {
-				log.Error(fmt.Errorf("failed to fetch price during candle tick: %w", err))
-				continue
+				panic(err)
 			}
 
 			fmt.Println("price: ", price)
 			candle.Update(price)
 		case <-timer.C:
-			price, err := fetchPrice()
+			ev2 := <-tickerCh
+			priceStr := ev2.Events[0].Tickers[0].Price
+			price, err := strconv.ParseFloat(priceStr, 64)
 			if err != nil {
-				log.Error(fmt.Errorf("failed to fetch price during candle upload: %w", err))
+				panic(err)
 			}
 
 			err = sheets.AppendCandle(ctx, candle)

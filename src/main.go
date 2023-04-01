@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"slack-trading/src/coingecko"
 	"slack-trading/src/handler"
 	"slack-trading/src/sheets"
 	"slack-trading/src/worker"
@@ -20,15 +19,17 @@ func main() {
 	ctx := context.Background()
 
 	// setup worker
-	initialPrice, err := coingecko.FetchCoinbaseBTCPrice()
-	if err != nil {
-		log.Panicf("failed to fetch price during init: %v", err)
-	}
+	//initialPrice, err := coingecko.FetchCoinbaseBTCPrice()
+	//if err != nil {
+	//	log.Panicf("failed to fetch price during init: %v", err)
+	//}
 
-	go worker.Run(initialPrice)
+	ch := make(chan worker.CoinbaseDTO)
+
+	go worker.Run(ch)
 
 	// setup google sheets
-	if err = sheets.Init(ctx); err != nil {
+	if err := sheets.Init(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize google sheets: %v", err))
 	}
 
