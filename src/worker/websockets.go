@@ -15,37 +15,57 @@ import (
 	"time"
 )
 
-//var addr = flag.String("addr", "localhost:8080", "http service address")
+func healthMonitor() {
 
-func WsTest(ch chan CoinbaseDTO) {
-	fmt.Println("ws test")
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+}
 
+func connect() (*websocket.Conn, error) {
 	u := url.URL{Scheme: "wss", Host: "advanced-trade-ws.coinbase.com", Path: "/"}
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		return nil, err
 	}
+
+	return c, nil
+}
+
+func WsTick(ch chan CoinbaseDTO) {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	c, ConnErr := connect()
+	if ConnErr != nil {
+		log.Fatal("dial:", ConnErr)
+	}
+
 	defer c.Close()
 
-	done := make(chan struct{})
-
 	go func() {
-		defer close(done)
 		for {
+			c.SetReadDeadline(time.Now().Add(15 * time.Second))
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				log.Error(err)
-				return
+
+				// Reconnect
+				newConn, newErr := connect()
+				if newErr != nil {
+					log.Errorf("failed to recconnect: %v", newErr)
+					continue
+				}
+
+				if e := c.Close(); e != nil {
+					log.Errorf("error closing old connection: %v", e)
+				}
+
+				c = newConn
 			}
 
 			var update CoinbaseDTO
-			log.Printf("msg: %s", message)
+
 			json.Unmarshal(message, &update)
-			log.Printf("recv: %v", update)
 			if update.Channel == "ticker" {
 				log.Println(len(update.Events), update.Events[0].Type)
 				log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)

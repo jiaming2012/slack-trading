@@ -45,10 +45,9 @@ func fiveMinuteTimer() *time.Timer {
 }
 
 func Run(tickerCh chan CoinbaseDTO) {
-	go WsTest(tickerCh)
+	go WsTick(tickerCh)
 
 	ctx := context.Background()
-	//ticker := time.NewTicker(timerFrequencyInSeconds * time.Second)
 	timer := fiveMinuteTimer()
 	ev := <-tickerCh
 	initialPriceStr := ev.Events[0].Tickers[0].Price
@@ -62,18 +61,12 @@ func Run(tickerCh chan CoinbaseDTO) {
 	for {
 		select {
 		case t := <-tickerCh:
-			//price, err := fetchPrice()
-			//if err != nil {
-			//	log.Error(fmt.Errorf("failed to fetch price during candle tick: %w", err))
-			//	continue
-			//}
 			priceStr := t.Events[0].Tickers[0].Price
 			price, err := strconv.ParseFloat(priceStr, 64)
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Println("price: ", price)
 			candle.Update(price)
 		case <-timer.C:
 			ev2 := <-tickerCh
@@ -88,6 +81,7 @@ func Run(tickerCh chan CoinbaseDTO) {
 				log.Error(err)
 			}
 
+			log.Info("recorded a new candle")
 			candle = models.NewCandle(price)
 			timer = fiveMinuteTimer()
 		}
