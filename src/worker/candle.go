@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kataras/go-events"
 	log "github.com/sirupsen/logrus"
+	"math"
 	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
@@ -32,10 +33,10 @@ func fiveMinuteTimer() *time.Timer {
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	//minutes := 4 - math.Mod(float64(time.Now().Minute()), 5)
+	minutes := 4 - math.Mod(float64(time.Now().Minute()), 5)
 	// todo: remove this
-	//d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
-	d = 10 * time.Second
+	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
+	//d = 10 * time.Second
 
 	// Time of the next tick
 	nextTick := now.Add(d)
