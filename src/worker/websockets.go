@@ -15,10 +15,6 @@ import (
 	"time"
 )
 
-func healthMonitor() {
-
-}
-
 func connect() (*websocket.Conn, error) {
 	u := url.URL{Scheme: "wss", Host: "advanced-trade-ws.coinbase.com", Path: "/"}
 	log.Printf("connecting to %s", u.String())
@@ -27,6 +23,10 @@ func connect() (*websocket.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	sub := Subscribe()
+
+	c.WriteJSON(sub)
 
 	return c, nil
 }
@@ -37,14 +37,14 @@ func WsTick(ch chan CoinbaseDTO) {
 
 	c, ConnErr := connect()
 	if ConnErr != nil {
-		log.Fatal("dial:", ConnErr)
+		log.Fatal("initial connect failed:", ConnErr)
 	}
 
 	defer c.Close()
 
 	go func() {
 		for {
-			c.SetReadDeadline(time.Now().Add(15 * time.Second))
+			c.SetReadDeadline(time.Now().Add(30 * time.Second))
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				log.Errorf("ReadMessage(): %v", err)
@@ -75,10 +75,6 @@ func WsTick(ch chan CoinbaseDTO) {
 			}
 		}
 	}()
-
-	sub := Subscribe()
-
-	c.WriteJSON(sub)
 
 	wg.Wait()
 }
