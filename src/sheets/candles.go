@@ -9,7 +9,7 @@ import (
 const btcUsdSheetName = "BTCUSD"
 
 func appendCandle(ctx context.Context, srv *sheets.Service, candle *models.Candle) error {
-	candles := make(models.Candles, 0)
+	candles := models.Candles{}
 	candles.Add(candle)
 	values := candles.ToRows()
 	return appendRows(ctx, srv, spreadsheetId, btcUsdSheetName, values)
