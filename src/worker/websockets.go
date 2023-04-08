@@ -47,7 +47,7 @@ func WsTick(ch chan CoinbaseDTO) {
 			c.SetReadDeadline(time.Now().Add(15 * time.Second))
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Error(err)
+				log.Errorf("ReadMessage(): %v", err)
 
 				// Reconnect
 				newConn, newErr := connect()
@@ -67,21 +67,16 @@ func WsTick(ch chan CoinbaseDTO) {
 
 			json.Unmarshal(message, &update)
 			if update.Channel == "ticker" {
-				log.Println(len(update.Events), update.Events[0].Type)
-				log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)
-				log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Volume24High)
+				//log.Println(len(update.Events), update.Events[0].Type)
+				//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)
+				//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Volume24High)
 
 				ch <- update
 			}
 		}
 	}()
 
-	fmt.Println(time.Now().Unix())
 	sub := Subscribe()
-	//jsonSub, err := json.Marshal(sub)
-	//if err != nil {
-	//	log.Error(err)
-	//}
 
 	c.WriteJSON(sub)
 
@@ -108,11 +103,6 @@ type CoinbaseDTO struct {
 	Events         []CoinbaseEventDTO `json:"events"`
 }
 
-/*
-strToSign:  1680318126tickerBTC-USD
-sig:  7585ccbd9d4297d3176c3799c80350c001018e1051780837b2f7fcc4c042d915
-*/
-
 func Subscribe() *WsSub {
 	const secret = "s2RceoHWEaLYxnaeOUm2tpmNLsELkaGy"
 	key := []byte(secret)
@@ -120,14 +110,10 @@ func Subscribe() *WsSub {
 	channel := "ticker"
 
 	ts := strconv.Itoa(int(time.Now().Unix()))
-	//ts := "1680318126"
 	strToSign := fmt.Sprintf("%s%s%s", ts, channel, strings.Join(productIDs, ","))
-	//fmt.Println("sS: ", strToSign)
 
 	h := hmac.New(sha256.New, key)
 	h.Write([]byte(strToSign))
-	//sig :=
-	//fmt.Println(sig)
 
 	return &WsSub{
 		Type:       "subscribe",

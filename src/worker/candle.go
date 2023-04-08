@@ -3,11 +3,13 @@ package worker
 import (
 	"context"
 	"fmt"
+	"github.com/kataras/go-events"
 	log "github.com/sirupsen/logrus"
 	"math"
 	"slack-trading/src/coingecko"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
+	"slack-trading/src/strategy"
 	"strconv"
 	"time"
 )
@@ -32,7 +34,9 @@ func fiveMinuteTimer() *time.Timer {
 	// Get the number of seconds until the next minute
 	var d time.Duration
 	minutes := 4 - math.Mod(float64(time.Now().Minute()), 5)
+	// todo: remove this
 	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
+	//d = 10 * time.Second
 
 	// Time of the next tick
 	nextTick := now.Add(d)
@@ -46,6 +50,7 @@ func fiveMinuteTimer() *time.Timer {
 
 func Run(tickerCh chan CoinbaseDTO) {
 	go WsTick(tickerCh)
+	go strategy.Worker()
 
 	ctx := context.Background()
 	timer := fiveMinuteTimer()
@@ -80,6 +85,9 @@ func Run(tickerCh chan CoinbaseDTO) {
 			if err != nil {
 				log.Error(err)
 			}
+
+			// emit event
+			events.Emit(models.NewM5Candle, candle)
 
 			log.Info("recorded a new candle")
 			candle = models.NewCandle(price)
