@@ -32,7 +32,7 @@ func fetchCandles(ctx context.Context, srv *sheets.Service) (*models.Candles, er
 		Period: 5,
 	}
 
-	fetched, err := fetchRows(ctx, srv, spreadsheetId, sheetName, "2:1010")
+	fetched, err := fetchRows(ctx, srv, spreadsheetId, btcUsdSheetName, "2:1010")
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +58,9 @@ func fetchCandles(ctx context.Context, srv *sheets.Service) (*models.Candles, er
 			return nil, timeErr
 		}
 
-		openPriceStr, ok := row[3].(string)
+		openPriceStr, ok := row[2].(string)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse row[3]=%v", row[3])
+			return nil, fmt.Errorf("failed to parse row[2]=%v", row[2])
 		}
 
 		openPrice, parseErr := strconv.ParseFloat(openPriceStr, 64)
@@ -68,9 +68,9 @@ func fetchCandles(ctx context.Context, srv *sheets.Service) (*models.Candles, er
 			return nil, parseErr
 		}
 
-		highPriceStr, ok := row[4].(string)
+		highPriceStr, ok := row[3].(string)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse row[4]=%v", row[4])
+			return nil, fmt.Errorf("failed to parse row[3]=%v", row[3])
 		}
 
 		highPrice, parseErr := strconv.ParseFloat(highPriceStr, 64)
@@ -78,9 +78,9 @@ func fetchCandles(ctx context.Context, srv *sheets.Service) (*models.Candles, er
 			return nil, parseErr
 		}
 
-		lowPriceStr, ok := row[5].(string)
+		lowPriceStr, ok := row[4].(string)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse row[5]=%v", row[5])
+			return nil, fmt.Errorf("failed to parse row[4]=%v", row[4])
 		}
 
 		lowPrice, parseErr := strconv.ParseFloat(lowPriceStr, 64)
@@ -88,9 +88,9 @@ func fetchCandles(ctx context.Context, srv *sheets.Service) (*models.Candles, er
 			return nil, parseErr
 		}
 
-		closePriceStr, ok := row[6].(string)
+		closePriceStr, ok := row[5].(string)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse row[6]=%v", row[6])
+			return nil, fmt.Errorf("failed to parse row[5]=%v", row[5])
 		}
 
 		closePrice, parseErr := strconv.ParseFloat(closePriceStr, 64)

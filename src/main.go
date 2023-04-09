@@ -18,20 +18,14 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// setup worker
-	//initialPrice, err := coingecko.FetchCoinbaseBTCPrice()
-	//if err != nil {
-	//	log.Panicf("failed to fetch price during init: %v", err)
-	//}
-
-	ch := make(chan worker.CoinbaseDTO)
-
-	go worker.Run(ch)
-
 	// setup google sheets
 	if err := sheets.Init(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize google sheets: %v", err))
 	}
+
+	// setup worker
+	ch := make(chan worker.CoinbaseDTO)
+	go worker.Run(ch)
 
 	// setup router
 	router := mux.NewRouter()
