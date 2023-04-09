@@ -25,13 +25,21 @@ func newCandleHandler(payload ...interface{}) {
 
 func m5RsiHandler(payload ...interface{}) {
 	rsi := indicators.NewRsi(14)
+	bollinger := indicators.NewBollingerBands(20, 2.0)
 	var val float64
+	var bollingerStat indicators.BollingerBandsStats
 
 	for _, c := range candles.Data {
 		val = rsi.Update(c)
+		_, _stats, err := bollinger.Update(c)
+		if err != nil {
+			log.Errorf("bollinger: %v", err)
+		}
+		bollingerStat = _stats
 	}
 
 	fmt.Println("M5 RSI: ", val)
+	fmt.Println("M5 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }
 
 func m15RsiHandler(payload ...interface{}) {
@@ -42,13 +50,21 @@ func m15RsiHandler(payload ...interface{}) {
 	}
 
 	rsi := indicators.NewRsi(14)
+	bollinger := indicators.NewBollingerBands(20, 2.0)
 	var val float64
+	var bollingerStat indicators.BollingerBandsStats
 
 	for _, c := range m15Candles.Data {
 		val = rsi.Update(c)
+		_, _stats, err := bollinger.Update(c)
+		if err != nil {
+			log.Errorf("bollinger: %v", err)
+		}
+		bollingerStat = _stats
 	}
 
 	fmt.Println("M15 RSI: ", val)
+	fmt.Println("M15 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }
 
 func Worker() {
