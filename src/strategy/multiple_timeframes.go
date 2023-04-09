@@ -27,6 +27,7 @@ func m5RsiHandler(payload ...interface{}) {
 	rsi := indicators.NewRsi(14)
 	bollinger := indicators.NewBollingerBands(20, 2.0)
 	var val float64
+	var lastPrice float64
 	var bollingerStat indicators.BollingerBandsStats
 
 	for _, c := range candles.Data {
@@ -36,8 +37,10 @@ func m5RsiHandler(payload ...interface{}) {
 			log.Errorf("bollinger: %v", err)
 		}
 		bollingerStat = _stats
+		lastPrice = c.Close
 	}
 
+	fmt.Println("M5 Last Price: ", lastPrice)
 	fmt.Println("M5 RSI: ", val)
 	fmt.Println("M5 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }
@@ -52,6 +55,7 @@ func m15RsiHandler(payload ...interface{}) {
 	rsi := indicators.NewRsi(14)
 	bollinger := indicators.NewBollingerBands(20, 2.0)
 	var val float64
+	var lastPrice float64
 	var bollingerStat indicators.BollingerBandsStats
 
 	for _, c := range m15Candles.Data {
@@ -61,8 +65,10 @@ func m15RsiHandler(payload ...interface{}) {
 			log.Errorf("bollinger: %v", err)
 		}
 		bollingerStat = _stats
+		lastPrice = c.Close
 	}
 
+	fmt.Println("M15 Last Price: ", lastPrice)
 	fmt.Println("M15 RSI: ", val)
 	fmt.Println("M15 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }
