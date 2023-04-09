@@ -1,11 +1,13 @@
 package strategy
 
 import (
+	"context"
 	"fmt"
 	"github.com/kataras/go-events"
 	log "github.com/sirupsen/logrus"
 	"slack-trading/src/indicators"
 	"slack-trading/src/models"
+	"slack-trading/src/sheets"
 )
 
 var rsiM5 *indicators.Rsi
@@ -50,7 +52,13 @@ func m15RsiHandler(payload ...interface{}) {
 }
 
 func Worker() {
-	candles.Period = 5
+	ctx := context.Background()
+	fetched, err := sheets.FetchCandles(ctx)
+	if err != nil {
+		log.Fatalf("failed to initiate worker: %v", err)
+	}
+
+	candles = *fetched
 	rsiM5 = indicators.NewRsi(14)
 	events.On(models.NewM5Candle, newCandleHandler)
 	events.On(models.M5CandleUpdate, m5RsiHandler)
