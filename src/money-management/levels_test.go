@@ -14,30 +14,70 @@ import (
 func TestAccount(t *testing.T) {
 	t.Run("fails if no levels are set", func(t *testing.T) {
 		_, err := NewAccount(1.0, 0.5, PriceLevels{})
-		assert.ErrorIs(t, err, LevelsNotSetErr)
+		assert.ErrorIs(t, err, models.LevelsNotSetErr)
 	})
 
 	t.Run("errors if maxLossPercentage is invalid", func(t *testing.T) {
 		_, err := NewAccount(1.0, -1, PriceLevels{
-			Values: []PriceLevel{{Price: 1.0}, {Price: 2.0}},
+			Values: []*PriceLevel{{Price: 1.0}, {Price: 2.0}},
 		})
-		assert.ErrorIs(t, err, MaxLossPercentErr)
+		assert.ErrorIs(t, err, models.MaxLossPercentErr)
 
 		_, err = NewAccount(1.0, 1.1, PriceLevels{
-			Values: []PriceLevel{{Price: 1.0}, {Price: 2.0}},
+			Values: []*PriceLevel{{Price: 1.0}, {Price: 2.0}},
 		})
-		assert.NotNil(t, err, MaxLossPercentErr)
+		assert.NotNil(t, err, models.MaxLossPercentErr)
 	})
 
 	t.Run("errors if price levels are not sorted", func(t *testing.T) {
 		_, err := NewAccount(1.0, 1.0, PriceLevels{
-			Values: []PriceLevel{{Price: 1.0}, {Price: 3.0}, {Price: 2.0}},
+			Values: []*PriceLevel{{Price: 1.0}, {Price: 3.0}, {Price: 2.0}},
 		})
-		assert.ErrorIs(t, err, PriceLevelsNotSortedErr)
+		assert.ErrorIs(t, err, models.PriceLevelsNotSortedErr)
 	})
 }
 
 func TestPlacingTrades(t *testing.T) {
+	balance := 10000.00
+	maxLossPerc := 0.05
+	priceLevels := PriceLevels{
+		Values: []*PriceLevel{
+			{
+				Price:             1.0,
+				NoOfTrades:        3,
+				AllocationPercent: 0.5,
+			},
+			{
+				Price:             2.0,
+				AllocationPercent: 0.5,
+			},
+		},
+	}
+
+	t.Run("can place a buy order", func(t *testing.T) {
+		account, err := NewAccount(balance, maxLossPerc, priceLevels)
+		assert.Nil(t, err)
+
+		assert.Len(t, *account.GetTrades(), 0)
+
+		err = account.PlaceOrder(models.TradeTypeBuy, 1.5, 1.0)
+		assert.Nil(t, err)
+
+		assert.Len(t, *account.GetTrades(), 1)
+	})
+
+	t.Run("can place a sell order", func(t *testing.T) {
+		account, err := NewAccount(balance, maxLossPerc, priceLevels)
+		assert.Nil(t, err)
+
+		assert.Len(t, *account.GetTrades(), 0)
+
+		err = account.PlaceOrder(models.TradeTypeSell, 1.5, 2.0)
+		assert.Nil(t, err)
+
+		assert.Len(t, *account.GetTrades(), 1)
+	})
+
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
 
 	})
@@ -55,7 +95,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("errors if too many trades place within price level", func(t *testing.T) {
-
+		// MaxTradesPerPriceLevelErr
 	})
 
 	t.Run("errors if placing a trade outside of range", func(t *testing.T) {
@@ -64,7 +104,7 @@ func TestPlacingTrades(t *testing.T) {
 		}
 
 		account, err := NewAccount(1000.00, 0.5, PriceLevels{
-			Values: []PriceLevel{
+			Values: []*PriceLevel{
 				{
 					Price: 1.0,
 				},
@@ -89,7 +129,7 @@ func TestPlacingTrades(t *testing.T) {
 		// failure case
 		trade.RequestedPrice = 2.2
 		err = account.CanPlaceTrade(trade)
-		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
+		assert.ErrorIs(t, err, models.PriceOutsideLimitsErr)
 	})
 }
 
