@@ -12,6 +12,10 @@ var PriceLevelsAllocationErr = fmt.Errorf("invalid price levels allocation")
 var InvalidStopLossErr = fmt.Errorf("invalid stop loss")
 var NoStopLossErr = fmt.Errorf("stop loss not set")
 var TradeVolumeIsZeroErr = fmt.Errorf("trade volume must be non zero")
+var NoOfTradeMustBeNonzeroErr = fmt.Errorf("number of trades for level with allocation must be greater than zero")
+var NoOfTradesMustBeZeroErr = fmt.Errorf("number of trades for a level with allocation of zero must also be zero")
+var NoClosePercentSetErr = fmt.Errorf("closing trades must have a closePercent set")
+var InvalidClosePercentErr = fmt.Errorf("close percent value must be be > 0 and <= 1")
 
 type ErrorDTO struct {
 	Msg string `json:"msg"`

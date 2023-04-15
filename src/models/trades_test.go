@@ -7,7 +7,7 @@ import (
 
 func TestProfit(t *testing.T) {
 	t.Run("profitable trades", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -25,7 +25,7 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("losing trades", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -53,7 +53,7 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("losing -> winning trades", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -81,14 +81,14 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("no trades", func(t *testing.T) {
-		trades := Trades([]Trade{})
+		trades := Trades([]*Trade{})
 		profit := trades.PL(1000.0)
 		assert.Equal(t, 0.0, profit.Realized)
 		assert.Equal(t, 0.0, profit.Floating)
 	})
 
 	t.Run("close an open trade", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -110,7 +110,7 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("floating profit long", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -126,7 +126,7 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("floating profit short", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        -1.0,
 				ExecutedPrice: 1000.0,
@@ -144,7 +144,7 @@ func TestProfit(t *testing.T) {
 
 func TestVwap(t *testing.T) {
 	t.Run("long and short trades", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -155,23 +155,25 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		vwap, volume := trades.Vwap()
+		vwap, volume, realizedPL := trades.Vwap()
 
 		assert.Equal(t, 0.5, volume)
 		assert.Equal(t, 1000.0, vwap)
+		assert.Equal(t, 50.0, realizedPL)
 	})
 
 	t.Run("no trades", func(t *testing.T) {
-		trades := Trades([]Trade{})
+		trades := Trades([]*Trade{})
 
-		vwap, volume := trades.Vwap()
+		vwap, volume, realizedPL := trades.Vwap()
 
 		assert.Equal(t, 0.0, volume)
 		assert.Equal(t, 0.0, vwap)
+		assert.Equal(t, 0.0, realizedPL)
 	})
 
 	t.Run("switch volume direction: long -> short", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        1.0,
 				ExecutedPrice: 1000.0,
@@ -186,14 +188,15 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		vwap, volume := trades.Vwap()
+		vwap, volume, realizedPL := trades.Vwap()
 
 		assert.Equal(t, -0.2, volume)
 		assert.Equal(t, 1200.0, vwap)
+		assert.Equal(t, 150.0, realizedPL)
 	})
 
 	t.Run("switch volume direction: short -> long", func(t *testing.T) {
-		trades := Trades([]Trade{
+		trades := Trades([]*Trade{
 			{
 				Volume:        -1.0,
 				ExecutedPrice: 1000.0,
@@ -208,9 +211,10 @@ func TestVwap(t *testing.T) {
 			},
 		})
 
-		vwap, volume := trades.Vwap()
+		vwap, volume, realizedPL := trades.Vwap()
 
 		assert.Equal(t, 0.5, volume)
 		assert.Equal(t, 1300.0, vwap)
+		assert.Equal(t, -300.0, realizedPL)
 	})
 }
