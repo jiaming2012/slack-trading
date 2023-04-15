@@ -113,7 +113,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			}
 
 			profit := trades.PL(btcPrice)
-			vwap, volume := trades.Vwap()
+			vwap, volume, _ := trades.Vwap()
 
 			// todo: remove profit.Volume in favor of volume
 			if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {

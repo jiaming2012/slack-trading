@@ -72,7 +72,7 @@ func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error
 			return nil, parseErr
 		}
 
-		trades = append(trades, models.Trade{
+		trades = append(trades, &models.Trade{
 			Time:           timestamp,
 			Symbol:         _symbol,
 			Volume:         volume,
