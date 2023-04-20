@@ -21,13 +21,25 @@ type Profit struct {
 	Volume   Volume
 }
 
+type TradeRequest struct {
+	Symbol   string
+	Type     TradeType
+	Price    float64
+	StopLoss float64
+}
+
+type TradeParameters struct {
+	PriceLevel *PriceLevel
+	MaxLoss    float64
+}
+
 type Trade struct {
 	ID             uuid.UUID
 	Symbol         string
 	Time           time.Time
 	Volume         float64
-	RequestedPrice float64
 	ExecutedPrice  float64
+	RequestedPrice float64
 	StopLoss       float64
 }
 

@@ -42,19 +42,23 @@ func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
 			if tr.Volume > 0 {
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
+				closeVolume := math.Min(volume, math.Abs(tr.Volume))
+				realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
+
 				if math.Abs(tr.Volume) > volume {
 					vwap = tr.ExecutedPrice
 				}
-				realizedPL += (tr.ExecutedPrice - vwap) * math.Abs(tr.Volume)
 			}
 		} else if volume < 0 {
 			if tr.Volume < 0 {
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
+				closeVolume := math.Min(math.Abs(volume), tr.Volume)
+				realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
+
 				if tr.Volume > math.Abs(volume) {
 					vwap = tr.ExecutedPrice
 				}
-				realizedPL += (vwap - tr.ExecutedPrice) * math.Abs(tr.Volume)
 			}
 		} else {
 			vwap = tr.ExecutedPrice
