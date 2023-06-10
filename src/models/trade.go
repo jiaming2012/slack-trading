@@ -101,3 +101,12 @@ func (tr *Trade) Execute(executedPrice float64) {
 func (tr *Trade) AutoExecute() {
 	tr.ExecutedPrice = tr.RequestedPrice
 }
+
+func NewTrade(requestedPrice float64) *Trade {
+	return &Trade{
+		ID:             uuid.New(),
+		Symbol:         "BTCUSD",
+		Time:           time.Now(),
+		RequestedPrice: requestedPrice,
+	}
+}

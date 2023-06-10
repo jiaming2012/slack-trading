@@ -67,6 +67,10 @@ func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
 		volume += tr.Volume
 	}
 
+	if volume == 0 {
+		vwap = 0
+	}
+
 	return Vwap(vwap), Volume(volume), RealizedPL(realizedPL)
 }
 

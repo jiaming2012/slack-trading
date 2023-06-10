@@ -2,10 +2,8 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"sync"
-	"time"
 )
 
 type Account struct {
@@ -67,6 +65,22 @@ func (a *Account) TradesRemaining(price float64) (int, TradeType) {
 	return 0, TradeTypeBuy
 }
 
+//func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*Trade, error) {
+//	if a.PriceLevels != nil {
+//		for _, level := range a.PriceLevels.Values {
+//			bulkCloseReq := BulkCloseRequest{
+//				Items:[]BulkCloseRequestItem{
+//					{
+//						Level: level,
+//						ClosePercent:
+//					},
+//				},
+//			}
+//			//level.
+//		}
+//	}
+//}
+
 func (a *Account) PlaceOrder(tradeType TradeType, currentPrice float64, stopLoss float64, closePercent float64) (*Trade, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -78,14 +92,7 @@ func (a *Account) PlaceOrder(tradeType TradeType, currentPrice float64, stopLoss
 		StopLoss: stopLoss,
 	}
 
-	// tradeReq.Validate()
-
-	newTrade := Trade{
-		ID:             uuid.New(),
-		Symbol:         "BTCUSD",
-		Time:           time.Now(),
-		RequestedPrice: currentPrice,
-	}
+	newTrade := NewTrade(currentPrice)
 
 	tradeParams, err := a.CanPlaceTrade(tradeReq)
 	if err != nil {
@@ -136,9 +143,9 @@ func (a *Account) PlaceOrder(tradeType TradeType, currentPrice float64, stopLoss
 		return nil, err
 	}
 
-	tradeParams.PriceLevel.Trades.Add(&newTrade)
+	tradeParams.PriceLevel.Trades.Add(newTrade)
 
-	return &newTrade, nil
+	return newTrade, nil
 }
 
 func (a *Account) CanPlaceTrade(tradeReq TradeRequest) (*TradeParameters, error) {
