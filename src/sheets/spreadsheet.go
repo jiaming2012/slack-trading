@@ -8,6 +8,24 @@ import (
 	"slack-trading/src/models"
 )
 
+func createSpreadsheet(ctx context.Context, srv *sheets.Service, title string) error {
+	// Create the new spreadsheet
+	spreadsheet := &sheets.Spreadsheet{
+		Properties: &sheets.SpreadsheetProperties{
+			Title: title,
+		},
+	}
+	spreadsheet, err := srv.Spreadsheets.Create(spreadsheet).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("unable to create spreadsheet: %v", err)
+	}
+
+	// Print the spreadsheet ID
+	fmt.Printf("Created new spreadsheet with ID: %s\n", spreadsheet.SpreadsheetId)
+
+	return nil
+}
+
 func appendRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, values [][]interface{}) error {
 	row := &sheets.ValueRange{
 		Values: values,
@@ -41,9 +59,30 @@ func updateRow(ctx context.Context, srv *sheets.Service, spreadsheetId string, s
 	}
 }
 
+func fetchLastXRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, numRows int64) (models.Rows, error) {
+	rangeString := fmt.Sprintf("%s!A:Z", sheetName)
+	resp, err := srv.Spreadsheets.Values.Get(spreadsheetId, rangeString).Do()
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve data from sheet: %v", err)
+	}
+
+	totalRows := int64(len(resp.Values))
+	startRow := totalRows - numRows
+	if startRow < 0 {
+		startRow = 0
+	}
+
+	rangeString = fmt.Sprintf("%s!A%d:Z", sheetName, startRow+1)
+	resp, err = srv.Spreadsheets.Values.Get(spreadsheetId, rangeString).Do()
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve data from sheet: %v", err)
+	}
+
+	return resp.Values, nil
+}
+
 func fetchRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, cells string) (models.Rows, error) {
 	sheetRange := fmt.Sprintf("%s!%s", sheetName, cells)
-
 	response, err := srv.Spreadsheets.Values.Get(spreadsheetId, sheetRange).Context(ctx).Do()
 	if err != nil || response.HTTPStatusCode != 200 {
 		return nil, err

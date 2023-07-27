@@ -96,7 +96,7 @@ type CoinbaseDTO struct {
 	ClientID       string             `json:"client_id"`
 	Timestamp      time.Time          `json:"timestamp"`
 	SequenceNumber int                `json:"sequence_num"`
-	Events         []CoinbaseEventDTO `json:"events"`
+	Events         []CoinbaseEventDTO `json:"eventmodels"`
 }
 
 func Subscribe() *WsSub {

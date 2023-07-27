@@ -13,3 +13,8 @@ Logs can be found via command:
 cd path/to/slack-trading
 heroku logs
 ```
+
+# Slack
+UI is administered via slack. Admin page can be found here: https://api.slack.com/apps/A03C4E2TA6M
+
+Events are sent to https://api.slack.com/apps/A03C4E2TA6M/event-subscriptions?

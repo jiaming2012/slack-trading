@@ -20,7 +20,7 @@ func main() {
 
 	// setup google sheets
 	if err := sheets.Init(ctx); err != nil {
-		panic(fmt.Errorf("failed to initialize google sheets: %v", err))
+		log.Fatalf("failed to initialize google sheets: %v", err)
 	}
 
 	// setup worker

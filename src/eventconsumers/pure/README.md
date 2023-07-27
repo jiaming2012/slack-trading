@@ -1,0 +1,1 @@
+Pure consumers subscribe to events and produce an event for every consumed event.
