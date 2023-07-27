@@ -3,7 +3,6 @@ package slack
 import (
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventpubsub"
 )
 
@@ -27,16 +26,14 @@ func TradeApiHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch cmd {
 	case "/btc":
-		trade, validationErr := parseBTCRequest(r.Form) // todo: refactor parseBTCRequest into service
+		tradeReq, validationErr := parseBTCRequest(r.Form)
 		if validationErr != nil {
 			log.Error(validationErr)
 			// todo: send event here
 			return
 		}
 
-		eventpubsub.Publish(eventpubsub.NewTradeRequestEvent, eventmodels.NewTradeRequestEvent{
-			Symbol: trade.Symbol,
-		})
+		eventpubsub.Publish(eventpubsub.TradeRequestEvent, tradeReq)
 	default:
 		log.Errorf("Unknown cmd: %v", cmd)
 		return

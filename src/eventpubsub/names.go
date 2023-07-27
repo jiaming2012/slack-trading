@@ -1,5 +1,6 @@
 package eventpubsub
 
 const (
-	NewTradeRequestEvent = "NewTradeRequestEvent"
+	TradeRequestEvent   = "TradeRequestEvent"
+	TradeFulfilledEvent = "TradeFulfilledEvent"
 )

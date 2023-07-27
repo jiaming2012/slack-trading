@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slack-trading/src/coingecko"
-	"slack-trading/src/models"
+	"slack-trading/src/eventmodels"
 	"strconv"
 	"strings"
 	"time"
@@ -37,41 +36,35 @@ func parseVolume(input string) (float64, error) {
 	return 0, errors.New("quantity symbol not found")
 }
 
-func parseBTCRequest(data url.Values) (models.Trade, error) {
+func parseBTCRequest(data url.Values) (eventmodels.TradeRequestEvent, error) {
 	paramsPayload, ok := data["text"]
 
 	if !ok {
-		return models.Trade{}, fmt.Errorf("Could not find text\n")
+		return eventmodels.TradeRequestEvent{}, fmt.Errorf("Could not find text\n")
 	}
 
 	if len(paramsPayload) != 1 {
-		return models.Trade{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
+		return eventmodels.TradeRequestEvent{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
 	}
 
 	params := strings.Fields(paramsPayload[0])
 
-	btcPrice, err := coingecko.FetchCoinbaseBTCPrice()
-	if err != nil {
-		return models.Trade{}, fmt.Errorf("failed to fetch coinbase btc price: %v", err)
-	}
-
-	trade := models.Trade{
-		Symbol:        "btc",
-		Time:          time.Now(),
-		ExecutedPrice: btcPrice,
+	tradeReq := eventmodels.TradeRequestEvent{
+		Timestamp: time.Now(),
+		Symbol:    "btc",
 	}
 
 	for _, param := range params {
 		if price, err := parsePrice(param); err == nil {
-			trade.RequestedPrice = price
+			tradeReq.Price = price
 		} else if volume, err := parseVolume(param); err == nil {
-			trade.Volume = volume
+			tradeReq.Volume = volume
 		} else {
-			return models.Trade{}, fmt.Errorf("failed to parse payload param: %v", param)
+			return eventmodels.TradeRequestEvent{}, fmt.Errorf("failed to parse payload param: %v", param)
 		}
 	}
 
-	return trade, nil
+	return tradeReq, nil
 }
 
 func validateForm(data url.Values) (string, string, error) {
