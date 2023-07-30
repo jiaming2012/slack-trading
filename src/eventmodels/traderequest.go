@@ -6,10 +6,11 @@ import (
 )
 
 type TradeRequestEvent struct {
-	Timestamp time.Time
-	Symbol    string
-	Price     float64
-	Volume    float64
+	Timestamp   time.Time
+	Symbol      string
+	Price       float64
+	Volume      float64
+	ResponseURL string
 }
 
 func (ev TradeRequestEvent) String() string {

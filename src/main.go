@@ -25,7 +25,7 @@ func main() {
 
 	// setup worker
 	ch := make(chan worker.CoinbaseDTO)
-	go worker.Run(ch)
+	go worker.Run(ctx, ch)
 
 	// setup router
 	router := mux.NewRouter()

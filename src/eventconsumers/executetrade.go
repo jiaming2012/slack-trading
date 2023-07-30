@@ -3,9 +3,9 @@ package eventconsumers
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	"slack-trading/src/coingecko"
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/worker"
 	"sync"
 	"time"
 )
@@ -15,27 +15,26 @@ type TradeExecutor struct {
 }
 
 func (r *TradeExecutor) executeTrade(tradeRequestEvent models.TradeRequestEvent) {
-	log.Debugf("TradeExecutor.executeTrade -> %v", tradeRequestEvent)
+	log.Debugf("TradeExecutor.executeTrade <- %v", tradeRequestEvent)
 
-	btcPrice, err := coingecko.FetchCoinbaseBTCPrice()
-	if err != nil {
-		panic(err)
-		//return models.TradeRequestEvent{}, fmt.Errorf("failed to fetch coinbase btc price: %v", err)
-	}
+	btcPriceCh := make(chan float64)
+	worker.FetchCurrentPrice(btcPriceCh)
+	btcPrice := <-btcPriceCh
 
-	pubsub.Publish(pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+	pubsub.Publish("TradeExecutor", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
 		Timestamp:      time.Now(),
 		Symbol:         tradeRequestEvent.Symbol,
 		RequestedPrice: tradeRequestEvent.Price,
 		ExecutedPrice:  btcPrice,
 		Volume:         tradeRequestEvent.Volume,
+		ResponseURL:    tradeRequestEvent.ResponseURL,
 	})
 }
 
 func (r *TradeExecutor) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe(pubsub.TradeRequestEvent, r.executeTrade)
+	pubsub.Subscribe("TradeExecutor", pubsub.TradeRequestEvent, r.executeTrade)
 
 	go func() {
 		defer r.wg.Done()

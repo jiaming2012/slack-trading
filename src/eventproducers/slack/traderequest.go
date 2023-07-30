@@ -16,24 +16,29 @@ func TradeApiHandler(w http.ResponseWriter, r *http.Request) {
 
 	cmd, responseURL, err := validateForm(r.Form)
 	if err != nil {
-		// todo: send event here
-		log.Error(err)
+		eventpubsub.PublishError("TradeApiHandler/validateForm", err)
 		return
 	}
 
-	// todo: send responseURL as or in an event?
-	log.Debugf("responseURL: %v", responseURL)
-
 	switch cmd {
-	case "/btc":
-		tradeReq, validationErr := parseBTCRequest(r.Form)
+	case "/balance":
+		symbol, validationErr := parseBalanceRequest(r.Form)
 		if validationErr != nil {
-			log.Error(validationErr)
-			// todo: send event here
+			eventpubsub.PublishError("TradeApiHandler/balance", validationErr)
 			return
 		}
 
-		eventpubsub.Publish(eventpubsub.TradeRequestEvent, tradeReq)
+		eventpubsub.Publish("TradeApiHandler/balance", eventpubsub.BalanceRequestEvent, symbol)
+
+	case "/btc":
+		tradeReq, validationErr := parseBTCTradeRequest(r.Form)
+		if validationErr != nil {
+			eventpubsub.PublishError("TradeApiHandler/btc", validationErr)
+			return
+		}
+
+		tradeReq.ResponseURL = responseURL
+		eventpubsub.Publish("TradeApiHandler/btc", eventpubsub.TradeRequestEvent, tradeReq)
 	default:
 		log.Errorf("Unknown cmd: %v", cmd)
 		return

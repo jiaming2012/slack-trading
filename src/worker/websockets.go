@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -31,7 +32,7 @@ func connect() (*websocket.Conn, error) {
 	return c, nil
 }
 
-func WsTick(ch chan CoinbaseDTO) {
+func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
@@ -43,35 +44,44 @@ func WsTick(ch chan CoinbaseDTO) {
 	defer c.Close()
 
 	go func() {
+		defer wg.Done()
+
 		for {
-			c.SetReadDeadline(time.Now().Add(30 * time.Second))
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Errorf("ReadMessage(): %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				c.SetReadDeadline(time.Now().Add(30 * time.Second))
+				_, message, err := c.ReadMessage()
+				if err != nil {
+					log.Errorf("ReadMessage(): %v", err)
 
-				// Reconnect
-				newConn, newErr := connect()
-				if newErr != nil {
-					log.Errorf("failed to recconnect: %v", newErr)
-					continue
+					// Reconnect
+					newConn, newErr := connect()
+					if newErr != nil {
+						log.Errorf("failed to recconnect: %v", newErr)
+						continue
+					}
+
+					if e := c.Close(); e != nil {
+						log.Errorf("error closing old connection: %v", e)
+					}
+
+					c = newConn
 				}
 
-				if e := c.Close(); e != nil {
-					log.Errorf("error closing old connection: %v", e)
+				var update CoinbaseDTO
+				json.Unmarshal(message, &update)
+				if update.Channel == "ticker" {
+					//if len(update.Events) > 0 {
+					//	log.Println(len(update.Events), update.Events[0].Type)
+					//}
+
+					//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)
+					//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Volume24High)
+
+					ch <- update
 				}
-
-				c = newConn
-			}
-
-			var update CoinbaseDTO
-
-			json.Unmarshal(message, &update)
-			if update.Channel == "ticker" {
-				//log.Println(len(update.Events), update.Events[0].Type)
-				//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)
-				//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Volume24High)
-
-				ch <- update
 			}
 		}
 	}()
@@ -96,7 +106,7 @@ type CoinbaseDTO struct {
 	ClientID       string             `json:"client_id"`
 	Timestamp      time.Time          `json:"timestamp"`
 	SequenceNumber int                `json:"sequence_num"`
-	Events         []CoinbaseEventDTO `json:"eventmodels"`
+	Events         []CoinbaseEventDTO `json:"events"`
 }
 
 func Subscribe() *WsSub {

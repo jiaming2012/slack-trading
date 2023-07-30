@@ -11,15 +11,21 @@ func Init() {
 	bus = EventBus.New()
 }
 
-func Publish(topic string, event interface{}) {
+func PublishError(publisherName string, err error) {
+	log.Error(err)
+	Publish(publisherName, Error, err)
+}
+
+func Publish(publisherName string, topic string, event interface{}) {
+	log.Debugf("[%v] Published to topic %s", publisherName, topic)
 	bus.Publish(topic, event)
 }
 
-func Subscribe(topic string, callbackFn interface{}) error {
+func Subscribe(subscriberName string, topic string, callbackFn interface{}) error {
 	if err := bus.SubscribeAsync(topic, callbackFn, false); err != nil {
 		return err
 	}
 
-	log.Infof("Subscribed to topic %s", topic)
+	log.Infof("[%v] Subscribed to topic %s", subscriberName, topic)
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventpubsub"
+	"slack-trading/src/sheets"
 	"sync"
 	"syscall"
 )
@@ -25,6 +26,11 @@ func main() {
 
 	// Set up event bus
 	eventpubsub.Init()
+
+	// Set up google sheets
+	if err := sheets.Init(ctx); err != nil {
+		panic(err)
+	}
 
 	// Setup router
 	port := os.Getenv("PORT")
@@ -58,7 +64,10 @@ func main() {
 	// Start event clients
 	eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
+	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
 	eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
+	eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
+	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
 
 	log.Info("Main: init complete")
 

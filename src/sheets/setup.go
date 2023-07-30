@@ -46,6 +46,6 @@ func setup(ctx context.Context) (*sheets.Service, *drive.Service, error) {
 
 func Init(ctx context.Context) error {
 	var err error
-	service, err = setup(ctx)
+	service, _, err = setup(ctx)
 	return err
 }

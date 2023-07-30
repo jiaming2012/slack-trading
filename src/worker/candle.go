@@ -2,15 +2,10 @@ package worker
 
 import (
 	"context"
-	"fmt"
-	"github.com/kataras/go-events"
 	log "github.com/sirupsen/logrus"
 	"math"
-	"slack-trading/src/coingecko"
-	"slack-trading/src/models"
-	"slack-trading/src/sheets"
-	"slack-trading/src/strategy"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -18,13 +13,24 @@ const (
 	timerFrequencyInSeconds = 6
 )
 
-func fetchPrice() (float64, error) {
-	btcPrice, fetchErr := coingecko.FetchCoinbaseBTCPrice()
-	if fetchErr != nil {
-		return 0, fmt.Errorf("failed to fetch coinbase btc price: %w", fetchErr)
-	}
+var currentPrice float64
+var mu sync.Mutex
 
-	return btcPrice, nil
+func FetchCurrentPrice(curPrice chan float64) {
+	go func() {
+		defer mu.Unlock()
+
+		for {
+			mu.Lock()
+
+			if currentPrice > 0 {
+				curPrice <- currentPrice
+				return
+			}
+			mu.Unlock()
+			time.Sleep(200 * time.Millisecond)
+		}
+	}()
 }
 
 func fiveMinuteTimer() *time.Timer {
@@ -48,50 +54,59 @@ func fiveMinuteTimer() *time.Timer {
 	return time.NewTimer(diff)
 }
 
-func Run(tickerCh chan CoinbaseDTO) {
-	go WsTick(tickerCh)
-	go strategy.Worker()
+func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 
-	ctx := context.Background()
-	timer := fiveMinuteTimer()
-	ev := <-tickerCh
-	initialPriceStr := ev.Events[0].Tickers[0].Price
-	initialPrice, err := strconv.ParseFloat(initialPriceStr, 64)
-	if err != nil {
-		panic(err)
-	}
+	go WsTick(ctx, tickerCh)
+	//go strategy.Worker()
 
-	candle := models.NewCandle(initialPrice)
+	//timer := fiveMinuteTimer()
+	//ev := <-tickerCh
+	//initialPriceStr := ev.Events[0].Tickers[0].Price
+	//initialPrice, err := strconv.ParseFloat(initialPriceStr, 64)
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	//candle := models.NewCandle(initialPrice)
 
 	for {
 		select {
+		case <-ctx.Done():
+			log.Info("stopping Coinbase producer")
+			return
 		case t := <-tickerCh:
-			priceStr := t.Events[0].Tickers[0].Price
-			price, err := strconv.ParseFloat(priceStr, 64)
-			if err != nil {
-				panic(err)
+			if len(t.Events) > 0 && len(t.Events[0].Tickers) > 0 {
+				priceStr := t.Events[0].Tickers[0].Price
+				price, err := strconv.ParseFloat(priceStr, 64)
+				if err != nil {
+					panic(err)
+				}
+
+				mu.Lock()
+				currentPrice = price
+				mu.Unlock()
 			}
 
-			candle.Update(price)
-		case <-timer.C:
-			ev2 := <-tickerCh
-			priceStr := ev2.Events[0].Tickers[0].Price
-			price, err := strconv.ParseFloat(priceStr, 64)
-			if err != nil {
-				panic(err)
-			}
-
-			err = sheets.AppendCandle(ctx, candle)
-			if err != nil {
-				log.Error(err)
-			}
-
-			// emit event
-			events.Emit(models.NewM5Candle, candle)
-
-			log.Info("recorded a new candle")
-			candle = models.NewCandle(price)
-			timer = fiveMinuteTimer()
+			//	candle.Update(price)
+			//case <-timer.C:
+			//	ev2 := <-tickerCh
+			//	priceStr := ev2.Events[0].Tickers[0].Price
+			//	price, err := strconv.ParseFloat(priceStr, 64)
+			//	if err != nil {
+			//		panic(err)
+			//	}
+			//
+			//	err = sheets.AppendCandle(ctx, candle)
+			//	if err != nil {
+			//		log.Error(err)
+			//	}
+			//
+			//	// emit event
+			//	events.Emit(models.NewM5Candle, candle)
+			//
+			//	log.Info("recorded a new candle")
+			//	candle = models.NewCandle(price)
+			//	timer = fiveMinuteTimer()
 		}
 	}
 }

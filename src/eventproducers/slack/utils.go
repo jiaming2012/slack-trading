@@ -36,7 +36,11 @@ func parseVolume(input string) (float64, error) {
 	return 0, errors.New("quantity symbol not found")
 }
 
-func parseBTCRequest(data url.Values) (eventmodels.TradeRequestEvent, error) {
+func parseBalanceRequest(data url.Values) (string, error) {
+	return "btc", nil
+}
+
+func parseBTCTradeRequest(data url.Values) (eventmodels.TradeRequestEvent, error) {
 	paramsPayload, ok := data["text"]
 
 	if !ok {
