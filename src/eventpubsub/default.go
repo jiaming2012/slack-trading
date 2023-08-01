@@ -17,7 +17,14 @@ func PublishError(publisherName string, err error) {
 }
 
 func Publish(publisherName string, topic string, event interface{}) {
-	log.Debugf("[%v] Published to topic %s", publisherName, topic)
+	PublishWithFlags(publisherName, topic, event, true)
+}
+
+func PublishWithFlags(publisherName string, topic string, event interface{}, logEvent bool) {
+	if logEvent {
+		log.Debugf("[%v] Published to topic %s", publisherName, topic)
+	}
+
 	bus.Publish(topic, event)
 }
 

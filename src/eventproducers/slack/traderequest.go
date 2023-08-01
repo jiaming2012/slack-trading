@@ -1,7 +1,7 @@
 package slack
 
 import (
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"net/http"
 	"slack-trading/src/eventpubsub"
 )
@@ -40,7 +40,8 @@ func TradeApiHandler(w http.ResponseWriter, r *http.Request) {
 		tradeReq.ResponseURL = responseURL
 		eventpubsub.Publish("TradeApiHandler/btc", eventpubsub.TradeRequestEvent, tradeReq)
 	default:
-		log.Errorf("Unknown cmd: %v", cmd)
+		cmdErr := fmt.Errorf("unknown cmd: %v", cmd)
+		eventpubsub.PublishError("TradeApiHandler/cmd", cmdErr)
 		return
 	}
 }

@@ -9,6 +9,7 @@ type Trades []*Trade
 type Vwap float64
 type Volume float64
 type RealizedPL float64
+type FloatingPL float64
 
 func (trades *Trades) ToRows() [][]interface{} {
 	results := make([][]interface{}, 0)

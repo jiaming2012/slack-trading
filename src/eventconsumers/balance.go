@@ -20,12 +20,12 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 
 	trades, fetchErr := sheets.FetchTrades(context.Background())
 	if fetchErr != nil {
-		panic(fetchErr)
+		pubsub.PublishError("BalanceWorker.calculateBalance", fetchErr)
+		return
 	}
 
-	// todo: make fetches async
-	var btcPriceCh chan float64
-	worker.FetchCurrentPrice(btcPriceCh)
+	// todo: make price and FetchTrades fetches async
+	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
 	profit := trades.PL(btcPrice)
@@ -37,7 +37,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 	}
 
 	pubsub.Publish("BalanceWorker", pubsub.BalanceResultEvent, models.Balance{
-		Floating: profit,
+		Floating: profit.Floating,
 		Realized: realizedPL,
 		Vwap:     vwap,
 		Volume:   volume,

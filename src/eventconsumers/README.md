@@ -1,0 +1,4 @@
+candle.go
+
+<- TickEvents
+-> CandleEvents

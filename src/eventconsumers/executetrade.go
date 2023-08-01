@@ -17,8 +17,7 @@ type TradeExecutor struct {
 func (r *TradeExecutor) executeTrade(tradeRequestEvent models.TradeRequestEvent) {
 	log.Debugf("TradeExecutor.executeTrade <- %v", tradeRequestEvent)
 
-	btcPriceCh := make(chan float64)
-	worker.FetchCurrentPrice(btcPriceCh)
+	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
 	pubsub.Publish("TradeExecutor", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
@@ -35,6 +34,7 @@ func (r *TradeExecutor) Start(ctx context.Context) {
 	r.wg.Add(1)
 
 	pubsub.Subscribe("TradeExecutor", pubsub.TradeRequestEvent, r.executeTrade)
+	//pubsub.Subscribe("BotTradeRequest")
 
 	go func() {
 		defer r.wg.Done()

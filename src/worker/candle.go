@@ -4,6 +4,8 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"math"
+	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventpubsub"
 	"strconv"
 	"sync"
 	"time"
@@ -16,7 +18,9 @@ const (
 var currentPrice float64
 var mu sync.Mutex
 
-func FetchCurrentPrice(curPrice chan float64) {
+func FetchCurrentPrice() chan float64 {
+	result := make(chan float64)
+
 	go func() {
 		defer mu.Unlock()
 
@@ -24,16 +28,18 @@ func FetchCurrentPrice(curPrice chan float64) {
 			mu.Lock()
 
 			if currentPrice > 0 {
-				curPrice <- currentPrice
+				result <- currentPrice
 				return
 			}
 			mu.Unlock()
 			time.Sleep(200 * time.Millisecond)
 		}
 	}()
+
+	return result
 }
 
-func fiveMinuteTimer() *time.Timer {
+func FiveMinuteTimer() *time.Timer {
 	// Current time
 	now := time.Now()
 
@@ -57,17 +63,9 @@ func fiveMinuteTimer() *time.Timer {
 func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 
 	go WsTick(ctx, tickerCh)
+
+	// todo: figure out if we need this?
 	//go strategy.Worker()
-
-	//timer := fiveMinuteTimer()
-	//ev := <-tickerCh
-	//initialPriceStr := ev.Events[0].Tickers[0].Price
-	//initialPrice, err := strconv.ParseFloat(initialPriceStr, 64)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//candle := models.NewCandle(initialPrice)
 
 	for {
 		select {
@@ -82,31 +80,16 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 					panic(err)
 				}
 
+				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.Tick{
+					Timestamp: time.Now(),
+					Price:     price,
+				}, false)
+
+				// todo: should this be moved to a separate service?
 				mu.Lock()
 				currentPrice = price
 				mu.Unlock()
 			}
-
-			//	candle.Update(price)
-			//case <-timer.C:
-			//	ev2 := <-tickerCh
-			//	priceStr := ev2.Events[0].Tickers[0].Price
-			//	price, err := strconv.ParseFloat(priceStr, 64)
-			//	if err != nil {
-			//		panic(err)
-			//	}
-			//
-			//	err = sheets.AppendCandle(ctx, candle)
-			//	if err != nil {
-			//		log.Error(err)
-			//	}
-			//
-			//	// emit event
-			//	events.Emit(models.NewM5Candle, candle)
-			//
-			//	log.Info("recorded a new candle")
-			//	candle = models.NewCandle(price)
-			//	timer = fiveMinuteTimer()
 		}
 	}
 }

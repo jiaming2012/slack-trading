@@ -6,7 +6,7 @@ import (
 )
 
 type Balance struct {
-	Floating models.Profit
+	Floating float64
 	Realized models.RealizedPL
 	Vwap     models.Vwap
 	Volume   models.Volume

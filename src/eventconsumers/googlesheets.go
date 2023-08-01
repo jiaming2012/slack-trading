@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
-	models2 "slack-trading/src/models"
+	modelsV1 "slack-trading/src/models"
 	"slack-trading/src/sheets"
 	"sync"
 )
@@ -16,10 +16,10 @@ type GoogleSheetsClient struct {
 	wg  *sync.WaitGroup
 }
 
-func (c *GoogleSheetsClient) writeToCSV(tradeFulfilledEvent models.TradeFulfilledEvent) {
+func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFulfilledEvent) {
 	log.Debugf("GoogleSheetsClient.writeToCSV <- %v", tradeFulfilledEvent)
 
-	err := sheets.AppendTrade(c.ctx, &models2.Trade{
+	err := sheets.AppendTrade(c.ctx, &modelsV1.Trade{
 		ID:             uuid.New(),
 		Symbol:         tradeFulfilledEvent.Symbol,
 		Time:           tradeFulfilledEvent.Timestamp,
@@ -30,14 +30,33 @@ func (c *GoogleSheetsClient) writeToCSV(tradeFulfilledEvent models.TradeFulfille
 	})
 
 	if err != nil {
-		panic(err)
+		pubsub.PublishError("GoogleSheetsClient.writeTradeToCSV", err)
+	}
+}
+
+func (c *GoogleSheetsClient) writeCandleToCSV(candle models.Candle) {
+	log.Debugf("GoogleSheetsClient.writeCandleToCSV <- %v", candle)
+
+	// todo: no need to go from Candle -> eventmodels.Candle -> Candle
+	err := sheets.AppendCandle(c.ctx, &modelsV1.Candle{
+		Timestamp:   candle.Timestamp,
+		LastUpdated: candle.LastUpdated,
+		Open:        candle.Open,
+		High:        candle.High,
+		Low:         candle.Low,
+		Close:       candle.Close,
+	})
+
+	if err != nil {
+		pubsub.PublishError("GoogleSheetsClient.writeCandleToCSV", err)
 	}
 }
 
 func (c *GoogleSheetsClient) Start() {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("GoogleSheetsClient", pubsub.TradeFulfilledEvent, c.writeToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", pubsub.TradeFulfilledEvent, c.writeTradeToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", pubsub.NewCandleEvent, c.writeCandleToCSV)
 
 	go func() {
 		defer c.wg.Done()
