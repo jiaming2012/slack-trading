@@ -26,7 +26,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 		Close:       candle.Close,
 	})
 
-	log.Debugf("rsi: %v", rsi)
+	log.Debugf("rsi: %v, prevRsi: %v", rsi, r.prevRsi)
 
 	if rsi > 0 {
 		if rsi <= 30 && r.prevRsi > 30 {
