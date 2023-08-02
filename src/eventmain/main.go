@@ -71,6 +71,7 @@ func main() {
 	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewRsiBotClient(&wg).Start(ctx)
+	eventconsumers.NewTradingBot(&wg).Start(ctx)
 
 	log.Info("Main: init complete")
 

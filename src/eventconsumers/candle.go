@@ -13,11 +13,15 @@ import (
 	"time"
 )
 
+const (
+	CandleInterval = 1
+)
+
 type CandleWorker struct {
-	wg      *sync.WaitGroup
-	candle  *models2.Candle
-	m5Timer *time.Timer
-	mu      sync.Mutex
+	wg     *sync.WaitGroup
+	candle *models2.Candle
+	timer  *time.Timer
+	mu     sync.Mutex
 }
 
 func (w *CandleWorker) calculateBalance(symbol string) {
@@ -63,11 +67,11 @@ func (w *CandleWorker) Update(tick models.Tick) {
 
 func (w *CandleWorker) resetParams() {
 	w.candle = nil
-	w.m5Timer = worker.FiveMinuteTimer()
+	w.timer = worker.MinuteTimer(CandleInterval)
 }
 
 func (w *CandleWorker) CreateNewCandle() {
-	log.Debug("CandleWorker::M5 CreateNewCandle")
+	log.Debug("CandleWorker:: CreateNewCandle")
 
 	if w.candle == nil {
 		log.Debug("CreateNewCandle::short circuit. candle not created")
@@ -101,8 +105,7 @@ func (w *CandleWorker) Start(ctx context.Context) {
 		defer w.wg.Done()
 		for {
 			select {
-			// todo: see if this is a problem when I create a new M5 timer
-			case <-w.m5Timer.C:
+			case <-w.timer.C:
 				w.CreateNewCandle()
 			case <-ctx.Done():
 				log.Info("stopping CandleWorker consumer")
@@ -113,11 +116,11 @@ func (w *CandleWorker) Start(ctx context.Context) {
 }
 
 func NewCandleWorkerClient(wg *sync.WaitGroup) *CandleWorker {
-	timer := worker.FiveMinuteTimer()
+	timer := worker.MinuteTimer(CandleInterval)
 
 	return &CandleWorker{
-		wg:      wg,
-		candle:  nil,
-		m5Timer: timer,
+		wg:     wg,
+		candle: nil,
+		timer:  timer,
 	}
 }

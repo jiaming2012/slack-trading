@@ -14,19 +14,38 @@ type TradeExecutor struct {
 	wg *sync.WaitGroup
 }
 
-func (r *TradeExecutor) executeTrade(tradeRequestEvent models.TradeRequestEvent) {
-	log.Debugf("TradeExecutor.executeTrade <- %v", tradeRequestEvent)
+func (r *TradeExecutor) executeTrade(request models.TradeRequestEvent) {
+	log.Debugf("TradeExecutor.executeTrade <- %v", request)
 
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	pubsub.Publish("TradeExecutor", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+	pubsub.Publish("TradeExecutor.executeTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
 		Timestamp:      time.Now(),
-		Symbol:         tradeRequestEvent.Symbol,
-		RequestedPrice: tradeRequestEvent.Price,
+		Symbol:         request.Symbol,
+		RequestedPrice: request.Price,
 		ExecutedPrice:  btcPrice,
-		Volume:         tradeRequestEvent.Volume,
-		ResponseURL:    tradeRequestEvent.ResponseURL,
+		Volume:         request.Volume,
+		ResponseURL:    request.ResponseURL,
+	})
+}
+
+func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
+	log.Debugf("TradeExecutor.executeBotTrade <- %v", request)
+
+	btcPriceCh := worker.FetchCurrentPrice()
+	btcPrice := <-btcPriceCh
+
+	// todo: this should go to Coinbase
+	request.Trade.Execute(btcPrice)
+
+	pubsub.Publish("TradeExecutor.executeBotTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+		Timestamp:      time.Now(),
+		Symbol:         request.Trade.Symbol,
+		RequestedPrice: request.Trade.RequestedPrice,
+		ExecutedPrice:  btcPrice,
+		Volume:         request.Trade.Volume,
+		ResponseURL:    WebhookURL,
 	})
 }
 
@@ -34,7 +53,7 @@ func (r *TradeExecutor) Start(ctx context.Context) {
 	r.wg.Add(1)
 
 	pubsub.Subscribe("TradeExecutor", pubsub.TradeRequestEvent, r.executeTrade)
-	//pubsub.Subscribe("BotTradeRequest")
+	pubsub.Subscribe("TradeExecutor", pubsub.BotTradeRequestEvent, r.executeBotTrade)
 
 	go func() {
 		defer r.wg.Done()

@@ -31,15 +31,17 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 	if rsi > 0 {
 		if rsi <= 30 && r.prevRsi > 30 {
 			pubsub.Publish("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
-				Value: rsi,
-				IsBuy: true,
+				Value:          rsi,
+				IsBuy:          true,
+				RequestedPrice: candle.Close,
 			})
 		}
 
 		if rsi >= 70 && r.prevRsi < 70 {
 			pubsub.Publish("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
-				Value: rsi,
-				IsBuy: false,
+				Value:          rsi,
+				IsBuy:          false,
+				RequestedPrice: candle.Close,
 			})
 		}
 	}

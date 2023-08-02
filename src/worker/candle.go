@@ -39,13 +39,14 @@ func FetchCurrentPrice() chan float64 {
 	return result
 }
 
-func FiveMinuteTimer() *time.Timer {
+func MinuteTimer(minuteInterval int) *time.Timer {
 	// Current time
 	now := time.Now()
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	minutes := 4 - math.Mod(float64(time.Now().Minute()), 5)
+	minutes := float64(minuteInterval-1) - math.Mod(float64(time.Now().Minute()), float64(minuteInterval))
+
 	// todo: remove this
 	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
 	//d = 10 * time.Second
