@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slack-trading/src/eventpubsub"
 	"slack-trading/src/handler"
 	"slack-trading/src/sheets"
 	"slack-trading/src/worker"
@@ -23,6 +24,9 @@ func main() {
 		log.Fatalf("failed to initialize google sheets: %v", err)
 	}
 
+	// setup pubsub
+	eventpubsub.Init()
+
 	// setup worker
 	ch := make(chan worker.CoinbaseDTO)
 	go worker.Run(ctx, ch)
@@ -37,6 +41,7 @@ func main() {
 	router.HandleFunc("/", handler.SlackApiEventHandler)
 	router.HandleFunc("/dataplane/token/balance", handler.Balance)
 	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
+	//router.HandleFunc("/trendspider", handler.TrendSpider)   -- moved to eventmain/main.go
 
 	srv := &http.Server{
 		Handler: router,

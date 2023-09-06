@@ -2,6 +2,7 @@ package models
 
 import "fmt"
 
+var NoRequestParams = fmt.Errorf("no request params found")
 var BalanceOutOfRangeErr = fmt.Errorf("balance is out of range")
 var LevelsNotSetErr = fmt.Errorf("at least two price levels must be set")
 var MaxLossPercentErr = fmt.Errorf("maxLossPercentage must be a value between 0 and 1")

@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
-	models "slack-trading/src/eventmodels"
+	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"sync"
 	"time"
@@ -16,14 +16,14 @@ import (
 
 // todo: add config
 const (
-	WebhookURL = "https://hooks.slack.com/services/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"
+	WebhookURL = "https://hooks.slack.com/services/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"
 )
 
 type SlackNotifierClient struct {
 	wg *sync.WaitGroup
 }
 
-func (c *SlackNotifierClient) sendTradeConfirmation(ev models.TradeFulfilledEvent) {
+func (c *SlackNotifierClient) tradeFulfilledHandler(ev eventmodels.TradeFulfilledEvent) {
 	log.Debugf("SlackNotifierClient.sendTradeConfirmation <- %v", ev)
 
 	msg := fmt.Sprintf("%.2f btc @%.8f successfully placed", ev.Volume, ev.ExecutedPrice)
@@ -34,7 +34,7 @@ func (c *SlackNotifierClient) sendTradeConfirmation(ev models.TradeFulfilledEven
 	}
 }
 
-func (c *SlackNotifierClient) sendBalance(balance models.Balance) {
+func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) {
 	log.Debugf("SlackNotifierClient.sendBalance <- %v", balance)
 
 	_, sendErr := sendResponse(balance.String(), WebhookURL, false)
@@ -52,11 +52,40 @@ func (c *SlackNotifierClient) sendError(err error) {
 	}
 }
 
+func (c *SlackNotifierClient) getAccountsResponseHandler(ev eventmodels.GetAccountsResponseEvent) {
+	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
+	var msg string
+
+	if len(ev.Accounts) == 0 {
+		msg = "No accounts available"
+	} else {
+		msg = "We got some accounts"
+	}
+
+	_, sendErr := sendResponse(msg, WebhookURL, false)
+	if sendErr != nil {
+		log.Error(sendErr)
+	}
+}
+
+func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccountResponseEvent) {
+	log.Debugf("SlackNotifierClient.addAccountResponseHandler <- %v", ev.Account)
+
+	msg := fmt.Sprintf("Successfully added account:\n%v", ev.Account.String())
+
+	_, sendErr := sendResponse(msg, WebhookURL, false)
+	if sendErr != nil {
+		log.Error(sendErr)
+	}
+}
+
 func (c *SlackNotifierClient) Start(ctx context.Context) {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("SlackNotifierClient", pubsub.BalanceResultEvent, c.sendBalance)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.TradeFulfilledEvent, c.sendTradeConfirmation)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.AddAccountResponseEvent, c.addAccountResponseHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.GetAccountsResponseEvent, c.getAccountsResponseHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.BalanceResultEvent, c.balanceResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.TradeFulfilledEvent, c.tradeFulfilledHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.Error, c.sendError)
 
 	go func() {
@@ -77,9 +106,12 @@ func NewSlackNotifierClient(wg *sync.WaitGroup) *SlackNotifierClient {
 	}
 }
 
+type block map[string]interface{}
+
 func sendResponse(msg string, url string, isEphemeral bool) ([]byte, error) {
 	body := make(map[string]interface{})
 	body["text"] = msg
+
 	if isEphemeral {
 		body["response_type"] = "ephemeral"
 	} else {
@@ -121,9 +153,9 @@ func postJSON(url string, body map[string]interface{}) ([]byte, error) {
 	}
 
 	if res.StatusCode >= 400 {
-		var errDTO models.ErrorDTO
+		var errDTO eventmodels.ErrorDTO
 		if jsonErr := json.Unmarshal(bodyBytes, &errDTO); jsonErr != nil {
-			return nil, fmt.Errorf("PostJSON (jsonErr): %w", jsonErr)
+			return nil, fmt.Errorf("PostJSON (jsonErr): %w. payload: %s", jsonErr, string(bodyBytes))
 		}
 
 		return nil, fmt.Errorf("errDTO.Msg: %v", errDTO.Msg)

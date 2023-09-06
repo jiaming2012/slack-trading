@@ -134,6 +134,24 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func TrendSpider(w http.ResponseWriter, r *http.Request) {
+	//switch r.Method {
+	//case "POST":
+	//	fmt.Println("Here we go")
+	//	var body interface{}
+	//	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	//		fmt.Printf("err: %v\n", err)
+	//		return
+	//	}
+	//
+	//	fmt.Println(bodyz)
+	//default:
+	//	w.WriteHeader(http.StatusMethodNotAllowed)
+	//	log.Errorf("tradeHandler: unsuppored method %s", r.Method)
+	//	fmt.Fprintf(w, "traderHandler: unsupported method")
+	//}
+}
+
 func Trade(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":

@@ -7,10 +7,15 @@ import (
 )
 
 type Account struct {
+	Name              string
 	Balance           float64
 	MaxLossPercentage float64
 	PriceLevels       *PriceLevels
 	mutex             sync.Mutex
+}
+
+func (a *Account) String() string {
+	return fmt.Sprintf("Name: %v, Starting Balance: $%.2f, Max Loss: $%.2f\n\n%v", a.Name, a.Balance, a.Balance*a.MaxLossPercentage, a.PriceLevels)
 }
 
 func (a *Account) GetTrades() *Trades {
@@ -66,8 +71,8 @@ func (a *Account) TradesRemaining(price float64) (int, TradeType) {
 }
 
 //func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*Trade, error) {
-//	if a.PriceLevels != nil {
-//		for _, level := range a.PriceLevels.Values {
+//	if a.PriceLevelsInput != nil {
+//		for _, level := range a.PriceLevelsInput.Values {
 //			bulkCloseReq := BulkCloseRequest{
 //				Items:[]BulkCloseRequestItem{
 //					{
@@ -184,7 +189,7 @@ func (a *Account) CanPlaceTrade(tradeReq TradeRequest) (*TradeParameters, error)
 	}, nil
 }
 
-func NewAccount(balance float64, maxLossPercentage float64, priceLevels PriceLevels) (*Account, error) {
+func NewAccount(name string, balance float64, maxLossPercentage float64, priceLevels PriceLevels) (*Account, error) {
 	if len(priceLevels.Values) < 2 {
 		return nil, LevelsNotSetErr
 	}
@@ -223,6 +228,7 @@ func NewAccount(balance float64, maxLossPercentage float64, priceLevels PriceLev
 	}
 
 	return &Account{
+		Name:              name,
 		Balance:           balance,
 		MaxLossPercentage: maxLossPercentage,
 		PriceLevels:       &priceLevels,

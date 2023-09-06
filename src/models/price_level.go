@@ -2,7 +2,11 @@ package models
 
 import (
 	"fmt"
+	"github.com/olekukonko/tablewriter"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"math"
+	"strings"
 )
 
 type PriceLevel struct {
@@ -63,6 +67,28 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 
 type PriceLevels struct {
 	Values []*PriceLevel
+}
+
+func (levels PriceLevels) String() string {
+	display := &strings.Builder{}
+	p := message.NewPrinter(language.English)
+
+	table := tablewriter.NewWriter(display)
+
+	table.SetAlignment(tablewriter.ALIGN_CENTER)
+	table.SetColumnSeparator("")
+	display.WriteString("Price Levels:\n")
+
+	for _, lvl := range levels.Values {
+		price := fmt.Sprintf("$%s", p.Sprintf("%.2f", lvl.Price))
+		noOfTrades := fmt.Sprintf("%d trades", lvl.NoOfTrades)
+		allocPercentage := fmt.Sprintf("%.0f%%", lvl.AllocationPercent*100)
+
+		table.Append([]string{price, noOfTrades, allocPercentage})
+	}
+
+	table.Render()
+	return display.String()
 }
 
 func (levels *PriceLevels) Validate() error {

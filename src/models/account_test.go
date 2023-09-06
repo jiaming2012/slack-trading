@@ -13,6 +13,7 @@ import (
 func TestAccount(t *testing.T) {
 	balance := 10000.00
 	maxLossPerc := 0.05
+	name := "Test Account"
 
 	t.Run("the last price level must have an allocation of zero", func(t *testing.T) {
 		priceLevels := PriceLevels{
@@ -30,7 +31,7 @@ func TestAccount(t *testing.T) {
 			},
 		}
 
-		_, err := NewAccount(1.0, 0.5, priceLevels)
+		_, err := NewAccount(name, 1.0, 0.5, priceLevels)
 
 		assert.ErrorIs(t, err, PriceLevelsLastAllocationErr)
 
@@ -40,30 +41,30 @@ func TestAccount(t *testing.T) {
 			AllocationPercent: 0,
 		})
 
-		_, err = NewAccount(1.0, 0.5, priceLevels)
+		_, err = NewAccount(name, 1.0, 0.5, priceLevels)
 
 		assert.Nil(t, err)
 	})
 
 	t.Run("fails if no levels are set", func(t *testing.T) {
-		_, err := NewAccount(1.0, 0.5, PriceLevels{})
+		_, err := NewAccount(name, 1.0, 0.5, PriceLevels{})
 		assert.ErrorIs(t, err, LevelsNotSetErr)
 	})
 
 	t.Run("errors if maxLossPercentage is invalid", func(t *testing.T) {
-		_, err := NewAccount(1.0, -1, PriceLevels{
+		_, err := NewAccount(name, 1.0, -1, PriceLevels{
 			Values: []*PriceLevel{{Price: 1.0}, {Price: 2.0}},
 		})
 		assert.ErrorIs(t, err, MaxLossPercentErr)
 
-		_, err = NewAccount(1.0, 1.1, PriceLevels{
+		_, err = NewAccount(name, 1.0, 1.1, PriceLevels{
 			Values: []*PriceLevel{{Price: 1.0}, {Price: 2.0}},
 		})
 		assert.NotNil(t, err, MaxLossPercentErr)
 	})
 
 	t.Run("errors if price levels are not sorted", func(t *testing.T) {
-		_, err := NewAccount(1.0, 1.0, PriceLevels{
+		_, err := NewAccount(name, 1.0, 1.0, PriceLevels{
 			Values: []*PriceLevel{{Price: 1.0, AllocationPercent: 1, NoOfTrades: 1}, {Price: 3.0}, {Price: 2.0}},
 		})
 		assert.ErrorIs(t, err, PriceLevelsNotSortedErr)
@@ -87,7 +88,7 @@ func TestAccount(t *testing.T) {
 			},
 		}
 
-		_, err := NewAccount(balance, maxLossPerc, _priceLevels)
+		_, err := NewAccount(name, balance, maxLossPerc, _priceLevels)
 		assert.ErrorIs(t, err, NoOfTradeMustBeNonzeroErr)
 	})
 
@@ -116,7 +117,7 @@ func TestAccount(t *testing.T) {
 			},
 		}
 
-		_, err := NewAccount(balance, maxLossPerc, _priceLevels1)
+		_, err := NewAccount(name, balance, maxLossPerc, _priceLevels1)
 		assert.Nil(t, err)
 
 		_priceLevels2 := PriceLevels{
@@ -144,7 +145,7 @@ func TestAccount(t *testing.T) {
 			},
 		}
 
-		_, err = NewAccount(balance, maxLossPerc, _priceLevels2)
+		_, err = NewAccount(name, balance, maxLossPerc, _priceLevels2)
 		assert.ErrorIs(t, err, NoOfTradesMustBeZeroErr)
 	})
 }
@@ -152,6 +153,8 @@ func TestAccount(t *testing.T) {
 func TestPlacingTrades(t *testing.T) {
 	balance := 10000.00
 	maxLossPerc := 0.05
+	name := "Test Placing Trades"
+
 	newPriceLevels := func() PriceLevels {
 		return PriceLevels{
 			Values: []*PriceLevel{
@@ -198,7 +201,7 @@ func TestPlacingTrades(t *testing.T) {
 	}
 
 	t.Run("can place a buy order", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
@@ -210,7 +213,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("can place a sell order", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
@@ -223,7 +226,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
 
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels2())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels2())
 		assert.Nil(t, err)
 
 		_, err = account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -263,7 +266,7 @@ func TestPlacingTrades(t *testing.T) {
 
 		curPrice := 1.5
 
-		account, err := NewAccount(balance, maxLossPerc, priceLevels)
+		account, err := NewAccount(name, balance, maxLossPerc, priceLevels)
 
 		_, err = account.PlaceOrder(TradeTypeBuy, curPrice, 1.0, -1)
 		assert.Nil(t, err)
@@ -279,7 +282,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to place additional trades in bands once previous trade is closed", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		curPrice := 1.5
 		assert.Nil(t, err)
 
@@ -307,7 +310,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("no stop loss required for closing trades", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels2())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels2())
 		assert.Nil(t, err)
 
 		_, err = account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -324,7 +327,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to close a trade outside of price bands", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		tr1, err := account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -351,7 +354,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("closing trades must have close percentage", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		_, err = account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -373,7 +376,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume increases in a specific band as winners increase", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		t1, err := account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -392,7 +395,7 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume decreases in a specific band as losers increase", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels())
 		assert.Nil(t, err)
 
 		t1, err := account.PlaceOrder(TradeTypeBuy, 1.5, 1.0, -1)
@@ -413,7 +416,7 @@ func TestPlacingTrades(t *testing.T) {
 	// todo: turn price level into price bands
 	t.Run("errors when too much money is lost within a price range", func(t *testing.T) {
 		var err error
-		account, err := NewAccount(balance, maxLossPerc, newPriceLevels2())
+		account, err := NewAccount(name, balance, maxLossPerc, newPriceLevels2())
 		assert.Nil(t, err)
 
 		for i := 0; i < 41; i++ { // i < 41 was chosen to make the test fail
@@ -434,6 +437,7 @@ func TestPlacingTrades(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	balance := 10000.00
 	maxLossPerc := 0.05
+	name := "Test Update"
 
 	t.Run("errors when a trade needs to be closed due to stop loss", func(t *testing.T) {
 		priceLevel := PriceLevels{
@@ -456,7 +460,7 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(balance, maxLossPerc, priceLevel)
+		account, err := NewAccount(name, balance, maxLossPerc, priceLevel)
 		assert.Nil(t, err)
 
 		closeReq := account.Update(1.5)
@@ -492,7 +496,7 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(balance, maxLossPerc, priceLevel)
+		account, err := NewAccount(name, balance, maxLossPerc, priceLevel)
 		assert.Nil(t, err)
 
 		curPrice := 100000.00
@@ -513,6 +517,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestTradeValidation(t *testing.T) {
+	name := "TestTradeValidation"
 	balance := 1000.00
 	maxLossPercentage := 0.5
 	newPriceLevels := func() PriceLevels {
@@ -543,7 +548,7 @@ func TestTradeValidation(t *testing.T) {
 	}
 
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
-		account, err := NewAccount(balance, maxLossPercentage, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPercentage, newPriceLevels())
 		_, err = account.PlaceOrder(TradeTypeBuy, 0.5, 0.1, -1)
 		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
 	})
@@ -553,7 +558,7 @@ func TestTradeValidation(t *testing.T) {
 			Price: 1.5,
 		}
 
-		account, err := NewAccount(balance, maxLossPercentage, newPriceLevels())
+		account, err := NewAccount(name, balance, maxLossPercentage, newPriceLevels())
 		assert.Nil(t, err)
 
 		_, err = account.CanPlaceTrade(trade)
