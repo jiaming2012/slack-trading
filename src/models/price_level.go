@@ -9,11 +9,24 @@ import (
 	"strings"
 )
 
+type PriceLevels struct {
+	Values []*PriceLevel
+}
+
 type PriceLevel struct {
 	Price             float64
-	NoOfTrades        int
+	MaxNoOfTrades     int
 	AllocationPercent float64 // the amount of Account.Balance allocated to this price level
 	Trades            *Trades
+	StopLoss          float64
+}
+
+func (p *PriceLevel) Validate() error {
+	if p.StopLoss <= 0 {
+		return NonPositiveStopLoss
+	}
+
+	return nil
 }
 
 func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
@@ -26,10 +39,10 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 	for _, t := range *p.Trades {
 		if t.Side() == TradeTypeBuy {
 			buysCount += 1
-			buyVolume += t.Volume
+			buyVolume += t.RequestedVolume
 		} else if t.Side() == TradeTypeSell {
 			sellsCount += 1
-			sellVolume += math.Abs(t.Volume)
+			sellVolume += math.Abs(t.RequestedVolume)
 		}
 	}
 
@@ -37,7 +50,7 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 	if buyVolume > sellVolume {
 		for _, t := range *p.Trades {
 			if t.Side() == TradeTypeBuy {
-				tradeVolume := t.Volume
+				tradeVolume := t.RequestedVolume
 				if sellVolume > 0 {
 					delta := math.Min(sellVolume, tradeVolume)
 					remainingVolume := tradeVolume - delta
@@ -62,11 +75,7 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 		side = TradeTypeBuy
 	}
 
-	return p.NoOfTrades - diff, side
-}
-
-type PriceLevels struct {
-	Values []*PriceLevel
+	return p.MaxNoOfTrades - diff, side
 }
 
 func (levels PriceLevels) String() string {
@@ -81,7 +90,7 @@ func (levels PriceLevels) String() string {
 
 	for _, lvl := range levels.Values {
 		price := fmt.Sprintf("$%s", p.Sprintf("%.2f", lvl.Price))
-		noOfTrades := fmt.Sprintf("%d trades", lvl.NoOfTrades)
+		noOfTrades := fmt.Sprintf("%d trades", lvl.MaxNoOfTrades)
 		allocPercentage := fmt.Sprintf("%.0f%%", lvl.AllocationPercent*100)
 
 		table.Append([]string{price, noOfTrades, allocPercentage})
@@ -104,8 +113,51 @@ func (levels *PriceLevels) Validate() error {
 	return nil
 }
 
-// todo: reeval if we need this
-type BalanceLevelStats struct {
-	TotalBalance float64
-	UsedBalance  float64
+func NewPriceLevels(levels []*PriceLevel) (*PriceLevels, error) {
+	for _, l := range levels {
+		if err := l.Validate(); err != nil {
+			return nil, err
+		}
+	}
+
+	if len(levels) < 2 {
+		return nil, LevelsNotSetErr
+	}
+
+	if levels[len(levels)-1].AllocationPercent != 0 {
+		return nil, PriceLevelsLastAllocationErr
+	}
+
+	prevPrice := 0.0
+	for _, level := range levels {
+		if level.Price <= 0 {
+			return nil, fmt.Errorf("NewPriceLevels: invalid price level, %v", level.Price)
+		}
+
+		if level.Price < prevPrice {
+			return nil, PriceLevelsNotSortedErr
+		}
+
+		if level.AllocationPercent > 0 && level.MaxNoOfTrades <= 0 {
+			return nil, NoOfTradeMustBeNonzeroErr
+		}
+
+		if level.AllocationPercent == 0 && level.MaxNoOfTrades > 0 {
+			return nil, NoOfTradesMustBeZeroErr
+		}
+
+		level.Trades = &Trades{}
+
+		prevPrice = level.Price
+	}
+
+	return &PriceLevels{
+		Values: levels,
+	}, nil
 }
+
+// todo: reeval if we need this
+//type BalanceLevelStats struct {
+//	TotalBalance float64
+//	UsedBalance  float64
+//}

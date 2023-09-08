@@ -44,7 +44,7 @@ func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
 		Symbol:         request.Trade.Symbol,
 		RequestedPrice: request.Trade.RequestedPrice,
 		ExecutedPrice:  btcPrice,
-		Volume:         request.Trade.Volume,
+		Volume:         request.Trade.RequestedVolume,
 		ResponseURL:    WebhookURL,
 	})
 }

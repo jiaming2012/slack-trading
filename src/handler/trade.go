@@ -64,7 +64,7 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 
 	trade := models.Trade{
 		Symbol:        "btc",
-		Time:          time.Now(),
+		Timestamp:     time.Now(),
 		ExecutedPrice: btcPrice,
 	}
 
@@ -72,7 +72,7 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 		if price, err := parsePrice(param); err == nil {
 			trade.RequestedPrice = price
 		} else if volume, err := parseVolume(param); err == nil {
-			trade.Volume = volume
+			trade.RequestedVolume = volume
 		} else {
 			return models.Trade{}, fmt.Errorf("failed to parse payload param: %v", param)
 		}
@@ -115,7 +115,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 			profit := trades.PL(btcPrice)
 			vwap, volume, _ := trades.Vwap()
 
-			// todo: remove profit.Volume in favor of volume
+			// todo: remove profit.RequestedVolume in favor of volume
 			if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {
 				log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 			}

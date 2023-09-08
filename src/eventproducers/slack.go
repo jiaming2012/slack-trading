@@ -16,7 +16,7 @@ type client struct {
 func (r *client) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	r.router.HandleFunc("/", slack.TradeApiHandler)
+	r.router.HandleFunc("/", slack.Handler)
 
 	go func() {
 		defer r.wg.Done()

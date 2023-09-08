@@ -8,13 +8,13 @@ import (
 func TestPriceLevel(t *testing.T) {
 	t.Run("test trades remaining", func(t *testing.T) {
 		priceLevel := PriceLevel{
-			NoOfTrades: 5,
+			MaxNoOfTrades: 5,
 			Trades: &Trades{
 				{
-					Volume: 1.0,
+					RequestedVolume: 1.0,
 				},
 				{
-					Volume: -1.0,
+					RequestedVolume: -1.0,
 				},
 			},
 		}
@@ -24,7 +24,7 @@ func TestPriceLevel(t *testing.T) {
 		assert.Equal(t, side, TradeTypeBuy)
 
 		priceLevel.Trades.Add(&Trade{
-			Volume: -1.0,
+			RequestedVolume: -1.0,
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()

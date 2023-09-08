@@ -51,7 +51,7 @@ func MinuteTimer(minuteInterval int) *time.Timer {
 	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
 	//d = 10 * time.Second
 
-	// Time of the next tick
+	// Timestamp of the next tick
 	nextTick := now.Add(d)
 
 	// Subtract next tick from now

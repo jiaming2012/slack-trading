@@ -72,7 +72,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 
 				var update CoinbaseDTO
 				json.Unmarshal(message, &update)
-				if update.Channel == "ticker" {
+				if update.Channel == "ticker" || update.Channel == "ticker_batch" {
 					//if len(update.Events) > 0 {
 					//	log.Println(len(update.Events), update.Events[0].Type)
 					//}
@@ -112,8 +112,10 @@ type CoinbaseDTO struct {
 func Subscribe() *WsSub {
 	const secret = "s2RceoHWEaLYxnaeOUm2tpmNLsELkaGy"
 	key := []byte(secret)
+
+	//todo: multiple productIDs and level2
 	productIDs := []string{"BTC-USD"}
-	channel := "ticker"
+	channel := "ticker_batch"
 
 	ts := strconv.Itoa(int(time.Now().Unix()))
 	strToSign := fmt.Sprintf("%s%s%s", ts, channel, strings.Join(productIDs, ","))

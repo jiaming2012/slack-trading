@@ -37,10 +37,10 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	profit := trades.PL(btcPrice)
+	profit := trades.PL(models2.Tick{Bid: btcPrice, Ask: btcPrice})
 	vwap, volume, realizedPL := trades.Vwap()
 
-	// todo: remove profit.Volume in favor of volume
+	// todo: remove profit.RequestedVolume in favor of volume
 	if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}

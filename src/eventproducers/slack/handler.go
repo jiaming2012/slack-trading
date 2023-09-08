@@ -7,7 +7,7 @@ import (
 	"slack-trading/src/eventpubsub"
 )
 
-func TradeApiHandler(w http.ResponseWriter, r *http.Request) {
+func Handler(w http.ResponseWriter, r *http.Request) {
 	// todo: should only be called from main slack handler
 	// it should be clear that the handler is from the trades channel in slack
 

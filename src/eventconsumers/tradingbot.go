@@ -100,9 +100,9 @@ func (b *TradingBot) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradingBot(wg *sync.WaitGroup) *TradingBot {
-	return &TradingBot{
-		wg:       wg,
-		strategy: models.NewStrategy("main"),
-	}
-}
+//func NewTradingBot(wg *sync.WaitGroup) *TradingBot {
+//	return &TradingBot{
+//		wg:       wg,
+//		strategy: models.NewStrategy("main"),
+//	}
+//}

@@ -16,9 +16,9 @@ func (trades *Trades) ToRows() [][]interface{} {
 
 	for _, tr := range *trades {
 		results = append(results, []interface{}{
-			tr.Time.Format(time.RFC3339),
+			tr.Timestamp.Format(time.RFC3339),
 			tr.Symbol,
-			tr.Volume,
+			tr.RequestedVolume,
 			tr.RequestedPrice,
 			tr.ExecutedPrice,
 		})
@@ -31,33 +31,39 @@ func (trades *Trades) Add(trade *Trade) {
 	*trades = append(*trades, trade)
 }
 
+func (trades *Trades) BulkAdd(newTrades *Trades) {
+	for _, t := range *newTrades {
+		trades.Add(t)
+	}
+}
+
 func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
 	vwap := 0.0
 	volume := 0.0
 	realizedPL := 0.0
 
 	for _, tr := range *trades {
-		tradeWeight := tr.Volume / (tr.Volume + volume)
+		tradeWeight := tr.RequestedVolume / (tr.RequestedVolume + volume)
 
 		if volume > 0 {
-			if tr.Volume > 0 {
+			if tr.RequestedVolume > 0 {
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
-				closeVolume := math.Min(volume, math.Abs(tr.Volume))
+				closeVolume := math.Min(volume, math.Abs(tr.RequestedVolume))
 				realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
 
-				if math.Abs(tr.Volume) > volume {
+				if math.Abs(tr.RequestedVolume) > volume {
 					vwap = tr.ExecutedPrice
 				}
 			}
 		} else if volume < 0 {
-			if tr.Volume < 0 {
+			if tr.RequestedVolume < 0 {
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
-				closeVolume := math.Min(math.Abs(volume), tr.Volume)
+				closeVolume := math.Min(math.Abs(volume), tr.RequestedVolume)
 				realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
 
-				if tr.Volume > math.Abs(volume) {
+				if tr.RequestedVolume > math.Abs(volume) {
 					vwap = tr.ExecutedPrice
 				}
 			}
@@ -65,7 +71,7 @@ func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
 			vwap = tr.ExecutedPrice
 		}
 
-		volume += tr.Volume
+		volume += tr.RequestedVolume
 	}
 
 	if volume == 0 {
@@ -75,7 +81,7 @@ func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
 	return Vwap(vwap), Volume(volume), RealizedPL(realizedPL)
 }
 
-func (trades *Trades) PL(currentPrice float64) Profit {
+func (trades *Trades) PL(tick Tick) Profit {
 	realizedPL := 0.0
 	volume := 0.0
 	placedTrades := make(Trades, 0)
@@ -84,25 +90,25 @@ func (trades *Trades) PL(currentPrice float64) Profit {
 		vwap, _, _ := placedTrades.Vwap()
 		if volume > 0 {
 			if tr.Side() == TradeTypeSell {
-				realizedPL += math.Abs(tr.Volume) * (tr.ExecutedPrice - float64(vwap))
+				realizedPL += math.Abs(tr.RequestedVolume) * (tr.ExecutedPrice - float64(vwap))
 			}
 		} else if volume < 0 {
 			if tr.Side() == TradeTypeBuy {
-				realizedPL += math.Abs(tr.Volume) * (float64(vwap) - tr.ExecutedPrice)
+				realizedPL += math.Abs(tr.RequestedVolume) * (float64(vwap) - tr.ExecutedPrice)
 			}
 		} else {
 		}
 
 		placedTrades.Add(tr)
-		volume += tr.Volume
+		volume += tr.RequestedVolume
 	}
 
 	floatingPL := 0.0
 	vwap, _, _ := placedTrades.Vwap()
 	if volume > 0 {
-		floatingPL = (currentPrice - float64(vwap)) * volume
+		floatingPL = (tick.Bid - float64(vwap)) * volume
 	} else if volume < 0 {
-		floatingPL = (float64(vwap) - currentPrice) * math.Abs(volume)
+		floatingPL = (float64(vwap) - tick.Ask) * math.Abs(volume)
 	} else {
 	}
 

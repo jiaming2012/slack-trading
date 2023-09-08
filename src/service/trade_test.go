@@ -8,23 +8,29 @@ import (
 
 func TestTradeService(t *testing.T) {
 	newAccount := func() *models.Account {
-		account, err := models.NewAccount(10000.0, 0.1, models.PriceLevels{
-			Values: []*models.PriceLevel{
-				{
-					Price:             1.0,
-					NoOfTrades:        2,
-					AllocationPercent: 1,
-				},
-				{
-					Price: 2.0,
-				},
-			},
-		})
+		account, err := models.NewAccount("test account", 10000.0)
 
 		assert.Nil(t, err)
 
 		return account
 	}
+
+	/*
+		priceLevels, err := models.NewPriceLevels(
+					[]*models.PriceLevel{
+						{
+							Price:             1.0,
+							MaxNoOfTrades:     2,
+							AllocationPercent: 1,
+						},
+						{
+							Price: 2.0,
+						},
+					},
+				)
+
+				assert.Nil(t, err)
+	*/
 
 	t.Run("open and close a buy order", func(t *testing.T) {
 		account := newAccount()
@@ -59,6 +65,6 @@ func TestTradeService(t *testing.T) {
 		vwap, volume, realizedPL = account.GetTrades().Vwap()
 		assert.Equal(t, models.Volume(0), volume)
 		assert.Equal(t, models.Vwap(0.0), vwap)
-		assert.Greater(t, models.RealizedPL(1.0), (p1-p2)*t1.Volume)
+		assert.Greater(t, models.RealizedPL(1.0), (p1-p2)*t1.RequestedVolume)
 	})
 }

@@ -73,11 +73,11 @@ func fetchTrades(ctx context.Context, srv *sheets.Service) (models.Trades, error
 		}
 
 		trades = append(trades, &models.Trade{
-			Time:           timestamp,
-			Symbol:         _symbol,
-			Volume:         volume,
-			RequestedPrice: requestedPrice,
-			ExecutedPrice:  executedPrice,
+			Timestamp:       timestamp,
+			Symbol:          _symbol,
+			RequestedVolume: volume,
+			RequestedPrice:  requestedPrice,
+			ExecutedPrice:   executedPrice,
 		})
 	}
 

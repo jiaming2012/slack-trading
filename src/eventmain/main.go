@@ -93,13 +93,49 @@ func main() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// todo: fetch from database
-	accountFixtures := []*models.Account{
-		{
-			Name:              "Playground",
-			Balance:           2000,
-			MaxLossPercentage: 0.25,
-			PriceLevels:       nil,
+	balance := 2000.0
+	priceLevels, err := models.NewPriceLevels(
+		[]*models.PriceLevel{
+			{
+				Price:             24000.0,
+				MaxNoOfTrades:     3,
+				AllocationPercent: 0.5,
+				StopLoss:          20000.0,
+			},
+			{
+				Price:             25000.0,
+				MaxNoOfTrades:     3,
+				AllocationPercent: 0.5,
+				StopLoss:          20000.0,
+			},
+			{
+				Price:             26000.0,
+				AllocationPercent: 0,
+				StopLoss:          20000.0,
+			},
 		},
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	accountFixture, err := models.NewAccount("Playground", balance)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	accountFixtures := []*models.Account{
+		accountFixture,
+	}
+
+	trendlineBreakStrategyFixture, err := models.NewStrategy("Trendline Break", balance, priceLevels)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
+		log.Fatal(err)
 	}
 
 	// Start event clients
@@ -112,7 +148,7 @@ func main() {
 	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewRsiBotClient(&wg).Start(ctx)
-	eventconsumers.NewTradingBot(&wg).Start(ctx)
+	//eventconsumers.NewTradingBot(&wg).Start(ctx)
 	//eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures).Start(ctx)
 	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)

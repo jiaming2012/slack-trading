@@ -9,16 +9,16 @@ func TestProfit(t *testing.T) {
 	t.Run("profitable trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 1100.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   1100.0,
 			},
 		})
 
-		profit := trades.PL(1300.0)
+		profit := trades.PL(Tick{Bid: 1300.0, Ask: 1300.0})
 
 		assert.Equal(t, 50.0, profit.Realized)
 		assert.Equal(t, 150.0, profit.Floating)
@@ -27,26 +27,26 @@ func TestProfit(t *testing.T) {
 	t.Run("losing trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 500.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   500.0,
 			},
 		})
 
-		profit := trades.PL(400.0)
+		profit := trades.PL(Tick{Bid: 400.0, Ask: 400.0})
 
 		assert.Equal(t, -250.0, profit.Realized)
 		assert.Equal(t, -300.0, profit.Floating)
 
 		trades.Add(&Trade{
-			Volume:        -0.5,
-			ExecutedPrice: 400.0,
+			RequestedVolume: -0.5,
+			ExecutedPrice:   400.0,
 		})
 
-		profit = trades.PL(400.0)
+		profit = trades.PL(Tick{Bid: 400.0, Ask: 400.0})
 
 		assert.Equal(t, -550.0, profit.Realized)
 		assert.Equal(t, 0.0, profit.Floating)
@@ -55,26 +55,26 @@ func TestProfit(t *testing.T) {
 	t.Run("losing -> winning trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 500.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   500.0,
 			},
 		})
 
-		profit := trades.PL(400.0)
+		profit := trades.PL(Tick{Bid: 400.0, Ask: 400.0})
 
 		assert.Equal(t, -250.0, profit.Realized)
 		assert.Equal(t, -300.0, profit.Floating)
 
 		trades.Add(&Trade{
-			Volume:        -0.3,
-			ExecutedPrice: 5000.0,
+			RequestedVolume: -0.3,
+			ExecutedPrice:   5000.0,
 		})
 
-		profit = trades.PL(5000.0)
+		profit = trades.PL(Tick{Bid: 5000.0, Ask: 5000.0})
 
 		assert.Equal(t, -250.0+1200.0, profit.Realized)
 		assert.Equal(t, 800.0, profit.Floating)
@@ -82,7 +82,7 @@ func TestProfit(t *testing.T) {
 
 	t.Run("no trades", func(t *testing.T) {
 		trades := Trades([]*Trade{})
-		profit := trades.PL(1000.0)
+		profit := trades.PL(Tick{Bid: 1000.0, Ask: 1000.0})
 		assert.Equal(t, 0.0, profit.Realized)
 		assert.Equal(t, 0.0, profit.Floating)
 	})
@@ -90,21 +90,21 @@ func TestProfit(t *testing.T) {
 	t.Run("close an open trade", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 		})
 
-		profit := trades.PL(2000.0)
+		profit := trades.PL(Tick{Bid: 2000.0, Ask: 2000.0})
 		assert.Equal(t, 0.0, profit.Realized)
 		assert.Equal(t, 1000.0, profit.Floating)
 
 		trades.Add(&Trade{
-			Volume:        -1.0,
-			ExecutedPrice: 2000.0,
+			RequestedVolume: -1.0,
+			ExecutedPrice:   2000.0,
 		})
 
-		profit = trades.PL(2000.0)
+		profit = trades.PL(Tick{Bid: 2000.0, Ask: 2000.0})
 		assert.Equal(t, 1000.0, profit.Realized)
 		assert.Equal(t, 0.0, profit.Floating)
 	})
@@ -112,15 +112,15 @@ func TestProfit(t *testing.T) {
 	t.Run("floating profit long", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        1.0,
-				ExecutedPrice: 2000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   2000.0,
 			},
 		})
-		profit := trades.PL(3000.0)
+		profit := trades.PL(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.Equal(t, 0.0, profit.Realized)
 		assert.Equal(t, 3000.0, profit.Floating)
 	})
@@ -128,15 +128,15 @@ func TestProfit(t *testing.T) {
 	t.Run("floating profit short", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        -1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: -1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -1.0,
-				ExecutedPrice: 2000.0,
+				RequestedVolume: -1.0,
+				ExecutedPrice:   2000.0,
 			},
 		})
-		profit := trades.PL(3000.0)
+		profit := trades.PL(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.Equal(t, 0.0, profit.Realized)
 		assert.Equal(t, -3000.0, profit.Floating)
 	})
@@ -146,12 +146,12 @@ func TestVwap(t *testing.T) {
 	t.Run("long and short trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 1100.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   1100.0,
 			},
 		})
 
@@ -175,16 +175,16 @@ func TestVwap(t *testing.T) {
 	t.Run("switch volume direction: long -> short", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: 1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 1100.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   1100.0,
 			},
 			{
-				Volume:        -0.7,
-				ExecutedPrice: 1500.0,
+				RequestedVolume: -0.7,
+				ExecutedPrice:   1500.0,
 			},
 		})
 
@@ -198,16 +198,16 @@ func TestVwap(t *testing.T) {
 	t.Run("switch volume direction: short -> long", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				Volume:        -1.0,
-				ExecutedPrice: 1000.0,
+				RequestedVolume: -1.0,
+				ExecutedPrice:   1000.0,
 			},
 			{
-				Volume:        1.7,
-				ExecutedPrice: 1300.0,
+				RequestedVolume: 1.7,
+				ExecutedPrice:   1300.0,
 			},
 			{
-				Volume:        -0.5,
-				ExecutedPrice: 1100.0,
+				RequestedVolume: -0.5,
+				ExecutedPrice:   1100.0,
 			},
 		})
 

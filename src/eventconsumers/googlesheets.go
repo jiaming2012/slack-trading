@@ -20,13 +20,13 @@ func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFul
 	log.Debugf("GoogleSheetsClient.writeToCSV <- %v", tradeFulfilledEvent)
 
 	err := sheets.AppendTrade(c.ctx, &modelsV1.Trade{
-		ID:             uuid.New(),
-		Symbol:         tradeFulfilledEvent.Symbol,
-		Time:           tradeFulfilledEvent.Timestamp,
-		Volume:         tradeFulfilledEvent.Volume,
-		ExecutedPrice:  tradeFulfilledEvent.ExecutedPrice,
-		RequestedPrice: tradeFulfilledEvent.RequestedPrice,
-		StopLoss:       0,
+		ID:              uuid.New(),
+		Symbol:          tradeFulfilledEvent.Symbol,
+		Timestamp:       tradeFulfilledEvent.Timestamp,
+		RequestedVolume: tradeFulfilledEvent.Volume,
+		ExecutedPrice:   tradeFulfilledEvent.ExecutedPrice,
+		RequestedPrice:  tradeFulfilledEvent.RequestedPrice,
+		StopLoss:        0,
 	})
 
 	if err != nil {
