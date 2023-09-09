@@ -11,6 +11,27 @@ type Volume float64
 type RealizedPL float64
 type FloatingPL float64
 
+func (trades *Trades) Copy() *Trades {
+	result := &Trades{}
+
+	for _, tr := range *trades {
+		result.Add(&Trade{
+			ID:              tr.ID,
+			Type:            tr.Type,
+			Symbol:          tr.Symbol,
+			Timestamp:       tr.Timestamp,
+			RequestedVolume: tr.RequestedVolume,
+			ExecutedVolume:  tr.ExecutedVolume,
+			ExecutedPrice:   tr.ExecutedPrice,
+			RequestedPrice:  tr.RequestedPrice,
+			StopLoss:        tr.StopLoss,
+			Offsets:         tr.Offsets,
+		})
+	}
+
+	return result
+}
+
 func (trades *Trades) ToRows() [][]interface{} {
 	results := make([][]interface{}, 0)
 

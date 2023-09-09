@@ -94,30 +94,24 @@ func main() {
 
 	// todo: fetch from database
 	balance := 2000.0
-	priceLevels, err := models.NewPriceLevels(
-		[]*models.PriceLevel{
-			{
-				Price:             24000.0,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
-				StopLoss:          20000.0,
-			},
-			{
-				Price:             25000.0,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
-				StopLoss:          20000.0,
-			},
-			{
-				Price:             26000.0,
-				AllocationPercent: 0,
-				StopLoss:          20000.0,
-			},
+	priceLevels := []*models.PriceLevel{
+		{
+			Price:             24000.0,
+			MaxNoOfTrades:     3,
+			AllocationPercent: 0.5,
+			StopLoss:          20000.0,
 		},
-	)
-
-	if err != nil {
-		log.Fatal(err)
+		{
+			Price:             25000.0,
+			MaxNoOfTrades:     3,
+			AllocationPercent: 0.5,
+			StopLoss:          20000.0,
+		},
+		{
+			Price:             26000.0,
+			AllocationPercent: 0,
+			StopLoss:          20000.0,
+		},
 	}
 
 	accountFixture, err := models.NewAccount("Playground", balance)
@@ -129,10 +123,25 @@ func main() {
 		accountFixture,
 	}
 
-	trendlineBreakStrategyFixture, err := models.NewStrategy("Trendline Break", balance, priceLevels)
+	trendlineBreakStrategyFixture, err := models.NewStrategy("Trendline Break", "BTC-USD", models.Down, balance, priceLevels)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	signal1 := models.TrendLineBreakSignal{
+		Name:      "htf trendline break",
+		Price:     25884.3, // todo: remove price from signal
+		Direction: models.Down,
+	}
+
+	signal2 := models.MovingAverageBreakSignal{
+		Name:      "small ma retrace",
+		Price:     27990.4,
+		Direction: models.Up,
+	}
+
+	trendlineBreakStrategyFixture.AddCondition(signal1)
+	trendlineBreakStrategyFixture.AddCondition(signal2)
 
 	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
 		log.Fatal(err)

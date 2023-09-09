@@ -9,7 +9,7 @@ type TrendLineBreakSignal struct {
 }
 
 func (s TrendLineBreakSignal) String() string {
-	return fmt.Sprintf("[%T] %v: %v @ %.2f", s, s.Name, s.Direction, s.Price)
+	return fmt.Sprintf("TrendLineBreakSignal - %v: %v @ %.2f", s.Name, s.Direction, s.Price)
 }
 
 func (s TrendLineBreakSignal) IsSatisfied(prices []Tick, trades Trades) bool {
@@ -23,7 +23,7 @@ type MovingAverageBreakSignal struct {
 }
 
 func (s MovingAverageBreakSignal) String() string {
-	return fmt.Sprintf("[%T] %v: %v @ %.2f", s, s.Name, s.Direction, s.Price)
+	return fmt.Sprintf("MovingAverageBreakSignal - %v: %v @ %.2f", s.Name, s.Direction, s.Price)
 }
 
 func (s MovingAverageBreakSignal) IsSatisfied(prices []Tick, trades Trades) bool {

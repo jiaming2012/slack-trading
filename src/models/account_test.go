@@ -171,29 +171,29 @@ func TestPlacingTrades(t *testing.T) {
 		err = account.AddStrategy(*strategy)
 		assert.Nil(t, err)
 
-		trade1, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
+		trade1, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade1)
-		assert.Nil(t, err)
-
-		trade2, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade2)
+		err = strategy.AutoExecuteOpenTradeRequest(trade1)
 		assert.Nil(t, err)
 
-		trade3, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
+		trade2, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade3)
+		err = strategy.AutoExecuteOpenTradeRequest(trade2)
+		assert.Nil(t, err)
+
+		trade3, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteOpenTradeRequest(trade3)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade4, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
+		trade4, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, 1.5, 1, 1.0)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade4)
+		err = strategy.AutoExecuteOpenTradeRequest(trade4)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade6, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, 3.5, 1, 1.0)
+		trade6, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, 3.5, 1, 1.0)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade6)
+		err = strategy.AutoExecuteOpenTradeRequest(trade6)
 		assert.Nil(t, err)
 	})
 
@@ -203,6 +203,7 @@ func TestPlacingTrades(t *testing.T) {
 				Price:             1.0,
 				MaxNoOfTrades:     2,
 				AllocationPercent: 1,
+				StopLoss:          1.5,
 			},
 			{
 				Price: 2.0,
@@ -211,6 +212,7 @@ func TestPlacingTrades(t *testing.T) {
 				Price:             3.0,
 				MaxNoOfTrades:     0,
 				AllocationPercent: 0.0,
+				StopLoss:          2.0,
 			},
 		}
 
@@ -226,29 +228,26 @@ func TestPlacingTrades(t *testing.T) {
 		err = account.AddStrategy(*strategy)
 		assert.Nil(t, err)
 
-		trade1, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
+		trade1, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade1)
-		assert.Nil(t, err)
-
-		trade2, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade2)
+		err = strategy.AutoExecuteOpenTradeRequest(trade1)
 		assert.Nil(t, err)
 
-		trade3, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
+		trade2, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade3)
+		err = strategy.AutoExecuteOpenTradeRequest(trade2)
 		assert.Nil(t, err)
 
-		trade4, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
+		trade3, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, requestedPrice, requestedVolume, sl)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade4)
+		err = strategy.AutoExecuteOpenTradeRequest(trade3)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade5, err := NewTrade(uuid.New(), TradeTypeClose, symbol, timestamp, requestedPrice, requestedVolume, sl)
+		//tradeReq, err := NewOpenTradeRequest(symbol, TradeTypeClose, requestedVolume, requestedPrice, sl)
+
+		trade4, err := NewTradeOpen(uuid.New(), TradeTypeClose, symbol, timestamp, requestedPrice, requestedVolume, sl)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade5)
+		err = strategy.AutoExecuteOpenTradeRequest(trade4)
 		assert.Nil(t, err)
 	})
 
@@ -263,28 +262,33 @@ func TestPlacingTrades(t *testing.T) {
 		err = account.AddStrategy(*strategy)
 		assert.Nil(t, err)
 
-		trade1, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
+		trade1, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade1)
+		err = strategy.AutoExecuteOpenTradeRequest(trade1)
 		assert.Nil(t, err)
 
-		trade2, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
+		trade2, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade2)
+		err = strategy.AutoExecuteOpenTradeRequest(trade2)
+		assert.Nil(t, err)
+
+		trade3, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteOpenTradeRequest(trade3)
 		assert.Nil(t, err)
 
 		tradesRemaining, side := strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 0, tradesRemaining)
 		assert.Equal(t, side, TradeTypeBuy)
 
-		trade3, err := NewTrade(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
+		trade4, err := NewTradeOpen(uuid.New(), TradeTypeBuy, symbol, timestamp, curPrice, 1.0, 1)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade3)
+		err = strategy.AutoExecuteOpenTradeRequest(trade4)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade4, err := NewTrade(uuid.New(), TradeTypeClose, symbol, timestamp, curPrice, 2.5, 1)
+		trade5, err := NewTradeOpen(uuid.New(), TradeTypeClose, symbol, timestamp, curPrice, 2.5, 1)
 		assert.Nil(t, err)
-		err = strategy.AutoExecuteTradeRequest(trade4)
+		err = strategy.AutoExecuteOpenTradeRequest(trade5)
 		assert.Nil(t, err)
 
 		tradesRemaining, side = strategy.TradesRemaining(curPrice)

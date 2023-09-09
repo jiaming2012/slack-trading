@@ -3,6 +3,7 @@ package eventconsumers
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
@@ -41,9 +42,9 @@ func (r *AccountWorker) addAccount(account *models.Account, balance float64, pri
 }
 
 func (r *AccountWorker) newOpenTradeRequest(accountName string, strategyName string, tradeType models.TradeType) (*models.OpenTradeRequest, error) {
-	account := r.getAccount(accountName)
-	if account == nil {
-		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account with name %v", accountName)
+	account, err := r.findAccount(accountName)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account: %w", err)
 	}
 
 	currentTick := r.tickMachine.Query()
@@ -56,14 +57,14 @@ func (r *AccountWorker) newOpenTradeRequest(accountName string, strategyName str
 	return openTradeRequest, nil
 }
 
-func (r *AccountWorker) getAccount(name string) *models.Account {
+func (r *AccountWorker) findAccount(name string) (*models.Account, error) {
 	for _, a := range r.accounts {
 		if name == a.Name {
-			return a
+			return a, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("AccountWorker.findAccount: could not find account with name %v", name)
 }
 
 func (r *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountRequestEvent) {
@@ -133,12 +134,56 @@ func (r *AccountWorker) update() {
 	}
 }
 
+// todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
+func (r *AccountWorker) handleNewCloseTradeRequest(event eventmodels.CloseTradeRequest) {
+	account, err := r.findAccount(event.AccountName)
+	if err != nil {
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to find account: %w", err))
+		return
+	}
+
+	strategy, err := account.FindStrategy(event.StrategyName)
+	if err != nil {
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to find strategy: %w", err))
+		return
+	}
+
+	priceLevel, err := strategy.GetPriceLevelByIndex(event.PriceLevelIndex)
+	if err != nil {
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to get price level by index: %w", err))
+		return
+	}
+
+	closeTradesRequest, err := account.PlaceOrderClose(priceLevel, event.Percent, event.Reason)
+
+	pubsub.Publish("AccountWorker.handleCloseTradeRequest", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradeRequest{
+		PriceLevel:         priceLevel,
+		CloseTradesRequest: closeTradesRequest,
+	})
+}
+
+func (r *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.ExecuteCloseTradeRequest) {
+	for _, req := range event.CloseTradesRequest {
+		marketPrice := r.tickMachine.Query().Bid
+
+		offsetTrade, err := models.NewTradeClose(uuid.New(), []*models.Trade{req.Trade}, time.Now(), marketPrice, req.Volume)
+		if err != nil {
+			pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", err)
+			return
+		}
+
+		event.PriceLevel.Add(offsetTrade)
+	}
+}
+
 func (r *AccountWorker) Start(ctx context.Context) {
 	r.wg.Add(1)
 
 	pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, r.addAccountRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, r.getAccountsRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, r.updateTickMachine)
+	pubsub.Subscribe("AccountWorker", pubsub.NewCloseTradesRequest, r.handleNewCloseTradeRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, r.handleExecuteCloseTradesRequest)
 
 	go func() {
 		defer r.wg.Done()

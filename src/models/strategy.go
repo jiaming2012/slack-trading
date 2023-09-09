@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"strings"
+	"sync"
 )
 
 type Strategy struct {
@@ -12,6 +12,11 @@ type Strategy struct {
 	PriceLevels *PriceLevels
 	Symbol      string
 	Direction   Direction
+	mutex       sync.Mutex
+}
+
+func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
+	return s.PriceLevels.GetByIndex(index)
 }
 
 func (s *Strategy) GetTrades() *Trades {
@@ -27,15 +32,7 @@ func (s *Strategy) GetTrades() *Trades {
 }
 
 func (s Strategy) String() string {
-	str := strings.Builder{}
-
-	str.WriteString(fmt.Sprintf("%v\n", s.Name))
-
-	for _, signal := range s.Conditions {
-		str.WriteString(signal.String() + "\n")
-	}
-
-	return str.String()
+	return s.Name
 }
 
 func (s *Strategy) TradesRemaining(price float64) (int, TradeType) {
@@ -101,16 +98,19 @@ func (s *Strategy) GetTradeType() TradeType {
 	}
 }
 
-func (s *Strategy) AutoExecuteTradeRequest(trade *Trade) error {
-	return s.ExecuteTradeRequest(trade, trade.RequestedPrice, trade.RequestedVolume)
+func (s *Strategy) AutoExecuteOpenTradeRequest(trade *Trade) error {
+	return s.ExecuteOpenTradeRequest(trade, trade.RequestedPrice, trade.RequestedVolume)
 }
 
-func (s *Strategy) ExecuteTradeRequest(trade *Trade, price float64, volume float64) error {
+func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume float64) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if err := trade.Validate(); err != nil {
 		return fmt.Errorf("ExecuteTradeRequest failed to Validate trade: %w", err)
 	}
 
-	if err := s.CanPlaceTrade(trade.RequestedPrice); err != nil {
+	if err := s.CanPlaceTrade(trade); err != nil {
 		return fmt.Errorf("ExecuteTradeRequest cannot place trade: %w", err)
 	}
 
@@ -128,8 +128,9 @@ func (s *Strategy) ExecuteTradeRequest(trade *Trade, price float64, volume float
 	return nil
 }
 
-func (s *Strategy) CanPlaceTrade(price float64) error {
-	priceLevel := s.findPriceLevel(price)
+func (s *Strategy) CanPlaceTrade2(tradeReq OpenTradeRequest) error {
+	priceLevel := s.findPriceLevel(tradeReq.Price)
+
 	if priceLevel == nil {
 		return PriceOutsideLimitsErr
 	}
@@ -147,6 +148,48 @@ func (s *Strategy) CanPlaceTrade(price float64) error {
 	} else if tradeType == TradeTypeSell {
 		if side == TradeTypeSell && tradesRemaining <= 0 {
 			return MaxTradesPerPriceLevelErr
+		}
+	}
+
+	_, _, realizedPL := priceLevel.Trades.Vwap()
+
+	maxPriceLevelLoss := s.Balance * priceLevel.AllocationPercent
+	maxTradeLoss := maxPriceLevelLoss / float64(priceLevel.MaxNoOfTrades)
+
+	if float64(realizedPL)+maxTradeLoss > maxPriceLevelLoss {
+		return MaxLossPriceBandErr
+	}
+
+	return nil
+	//return &TradeParameters{
+	//	PriceLevel: priceLevel,
+	//	MaxLoss:    maxTradeLoss,
+	//}, nil
+}
+
+func (s *Strategy) CanPlaceTrade(trade *Trade) error {
+	priceLevel := s.findPriceLevel(trade.RequestedPrice)
+	if priceLevel == nil {
+		return PriceOutsideLimitsErr
+	}
+
+	if priceLevel.MaxNoOfTrades <= 0 {
+		return MaxTradesPerPriceLevelErr
+	}
+
+	tradesRemaining, side := priceLevel.NewTradesRemaining()
+
+	if trade.Type != TradeTypeClose {
+		tradeType := s.GetTradeType()
+
+		if tradeType == TradeTypeBuy {
+			if side == TradeTypeBuy && tradesRemaining <= 0 {
+				return MaxTradesPerPriceLevelErr
+			}
+		} else if tradeType == TradeTypeSell {
+			if side == TradeTypeSell && tradesRemaining <= 0 {
+				return MaxTradesPerPriceLevelErr
+			}
 		}
 	}
 

@@ -37,7 +37,7 @@ type Trade struct {
 	ExecutedPrice   float64
 	RequestedPrice  float64
 	StopLoss        float64
-	Closes          []*Trade
+	Offsets         []*Trade
 }
 
 type ClosePercent float64
@@ -73,7 +73,7 @@ func (tr *Trade) Validate() error {
 	}
 
 	if tr.Symbol == "" {
-		return NoSymbolErr
+		return SymbolNotSetErr
 	}
 
 	if tr.Type != TradeTypeBuy && tr.Type != TradeTypeSell && tr.Type != TradeTypeClose {
@@ -108,6 +108,21 @@ func (tr *Trade) Validate() error {
 		return TradeVolumeIsZeroErr
 	}
 
+	if len(tr.Offsets) > 0 {
+		//ptr := Trades(tr.Offsets)
+		//trades := ptr.Copy()
+		//sort.Sort(trades)
+
+		totalOffsetVolume := 0.0
+		for i := 0; i < len(tr.Offsets); i += 1 {
+			totalOffsetVolume += tr.Offsets[i].ExecutedVolume
+
+			if totalOffsetVolume >= tr.RequestedVolume && i != len(tr.Offsets)-1 {
+				return OffsetTradesVolumeExceedsClosingTradeVolumeErr
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -123,7 +138,7 @@ func (tr *Trade) AutoExecute() {
 	tr.ExecutedVolume = tr.RequestedVolume
 }
 
-func NewTrade(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64) (*Trade, error) {
+func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade) (*Trade, error) {
 	trade := &Trade{
 		ID:              id,
 		Symbol:          symbol,
@@ -132,6 +147,7 @@ func NewTrade(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.T
 		RequestedPrice:  requestedPrice,
 		RequestedVolume: requestedVolume,
 		StopLoss:        stopLoss,
+		Offsets:         offsets,
 	}
 
 	if err := trade.Validate(); err != nil {
@@ -139,4 +155,23 @@ func NewTrade(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.T
 	}
 
 	return trade, nil
+}
+
+func NewTradeOpen(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64) (*Trade, error) {
+	return newTrade(id, tradeType, symbol, timestamp, requestedPrice, requestedVolume, stopLoss, nil)
+}
+
+func NewTradeClose(id uuid.UUID, trades []*Trade, timestamp time.Time, requestedPrice float64, requestedVolume float64) (*Trade, error) {
+	if len(trades) == 0 {
+		return nil, fmt.Errorf("NewTradeClose: %w", NoOffsettingTradeErr)
+	}
+
+	symbol := trades[0].Symbol
+	for _, tr := range trades[:1] {
+		if tr.Symbol != symbol {
+			return nil, fmt.Errorf("NewTradeClose: all trades must have the same symbol. Found %v and %v", tr.Symbol, symbol)
+		}
+	}
+
+	return newTrade(id, TradeTypeClose, symbol, timestamp, requestedPrice, requestedVolume, 0, trades)
 }

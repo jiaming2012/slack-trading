@@ -7,75 +7,23 @@ import (
 	"golang.org/x/text/message"
 	"math"
 	"strings"
+	"sync"
 )
 
 type PriceLevels struct {
 	Values []*PriceLevel
 }
 
-type PriceLevel struct {
-	Price             float64
-	MaxNoOfTrades     int
-	AllocationPercent float64 // the amount of Account.Balance allocated to this price level
-	Trades            *Trades
-	StopLoss          float64
-}
-
-func (p *PriceLevel) Validate() error {
-	if p.StopLoss <= 0 {
-		return NonPositiveStopLoss
+func (levels PriceLevels) GetByIndex(index int) (*PriceLevel, error) {
+	if index < 0 {
+		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: index must be greater than or equal to zero. Found %v", index)
 	}
 
-	return nil
-}
-
-func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
-	buysCount := 0
-	buyVolume := 0.0
-	sellVolume := 0.0
-	sellsCount := 0
-
-	// todo: null pointer check
-	for _, t := range *p.Trades {
-		if t.Side() == TradeTypeBuy {
-			buysCount += 1
-			buyVolume += t.RequestedVolume
-		} else if t.Side() == TradeTypeSell {
-			sellsCount += 1
-			sellVolume += math.Abs(t.RequestedVolume)
-		}
+	if index >= len(levels.Values) {
+		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: index must be less than total number of price levels of %v", len(levels.Values))
 	}
 
-	var diff = int(math.Abs(float64(buysCount) - float64(sellsCount)))
-	if buyVolume > sellVolume {
-		for _, t := range *p.Trades {
-			if t.Side() == TradeTypeBuy {
-				tradeVolume := t.RequestedVolume
-				if sellVolume > 0 {
-					delta := math.Min(sellVolume, tradeVolume)
-					remainingVolume := tradeVolume - delta
-					if remainingVolume > 0 {
-						buysCount += 1
-					}
-					sellVolume -= delta
-				}
-				buysCount += 1
-			}
-		}
-	} else if buyVolume < sellVolume {
-
-	} else {
-
-	}
-
-	var side TradeType
-	if sellVolume > buyVolume {
-		side = TradeTypeSell
-	} else {
-		side = TradeTypeBuy
-	}
-
-	return p.MaxNoOfTrades - diff, side
+	return levels.Values[index], nil
 }
 
 func (levels PriceLevels) String() string {
@@ -154,6 +102,79 @@ func NewPriceLevels(levels []*PriceLevel) (*PriceLevels, error) {
 	return &PriceLevels{
 		Values: levels,
 	}, nil
+}
+
+type PriceLevel struct {
+	Price             float64
+	MaxNoOfTrades     int
+	AllocationPercent float64 // the amount of Account.Balance allocated to this price level
+	Trades            *Trades
+	StopLoss          float64
+	mutex             sync.Mutex
+}
+
+func (p *PriceLevel) Add(trade *Trade) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.Add(trade)
+}
+
+func (p *PriceLevel) Validate() error {
+	if p.AllocationPercent > 0 && p.StopLoss <= 0 {
+		return NonPositiveStopLoss
+	}
+
+	return nil
+}
+
+func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
+	buysCount := 0
+	buyVolume := 0.0
+	sellVolume := 0.0
+	sellsCount := 0
+
+	// todo: null pointer check
+	for _, t := range *p.Trades {
+		if t.Side() == TradeTypeBuy {
+			buysCount += 1
+			buyVolume += t.RequestedVolume
+		} else if t.Side() == TradeTypeSell {
+			sellsCount += 1
+			sellVolume += math.Abs(t.RequestedVolume)
+		}
+	}
+
+	var diff = int(math.Abs(float64(buysCount) - float64(sellsCount)))
+	if buyVolume > sellVolume {
+		for _, t := range *p.Trades {
+			if t.Side() == TradeTypeBuy {
+				tradeVolume := t.RequestedVolume
+				if sellVolume > 0 {
+					delta := math.Min(sellVolume, tradeVolume)
+					remainingVolume := tradeVolume - delta
+					if remainingVolume > 0 {
+						buysCount += 1
+					}
+					sellVolume -= delta
+				}
+				buysCount += 1
+			}
+		}
+	} else if buyVolume < sellVolume {
+
+	} else {
+
+	}
+
+	var side TradeType
+	if sellVolume > buyVolume {
+		side = TradeTypeSell
+	} else {
+		side = TradeTypeBuy
+	}
+
+	return p.MaxNoOfTrades - diff, side
 }
 
 // todo: reeval if we need this

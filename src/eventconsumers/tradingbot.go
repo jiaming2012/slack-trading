@@ -15,7 +15,7 @@ type TradingBot struct {
 }
 
 func (b *TradingBot) placeTrade(signal eventmodels.RsiTradeSignal) {
-	//var t *models.Trade
+	//var t *models.PriceLevel
 	//var err error
 	//stopLossDistance := 3000.0
 	//
@@ -37,7 +37,7 @@ func (b *TradingBot) placeTrade(signal eventmodels.RsiTradeSignal) {
 	//}
 	//
 	//pubsub.Publish("TradingBot", pubsub.BotTradeRequestEvent, eventmodels.BotTradeRequestEvent{
-	//	Trade: t,
+	//	PriceLevel: t,
 	//})
 }
 

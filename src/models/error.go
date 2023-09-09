@@ -15,7 +15,8 @@ var MaxLossPriceBandErr = fmt.Errorf("the max loss within this price band has al
 var InvalidStopLossErr = fmt.Errorf("invalid stop loss")
 var NoStopLossErr = fmt.Errorf("stop loss not set for all non closing trades")
 var NegativeStopLossErr = fmt.Errorf("stop loss must be greater than or equal to zero")
-var NoSymbolErr = fmt.Errorf("symbol is not set")
+var NonPositiveStopLossErr = fmt.Errorf("stop loss must be greater than zero")
+var SymbolNotSetErr = fmt.Errorf("symbol is not set")
 var UnknownTradeTypeErr = fmt.Errorf("trade type is not set")
 var NoTradeIDErr = fmt.Errorf("trade ID is not set")
 var NoTimestampErr = fmt.Errorf("timestamp is not set")
@@ -27,6 +28,8 @@ var NoOfTradesMustBeZeroErr = fmt.Errorf("number of trades for a level with allo
 var NoClosePercentSetErr = fmt.Errorf("closing trades must have a closePercent set")
 var InvalidClosePercentErr = fmt.Errorf("close percent value must be be > 0 and <= 1")
 var BalanceGreaterThanZeroErr = fmt.Errorf("balance must be greater than zero")
+var OffsetTradesVolumeExceedsClosingTradeVolumeErr = fmt.Errorf("the sum of N-1 offsetting trades volume cannot be greater or equal to the closing trades volume")
+var NoOffsettingTradeErr = fmt.Errorf("closing trades must have at least one offsetting trade")
 
 type ErrorDTO struct {
 	Msg string `json:"msg"`

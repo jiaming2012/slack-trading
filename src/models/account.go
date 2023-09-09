@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 )
 
@@ -13,8 +14,34 @@ type Account struct {
 	mutex      sync.Mutex
 }
 
+/* todo: change account model:
+Account -> []*Strategy
+Strategy -> []*PriceLevel
+Trades is its own entity
+  -> each trade has *Account
+  -> each trade has *PriceLevel
+*/
+
 func (a *Account) String() string {
-	return fmt.Sprintf("Name: %v, Starting Balance: $%.2f, Strategies: %v", a.Name, a.Balance, a.Strategies)
+	var strategies string
+	if len(a.Strategies) == 0 {
+		strategies = "no strategies set"
+	} else {
+		var out strings.Builder
+
+		for i, s := range a.Strategies {
+			out.WriteString(fmt.Sprintf("        -> %d: %v\n", i+1, s.String()))
+
+			out.WriteString("          Entry Conditions:\n")
+			for i, cond := range s.Conditions {
+				out.WriteString(fmt.Sprintf("               -> %d: %v\n", i, cond.String()))
+			}
+		}
+
+		strategies = out.String()
+	}
+
+	return fmt.Sprintf("Name: %v\n     Starting Balance: $%.2f, \n     Strategies:\n%s", a.Name, a.Balance, strategies)
 }
 
 func (a *Account) GetTrades() *Trades {
@@ -28,23 +55,25 @@ func (a *Account) GetTrades() *Trades {
 }
 
 func (a *Account) Update(price float64) CloseTradesRequest {
-	requests := make([]CloseTradeRequest, 0)
+	requests := make([]*CloseTradeRequest, 0)
 
 	for _, trade := range *a.GetTrades() {
 		if trade.Side() == TradeTypeBuy {
 			if price <= trade.StopLoss {
-				requests = append(requests, CloseTradeRequest{
+				requests = append(requests, &CloseTradeRequest{
 					Trade:  trade,
 					Reason: "SL",
+					Volume: trade.ExecutedVolume,
 				})
 			}
 		}
 
 		if trade.Side() == TradeTypeSell {
 			if price >= trade.StopLoss {
-				requests = append(requests, CloseTradeRequest{
+				requests = append(requests, &CloseTradeRequest{
 					Trade:  trade,
 					Reason: "SL",
+					Volume: trade.ExecutedVolume,
 				})
 			}
 		}
@@ -57,7 +86,7 @@ func (a *Account) Update(price float64) CloseTradesRequest {
 	return nil
 }
 
-//func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*Trade, error) {
+//func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*PriceLevel, error) {
 //	if a.PriceLevelsInput != nil {
 //		for _, level := range a.PriceLevelsInput.Values {
 //			bulkCloseReq := BulkCloseRequest{
@@ -142,7 +171,7 @@ strategyName is the name of the strategy to close
 priceLevelIndex is an integer between zero and the number of price levels that we wish to close
 closePercent is the percentage of trades to close. Trades will be closed either by FIFO or LIFO
 */
-func (a *Account) PlaceOrderClose(strategyName string, priceLevelIndex int, closePercentage float64, reason string) (CloseTradesRequest, error) {
+func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float64, reason string) (CloseTradesRequest, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -153,26 +182,11 @@ func (a *Account) PlaceOrderClose(strategyName string, priceLevelIndex int, clos
 		return nil, fmt.Errorf("PlaceOrderClose: %w", err)
 	}
 
-	strategy, err := a.FindStrategy(strategyName)
-	if err != nil {
-		return nil, fmt.Errorf("Account.PlaceOrderClose: failed to find strategy: %w", err)
-	}
-
-	if priceLevelIndex < 0 {
-		return nil, fmt.Errorf("Account.PlaceOrderClose: priceLevelIndex must be greater than zero")
-	}
-
-	if priceLevelIndex >= len(strategy.PriceLevels.Values) {
-		return nil, fmt.Errorf("Account.PlaceOrderClose: priceLevelIndex must be less than or equal to the number of price levels (%v) for strategy %v", len(strategy.PriceLevels.Values), strategy.Name)
-	}
-
-	priceLevel := strategy.PriceLevels.Values[priceLevelIndex]
-
 	_, v, _ := priceLevel.Trades.Vwap()
 	vol := math.Abs(float64(v))
 	targetVolume := vol * float64(closePercent)
 
-	var tradeCloseRequests []CloseTradeRequest
+	var closeTradesRequests []*CloseTradeRequest
 	switch closeMethod {
 	case FIFO:
 		reducedVolume := 0.0
@@ -190,10 +204,10 @@ func (a *Account) PlaceOrderClose(strategyName string, priceLevelIndex int, clos
 				_closePercentage = remainingCloseVolume
 			}
 
-			tradeCloseRequests = append(tradeCloseRequests, CloseTradeRequest{
-				Trade:      tr,
-				Reason:     reason,
-				Percentage: _closePercentage,
+			closeTradesRequests = append(closeTradesRequests, &CloseTradeRequest{
+				Trade:  tr,
+				Reason: reason,
+				Volume: tr.ExecutedVolume * _closePercentage,
 			})
 
 			reducedVolume += math.Abs(tr.RequestedVolume) * _closePercentage
@@ -204,10 +218,10 @@ func (a *Account) PlaceOrderClose(strategyName string, priceLevelIndex int, clos
 		panic("closeMethod not yet implemented")
 	}
 
-	return tradeCloseRequests, nil
+	return closeTradesRequests, nil
 }
 
-//func (a *Account) placeOrder(strategyName string, tradeType TradeType, currentPrice float64, stopLoss float64, closePercent float64) (*Trade, error) {
+//func (a *Account) placeOrder(strategyName string, tradeType TradeType, currentPrice float64, stopLoss float64, closePercent float64) (*PriceLevel, error) {
 //
 //	var volume float64
 //	if tradeType == TradeTypeBuy {

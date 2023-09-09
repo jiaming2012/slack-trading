@@ -10,13 +10,14 @@ import (
 	"net/http"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"strings"
 	"sync"
 	"time"
 )
 
 // todo: add config
 const (
-	WebhookURL = "https://hooks.slack.com/services/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"
+	WebhookURL = "https://hooks.slack.com/services/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"
 )
 
 type SlackNotifierClient struct {
@@ -59,7 +60,16 @@ func (c *SlackNotifierClient) getAccountsResponseHandler(ev eventmodels.GetAccou
 	if len(ev.Accounts) == 0 {
 		msg = "No accounts available"
 	} else {
-		msg = "We got some accounts"
+		var str strings.Builder
+
+		str.WriteString("** Accounts **\n")
+		str.WriteString("------------------------\n")
+
+		for i, account := range ev.Accounts {
+			str.WriteString(fmt.Sprintf("%d: %v\n", i+1, account.String()))
+		}
+
+		msg = str.String()
 	}
 
 	_, sendErr := sendResponse(msg, WebhookURL, false)
