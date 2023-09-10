@@ -194,7 +194,7 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 		side = TradeTypeSell
 		diff = sellsCount
 	} else {
-		side = TradeTypeUnknown
+		side = TradeTypeNone
 		diff = 0
 	}
 

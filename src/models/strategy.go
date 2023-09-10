@@ -184,7 +184,7 @@ func (s *Strategy) GetTradeType() TradeType {
 	case Down:
 		return TradeTypeSell
 	default:
-		return TradeTypeUnknown
+		return TradeTypeNone
 	}
 }
 

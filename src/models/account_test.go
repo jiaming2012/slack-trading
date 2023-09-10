@@ -264,7 +264,7 @@ func TestPlacingTrades(t *testing.T) {
 
 		tradesRemaining, side := strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 3, tradesRemaining)
-		assert.Equal(t, side, TradeTypeUnknown)
+		assert.Equal(t, side, TradeTypeNone)
 
 		trade1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
 		assert.Nil(t, err)

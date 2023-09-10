@@ -221,11 +221,13 @@ func TestStrategy(t *testing.T) {
 		priceLevels := []*PriceLevel{
 			{
 				Price:             1.0,
+				StopLoss:          0.5,
 				MaxNoOfTrades:     3,
 				AllocationPercent: 0.5,
 			},
 			{
 				Price:             2.0,
+				StopLoss:          1.5,
 				MaxNoOfTrades:     1,
 				AllocationPercent: 0.5,
 			},
@@ -253,9 +255,9 @@ func TestStrategy(t *testing.T) {
 
 	t.Run("errors if price levels are not sorted", func(t *testing.T) {
 		_, err := NewStrategy(name, symbol, direction, balance, []*PriceLevel{
-			{Price: 1.0, AllocationPercent: 1, MaxNoOfTrades: 1},
-			{Price: 3.0},
-			{Price: 2.0},
+			{Price: 1.0, StopLoss: 0.5, AllocationPercent: 1, MaxNoOfTrades: 1},
+			{Price: 3.0, StopLoss: 2.5},
+			{Price: 2.0, StopLoss: 1.8},
 		})
 
 		assert.ErrorIs(t, err, PriceLevelsNotSortedErr)
@@ -265,11 +267,13 @@ func TestStrategy(t *testing.T) {
 		_priceLevels := []*PriceLevel{
 			{
 				Price:             1.0,
+				StopLoss:          0.5,
 				MaxNoOfTrades:     3,
 				AllocationPercent: 0.5,
 			},
 			{
 				Price:             2.0,
+				StopLoss:          1.5,
 				AllocationPercent: 0.5,
 			},
 			{
@@ -285,15 +289,18 @@ func TestStrategy(t *testing.T) {
 		_priceLevels1 := []*PriceLevel{
 			{
 				Price:             1.0,
+				StopLoss:          0.5,
 				MaxNoOfTrades:     3,
 				AllocationPercent: 0.5,
 			},
 			{
 				Price:             2.0,
+				StopLoss:          1.8,
 				AllocationPercent: 0,
 			},
 			{
 				Price:             3.0,
+				StopLoss:          2.0,
 				MaxNoOfTrades:     1,
 				AllocationPercent: 0.5,
 			},
@@ -310,16 +317,19 @@ func TestStrategy(t *testing.T) {
 		_priceLevels2 := []*PriceLevel{
 			{
 				Price:             1.0,
+				StopLoss:          0.5,
 				MaxNoOfTrades:     3,
 				AllocationPercent: 0.5,
 			},
 			{
 				Price:             2.0,
+				StopLoss:          1.8,
 				MaxNoOfTrades:     3,
 				AllocationPercent: 0,
 			},
 			{
 				Price:             3.0,
+				StopLoss:          2.7,
 				MaxNoOfTrades:     1,
 				AllocationPercent: 0.5,
 			},

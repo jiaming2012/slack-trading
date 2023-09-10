@@ -14,7 +14,7 @@ const (
 	TradeTypeBuy TradeType = iota
 	TradeTypeSell
 	TradeTypeClose
-	TradeTypeUnknown
+	TradeTypeNone
 )
 
 type Profit struct {
@@ -61,7 +61,7 @@ func (tr *Trade) Side() TradeType {
 		return TradeTypeSell
 	}
 
-	return TradeTypeUnknown
+	return TradeTypeNone
 }
 
 func (tr Trade) String() string {

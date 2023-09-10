@@ -40,11 +40,13 @@ func TestStopOut(t *testing.T) {
 	priceLevels := []*models.PriceLevel{
 		{
 			Price:             24000.0,
+			StopLoss:          20000.0,
 			MaxNoOfTrades:     3,
 			AllocationPercent: 0.5,
 		},
 		{
 			Price:             25000.0,
+			StopLoss:          20000.0,
 			MaxNoOfTrades:     3,
 			AllocationPercent: 0.5,
 		},

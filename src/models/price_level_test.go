@@ -11,24 +11,27 @@ func TestPriceLevel(t *testing.T) {
 			MaxNoOfTrades: 5,
 			Trades: &Trades{
 				{
-					RequestedVolume: 1.0,
+					Type:           TradeTypeBuy,
+					ExecutedVolume: 1.0,
 				},
 				{
-					RequestedVolume: -1.0,
+					Type:           TradeTypeClose,
+					ExecutedVolume: -1.0,
 				},
 			},
 		}
 
 		tradesRemaining, side := priceLevel.NewTradesRemaining()
 		assert.Equal(t, 5, tradesRemaining)
-		assert.Equal(t, side, TradeTypeBuy)
+		assert.Equal(t, TradeTypeNone, side)
 
 		priceLevel.Trades.Add(&Trade{
-			RequestedVolume: -1.0,
+			Type:           TradeTypeSell,
+			ExecutedVolume: -1.0,
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
 		assert.Equal(t, 4, tradesRemaining)
-		assert.Equal(t, side, TradeTypeSell)
+		assert.Equal(t, TradeTypeSell, side)
 	})
 }

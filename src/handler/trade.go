@@ -112,7 +112,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			profit := trades.PL(btcPrice)
+			profit := trades.PL(models.Tick{Bid: btcPrice, Ask: btcPrice})
 			vwap, volume, _ := trades.Vwap()
 
 			// todo: remove profit.RequestedVolume in favor of volume
