@@ -1,9 +1,130 @@
 package models
 
 import (
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
+
+func TestOpenTrades(t *testing.T) {
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	prc := 2.0
+	sl := 1.8
+	timeframe := 5
+	symbol := "symbol"
+	ts := time.Date(2006, 1, 2, 12, 0, 0, 0, time.UTC)
+
+	t.Run("empty trades return zero open trades", func(t *testing.T) {
+		trades := &Trades{}
+		openTrades := trades.OpenTrades()
+		assert.NotNil(t, openTrades)
+		assert.Len(t, *openTrades, 0)
+	})
+
+	t.Run("single trade", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
+		tr1.AutoExecute()
+		assert.Nil(t, err)
+
+		trades := &Trades{}
+		trades.Add(tr1)
+		openTrades := trades.OpenTrades()
+		assert.Len(t, *openTrades, 1)
+		assert.Equal(t, tr1, (*openTrades)[0])
+	})
+
+	t.Run("close trade", func(t *testing.T) {
+		vol := 1.0
+		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr1.AutoExecute()
+		assert.Nil(t, err)
+
+		trades := &Trades{}
+		trades.Add(tr1)
+		openTrades := trades.OpenTrades()
+		assert.Len(t, *openTrades, 1)
+		assert.Equal(t, tr1, (*openTrades)[0])
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
+		tr2.AutoExecute()
+		assert.Nil(t, err)
+		trades.Add(tr2)
+		openTrades = trades.OpenTrades()
+		assert.Len(t, *openTrades, 0)
+	})
+
+	t.Run("partial close", func(t *testing.T) {
+		vol := 1.0
+		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr1.AutoExecute()
+		assert.Nil(t, err)
+
+		trades := &Trades{}
+		trades.Add(tr1)
+		openTrades := trades.OpenTrades()
+		assert.Len(t, *openTrades, 1)
+		assert.Equal(t, tr1, (*openTrades)[0])
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol/2.0)
+		tr2.AutoExecute()
+		assert.Nil(t, err)
+		trades.Add(tr2)
+		openTrades = trades.OpenTrades()
+		assert.Len(t, *openTrades, 1)
+		assert.Equal(t, tr1, (*openTrades)[0])
+	})
+
+	t.Run("multiple closes", func(t *testing.T) {
+		vol := 1.0
+		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr1.AutoExecute()
+		assert.Nil(t, err)
+
+		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr2.AutoExecute()
+		assert.Nil(t, err)
+
+		tr3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr3.AutoExecute()
+		assert.Nil(t, err)
+
+		trades := &Trades{}
+		trades.Add(tr1)
+		trades.Add(tr2)
+		trades.Add(tr3)
+		openTrades := trades.OpenTrades()
+		assert.Len(t, *openTrades, 3)
+		assert.Equal(t, tr1, (*openTrades)[0])
+
+		// partial close trade 2
+		tr4, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
+		tr4.AutoExecute()
+		assert.Nil(t, err)
+		trades.Add(tr4)
+		openTrades = trades.OpenTrades()
+		assert.Len(t, *openTrades, 3)
+
+		// fully close trade 1
+		tr5, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
+		tr5.AutoExecute()
+		assert.Nil(t, err)
+		trades.Add(tr5)
+		openTrades = trades.OpenTrades()
+		assert.Len(t, *openTrades, 2)
+		assert.Equal(t, tr1, (*openTrades)[0])
+		assert.Equal(t, tr3, (*openTrades)[1])
+
+		// close the rest of trade 2
+		tr6, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
+		tr6.AutoExecute()
+		assert.Nil(t, err)
+		trades.Add(tr6)
+		openTrades = trades.OpenTrades()
+		assert.Len(t, *openTrades, 1)
+		assert.Equal(t, tr3, (*openTrades)[0])
+	})
+}
 
 func TestProfit(t *testing.T) {
 	t.Run("profitable trades", func(t *testing.T) {

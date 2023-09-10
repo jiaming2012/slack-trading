@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"math"
 	"strconv"
 	"time"
 )
@@ -30,6 +31,7 @@ type TradeParameters struct {
 type Trade struct {
 	ID              uuid.UUID
 	Type            TradeType
+	Timeframe       int
 	Symbol          string
 	Timestamp       time.Time
 	RequestedVolume float64
@@ -76,6 +78,10 @@ func (tr *Trade) Validate() error {
 		return SymbolNotSetErr
 	}
 
+	if tr.Timeframe <= 0 {
+		return InvalidTimeframeErr
+	}
+
 	if tr.Type != TradeTypeBuy && tr.Type != TradeTypeSell && tr.Type != TradeTypeClose {
 		return UnknownTradeTypeErr
 	}
@@ -92,34 +98,34 @@ func (tr *Trade) Validate() error {
 		return NegativeStopLossErr
 	}
 
+	if tr.StopLoss > 0 {
+		if tr.Type == TradeTypeBuy && tr.StopLoss >= tr.RequestedPrice {
+			return fmt.Errorf("stop loss must be less than requested price for buy orders: %w", InvalidStopLossErr)
+		} else if tr.Type == TradeTypeSell && tr.StopLoss <= tr.RequestedPrice {
+			return fmt.Errorf("stop loss must be greater than requested price for sell orders: %w", InvalidStopLossErr)
+		}
+	}
+
 	if tr.Type != TradeTypeClose && tr.StopLoss == 0 {
 		return NoStopLossErr
 	}
 
-	if tr.RequestedVolume > 0 {
-		if tr.StopLoss >= tr.RequestedPrice {
-			return fmt.Errorf("%w: stopLoss of %v is above current price of %v", InvalidStopLossErr, tr.StopLoss, tr.RequestedPrice)
-		}
-	} else if tr.RequestedVolume < 0 {
-		if tr.StopLoss > 0 && tr.StopLoss <= tr.RequestedPrice {
-			return fmt.Errorf("%w: stopLoss of %v is below current price of %v", InvalidStopLossErr, tr.StopLoss, tr.RequestedPrice)
-		}
-	} else {
+	if tr.RequestedVolume == 0 {
 		return TradeVolumeIsZeroErr
 	}
 
 	if len(tr.Offsets) > 0 {
-		//ptr := Trades(tr.Offsets)
-		//trades := ptr.Copy()
-		//sort.Sort(trades)
-
 		totalOffsetVolume := 0.0
 		for i := 0; i < len(tr.Offsets); i += 1 {
 			totalOffsetVolume += tr.Offsets[i].ExecutedVolume
 
-			if totalOffsetVolume >= tr.RequestedVolume && i != len(tr.Offsets)-1 {
+			if math.Abs(totalOffsetVolume) >= math.Abs(tr.RequestedVolume) && i != len(tr.Offsets)-1 {
 				return OffsetTradesVolumeExceedsClosingTradeVolumeErr
 			}
+		}
+
+		if math.Abs(tr.RequestedVolume) > math.Abs(totalOffsetVolume) {
+			return InvalidClosingTradeVolumeErr
 		}
 	}
 
@@ -138,30 +144,55 @@ func (tr *Trade) AutoExecute() {
 	tr.ExecutedVolume = tr.RequestedVolume
 }
 
-func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade) (*Trade, error) {
+func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade) (*Trade, error) {
+	var vol float64
+
+	switch tradeType {
+	case TradeTypeBuy:
+		vol = math.Abs(requestedVolume)
+	case TradeTypeSell:
+		vol = -math.Abs(requestedVolume)
+	case TradeTypeClose:
+		if offsets == nil || len(offsets) == 0 {
+			return nil, fmt.Errorf("newTrade: offset trade not set")
+		}
+
+		switch offsets[0].Type {
+		case TradeTypeBuy:
+			vol = -math.Abs(requestedVolume)
+		case TradeTypeSell:
+			vol = math.Abs(requestedVolume)
+		default:
+			return nil, fmt.Errorf("newTrade: unknown trade type %v for offset trade", tradeType)
+		}
+	default:
+		return nil, fmt.Errorf("newTrade: unknown trade type %v", tradeType)
+	}
+
 	trade := &Trade{
 		ID:              id,
 		Symbol:          symbol,
+		Timeframe:       timeframe,
 		Type:            tradeType,
 		Timestamp:       timestamp,
 		RequestedPrice:  requestedPrice,
-		RequestedVolume: requestedVolume,
+		RequestedVolume: vol,
 		StopLoss:        stopLoss,
 		Offsets:         offsets,
 	}
 
 	if err := trade.Validate(); err != nil {
-		return nil, fmt.Errorf("NewTrade: failed to open new trade: %w", err)
+		return nil, fmt.Errorf("newTrade: failed to open new trade: %w", err)
 	}
 
 	return trade, nil
 }
 
-func NewTradeOpen(id uuid.UUID, tradeType TradeType, symbol string, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64) (*Trade, error) {
-	return newTrade(id, tradeType, symbol, timestamp, requestedPrice, requestedVolume, stopLoss, nil)
+func NewOpenTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64) (*Trade, error) {
+	return newTrade(id, tradeType, symbol, timeframe, timestamp, requestedPrice, requestedVolume, stopLoss, nil)
 }
 
-func NewTradeClose(id uuid.UUID, trades []*Trade, timestamp time.Time, requestedPrice float64, requestedVolume float64) (*Trade, error) {
+func NewCloseTrade(id uuid.UUID, trades []*Trade, timeframe int, timestamp time.Time, requestedPrice float64, requestedVolume float64) (*Trade, error) {
 	if len(trades) == 0 {
 		return nil, fmt.Errorf("NewTradeClose: %w", NoOffsettingTradeErr)
 	}
@@ -173,5 +204,5 @@ func NewTradeClose(id uuid.UUID, trades []*Trade, timestamp time.Time, requested
 		}
 	}
 
-	return newTrade(id, TradeTypeClose, symbol, timestamp, requestedPrice, requestedVolume, 0, trades)
+	return newTrade(id, TradeTypeClose, symbol, timeframe, timestamp, requestedPrice, requestedVolume, 0, trades)
 }

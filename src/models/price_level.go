@@ -121,8 +121,20 @@ func (p *PriceLevel) Add(trade *Trade) {
 }
 
 func (p *PriceLevel) Validate() error {
+	if p.AllocationPercent < 0 || p.AllocationPercent > 1 {
+		return InvalidAllocationPercentErr
+	}
+
 	if p.AllocationPercent > 0 && p.StopLoss <= 0 {
 		return NonPositiveStopLoss
+	}
+
+	if p.MaxNoOfTrades < 0 {
+		return InvalidMaxTradesErr
+	}
+
+	if p.Price < 0 {
+		return NegativePriceErr
 	}
 
 	return nil
@@ -133,45 +145,57 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 	buyVolume := 0.0
 	sellVolume := 0.0
 	sellsCount := 0
+	closedBuyVolume := 0.0
+	closedSellVolume := 0.0
+	diff := 0
+
+	for _, t := range *p.Trades {
+		if t.Type == TradeTypeClose {
+			if t.ExecutedVolume < 0 {
+				closedBuyVolume += math.Abs(t.ExecutedVolume)
+			} else if t.ExecutedVolume > 0 {
+				closedSellVolume += t.ExecutedVolume
+			}
+		}
+	}
 
 	// todo: null pointer check
 	for _, t := range *p.Trades {
-		if t.Side() == TradeTypeBuy {
-			buysCount += 1
-			buyVolume += t.RequestedVolume
-		} else if t.Side() == TradeTypeSell {
-			sellsCount += 1
-			sellVolume += math.Abs(t.RequestedVolume)
-		}
-	}
+		if t.Type == TradeTypeBuy {
+			executedVolume := t.ExecutedVolume
+			if closedBuyVolume > 0 {
+				executedVolume -= math.Min(t.ExecutedVolume, closedBuyVolume)
+				closedBuyVolume = math.Max(closedBuyVolume-t.ExecutedVolume, 0)
+			}
 
-	var diff = int(math.Abs(float64(buysCount) - float64(sellsCount)))
-	if buyVolume > sellVolume {
-		for _, t := range *p.Trades {
-			if t.Side() == TradeTypeBuy {
-				tradeVolume := t.RequestedVolume
-				if sellVolume > 0 {
-					delta := math.Min(sellVolume, tradeVolume)
-					remainingVolume := tradeVolume - delta
-					if remainingVolume > 0 {
-						buysCount += 1
-					}
-					sellVolume -= delta
-				}
+			if executedVolume > 0 {
 				buysCount += 1
+				buyVolume += executedVolume
+			}
+		} else if t.Type == TradeTypeSell {
+			executedVolume := math.Abs(t.ExecutedVolume)
+			if closedSellVolume > 0 {
+				executedVolume -= math.Min(t.ExecutedVolume, closedBuyVolume)
+				closedSellVolume = math.Max(closedBuyVolume-t.ExecutedVolume, 0)
+			}
+
+			if executedVolume > 0 {
+				sellsCount += 1
+				sellVolume += executedVolume
 			}
 		}
-	} else if buyVolume < sellVolume {
-
-	} else {
-
 	}
 
 	var side TradeType
-	if sellVolume > buyVolume {
-		side = TradeTypeSell
-	} else {
+	if buysCount > 0 {
 		side = TradeTypeBuy
+		diff = buysCount
+	} else if sellsCount > 0 {
+		side = TradeTypeSell
+		diff = sellsCount
+	} else {
+		side = TradeTypeUnknown
+		diff = 0
 	}
 
 	return p.MaxNoOfTrades - diff, side

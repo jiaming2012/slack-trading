@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"strings"
@@ -16,8 +17,8 @@ import (
 )
 
 // todo: add config
-const (
-	WebhookURL = "https://hooks.slack.com/services/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"
+var (
+	WebhookURL = os.Getenv("WEBHOOK_URL")
 )
 
 type SlackNotifierClient struct {

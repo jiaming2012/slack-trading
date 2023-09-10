@@ -166,7 +166,7 @@ func (r *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 	for _, req := range event.CloseTradesRequest {
 		marketPrice := r.tickMachine.Query().Bid
 
-		offsetTrade, err := models.NewTradeClose(uuid.New(), []*models.Trade{req.Trade}, time.Now(), marketPrice, req.Volume)
+		offsetTrade, err := models.NewCloseTrade(uuid.New(), []*models.Trade{req.Trade}, req.Timeframe, time.Now(), marketPrice, req.Volume)
 		if err != nil {
 			pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", err)
 			return

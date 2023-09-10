@@ -10,9 +10,10 @@ import (
 type CloseTradesRequest []*CloseTradeRequest
 
 type CloseTradeRequest struct {
-	Trade  *Trade
-	Volume float64
-	Reason string
+	Trade     *Trade
+	Timeframe int
+	Volume    float64
+	Reason    string
 }
 
 func (r *CloseTradeRequest) Validate() error {
@@ -22,6 +23,10 @@ func (r *CloseTradeRequest) Validate() error {
 
 	if math.Abs(r.Volume) == 0 {
 		return TradeVolumeIsZeroErr
+	}
+
+	if r.Timeframe <= 0 {
+		return InvalidTimeframeErr
 	}
 
 	if r.Trade == nil {
@@ -55,7 +60,7 @@ type BulkCloseRequest struct {
 }
 
 // todo: remove legacy models
-func (r *BulkCloseRequest) Execute(price float64, symbol string) ([]*Trade, error) {
+func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe int) ([]*Trade, error) {
 	trades := make([]*Trade, 0)
 	for _, it := range r.Items {
 		if it.ClosePercent < 0 || it.ClosePercent > 1 {
@@ -65,7 +70,7 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string) ([]*Trade, erro
 		if it.Level.Trades != nil {
 			_, vol, _ := it.Level.Trades.Vwap()
 			closeVol := float64(vol) * it.ClosePercent * -1
-			newTrade, err := NewTradeOpen(uuid.New(), TradeTypeClose, symbol, time.Now(), price, closeVol, 0)
+			newTrade, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0)
 			if err != nil {
 				return nil, fmt.Errorf("BulkCloseRequest.Execute: failed to open NewTrade: %w", err)
 			}

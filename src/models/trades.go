@@ -11,6 +11,38 @@ type Volume float64
 type RealizedPL float64
 type FloatingPL float64
 
+func (trades *Trades) OpenTrades() *Trades {
+	tradeToClosedVolumeMap := make(map[*Trade]float64)
+	openTrades := &Trades{}
+
+	for _, tr := range *trades {
+		if tr.Type == TradeTypeClose {
+			closeVol := math.Abs(tr.ExecutedVolume)
+			usedVol := 0.0
+			for _, off := range tr.Offsets {
+				usedVol += math.Min(closeVol, math.Abs(off.ExecutedVolume))
+				tradeToClosedVolumeMap[off] += usedVol
+				closeVol -= usedVol
+
+				if closeVol <= 0 {
+					break
+				}
+			}
+		}
+	}
+
+	for _, tr := range *trades {
+		if tr.Type == TradeTypeBuy || tr.Type == TradeTypeSell {
+			offsettingVolume := tradeToClosedVolumeMap[tr]
+			if math.Abs(tr.ExecutedVolume) > offsettingVolume {
+				openTrades.Add(tr)
+			}
+		}
+	}
+
+	return openTrades
+}
+
 func (trades *Trades) Copy() *Trades {
 	result := &Trades{}
 
@@ -56,6 +88,19 @@ func (trades *Trades) BulkAdd(newTrades *Trades) {
 	for _, t := range *newTrades {
 		trades.Add(t)
 	}
+}
+
+func (trades *Trades) MaxRisk(stopLoss float64) (float64, RealizedPL) {
+	vwap, vol, realizedPL := trades.Vwap()
+
+	var maxRisk float64
+	if vol != 0 {
+		maxRisk = math.Abs(stopLoss-float64(vwap)) * math.Abs(float64(vol))
+	} else {
+		maxRisk = 0
+	}
+
+	return maxRisk, realizedPL
 }
 
 func (trades *Trades) Vwap() (Vwap, Volume, RealizedPL) {
