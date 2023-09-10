@@ -620,73 +620,73 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
-//func TestTradeValidation(t *testing.T) {
-//	name := "TestTradeValidation"
-//	balance := 1000.00
-//
-//	newPriceLevels := func() []*PriceLevel {
-//		return []*PriceLevel{
-//			{
-//				AllocationPercent: 0.33333,
-//				MaxNoOfTrades:     1,
-//				Price:             1.0,
-//			},
-//			{
-//				AllocationPercent: 0.33333,
-//				MaxNoOfTrades:     1,
-//				Price:             2.0,
-//			},
-//			{
-//				AllocationPercent: 0.33333,
-//				MaxNoOfTrades:     1,
-//				Price:             2.2,
-//			},
-//			{
-//				Price:             10.0,
-//				MaxNoOfTrades:     0,
-//				AllocationPercent: 0,
-//			},
-//		}
-//	}
-//
-//	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
-//		account, err := NewAccount(name, balance)
-//
-//		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-//		assert.Nil(t, err)
-//
-//		err = account.AddStrategy(*strategy)
-//		assert.Nil(t, err)
-//
-//		_, err = account.placeOrder(strategy.Name, TradeTypeBuy, 0.5, 0.1, -1)
-//		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
-//	})
-//
-//	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
-//		trade := OpenTradeRequest{
-//			Price: 1.5,
-//		}
-//
-//		account, err := NewAccount(name, balance)
-//		assert.Nil(t, err)
-//
-//		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-//		assert.Nil(t, err)
-//
-//		err = account.AddStrategy(*strategy)
-//		assert.Nil(t, err)
-//
-//		_, err = strategy.CanPlaceTrade(trade)
-//		assert.Nil(t, err)
-//
-//		// OK
-//		trade.Price = 2.1
-//		_, err = strategy.CanPlaceTrade(trade)
-//		assert.Nil(t, err)
-//
-//		// failure case
-//		trade.Price = 11.0
-//		_, err = strategy.CanPlaceTrade(trade)
-//		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
-//	})
-//}
+func TestTradeValidation(t *testing.T) {
+	name := "TestTradeValidation"
+	balance := 1000.00
+	direction := Up
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	timeframe := 5
+
+	newPriceLevels := func() []*PriceLevel {
+		return []*PriceLevel{
+			{
+				AllocationPercent: 0.33333,
+				MaxNoOfTrades:     1,
+				Price:             1.0,
+				StopLoss:          0.5,
+			},
+			{
+				AllocationPercent: 0.33333,
+				MaxNoOfTrades:     1,
+				Price:             2.0,
+				StopLoss:          1.5,
+			},
+			{
+				AllocationPercent: 0.33333,
+				MaxNoOfTrades:     1,
+				Price:             2.2,
+				StopLoss:          2.0,
+			},
+			{
+				Price:             10.0,
+				MaxNoOfTrades:     0,
+				AllocationPercent: 0,
+			},
+		}
+	}
+
+	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
+		account, err := NewAccount(name, balance)
+
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newPriceLevels())
+		assert.Nil(t, err)
+
+		err = account.AddStrategy(*strategy)
+		assert.Nil(t, err)
+
+		_, err = strategy.NewOpenTrade(id, timeframe, timestamp, 0.5)
+		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
+	})
+
+	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
+		account, err := NewAccount(name, balance)
+		assert.Nil(t, err)
+
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
+		assert.Nil(t, err)
+
+		err = account.AddStrategy(*strategy)
+		assert.Nil(t, err)
+
+		// success case
+		trade, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.Nil(t, err)
+		assert.NotNil(t, trade)
+
+		// failure case
+		trade, err = strategy.NewOpenTrade(id, timeframe, timestamp, 11.0)
+		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
+		assert.Nil(t, trade)
+	})
+}

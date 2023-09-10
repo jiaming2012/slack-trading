@@ -81,10 +81,9 @@ func TestMaxRisk(t *testing.T) {
 
 	t.Run("max risk is zero when no trades are open", func(t *testing.T) {
 		trades := &Trades{}
-		maxRisk, err := trades.MaxRisk(sl)
-		assert.Nil(t, err)
-
+		maxRisk, realizedPL := trades.MaxRisk(sl)
 		assert.Equal(t, 0.0, maxRisk)
+		assert.Equal(t, RealizedPL(0.0), realizedPL)
 	})
 
 	t.Run("max risk with one of three open trades", func(t *testing.T) {

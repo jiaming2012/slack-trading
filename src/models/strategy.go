@@ -50,7 +50,7 @@ func (s *Strategy) GetPriceLevelByPrice(prc float64) (*PriceLevel, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: price levels not found for price = %v", prc)
+	return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: price levels not found for price = %v: %w", prc, PriceOutsideLimitsErr)
 }
 
 func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
@@ -306,10 +306,6 @@ func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 	}
 
 	return nil
-	//return &TradeParameters{
-	//	PriceLevel: priceLevel,
-	//	MaxLoss:    maxTradeLoss,
-	//}, nil
 }
 
 func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel) (*Strategy, error) {
