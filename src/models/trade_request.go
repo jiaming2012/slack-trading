@@ -16,6 +16,23 @@ type CloseTradeRequest struct {
 	Reason    string
 }
 
+func NewCloseTradesRequest(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, reason string, trades Trades) (CloseTradesRequest, error) {
+	_, vol, _ := trades.Vwap()
+	clsTrade, err := NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, float64(vol))
+	if err != nil {
+		return nil, fmt.Errorf("NewCloseTradesRequest: failed to create new close trade: %w", err)
+	}
+
+	return []*CloseTradeRequest{
+		{
+			Trade:     clsTrade,
+			Timeframe: timeframe,
+			Volume:    float64(-vol),
+			Reason:    reason,
+		},
+	}, nil
+}
+
 func (r *CloseTradeRequest) Validate() error {
 	if r.Reason == "" {
 		return fmt.Errorf("CloseTradeRequest: reason was not set")

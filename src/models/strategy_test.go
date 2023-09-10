@@ -59,12 +59,10 @@ func TestNewCloseTrade(t *testing.T) {
 	}
 
 	t.Run("close the entire buy trade", func(t *testing.T) {
-		priceLevelIndex := 0
-
 		s, err := NewStrategy(name, symbol, Up, balance, newPriceLevels())
 		assert.Nil(t, err)
 
-		tr1, err := s.NewOpenTrade(id, priceLevelIndex, tf, ts, 1.5)
+		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr1)
 		assert.Nil(t, err)
@@ -74,7 +72,7 @@ func TestNewCloseTrade(t *testing.T) {
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Greater(t, vol, Volume(0.0))
 
-		tr2, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.8, 1.0)
+		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 1.0)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr2)
 		assert.Nil(t, err)
@@ -87,12 +85,10 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		priceLevelIndex := 0
-
 		s, err := NewStrategy(name, symbol, Up, balance, newPriceLevels())
 		assert.Nil(t, err)
 
-		tr1, err := s.NewOpenTrade(id, priceLevelIndex, tf, ts, 1.5)
+		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr1)
 		assert.Nil(t, err)
@@ -103,7 +99,7 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Greater(t, vol, Volume(0.0))
 
 		// partial close
-		tr2, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.8, 0.5)
+		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr2)
 		assert.Nil(t, err)
@@ -116,7 +112,7 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 
 		// close the rest of the trade
-		tr3, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.8, 0.5)
+		tr3, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr3)
 		assert.Nil(t, err)
@@ -126,12 +122,10 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("close the entire sell trade", func(t *testing.T) {
-		priceLevelIndex := 0
-
 		s, err := NewStrategy(name, symbol, Down, balance, newPriceLevels2())
 		assert.Nil(t, err)
 
-		tr1, err := s.NewOpenTrade(id, priceLevelIndex, tf, ts, 1.5)
+		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr1)
 		assert.Nil(t, err)
@@ -141,7 +135,7 @@ func TestNewCloseTrade(t *testing.T) {
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Less(t, vol, Volume(0.0))
 
-		tr2, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.8, 1.0)
+		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 1.0)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr2)
 		assert.Nil(t, err)
@@ -154,12 +148,10 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		priceLevelIndex := 0
-
 		s, err := NewStrategy(name, symbol, Down, balance, newPriceLevels2())
 		assert.Nil(t, err)
 
-		tr1, err := s.NewOpenTrade(id, priceLevelIndex, tf, ts, 1.5)
+		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr1)
 		assert.Nil(t, err)
@@ -170,7 +162,7 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Less(t, vol, Volume(0.0))
 
 		// partial close
-		tr2, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.2, 0.5)
+		tr2, err := s.NewCloseTrade(id, tf, ts, 1.2, 0.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr2)
 		assert.Nil(t, err)
@@ -183,7 +175,7 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 
 		// close the rest of the trade
-		tr3, err := s.NewCloseTrade(id, priceLevelIndex, tf, ts, 1.8, 0.5)
+		tr3, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
 		assert.Nil(t, err)
 		err = s.AutoExecuteTrade(tr3)
 		assert.Nil(t, err)

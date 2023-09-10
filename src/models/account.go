@@ -2,9 +2,11 @@ package models
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"math"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Account struct {
@@ -54,7 +56,7 @@ func (a *Account) GetTrades() *Trades {
 	return &trades
 }
 
-func (a *Account) Update(price float64) CloseTradesRequest {
+func (a *Account) checkSL(price float64) CloseTradesRequest {
 	requests := make([]*CloseTradeRequest, 0)
 
 	for _, trade := range *a.GetTrades() {
@@ -84,6 +86,49 @@ func (a *Account) Update(price float64) CloseTradesRequest {
 	}
 
 	return nil
+}
+
+func (a *Account) checkStopOut(timeframe int, price float64, timestampGen func() time.Time, idGen func() uuid.UUID) (CloseTradesRequest, error) {
+	for _, s := range a.Strategies {
+		vwap, vol, realizedPL := s.GetTrades().Vwap()
+		unrealizedPL := UnrealizedPL(vwap, vol, price)
+		pl := unrealizedPL + float64(realizedPL)
+
+		if pl <= -s.Balance {
+			req, err := NewCloseTradesRequest(idGen(), timeframe, timestampGen(), price, "stop out", *s.GetTrades())
+			if err != nil {
+				return nil, fmt.Errorf("checkStopOut: new close trades request failed: %w", err)
+			}
+
+			return req, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (a *Account) NewUUID() uuid.UUID {
+	return uuid.New()
+}
+
+func (a *Account) GetCurrentTime() time.Time {
+	return time.Now()
+}
+
+func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, error) {
+	if closeReq := a.checkSL(price); closeReq != nil {
+		return closeReq, nil
+	}
+
+	if closeReq, err := a.checkStopOut(timeframe, price, a.GetCurrentTime, a.NewUUID); err != nil || closeReq != nil {
+		if err != nil {
+			return nil, fmt.Errorf("Account.Update: checkStopOut: %w", err)
+		}
+
+		return closeReq, nil
+	}
+
+	return nil, nil
 }
 
 //func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*PriceLevel, error) {

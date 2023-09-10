@@ -39,6 +39,20 @@ func (s *Strategy) Validate() error {
 	return nil
 }
 
+func (s *Strategy) GetPriceLevelByPrice(prc float64) (*PriceLevel, error) {
+	if len(s.PriceLevels.Values) < 1 {
+		return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: PriceLevels must have at least 2 levels")
+	}
+
+	for i := 0; i < len(s.PriceLevels.Values)-1; i++ {
+		if prc >= s.PriceLevels.Values[i].Price && prc < s.PriceLevels.Values[i+1].Price {
+			return s.PriceLevels.Values[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: price levels not found for price = %v", prc)
+}
+
 func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
 	return s.PriceLevels.GetByIndex(index)
 }
@@ -60,12 +74,12 @@ func (s Strategy) String() string {
 }
 
 // todo: test this
-func (s *Strategy) NewCloseTrade(id uuid.UUID, priceLevelIndex int, timeframe int, timestamp time.Time, requestedPrice float64, percent float64) (*Trade, error) {
+func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, percent float64) (*Trade, error) {
 	if percent < 0 || percent > 1 {
 		return nil, InvalidClosePercentErr
 	}
 
-	priceLevel, err := s.GetPriceLevelByIndex(priceLevelIndex)
+	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
 	if err != nil {
 		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to get price level by index: %w", err)
 	}
@@ -91,8 +105,8 @@ func (s *Strategy) NewCloseTrade(id uuid.UUID, priceLevelIndex int, timeframe in
 }
 
 // todo: test this
-func (s *Strategy) NewOpenTrade(id uuid.UUID, priceLevelIndex int, timeframe int, timestamp time.Time, requestedPrice float64) (*Trade, error) {
-	priceLevel, err := s.GetPriceLevelByIndex(priceLevelIndex)
+func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64) (*Trade, error) {
+	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
 	if err != nil {
 		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to get price level by index: %w", err)
 	}
