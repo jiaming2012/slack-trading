@@ -130,7 +130,7 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, openPrice, req.Price)
 		assert.Equal(t, strategy, req.Strategy)
 
-		curPriceLevel := strategy.findPriceLevel(openPrice)
+		_, curPriceLevel := strategy.findPriceLevel(openPrice)
 		assert.NotNil(t, curPriceLevel)
 
 		assert.Equal(t, curPriceLevel.StopLoss, req.StopLoss)
@@ -158,7 +158,7 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, openPrice, req.Price)
 		assert.Equal(t, strategy, req.Strategy)
 
-		curPriceLevel := strategy.findPriceLevel(openPrice)
+		_, curPriceLevel := strategy.findPriceLevel(openPrice)
 		assert.NotNil(t, curPriceLevel)
 
 		assert.Equal(t, curPriceLevel.StopLoss, req.StopLoss)

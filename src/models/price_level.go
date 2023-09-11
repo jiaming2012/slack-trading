@@ -105,22 +105,46 @@ func NewPriceLevels(levels []*PriceLevel) (*PriceLevels, error) {
 }
 
 type PriceLevel struct {
-	Price             float64
-	MaxNoOfTrades     int
-	AllocationPercent float64 // the amount of Account.Balance allocated to this price level
-	Trades            *Trades
-	StopLoss          float64
-	mutex             sync.Mutex
+	Price                float64
+	MinimumTradeDistance float64 // the minimum distance of the requested price of two trades in the same price band
+	MaxNoOfTrades        int
+	AllocationPercent    float64 // the amount of Account.Balance allocated to this price level
+	Trades               *Trades
+	StopLoss             float64
+	mutex                sync.Mutex
 }
 
-func (p *PriceLevel) Add(trade *Trade) {
+func (p *PriceLevel) canAddTrade(trade *Trade) error {
+	if trade.Type == TradeTypeBuy || trade.Type == TradeTypeSell {
+		openTrades := p.Trades.OpenTrades()
+		for _, open := range *openTrades {
+			if math.Abs(trade.RequestedPrice-open.RequestedPrice) < p.MinimumTradeDistance {
+				return fmt.Errorf("PriceLevel.canAddTrade: request price of %v is too close to request price of previously open trade %v: %w", trade.RequestedPrice, open.RequestedPrice, PriceLevelMinimumDistanceNotSatisfiedError)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *PriceLevel) Add(trade *Trade) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.Add(trade)
+	if err := p.canAddTrade(trade); err != nil {
+		return err
+	}
+
+	p.Trades.Add(trade)
+
+	return nil
 }
 
 func (p *PriceLevel) Validate() error {
+	if p.MinimumTradeDistance < 0 {
+		return PriceLevelMinimumDistanceNotSatisfiedError
+	}
+
 	if p.AllocationPercent < 0 || p.AllocationPercent > 1 {
 		return InvalidAllocationPercentErr
 	}

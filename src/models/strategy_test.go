@@ -185,10 +185,156 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 }
 
+func TestUpStrategy(t *testing.T) {
+	name := "test"
+	symbol := "symbol"
+	direction := Up
+	balance := 1000.0
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	tf := 5
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	newPriceLevels := func() []*PriceLevel {
+		return []*PriceLevel{
+			{
+				Price:                1.0,
+				StopLoss:             0.5,
+				MaxNoOfTrades:        3,
+				AllocationPercent:    0.5,
+				MinimumTradeDistance: 0.0,
+			},
+			{
+				Price:                2.0,
+				StopLoss:             1.5,
+				MaxNoOfTrades:        3,
+				AllocationPercent:    0.5,
+				MinimumTradeDistance: 0.1,
+			},
+			{
+				Price:             10.0,
+				MaxNoOfTrades:     0,
+				AllocationPercent: 0,
+			},
+		}
+	}
+
+	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
+		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
+		assert.Nil(t, err)
+
+		t1, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t1)
+		assert.Nil(t, err)
+
+		t2, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t2)
+		assert.Nil(t, err)
+	})
+
+	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
+		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
+		assert.Nil(t, err)
+
+		t1, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t1)
+		assert.Nil(t, err)
+
+		t2, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t2)
+		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
+
+		t3, err := strategy.NewOpenTrade(id, tf, ts, 2.09)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t3)
+		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
+
+		t4, err := strategy.NewOpenTrade(id, tf, ts, 2.1)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t4)
+		assert.Nil(t, err)
+	})
+}
+
+func TestDownStrategy(t *testing.T) {
+	name := "test"
+	symbol := "symbol"
+	direction := Down
+	balance := 1000.0
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	tf := 5
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	newPriceLevels := func() []*PriceLevel {
+		return []*PriceLevel{
+			{
+				Price:                1.0,
+				StopLoss:             1.5,
+				MaxNoOfTrades:        3,
+				AllocationPercent:    0.5,
+				MinimumTradeDistance: 0.0,
+			},
+			{
+				Price:                2.0,
+				StopLoss:             2.5,
+				MaxNoOfTrades:        3,
+				AllocationPercent:    0.5,
+				MinimumTradeDistance: 0.1,
+			},
+			{
+				Price:             10.0,
+				MaxNoOfTrades:     0,
+				AllocationPercent: 0,
+			},
+		}
+	}
+
+	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
+		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
+		assert.Nil(t, err)
+
+		t1, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t1)
+		assert.Nil(t, err)
+
+		t2, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t2)
+		assert.Nil(t, err)
+	})
+
+	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
+		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
+		assert.Nil(t, err)
+
+		t1, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t1)
+		assert.Nil(t, err)
+
+		t2, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t2)
+		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
+
+		t3, err := strategy.NewOpenTrade(id, tf, ts, 2.09)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t3)
+		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
+
+		t4, err := strategy.NewOpenTrade(id, tf, ts, 2.1)
+		assert.Nil(t, err)
+		err = strategy.AutoExecuteTrade(t4)
+		assert.Nil(t, err)
+	})
+}
+
 func TestStrategy(t *testing.T) {
 	name := "test"
 	symbol := "symbol"
-	direction := Direction("up")
+	direction := Up
 	balance := 1000.0
 	newPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{

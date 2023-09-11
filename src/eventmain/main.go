@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventproducers"
+	"slack-trading/src/eventproducers/api"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
@@ -70,6 +71,8 @@ func main() {
 	}
 
 	router := mux.NewRouter()
+	api.TradesHandler(router.PathPrefix("/trades").Subrouter())
+	//router.Handle("/trades/signal", GetTradesHandler())
 
 	// Setup web server
 	srv := &http.Server{

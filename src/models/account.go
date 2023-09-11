@@ -192,7 +192,7 @@ func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float6
 		return nil, fmt.Errorf("Account.PlaceOrderOpen: failed to find strategy: %w", err)
 	}
 
-	currentPriceLevel := strategy.findPriceLevel(currentPrice)
+	_, currentPriceLevel := strategy.findPriceLevel(currentPrice)
 	if currentPriceLevel == nil {
 		return nil, fmt.Errorf("could not find price level at %.2f", currentPrice)
 	}

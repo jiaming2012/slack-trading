@@ -73,7 +73,6 @@ func (s Strategy) String() string {
 	return s.Name
 }
 
-// todo: test this
 func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, percent float64) (*Trade, error) {
 	if percent < 0 || percent > 1 {
 		return nil, InvalidClosePercentErr
@@ -104,7 +103,6 @@ func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe int, timestamp time.Tim
 	return NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, closeVol)
 }
 
-// todo: test this
 func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64) (*Trade, error) {
 	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
 	if err != nil {
@@ -126,21 +124,21 @@ func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time
 }
 
 func (s *Strategy) TradesRemaining(price float64) (int, TradeType) {
-	lvl := s.findPriceLevel(price)
+	_, lvl := s.findPriceLevel(price)
 	if lvl != nil {
 		return lvl.NewTradesRemaining()
 	}
 	return 0, TradeTypeBuy
 }
 
-func (s *Strategy) findPriceLevel(price float64) *PriceLevel {
+func (s *Strategy) findPriceLevel(price float64) (int, *PriceLevel) {
 	for i, priceLevel := range s.PriceLevels.Values[:len(s.PriceLevels.Values)-1] {
 		if price >= s.PriceLevels.Values[i].Price && price < s.PriceLevels.Values[i+1].Price {
-			return priceLevel
+			return i, priceLevel
 		}
 	}
 
-	return nil
+	return 0, nil
 }
 
 func (s *Strategy) isConditionUnique(signal Signal) bool {
@@ -219,18 +217,20 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 		reqPrice = trade.RequestedPrice
 	}
 
-	priceLevel := s.findPriceLevel(reqPrice)
+	priceLevelIndex, priceLevel := s.findPriceLevel(reqPrice)
 	if priceLevel == nil {
 		return fmt.Errorf("ExecuteTradeRequest failed to findPriceLevel at %.2f", trade.RequestedPrice)
 	}
 
-	priceLevel.Trades.Add(trade)
+	if err := priceLevel.Add(trade); err != nil {
+		return fmt.Errorf("ExecuteOpenTradeRequest: failed to add trade to price level %v: %w", priceLevelIndex, err)
+	}
 
 	return nil
 }
 
 func (s *Strategy) CanPlaceTrade2(tradeReq OpenTradeRequest) error {
-	priceLevel := s.findPriceLevel(tradeReq.Price)
+	_, priceLevel := s.findPriceLevel(tradeReq.Price)
 
 	if priceLevel == nil {
 		return PriceOutsideLimitsErr
@@ -273,7 +273,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 		return nil
 	}
 
-	priceLevel := s.findPriceLevel(trade.RequestedPrice)
+	_, priceLevel := s.findPriceLevel(trade.RequestedPrice)
 	if priceLevel == nil {
 		return PriceOutsideLimitsErr
 	}
