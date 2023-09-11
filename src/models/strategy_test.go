@@ -14,7 +14,7 @@ func TestNewCloseTrade(t *testing.T) {
 	tf := 5
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	balance := 1000.0
-	newPriceLevels := func() []*PriceLevel {
+	newUpPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
 			{
 				Price:             1.0,
@@ -36,13 +36,10 @@ func TestNewCloseTrade(t *testing.T) {
 		}
 	}
 
-	newPriceLevels2 := func() []*PriceLevel {
+	newDownPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
 			{
-				Price:             1.0,
-				StopLoss:          3.5,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
+				Price: 1.0,
 			},
 			{
 				Price:             2.0,
@@ -52,30 +49,31 @@ func TestNewCloseTrade(t *testing.T) {
 			},
 			{
 				Price:             10.0,
-				MaxNoOfTrades:     0,
-				AllocationPercent: 0,
+				StopLoss:          13.5,
+				MaxNoOfTrades:     3,
+				AllocationPercent: 0.5,
 			},
 		}
 	}
 
 	t.Run("close the entire buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newPriceLevels())
-		assert.Nil(t, err)
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		t1Result, err := s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		priceLevel, err := s.GetPriceLevelByIndex(0)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Greater(t, vol, Volume(0.0))
 
-		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 1.0)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		tr2, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 1.0)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		assert.Len(t, tr2.Offsets, 1)
 		assert.Equal(t, tr1, tr2.Offsets[0])
@@ -85,24 +83,24 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newPriceLevels())
-		assert.Nil(t, err)
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		t1Result, err := s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		priceLevel, err := s.GetPriceLevelByIndex(0)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Greater(t, vol, Volume(0.0))
 
 		// partial close
-		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		tr2, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 0.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		assert.Len(t, tr2.Offsets, 1)
 		assert.Equal(t, tr1, tr2.Offsets[0])
@@ -112,60 +110,63 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 
 		// close the rest of the trade
-		tr3, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr3)
-		assert.Nil(t, err)
+		tr3, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 0.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr3)
+		assert.NoError(t, err)
 
 		openTrades = priceLevel.Trades.OpenTrades()
 		assert.Len(t, *openTrades, 0)
 	})
 
 	t.Run("close the entire sell trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Down, balance, newPriceLevels2())
-		assert.Nil(t, err)
+		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels())
+		assert.NoError(t, err)
 
-		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		tr1, err := s.NewOpenTrade(id, tf, ts, 2.5)
+		assert.NoError(t, err)
+		t1Result, err := s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
-		priceLevel, err := s.GetPriceLevelByIndex(0)
-		assert.Nil(t, err)
+		priceLevel, err := s.GetPriceLevelByIndex(t1Result.PriceLevelIndex)
+		assert.NoError(t, err)
+
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Less(t, vol, Volume(0.0))
 
-		tr2, err := s.NewCloseTrade(id, tf, ts, 1.8, 1.0)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		tr2, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 1.0)
+		assert.NoError(t, err)
+		t2Result, err := s.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		assert.Len(t, tr2.Offsets, 1)
 		assert.Equal(t, tr1, tr2.Offsets[0])
 
+		assert.NoError(t, err)
+		assert.Equal(t, t2Result.PriceLevelIndex, t1Result.PriceLevelIndex)
 		_, vol, _ = priceLevel.Trades.Vwap()
 		assert.Equal(t, Volume(0.0), vol)
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Down, balance, newPriceLevels2())
-		assert.Nil(t, err)
+		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels())
+		assert.NoError(t, err)
 
 		tr1, err := s.NewOpenTrade(id, tf, ts, 1.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		t1Result, err := s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
-		priceLevel, err := s.GetPriceLevelByIndex(0)
-		assert.Nil(t, err)
+		priceLevel, err := s.GetPriceLevelByIndex(t1Result.PriceLevelIndex)
+		assert.NoError(t, err)
 		_, vol, _ := priceLevel.Trades.Vwap()
 		assert.Less(t, vol, Volume(0.0))
 
 		// partial close
-		tr2, err := s.NewCloseTrade(id, tf, ts, 1.2, 0.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		tr2, err := s.NewCloseTrades(id, tf, ts, 1.2, t1Result.PriceLevelIndex, 0.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		assert.Len(t, tr2.Offsets, 1)
 		assert.Equal(t, tr1, tr2.Offsets[0])
@@ -175,10 +176,10 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 
 		// close the rest of the trade
-		tr3, err := s.NewCloseTrade(id, tf, ts, 1.8, 0.5)
-		assert.Nil(t, err)
-		err = s.AutoExecuteTrade(tr3)
-		assert.Nil(t, err)
+		tr3, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 0.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr3)
+		assert.NoError(t, err)
 
 		openTrades = priceLevel.Trades.OpenTrades()
 		assert.Len(t, *openTrades, 0)
@@ -219,42 +220,42 @@ func TestUpStrategy(t *testing.T) {
 
 	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
 		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		t1, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t1)
+		assert.NoError(t, err)
 
 		t2, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t2)
+		assert.NoError(t, err)
 	})
 
 	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
 		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		t1, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t1)
+		assert.NoError(t, err)
 
 		t2, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t2)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t2)
 		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
 
 		t3, err := strategy.NewOpenTrade(id, tf, ts, 2.09)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t3)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t3)
 		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
 
 		t4, err := strategy.NewOpenTrade(id, tf, ts, 2.1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t4)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t4)
+		assert.NoError(t, err)
 	})
 }
 
@@ -266,68 +267,66 @@ func TestDownStrategy(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	tf := 5
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
-	newPriceLevels := func() []*PriceLevel {
+	newDownPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
 			{
-				Price:                1.0,
-				StopLoss:             1.5,
-				MaxNoOfTrades:        3,
-				AllocationPercent:    0.5,
-				MinimumTradeDistance: 0.0,
+				Price: 1.0,
 			},
 			{
 				Price:                2.0,
 				StopLoss:             2.5,
 				MaxNoOfTrades:        3,
 				AllocationPercent:    0.5,
-				MinimumTradeDistance: 0.1,
+				MinimumTradeDistance: 0,
 			},
 			{
-				Price:             10.0,
-				MaxNoOfTrades:     0,
-				AllocationPercent: 0,
+				Price:                10.0,
+				StopLoss:             11.5,
+				MaxNoOfTrades:        3,
+				AllocationPercent:    0.5,
+				MinimumTradeDistance: 0.1,
 			},
 		}
 	}
 
 	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy(name, symbol, direction, balance, newDownPriceLevels())
+		assert.NoError(t, err)
 
 		t1, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t1)
+		assert.NoError(t, err)
 
 		t2, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t2)
+		assert.NoError(t, err)
 	})
 
 	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy(name, symbol, direction, balance, newDownPriceLevels())
+		assert.NoError(t, err)
 
-		t1, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t1)
-		assert.Nil(t, err)
+		t1, err := strategy.NewOpenTrade(id, tf, ts, 9.0)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t1)
+		assert.NoError(t, err)
 
-		t2, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t2)
+		t2, err := strategy.NewOpenTrade(id, tf, ts, 9.0)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t2)
 		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
 
-		t3, err := strategy.NewOpenTrade(id, tf, ts, 2.09)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t3)
+		t3, err := strategy.NewOpenTrade(id, tf, ts, 9.09)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t3)
 		assert.ErrorIs(t, err, PriceLevelMinimumDistanceNotSatisfiedError)
 
-		t4, err := strategy.NewOpenTrade(id, tf, ts, 2.1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(t4)
-		assert.Nil(t, err)
+		t4, err := strategy.NewOpenTrade(id, tf, ts, 9.1)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(t4)
+		assert.NoError(t, err)
 	})
 }
 
@@ -391,12 +390,12 @@ func TestStrategy(t *testing.T) {
 
 		_, err = NewStrategy(name, symbol, direction, balance, priceLevels)
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("fails if no levels are set", func(t *testing.T) {
 		_, err := NewStrategy(name, symbol, direction, balance, []*PriceLevel{})
-		assert.ErrorIs(t, err, LevelsNotSetErr)
+		assert.ErrorIs(t, err, MinimumNumberOfPriceLevelsNotMetErr)
 	})
 
 	t.Run("errors if price levels are not sorted", func(t *testing.T) {
@@ -458,7 +457,7 @@ func TestStrategy(t *testing.T) {
 		}
 
 		_, err := NewStrategy(name, symbol, direction, balance, _priceLevels1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		_priceLevels2 := []*PriceLevel{
 			{

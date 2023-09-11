@@ -52,7 +52,7 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, 15, newCandles.Period)
 		assert.Len(t, newCandles.Data, 1)
@@ -106,7 +106,7 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, 15, newCandles.Period)
 		assert.Len(t, newCandles.Data, 2)
@@ -177,7 +177,7 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, 15, newCandles.Period)
 		assert.Len(t, newCandles.Data, 3)

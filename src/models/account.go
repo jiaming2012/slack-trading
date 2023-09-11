@@ -133,7 +133,7 @@ func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, erro
 
 //func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*PriceLevel, error) {
 //	if a.PriceLevelsInput != nil {
-//		for _, level := range a.PriceLevelsInput.Values {
+//		for _, level := range a.PriceLevelsInput.Bands {
 //			bulkCloseReq := BulkCloseRequest{
 //				Items:[]BulkCloseRequestItem{
 //					{

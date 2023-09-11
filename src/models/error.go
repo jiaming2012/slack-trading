@@ -4,7 +4,6 @@ import "fmt"
 
 var NoRequestParams = fmt.Errorf("no request params found")
 var BalanceOutOfRangeErr = fmt.Errorf("balance is out of range")
-var LevelsNotSetErr = fmt.Errorf("at least two price levels must be set")
 var MaxLossPercentErr = fmt.Errorf("maxLossPercentage must be a value between 0 and 1")
 var PriceLevelsNotSortedErr = fmt.Errorf("price levels are not sorted")
 var PriceOutsideLimitsErr = fmt.Errorf("price is outside price limits")
@@ -13,6 +12,7 @@ var MaxTradesPerPriceLevelErr = fmt.Errorf("too many trades placed in current pr
 var PriceLevelsAllocationErr = fmt.Errorf("invalid price levels allocation")
 var InvalidAllocationPercentErr = fmt.Errorf("allocation percent must be >= 0 and <= 1")
 var PriceLevelsLastAllocationErr = fmt.Errorf("the last price level must have an allocation of zero")
+var MinimumNumberOfPriceLevelsNotMetErr = fmt.Errorf("price levels must have at least two levels")
 var MaxLossPriceBandErr = fmt.Errorf("the max loss within this price band has already been achieved")
 var InvalidStopLossErr = fmt.Errorf("invalid stop loss")
 var NoStopLossErr = fmt.Errorf("stop loss not set for all non closing trades")
@@ -37,6 +37,7 @@ var NoOffsettingTradeErr = fmt.Errorf("closing trades must have at least one off
 var InvalidTimeframeErr = fmt.Errorf("timeframe must be greater than zero")
 var NoRemainingRiskAvailable = fmt.Errorf("cannot open trade because no risk is available")
 var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum distance must be greater than or equal to zero")
+var PriceLevelStopLossMustBeOutsideLowerAndUpperRange = fmt.Errorf("sl of price level must be less than the lower level and greater than the upper level")
 
 type ErrorDTO struct {
 	Msg string `json:"msg"`

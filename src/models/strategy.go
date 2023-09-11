@@ -32,25 +32,25 @@ func (s *Strategy) Validate() error {
 		return fmt.Errorf("validate: strategy direction must be either up or down")
 	}
 
-	if err := s.PriceLevels.Validate(); err != nil {
-		return fmt.Errorf("validate: strategy initiated with invalid price levels: %w", err)
-	}
-
 	return nil
 }
 
 func (s *Strategy) GetPriceLevelByPrice(prc float64) (*PriceLevel, error) {
-	if len(s.PriceLevels.Values) < 1 {
+	if len(s.PriceLevels.Bands) < 1 {
 		return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: PriceLevels must have at least 2 levels")
 	}
 
-	for i := 0; i < len(s.PriceLevels.Values)-1; i++ {
-		if prc >= s.PriceLevels.Values[i].Price && prc < s.PriceLevels.Values[i+1].Price {
-			return s.PriceLevels.Values[i], nil
+	for i := 0; i < len(s.PriceLevels.Bands)-1; i++ {
+		if prc >= s.PriceLevels.Bands[i].Price && prc < s.PriceLevels.Bands[i+1].Price {
+			if s.Direction == Up {
+				return s.PriceLevels.Bands[i], nil
+			} else if s.Direction == Down {
+				return s.PriceLevels.Bands[i+1], nil
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: price levels not found for price = %v: %w", prc, PriceOutsideLimitsErr)
+	return nil, fmt.Errorf("Strategy.GetPriceLevelByPrice: price levels not found for price = %v, with direction = %v: %w", prc, s.Direction, PriceOutsideLimitsErr)
 }
 
 func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
@@ -60,7 +60,7 @@ func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
 func (s *Strategy) GetTrades() *Trades {
 	trades := Trades{}
 
-	for _, level := range s.PriceLevels.Values {
+	for _, level := range s.PriceLevels.Bands {
 		for _, tr := range *level.Trades {
 			trades = append(trades, tr)
 		}
@@ -73,12 +73,12 @@ func (s Strategy) String() string {
 	return s.Name
 }
 
-func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, percent float64) (*Trade, error) {
+func (s *Strategy) NewCloseTrades(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, priceLevelIndex int, percent float64) (*Trade, error) {
 	if percent < 0 || percent > 1 {
 		return nil, InvalidClosePercentErr
 	}
 
-	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
+	priceLevel, err := s.GetPriceLevelByIndex(priceLevelIndex)
 	if err != nil {
 		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to get price level by index: %w", err)
 	}
@@ -103,22 +103,30 @@ func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe int, timestamp time.Tim
 	return NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, closeVol)
 }
 
-func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64) (*Trade, error) {
-	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
-	if err != nil {
-		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to get price level by index: %w", err)
-	}
-
+func (s *Strategy) calculateTradeVolume(priceLevel *PriceLevel, requestedPrice float64) (float64, error) {
 	maxLoss := s.Balance * priceLevel.AllocationPercent
 	currentRisk, realizedPL := priceLevel.Trades.MaxRisk(priceLevel.StopLoss)
 	tradesRemaining, _ := priceLevel.NewTradesRemaining()
 	remainingRisk := (maxLoss + float64(realizedPL) - currentRisk) / float64(tradesRemaining)
 
 	if remainingRisk < 0 {
-		return nil, fmt.Errorf("Strategy.NewOpenTrade: remainingRisk = %v: %w", remainingRisk, NoRemainingRiskAvailable)
+		return 0.0, fmt.Errorf("Strategy.NewOpenTrade: remainingRisk = %v: %w", remainingRisk, NoRemainingRiskAvailable)
 	}
 
 	requestedVolume := remainingRisk / math.Abs(requestedPrice-priceLevel.StopLoss)
+	return requestedVolume, nil
+}
+
+func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64) (*Trade, error) {
+	priceLevel, err := s.GetPriceLevelByPrice(requestedPrice)
+	if err != nil {
+		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to get price level by index: %w", err)
+	}
+
+	requestedVolume, err := s.calculateTradeVolume(priceLevel, requestedPrice)
+	if err != nil {
+		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to calculate trade volume: %w", err)
+	}
 
 	return NewOpenTrade(id, s.GetTradeType(), s.Symbol, timeframe, timestamp, requestedPrice, requestedVolume, priceLevel.StopLoss)
 }
@@ -132,9 +140,13 @@ func (s *Strategy) TradesRemaining(price float64) (int, TradeType) {
 }
 
 func (s *Strategy) findPriceLevel(price float64) (int, *PriceLevel) {
-	for i, priceLevel := range s.PriceLevels.Values[:len(s.PriceLevels.Values)-1] {
-		if price >= s.PriceLevels.Values[i].Price && price < s.PriceLevels.Values[i+1].Price {
-			return i, priceLevel
+	for i, priceLevel := range s.PriceLevels.Bands[:len(s.PriceLevels.Bands)-1] {
+		if price >= s.PriceLevels.Bands[i].Price && price < s.PriceLevels.Bands[i+1].Price {
+			if s.Direction == Up {
+				return i, priceLevel
+			} else if s.Direction == Down {
+				return i + 1, s.PriceLevels.Bands[i+1]
+			}
 		}
 	}
 
@@ -186,20 +198,20 @@ func (s *Strategy) GetTradeType() TradeType {
 	}
 }
 
-func (s *Strategy) AutoExecuteTrade(trade *Trade) error {
+func (s *Strategy) AutoExecuteTrade(trade *Trade) (*ExecuteOpenTradeResult, error) {
 	return s.ExecuteOpenTradeRequest(trade, trade.RequestedPrice, trade.RequestedVolume)
 }
 
-func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume float64) error {
+func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume float64) (*ExecuteOpenTradeResult, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if err := trade.Validate(); err != nil {
-		return fmt.Errorf("ExecuteTradeRequest failed to Validate trade: %w", err)
+		return nil, fmt.Errorf("ExecuteTradeRequest failed to Validate trade: %w", err)
 	}
 
 	if err := s.CanPlaceTrade(trade); err != nil {
-		return fmt.Errorf("ExecuteTradeRequest cannot place trade: %w", err)
+		return nil, fmt.Errorf("ExecuteTradeRequest cannot place trade: %w", err)
 	}
 
 	trade.ExecutedPrice = price
@@ -209,7 +221,7 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 	var reqPrice float64
 	if trade.Type == TradeTypeClose {
 		if trade.Offsets == nil || len(trade.Offsets) == 0 {
-			return fmt.Errorf("ExecuteOpenTradeRequest: closing trade does not have an offset trade")
+			return nil, fmt.Errorf("ExecuteOpenTradeRequest: closing trade does not have an offset trade")
 		}
 
 		reqPrice = trade.Offsets[0].RequestedPrice
@@ -219,14 +231,16 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 
 	priceLevelIndex, priceLevel := s.findPriceLevel(reqPrice)
 	if priceLevel == nil {
-		return fmt.Errorf("ExecuteTradeRequest failed to findPriceLevel at %.2f", trade.RequestedPrice)
+		return nil, fmt.Errorf("ExecuteTradeRequest failed to findPriceLevel at %.2f", trade.RequestedPrice)
 	}
 
 	if err := priceLevel.Add(trade); err != nil {
-		return fmt.Errorf("ExecuteOpenTradeRequest: failed to add trade to price level %v: %w", priceLevelIndex, err)
+		return nil, fmt.Errorf("ExecuteOpenTradeRequest: failed to add trade to price level %v: %w", priceLevelIndex, err)
 	}
 
-	return nil
+	return &ExecuteOpenTradeResult{
+		PriceLevelIndex: priceLevelIndex,
+	}, nil
 }
 
 func (s *Strategy) CanPlaceTrade2(tradeReq OpenTradeRequest) error {
@@ -313,7 +327,7 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 		return nil, BalanceGreaterThanZeroErr
 	}
 
-	priceLevels, err := NewPriceLevels(priceLevelInput)
+	priceLevels, err := NewPriceLevels(priceLevelInput, direction)
 	if err != nil {
 		return nil, fmt.Errorf("NewStrategy: failed to create price levels: %w", err)
 	}

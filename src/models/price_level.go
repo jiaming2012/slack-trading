@@ -2,107 +2,11 @@ package models
 
 import (
 	"fmt"
-	"github.com/olekukonko/tablewriter"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"math"
-	"strings"
 	"sync"
 )
 
-type PriceLevels struct {
-	Values []*PriceLevel
-}
-
-func (levels PriceLevels) GetByIndex(index int) (*PriceLevel, error) {
-	if index < 0 {
-		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: index must be greater than or equal to zero. Found %v", index)
-	}
-
-	if index >= len(levels.Values) {
-		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: index must be less than total number of price levels of %v", len(levels.Values))
-	}
-
-	return levels.Values[index], nil
-}
-
-func (levels PriceLevels) String() string {
-	display := &strings.Builder{}
-	p := message.NewPrinter(language.English)
-
-	table := tablewriter.NewWriter(display)
-
-	table.SetAlignment(tablewriter.ALIGN_CENTER)
-	table.SetColumnSeparator("")
-	display.WriteString("Price Levels:\n")
-
-	for _, lvl := range levels.Values {
-		price := fmt.Sprintf("$%s", p.Sprintf("%.2f", lvl.Price))
-		noOfTrades := fmt.Sprintf("%d trades", lvl.MaxNoOfTrades)
-		allocPercentage := fmt.Sprintf("%.0f%%", lvl.AllocationPercent*100)
-
-		table.Append([]string{price, noOfTrades, allocPercentage})
-	}
-
-	table.Render()
-	return display.String()
-}
-
-func (levels *PriceLevels) Validate() error {
-	total := 0.0
-	for _, lvl := range levels.Values {
-		total += lvl.AllocationPercent
-	}
-
-	if math.Abs(1-total) > 0.001 {
-		return fmt.Errorf("%w: allocation total is %v", PriceLevelsAllocationErr, total)
-	}
-
-	return nil
-}
-
-func NewPriceLevels(levels []*PriceLevel) (*PriceLevels, error) {
-	for _, l := range levels {
-		if err := l.Validate(); err != nil {
-			return nil, err
-		}
-	}
-
-	if len(levels) < 2 {
-		return nil, LevelsNotSetErr
-	}
-
-	if levels[len(levels)-1].AllocationPercent != 0 {
-		return nil, PriceLevelsLastAllocationErr
-	}
-
-	prevPrice := 0.0
-	for _, level := range levels {
-		if level.Price <= 0 {
-			return nil, fmt.Errorf("NewPriceLevels: invalid price level, %v", level.Price)
-		}
-
-		if level.Price < prevPrice {
-			return nil, PriceLevelsNotSortedErr
-		}
-
-		if level.AllocationPercent > 0 && level.MaxNoOfTrades <= 0 {
-			return nil, NoOfTradeMustBeNonzeroErr
-		}
-
-		if level.AllocationPercent == 0 && level.MaxNoOfTrades > 0 {
-			return nil, NoOfTradesMustBeZeroErr
-		}
-
-		level.Trades = &Trades{}
-
-		prevPrice = level.Price
-	}
-
-	return &PriceLevels{
-		Values: levels,
-	}, nil
-}
+const SmallRoundingError = 0.00000001
 
 type PriceLevel struct {
 	Price                float64
@@ -118,8 +22,9 @@ func (p *PriceLevel) canAddTrade(trade *Trade) error {
 	if trade.Type == TradeTypeBuy || trade.Type == TradeTypeSell {
 		openTrades := p.Trades.OpenTrades()
 		for _, open := range *openTrades {
-			if math.Abs(trade.RequestedPrice-open.RequestedPrice) < p.MinimumTradeDistance {
-				return fmt.Errorf("PriceLevel.canAddTrade: request price of %v is too close to request price of previously open trade %v: %w", trade.RequestedPrice, open.RequestedPrice, PriceLevelMinimumDistanceNotSatisfiedError)
+			t := math.Abs(trade.RequestedPrice-open.RequestedPrice) + SmallRoundingError
+			if t < p.MinimumTradeDistance {
+				return fmt.Errorf("PriceLevel.canAddTrade: request price of %v is too close to request price of previously open trade %v with minimum distance of %v: %w", trade.RequestedPrice, open.RequestedPrice, p.MinimumTradeDistance, PriceLevelMinimumDistanceNotSatisfiedError)
 			}
 		}
 	}
@@ -224,9 +129,3 @@ func (p *PriceLevel) NewTradesRemaining() (int, TradeType) {
 
 	return p.MaxNoOfTrades - diff, side
 }
-
-// todo: reeval if we need this
-//type BalanceLevelStats struct {
-//	TotalBalance float64
-//	UsedBalance  float64
-//}

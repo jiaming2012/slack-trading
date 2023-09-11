@@ -23,29 +23,29 @@ func TestTradeClose(t *testing.T) {
 
 	t.Run("offsetting trades volume can be less than closing trade volume", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		_, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, closePrc, 0.9)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("offsetting trades volume can be equal to closing trade volume", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		_, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, closePrc, 1.0)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("case 1: each offsetting trade volume MUST combine to cover the closing trades volume", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 0.5, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr2.AutoExecute()
 
 		_, err = NewCloseTrade(id, []*Trade{tr1, tr2}, timeframe, ts, closePrc, 0.8)
@@ -54,15 +54,15 @@ func TestTradeClose(t *testing.T) {
 
 	t.Run("case 2: each offsetting trade volume MUST combine to cover the closing trades volume", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 0.5, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 0.5, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr2.AutoExecute()
 
 		tr3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 0.5, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr3.AutoExecute()
 
 		_, err = NewCloseTrade(id, []*Trade{tr1, tr2, tr3}, timeframe, ts, closePrc, 0.8)
@@ -88,7 +88,7 @@ func TestMaxRisk(t *testing.T) {
 
 	t.Run("max risk with one of three open trades", func(t *testing.T) {
 		tr, err := NewOpenTrade(id, TradeTypeBuy, symbol, tf, timestamp, reqPrice, reqVol, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr.AutoExecute()
 
 		trades := Trades{}
@@ -103,11 +103,11 @@ func TestMaxRisk(t *testing.T) {
 		sl := 1500.0
 
 		tr1, err := NewOpenTrade(id, TradeTypeSell, symbol, tf, timestamp, reqPrice, reqVol, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		tr2, err := NewOpenTrade(id, TradeTypeSell, symbol, tf, timestamp, reqPrice, reqVol, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr2.AutoExecute()
 
 		trades := Trades{}
@@ -121,11 +121,11 @@ func TestMaxRisk(t *testing.T) {
 
 	t.Run("max risk decreases when trade closed at profit", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, tf, timestamp, reqPrice, reqVol, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr1.AutoExecute()
 
 		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, tf, timestamp, reqPrice, reqVol, sl)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		tr2.AutoExecute()
 
 		trades := Trades{}
@@ -137,7 +137,7 @@ func TestMaxRisk(t *testing.T) {
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 
 		clsTrade, err := NewCloseTrade(id, []*Trade{tr1}, tf, timestamp, reqPrice+500.0, reqVol)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		clsTrade.AutoExecute()
 		trades.Add(clsTrade)
 

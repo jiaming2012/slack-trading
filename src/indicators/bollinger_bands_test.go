@@ -134,7 +134,7 @@ func TestBollingerBands(t *testing.T) {
 		bollinger := NewBollingerBands(20, 2.0)
 		for _, c := range candles.Data {
 			_, _stats, err := bollinger.Update(c)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			stats = _stats
 		}
 

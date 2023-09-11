@@ -36,16 +36,16 @@ func TestAccountStrategy(t *testing.T) {
 
 	t.Run("cannot add a strategy with the same name", func(t *testing.T) {
 		account, err := NewAccount(name, 1000)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategy("test", "BTCUSD", direction, 100, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy2, err := NewStrategy("test", "BTCUSD", direction, 100, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy2)
 		assert.Error(t, err)
@@ -56,12 +56,12 @@ func TestPlacingTrades(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	balance := 10000.00
 	name := "Test Placing Trades"
-	direction := Direction("up")
+	direction := Up
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	timeframe := 5
 	symbol := "TestSymbol"
 
-	newPriceLevels := func() []*PriceLevel {
+	newUpPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
 			{
 				Price:             1.0,
@@ -84,47 +84,42 @@ func TestPlacingTrades(t *testing.T) {
 		}
 	}
 
-	newPriceLevels2 := func() []*PriceLevel {
+	newDownPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
 			{
-				Price:             1.0,
-				MaxNoOfTrades:     2,
-				AllocationPercent: 0.5,
-				StopLoss:          0.5,
+				Price: 1.0,
 			},
 			{
-				Price:    2.0,
-				StopLoss: 1.5,
+				Price:             2.0,
+				MaxNoOfTrades:     2,
+				AllocationPercent: 0.5,
+				StopLoss:          12.5,
 			},
 			{
 				Price:             3.0,
 				MaxNoOfTrades:     2,
 				AllocationPercent: 0.5,
-				StopLoss:          2.5,
-			},
-			{
-				Price:    4.0,
-				StopLoss: 3.0,
+				StopLoss:          3.5,
 			},
 		}
 	}
 
 	t.Run("can place an open trade request", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
 
 		openPrice := 1.5
 
 		req, err := account.PlaceOpenTradeRequest(strategy.Name, openPrice)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, TradeTypeBuy, req.Type)
 		assert.Equal(t, openPrice, req.Price)
@@ -139,20 +134,20 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("can place a sell order", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", "down", balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", Down, balance/2.0, newDownPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
 
 		openPrice := 2.0
 
 		req, err := account.PlaceOpenTradeRequest(strategy.Name, openPrice)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, TradeTypeSell, req.Type)
 		assert.Equal(t, openPrice, req.Price)
@@ -167,38 +162,43 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newPriceLevels2())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		trade1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade1)
-		assert.Nil(t, err)
+		trade1, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade1)
+		assert.NoError(t, err)
 
-		trade2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade2)
-		assert.Nil(t, err)
+		trade2, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade2)
+		assert.NoError(t, err)
 
-		trade3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade3)
+		trade3, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade3)
+		assert.NoError(t, err)
+
+		trade4, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade4)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade4, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade4)
+		trade5, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade5)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade6, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 3.5, 1, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade6)
-		assert.Nil(t, err)
+		trade6, err := strategy.NewOpenTrade(id, timeframe, timestamp, 3.5)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade6)
+		assert.NoError(t, err)
 	})
 
 	t.Run("always able to place a trade which reduces account exposure", func(t *testing.T) {
@@ -210,13 +210,9 @@ func TestPlacingTrades(t *testing.T) {
 				StopLoss:          0.5,
 			},
 			{
-				Price: 2.0,
-			},
-			{
-				Price:             3.0,
+				Price:             2.0,
 				MaxNoOfTrades:     0,
 				AllocationPercent: 0.0,
-				StopLoss:          2.0,
 			},
 		}
 
@@ -225,75 +221,75 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance)
 
 		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		trade1, err := strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		t1Result, err := strategy.AutoExecuteTrade(trade1)
+		assert.NoError(t, err)
 
 		trade2, err := strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade2)
+		assert.NoError(t, err)
 
 		trade3, err := strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade3)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade3)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade4, err := strategy.NewCloseTrade(id, timeframe, timestamp, requestedPrice, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade4)
-		assert.Nil(t, err)
+		trade4, err := strategy.NewCloseTrades(id, timeframe, timestamp, requestedPrice, t1Result.PriceLevelIndex, 1.0)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade4)
+		assert.NoError(t, err)
 	})
 
 	t.Run("able to place additional trades in bands once previous trade is closed", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
 		curPrice := 1.5
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", symbol, direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", symbol, direction, balance, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		tradesRemaining, side := strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 3, tradesRemaining)
 		assert.Equal(t, side, TradeTypeNone)
 
 		trade1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade1)
+		assert.NoError(t, err)
 
 		trade2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade2)
+		assert.NoError(t, err)
 
 		trade3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade3)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade3)
+		assert.NoError(t, err)
 
 		tradesRemaining, side = strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 0, tradesRemaining)
 		assert.Equal(t, side, TradeTypeBuy)
 
 		trade4, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade4)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade4)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
 		trade5, err := NewCloseTrade(id, []*Trade{trade1, trade2, trade3}, timeframe, timestamp, curPrice, 2.5)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade5)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade5)
+		assert.NoError(t, err)
 
 		tradesRemaining, side = strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 2, tradesRemaining)
@@ -302,23 +298,23 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to close a trade outside of price bands", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		tr1Volume := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		tr1ClosePrc := 10.5
 		closeTr, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, TradeTypeClose, closeTr.Type)
 		assert.Equal(t, -tr1Volume, closeTr.RequestedVolume)
@@ -331,19 +327,19 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("closing trades must have close percentage", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		tr1Volume := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		tr1ClosePrc := 10.5
 		_, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume-0.001)
@@ -352,13 +348,13 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		curPrice := 1.5
 		tradesRemaining, _ := strategy.TradesRemaining(curPrice)
@@ -366,23 +362,23 @@ func TestPlacingTrades(t *testing.T) {
 
 		trVolume := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		tradesRemaining, _ = strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 1, tradesRemaining)
 
 		tr1ClosePrc := 10.5
 		tr3, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, trVolume/2.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr3)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr3)
+		assert.NoError(t, err)
 
 		tradesRemaining, _ = strategy.TradesRemaining(curPrice)
 		assert.Equal(t, 1, tradesRemaining)
@@ -390,57 +386,57 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("volume increases in a specific band as winners increase", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		trVolume := 1.0
 		tr1, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.9, trVolume)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		tr3, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr3)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr3)
+		assert.NoError(t, err)
 
 		assert.Greater(t, tr3.ExecutedVolume, tr1.ExecutedVolume)
 	})
 
 	t.Run("volume decreases in a specific band as losers increase", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		tr1, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
 
 		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.2, tr1.ExecutedVolume)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr2)
+		assert.NoError(t, err)
 
 		tr3, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(tr3)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr3)
+		assert.NoError(t, err)
 
 		assert.Less(t, tr3.ExecutedVolume, tr1.ExecutedVolume)
 	})
@@ -478,28 +474,28 @@ func TestUpdate(t *testing.T) {
 		}
 
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, priceLevel)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		closeReq, err := account.Update(1.5, timeframe)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, closeReq)
 
 		t0, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
 		strategy.AutoExecuteTrade(t0)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		closeReq, err = account.Update(band1SL+0.2, timeframe)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, closeReq)
 
 		closeReq, err = account.Update(band1SL, timeframe)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, closeReq)
 		assert.Equal(t, 1, len(closeReq))
 		assert.Equal(t, t0, closeReq[0].Trade)
@@ -530,29 +526,29 @@ func TestUpdate(t *testing.T) {
 		}
 
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategy("test", "BTCUSD", Up, balance, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		maxLoss := balance
 
 		trade, err := strategy.NewOpenTrade(id, timeframe, timestamp, curPrice)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade)
+		assert.NoError(t, err)
 
 		closeReq, err := account.checkStopOut(timeframe, curPrice, getTime, getID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, closeReq)
 
 		stopOutPrice := ((trade.ExecutedPrice * trade.ExecutedVolume) - maxLoss) / trade.ExecutedVolume
 
 		closeReq, err = account.checkStopOut(timeframe, stopOutPrice, getTime, getID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, closeReq)
 		assert.Len(t, closeReq, 1)
 		assert.Equal(t, -trade.ExecutedVolume, closeReq[0].Volume)
@@ -573,46 +569,46 @@ func TestUpdate(t *testing.T) {
 		priceLevels := []*PriceLevel{
 			{
 				Price:             openPrice,
-				StopLoss:          stopLoss,
-				MaxNoOfTrades:     2,
-				AllocationPercent: 1.0,
+				AllocationPercent: 0,
 			},
 			{
+				MaxNoOfTrades:     2,
 				Price:             openPrice + 10000.0,
-				AllocationPercent: 0,
+				StopLoss:          stopLoss,
+				AllocationPercent: 1,
 			},
 		}
 
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategy("test", "BTCUSD", Down, balance, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		maxLoss := balance
 
 		trade1, err := strategy.NewOpenTrade(id, timeframe, timestamp, openPrice)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade1)
+		assert.NoError(t, err)
 
 		trade2, err := strategy.NewOpenTrade(id, timeframe, timestamp, openPrice+5000.0)
-		assert.Nil(t, err)
-		err = strategy.AutoExecuteTrade(trade2)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(trade2)
+		assert.NoError(t, err)
 
 		closeReq, err := account.checkStopOut(timeframe, openPrice+5000.0, getTime, getID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, closeReq)
 
 		vwap, vol, _ := strategy.GetTrades().Vwap()
 		stopOutPrice := float64(vwap) - (maxLoss / float64(vol))
 
 		closeReq, err = account.checkStopOut(timeframe, stopOutPrice, getTime, getID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, closeReq)
 		assert.Len(t, closeReq, 1)
 		assert.Equal(t, float64(-vol), closeReq[0].Volume)
@@ -660,10 +656,10 @@ func TestTradeValidation(t *testing.T) {
 		account, err := NewAccount(name, balance)
 
 		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newPriceLevels())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		_, err = strategy.NewOpenTrade(id, timeframe, timestamp, 0.5)
 		assert.ErrorIs(t, err, PriceOutsideLimitsErr)
@@ -671,17 +667,17 @@ func TestTradeValidation(t *testing.T) {
 
 	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// success case
 		trade, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, trade)
 
 		// failure case

@@ -75,7 +75,7 @@ func TestStopOut(t *testing.T) {
 		strategyName := "Trendline Break"
 
 		accounts, err := createAccountFixtures(accountName, symbol, direction, strategyName, balance, priceLevels)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, accounts, 1)
 
 		//c := NewAccountWorkerClientFromFixtures(&wg, accounts)
