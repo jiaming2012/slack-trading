@@ -99,21 +99,19 @@ func main() {
 	balance := 2000.0
 	priceLevels := []*models.PriceLevel{
 		{
-			Price:             24000.0,
-			MaxNoOfTrades:     3,
-			AllocationPercent: 0.5,
-			StopLoss:          20000.0,
+			Price: 24000.0,
 		},
 		{
 			Price:             25000.0,
 			MaxNoOfTrades:     3,
 			AllocationPercent: 0.5,
-			StopLoss:          20000.0,
+			StopLoss:          26000.0,
 		},
 		{
-			Price:             26000.0,
-			AllocationPercent: 0,
-			StopLoss:          20000.0,
+			Price:             27000.0,
+			MaxNoOfTrades:     2,
+			AllocationPercent: 0.5,
+			StopLoss:          28000.0,
 		},
 	}
 

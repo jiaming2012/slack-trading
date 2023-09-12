@@ -20,6 +20,9 @@ const (
 	TrendlineBreakSignal      = "TrendlineBreakSignal"
 	AddStrategyRequest        = "AddStrategyRequest"
 	NewCloseTradesRequest     = "NewCloseTradesRequest"
+	ExecuteOpenTradeRequest   = "ExecuteOpenTradeRequest"
 	ExecuteCloseTradesRequest = "ExecuteCloseTradesRequest"
+	ExecuteOpenTradeResult    = "ExecuteOpenTradeResult"
+	NewOpenTradeRequest       = "NewOpenTradeRequest"
 	Error                     = "DefaultError"
 )

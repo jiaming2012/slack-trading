@@ -103,21 +103,14 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe int) 
 }
 
 type OpenTradeRequest struct {
-	Symbol   string
-	Volume   float64
-	Type     TradeType
-	Price    float64
-	StopLoss float64
-	Strategy *Strategy
+	Timeframe int
+	Strategy  *Strategy
 }
 
-func NewOpenTradeRequest(symbol string, tradeType TradeType, volume float64, price float64, stopLoss float64) (*OpenTradeRequest, error) {
+func NewOpenTradeRequest(timeframe int, strategy *Strategy) (*OpenTradeRequest, error) {
 	request := &OpenTradeRequest{
-		Symbol:   symbol,
-		Volume:   volume,
-		Type:     tradeType,
-		Price:    price,
-		StopLoss: stopLoss,
+		Timeframe: timeframe,
+		Strategy:  strategy,
 	}
 
 	if err := request.Validate(); err != nil {
@@ -128,32 +121,40 @@ func NewOpenTradeRequest(symbol string, tradeType TradeType, volume float64, pri
 }
 
 func (r *OpenTradeRequest) Validate() error {
-	if r.Symbol == "" {
-		return SymbolNotSetErr
+	//if r.Symbol == "" {
+	//	return SymbolNotSetErr
+	//}
+	//
+	//if r.Volume > 0 {
+	//	if r.StopLoss >= r.Price {
+	//		return fmt.Errorf("%w: stopLoss of %v is above current price of %v", InvalidStopLossErr, r.StopLoss, r.Price)
+	//	}
+	//} else if r.Volume < 0 {
+	//	if r.StopLoss > 0 && r.StopLoss <= r.Price {
+	//		return fmt.Errorf("%w: stopLoss of %v is below current price of %v", InvalidStopLossErr, r.StopLoss, r.Price)
+	//	}
+	//} else {
+	//	return TradeVolumeIsZeroErr
+	//}
+	//
+	//if r.Type != TradeTypeBuy && r.Type != TradeTypeSell && r.Type != TradeTypeClose {
+	//	return UnknownTradeTypeErr
+	//}
+
+	if r.Strategy == nil {
+		return fmt.Errorf("OpenTradeRequest.Validate: strategy not set")
 	}
 
-	if r.Volume > 0 {
-		if r.StopLoss >= r.Price {
-			return fmt.Errorf("%w: stopLoss of %v is above current price of %v", InvalidStopLossErr, r.StopLoss, r.Price)
-		}
-	} else if r.Volume < 0 {
-		if r.StopLoss > 0 && r.StopLoss <= r.Price {
-			return fmt.Errorf("%w: stopLoss of %v is below current price of %v", InvalidStopLossErr, r.StopLoss, r.Price)
-		}
-	} else {
-		return TradeVolumeIsZeroErr
-	}
+	//if r.Price <= 0 {
+	//	return InvalidRequestedPriceErr
+	//}
 
-	if r.Type != TradeTypeBuy && r.Type != TradeTypeSell && r.Type != TradeTypeClose {
-		return UnknownTradeTypeErr
-	}
+	//if r.StopLoss <= 0 {
+	//	return NonPositiveStopLossErr
+	//}
 
-	if r.Price <= 0 {
-		return InvalidRequestedPriceErr
-	}
-
-	if r.StopLoss <= 0 {
-		return NonPositiveStopLossErr
+	if r.Timeframe <= 0 {
+		return InvalidTimeframeErr
 	}
 
 	return nil

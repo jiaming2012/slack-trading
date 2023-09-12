@@ -192,6 +192,7 @@ func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float6
 		return nil, fmt.Errorf("Account.PlaceOrderOpen: failed to find strategy: %w", err)
 	}
 
+	// todo: remove this??
 	_, currentPriceLevel := strategy.findPriceLevel(currentPrice)
 	if currentPriceLevel == nil {
 		return nil, fmt.Errorf("could not find price level at %.2f", currentPrice)
@@ -199,11 +200,7 @@ func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float6
 
 	// todo: refactor PlaceOrder parameters to pass in a trade request
 	tradeRequest := OpenTradeRequest{
-		Symbol:   strategy.Symbol,
-		Type:     strategy.GetTradeType(),
-		Price:    currentPrice,
 		Strategy: strategy,
-		StopLoss: currentPriceLevel.StopLoss,
 	}
 
 	return &tradeRequest, nil

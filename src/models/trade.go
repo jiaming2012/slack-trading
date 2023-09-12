@@ -17,6 +17,19 @@ const (
 	TradeTypeNone
 )
 
+func (t TradeType) String() string {
+	switch t {
+	case TradeTypeBuy:
+		return "buy"
+	case TradeTypeSell:
+		return "sell"
+	case TradeTypeClose:
+		return "close"
+	default:
+		return "unknown"
+	}
+}
+
 type Profit struct {
 	Floating float64
 	Realized float64
