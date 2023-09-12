@@ -23,7 +23,9 @@ func signalHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func tradeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	if r.Method == "GET" {
+
+	} else if r.Method == "POST" {
 		var openTradeRequest eventmodels.OpenTradeRequest
 		if err := json.NewDecoder(r.Body).Decode(&openTradeRequest); err != nil {
 			w.WriteHeader(400)
@@ -52,6 +54,8 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
 			}
 		}
+	} else {
+		w.WriteHeader(404)
 	}
 }
 

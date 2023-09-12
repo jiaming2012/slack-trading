@@ -36,7 +36,7 @@ var OffsetTradesVolumeExceedsClosingTradeVolumeErr = fmt.Errorf("the sum of N-1 
 var NoOffsettingTradeErr = fmt.Errorf("closing trades must have at least one offsetting trade")
 var InvalidTimeframeErr = fmt.Errorf("timeframe must be greater than zero")
 var NoRemainingRiskAvailable = fmt.Errorf("cannot open trade because no risk is available")
-var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum distance must be greater than or equal to zero")
+var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum distance condition not met")
 var PriceLevelStopLossMustBeOutsideLowerAndUpperRange = fmt.Errorf("sl of price level must be less than the lower level and greater than the upper level")
 
 type ErrorDTO struct {
