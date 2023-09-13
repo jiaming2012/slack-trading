@@ -13,3 +13,7 @@ type ExecuteOpenTradeResult struct {
 	Timestamp time.Time                      `json:"timestamp"`
 	Result    *models.ExecuteOpenTradeResult `json:"result"`
 }
+
+func (r *ExecuteOpenTradeResult) GetRequestID() uuid.UUID {
+	return r.RequestID
+}

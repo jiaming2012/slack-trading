@@ -57,7 +57,29 @@ func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
 	return s.PriceLevels.GetByIndex(index)
 }
 
+func (s *Strategy) GetPriceLevelTrades() []*PriceLevelTrades {
+	var priceLevelTrades []*PriceLevelTrades
+
+	for index, level := range s.PriceLevels.Bands {
+		trades := Trades{}
+
+		for _, tr := range *level.Trades {
+			trades = append(trades, tr)
+		}
+
+		priceLevelTrades = append(priceLevelTrades, &PriceLevelTrades{
+			PriceLevelIndex: index,
+			Trades:          trades,
+		})
+	}
+
+	return priceLevelTrades
+}
+
 func (s *Strategy) GetTrades() *Trades {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	trades := Trades{}
 
 	for _, level := range s.PriceLevels.Bands {

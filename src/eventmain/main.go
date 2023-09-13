@@ -25,7 +25,7 @@ import (
 /strategy add TrendPursuit to MrTrendy
  - open conditions are part of strategy
  - close conditions are part of strategy
-/condition add Trendline break to MrTrendy TrendPursuit with params BTCUSD(transform trendspider symbol COINBASE:^BTCUSD to BTCUSD??) m5 trendline_break bounce up 27000
+/condition add Trendline break to MrTrendy TrendPursuit with params BTCUSD(transform trendspider symbol COINBASE:^BTCUSD to BTCUSD??) m5 trendline-break bounce up 27000
 /condition add BollingerKeltnerConsolidation to TrendPursuit [or should this be part of strategy (for now)]
 */
 
@@ -108,18 +108,18 @@ func main() {
 			MaxNoOfTrades:        3,
 			AllocationPercent:    0.5,
 			StopLoss:             26000.0,
-			MinimumTradeDistance: 50.0,
+			MinimumTradeDistance: 0,
 		},
 		{
 			Price:                27000.0,
 			MaxNoOfTrades:        2,
 			AllocationPercent:    0.5,
 			StopLoss:             28000.0,
-			MinimumTradeDistance: 200.0,
+			MinimumTradeDistance: 0,
 		},
 	}
 
-	accountFixture, err := models.NewAccount("Playground", balance)
+	accountFixture, err := models.NewAccount("playground", balance)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -128,19 +128,19 @@ func main() {
 		accountFixture,
 	}
 
-	trendlineBreakStrategyFixture, err := models.NewStrategy("Trendline Break", "BTC-USD", models.Down, balance, priceLevels)
+	trendlineBreakStrategyFixture, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	signal1 := models.TrendLineBreakSignal{
-		Name:      "htf trendline break",
+		Name:      "htf-trendline-break",
 		Price:     25884.3, // todo: remove price from signal
 		Direction: models.Down,
 	}
 
 	signal2 := models.MovingAverageBreakSignal{
-		Name:      "small ma retrace",
+		Name:      "small-ma-retrace",
 		Price:     27990.4,
 		Direction: models.Up,
 	}

@@ -71,8 +71,8 @@ func TestStopOut(t *testing.T) {
 		//wg := sync.WaitGroup{}
 		symbol := "BTC-USD"
 		direction := models.Direction("up")
-		accountName := "Playground"
-		strategyName := "Trendline Break"
+		accountName := "playground"
+		strategyName := "trendline-break"
 
 		accounts, err := createAccountFixtures(accountName, symbol, direction, strategyName, balance, priceLevels)
 		assert.NoError(t, err)

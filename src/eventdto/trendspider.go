@@ -51,17 +51,17 @@ type TrendspiderWebhook struct {
 	Data   json.RawMessage `json:"data"`
 }
 
-// SupportBreakSignal represents webhook signal support_break
+// SupportBreakSignal represents webhook signal support-break
 type SupportBreakSignal struct {
 	Price string `json:"price"`
 }
 
-// ResistanceBreakSignal represents webhook signal resistance_break
+// ResistanceBreakSignal represents webhook signal resistance-break
 type ResistanceBreakSignal struct {
 	Price string `json:"price"`
 }
 
-// TrendlineBreakSignal represents webhook signal trendline_break
+// TrendlineBreakSignal represents webhook signal trendline-break
 type TrendlineBreakSignal struct {
 	Price string `json:"price"`
 }

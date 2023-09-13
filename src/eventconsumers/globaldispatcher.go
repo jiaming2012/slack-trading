@@ -31,8 +31,8 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 	globalDispatchItem.ErrCh <- requestErr
 }
 
-func (w *GlobalDispatchWorker) dispatchExecuteOpenTradeResult(event *eventmodels.ExecuteOpenTradeResult) {
-	uuid := event.RequestID
+func (w *GlobalDispatchWorker) dispatchExecuteResult(event eventmodels.ResultEvent) {
+	uuid := event.GetRequestID()
 	globalDispatchItem, found := w.dispatcher.Channels[uuid]
 	if !found {
 		pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher, using requestID %v", uuid))
@@ -46,7 +46,8 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.Error, w.dispatchError)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteOpenTradeResult, w.dispatchExecuteOpenTradeResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteOpenTradeResult, w.dispatchExecuteResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.FetchTradesResult, w.dispatchExecuteResult)
 
 	go func() {
 		defer w.wg.Done()

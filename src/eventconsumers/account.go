@@ -29,7 +29,7 @@ func (r *AccountWorker) getAccounts() []models.Account {
 }
 
 func (r *AccountWorker) addAccount(account *models.Account, balance float64, priceLevels []*models.PriceLevel) error {
-	strategy, err := models.NewStrategy("Trendline Break", "BTC-USD", "down", balance, priceLevels)
+	strategy, err := models.NewStrategy("trendline-break", "BTC-USD", "down", balance, priceLevels)
 	if err != nil {
 		return err
 	}
@@ -249,6 +249,21 @@ func (r *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	})
 }
 
+func (r *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesRequest) {
+	account, err := r.findAccount(event.AccountName)
+	if err != nil {
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
+		pubsub.PublishError("AccountWorker.handleFetchTradesRequest", requestErr)
+		return
+	}
+
+	priceLevelTrades := account.GetPriceLevelTrades()
+
+	resultEvent := eventmodels.NewFetchTradesResult(event.RequestID, priceLevelTrades)
+
+	pubsub.Publish("AccountWorker.handleFetchTradesRequest", pubsub.FetchTradesResult, resultEvent)
+}
+
 func (r *AccountWorker) Start(ctx context.Context) {
 	r.wg.Add(1)
 
@@ -259,6 +274,7 @@ func (r *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, r.handleExecuteNewOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewCloseTradesRequest, r.handleNewCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, r.handleExecuteCloseTradesRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, r.handleFetchTradesRequest)
 
 	go func() {
 		defer r.wg.Done()

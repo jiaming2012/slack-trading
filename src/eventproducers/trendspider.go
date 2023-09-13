@@ -26,24 +26,24 @@ func (c *trendSpiderClient) main() {
 
 func (c *trendSpiderClient) decodeSignal(webhook *eventdto.TrendspiderWebhook) (interface{}, error) {
 	switch webhook.Header.Signal {
-	case "support_break":
+	case "support-break":
 		var signal eventdto.SupportBreakSignal
 		if err := json.Unmarshal(webhook.Data, &signal); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal support_break signal: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal support-break signal: %w", err)
 		}
 
 		return signal, nil
-	case "resistance_break":
+	case "resistance-break":
 		var signal eventdto.ResistanceBreakSignal
 		if err := json.Unmarshal(webhook.Data, &signal); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal support_break signal: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal support-break signal: %w", err)
 		}
 
 		return signal, nil
-	case "trendline_break":
+	case "trendline-break":
 		var signal eventdto.TrendlineBreakSignal
 		if err := json.Unmarshal(webhook.Data, &signal); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal support_break signal: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal support-break signal: %w", err)
 		}
 
 		return signal, nil

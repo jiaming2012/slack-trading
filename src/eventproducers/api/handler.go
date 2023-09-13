@@ -23,10 +23,47 @@ func signalHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func tradeHandler(w http.ResponseWriter, r *http.Request) {
+func getTradesByAccountHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
+		vars := mux.Vars(r)
+		accountName, found := vars["accountName"]
+		if !found {
+			err := fmt.Errorf("could not find accountName in request params")
+			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+				log.Errorf("getTradesByAccountHandler: failed to set error response: %v", respErr)
+			}
+			return
+		}
 
-	} else if r.Method == "POST" {
+		req := eventmodels.NewFetchTradesRequest(uuid.New(), accountName, nil)
+
+		resultCh, errCh := eventmodels.RegisterResultCallback(req.RequestID)
+
+		pubsub.Publish("getTradesByAccountHandler", pubsub.FetchTradesRequest, req)
+
+		select {
+		case result := <-resultCh:
+			res, ok := result.(*eventmodels.FetchTradesResult)
+			if !ok {
+				log.Errorf("getTradesByAccountHandler: failed to read FetchTradesResult")
+				return
+			}
+
+			if err := SetResponse(res, w); err != nil {
+				log.Errorf("tradeHandler: failed to set response: %v", err)
+			}
+		case err := <-errCh:
+			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
+				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
+			}
+		}
+	} else {
+		w.WriteHeader(404)
+	}
+}
+
+func tradeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
 		var req eventmodels.OpenTradeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(400)
@@ -68,13 +105,6 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 
 func SetupApiHandler(router *mux.Router) {
 	router.HandleFunc("", tradeHandler)
+	router.HandleFunc("/account/{accountName}", getTradesByAccountHandler)
 	router.HandleFunc("/signal", signalHandler)
 }
-
-//func NewApiHandler(dispatcher *eventmodels.globalDispatcher) *apiHandler {
-//	handler := &apiHandler{
-//		dispatcher: dispatcher,
-//	}
-//
-//	return handler
-//}
