@@ -16,20 +16,20 @@ func PublishError(publisherName string, err error) {
 	Publish(publisherName, Error, err)
 }
 
-func Publish(publisherName string, topic string, event interface{}) {
+func Publish(publisherName string, topic EventName, event interface{}) {
 	PublishWithFlags(publisherName, topic, event, true)
 }
 
-func PublishWithFlags(publisherName string, topic string, event interface{}, logEvent bool) {
+func PublishWithFlags(publisherName string, topic EventName, event interface{}, logEvent bool) {
 	if logEvent {
 		log.Debugf("[%v] Published to topic %s", publisherName, topic)
 	}
 
-	bus.Publish(topic, event)
+	bus.Publish(string(topic), event)
 }
 
-func Subscribe(subscriberName string, topic string, callbackFn interface{}) error {
-	if err := bus.SubscribeAsync(topic, callbackFn, false); err != nil {
+func Subscribe(subscriberName string, topic EventName, callbackFn interface{}) error {
+	if err := bus.SubscribeAsync(string(topic), callbackFn, false); err != nil {
 		return err
 	}
 

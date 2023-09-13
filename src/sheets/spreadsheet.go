@@ -20,7 +20,7 @@ func createSpreadsheet(ctx context.Context, srv *sheets.Service, title string) e
 		return fmt.Errorf("unable to create spreadsheet: %v", err)
 	}
 
-	// Print the spreadsheet ID
+	// Print the spreadsheet RequestID
 	fmt.Printf("Created new spreadsheet with ID: %s\n", spreadsheet.SpreadsheetId)
 
 	return nil

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"slack-trading/src/eventconsumers"
+	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventproducers/api"
 	"slack-trading/src/eventpubsub"
@@ -70,9 +71,10 @@ func main() {
 		port = "3000"
 	}
 
+	// Setup dispatcher
+	dispatcher := eventmodels.InitializeGlobalDispatcher()
 	router := mux.NewRouter()
-	api.TradesHandler(router.PathPrefix("/trades").Subrouter())
-	//router.Handle("/trades/signal", GetTradesHandler())
+	api.SetupApiHandler(router.PathPrefix("/trades").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{
@@ -160,6 +162,7 @@ func main() {
 	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewRsiBotClient(&wg).Start(ctx)
+	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	//eventconsumers.NewTradingBot(&wg).Start(ctx)
 	//eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures).Start(ctx)

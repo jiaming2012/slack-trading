@@ -1,6 +1,9 @@
 package eventmodels
 
-import "slack-trading/src/models"
+import (
+	"github.com/google/uuid"
+	"slack-trading/src/models"
+)
 
 type ExecuteCloseTradeRequest struct {
 	PriceLevel         *models.PriceLevel
@@ -8,7 +11,6 @@ type ExecuteCloseTradeRequest struct {
 }
 
 type ExecuteOpenTradeRequest struct {
+	RequestID        uuid.UUID
 	OpenTradeRequest *models.OpenTradeRequest
-	Result           chan *ExecuteOpenTradeResult
-	Error            chan error
 }

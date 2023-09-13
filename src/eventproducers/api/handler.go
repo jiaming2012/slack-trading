@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -26,31 +27,37 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 
 	} else if r.Method == "POST" {
-		var openTradeRequest eventmodels.OpenTradeRequest
-		if err := json.NewDecoder(r.Body).Decode(&openTradeRequest); err != nil {
+		var req eventmodels.OpenTradeRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(400)
 			return
 		}
 
-		if err := openTradeRequest.Validate(); err != nil {
+		if err := req.Validate(); err != nil {
 			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
 				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
 			}
 			return
 		}
 
-		openTradeRequest.Result = make(chan *eventmodels.ExecuteOpenTradeResult)
-		openTradeRequest.Error = make(chan error)
+		req.RequestID = uuid.New()
+		resultCh, errCh := eventmodels.RegisterResultCallback(req.RequestID)
 
-		pubsub.Publish("tradeHandler", pubsub.NewOpenTradeRequest, openTradeRequest)
+		pubsub.Publish("tradeHandler", pubsub.NewOpenTradeRequest, req)
 
 		select {
-		case result := <-openTradeRequest.Result:
-			if err := SetResponse(result, w); err != nil {
+		case result := <-resultCh:
+			res, ok := result.(*eventmodels.ExecuteOpenTradeResult)
+			if !ok {
+				log.Errorf("tradeHandler: failed to read ExecuteOpenTradeResult")
+				return
+			}
+
+			if err := SetResponse(res, w); err != nil {
 				log.Errorf("tradeHandler: failed to set response: %v", err)
 			}
-		case err := <-openTradeRequest.Error:
-			if respErr := SetErrorResponse("openTradeRequest", 400, err, w); respErr != nil {
+		case err := <-errCh:
+			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
 				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
 			}
 		}
@@ -59,7 +66,15 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func TradesHandler(router *mux.Router) {
+func SetupApiHandler(router *mux.Router) {
 	router.HandleFunc("", tradeHandler)
 	router.HandleFunc("/signal", signalHandler)
 }
+
+//func NewApiHandler(dispatcher *eventmodels.globalDispatcher) *apiHandler {
+//	handler := &apiHandler{
+//		dispatcher: dispatcher,
+//	}
+//
+//	return handler
+//}

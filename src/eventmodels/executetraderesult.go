@@ -7,7 +7,7 @@ import (
 )
 
 type ExecuteOpenTradeResult struct {
-	Id        uuid.UUID                      `json:"id"`
+	RequestID uuid.UUID                      `json:"id"`
 	Symbol    string                         `json:"symbol"`
 	Side      string                         `json:"side"`
 	Timestamp time.Time                      `json:"timestamp"`

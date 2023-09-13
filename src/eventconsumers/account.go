@@ -191,34 +191,34 @@ func (r *AccountWorker) getMarketPrice(strategy *models.Strategy) float64 {
 func (r *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
 	req := event.OpenTradeRequest
 	requestPrc := r.getMarketPrice(req.Strategy)
-	id := uuid.New()
+	tradeID := uuid.New()
 	now := time.Now()
 
-	trade, err := req.Strategy.NewOpenTrade(id, req.Timeframe, now, requestPrc)
+	trade, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
-		event.Error <- err
-		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", fmt.Errorf("unable to create new trade: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new trade: %w", err))
+		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", requestErr)
 		return
 	}
 
 	result, err := req.Strategy.AutoExecuteTrade(trade)
 	if err != nil {
-		event.Error <- err
-		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", fmt.Errorf("unable to place execute trade: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to place execute trade: %w", err))
+		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", requestErr)
 		return
 	}
 
-	executeOpenTradeResult := eventmodels.ExecuteOpenTradeResult{
-		Id:        id,
+	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
+		RequestID: event.RequestID,
 		Side:      req.Strategy.GetTradeType().String(),
 		Symbol:    req.Strategy.Symbol,
 		Timestamp: now,
 		Result:    result,
 	}
 
-	if event.Result != nil {
-		event.Result <- &executeOpenTradeResult
-	}
+	//if event.Result != nil {
+	//	event.Result <- &executeOpenTradeResult
+	//}
 
 	pubsub.Publish("AccountWorker.handleExecuteNewOpenTradeRequest", pubsub.ExecuteOpenTradeResult, executeOpenTradeResult)
 }
@@ -226,15 +226,15 @@ func (r *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 func (r *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeRequest) {
 	account, err := r.findAccount(event.AccountName)
 	if err != nil {
-		event.Error <- err
-		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", fmt.Errorf("failed to find findAccount: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
+		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", requestErr)
 		return
 	}
 
 	strategy, err := account.FindStrategy(event.StrategyName)
 	if err != nil {
-		event.Error <- err
-		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", fmt.Errorf("failed to find strategy: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
+		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", requestErr)
 		return
 	}
 
@@ -244,9 +244,8 @@ func (r *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	)
 
 	pubsub.Publish("AccountWorker.handleNewOpenTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
+		RequestID:        event.RequestID,
 		OpenTradeRequest: openTradeReq,
-		Result:           event.Result,
-		Error:            event.Error,
 	})
 }
 

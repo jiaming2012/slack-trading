@@ -2,14 +2,14 @@ package eventmodels
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 )
 
 type OpenTradeRequest struct {
+	RequestID    uuid.UUID
 	AccountName  string `json:"accountName"`
 	StrategyName string `json:"strategyName"`
 	Timeframe    int    `json:"timeframe"`
-	Result       chan *ExecuteOpenTradeResult
-	Error        chan error
 }
 
 func (r *OpenTradeRequest) Validate() error {
