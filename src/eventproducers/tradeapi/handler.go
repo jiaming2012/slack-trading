@@ -1,4 +1,4 @@
-package api
+package tradeapi
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventproducers"
 	pubsub "slack-trading/src/eventpubsub"
 )
 
@@ -29,7 +30,7 @@ func getTradesByAccountHandler(w http.ResponseWriter, r *http.Request) {
 		accountName, found := vars["accountName"]
 		if !found {
 			err := fmt.Errorf("could not find accountName in request params")
-			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("validation", 400, err, w); respErr != nil {
 				log.Errorf("getTradesByAccountHandler: failed to set error response: %v", respErr)
 			}
 			return
@@ -49,13 +50,13 @@ func getTradesByAccountHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if err := SetResponse(res, w); err != nil {
+			if err := eventproducers.SetResponse(res, w); err != nil {
 				log.Errorf("getTradesByAccountHandler: failed to set response: %v", err)
 				w.WriteHeader(500)
 				return
 			}
 		case err := <-errCh:
-			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("req", 400, err, w); respErr != nil {
 				log.Errorf("getTradesByAccountHandler: failed to set error response: %v", respErr)
 				w.WriteHeader(500)
 				return
@@ -75,7 +76,7 @@ func closeTradeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := req.Validate(); err != nil {
-			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("validation", 400, err, w); respErr != nil {
 				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
 				w.WriteHeader(500)
 				return
@@ -96,13 +97,13 @@ func closeTradeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if err := SetResponse(res, w); err != nil {
+			if err := eventproducers.SetResponse(res, w); err != nil {
 				log.Errorf("closeTradeHandler: failed to set response: %v", err)
 				w.WriteHeader(500)
 				return
 			}
 		case err := <-errCh:
-			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("req", 400, err, w); respErr != nil {
 				log.Errorf("closeTradeHandler: failed to set error response: %v", respErr)
 				w.WriteHeader(500)
 				return
@@ -122,7 +123,7 @@ func openTradeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := req.Validate(); err != nil {
-			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("validation", 400, err, w); respErr != nil {
 				log.Errorf("openTradeHandler: failed to set error response: %v", respErr)
 			}
 			return
@@ -142,13 +143,13 @@ func openTradeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if err := SetResponse(res, w); err != nil {
+			if err := eventproducers.SetResponse(res, w); err != nil {
 				log.Errorf("openTradeHandler: failed to set response: %v", err)
 				w.WriteHeader(500)
 				return
 			}
 		case err := <-errCh:
-			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
+			if respErr := eventproducers.SetErrorResponse("req", 400, err, w); respErr != nil {
 				log.Errorf("openTradeHandler: failed to set error response: %v", respErr)
 				w.WriteHeader(500)
 				return
@@ -159,7 +160,7 @@ func openTradeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SetupApiHandler(router *mux.Router) {
+func SetupHandler(router *mux.Router) {
 	router.HandleFunc("", openTradeHandler)
 	router.HandleFunc("/close", closeTradeHandler)
 	router.HandleFunc("/account/{accountName}", getTradesByAccountHandler)

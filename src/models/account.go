@@ -46,11 +46,11 @@ func (a *Account) String() string {
 	return fmt.Sprintf("Name: %v\n     Starting Balance: $%.2f, \n     Strategies:\n%s", a.Name, a.Balance, strategies)
 }
 
-func (a *Account) GetPriceLevelTrades() []*PriceLevelTrades {
+func (a *Account) GetPriceLevelTrades(openTradesOnly bool) []*PriceLevelTrades {
 	var priceLevelTrades []*PriceLevelTrades
 
 	for _, strategy := range a.Strategies {
-		priceLevelTrades = append(priceLevelTrades, strategy.GetPriceLevelTrades()...)
+		priceLevelTrades = append(priceLevelTrades, strategy.GetTradesByPriceLevel(openTradesOnly)...)
 	}
 
 	return priceLevelTrades

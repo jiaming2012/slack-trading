@@ -1,4 +1,4 @@
-package api
+package eventproducers
 
 import (
 	"encoding/json"

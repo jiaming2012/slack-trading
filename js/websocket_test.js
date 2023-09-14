@@ -6,7 +6,7 @@ const fs = require('fs');
 
 // Derived from your Coinbase Retail API Key
 //  SIGNING_KEY: the signing key provided as a part of your API key. Also called the "SECRET KEY"
-//  API_KEY: the api key provided as a part of your API key. also called the "PUBLIC KEY"
+//  API_KEY: the tradeapi key provided as a part of your API key. also called the "PUBLIC KEY"
 const SIGNING_KEY = 's2RceoHWEaLYxnaeOUm2tpmNLsELkaGy';
 const API_KEY = 'UPveTLyBzHNzsXRw';
 

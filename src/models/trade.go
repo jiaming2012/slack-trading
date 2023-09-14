@@ -31,9 +31,10 @@ func (t TradeType) String() string {
 }
 
 type TradeStats struct {
-	Floating float64
-	Realized float64
-	Volume   Volume
+	Floating float64 `json:"floatingPL"`
+	Realized float64 `json:"realizedPL"`
+	Volume   Volume  `json:"volume"`
+	Vwap     Vwap    `json:"vwap"`
 }
 
 type TradeParameters struct {

@@ -11,7 +11,8 @@ import (
 	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	"slack-trading/src/eventproducers/api"
+	"slack-trading/src/eventproducers/accountapi"
+	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
@@ -74,7 +75,8 @@ func main() {
 	// Setup dispatcher
 	dispatcher := eventmodels.InitializeGlobalDispatcher()
 	router := mux.NewRouter()
-	api.SetupApiHandler(router.PathPrefix("/trades").Subrouter())
+	tradeapi.SetupHandler(router.PathPrefix("/trades").Subrouter())
+	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{

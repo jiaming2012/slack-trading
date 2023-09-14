@@ -3,12 +3,18 @@ package eventpubsub
 import (
 	"github.com/asaskevich/EventBus"
 	log "github.com/sirupsen/logrus"
+	"slack-trading/src/eventmodels"
 )
 
 var bus EventBus.Bus
 
 func Init() {
 	bus = EventBus.New()
+}
+
+func PublishRequestError[T eventmodels.RequestEvent](publisherName string, requestEvent T, err error) {
+	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
+	PublishError(publisherName, requestErr)
 }
 
 func PublishError(publisherName string, err error) {

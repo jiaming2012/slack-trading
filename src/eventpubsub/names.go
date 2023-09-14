@@ -27,6 +27,8 @@ const (
 	ExecuteOpenTradeResult    EventName = "ExecuteOpenTradeResult"
 	ExecuteCloseTradesResult  EventName = "ExecuteCloseTradesResult"
 	NewOpenTradeRequest       EventName = "NewOpenTradeRequest"
+	NewGetStatsRequest        EventName = "NewGetStatsRequest"
+	GetStatsResult            EventName = "GetStatsResult"
 	FetchTradesRequest        EventName = "FetchTradesRequest"
 	FetchTradesResult         EventName = "FetchTradesResult"
 	Error                     EventName = "DefaultError"

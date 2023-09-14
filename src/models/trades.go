@@ -272,5 +272,6 @@ func (trades *Trades) GetTradeStats(tick Tick) (TradeStats, error) {
 		Floating: floatingPL,
 		Realized: realizedPL,
 		Volume:   _volume,
+		Vwap:     vwap,
 	}, nil
 }

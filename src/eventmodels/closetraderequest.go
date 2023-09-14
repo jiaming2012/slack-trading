@@ -7,7 +7,7 @@ import (
 
 type CloseTradeRequest struct {
 	RequestID       uuid.UUID
-	AccountName     string  `json:"accountName"`
+	AccountName     string  `json:"AccountName"`
 	StrategyName    string  `json:"strategyName"`
 	PriceLevelIndex int     `json:"priceLevelIndex"`
 	Timeframe       int     `json:"timeframe"`
@@ -17,7 +17,7 @@ type CloseTradeRequest struct {
 
 func (r *CloseTradeRequest) Validate() error {
 	if len(r.AccountName) == 0 {
-		return fmt.Errorf("validate: accountName not set")
+		return fmt.Errorf("validate: AccountName not set")
 	}
 
 	if len(r.StrategyName) == 0 {

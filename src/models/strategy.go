@@ -57,14 +57,20 @@ func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
 	return s.PriceLevels.GetByIndex(index)
 }
 
-func (s *Strategy) GetPriceLevelTrades() []*PriceLevelTrades {
+func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*PriceLevelTrades {
 	var priceLevelTrades []*PriceLevelTrades
 
 	for index, level := range s.PriceLevels.Bands {
 		trades := Trades{}
 
-		for _, tr := range *level.Trades {
-			trades = append(trades, tr)
+		if openTradesOnly {
+			for _, tr := range *level.Trades.OpenTrades() {
+				trades = append(trades, tr)
+			}
+		} else {
+			for _, tr := range *level.Trades {
+				trades = append(trades, tr)
+			}
 		}
 
 		priceLevelTrades = append(priceLevelTrades, &PriceLevelTrades{
