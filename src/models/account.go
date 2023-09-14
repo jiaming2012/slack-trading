@@ -67,12 +67,12 @@ func (a *Account) GetTrades() *Trades {
 }
 
 func (a *Account) checkSL(price float64) CloseTradesRequest {
-	requests := make([]*CloseTradeRequest, 0)
+	requests := make([]*CloseTradeRequestV1, 0)
 
 	for _, trade := range *a.GetTrades() {
 		if trade.Side() == TradeTypeBuy {
 			if price <= trade.StopLoss {
-				requests = append(requests, &CloseTradeRequest{
+				requests = append(requests, &CloseTradeRequestV1{
 					Trade:  trade,
 					Reason: "SL",
 					Volume: trade.ExecutedVolume,
@@ -82,7 +82,7 @@ func (a *Account) checkSL(price float64) CloseTradesRequest {
 
 		if trade.Side() == TradeTypeSell {
 			if price >= trade.StopLoss {
-				requests = append(requests, &CloseTradeRequest{
+				requests = append(requests, &CloseTradeRequestV1{
 					Trade:  trade,
 					Reason: "SL",
 					Volume: trade.ExecutedVolume,
@@ -100,12 +100,12 @@ func (a *Account) checkSL(price float64) CloseTradesRequest {
 
 func (a *Account) checkStopOut(timeframe int, price float64, timestampGen func() time.Time, idGen func() uuid.UUID) (CloseTradesRequest, error) {
 	for _, s := range a.Strategies {
-		vwap, vol, realizedPL := s.GetTrades().Vwap()
+		vwap, vol, realizedPL := s.GetTrades().GetTradeStatsItems()
 		unrealizedPL := UnrealizedPL(vwap, vol, price)
 		pl := unrealizedPL + float64(realizedPL)
 
 		if pl <= -s.Balance {
-			req, err := NewCloseTradesRequest(idGen(), timeframe, timestampGen(), price, "stop out", *s.GetTrades())
+			req, err := NewCloseTradesRequestV1(idGen(), timeframe, timestampGen(), price, "stop out", *s.GetTrades())
 			if err != nil {
 				return nil, fmt.Errorf("checkStopOut: new close trades request failed: %w", err)
 			}
@@ -193,28 +193,28 @@ func (a *Account) FindStrategy(strategyName string) (*Strategy, error) {
 	return nil, fmt.Errorf("Account.FindStrategy: could not find strategy with name %v", strategyName)
 }
 
-func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float64) (*OpenTradeRequest, error) {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
-	strategy, err := a.FindStrategy(strategyName)
-	if err != nil {
-		return nil, fmt.Errorf("Account.PlaceOrderOpen: failed to find strategy: %w", err)
-	}
-
-	// todo: remove this??
-	_, currentPriceLevel := strategy.findPriceLevel(currentPrice)
-	if currentPriceLevel == nil {
-		return nil, fmt.Errorf("could not find price level at %.2f", currentPrice)
-	}
-
-	// todo: refactor PlaceOrder parameters to pass in a trade request
-	tradeRequest := OpenTradeRequest{
-		Strategy: strategy,
-	}
-
-	return &tradeRequest, nil
-}
+//func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float64) (*OpenTradeRequest, error) {
+//	a.mutex.Lock()
+//	defer a.mutex.Unlock()
+//
+//	strategy, err := a.FindStrategy(strategyName)
+//	if err != nil {
+//		return nil, fmt.Errorf("Account.PlaceOrderOpen: failed to find strategy: %w", err)
+//	}
+//
+//	// todo: remove this??
+//	_, currentPriceLevel := strategy.findPriceLevel(currentPrice)
+//	if currentPriceLevel == nil {
+//		return nil, fmt.Errorf("could not find price level at %.2f", currentPrice)
+//	}
+//
+//	// todo: refactor PlaceOrder parameters to pass in a trade request
+//	tradeRequest := OpenTradeRequest{
+//		Strategy: strategy,
+//	}
+//
+//	return &tradeRequest, nil
+//}
 
 /*
 PlaceOrderClose closes a percentage of all trades at the specified price level
@@ -234,11 +234,11 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 		return nil, fmt.Errorf("PlaceOrderClose: %w", err)
 	}
 
-	_, v, _ := priceLevel.Trades.Vwap()
+	_, v, _ := priceLevel.Trades.GetTradeStatsItems()
 	vol := math.Abs(float64(v))
 	targetVolume := vol * float64(closePercent)
 
-	var closeTradesRequests []*CloseTradeRequest
+	var closeTradesRequests []*CloseTradeRequestV1
 	switch closeMethod {
 	case FIFO:
 		reducedVolume := 0.0
@@ -256,7 +256,7 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 				_closePercentage = remainingCloseVolume
 			}
 
-			closeTradesRequests = append(closeTradesRequests, &CloseTradeRequest{
+			closeTradesRequests = append(closeTradesRequests, &CloseTradeRequestV1{
 				Trade:  tr,
 				Reason: reason,
 				Volume: tr.ExecutedVolume * _closePercentage,

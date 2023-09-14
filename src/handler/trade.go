@@ -112,8 +112,8 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			profit := trades.PL(models.Tick{Bid: btcPrice, Ask: btcPrice})
-			vwap, volume, _ := trades.Vwap()
+			profit := trades.GetTradeStats(models.Tick{Bid: btcPrice, Ask: btcPrice})
+			vwap, volume, _ := trades.GetTradeStatsItems()
 
 			// todo: remove profit.RequestedVolume in favor of volume
 			if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {

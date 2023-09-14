@@ -15,7 +15,7 @@ type PriceLevels struct {
 
 func (levels PriceLevels) GetByIndex(index int) (*PriceLevel, error) {
 	if index < 0 {
-		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: index must be greater than or equal to zero. Found %v", index)
+		return nil, fmt.Errorf("Strategy.GetPriceLevelByIndex: Found %v: %w", index, InvalidPriceLevelIndexErr)
 	}
 
 	if index >= len(levels.Bands) {
@@ -61,7 +61,7 @@ func (levels *PriceLevels) Validate(direction Direction) error {
 		case Up:
 			sl := levels.Bands[i].StopLoss
 			if sl <= 0 {
-				return fmt.Errorf("levels.Validation: invalid sl (%v), where price level direction %v: %w", sl, direction, PriceLevelStopLossMustBeOutsideLowerAndUpperRange)
+				return fmt.Errorf("levels.Validation: invalid sl (%v), where price level direction %v: %w", sl, direction, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
 			}
 
 			if sl >= levels.Bands[i].Price {
@@ -70,7 +70,7 @@ func (levels *PriceLevels) Validate(direction Direction) error {
 		case Down:
 			sl := levels.Bands[i+1].StopLoss
 			if sl < levels.Bands[i+1].Price {
-				return fmt.Errorf("levels.Validation: sl (%v) < levels.Bands[%v] price (%v), where price level direction is %v: %w", sl, i+1, levels.Bands[i+1].Price, direction, PriceLevelStopLossMustBeOutsideLowerAndUpperRange)
+				return fmt.Errorf("levels.Validation: sl (%v) < levels.Bands[%v] price (%v), where price level direction is %v: %w", sl, i+1, levels.Bands[i+1].Price, direction, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
 			}
 		default:
 			return fmt.Errorf("levels.Validation: invalid direction %v", direction)

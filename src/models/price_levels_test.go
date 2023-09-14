@@ -56,7 +56,7 @@ func TestNewPriceLevels(t *testing.T) {
 		}
 
 		_, err := NewPriceLevels(levels, Down)
-		assert.ErrorIs(t, err, PriceLevelStopLossMustBeOutsideLowerAndUpperRange)
+		assert.ErrorIs(t, err, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
 	})
 
 	t.Run("up price levels with gaps", func(t *testing.T) {

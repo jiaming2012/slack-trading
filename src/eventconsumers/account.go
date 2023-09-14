@@ -41,21 +41,21 @@ func (r *AccountWorker) addAccount(account *models.Account, balance float64, pri
 	return nil
 }
 
-func (r *AccountWorker) newOpenTradeRequest(accountName string, strategyName string, tradeType models.TradeType) (*models.OpenTradeRequest, error) {
-	account, err := r.findAccount(accountName)
-	if err != nil {
-		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account: %w", err)
-	}
-
-	currentTick := r.tickMachine.Query()
-
-	openTradeRequest, err := account.PlaceOpenTradeRequest(strategyName, currentTick.Bid)
-	if err != nil {
-		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: PlaceOrderOpen: %w", err)
-	}
-
-	return openTradeRequest, nil
-}
+//func (r *AccountWorker) newOpenTradeRequest(accountName string, strategyName string, tradeType models.TradeType) (*models.OpenTradeRequest, error) {
+//	account, err := r.findAccount(accountName)
+//	if err != nil {
+//		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account: %w", err)
+//	}
+//
+//	currentTick := r.tickMachine.Query()
+//
+//	openTradeRequest, err := account.PlaceOpenTradeRequest(strategyName, currentTick.Bid)
+//	if err != nil {
+//		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: PlaceOrderOpen: %w", err)
+//	}
+//
+//	return openTradeRequest, nil
+//}
 
 func (r *AccountWorker) findAccount(name string) (*models.Account, error) {
 	for _, a := range r.accounts {
@@ -68,6 +68,8 @@ func (r *AccountWorker) findAccount(name string) (*models.Account, error) {
 }
 
 func (r *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountRequestEvent) {
+	log.Debug("<- AccountWorker.addAccountRequestHandler")
+
 	var priceLevels []*models.PriceLevel
 
 	for _, input := range request.PriceLevelsInput {
@@ -96,28 +98,34 @@ func (r *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountR
 }
 
 func (r *AccountWorker) getAccountsRequestHandler(request eventmodels.GetAccountsRequestEvent) {
-	log.Debugf("AccountWorker.getAccountsRequestHandler")
+	log.Debugf("<- AccountWorker.getAccountsRequestHandler")
 
 	pubsub.Publish("AccountWorker", pubsub.GetAccountsResponseEvent, eventmodels.GetAccountsResponseEvent{
 		Accounts: r.getAccounts(),
 	})
 }
 
-func (r *AccountWorker) checkForStopOut(tick models.Tick) *models.Strategy {
+func (r *AccountWorker) checkForStopOut(tick models.Tick) (*models.Strategy, error) {
 	// todo: analyze if calling PL() so many times on each tick causes a bottleneck
 	for _, account := range r.accounts {
 		for _, strategy := range account.Strategies {
-			pl := strategy.GetTrades().PL(tick)
-			if pl.Realized+pl.Floating >= strategy.Balance {
-				return &strategy
+			stats, err := strategy.GetTrades().GetTradeStats(tick)
+			if err != nil {
+				return nil, fmt.Errorf("AccountWorker.checkForStopOut: GetTradeStats failed: %w", err)
+			}
+
+			if stats.Realized+stats.Floating >= strategy.Balance {
+				return &strategy, nil
 			}
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (r *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
+	log.Debug("<- AccountWorker.updateTickMachine")
+
 	// todo: eventually update based off level 2 quotes to get bid and ask
 	r.tickMachine.Update(models.Tick{
 		Timestamp: tick.Timestamp,
@@ -128,7 +136,13 @@ func (r *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 
 func (r *AccountWorker) update() {
 	tick := r.tickMachine.Query()
-	if strategy := r.checkForStopOut(*tick); strategy != nil {
+	strategy, err := r.checkForStopOut(*tick)
+	if err != nil {
+		log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
+		return
+	}
+
+	if strategy != nil {
 		// send for event
 
 	}
@@ -136,63 +150,93 @@ func (r *AccountWorker) update() {
 
 // todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
 func (r *AccountWorker) handleNewCloseTradeRequest(event eventmodels.CloseTradeRequest) {
+	log.Debug("<- AccountWorker.handleNewCloseTradeRequest")
+
 	account, err := r.findAccount(event.AccountName)
 	if err != nil {
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to find account: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find account: %w", err))
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
 		return
 	}
 
 	strategy, err := account.FindStrategy(event.StrategyName)
 	if err != nil {
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to find strategy: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
 		return
 	}
 
-	priceLevel, err := strategy.GetPriceLevelByIndex(event.PriceLevelIndex)
+	closeTradesRequest, err := models.NewCloseTradesRequestV2(strategy, event.Timeframe, event.PriceLevelIndex, event.Percent)
 	if err != nil {
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", fmt.Errorf("failed to get price level by index: %w", err))
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("new close trades request failed: %w", err))
+		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
 		return
 	}
 
-	closeTradesRequest, err := account.PlaceOrderClose(priceLevel, event.Percent, event.Reason)
-
-	pubsub.Publish("AccountWorker.handleCloseTradeRequest", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradeRequest{
-		PriceLevel:         priceLevel,
+	pubsub.Publish("AccountWorker.handleCloseTradeRequest", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
+		RequestID:          event.RequestID,
 		CloseTradesRequest: closeTradesRequest,
 	})
 }
 
-func (r *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.ExecuteCloseTradeRequest) {
-	for _, req := range event.CloseTradesRequest {
-		marketPrice := r.tickMachine.Query().Bid
+func (r *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.ExecuteCloseTradesRequest) {
+	log.Debug("<- AccountWorker.handleExecuteCloseTradesRequest")
 
-		offsetTrade, err := models.NewCloseTrade(uuid.New(), []*models.Trade{req.Trade}, req.Timeframe, time.Now(), marketPrice, req.Volume)
-		if err != nil {
-			pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", err)
-			return
-		}
+	clsTradeReq := event.CloseTradesRequest
+	tradeID := uuid.New()
+	now := time.Now()
+	requestPrc := r.getMarketPrice(clsTradeReq.Strategy, true)
 
-		event.PriceLevel.Add(offsetTrade)
+	trade, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
+	if err != nil {
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new close trade: %w", err))
+		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		return
 	}
+
+	result, err := clsTradeReq.Strategy.AutoExecuteTrade(trade)
+	if err != nil {
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to place execute trade: %w", err))
+		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		return
+	}
+
+	executeCloseTradesResult := &eventmodels.ExecuteCloseTradesResult{
+		RequestID: event.RequestID,
+		Side:      clsTradeReq.Strategy.GetTradeType(true).String(),
+		Result:    result,
+	}
+
+	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.ExecuteCloseTradesResult, executeCloseTradesResult)
 }
 
-func (r *AccountWorker) getMarketPrice(strategy *models.Strategy) float64 {
+func (r *AccountWorker) getMarketPrice(strategy *models.Strategy, isClose bool) float64 {
 	tick := r.tickMachine.Query()
 	var requestPrc float64
 	if strategy.Direction == models.Up {
-		requestPrc = tick.Ask
+		if isClose {
+			requestPrc = tick.Bid
+		} else {
+			requestPrc = tick.Ask
+		}
 	} else if strategy.Direction == models.Down {
-		requestPrc = tick.Bid
+		if isClose {
+			requestPrc = tick.Ask
+		} else {
+			requestPrc = tick.Bid
+		}
 	}
 
 	return requestPrc
 }
 
 func (r *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
+	log.Debug("<- AccountWorker.handleExecuteNewOpenTradeRequest")
+
 	req := event.OpenTradeRequest
-	requestPrc := r.getMarketPrice(req.Strategy)
 	tradeID := uuid.New()
 	now := time.Now()
+	requestPrc := r.getMarketPrice(req.Strategy, false)
 
 	trade, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
@@ -210,20 +254,16 @@ func (r *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 
 	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
 		RequestID: event.RequestID,
-		Side:      req.Strategy.GetTradeType().String(),
-		Symbol:    req.Strategy.Symbol,
-		Timestamp: now,
+		Side:      req.Strategy.GetTradeType(false).String(),
 		Result:    result,
 	}
-
-	//if event.Result != nil {
-	//	event.Result <- &executeOpenTradeResult
-	//}
 
 	pubsub.Publish("AccountWorker.handleExecuteNewOpenTradeRequest", pubsub.ExecuteOpenTradeResult, executeOpenTradeResult)
 }
 
 func (r *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeRequest) {
+	log.Debug("<- AccountWorker.handleNewOpenTradeRequest")
+
 	account, err := r.findAccount(event.AccountName)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
@@ -250,6 +290,8 @@ func (r *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 }
 
 func (r *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesRequest) {
+	log.Debug("<- AccountWorker.handleFetchTradesRequest")
+
 	account, err := r.findAccount(event.AccountName)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
@@ -278,7 +320,8 @@ func (r *AccountWorker) Start(ctx context.Context) {
 
 	go func() {
 		defer r.wg.Done()
-		ticker := time.NewTicker(500 * time.Millisecond)
+		// todo: investigate why we had to increase from 500ms -> 5 seconds
+		ticker := time.NewTicker(5 * time.Second)
 
 		for {
 			select {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -10,7 +11,7 @@ func SetResponse[T any](obj *T, w http.ResponseWriter) error {
 	w.WriteHeader(200)
 
 	if err := json.NewEncoder(w).Encode(obj); err != nil {
-		return err
+		return fmt.Errorf("SetResponse: encode: %w", err)
 	}
 
 	return nil

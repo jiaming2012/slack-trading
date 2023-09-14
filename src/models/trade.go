@@ -30,7 +30,7 @@ func (t TradeType) String() string {
 	}
 }
 
-type Profit struct {
+type TradeStats struct {
 	Floating float64
 	Realized float64
 	Volume   Volume
@@ -42,17 +42,17 @@ type TradeParameters struct {
 }
 
 type Trade struct {
-	ID              uuid.UUID
-	Type            TradeType
-	Timeframe       int
-	Symbol          string
-	Timestamp       time.Time
-	RequestedVolume float64
-	ExecutedVolume  float64
-	ExecutedPrice   float64
-	RequestedPrice  float64
-	StopLoss        float64
-	Offsets         []*Trade
+	ID              uuid.UUID `json:"id"`
+	Type            TradeType `json:"type"`
+	Timeframe       int       `json:"timeframe"`
+	Symbol          string    `json:"symbol"`
+	Timestamp       time.Time `json:"timestamp"`
+	RequestedVolume float64   `json:"requestedVolume"`
+	ExecutedVolume  float64   `json:"executedVolume"`
+	ExecutedPrice   float64   `json:"executedPrice"`
+	RequestedPrice  float64   `json:"requestedPrice"`
+	StopLoss        float64   `json:"stopLoss"`
+	Offsets         []*Trade  `json:"offsets"`
 }
 
 type ClosePercent float64
@@ -125,6 +125,46 @@ func (tr *Trade) Validate() error {
 
 	if tr.RequestedVolume == 0 {
 		return TradeVolumeIsZeroErr
+	}
+
+	if tr.RequestedVolume == math.NaN() {
+		return fmt.Errorf("requested volume cannot be NaN")
+	}
+
+	if math.IsInf(tr.RequestedVolume, 0) {
+		return fmt.Errorf("requested volume cannot be +/- Inf")
+	}
+
+	if tr.ExecutedVolume == math.NaN() {
+		return fmt.Errorf("executed volume cannot be NaN")
+	}
+
+	if math.IsInf(tr.ExecutedVolume, 0) {
+		return fmt.Errorf("executed volume cannot be +/- Inf")
+	}
+
+	if tr.RequestedPrice == math.NaN() {
+		return fmt.Errorf("requested price cannot be NaN")
+	}
+
+	if math.IsInf(tr.RequestedPrice, 0) {
+		return fmt.Errorf("requested price cannot be +/- Inf")
+	}
+
+	if tr.ExecutedPrice == math.NaN() {
+		return fmt.Errorf("executed price cannot be NaN")
+	}
+
+	if math.IsInf(tr.ExecutedPrice, 0) {
+		return fmt.Errorf("executed price cannot be +/- Inf")
+	}
+
+	if tr.StopLoss == math.NaN() {
+		return fmt.Errorf("stop loss cannot be NaN")
+	}
+
+	if math.IsInf(tr.StopLoss, 0) {
+		return fmt.Errorf("stop loss cannot be +/- Inf")
 	}
 
 	if len(tr.Offsets) > 0 {

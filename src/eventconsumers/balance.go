@@ -29,8 +29,13 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	profit := trades.PL(models2.Tick{Bid: btcPrice, Ask: btcPrice})
-	vwap, volume, realizedPL := trades.Vwap()
+	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
+	if statsErr != nil {
+		pubsub.PublishError("BalanceWorker.calculateBalance", statsErr)
+		return
+	}
+
+	vwap, volume, realizedPL := trades.GetTradeStatsItems()
 
 	// todo: remove profit.RequestedVolume in favor of volume
 	if math.Abs(float64(profit.Volume)-float64(volume)) > 0.001 {

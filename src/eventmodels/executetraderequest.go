@@ -5,9 +5,9 @@ import (
 	"slack-trading/src/models"
 )
 
-type ExecuteCloseTradeRequest struct {
-	PriceLevel         *models.PriceLevel
-	CloseTradesRequest models.CloseTradesRequest
+type ExecuteCloseTradesRequest struct {
+	RequestID          uuid.UUID
+	CloseTradesRequest *models.CloseTradesRequestV2
 }
 
 type ExecuteOpenTradeRequest struct {

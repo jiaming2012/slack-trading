@@ -67,7 +67,7 @@ func TestNewCloseTrade(t *testing.T) {
 
 		priceLevel, err := s.GetPriceLevelByIndex(0)
 		assert.NoError(t, err)
-		_, vol, _ := priceLevel.Trades.Vwap()
+		_, vol, _ := priceLevel.Trades.GetTradeStatsItems()
 		assert.Greater(t, vol, Volume(0.0))
 
 		tr2, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 1.0)
@@ -78,7 +78,7 @@ func TestNewCloseTrade(t *testing.T) {
 		assert.Len(t, tr2.Offsets, 1)
 		assert.Equal(t, tr1, tr2.Offsets[0])
 
-		_, vol, _ = priceLevel.Trades.Vwap()
+		_, vol, _ = priceLevel.Trades.GetTradeStatsItems()
 		assert.Equal(t, Volume(0.0), vol)
 	})
 
@@ -93,7 +93,7 @@ func TestNewCloseTrade(t *testing.T) {
 
 		priceLevel, err := s.GetPriceLevelByIndex(0)
 		assert.NoError(t, err)
-		_, vol, _ := priceLevel.Trades.Vwap()
+		_, vol, _ := priceLevel.Trades.GetTradeStatsItems()
 		assert.Greater(t, vol, Volume(0.0))
 
 		// partial close
@@ -131,7 +131,7 @@ func TestNewCloseTrade(t *testing.T) {
 		priceLevel, err := s.GetPriceLevelByIndex(t1Result.PriceLevelIndex)
 		assert.NoError(t, err)
 
-		_, vol, _ := priceLevel.Trades.Vwap()
+		_, vol, _ := priceLevel.Trades.GetTradeStatsItems()
 		assert.Less(t, vol, Volume(0.0))
 
 		tr2, err := s.NewCloseTrades(id, tf, ts, 1.8, t1Result.PriceLevelIndex, 1.0)
@@ -144,7 +144,7 @@ func TestNewCloseTrade(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, t2Result.PriceLevelIndex, t1Result.PriceLevelIndex)
-		_, vol, _ = priceLevel.Trades.Vwap()
+		_, vol, _ = priceLevel.Trades.GetTradeStatsItems()
 		assert.Equal(t, Volume(0.0), vol)
 	})
 
@@ -159,7 +159,7 @@ func TestNewCloseTrade(t *testing.T) {
 
 		priceLevel, err := s.GetPriceLevelByIndex(t1Result.PriceLevelIndex)
 		assert.NoError(t, err)
-		_, vol, _ := priceLevel.Trades.Vwap()
+		_, vol, _ := priceLevel.Trades.GetTradeStatsItems()
 		assert.Less(t, vol, Volume(0.0))
 
 		// partial close

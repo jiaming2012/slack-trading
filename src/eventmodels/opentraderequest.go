@@ -14,15 +14,15 @@ type OpenTradeRequest struct {
 
 func (r *OpenTradeRequest) Validate() error {
 	if len(r.AccountName) == 0 {
-		return fmt.Errorf("accountName not set")
+		return fmt.Errorf("validate: accountName not set")
 	}
 
 	if len(r.StrategyName) == 0 {
-		return fmt.Errorf("strategyName not set")
+		return fmt.Errorf("validate: strategyName not set")
 	}
 
 	if r.Timeframe <= 0 {
-		return fmt.Errorf("timeframe must be greater than zero")
+		return fmt.Errorf("validate: timeframe must be greater than zero")
 	}
 
 	return nil

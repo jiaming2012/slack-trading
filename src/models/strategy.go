@@ -106,7 +106,7 @@ func (s *Strategy) NewCloseTrades(id uuid.UUID, timeframe int, timestamp time.Ti
 	}
 
 	openTrades := *priceLevel.Trades.OpenTrades()
-	_, openTradesVol, _ := openTrades.Vwap()
+	_, openTradesVol, _ := openTrades.GetTradeStatsItems()
 	startingVolumeToClose := math.Abs(float64(openTradesVol)) * percent
 	volumeToClose := startingVolumeToClose
 
@@ -129,9 +129,15 @@ func (s *Strategy) calculateTradeVolume(priceLevel *PriceLevel, requestedPrice f
 	maxLoss := s.Balance * priceLevel.AllocationPercent
 	currentRisk, realizedPL := priceLevel.Trades.MaxRisk(priceLevel.StopLoss)
 	tradesRemaining, _ := priceLevel.NewTradesRemaining()
-	remainingRisk := (maxLoss + float64(realizedPL) - currentRisk) / float64(tradesRemaining)
 
-	if remainingRisk < 0 {
+	var remainingRisk float64
+	if float64(tradesRemaining) <= 0 {
+		remainingRisk = 0.0
+	} else {
+		remainingRisk = (maxLoss + float64(realizedPL) - currentRisk) / float64(tradesRemaining)
+	}
+
+	if remainingRisk <= 0 {
 		return 0.0, fmt.Errorf("Strategy.NewOpenTrade: remainingRisk = %v: %w", remainingRisk, NoRemainingRiskAvailable)
 	}
 
@@ -150,7 +156,7 @@ func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe int, timestamp time.Time
 		return nil, fmt.Errorf("Strategy.NewOpenTrade: failed to calculate trade volume: %w", err)
 	}
 
-	return NewOpenTrade(id, s.GetTradeType(), s.Symbol, timeframe, timestamp, requestedPrice, requestedVolume, priceLevel.StopLoss)
+	return NewOpenTrade(id, s.GetTradeType(false), s.Symbol, timeframe, timestamp, requestedPrice, requestedVolume, priceLevel.StopLoss)
 }
 
 func (s *Strategy) TradesRemaining(price float64) (int, TradeType) {
@@ -209,12 +215,20 @@ func (s *Strategy) AddCondition(signal Signal) error {
 	return nil
 }
 
-func (s *Strategy) GetTradeType() TradeType {
+func (s *Strategy) GetTradeType(isClose bool) TradeType {
 	switch s.Direction {
 	case Up:
-		return TradeTypeBuy
+		if isClose {
+			return TradeTypeSell
+		} else {
+			return TradeTypeBuy
+		}
 	case Down:
-		return TradeTypeSell
+		if isClose {
+			return TradeTypeBuy
+		} else {
+			return TradeTypeSell
+		}
 	default:
 		return TradeTypeNone
 	}
@@ -236,9 +250,6 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 		return nil, fmt.Errorf("ExecuteTradeRequest cannot place trade: %w", err)
 	}
 
-	trade.ExecutedPrice = price
-	trade.ExecutedVolume = volume
-
 	// todo: consider scenario where slippage causes a trade to be executed in a different price level
 	var reqPrice float64
 	if trade.Type == TradeTypeClose {
@@ -256,14 +267,13 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 		return nil, fmt.Errorf("ExecuteTradeRequest failed to findPriceLevel at %.2f", trade.RequestedPrice)
 	}
 
-	if err := priceLevel.Add(trade); err != nil {
+	if err := priceLevel.Add(trade, price, volume); err != nil {
 		return nil, fmt.Errorf("ExecuteOpenTradeRequest: failed to add trade to price level %v: %w", priceLevelIndex, err)
 	}
 
 	return &ExecuteOpenTradeResult{
 		PriceLevelIndex: priceLevelIndex,
-		ExecutedPrice:   price,
-		ExecutedVolume:  volume,
+		Trade:           trade,
 	}, nil
 }
 
@@ -322,7 +332,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 
 	tradesRemaining, side := priceLevel.NewTradesRemaining()
 
-	tradeType := s.GetTradeType()
+	tradeType := s.GetTradeType(true)
 
 	if tradeType == TradeTypeBuy {
 		if side == TradeTypeBuy && tradesRemaining <= 0 {
@@ -334,7 +344,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 		}
 	}
 
-	_, _, realizedPL := priceLevel.Trades.Vwap()
+	_, _, realizedPL := priceLevel.Trades.GetTradeStatsItems()
 
 	maxPriceLevelLoss := s.Balance * priceLevel.AllocationPercent
 	maxTradeLoss := maxPriceLevelLoss / float64(priceLevel.MaxNoOfTrades)

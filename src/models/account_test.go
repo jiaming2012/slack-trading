@@ -118,25 +118,24 @@ func TestPlacingTrades(t *testing.T) {
 
 		openPrice := 1.5
 
-		req, err := account.PlaceOpenTradeRequest(strategy.Name, openPrice)
+		tr, err := strategy.NewOpenTrade(id, timeframe, timestamp, openPrice)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr)
 		assert.NoError(t, err)
 
-		assert.Equal(t, TradeTypeBuy, req.Type)
-		assert.Equal(t, openPrice, req.Price)
-		assert.Equal(t, strategy, req.Strategy)
-
-		_, curPriceLevel := strategy.findPriceLevel(openPrice)
-		assert.NotNil(t, curPriceLevel)
-
-		assert.Equal(t, curPriceLevel.StopLoss, req.StopLoss)
-		assert.Equal(t, strategy.Symbol, req.Symbol)
+		assert.Equal(t, TradeTypeBuy, tr.Type)
+		assert.Equal(t, symbol, tr.Symbol)
+		assert.Equal(t, timeframe, tr.Timeframe)
+		assert.Equal(t, timestamp, tr.Timestamp)
+		assert.Equal(t, openPrice, tr.RequestedPrice)
+		assert.Equal(t, openPrice, tr.ExecutedPrice)
 	})
 
 	t.Run("can place a sell order", func(t *testing.T) {
 		account, err := NewAccount(name, balance)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", Down, balance/2.0, newDownPriceLevels())
+		strategy, err := NewStrategy("test", symbol, Down, balance/2.0, newDownPriceLevels())
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -146,18 +145,17 @@ func TestPlacingTrades(t *testing.T) {
 
 		openPrice := 2.0
 
-		req, err := account.PlaceOpenTradeRequest(strategy.Name, openPrice)
+		tr, err := strategy.NewOpenTrade(id, timeframe, timestamp, openPrice)
+		assert.NoError(t, err)
+		_, err = strategy.AutoExecuteTrade(tr)
 		assert.NoError(t, err)
 
-		assert.Equal(t, TradeTypeSell, req.Type)
-		assert.Equal(t, openPrice, req.Price)
-		assert.Equal(t, strategy, req.Strategy)
-
-		_, curPriceLevel := strategy.findPriceLevel(openPrice)
-		assert.NotNil(t, curPriceLevel)
-
-		assert.Equal(t, curPriceLevel.StopLoss, req.StopLoss)
-		assert.Equal(t, strategy.Symbol, req.Symbol)
+		assert.Equal(t, TradeTypeSell, tr.Type)
+		assert.Equal(t, symbol, tr.Symbol)
+		assert.Equal(t, timeframe, tr.Timeframe)
+		assert.Equal(t, timestamp, tr.Timestamp)
+		assert.Equal(t, openPrice, tr.RequestedPrice)
+		assert.Equal(t, openPrice, tr.ExecutedPrice)
 	})
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
@@ -604,7 +602,7 @@ func TestUpdate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, closeReq)
 
-		vwap, vol, _ := strategy.GetTrades().Vwap()
+		vwap, vol, _ := strategy.GetTrades().GetTradeStatsItems()
 		stopOutPrice := float64(vwap) - (maxLoss / float64(vol))
 
 		closeReq, err = account.checkStopOut(timeframe, stopOutPrice, getTime, getID)

@@ -50,11 +50,15 @@ func getTradesByAccountHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if err := SetResponse(res, w); err != nil {
-				log.Errorf("tradeHandler: failed to set response: %v", err)
+				log.Errorf("getTradesByAccountHandler: failed to set response: %v", err)
+				w.WriteHeader(500)
+				return
 			}
 		case err := <-errCh:
 			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
-				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
+				log.Errorf("getTradesByAccountHandler: failed to set error response: %v", respErr)
+				w.WriteHeader(500)
+				return
 			}
 		}
 	} else {
@@ -62,7 +66,54 @@ func getTradesByAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func tradeHandler(w http.ResponseWriter, r *http.Request) {
+func closeTradeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		var req eventmodels.CloseTradeRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(400)
+			return
+		}
+
+		if err := req.Validate(); err != nil {
+			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
+				w.WriteHeader(500)
+				return
+			}
+			return
+		}
+
+		req.RequestID = uuid.New()
+		resultCh, errCh := eventmodels.RegisterResultCallback(req.RequestID)
+
+		pubsub.Publish("closeTradeHandler", pubsub.NewCloseTradesRequest, req)
+
+		select {
+		case result := <-resultCh:
+			res, ok := result.(*eventmodels.ExecuteCloseTradesResult)
+			if !ok {
+				log.Errorf("closeTradeHandler: failed to read ExecuteOpenTradeResult")
+				return
+			}
+
+			if err := SetResponse(res, w); err != nil {
+				log.Errorf("closeTradeHandler: failed to set response: %v", err)
+				w.WriteHeader(500)
+				return
+			}
+		case err := <-errCh:
+			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
+				log.Errorf("closeTradeHandler: failed to set error response: %v", respErr)
+				w.WriteHeader(500)
+				return
+			}
+		}
+	} else {
+		w.WriteHeader(404)
+	}
+}
+
+func openTradeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		var req eventmodels.OpenTradeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -72,7 +123,7 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err := req.Validate(); err != nil {
 			if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
-				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
+				log.Errorf("openTradeHandler: failed to set error response: %v", respErr)
 			}
 			return
 		}
@@ -80,22 +131,27 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 		req.RequestID = uuid.New()
 		resultCh, errCh := eventmodels.RegisterResultCallback(req.RequestID)
 
-		pubsub.Publish("tradeHandler", pubsub.NewOpenTradeRequest, req)
+		pubsub.Publish("openTradeHandler", pubsub.NewOpenTradeRequest, req)
 
 		select {
 		case result := <-resultCh:
 			res, ok := result.(*eventmodels.ExecuteOpenTradeResult)
 			if !ok {
-				log.Errorf("tradeHandler: failed to read ExecuteOpenTradeResult")
+				log.Errorf("openTradeHandler: failed to read ExecuteOpenTradeResult")
+				w.WriteHeader(500)
 				return
 			}
 
 			if err := SetResponse(res, w); err != nil {
-				log.Errorf("tradeHandler: failed to set response: %v", err)
+				log.Errorf("openTradeHandler: failed to set response: %v", err)
+				w.WriteHeader(500)
+				return
 			}
 		case err := <-errCh:
 			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
-				log.Errorf("tradeHandler: failed to set error response: %v", respErr)
+				log.Errorf("openTradeHandler: failed to set error response: %v", respErr)
+				w.WriteHeader(500)
+				return
 			}
 		}
 	} else {
@@ -104,7 +160,8 @@ func tradeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SetupApiHandler(router *mux.Router) {
-	router.HandleFunc("", tradeHandler)
+	router.HandleFunc("", openTradeHandler)
+	router.HandleFunc("/close", closeTradeHandler)
 	router.HandleFunc("/account/{accountName}", getTradesByAccountHandler)
 	router.HandleFunc("/signal", signalHandler)
 }
