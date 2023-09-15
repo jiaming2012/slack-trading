@@ -11,6 +11,10 @@ type FetchTradesRequest struct {
 	StrategyName *string
 }
 
+func (r *FetchTradesRequest) GetRequestID() uuid.UUID {
+	return r.RequestID
+}
+
 func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName *string) *FetchTradesRequest {
 	return &FetchTradesRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName}
 }

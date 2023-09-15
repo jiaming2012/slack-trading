@@ -287,21 +287,26 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	})
 }
 
+// todo:: this is the model! Refactor services to be standardized. Ideally in its own directory of sorts
+// todo: TEST THIS !!! And reproduce the issue of closing 50% of one trade in postman
+func (w *AccountWorker) fetchTrades(event *eventmodels.FetchTradesRequest) (*eventmodels.FetchTradesResult, error) {
+	account, err := w.findAccount(event.AccountName)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: failed to find findAccount: %w", err)
+	}
+
+}
+
 func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesRequest) {
 	log.Debug("<- AccountWorker.handleFetchTradesRequest")
 
-	account, err := w.findAccount(event.AccountName)
+	fetchTradesResult, err := w.fetchTrades(event)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
-		pubsub.PublishError("AccountWorker.handleFetchTradesRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleFetchTradesRequest", event, err)
 		return
 	}
 
-	priceLevelTrades := account.GetPriceLevelTrades(false)
-
-	resultEvent := eventmodels.NewFetchTradesResult(event.RequestID, priceLevelTrades)
-
-	pubsub.Publish("AccountWorker.handleFetchTradesRequest", pubsub.FetchTradesResult, resultEvent)
+	pubsub.Publish("AccountWorker.handleFetchTradesRequest", pubsub.FetchTradesResult, fetchTradesResult)
 }
 
 func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest) {
