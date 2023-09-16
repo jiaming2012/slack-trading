@@ -120,7 +120,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 				log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 			}
 
-			successMsg := p.Sprintf("Open volume: %.2f BTC\nVWAP: %.2f\nMarket: %.2f\nFloating profit: $%.2f\nRealized profit: $%.2f", volume, vwap, btcPrice, profit.Floating, profit.Realized)
+			successMsg := p.Sprintf("Open volume: %.2f BTC\nVWAP: %.2f\nMarket: %.2f\nFloating profit: $%.2f\nRealized profit: $%.2f", volume, vwap, btcPrice, profit.FloatingPL, profit.RealizedPL)
 			slack.SendResponse(successMsg, responseURL, true)
 		} else {
 			slack.SendResponse(fmt.Sprintf("Unknown cmd: %v", cmd), responseURL, true)

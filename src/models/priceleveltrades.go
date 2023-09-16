@@ -1,6 +1,6 @@
 package models
 
-type PriceLevelTrades struct {
+type TradeLevels struct {
 	PriceLevelIndex int    `json:"priceLevelIndex"`
 	Trades          Trades `json:"trades"`
 }

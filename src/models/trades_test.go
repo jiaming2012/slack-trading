@@ -142,8 +142,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 1300.0, Ask: 1300.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 50.0, stats.Realized)
-		assert.Equal(t, 150.0, stats.Floating)
+		assert.Equal(t, 50.0, stats.RealizedPL)
+		assert.Equal(t, 150.0, stats.FloatingPL)
 	})
 
 	t.Run("losing trades", func(t *testing.T) {
@@ -161,8 +161,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -250.0, stats.Realized)
-		assert.Equal(t, -300.0, stats.Floating)
+		assert.Equal(t, -250.0, stats.RealizedPL)
+		assert.Equal(t, -300.0, stats.FloatingPL)
 
 		trades.Add(&Trade{
 			RequestedVolume: -0.5,
@@ -172,8 +172,8 @@ func TestProfit(t *testing.T) {
 		stats, err = trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -550.0, stats.Realized)
-		assert.Equal(t, 0.0, stats.Floating)
+		assert.Equal(t, -550.0, stats.RealizedPL)
+		assert.Equal(t, 0.0, stats.FloatingPL)
 	})
 
 	t.Run("losing -> winning trades", func(t *testing.T) {
@@ -191,8 +191,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -250.0, stats.Realized)
-		assert.Equal(t, -300.0, stats.Floating)
+		assert.Equal(t, -250.0, stats.RealizedPL)
+		assert.Equal(t, -300.0, stats.FloatingPL)
 
 		trades.Add(&Trade{
 			RequestedVolume: -0.3,
@@ -202,8 +202,8 @@ func TestProfit(t *testing.T) {
 		stats, err = trades.GetTradeStats(Tick{Bid: 5000.0, Ask: 5000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -250.0+1200.0, stats.Realized)
-		assert.Equal(t, 800.0, stats.Floating)
+		assert.Equal(t, -250.0+1200.0, stats.RealizedPL)
+		assert.Equal(t, 800.0, stats.FloatingPL)
 	})
 
 	t.Run("no trades", func(t *testing.T) {
@@ -211,8 +211,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 1000.0, Ask: 1000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 0.0, stats.Realized)
-		assert.Equal(t, 0.0, stats.Floating)
+		assert.Equal(t, 0.0, stats.RealizedPL)
+		assert.Equal(t, 0.0, stats.FloatingPL)
 	})
 
 	t.Run("close an open trade", func(t *testing.T) {
@@ -226,8 +226,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 2000.0, Ask: 2000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 0.0, stats.Realized)
-		assert.Equal(t, 1000.0, stats.Floating)
+		assert.Equal(t, 0.0, stats.RealizedPL)
+		assert.Equal(t, 1000.0, stats.FloatingPL)
 
 		trades.Add(&Trade{
 			RequestedVolume: -1.0,
@@ -237,8 +237,8 @@ func TestProfit(t *testing.T) {
 		stats, err = trades.GetTradeStats(Tick{Bid: 2000.0, Ask: 2000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 1000.0, stats.Realized)
-		assert.Equal(t, 0.0, stats.Floating)
+		assert.Equal(t, 1000.0, stats.RealizedPL)
+		assert.Equal(t, 0.0, stats.FloatingPL)
 	})
 
 	t.Run("floating profit long", func(t *testing.T) {
@@ -255,8 +255,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 0.0, stats.Realized)
-		assert.Equal(t, 3000.0, stats.Floating)
+		assert.Equal(t, 0.0, stats.RealizedPL)
+		assert.Equal(t, 3000.0, stats.FloatingPL)
 	})
 
 	t.Run("floating profit short", func(t *testing.T) {
@@ -273,8 +273,8 @@ func TestProfit(t *testing.T) {
 		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, 0.0, stats.Realized)
-		assert.Equal(t, -3000.0, stats.Floating)
+		assert.Equal(t, 0.0, stats.RealizedPL)
+		assert.Equal(t, -3000.0, stats.FloatingPL)
 	})
 }
 

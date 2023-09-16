@@ -39,6 +39,7 @@ var NoRemainingRiskAvailable = fmt.Errorf("cannot open trade because no risk is 
 var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum distance condition not met")
 var PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr = fmt.Errorf("sl of price level must be less than the lower level and greater than the upper level")
 var InvalidPriceLevelIndexErr = fmt.Errorf("price level index must be greater than or equal to zero")
+var PartialCloseItemNotSetErr = fmt.Errorf("partial close item was not set on offsetting trade. This is most likely an internal error")
 
 type ErrorDTO struct {
 	Msg string `json:"msg"`

@@ -46,8 +46,8 @@ func (a *Account) String() string {
 	return fmt.Sprintf("Name: %v\n     Starting Balance: $%.2f, \n     Strategies:\n%s", a.Name, a.Balance, strategies)
 }
 
-func (a *Account) GetPriceLevelTrades(openTradesOnly bool) []*PriceLevelTrades {
-	var priceLevelTrades []*PriceLevelTrades
+func (a *Account) GetPriceLevelTrades(openTradesOnly bool) []*TradeLevels {
+	var priceLevelTrades []*TradeLevels
 
 	for _, strategy := range a.Strategies {
 		priceLevelTrades = append(priceLevelTrades, strategy.GetTradesByPriceLevel(openTradesOnly)...)
@@ -140,22 +140,6 @@ func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, erro
 
 	return nil, nil
 }
-
-//func (a *Account) BulkClose(price float64, req BulkCloseRequest) ([]*PriceLevel, error) {
-//	if a.PriceLevelsInput != nil {
-//		for _, level := range a.PriceLevelsInput.Bands {
-//			bulkCloseReq := BulkCloseRequest{
-//				Items:[]BulkCloseRequestItem{
-//					{
-//						Level: level,
-//						ClosePercent:
-//					},
-//				},
-//			}
-//			//level.
-//		}
-//	}
-//}
 
 func (a *Account) getStrategiesBalance() float64 {
 	balance := 0.0

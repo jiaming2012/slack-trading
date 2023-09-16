@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/eventservices"
 	"slack-trading/src/models"
 	"sync"
 	"time"
@@ -114,7 +115,7 @@ func (w *AccountWorker) checkForStopOut(tick models.Tick) (*models.Strategy, err
 				return nil, fmt.Errorf("AccountWorker.checkForStopOut: GetTradeStats failed: %w", err)
 			}
 
-			if stats.Realized+stats.Floating >= strategy.Balance {
+			if stats.RealizedPL+stats.FloatingPL >= strategy.Balance {
 				return &strategy, nil
 			}
 		}
@@ -295,6 +296,9 @@ func (w *AccountWorker) fetchTrades(event *eventmodels.FetchTradesRequest) (*eve
 		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: failed to find findAccount: %w", err)
 	}
 
+	fetchTradesResult := eventservices.FetchTrades(event.RequestID, account)
+
+	return fetchTradesResult, nil
 }
 
 func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesRequest) {
@@ -316,29 +320,14 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
 		return
-		return
 	}
 
 	currentTick := w.tickMachine.Query()
 
-	statsResult := &eventmodels.GetStatsResult{
-		RequestID: event.RequestID,
-	}
-
-	for _, strategy := range account.Strategies {
-		stats, statsErr := strategy.GetTrades().GetTradeStats(*currentTick)
-		if statsErr != nil {
-			pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, statsErr)
-			return
-		}
-
-		openTradesByPriceLevel := strategy.GetTradesByPriceLevel(true)
-
-		statsResult.Strategies = append(statsResult.Strategies, &eventmodels.GetStatsResultItem{
-			StrategyName: strategy.Name,
-			Stats:        &stats,
-			OpenTrades:   openTradesByPriceLevel,
-		})
+	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, err)
+		return
 	}
 
 	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)

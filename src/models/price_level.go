@@ -40,8 +40,9 @@ func (p *PriceLevel) Add(trade *Trade, executedPrice float64, executedVolume flo
 		return err
 	}
 
-	trade.ExecutedPrice = executedPrice
-	trade.ExecutedVolume = executedVolume
+	if err := trade.Execute(executedPrice, executedVolume); err != nil {
+		return fmt.Errorf("PriceLevel.Add: failed to execute trade: %w", err)
+	}
 
 	if err := trade.Validate(); err != nil {
 		return fmt.Errorf("PriceLevel.Add: trade is not valid: %w", err)

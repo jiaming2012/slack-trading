@@ -51,7 +51,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 	}
 
 	pubsub.Publish("CandleWorker", pubsub.BalanceResultEvent, models.Balance{
-		Floating: profit.Floating,
+		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
 		Volume:   volume,

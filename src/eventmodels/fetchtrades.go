@@ -21,13 +21,13 @@ func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName
 
 type FetchTradesResult struct {
 	RequestID uuid.UUID
-	Trades    []*models.PriceLevelTrades
+	Trades    []*models.TradeLevels
 }
 
 func (r *FetchTradesResult) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
 
-func NewFetchTradesResult(requestID uuid.UUID, trades []*models.PriceLevelTrades) *FetchTradesResult {
+func NewFetchTradesResult(requestID uuid.UUID, trades []*models.TradeLevels) *FetchTradesResult {
 	return &FetchTradesResult{RequestID: requestID, Trades: trades}
 }

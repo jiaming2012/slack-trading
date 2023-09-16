@@ -34,9 +34,9 @@ func (r *GetStatsRequest) Validate(request *http.Request) error {
 }
 
 type GetStatsResultItem struct {
-	StrategyName string                     `json:"strategyName"`
-	Stats        *models.TradeStats         `json:"stats"`
-	OpenTrades   []*models.PriceLevelTrades `json:"openTrades"`
+	StrategyName    string                `json:"strategyName"`
+	Stats           *models.TradeStats    `json:"stats"`
+	OpenTradeLevels []*models.TradeLevels `json:"openTrades"`
 }
 
 type GetStatsResult struct {

@@ -79,7 +79,7 @@ func (trades *Trades) OpenTrades() *Trades {
 			closeVol := math.Abs(tr.ExecutedVolume)
 			usedVol := 0.0
 			for _, off := range tr.Offsets {
-				usedVol += math.Min(closeVol, math.Abs(off.ExecutedVolume))
+				usedVol = math.Min(closeVol, math.Abs(off.ExecutedVolume))
 				tradeToClosedVolumeMap[off] += usedVol
 				closeVol -= usedVol
 
@@ -97,7 +97,7 @@ func (trades *Trades) OpenTrades() *Trades {
 
 		if tr.Type == TradeTypeBuy || tr.Type == TradeTypeSell {
 			offsettingVolume := tradeToClosedVolumeMap[tr]
-			if math.Abs(tr.ExecutedVolume) > offsettingVolume {
+			if math.Abs(tr.ExecutedVolume) > offsettingVolume+SmallRoundingError {
 				openTrades.Add(tr)
 			}
 		}
@@ -172,31 +172,38 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 	realizedPL := 0.0
 
 	for _, tr := range *trades {
-		if math.Abs(tr.ExecutedVolume) < math.SmallestNonzeroFloat64 || tr.ExecutedVolume == math.NaN() {
+		if tr.Type == TradeTypeClose {
 			continue
 		}
 
-		tradeWeight := tr.ExecutedVolume / (tr.ExecutedVolume + volume)
+		realizedPL += tr.RealizedPL()
+
+		openVolume := tr.RemainingOpenVolume()
+		if math.Abs(openVolume) < SmallRoundingError {
+			continue
+		}
 
 		if volume > 0 {
-			if tr.ExecutedVolume > 0 {
+			if openVolume > 0 {
+				tradeWeight := openVolume / (openVolume + volume)
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
-				closeVolume := math.Min(volume, math.Abs(tr.ExecutedVolume))
-				realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
+				//closeVolume := math.Min(volume, math.Abs(openVolume))
+				//realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
 
-				if math.Abs(tr.ExecutedVolume) > volume {
+				if math.Abs(openVolume) > volume {
 					vwap = tr.ExecutedPrice
 				}
 			}
 		} else if volume < 0 {
-			if tr.ExecutedVolume < 0 {
+			if openVolume < 0 {
+				tradeWeight := openVolume / (openVolume + volume)
 				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 			} else {
-				closeVolume := math.Min(math.Abs(volume), tr.ExecutedVolume)
-				realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
+				//closeVolume := math.Min(math.Abs(volume), openVolume)
+				//realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
 
-				if tr.ExecutedVolume > math.Abs(volume) {
+				if openVolume > math.Abs(volume) {
 					vwap = tr.ExecutedPrice
 				}
 			}
@@ -204,7 +211,7 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 			vwap = tr.ExecutedPrice
 		}
 
-		volume += tr.ExecutedVolume
+		volume += openVolume
 	}
 
 	if volume == 0 {
@@ -215,45 +222,15 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 }
 
 func (trades *Trades) GetTradeStats(tick Tick) (TradeStats, error) {
-	realizedPL := 0.0
-	volume := 0.0
-	placedTrades := make(Trades, 0)
-
-	for _, tr := range *trades {
-		if math.Abs(tr.ExecutedVolume) < math.SmallestNonzeroFloat64 || tr.ExecutedVolume == math.NaN() {
-			continue
-		}
-
-		vwap, _, _ := placedTrades.GetTradeStatsItems()
-		if err := vwap.Validate(); err != nil {
-			return TradeStats{}, fmt.Errorf("Trades.GetTradeStats vwap validation failed: %w", err)
-		}
-
-		if volume > 0 {
-			if tr.Side() == TradeTypeSell {
-				realizedPL += math.Abs(tr.ExecutedVolume) * (tr.ExecutedPrice - float64(vwap))
-			}
-		} else if volume < 0 {
-			if tr.Side() == TradeTypeBuy {
-				realizedPL += math.Abs(tr.ExecutedVolume) * (float64(vwap) - tr.ExecutedPrice)
-			}
-		} else {
-		}
-
-		placedTrades.Add(tr)
-		volume += tr.ExecutedVolume
-	}
-
 	floatingPL := 0.0
-	vwap, _, _ := placedTrades.GetTradeStatsItems()
+	vwap, volume, realizedPL := trades.GetTradeStatsItems()
 	if err := vwap.Validate(); err != nil {
 		return TradeStats{}, fmt.Errorf("Trades.GetTradeStats vwap validation to calculate floatingPL failed: %w", err)
 	}
 	if volume > 0 {
-		floatingPL = (tick.Bid - float64(vwap)) * volume
+		floatingPL = (tick.Bid - float64(vwap)) * float64(volume)
 	} else if volume < 0 {
-		floatingPL = (float64(vwap) - tick.Ask) * math.Abs(volume)
-	} else {
+		floatingPL = (float64(vwap) - tick.Ask) * math.Abs(float64(volume))
 	}
 
 	_floatingPL := FloatingPL(floatingPL)
@@ -261,17 +238,18 @@ func (trades *Trades) GetTradeStats(tick Tick) (TradeStats, error) {
 		return TradeStats{}, fmt.Errorf("Trades.GetTradeStats: failed to validate floatingPL: %w", err)
 	}
 
-	_realizedPL := RealizedPL(realizedPL)
-	if err := _realizedPL.Validate(); err != nil {
+	if err := realizedPL.Validate(); err != nil {
 		return TradeStats{}, fmt.Errorf("Trades.GetTradeStats: failed to validate realizedPL: %w", err)
 	}
 
-	_volume := Volume(volume)
+	if err := volume.Validate(); err != nil {
+		return TradeStats{}, fmt.Errorf("Trades.GetTradeStats: failed to validate volume: %w", err)
+	}
 
 	return TradeStats{
-		Floating: floatingPL,
-		Realized: realizedPL,
-		Volume:   _volume,
-		Vwap:     vwap,
+		FloatingPL: floatingPL,
+		RealizedPL: float64(realizedPL),
+		Volume:     volume,
+		Vwap:       vwap,
 	}, nil
 }

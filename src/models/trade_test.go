@@ -7,6 +7,132 @@ import (
 	"time"
 )
 
+func TestRealizedPLForTradeTypeSell(t *testing.T) {
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	openPrc := 4.0
+	sl := 6.0
+	timeframe := 5
+	symbol := "symbol"
+	ts := time.Date(2006, 1, 2, 12, 0, 0, 0, time.UTC)
+	side := TradeTypeSell
+
+	t.Run("realized pl is zero if no trade is opened", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl realized once trade is closed for buy trade", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 3.0, 0.5)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.Equal(t, 0.5, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl for partial closes", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 3.0, 0.6)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.Equal(t, 0.6, tr1.RealizedPL())
+
+		tr3, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 2.0, 0.2)
+		assert.NoError(t, err)
+		tr3.AutoExecute()
+		assert.Equal(t, 1.0, tr1.RealizedPL())
+
+		tr4, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 2.0, 0.2)
+		assert.NoError(t, err)
+		tr4.AutoExecute()
+		assert.Equal(t, 1.4, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl for losing trade", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 5.5, 0.1)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.InEpsilon(t, -0.15, tr1.RealizedPL(), 0.001)
+	})
+}
+
+func TestRealizedPLForTradeTypeBuy(t *testing.T) {
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	openPrc := 2.0
+	sl := 1.8
+	timeframe := 5
+	symbol := "symbol"
+	ts := time.Date(2006, 1, 2, 12, 0, 0, 0, time.UTC)
+	side := TradeTypeBuy
+
+	t.Run("realized pl is zero if no trade is opened", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl realized once trade is closed for buy trade", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 3.0, 0.5)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.Equal(t, 0.5, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl for partial closes", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 3.0, 0.6)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.Equal(t, 0.6, tr1.RealizedPL())
+
+		tr3, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 4.0, 0.2)
+		assert.NoError(t, err)
+		tr3.AutoExecute()
+		assert.Equal(t, 1.0, tr1.RealizedPL())
+
+		tr4, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 4.0, 0.2)
+		assert.NoError(t, err)
+		tr4.AutoExecute()
+		assert.Equal(t, 1.4, tr1.RealizedPL())
+	})
+
+	t.Run("realized pl for losing trade", func(t *testing.T) {
+		tr1, err := NewOpenTrade(id, side, symbol, timeframe, ts, openPrc, 1.0, sl)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Equal(t, 0.0, tr1.RealizedPL())
+
+		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, 0.5, 0.1)
+		assert.NoError(t, err)
+		tr2.AutoExecute()
+		assert.InEpsilon(t, -0.15, tr1.RealizedPL(), 0.001)
+	})
+}
+
 func TestTradeClose(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	prc := 2.0

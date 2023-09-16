@@ -59,11 +59,12 @@ func TestStopOut(t *testing.T) {
 	t.Run("no stop out when first create", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		c := NewAccountWorkerClient(&wg)
-		strategy := c.checkForStopOut(models.Tick{
+		strategy, err := c.checkForStopOut(models.Tick{
 			Bid: 0,
 			Ask: 0,
 		})
 
+		assert.NoError(t, err)
 		assert.Nil(t, strategy)
 	})
 

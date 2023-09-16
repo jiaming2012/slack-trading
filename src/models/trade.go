@@ -31,10 +31,10 @@ func (t TradeType) String() string {
 }
 
 type TradeStats struct {
-	Floating float64 `json:"floatingPL"`
-	Realized float64 `json:"realizedPL"`
-	Volume   Volume  `json:"volume"`
-	Vwap     Vwap    `json:"vwap"`
+	FloatingPL float64 `json:"floatingPL"`
+	RealizedPL float64 `json:"realizedPL"`
+	Volume     Volume  `json:"volume"`
+	Vwap       Vwap    `json:"vwap"`
 }
 
 type TradeParameters struct {
@@ -42,18 +42,51 @@ type TradeParameters struct {
 	MaxLoss    float64
 }
 
+type PartialCloseItems []*PartialCloseItem
+
+func (it *PartialCloseItems) Contains(trade *Trade) bool {
+	for _, item := range *it {
+		if item.ClosedBy == trade {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (it *PartialCloseItems) Add(item *PartialCloseItem) {
+	*it = append(*it, item)
+}
+
+func (it *PartialCloseItems) Volume() float64 {
+	sum := 0.0
+
+	for _, item := range *it {
+		sum += item.Volume
+	}
+
+	return sum
+}
+
+type PartialCloseItem struct {
+	ClosedBy *Trade
+	Volume   float64
+	Price    float64
+}
+
 type Trade struct {
-	ID              uuid.UUID `json:"id"`
-	Type            TradeType `json:"type"`
-	Timeframe       int       `json:"timeframe"`
-	Symbol          string    `json:"symbol"`
-	Timestamp       time.Time `json:"timestamp"`
-	RequestedVolume float64   `json:"requestedVolume"`
-	ExecutedVolume  float64   `json:"executedVolume"`
-	ExecutedPrice   float64   `json:"executedPrice"`
-	RequestedPrice  float64   `json:"requestedPrice"`
-	StopLoss        float64   `json:"stopLoss"`
-	Offsets         []*Trade  `json:"offsets"`
+	ID              uuid.UUID         `json:"id"`
+	Type            TradeType         `json:"type"`
+	Timeframe       int               `json:"timeframe"`
+	Symbol          string            `json:"symbol"`
+	Timestamp       time.Time         `json:"timestamp"`
+	RequestedVolume float64           `json:"requestedVolume"`
+	ExecutedVolume  float64           `json:"executedVolume"`
+	ExecutedPrice   float64           `json:"executedPrice"`
+	RequestedPrice  float64           `json:"requestedPrice"`
+	StopLoss        float64           `json:"stopLoss"`
+	Offsets         []*Trade          `json:"offsets"`
+	PartialCloses   PartialCloseItems `json:"partialCloses"`
 }
 
 type ClosePercent float64
@@ -64,6 +97,28 @@ func (p ClosePercent) Validate() error {
 	}
 
 	return nil
+}
+
+func (tr *Trade) RealizedPL() float64 {
+	realizedPL := 0.0
+
+	for _, partialClose := range tr.PartialCloses {
+		if tr.Type == TradeTypeBuy {
+			realizedPL += (partialClose.Price - tr.ExecutedPrice) * math.Abs(partialClose.Volume)
+		} else if tr.Type == TradeTypeSell {
+			realizedPL += (tr.ExecutedPrice - partialClose.Price) * partialClose.Volume
+		}
+	}
+
+	return realizedPL
+}
+
+func (tr *Trade) RemainingOpenVolume() float64 {
+	return tr.ExecutedVolume + tr.ClosedVolume() // tr.ExecutedVolume and tr.ClosedVolume() are opposite signs
+}
+
+func (tr *Trade) ClosedVolume() float64 {
+	return tr.PartialCloses.Volume()
 }
 
 func (tr *Trade) Side() TradeType {
@@ -186,16 +241,75 @@ func (tr *Trade) Validate() error {
 	return nil
 }
 
+func (tr *Trade) ValidateExecution() error {
+	if len(tr.Offsets) > 0 {
+		for i := 0; i < len(tr.Offsets); i += 1 {
+			if !tr.Offsets[i].PartialCloses.Contains(tr) {
+				return fmt.Errorf("trade %v: %w", tr.Offsets, PartialCloseItemNotSetErr)
+			}
+
+			if err := tr.Offsets[i].Validate(); err != nil {
+				return fmt.Errorf("Trade.ValidateExecution: failed to validate offset trade: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (tr *Trade) ModifyOffsetTradesToAddPartialCloseItems(executedPrice float64, executedVolume float64) error {
+	if tr.Type != TradeTypeClose {
+		return nil
+	}
+
+	// record partial closes to offset offsetTrades
+	offsetTrades := tr.Offsets
+	totalClosedVolume := 0.0
+	for i := 0; i < len(offsetTrades)-1; i++ {
+		offsetTradeRemainingVolume := offsetTrades[i].RemainingOpenVolume()
+		if math.Abs(offsetTradeRemainingVolume) < SmallRoundingError {
+			return fmt.Errorf("ModifyOffsetTradesToAddPartialCloseItem: trade %v has no remaining volume to serve as an offset trade", offsetTrades[i])
+		}
+
+		offsetTrades[i].PartialCloses.Add(&PartialCloseItem{
+			ClosedBy: tr,
+			Volume:   offsetTradeRemainingVolume * -1,
+			Price:    executedPrice,
+		})
+
+		totalClosedVolume += offsetTradeRemainingVolume
+	}
+
+	remainingVolumeToClose := executedVolume + totalClosedVolume // executedVolume and totalClosedVolume are opposite signs
+
+	offsetTrades[len(offsetTrades)-1].PartialCloses.Add(&PartialCloseItem{
+		ClosedBy: tr,
+		Volume:   remainingVolumeToClose,
+		Price:    executedPrice,
+	})
+
+	return nil
+}
+
 // Execute sets the actual price that the trade was executed at when sending the trade to the market
-func (tr *Trade) Execute(executedPrice float64, executedVolume float64) {
+func (tr *Trade) Execute(executedPrice float64, executedVolume float64) error {
+	if err := tr.ModifyOffsetTradesToAddPartialCloseItems(executedPrice, executedVolume); err != nil {
+		return fmt.Errorf("Trade.Execute: failed to modify trades to add partial close items: %w", err)
+	}
+
+	if err := tr.ValidateExecution(); err != nil {
+		return fmt.Errorf("Trade.Execute: failed to validate execution: %w", err)
+	}
+
 	tr.ExecutedPrice = executedPrice
 	tr.ExecutedVolume = executedVolume
+
+	return nil
 }
 
 // AutoExecute sets the executed price to the requested price
 func (tr *Trade) AutoExecute() {
-	tr.ExecutedPrice = tr.RequestedPrice
-	tr.ExecutedVolume = tr.RequestedVolume
+	tr.Execute(tr.RequestedPrice, tr.RequestedVolume)
 }
 
 func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade) (*Trade, error) {
@@ -233,6 +347,7 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe int, t
 		RequestedVolume: vol,
 		StopLoss:        stopLoss,
 		Offsets:         offsets,
+		PartialCloses:   make(PartialCloseItems, 0),
 	}
 
 	if err := trade.Validate(); err != nil {
@@ -252,9 +367,15 @@ func NewCloseTrade(id uuid.UUID, trades []*Trade, timeframe int, timestamp time.
 	}
 
 	symbol := trades[0].Symbol
-	for _, tr := range trades[:1] {
+	for _, tr := range trades[1:] {
 		if tr.Symbol != symbol {
 			return nil, fmt.Errorf("NewTradeClose: all trades must have the same symbol. Found %v and %v", tr.Symbol, symbol)
+		}
+	}
+
+	for _, offset := range trades {
+		if math.Abs(offset.ExecutedVolume-offset.ClosedVolume()) < SmallRoundingError {
+			return nil, fmt.Errorf("NewCloseTrade: trade %v cannot be used as on offset: it is already closed", offset)
 		}
 	}
 

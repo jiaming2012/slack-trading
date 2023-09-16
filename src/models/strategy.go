@@ -57,8 +57,8 @@ func (s *Strategy) GetPriceLevelByIndex(index int) (*PriceLevel, error) {
 	return s.PriceLevels.GetByIndex(index)
 }
 
-func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*PriceLevelTrades {
-	var priceLevelTrades []*PriceLevelTrades
+func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*TradeLevels {
+	var priceLevelTrades []*TradeLevels
 
 	for index, level := range s.PriceLevels.Bands {
 		trades := Trades{}
@@ -73,7 +73,7 @@ func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*PriceLevelTrade
 			}
 		}
 
-		priceLevelTrades = append(priceLevelTrades, &PriceLevelTrades{
+		priceLevelTrades = append(priceLevelTrades, &TradeLevels{
 			PriceLevelIndex: index,
 			Trades:          trades,
 		})
@@ -118,9 +118,13 @@ func (s *Strategy) NewCloseTrades(id uuid.UUID, timeframe int, timestamp time.Ti
 
 	trades := make([]*Trade, 0)
 	for _, tr := range openTrades {
-		trades = append(trades, tr)
-		closeVol := math.Min(volumeToClose, math.Abs(tr.ExecutedVolume))
-		volumeToClose -= closeVol
+		remainingVol := tr.RemainingOpenVolume()
+		if math.Abs(remainingVol) > SmallRoundingError {
+			trades = append(trades, tr)
+			closeVol := math.Min(volumeToClose, math.Abs(remainingVol))
+			volumeToClose -= closeVol
+		}
+
 		if volumeToClose == 0 {
 			break
 		}
@@ -282,45 +286,6 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 		Trade:           trade,
 	}, nil
 }
-
-//func (s *Strategy) CanPlaceTrade2(tradeReq OpenTradeRequest) error {
-//	_, priceLevel := s.findPriceLevel(tradeReq.Price)
-//
-//	if priceLevel == nil {
-//		return PriceOutsideLimitsErr
-//	}
-//
-//	if priceLevel.MaxNoOfTrades <= 0 {
-//		return MaxTradesPerPriceLevelErr
-//	}
-//
-//	tradesRemaining, side := priceLevel.NewTradesRemaining()
-//	tradeType := s.GetTradeType()
-//	if tradeType == TradeTypeBuy {
-//		if side == TradeTypeBuy && tradesRemaining <= 0 {
-//			return MaxTradesPerPriceLevelErr
-//		}
-//	} else if tradeType == TradeTypeSell {
-//		if side == TradeTypeSell && tradesRemaining <= 0 {
-//			return MaxTradesPerPriceLevelErr
-//		}
-//	}
-//
-//	_, _, realizedPL := priceLevel.Trades.Vwap()
-//
-//	maxPriceLevelLoss := s.Balance * priceLevel.AllocationPercent
-//	maxTradeLoss := maxPriceLevelLoss / float64(priceLevel.MaxNoOfTrades)
-//
-//	if float64(realizedPL)+maxTradeLoss > maxPriceLevelLoss {
-//		return MaxLossPriceBandErr
-//	}
-//
-//	return nil
-//	//return &TradeParameters{
-//	//	PriceLevel: priceLevel,
-//	//	MaxLoss:    maxTradeLoss,
-//	//}, nil
-//}
 
 func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 	if trade.Type == TradeTypeClose {
