@@ -108,7 +108,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy("test", symbol, direction, balance/2.0, newUpPriceLevels())
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)

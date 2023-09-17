@@ -48,10 +48,10 @@ func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) 
 func (c *SlackNotifierClient) sendError(err error) {
 	log.Debugf("SlackNotifierClient.sendError <- %v", err)
 
-	_, sendErr := sendResponse(err.Error(), WebhookURL, false)
-	if sendErr != nil {
-		log.Error(sendErr)
-	}
+	//_, sendErr := sendResponse(err.Error(), WebhookURL, false)
+	//if sendErr != nil {
+	//	log.Error(sendErr)
+	//}
 }
 
 func (c *SlackNotifierClient) getAccountsResponseHandler(ev eventmodels.GetAccountsResponseEvent) {

@@ -252,7 +252,7 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if err := trade.Validate(); err != nil {
+	if err := trade.Validate(nil); err != nil {
 		return nil, fmt.Errorf("ExecuteTradeRequest failed to Validate trade: %w", err)
 	}
 

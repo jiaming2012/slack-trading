@@ -33,6 +33,10 @@ func TestGetStatsDownDirection(t *testing.T) {
 		},
 	}
 
+	t.Run("test using an up and down strategy", func(t *testing.T) {
+		panic("implement the test")
+	})
+
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000)
 		assert.NoError(t, err)

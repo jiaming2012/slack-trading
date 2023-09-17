@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const SmallRoundingError = 0.00000001
+const SmallRoundingError = 0.000001
 
 type PriceLevel struct {
 	Price                float64
@@ -40,12 +40,17 @@ func (p *PriceLevel) Add(trade *Trade, executedPrice float64, executedVolume flo
 		return err
 	}
 
-	if err := trade.Execute(executedPrice, executedVolume); err != nil {
-		return fmt.Errorf("PriceLevel.Add: failed to execute trade: %w", err)
+	partialCloseItems, err := trade.PreparePartialCloseItems(executedPrice, executedVolume)
+	if err != nil {
+		return fmt.Errorf("Trade.Execute: failed to modify trades to add partial close items: %w", err)
 	}
 
-	if err := trade.Validate(); err != nil {
+	if err = trade.Validate(partialCloseItems); err != nil {
 		return fmt.Errorf("PriceLevel.Add: trade is not valid: %w", err)
+	}
+
+	if err = trade.Execute(executedPrice, executedVolume, partialCloseItems); err != nil {
+		return fmt.Errorf("PriceLevel.Add: failed to execute trade: %w", err)
 	}
 
 	p.Trades.Add(trade)
