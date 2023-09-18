@@ -333,6 +333,12 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
 }
 
+func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalRequest) {
+	newSignalResult := eventservices.UpdateConditions(w.getAccounts(), event)
+
+	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.NewSignalsResult, newSignalResult)
+}
+
 func (w *AccountWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
@@ -345,6 +351,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
 
 	go func() {
 		defer w.wg.Done()

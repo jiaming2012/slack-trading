@@ -113,7 +113,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				PriceActionEvent: payload.Header.PriceActionEvent,
 			})
 		default:
-			pubsub.PublishError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %T", signal))
+			pubsub.PublishError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %Request", signal))
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

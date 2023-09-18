@@ -1,19 +1,29 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	log "github.com/sirupsen/logrus"
+)
 
 type Condition struct {
-	Signal      Signal
-	IsSatisfied bool
+	EntrySignal SignalV2 `json:"entry"`
+	ExitSignal  SignalV2 `json:"exit"`
 }
 
-func (c Condition) String() string {
-	var isSatisfied string
-	if c.IsSatisfied {
-		isSatisfied = "satisfied"
-	} else {
-		isSatisfied = "not satisfied"
-	}
+func (c *Condition) UpdateState(isEntry bool) {
+	if isEntry {
+		c.EntrySignal.IsSatisfied = true
+		c.ExitSignal.IsSatisfied = false
 
-	return fmt.Sprintf("%v (%v)", c.Signal, isSatisfied)
+		log.Infof("entry condition %v was met", c.EntrySignal.Name)
+	} else {
+		c.EntrySignal.IsSatisfied = false
+		c.ExitSignal.IsSatisfied = true
+
+		log.Infof("exit condition %v was met", c.ExitSignal.Name)
+	}
+}
+
+func (c *Condition) String() string {
+	return fmt.Sprintf("Entry: %v | Exit: %v", c.EntrySignal, c.ExitSignal)
 }

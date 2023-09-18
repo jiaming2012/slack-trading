@@ -6,6 +6,17 @@ import (
 	"net/http"
 )
 
+func SetGenericResponse(obj interface{}, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	if err := json.NewEncoder(w).Encode(obj); err != nil {
+		return fmt.Errorf("SetResponse: encode: %w", err)
+	}
+
+	return nil
+}
+
 func SetResponse[T any](obj *T, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)

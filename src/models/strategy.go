@@ -10,7 +10,7 @@ import (
 
 type Strategy struct {
 	Name        string
-	Conditions  []Condition
+	Conditions  []*Condition
 	Balance     float64
 	PriceLevels *PriceLevels
 	Symbol      string
@@ -191,9 +191,9 @@ func (s *Strategy) findPriceLevel(price float64) (int, *PriceLevel) {
 	return 0, nil
 }
 
-func (s *Strategy) isConditionUnique(signal Signal) bool {
+func (s *Strategy) isConditionUnique(signal SignalV2) bool {
 	for _, cond := range s.Conditions {
-		if cond.Signal.String() == signal.String() {
+		if cond.EntrySignal.Name == signal.Name {
 			return false
 		}
 	}
@@ -201,9 +201,9 @@ func (s *Strategy) isConditionUnique(signal Signal) bool {
 	return true
 }
 
-func (s *Strategy) RemoveCondition(signal Signal) error {
+func (s *Strategy) RemoveCondition(signal SignalV2) error {
 	for i, cond := range s.Conditions {
-		if cond.Signal.String() == signal.String() {
+		if cond.EntrySignal.Name == signal.Name {
 			s.Conditions = append(s.Conditions[:i], s.Conditions[i+1:]...)
 			return nil
 		}
@@ -212,14 +212,14 @@ func (s *Strategy) RemoveCondition(signal Signal) error {
 	return fmt.Errorf("Strategy.RemoveCondition: could not find signal %v", signal)
 }
 
-func (s *Strategy) AddCondition(signal Signal) error {
-	if !s.isConditionUnique(signal) {
-		return fmt.Errorf("signal %v already exists", signal)
+func (s *Strategy) AddCondition(entrySignal SignalV2, exitSignal SignalV2) error {
+	if !s.isConditionUnique(entrySignal) {
+		return fmt.Errorf("signal %v already exists", entrySignal)
 	}
 
-	s.Conditions = append(s.Conditions, Condition{
-		Signal:      signal,
-		IsSatisfied: false,
+	s.Conditions = append(s.Conditions, &Condition{
+		EntrySignal: entrySignal,
+		ExitSignal:  exitSignal,
 	})
 
 	return nil
@@ -341,7 +341,7 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 		Name:        name,
 		Symbol:      symbol,
 		Direction:   direction,
-		Conditions:  make([]Condition, 0),
+		Conditions:  make([]*Condition, 0),
 		Balance:     balance,
 		PriceLevels: priceLevels,
 	}

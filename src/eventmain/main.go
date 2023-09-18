@@ -12,6 +12,7 @@ import (
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventproducers/accountapi"
+	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
@@ -77,6 +78,7 @@ func main() {
 	router := mux.NewRouter()
 	tradeapi.SetupHandler(router.PathPrefix("/trades").Subrouter())
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
+	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{
@@ -135,20 +137,34 @@ func main() {
 		log.Fatal(err)
 	}
 
-	signal1 := models.TrendLineBreakSignal{
-		Name:      "htf-trendline-break",
-		Price:     25884.3, // todo: remove price from signal
-		Direction: models.Down,
+	//signal1 := models.TrendLineBreakSignal{
+	//	Name:      "htf-trendline-break",
+	//	Price:     25884.3, // todo: remove price from signal
+	//	Direction: models.Down,
+	//}
+	entrySignal1 := models.SignalV2{
+		Name: "htf-heikin-ashi-down",
 	}
 
-	signal2 := models.MovingAverageBreakSignal{
-		Name:      "small-ma-retrace",
-		Price:     27990.4,
-		Direction: models.Up,
+	exitSignal1 := models.SignalV2{
+		Name: "htf-heikin-ashi-up",
 	}
 
-	trendlineBreakStrategyFixture.AddCondition(signal1)
-	trendlineBreakStrategyFixture.AddCondition(signal2)
+	//signal2 := models.MovingAverageBreakSignal{
+	//	Name:      "small-ma-retrace",
+	//	Price:     27990.4,
+	//	Direction: models.Up,
+	//}
+	entrySignal2 := models.SignalV2{
+		Name: "ltf-ma-crossover-up",
+	}
+
+	exitSignal2 := models.SignalV2{
+		Name: "ltf-ma-crossover-down",
+	}
+
+	trendlineBreakStrategyFixture.AddCondition(entrySignal1, exitSignal1)
+	trendlineBreakStrategyFixture.AddCondition(entrySignal2, exitSignal2)
 
 	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
 		log.Fatal(err)
@@ -175,7 +191,7 @@ func main() {
 	// Block here until program is shut down
 	<-stop
 
-	// Signal -> shut down event clients
+	// EntrySignal -> shut down event clients
 	cancel()
 
 	// Wait for event clients to shut down

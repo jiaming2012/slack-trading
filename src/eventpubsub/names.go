@@ -31,5 +31,7 @@ const (
 	GetStatsResult            EventName = "GetStatsResult"
 	FetchTradesRequest        EventName = "FetchTradesRequest"
 	FetchTradesResult         EventName = "FetchTradesResult"
+	NewSignalsRequest         EventName = "NewSignalsRequest"
+	NewSignalsResult          EventName = "NewSignalsResult"
 	Error                     EventName = "DefaultError"
 )

@@ -54,30 +54,30 @@ func (b *TradingBot) handleTrendlineBreakSignal(signal eventmodels.TrendlineBrea
 }
 
 func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
-	var signal models.Signal
+	//var signal models.Signal
+	//
+	//timeframe, err := ev.Timeframe.Validate()
+	//if err != nil {
+	//	log.Errorf("TradingBot.handleAddStrategy: failed to validate timeframe: %v", err)
+	//}
+	//
+	//switch ev.Header.Signal {
+	//case "support-break":
+	//	log.Error("TradingBot.handleAddStrategy::support-break: not yet implemented")
+	//	return
+	//case "resistance-break":
+	//	log.Error("TradingBot.handleAddStrategy::resistance-break: not yet implemented")
+	//	return
+	//case "trendline-break":
+	//	signal = eventmodels.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.Price, ev.Direction, ev.PriceActionEvent)
+	//default:
+	//	log.Errorf("TradingBot.handleAddStrategy: unknown signal %v", ev.Header.Signal)
+	//	return
+	//}
 
-	timeframe, err := ev.Timeframe.Validate()
-	if err != nil {
-		log.Errorf("TradingBot.handleAddStrategy: failed to validate timeframe: %v", err)
-	}
-
-	switch ev.Header.Signal {
-	case "support-break":
-		log.Error("TradingBot.handleAddStrategy::support-break: not yet implemented")
-		return
-	case "resistance-break":
-		log.Error("TradingBot.handleAddStrategy::resistance-break: not yet implemented")
-		return
-	case "trendline-break":
-		signal = eventmodels.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.Price, ev.Direction, ev.PriceActionEvent)
-	default:
-		log.Errorf("TradingBot.handleAddStrategy: unknown signal %v", ev.Header.Signal)
-		return
-	}
-
-	if err = b.strategy.AddCondition(signal); err != nil {
-		log.Errorf("failed to add strategy: %v", err)
-	}
+	//if err = b.strategy.AddCondition(signal, ); err != nil {
+	//	log.Errorf("failed to add strategy: %v", err)
+	//}
 }
 
 func (b *TradingBot) Start(ctx context.Context) {
