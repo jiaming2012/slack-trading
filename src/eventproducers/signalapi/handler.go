@@ -41,7 +41,7 @@ import (
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.GenericHandler(pubsub.NewSignalsRequest, &eventmodels.NewSignalRequest{}, &eventmodels.NewSignalResult{}, w, r)
+		eventproducers.GenericHandler(pubsub.NewSignalsRequest, &eventmodels.SignalRequest{}, &eventmodels.NewSignalResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

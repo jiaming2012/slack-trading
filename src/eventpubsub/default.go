@@ -22,6 +22,7 @@ func PublishError(publisherName string, err error) {
 	Publish(publisherName, Error, err)
 }
 
+// Publish todo: only publish pointers to events
 func Publish(publisherName string, topic EventName, event interface{}) {
 	PublishWithFlags(publisherName, topic, event, true)
 }

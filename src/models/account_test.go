@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-// todo
-// 1. place algo trade on rsi cross < 30 || > 70 if net exposure  <> 0
-// 2. should see a slack alert
-// 3. add 1 BTC on each trade. close all on opposite signal
-
 func TestAccountStrategy(t *testing.T) {
 	name := "Test Account"
 	direction := Direction("up")
@@ -318,7 +313,7 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, -tr1Volume, closeTr.RequestedVolume)
 		assert.Equal(t, tr1ClosePrc, closeTr.RequestedPrice)
 
-		closeTr.Execute(tr1ClosePrc, -tr1Volume)
+		closeTr.Execute(tr1ClosePrc, -tr1Volume, nil)
 		assert.Equal(t, -tr1Volume, closeTr.ExecutedVolume)
 		assert.Equal(t, tr1ClosePrc, closeTr.ExecutedPrice)
 	})

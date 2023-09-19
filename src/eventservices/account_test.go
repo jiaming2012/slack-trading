@@ -3,10 +3,145 @@ package eventservices
 import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"slack-trading/src/eventmodels"
 	"slack-trading/src/models"
 	"testing"
 	"time"
 )
+
+func TestUpdateConditions(t *testing.T) {
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	strategyName := "testStrategy"
+	signalName := "testSignal"
+	symbol := "testSymbol"
+	priceLevels := []*models.PriceLevel{
+		{
+			Price: 1.0,
+		},
+		{
+			Price:             2.0,
+			MaxNoOfTrades:     2,
+			AllocationPercent: 0.5,
+			StopLoss:          3.5,
+		},
+		{
+			Price:             3.0,
+			MaxNoOfTrades:     3,
+			AllocationPercent: 0.5,
+			StopLoss:          4.0,
+		},
+	}
+
+	t.Run("0 entry conditions", func(t *testing.T) {
+		account, err := models.NewAccount("test account", 1000)
+		assert.NoError(t, err)
+
+		accounts := []models.Account{*account}
+		signalRequest := eventmodels.NewSignalRequest(id, signalName)
+
+		signalResult, entryConditionsSatisfied := UpdateConditions(accounts, signalRequest)
+		assert.Equal(t, signalName, signalResult.Name)
+		assert.Equal(t, id, signalResult.GetRequestID())
+		assert.Nil(t, entryConditionsSatisfied)
+	})
+
+	t.Run("1 entry condition", func(t *testing.T) {
+		account, err := models.NewAccount("test account", 1000)
+		assert.NoError(t, err)
+
+		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels)
+		assert.NoError(t, err)
+
+		entrySignalName := "entry1"
+		entryCondition := models.SignalV2{Name: entrySignalName}
+		exitCondition := models.SignalV2{Name: "exit1"}
+
+		strategy.AddCondition(entryCondition, exitCondition)
+		account.AddStrategy(*strategy)
+		accounts := []models.Account{*account}
+
+		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entrySignalName))
+		assert.Len(t, entryConditionsSatisfied, 1)
+		assert.Equal(t, account, entryConditionsSatisfied[0].Account)
+		assert.Equal(t, strategy, entryConditionsSatisfied[0].Strategy)
+	})
+
+	t.Run("missed entry condition", func(t *testing.T) {
+		account, err := models.NewAccount("test account", 1000)
+		assert.NoError(t, err)
+
+		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels)
+		assert.NoError(t, err)
+
+		entrySignalName := "entry1"
+		otherSignalName := "entry2"
+		entryCondition := models.SignalV2{Name: entrySignalName}
+		exitCondition := models.SignalV2{Name: "exit1"}
+
+		strategy.AddCondition(entryCondition, exitCondition)
+		account.AddStrategy(*strategy)
+		accounts := []models.Account{*account}
+
+		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, otherSignalName))
+		assert.Len(t, entryConditionsSatisfied, 0)
+	})
+
+	t.Run("2 entry conditions", func(t *testing.T) {
+		account, err := models.NewAccount("test account", 1000)
+		assert.NoError(t, err)
+
+		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels)
+		assert.NoError(t, err)
+
+		entryCondition1 := models.SignalV2{Name: "entry1"}
+		entryCondition2 := models.SignalV2{Name: "entry2"}
+		exitCondition := models.SignalV2{Name: "exit1"}
+
+		strategy.AddCondition(entryCondition1, exitCondition)
+		strategy.AddCondition(entryCondition2, exitCondition)
+		account.AddStrategy(*strategy)
+		accounts := []models.Account{*account}
+
+		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		assert.Len(t, entryConditionsSatisfied, 0)
+		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition2.Name))
+		assert.Len(t, entryConditionsSatisfied, 1)
+		assert.Equal(t, strategy, entryConditionsSatisfied[0].Strategy)
+	})
+
+	t.Run("entry condition not satisfied when exit condition is satisfied", func(t *testing.T) {
+		account, err := models.NewAccount("test account", 1000)
+		assert.NoError(t, err)
+
+		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels)
+		assert.NoError(t, err)
+
+		entryCondition1 := models.SignalV2{Name: "entry1"}
+		entryCondition2 := models.SignalV2{Name: "entry2"}
+		exitCondition1 := models.SignalV2{Name: "exit1"}
+		exitCondition2 := models.SignalV2{Name: "exit2"}
+
+		strategy.AddCondition(entryCondition1, exitCondition1)
+		strategy.AddCondition(entryCondition2, exitCondition2)
+		account.AddStrategy(*strategy)
+		accounts := []models.Account{*account}
+
+		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		assert.Len(t, entryConditionsSatisfied, 0)
+
+		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, exitCondition1.Name))
+		assert.Len(t, entryConditionsSatisfied, 0)
+
+		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition2.Name))
+		assert.Len(t, entryConditionsSatisfied, 0)
+
+		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		assert.Len(t, entryConditionsSatisfied, 1)
+
+		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, exitCondition2.Name))
+		assert.Len(t, entryConditionsSatisfied, 0)
+	})
+}
 
 func TestGetStatsDownDirection(t *testing.T) {
 	name := "Test Account"

@@ -7,6 +7,67 @@ import (
 	"time"
 )
 
+func TestEntryConditionsSatisfied(t *testing.T) {
+	name := "test"
+	symbol := "symbol"
+	balance := 1000.0
+	newUpPriceLevels := func() []*PriceLevel {
+		return []*PriceLevel{
+			{
+				Price:             1.0,
+				StopLoss:          0.5,
+				MaxNoOfTrades:     3,
+				AllocationPercent: 0.5,
+			},
+			{
+				Price:             2.0,
+				StopLoss:          1.5,
+				MaxNoOfTrades:     1,
+				AllocationPercent: 0.5,
+			},
+			{
+				Price:             10.0,
+				MaxNoOfTrades:     0,
+				AllocationPercent: 0,
+			},
+		}
+	}
+
+	entrySignal := SignalV2{Name: "entrySignal", IsSatisfied: false}
+	exitSignal := SignalV2{Name: "exitSignal", IsSatisfied: false}
+
+	t.Run("entry conditions not satisfied if strategy has no entry conditions", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
+		assert.NoError(t, err)
+		assert.False(t, s.EntryConditionsSatisfied())
+	})
+
+	t.Run("entry conditions are not satisfied", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
+		assert.NoError(t, err)
+		err = s.AddCondition(entrySignal, exitSignal)
+		assert.NoError(t, err)
+		assert.Len(t, s.Conditions, 1)
+		assert.Equal(t, entrySignal.Name, s.Conditions[0].EntrySignal.Name)
+		assert.Equal(t, exitSignal.Name, s.Conditions[0].ExitSignal.Name)
+		assert.False(t, s.EntryConditionsSatisfied())
+	})
+
+	t.Run("entry conditions are satisfied", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
+		assert.NoError(t, err)
+		err = s.AddCondition(entrySignal, exitSignal)
+		assert.NoError(t, err)
+		assert.Len(t, s.Conditions, 1)
+		assert.Equal(t, entrySignal.Name, s.Conditions[0].EntrySignal.Name)
+		assert.Equal(t, exitSignal.Name, s.Conditions[0].ExitSignal.Name)
+		assert.False(t, s.EntryConditionsSatisfied())
+
+		//s.GetPriceLevelByPrice()
+		assert.Fail(t, "finish the test")
+	})
+}
+
 func TestNewCloseTrade(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	name := "test"

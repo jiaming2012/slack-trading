@@ -277,6 +277,10 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 		return
 	}
 
+	// todo: refactor - if another method already has the strategy, e.g. - eventservices.UpdateConditions, could
+	// it just invoke execute open trade request directly?
+	// Furthermore, is there a difference between a request originating from outside of the system - e.g. NewOpenTradeRequest
+	// and inside of the system - e.g. ExecuteOpenTradeRequest
 	openTradeReq, err := models.NewOpenTradeRequest(
 		event.Timeframe,
 		strategy,
@@ -333,10 +337,28 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
 }
 
-func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalRequest) {
-	newSignalResult := eventservices.UpdateConditions(w.getAccounts(), event)
+func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.SignalRequest) {
+	newSignalResult, entryConditionsSatisfied := eventservices.UpdateConditions(w.getAccounts(), event)
 
-	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.NewSignalsResult, newSignalResult)
+	if entryConditionsSatisfied != nil {
+		for _, satisfiedConditions := range entryConditionsSatisfied {
+			id := uuid.New()
+
+			// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
+			// as the request didn't originate from an api call but is still picked up by the lister
+			eventmodels.RegisterResultCallback(id)
+
+			req, err := eventmodels.NewOpenTradeRequest(id, satisfiedConditions.Account.Name, satisfiedConditions.Strategy.Name, 5) // todo: timeframe should come from signal
+			if err != nil {
+				pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
+				return
+			}
+
+			pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+		}
+	}
+
+	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, newSignalResult)
 }
 
 func (w *AccountWorker) Start(ctx context.Context) {

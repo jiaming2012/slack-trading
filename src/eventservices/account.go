@@ -7,32 +7,28 @@ import (
 	"slack-trading/src/models"
 )
 
-func UpdateConditions(accounts []models.Account, newSignalRequest *eventmodels.NewSignalRequest) *eventmodels.NewSignalResult {
-	strategiesAffected := 0
+// UpdateConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
+// the handler would emit both events if not nil
+// this allows updates to not mix with other operations
+func UpdateConditions(accounts []models.Account, newSignalRequest *eventmodels.SignalRequest) (*eventmodels.NewSignalResult, []*eventmodels.EntryConditionsSatisfied) {
+	var entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied
 
 	for _, account := range accounts {
 		for _, strategy := range account.Strategies {
-			strategyAffected := false
-			for _, condition := range strategy.Conditions {
-				if newSignalRequest.Name == condition.EntrySignal.Name {
-					condition.UpdateState(true)
-					strategyAffected = true
-				} else if newSignalRequest.Name == condition.ExitSignal.Name {
-					condition.UpdateState(false)
-					strategyAffected = true
-				}
-			}
+			conditionsAffected := strategy.UpdateConditions(newSignalRequest.Name)
 
-			if strategyAffected {
-				strategiesAffected += 1
+			if conditionsAffected > 0 {
+				if strategy.EntryConditionsSatisfied() {
+					entryConditionsSatisfied = append(entryConditionsSatisfied, eventmodels.NewEntryConditionsSatisfied(&account, &strategy))
+				}
 			}
 		}
 	}
 
 	return &eventmodels.NewSignalResult{
-		RequestID:          newSignalRequest.RequestID,
-		StrategiesAffected: strategiesAffected,
-	}
+		RequestID: newSignalRequest.RequestID,
+		Name:      newSignalRequest.Name,
+	}, entryConditionsSatisfied
 }
 
 func FetchTrades(requestID uuid.UUID, account *models.Account) *eventmodels.FetchTradesResult {

@@ -7,18 +7,26 @@ import (
 	"net/http"
 )
 
-type NewSignalRequest struct {
+type SignalRequest struct {
 	RequestID uuid.UUID `json:"requestID"`
 	Name      string    `json:"name"`
 }
 
-func (r *NewSignalRequest) SetRequestID(id uuid.UUID) {
+func NewSignalRequest(requestID uuid.UUID, name string) *SignalRequest {
+	return &SignalRequest{RequestID: requestID, Name: name}
+}
+
+func (r *SignalRequest) GetRequestID() uuid.UUID {
+	return r.RequestID
+}
+
+func (r *SignalRequest) SetRequestID(id uuid.UUID) {
 	r.RequestID = id
 }
 
-func (r *NewSignalRequest) ParseHTTPRequest(req *http.Request) error {
+func (r *SignalRequest) ParseHTTPRequest(req *http.Request) error {
 	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
-		return fmt.Errorf("NewSignalRequest.ParseHTTPRequest: failed to decode json: %w", err)
+		return fmt.Errorf("SignalRequest.ParseHTTPRequest: failed to decode json: %w", err)
 	}
 
 	if r.Name == "" {

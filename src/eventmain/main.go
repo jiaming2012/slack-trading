@@ -110,16 +110,23 @@ func main() {
 		{
 			Price:                25000.0,
 			MaxNoOfTrades:        3,
-			AllocationPercent:    0.5,
+			AllocationPercent:    0.25,
 			StopLoss:             26000.0,
 			MinimumTradeDistance: 0,
 		},
 		{
 			Price:                27000.0,
 			MaxNoOfTrades:        2,
-			AllocationPercent:    0.5,
+			AllocationPercent:    0.25,
 			StopLoss:             28000.0,
 			MinimumTradeDistance: 0,
+		},
+		{
+			Price:                27350.0,
+			MaxNoOfTrades:        3,
+			AllocationPercent:    0.5,
+			StopLoss:             27530.0,
+			MinimumTradeDistance: 50,
 		},
 	}
 

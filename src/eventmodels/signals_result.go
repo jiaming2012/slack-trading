@@ -3,8 +3,8 @@ package eventmodels
 import "github.com/google/uuid"
 
 type NewSignalResult struct {
-	RequestID          uuid.UUID `json:"requestID"`
-	StrategiesAffected int       `json:"strategiesAffected"`
+	Name      string    `json:"name"`
+	RequestID uuid.UUID `json:"requestID"`
 }
 
 func (r *NewSignalResult) GetRequestID() uuid.UUID {

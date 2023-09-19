@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"sync"
 	"time"
@@ -33,6 +34,39 @@ func (s *Strategy) Validate() error {
 	}
 
 	return nil
+}
+
+func (s *Strategy) UpdateConditions(signalName string) int {
+	conditionsAffected := 0
+
+	for _, condition := range s.Conditions {
+		if signalName == condition.EntrySignal.Name {
+			condition.UpdateState(true)
+			conditionsAffected += 1
+			log.Infof("setting entry condition %v to true", signalName)
+		} else if signalName == condition.ExitSignal.Name {
+			condition.UpdateState(false)
+			conditionsAffected += 1
+			log.Infof("setting exit condition %v to true", signalName)
+		}
+	}
+
+	return conditionsAffected
+}
+
+func (s *Strategy) EntryConditionsSatisfied() bool {
+	if len(s.Conditions) == 0 {
+		log.Warnf("EntryConditionsSatisfied for Strategy %v will never return true until at least one entry condition is added", s)
+		return false
+	}
+
+	for _, cond := range s.Conditions {
+		if !cond.EntrySignal.IsSatisfied || cond.ExitSignal.IsSatisfied {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s *Strategy) GetPriceLevelByPrice(prc float64) (*PriceLevel, error) {

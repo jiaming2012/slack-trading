@@ -24,7 +24,7 @@ func TestOpenTrades(t *testing.T) {
 
 	t.Run("single trade", func(t *testing.T) {
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
-		tr1.AutoExecute()
+		tr1.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -37,7 +37,7 @@ func TestOpenTrades(t *testing.T) {
 	t.Run("close trade", func(t *testing.T) {
 		vol := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute()
+		tr1.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -47,7 +47,7 @@ func TestOpenTrades(t *testing.T) {
 		assert.Equal(t, tr1, (*openTrades)[0])
 
 		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
-		tr2.AutoExecute()
+		tr2.AutoExecute(nil)
 		assert.NoError(t, err)
 		trades.Add(tr2)
 		openTrades = trades.OpenTrades()
@@ -57,7 +57,7 @@ func TestOpenTrades(t *testing.T) {
 	t.Run("partial close", func(t *testing.T) {
 		vol := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute()
+		tr1.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -67,7 +67,7 @@ func TestOpenTrades(t *testing.T) {
 		assert.Equal(t, tr1, (*openTrades)[0])
 
 		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol/2.0)
-		tr2.AutoExecute()
+		tr2.AutoExecute(nil)
 		assert.NoError(t, err)
 		trades.Add(tr2)
 		openTrades = trades.OpenTrades()
@@ -78,15 +78,15 @@ func TestOpenTrades(t *testing.T) {
 	t.Run("multiple closes", func(t *testing.T) {
 		vol := 1.0
 		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute()
+		tr1.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr2.AutoExecute()
+		tr2.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		tr3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr3.AutoExecute()
+		tr3.AutoExecute(nil)
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -99,7 +99,7 @@ func TestOpenTrades(t *testing.T) {
 
 		// partial close trade 2
 		tr4, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
-		tr4.AutoExecute()
+		tr4.AutoExecute(nil)
 		assert.NoError(t, err)
 		trades.Add(tr4)
 		openTrades = trades.OpenTrades()
@@ -107,7 +107,7 @@ func TestOpenTrades(t *testing.T) {
 
 		// fully close trade 1
 		tr5, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
-		tr5.AutoExecute()
+		tr5.AutoExecute(nil)
 		assert.NoError(t, err)
 		trades.Add(tr5)
 		openTrades = trades.OpenTrades()
@@ -117,7 +117,7 @@ func TestOpenTrades(t *testing.T) {
 
 		// close the rest of trade 2
 		tr6, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
-		tr6.AutoExecute()
+		tr6.AutoExecute(nil)
 		assert.NoError(t, err)
 		trades.Add(tr6)
 		openTrades = trades.OpenTrades()
