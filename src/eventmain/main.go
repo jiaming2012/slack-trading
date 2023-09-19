@@ -51,6 +51,76 @@ All of the following:.................................................... no
 
 */
 
+func loadAccountFixtures() (*models.Account, error) {
+	// todo: fetch from database
+	balance := 2000.0
+	priceLevels := []*models.PriceLevel{
+		{
+			Price: 24000.0,
+		},
+		{
+			Price:                25000.0,
+			MaxNoOfTrades:        3,
+			AllocationPercent:    0.25,
+			StopLoss:             26000.0,
+			MinimumTradeDistance: 0,
+		},
+		{
+			Price:                27000.0,
+			MaxNoOfTrades:        2,
+			AllocationPercent:    0.25,
+			StopLoss:             28000.0,
+			MinimumTradeDistance: 0,
+		},
+		{
+			Price:                27350.0,
+			MaxNoOfTrades:        3,
+			AllocationPercent:    0.5,
+			StopLoss:             27530.0,
+			MinimumTradeDistance: 50,
+		},
+	}
+
+	accountFixture, err := models.NewAccount("playground", balance)
+	if err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	accountFixtures := []*models.Account{
+		accountFixture,
+	}
+
+	trendlineBreakStrategyFixture, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
+	if err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	entrySignal1 := models.SignalV2{
+		Name: "htf-heikin-ashi-down",
+	}
+
+	exitSignal1 := models.SignalV2{
+		Name: "htf-heikin-ashi-up",
+	}
+
+	entrySignal2 := models.SignalV2{
+		Name: "ltf-ma-crossover-up",
+	}
+
+	exitSignal2 := models.SignalV2{
+		Name: "ltf-ma-crossover-down",
+	}
+
+	trendlineBreakStrategyFixture.AddCondition(entrySignal1, exitSignal1)
+	trendlineBreakStrategyFixture.AddCondition(entrySignal2, exitSignal2)
+
+	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	return accountFixture, nil
+}
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -101,79 +171,8 @@ func main() {
 	signal.Notify(stop, os.Interrupt)
 	signal.Notify(stop, syscall.SIGTERM)
 
-	// todo: fetch from database
-	balance := 2000.0
-	priceLevels := []*models.PriceLevel{
-		{
-			Price: 24000.0,
-		},
-		{
-			Price:                25000.0,
-			MaxNoOfTrades:        3,
-			AllocationPercent:    0.25,
-			StopLoss:             26000.0,
-			MinimumTradeDistance: 0,
-		},
-		{
-			Price:                27000.0,
-			MaxNoOfTrades:        2,
-			AllocationPercent:    0.25,
-			StopLoss:             28000.0,
-			MinimumTradeDistance: 0,
-		},
-		{
-			Price:                27350.0,
-			MaxNoOfTrades:        3,
-			AllocationPercent:    0.5,
-			StopLoss:             27530.0,
-			MinimumTradeDistance: 50,
-		},
-	}
-
-	accountFixture, err := models.NewAccount("playground", balance)
+	accountFixtures, err := loadAccountFixtures()
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	accountFixtures := []*models.Account{
-		accountFixture,
-	}
-
-	trendlineBreakStrategyFixture, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	//signal1 := models.TrendLineBreakSignal{
-	//	Name:      "htf-trendline-break",
-	//	Price:     25884.3, // todo: remove price from signal
-	//	Direction: models.Down,
-	//}
-	entrySignal1 := models.SignalV2{
-		Name: "htf-heikin-ashi-down",
-	}
-
-	exitSignal1 := models.SignalV2{
-		Name: "htf-heikin-ashi-up",
-	}
-
-	//signal2 := models.MovingAverageBreakSignal{
-	//	Name:      "small-ma-retrace",
-	//	Price:     27990.4,
-	//	Direction: models.Up,
-	//}
-	entrySignal2 := models.SignalV2{
-		Name: "ltf-ma-crossover-up",
-	}
-
-	exitSignal2 := models.SignalV2{
-		Name: "ltf-ma-crossover-down",
-	}
-
-	trendlineBreakStrategyFixture.AddCondition(entrySignal1, exitSignal1)
-	trendlineBreakStrategyFixture.AddCondition(entrySignal2, exitSignal2)
-
-	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
 		log.Fatal(err)
 	}
 
