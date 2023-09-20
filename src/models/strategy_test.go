@@ -45,7 +45,7 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 	t.Run("entry conditions are not satisfied", func(t *testing.T) {
 		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
 		assert.NoError(t, err)
-		err = s.AddCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, exitSignal)
 		assert.NoError(t, err)
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)
@@ -56,7 +56,7 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 	t.Run("entry conditions are satisfied", func(t *testing.T) {
 		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels())
 		assert.NoError(t, err)
-		err = s.AddCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, exitSignal)
 		assert.NoError(t, err)
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)

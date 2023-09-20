@@ -53,6 +53,7 @@ func GetStats(requestID uuid.UUID, account *models.Account, currentTick *models.
 			StrategyName:    strategy.Name,
 			Stats:           &stats,
 			EntryConditions: strategy.EntryConditions,
+			ExitConditions:  strategy.ExitConditions,
 			OpenTradeLevels: openTradesByPriceLevel,
 		})
 	}

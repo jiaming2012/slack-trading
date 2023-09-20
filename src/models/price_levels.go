@@ -88,8 +88,9 @@ func (levels *PriceLevels) Validate(direction Direction) error {
 	return nil
 }
 
-func NewPriceLevels(levels []*PriceLevel, direction Direction) (*PriceLevels, error) {
+func NewPriceLevels(levels []*PriceLevel, direction Direction, strategy *Strategy) (*PriceLevels, error) {
 	for _, l := range levels {
+		l.Strategy = strategy
 		if err := l.Validate(); err != nil {
 			return nil, fmt.Errorf("NewPriceLevels (%v): price level validation failed: %w", direction, err)
 		}

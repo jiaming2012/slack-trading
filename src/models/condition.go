@@ -6,8 +6,8 @@ import (
 )
 
 type EntryCondition struct {
-	EntrySignal SignalV2 `json:"entrySignal"`
-	ResetSignal SignalV2 `json:"resetSignal"`
+	EntrySignal *SignalV2 `json:"entrySignal"`
+	ResetSignal *SignalV2 `json:"resetSignal"`
 }
 
 func (c *EntryCondition) UpdateState(isEntry bool) {
@@ -32,20 +32,28 @@ type ExitCondition struct {
 	Signals      []*SignalV2       `json:"signal"`
 	Constraints  SignalConstraints `json:"constraints"`
 	LevelIndex   int               `json:"levelIndex"`
-	ClosePercent float64           `json:"closePercent"`
+	ClosePercent ClosePercent      `json:"closePercent"`
 }
 
-func NewExitCondition(signals []*SignalV2, constraints []*SignalConstraint, levelIndex int, closePercent float64) (*ExitCondition, error) {
+func NewExitCondition(levelIndex int, signals []*SignalV2, constraints []*SignalConstraint, closePercent ClosePercent) (*ExitCondition, error) {
 	condition := &ExitCondition{Signals: signals, Constraints: constraints, LevelIndex: levelIndex, ClosePercent: closePercent}
 
 	if err := condition.Validate(); err != nil {
 		return nil, fmt.Errorf("NewExitCondition: condition validation failed: %w", err)
 	}
 
+	if levelIndex < 0 {
+		return nil, fmt.Errorf("NewExitCondition: LevelIndex must be >= 0")
+	}
+
+	if err := closePercent.Validate(); err != nil {
+		return nil, fmt.Errorf("NewExitCondition: failed to validate close percent: %w", err)
+	}
+
 	return condition, nil
 }
 
-func (c *ExitCondition) IsSatisfied(s *Strategy) bool {
+func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel) bool {
 	if len(c.Signals) == 0 {
 		return false
 	}
@@ -57,7 +65,7 @@ func (c *ExitCondition) IsSatisfied(s *Strategy) bool {
 	}
 
 	for _, constraint := range c.Constraints {
-		if !constraint.Check(s) {
+		if !constraint.Check(priceLevel, c) {
 			return false
 		}
 	}

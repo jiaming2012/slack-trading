@@ -56,7 +56,7 @@ func TestUpdateConditions(t *testing.T) {
 		entryCondition := models.SignalV2{Name: entrySignalName}
 		exitCondition := models.SignalV2{Name: "exit1"}
 
-		strategy.AddCondition(entryCondition, exitCondition)
+		strategy.AddEntryCondition(entryCondition, exitCondition)
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
@@ -78,7 +78,7 @@ func TestUpdateConditions(t *testing.T) {
 		entryCondition := models.SignalV2{Name: entrySignalName}
 		exitCondition := models.SignalV2{Name: "exit1"}
 
-		strategy.AddCondition(entryCondition, exitCondition)
+		strategy.AddEntryCondition(entryCondition, exitCondition)
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
@@ -97,8 +97,8 @@ func TestUpdateConditions(t *testing.T) {
 		entryCondition2 := models.SignalV2{Name: "entry2"}
 		exitCondition := models.SignalV2{Name: "exit1"}
 
-		strategy.AddCondition(entryCondition1, exitCondition)
-		strategy.AddCondition(entryCondition2, exitCondition)
+		strategy.AddEntryCondition(entryCondition1, exitCondition)
+		strategy.AddEntryCondition(entryCondition2, exitCondition)
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
@@ -121,8 +121,8 @@ func TestUpdateConditions(t *testing.T) {
 		exitCondition1 := models.SignalV2{Name: "exit1"}
 		exitCondition2 := models.SignalV2{Name: "exit2"}
 
-		strategy.AddCondition(entryCondition1, exitCondition1)
-		strategy.AddCondition(entryCondition2, exitCondition2)
+		strategy.AddEntryCondition(entryCondition1, exitCondition1)
+		strategy.AddEntryCondition(entryCondition2, exitCondition2)
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 

@@ -9,6 +9,7 @@ import (
 const SmallRoundingError = 0.000001
 
 type PriceLevel struct {
+	Strategy             *Strategy
 	Price                float64
 	MinimumTradeDistance float64 // the minimum distance of the requested price of two trades in the same price band
 	MaxNoOfTrades        int

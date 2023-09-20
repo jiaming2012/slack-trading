@@ -230,7 +230,7 @@ func (s *Strategy) findPriceLevel(price float64) (int, *PriceLevel) {
 	return 0, nil
 }
 
-func (s *Strategy) isConditionUnique(signal SignalV2) bool {
+func (s *Strategy) isConditionUnique(signal *SignalV2) bool {
 	for _, cond := range s.EntryConditions {
 		if cond.EntrySignal.Name == signal.Name {
 			return false
@@ -251,7 +251,18 @@ func (s *Strategy) RemoveCondition(signal SignalV2) error {
 	return fmt.Errorf("Strategy.RemoveCondition: could not find signal %v", signal)
 }
 
-func (s *Strategy) AddCondition(entrySignal SignalV2, exitSignal SignalV2) error {
+func (s *Strategy) AddExitCondition(levelIndex int, signals []*SignalV2, constraints SignalConstraints, closePercent ClosePercent) error {
+	condition, err := NewExitCondition(levelIndex, signals, constraints, closePercent)
+	if err != nil {
+		return fmt.Errorf("Strategy.AddExitCondition: failed to create new exit condition: %w", err)
+	}
+
+	s.ExitConditions = append(s.ExitConditions, condition)
+
+	return nil
+}
+
+func (s *Strategy) AddEntryCondition(entrySignal *SignalV2, exitSignal *SignalV2) error {
 	if !s.isConditionUnique(entrySignal) {
 		return fmt.Errorf("signal %v already exists", entrySignal)
 	}
@@ -371,19 +382,20 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 		return nil, BalanceGreaterThanZeroErr
 	}
 
-	priceLevels, err := NewPriceLevels(priceLevelInput, direction)
-	if err != nil {
-		return nil, fmt.Errorf("NewStrategy: failed to create price levels: %w", err)
-	}
-
 	strategy := &Strategy{
 		Name:            name,
 		Symbol:          symbol,
 		Direction:       direction,
 		EntryConditions: make([]*EntryCondition, 0),
 		Balance:         balance,
-		PriceLevels:     priceLevels,
 	}
+
+	priceLevels, err := NewPriceLevels(priceLevelInput, direction, strategy)
+	if err != nil {
+		return nil, fmt.Errorf("NewStrategy: failed to create price levels: %w", err)
+	}
+
+	strategy.PriceLevels = priceLevels
 
 	if err = strategy.Validate(); err != nil {
 		return nil, fmt.Errorf("NewStrategy: validation failed: %w", err)

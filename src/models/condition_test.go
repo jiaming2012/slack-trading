@@ -35,7 +35,7 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 	assert.NoError(t, _err)
 
 	t.Run("returns false when no signals are set", func(t *testing.T) {
-		c, err := NewExitCondition(nil, nil, 0, 1)
+		c, err := NewExitCondition(0, nil, nil, 1)
 		assert.NoError(t, err)
 		assert.False(t, c.IsSatisfied(strategy))
 	})
@@ -43,7 +43,7 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 	t.Run("1 signal", func(t *testing.T) {
 		s1 := NewSignalV2("signal1")
 		signals := []*SignalV2{s1}
-		c, err := NewExitCondition(signals, nil, 0, 1)
+		c, err := NewExitCondition(0, signals, nil, 1)
 		assert.NoError(t, err)
 
 		s1.IsSatisfied = true
@@ -54,7 +54,7 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		s1 := NewSignalV2("signal1")
 		s2 := NewSignalV2("signal2")
 		signals := []*SignalV2{s2, s1}
-		c, err := NewExitCondition(signals, nil, 0, 1)
+		c, err := NewExitCondition(0, signals, nil, 1)
 		assert.NoError(t, err)
 
 		s1.IsSatisfied = true
@@ -73,7 +73,7 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		})
 		constraints := []*SignalConstraint{c1}
 
-		c, err := NewExitCondition(signals, constraints, 0, 1)
+		c, err := NewExitCondition(0, signals, constraints, 1)
 		assert.NoError(t, err)
 
 		s1.IsSatisfied = true
@@ -96,7 +96,7 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		})
 		constraints := []*SignalConstraint{c1, c2}
 
-		c, err := NewExitCondition(signals, constraints, 0, 1)
+		c, err := NewExitCondition(0, signals, constraints, 1)
 		assert.NoError(t, err)
 
 		s1.IsSatisfied = true

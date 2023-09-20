@@ -112,7 +112,13 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			profit := trades.GetTradeStats(models.Tick{Bid: btcPrice, Ask: btcPrice})
+			profit, getStatsErr := trades.GetTradeStats(models.Tick{Bid: btcPrice, Ask: btcPrice})
+			if getStatsErr != nil {
+				errMsg := fmt.Sprintf("failed to get trade stats: %v", getStatsErr)
+				log.Errorf(errMsg)
+				slack.SendResponse(errMsg, responseURL, true)
+				return
+			}
 			vwap, volume, _ := trades.GetTradeStatsItems()
 
 			// todo: remove profit.RequestedVolume in favor of volume

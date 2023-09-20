@@ -17,10 +17,15 @@ func (constraints SignalConstraints) Validate() error {
 }
 
 type SignalConstraint struct {
-	Name  string
-	Check func(s *Strategy) bool
+	Name  string                                 `json:"name"`
+	Check func(*PriceLevel, *ExitCondition) bool `json:"-"`
 }
 
-func NewSignalConstraint(name string, check func(s *Strategy) bool) *SignalConstraint {
+func NewSignalConstraint(name string, check func(level *PriceLevel, condition *ExitCondition) bool) *SignalConstraint {
 	return &SignalConstraint{Name: name, Check: check}
+}
+
+func PriceLevelProfitLossAboveZeroConstraint(priceLevel *PriceLevel, exitCondition *ExitCondition) bool {
+
+	return false
 }

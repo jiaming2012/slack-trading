@@ -86,35 +86,35 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	trendlineBreakStrategyFixture, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
+	trendlineBreakStrategy, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	entrySignal1 := models.SignalV2{
-		Name: "htf-heikin-ashi-down",
+	entrySignal1 := models.NewSignalV2("h1-heikin-ashi-down")
+	resetSignal1 := models.NewSignalV2("h1-heikin-ashi-up")
+
+	entrySignal2 := models.NewSignalV2("m5-ma(50)-cross-above")
+	resetSignal2 := models.NewSignalV2("m5-ma(50)-cross-below")
+
+	trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
+	trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
+
+	exitSignals := []*models.SignalV2{
+		models.NewSignalV2("h1-ma(50)-cross-below"),
+		models.NewSignalV2("m5-bollinger-touch-below"),
 	}
 
-	exitSignal1 := models.SignalV2{
-		Name: "htf-heikin-ashi-up",
-	}
+	exitConstraint1 := models.NewSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*models.SignalConstraint{exitConstraint1}
 
-	entrySignal2 := models.SignalV2{
-		Name: "ltf-ma-crossover-up",
-	}
-
-	exitSignal2 := models.SignalV2{
-		Name: "ltf-ma-crossover-down",
-	}
-
-	trendlineBreakStrategyFixture.AddCondition(entrySignal1, exitSignal1)
-	trendlineBreakStrategyFixture.AddCondition(entrySignal2, exitSignal2)
+	trendlineBreakStrategy.AddExitCondition(1, exitSignals, exitConstraints, .5)
 
 	accountFixtures := []*models.Account{
 		accountFixture,
 	}
 
-	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
+	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategy); err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
