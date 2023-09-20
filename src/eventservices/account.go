@@ -15,7 +15,7 @@ func UpdateConditions(accounts []models.Account, newSignalRequest *eventmodels.S
 
 	for _, account := range accounts {
 		for _, strategy := range account.Strategies {
-			conditionsAffected := strategy.UpdateConditions(newSignalRequest.Name)
+			conditionsAffected := strategy.UpdateEntryConditions(newSignalRequest.Name)
 
 			if conditionsAffected > 0 {
 				if strategy.EntryConditionsSatisfied() {
@@ -52,7 +52,7 @@ func GetStats(requestID uuid.UUID, account *models.Account, currentTick *models.
 		statsResult.Strategies = append(statsResult.Strategies, &eventmodels.GetStatsResultItem{
 			StrategyName:    strategy.Name,
 			Stats:           &stats,
-			Conditions:      strategy.Conditions,
+			EntryConditions: strategy.EntryConditions,
 			OpenTradeLevels: openTradesByPriceLevel,
 		})
 	}

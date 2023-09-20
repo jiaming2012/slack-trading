@@ -7,6 +7,10 @@ type SignalV2 struct {
 	IsSatisfied bool   `json:"is_satisfied"`
 }
 
+func NewSignalV2(name string) *SignalV2 {
+	return &SignalV2{Name: name, IsSatisfied: false}
+}
+
 func (s SignalV2) String() string {
 	var isSatisfied string
 

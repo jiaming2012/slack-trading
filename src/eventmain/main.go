@@ -51,7 +51,7 @@ All of the following:.................................................... no
 
 */
 
-func loadAccountFixtures() (*models.Account, error) {
+func loadAccountFixtures() ([]*models.Account, error) {
 	// todo: fetch from database
 	balance := 2000.0
 	priceLevels := []*models.PriceLevel{
@@ -86,10 +86,6 @@ func loadAccountFixtures() (*models.Account, error) {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	accountFixtures := []*models.Account{
-		accountFixture,
-	}
-
 	trendlineBreakStrategyFixture, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
@@ -114,11 +110,15 @@ func loadAccountFixtures() (*models.Account, error) {
 	trendlineBreakStrategyFixture.AddCondition(entrySignal1, exitSignal1)
 	trendlineBreakStrategyFixture.AddCondition(entrySignal2, exitSignal2)
 
+	accountFixtures := []*models.Account{
+		accountFixture,
+	}
+
 	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategyFixture); err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	return accountFixture, nil
+	return accountFixtures, nil
 }
 
 func main() {

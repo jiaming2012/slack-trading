@@ -10,16 +10,17 @@ import (
 )
 
 type Strategy struct {
-	Name        string
-	Conditions  []*Condition
-	Balance     float64
-	PriceLevels *PriceLevels
-	Symbol      string
-	Direction   Direction
-	mutex       sync.Mutex
+	Name            string
+	EntryConditions []*EntryCondition
+	ExitConditions  []*ExitCondition
+	Balance         float64
+	PriceLevels     *PriceLevels
+	Symbol          string
+	Direction       Direction
+	mutex           sync.Mutex
 }
 
-// todo: modify to allow adding price level to strategy after creation
+// Validate todo: modify to allow adding price level to strategy after creation
 func (s *Strategy) Validate() error {
 	if s.Name == "" {
 		return fmt.Errorf("validate: strategy must have a name")
@@ -36,15 +37,19 @@ func (s *Strategy) Validate() error {
 	return nil
 }
 
-func (s *Strategy) UpdateConditions(signalName string) int {
+func (s *Strategy) UpdateExitConditions(signalName string) int {
+	return 0
+}
+
+func (s *Strategy) UpdateEntryConditions(signalName string) int {
 	conditionsAffected := 0
 
-	for _, condition := range s.Conditions {
+	for _, condition := range s.EntryConditions {
 		if signalName == condition.EntrySignal.Name {
 			condition.UpdateState(true)
 			conditionsAffected += 1
 			log.Infof("setting entry condition %v to true", signalName)
-		} else if signalName == condition.ExitSignal.Name {
+		} else if signalName == condition.ResetSignal.Name {
 			condition.UpdateState(false)
 			conditionsAffected += 1
 			log.Infof("setting exit condition %v to true", signalName)
@@ -55,13 +60,13 @@ func (s *Strategy) UpdateConditions(signalName string) int {
 }
 
 func (s *Strategy) EntryConditionsSatisfied() bool {
-	if len(s.Conditions) == 0 {
+	if len(s.EntryConditions) == 0 {
 		log.Warnf("EntryConditionsSatisfied for Strategy %v will never return true until at least one entry condition is added", s)
 		return false
 	}
 
-	for _, cond := range s.Conditions {
-		if !cond.EntrySignal.IsSatisfied || cond.ExitSignal.IsSatisfied {
+	for _, cond := range s.EntryConditions {
+		if !cond.EntrySignal.IsSatisfied || cond.ResetSignal.IsSatisfied {
 			return false
 		}
 	}
@@ -226,7 +231,7 @@ func (s *Strategy) findPriceLevel(price float64) (int, *PriceLevel) {
 }
 
 func (s *Strategy) isConditionUnique(signal SignalV2) bool {
-	for _, cond := range s.Conditions {
+	for _, cond := range s.EntryConditions {
 		if cond.EntrySignal.Name == signal.Name {
 			return false
 		}
@@ -236,9 +241,9 @@ func (s *Strategy) isConditionUnique(signal SignalV2) bool {
 }
 
 func (s *Strategy) RemoveCondition(signal SignalV2) error {
-	for i, cond := range s.Conditions {
+	for i, cond := range s.EntryConditions {
 		if cond.EntrySignal.Name == signal.Name {
-			s.Conditions = append(s.Conditions[:i], s.Conditions[i+1:]...)
+			s.EntryConditions = append(s.EntryConditions[:i], s.EntryConditions[i+1:]...)
 			return nil
 		}
 	}
@@ -251,9 +256,9 @@ func (s *Strategy) AddCondition(entrySignal SignalV2, exitSignal SignalV2) error
 		return fmt.Errorf("signal %v already exists", entrySignal)
 	}
 
-	s.Conditions = append(s.Conditions, &Condition{
+	s.EntryConditions = append(s.EntryConditions, &EntryCondition{
 		EntrySignal: entrySignal,
-		ExitSignal:  exitSignal,
+		ResetSignal: exitSignal,
 	})
 
 	return nil
@@ -372,12 +377,12 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 	}
 
 	strategy := &Strategy{
-		Name:        name,
-		Symbol:      symbol,
-		Direction:   direction,
-		Conditions:  make([]*Condition, 0),
-		Balance:     balance,
-		PriceLevels: priceLevels,
+		Name:            name,
+		Symbol:          symbol,
+		Direction:       direction,
+		EntryConditions: make([]*EntryCondition, 0),
+		Balance:         balance,
+		PriceLevels:     priceLevels,
 	}
 
 	if err = strategy.Validate(); err != nil {

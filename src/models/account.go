@@ -34,8 +34,8 @@ func (a *Account) String() string {
 		for i, s := range a.Strategies {
 			out.WriteString(fmt.Sprintf("        -> %d: %v\n", i+1, s.String()))
 
-			out.WriteString("          Entry Conditions:\n")
-			for i, cond := range s.Conditions {
+			out.WriteString("          Entry EntryConditions:\n")
+			for i, cond := range s.EntryConditions {
 				out.WriteString(fmt.Sprintf("               -> %d: %v\n", i, cond.String()))
 			}
 		}

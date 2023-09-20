@@ -8,8 +8,9 @@ import (
 )
 
 type SignalRequest struct {
-	RequestID uuid.UUID `json:"requestID"`
-	Name      string    `json:"name"`
+	RequestID uuid.UUID     `json:"requestID"`
+	Name      string        `json:"name"`
+	Source    RequestSource `json:"source"`
 }
 
 func NewSignalRequest(requestID uuid.UUID, name string) *SignalRequest {
@@ -22,6 +23,10 @@ func (r *SignalRequest) GetRequestID() uuid.UUID {
 
 func (r *SignalRequest) SetRequestID(id uuid.UUID) {
 	r.RequestID = id
+}
+
+func (r *SignalRequest) GetSource() RequestSource {
+	return r.Source
 }
 
 func (r *SignalRequest) ParseHTTPRequest(req *http.Request) error {

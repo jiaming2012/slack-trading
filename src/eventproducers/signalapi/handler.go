@@ -27,7 +27,7 @@ import (
 */
 
 //type SignalsResultItem struct {
-//	Conditions []*models.Condition `json:"conditions"`
+//	EntryConditions []*models.Condition `json:"conditions"`
 //}
 
 //type NewSignalsResult struct {
@@ -41,7 +41,7 @@ import (
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.GenericHandler(pubsub.NewSignalsRequest, &eventmodels.SignalRequest{}, &eventmodels.NewSignalResult{}, w, r)
+		eventproducers.SignalRequestHandler(pubsub.NewSignalsRequest, &eventmodels.SignalRequest{}, &eventmodels.NewSignalResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
