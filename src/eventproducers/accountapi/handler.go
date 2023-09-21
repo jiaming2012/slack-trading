@@ -52,6 +52,15 @@ func getAccountStats(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getAccounts(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		eventproducers.ApiRequestHandler(pubsub.GetAccountsRequestEvent, &eventmodels.GetAccountsRequestEvent{}, &eventmodels.GetAccountsResponseEvent{}, w, r)
+	} else {
+		w.WriteHeader(404)
+	}
+}
+
 func SetupHandler(router *mux.Router) {
+	router.HandleFunc("", getAccounts)
 	router.HandleFunc("/{accountName}/stats", getAccountStats)
 }

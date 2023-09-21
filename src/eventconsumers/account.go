@@ -99,11 +99,12 @@ func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountR
 	})
 }
 
-func (w *AccountWorker) getAccountsRequestHandler(request eventmodels.GetAccountsRequestEvent) {
+func (w *AccountWorker) getAccountsRequestHandler(request *eventmodels.GetAccountsRequestEvent) {
 	log.Debugf("<- AccountWorker.getAccountsRequestHandler")
 
-	pubsub.Publish("AccountWorker", pubsub.GetAccountsResponseEvent, eventmodels.GetAccountsResponseEvent{
-		Accounts: w.getAccounts(),
+	pubsub.Publish("AccountWorker", pubsub.GetAccountsResponseEvent, &eventmodels.GetAccountsResponseEvent{
+		RequestID: request.RequestID,
+		Accounts:  w.getAccounts(),
 	})
 }
 

@@ -10,11 +10,11 @@ import (
 )
 
 type Account struct {
-	Name       string
-	Balance    float64
-	Strategies []Strategy
-	Datafeed   *Datafeed
-	mutex      sync.Mutex
+	Name       string     `json:"name"`
+	Balance    float64    `json:"balance"`
+	Strategies []Strategy `json:"strategies"`
+	Datafeed   *Datafeed  `json:"datafeed"`
+	mutex      sync.Mutex `json:"-"`
 }
 
 /* todo: change account model:

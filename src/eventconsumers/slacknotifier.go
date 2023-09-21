@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -54,10 +55,14 @@ func (c *SlackNotifierClient) sendError(err error) {
 	}
 }
 
-func (c *SlackNotifierClient) getAccountsResponseHandler(ev eventmodels.GetAccountsResponseEvent) {
+func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAccountsResponseEvent) {
 	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
-	var msg string
+	if ev.GetRequestID() != uuid.Nil {
+		log.Debugf("SlackNotifierClient.getAccountsResponseHandler: ignore requests that have a request id")
+		return
+	}
 
+	var msg string
 	if len(ev.Accounts) == 0 {
 		msg = "No accounts available"
 	} else {
@@ -81,6 +86,12 @@ func (c *SlackNotifierClient) getAccountsResponseHandler(ev eventmodels.GetAccou
 
 func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccountResponseEvent) {
 	log.Debugf("SlackNotifierClient.addAccountResponseHandler <- %v", ev.Account)
+
+	// todo: this condition should be determined by a source field on the request
+	if ev.RequestID != uuid.Nil {
+		log.Debugf("SlackNotifierClient.addAccountResponseHandler: ignore requests that have a request id")
+		return
+	}
 
 	msg := fmt.Sprintf("Successfully added account:\n%v", ev.Account.String())
 

@@ -33,7 +33,7 @@ func TestUpdateConditions(t *testing.T) {
 	}
 
 	t.Run("0 entry conditions", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000)
+		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
 		accounts := []models.Account{*account}
@@ -46,7 +46,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("1 entry condition", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000)
+		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels)

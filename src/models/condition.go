@@ -33,12 +33,22 @@ type ExitCondition struct {
 	ResetSignals    []*SignalV2       `json:"resetSignals"`
 	Constraints     SignalConstraints `json:"constraints"`
 	LevelIndex      int               `json:"levelIndex"`
-	MaxTriggerCount int               `json:"maxTriggerCount"`
+	MaxTriggerCount *int              `json:"maxTriggerCount"`
+	TriggerCount    int               `json:"triggerCount"`
 	ClosePercent    ClosePercent      `json:"closePercent"`
+	AwaitingReset   bool              `json:"awaitingReset"`
 }
 
-func NewExitCondition(levelIndex int, signals []*SignalV2, constraints []*SignalConstraint, closePercent ClosePercent) (*ExitCondition, error) {
-	condition := &ExitCondition{ExitSignals: signals, Constraints: constraints, LevelIndex: levelIndex, ClosePercent: closePercent}
+func NewExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*SignalV2, constraints []*ExitSignalConstraint, closePercent ClosePercent, maxTriggerCount *int) (*ExitCondition, error) {
+	condition := &ExitCondition{
+		ExitSignals:     signals,
+		ResetSignals:    resetSignals,
+		Constraints:     constraints,
+		LevelIndex:      levelIndex,
+		ClosePercent:    closePercent,
+		MaxTriggerCount: maxTriggerCount,
+		TriggerCount:    0,
+	}
 
 	if err := condition.Validate(); err != nil {
 		return nil, fmt.Errorf("NewExitCondition: condition validation failed: %w", err)
@@ -57,21 +67,36 @@ func NewExitCondition(levelIndex int, signals []*SignalV2, constraints []*Signal
 
 func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel) bool {
 	if len(c.ExitSignals) == 0 {
+		log.Infof("ExitCondition.IsSatisfied: false due to no exit signals set")
+		return false
+	}
+
+	if c.MaxTriggerCount != nil && c.TriggerCount >= *c.MaxTriggerCount {
+		log.Infof("ExitCondition.IsSatisfied: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
 		return false
 	}
 
 	for _, signal := range c.ExitSignals {
 		if !signal.IsSatisfied {
+			c.AwaitingReset = false
 			return false
 		}
 	}
 
 	for _, constraint := range c.Constraints {
 		if !constraint.Check(priceLevel, c) {
+			log.Infof("ExitCondition.IsSatisfied: false due to failed constraint check, %v", constraint.Name)
 			return false
 		}
 	}
 
+	if c.AwaitingReset {
+		log.Infof("ExitCondition.IsSatisfied: false due to awaiting reset")
+		return false
+	}
+
+	c.TriggerCount += 1
+	c.AwaitingReset = true
 	return true
 }
 
@@ -82,6 +107,10 @@ func (c *ExitCondition) Validate() error {
 
 	if c.ClosePercent <= 0 || c.ClosePercent > 1 {
 		return fmt.Errorf("ExitCondition.Validate: ClosePercent must be > 0 and <= 1, found %v", c.ClosePercent)
+	}
+
+	if c.TriggerCount < 0 {
+		return fmt.Errorf("ExitCondition.Validate: TriggerCount must be >= 0, found %v", c.TriggerCount)
 	}
 
 	return nil

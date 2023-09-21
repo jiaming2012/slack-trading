@@ -10,10 +10,10 @@ const (
 )
 
 type Datafeed struct {
-	Name       DatafeedName
-	LastUpdate time.Time
-	LastBid    float64
-	LastOffer  float64
+	Name       DatafeedName `json:"name"`
+	LastUpdate time.Time    `json:"lastUpdate"`
+	LastBid    float64      `json:"lastBid"`
+	LastOffer  float64      `json:"lastOffer"`
 }
 
 func (t *Datafeed) Update(tick Tick) {

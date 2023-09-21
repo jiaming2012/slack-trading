@@ -9,14 +9,14 @@ import (
 const SmallRoundingError = 0.000001
 
 type PriceLevel struct {
-	Strategy             *Strategy
-	Price                float64
-	MinimumTradeDistance float64 // the minimum distance of the requested price of two trades in the same price band
-	MaxNoOfTrades        int
-	AllocationPercent    float64 // the amount of Account.Balance allocated to this price level
-	Trades               *Trades
-	StopLoss             float64
-	mutex                sync.Mutex
+	Strategy             *Strategy  `json:"-"`
+	Price                float64    `json:"price"`
+	MinimumTradeDistance float64    `json:"minimumTradeDistance"` // the minimum distance of the requested price of two trades in the same price band
+	MaxNoOfTrades        int        `json:"maxNoOfTrades"`
+	AllocationPercent    float64    `json:"allocationPercent"` // the amount of Account.Balance allocated to this price level
+	Trades               *Trades    `json:"trades"`
+	StopLoss             float64    `json:"stopLoss"`
+	mutex                sync.Mutex `json:"-"`
 }
 
 func (p *PriceLevel) canAddTrade(trade *Trade) error {

@@ -32,7 +32,7 @@ func TestNewPriceLevels(t *testing.T) {
 			},
 		}
 
-		_, err := NewPriceLevels(levels, Up)
+		_, err := NewPriceLevels(levels, Up, nil)
 		assert.ErrorIs(t, err, PriceLevelsNotSortedErr)
 	})
 
@@ -55,7 +55,7 @@ func TestNewPriceLevels(t *testing.T) {
 			},
 		}
 
-		_, err := NewPriceLevels(levels, Down)
+		_, err := NewPriceLevels(levels, Down, nil)
 		assert.ErrorIs(t, err, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
 	})
 

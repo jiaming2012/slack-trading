@@ -10,6 +10,8 @@ import (
 func TestAccountStrategy(t *testing.T) {
 	name := "Test Account"
 	direction := Direction("up")
+	symbol := "symbol"
+	balance := 100.0
 	priceLevels := []*PriceLevel{
 		{
 			Price:             1.0,
@@ -30,16 +32,16 @@ func TestAccountStrategy(t *testing.T) {
 	}
 
 	t.Run("cannot add a strategy with the same name", func(t *testing.T) {
-		account, err := NewAccount(name, 1000)
+		account, err := NewAccount(name, 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, 100, priceLevels)
+		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
 		assert.NoError(t, err)
 
-		strategy2, err := NewStrategy("test", "BTCUSD", direction, 100, priceLevels)
+		strategy2, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy2)
@@ -79,31 +81,31 @@ func TestPlacingTrades(t *testing.T) {
 		}
 	}
 
-	newDownPriceLevels := func() []*PriceLevel {
-		return []*PriceLevel{
-			{
-				Price: 1.0,
-			},
-			{
-				Price:             2.0,
-				MaxNoOfTrades:     2,
-				AllocationPercent: 0.5,
-				StopLoss:          12.5,
-			},
-			{
-				Price:             3.0,
-				MaxNoOfTrades:     2,
-				AllocationPercent: 0.5,
-				StopLoss:          3.5,
-			},
-		}
-	}
+	//newDownPriceLevels := func() []*PriceLevel {
+	//	return []*PriceLevel{
+	//		{
+	//			Price: 1.0,
+	//		},
+	//		{
+	//			Price:             2.0,
+	//			MaxNoOfTrades:     2,
+	//			AllocationPercent: 0.5,
+	//			StopLoss:          12.5,
+	//		},
+	//		{
+	//			Price:             3.0,
+	//			MaxNoOfTrades:     2,
+	//			AllocationPercent: 0.5,
+	//			StopLoss:          3.5,
+	//		},
+	//	}
+	//}
 
 	t.Run("can place an open trade request", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", symbol, direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -127,10 +129,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("can place a sell order", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", symbol, Down, balance/2.0, newDownPriceLevels())
+		strategy, err := NewStrategy(name, symbol, Down, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -154,10 +156,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -211,9 +213,9 @@ func TestPlacingTrades(t *testing.T) {
 
 		requestedPrice := 1.5
 
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, priceLevels)
+		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -241,11 +243,11 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to place additional trades in bands once previous trade is closed", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		curPrice := 1.5
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", symbol, direction, balance, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -290,10 +292,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to close a trade outside of price bands", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -319,10 +321,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("closing trades must have close percentage", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -340,10 +342,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -378,10 +380,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume increases in a specific band as winners increase", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -407,10 +409,10 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume decreases in a specific band as losers increase", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newUpPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -438,6 +440,7 @@ func TestPlacingTrades(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	balance := 10000.00
+	symbol := "symbol"
 	name := "Test Placing Trades"
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	timeframe := 5
@@ -466,10 +469,10 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, priceLevel)
+		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevel, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -518,10 +521,10 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", Up, balance, priceLevels)
+		strategy, err := NewStrategy(name, symbol, Up, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -572,10 +575,10 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", Down, balance, priceLevels)
+		strategy, err := NewStrategy(name, symbol, Down, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -612,6 +615,7 @@ func TestUpdate(t *testing.T) {
 func TestTradeValidation(t *testing.T) {
 	name := "TestTradeValidation"
 	balance := 1000.00
+	symbol := "btcusd"
 	direction := Up
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
@@ -646,9 +650,9 @@ func TestTradeValidation(t *testing.T) {
 	}
 
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance, newPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -659,10 +663,10 @@ func TestTradeValidation(t *testing.T) {
 	})
 
 	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
-		account, err := NewAccount(name, balance)
+		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy("test", "BTCUSD", direction, balance/2.0, newPriceLevels())
+		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)

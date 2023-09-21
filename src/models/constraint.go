@@ -2,7 +2,7 @@ package models
 
 import "fmt"
 
-type SignalConstraints []*SignalConstraint
+type SignalConstraints []*ExitSignalConstraint
 
 func (constraints SignalConstraints) Validate() error {
 	names := make(map[string]struct{})
@@ -16,13 +16,13 @@ func (constraints SignalConstraints) Validate() error {
 	return nil
 }
 
-type SignalConstraint struct {
+type ExitSignalConstraint struct {
 	Name  string                                 `json:"name"`
 	Check func(*PriceLevel, *ExitCondition) bool `json:"-"`
 }
 
-func NewSignalConstraint(name string, check func(level *PriceLevel, condition *ExitCondition) bool) *SignalConstraint {
-	return &SignalConstraint{Name: name, Check: check}
+func NewExitSignalConstraint(name string, check func(level *PriceLevel, condition *ExitCondition) bool) *ExitSignalConstraint {
+	return &ExitSignalConstraint{Name: name, Check: check}
 }
 
 func PriceLevelProfitLossAboveZeroConstraint(priceLevel *PriceLevel, exitCondition *ExitCondition) bool {

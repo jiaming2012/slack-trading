@@ -1,11 +1,30 @@
 package eventmodels
 
-import "slack-trading/src/models"
+import (
+	"github.com/google/uuid"
+	"net/http"
+	"slack-trading/src/models"
+)
 
-type GetAccountsRequestEvent struct{}
+type GetAccountsRequestEvent struct {
+	RequestID uuid.UUID
+}
+
+func (e *GetAccountsRequestEvent) ParseHTTPRequest(r *http.Request) error {
+	return nil
+}
+
+func (e *GetAccountsRequestEvent) SetRequestID(id uuid.UUID) {
+	e.RequestID = id
+}
 
 type GetAccountsResponseEvent struct {
-	Accounts []models.Account
+	RequestID uuid.UUID
+	Accounts  []models.Account
+}
+
+func (e *GetAccountsResponseEvent) GetRequestID() uuid.UUID {
+	return e.RequestID
 }
 
 type AddAccountRequestEvent struct {
@@ -16,5 +35,10 @@ type AddAccountRequestEvent struct {
 }
 
 type AddAccountResponseEvent struct {
-	Account models.Account
+	RequestID uuid.UUID
+	Account   models.Account
+}
+
+func (e *AddAccountResponseEvent) GetRequestID() uuid.UUID {
+	return e.RequestID
 }

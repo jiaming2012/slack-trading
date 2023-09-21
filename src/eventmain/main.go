@@ -106,10 +106,15 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		models.NewSignalV2("m5-bollinger-touch-below"),
 	}
 
-	exitConstraint1 := models.NewSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
-	exitConstraints := []*models.SignalConstraint{exitConstraint1}
+	exitResetSignals := []*models.SignalV2{
+		models.NewSignalV2("h1-ma(50)-cross-above"),
+	}
 
-	trendlineBreakStrategy.AddExitCondition(1, exitSignals, exitConstraints, .5)
+	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+
+	maxTriggerCount := 2
+	trendlineBreakStrategy.AddExitCondition(1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
 		account,

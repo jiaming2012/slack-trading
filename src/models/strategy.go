@@ -10,15 +10,15 @@ import (
 )
 
 type Strategy struct {
-	Name            string
-	EntryConditions []*EntryCondition
-	ExitConditions  []*ExitCondition
-	Balance         float64
-	PriceLevels     *PriceLevels
-	Symbol          string
-	Direction       Direction
-	Account         *Account
-	mutex           sync.Mutex
+	Name            string            `json:"name"`
+	EntryConditions []*EntryCondition `json:"entryConditions"`
+	ExitConditions  []*ExitCondition  `json:"exitConditions"`
+	Balance         float64           `json:"balance"`
+	PriceLevels     *PriceLevels      `json:"priceLevels"`
+	Symbol          string            `json:"symbol"`
+	Direction       Direction         `json:"direction"`
+	Account         *Account          `json:"-"`
+	mutex           sync.Mutex        `json:"-"`
 }
 
 // Validate todo: modify to allow adding price level to strategy after creation
@@ -252,8 +252,8 @@ func (s *Strategy) RemoveCondition(signal SignalV2) error {
 	return fmt.Errorf("Strategy.RemoveCondition: could not find signal %v", signal)
 }
 
-func (s *Strategy) AddExitCondition(levelIndex int, signals []*SignalV2, constraints SignalConstraints, closePercent ClosePercent) error {
-	condition, err := NewExitCondition(levelIndex, signals, constraints, closePercent)
+func (s *Strategy) AddExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*SignalV2, constraints SignalConstraints, closePercent ClosePercent, maxTriggerCount *int) error {
+	condition, err := NewExitCondition(levelIndex, signals, resetSignals, constraints, closePercent, maxTriggerCount)
 	if err != nil {
 		return fmt.Errorf("Strategy.AddExitCondition: failed to create new exit condition: %w", err)
 	}
