@@ -13,6 +13,7 @@ type Account struct {
 	Name       string
 	Balance    float64
 	Strategies []Strategy
+	Datafeed   *Datafeed
 	mutex      sync.Mutex
 }
 
@@ -177,29 +178,6 @@ func (a *Account) FindStrategy(strategyName string) (*Strategy, error) {
 	return nil, fmt.Errorf("Account.FindStrategy: could not find strategy with name %v", strategyName)
 }
 
-//func (a *Account) PlaceOpenTradeRequest(strategyName string, currentPrice float64) (*OpenTradeRequest, error) {
-//	a.mutex.Lock()
-//	defer a.mutex.Unlock()
-//
-//	strategy, err := a.FindStrategy(strategyName)
-//	if err != nil {
-//		return nil, fmt.Errorf("Account.PlaceOrderOpen: failed to find strategy: %w", err)
-//	}
-//
-//	// todo: remove this??
-//	_, currentPriceLevel := strategy.findPriceLevel(currentPrice)
-//	if currentPriceLevel == nil {
-//		return nil, fmt.Errorf("could not find price level at %.2f", currentPrice)
-//	}
-//
-//	// todo: refactor PlaceOrder parameters to pass in a trade request
-//	tradeRequest := OpenTradeRequest{
-//		Strategy: strategy,
-//	}
-//
-//	return &tradeRequest, nil
-//}
-
 /*
 PlaceOrderClose closes a percentage of all trades at the specified price level
 params:
@@ -257,59 +235,10 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 	return closeTradesRequests, nil
 }
 
-//func (a *Account) placeOrder(strategyName string, tradeType TradeType, currentPrice float64, stopLoss float64, closePercent float64) (*PriceLevel, error) {
-//
-//	var volume float64
-//	if tradeType == TradeTypeBuy {
-//		if strategyVolume >= 0 {
-//			if stopLoss >= currentPrice {
-//				return nil, fmt.Errorf("%w: stopLoss of %v is above current price of %v", InvalidStopLossErr, stopLoss, currentPrice)
-//			}
-//
-//			volume = (tradeParams.MaxLoss + float64(realizedPL)) / (currentPrice - stopLoss)
-//		} else {
-//			// i dont like this. what if closePercent is accidentally zero?
-//			if err = ClosePercent(closePercent).Validate(); err != nil {
-//				return nil, err
-//			}
-//			volume = float64(strategyVolume) * closePercent * -1
-//		}
-//	} else if tradeType == TradeTypeSell {
-//		if strategyVolume <= 0 {
-//			if stopLoss <= currentPrice {
-//				return nil, fmt.Errorf("%w: stopLoss of %v is below current price of %v", InvalidStopLossErr, stopLoss, currentPrice)
-//			}
-//
-//			volume = (tradeParams.MaxLoss + float64(realizedPL)) / (currentPrice - stopLoss)
-//		} else {
-//			if err = ClosePercent(closePercent).Validate(); err != nil {
-//				return nil, err
-//			}
-//			volume = float64(strategyVolume) * closePercent * -1
-//		}
-//	} else {
-//		return nil, fmt.Errorf("invalid trade type %v", tradeType)
-//	}
-//
-//	newTrade.StopLoss = stopLoss
-//	newTrade.RequestedVolume = volume
-//
-//	if err = newTrade.Validate(false); err != nil {
-//		return nil, err
-//	}
-//
-//	tradeParams.PriceLevel.Trades.Add(newTrade)
-//
-//	return newTrade, nil
-//}
-
-func NewAccount(name string, balance float64) (*Account, error) {
+func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, error) {
 	return &Account{
-		Name:    name,
-		Balance: balance,
+		Name:     name,
+		Balance:  balance,
+		Datafeed: datafeed,
 	}, nil
 }
-
-//func (a *Account) GetBalanceAtLevel(price float64) BalanceLevelStats {
-//	return BalanceLevelStats{}
-//}

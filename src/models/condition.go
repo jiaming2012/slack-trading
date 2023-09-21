@@ -29,14 +29,16 @@ func (c *EntryCondition) String() string {
 }
 
 type ExitCondition struct {
-	Signals      []*SignalV2       `json:"signal"`
-	Constraints  SignalConstraints `json:"constraints"`
-	LevelIndex   int               `json:"levelIndex"`
-	ClosePercent ClosePercent      `json:"closePercent"`
+	ExitSignals     []*SignalV2       `json:"exitSignals"`
+	ResetSignals    []*SignalV2       `json:"resetSignals"`
+	Constraints     SignalConstraints `json:"constraints"`
+	LevelIndex      int               `json:"levelIndex"`
+	MaxTriggerCount int               `json:"maxTriggerCount"`
+	ClosePercent    ClosePercent      `json:"closePercent"`
 }
 
 func NewExitCondition(levelIndex int, signals []*SignalV2, constraints []*SignalConstraint, closePercent ClosePercent) (*ExitCondition, error) {
-	condition := &ExitCondition{Signals: signals, Constraints: constraints, LevelIndex: levelIndex, ClosePercent: closePercent}
+	condition := &ExitCondition{ExitSignals: signals, Constraints: constraints, LevelIndex: levelIndex, ClosePercent: closePercent}
 
 	if err := condition.Validate(); err != nil {
 		return nil, fmt.Errorf("NewExitCondition: condition validation failed: %w", err)
@@ -54,11 +56,11 @@ func NewExitCondition(levelIndex int, signals []*SignalV2, constraints []*Signal
 }
 
 func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel) bool {
-	if len(c.Signals) == 0 {
+	if len(c.ExitSignals) == 0 {
 		return false
 	}
 
-	for _, signal := range c.Signals {
+	for _, signal := range c.ExitSignals {
 		if !signal.IsSatisfied {
 			return false
 		}

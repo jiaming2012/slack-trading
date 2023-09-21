@@ -51,6 +51,7 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteCloseTradesResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetStatsResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.NewSignalsResult, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ManualDatafeedUpdateResult, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()

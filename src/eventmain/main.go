@@ -12,6 +12,7 @@ import (
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventproducers/accountapi"
+	"slack-trading/src/eventproducers/datafeedapi"
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
@@ -81,12 +82,12 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		},
 	}
 
-	accountFixture, err := models.NewAccount("playground", balance)
+	account, err := models.NewAccount("playground", balance, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	trendlineBreakStrategy, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels)
+	trendlineBreakStrategy, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels, account)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
@@ -111,7 +112,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	trendlineBreakStrategy.AddExitCondition(1, exitSignals, exitConstraints, .5)
 
 	accountFixtures := []*models.Account{
-		accountFixture,
+		account,
 	}
 
 	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategy); err != nil {
@@ -149,6 +150,7 @@ func main() {
 	tradeapi.SetupHandler(router.PathPrefix("/trades").Subrouter())
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
+	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{
@@ -189,7 +191,7 @@ func main() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	//eventconsumers.NewTradingBot(&wg).Start(ctx)
 	//eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
-	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures).Start(ctx)
+	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures, models.ManualDatafeed).Start(ctx)
 	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 
 	log.Info("Main: init complete")

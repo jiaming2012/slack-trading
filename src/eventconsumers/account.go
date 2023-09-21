@@ -14,9 +14,10 @@ import (
 )
 
 type AccountWorker struct {
-	wg          *sync.WaitGroup
-	accounts    []*models.Account
-	tickMachine *models.TickMachine
+	wg               *sync.WaitGroup
+	accounts         []*models.Account
+	coinbaseDatafeed *models.Datafeed
+	manualDatafeed   *models.Datafeed
 }
 
 func (w *AccountWorker) getAccounts() []models.Account {
@@ -30,7 +31,7 @@ func (w *AccountWorker) getAccounts() []models.Account {
 }
 
 func (w *AccountWorker) addAccount(account *models.Account, balance float64, priceLevels []*models.PriceLevel) error {
-	strategy, err := models.NewStrategy("trendline-break", "BTC-USD", "down", balance, priceLevels)
+	strategy, err := models.NewStrategy("trendline-break", "BTC-USD", "down", balance, priceLevels, account)
 	if err != nil {
 		return err
 	}
@@ -48,7 +49,7 @@ func (w *AccountWorker) addAccount(account *models.Account, balance float64, pri
 //		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account: %w", err)
 //	}
 //
-//	currentTick := r.tickMachine.Query()
+//	currentTick := r.coinbaseDatafeed.Query()
 //
 //	openTradeRequest, err := account.PlaceOpenTradeRequest(strategyName, currentTick.Bid)
 //	if err != nil {
@@ -81,7 +82,7 @@ func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountR
 		})
 	}
 
-	account, err := models.NewAccount(request.Name, request.Balance)
+	account, err := models.NewAccount(request.Name, request.Balance, nil)
 	if err != nil {
 		pubsub.PublishError("AccountWorker.addAccountHandler", err)
 		return
@@ -126,7 +127,7 @@ func (w *AccountWorker) checkForStopOut(tick models.Tick) (*models.Strategy, err
 
 func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 	// todo: eventually update based off level 2 quotes to get bid and ask
-	w.tickMachine.Update(models.Tick{
+	w.coinbaseDatafeed.Update(models.Tick{
 		Timestamp: tick.Timestamp,
 		Bid:       tick.Price,
 		Ask:       tick.Price,
@@ -134,7 +135,7 @@ func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 }
 
 func (w *AccountWorker) update() {
-	tick := w.tickMachine.Query()
+	tick := w.coinbaseDatafeed.Tick()
 	strategy, err := w.checkForStopOut(*tick)
 	if err != nil {
 		log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
@@ -184,7 +185,14 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 	clsTradeReq := event.CloseTradesRequest
 	tradeID := uuid.New()
 	now := time.Now()
-	requestPrc := w.getMarketPrice(clsTradeReq.Strategy, true)
+	datafeed := event.CloseTradesRequest.Strategy.Account.Datafeed
+
+	var requestPrc float64
+	if event.CloseTradesRequest.Strategy.Direction == models.Up {
+		requestPrc = datafeed.LastBid
+	} else if event.CloseTradesRequest.Strategy.Direction == models.Down {
+		requestPrc = datafeed.LastOffer
+	}
 
 	trade, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
 	if err != nil {
@@ -210,7 +218,7 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 }
 
 func (w *AccountWorker) getMarketPrice(strategy *models.Strategy, isClose bool) float64 {
-	tick := w.tickMachine.Query()
+	tick := w.coinbaseDatafeed.Tick()
 	var requestPrc float64
 	if strategy.Direction == models.Up {
 		if isClose {
@@ -235,7 +243,14 @@ func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 	req := event.OpenTradeRequest
 	tradeID := uuid.New()
 	now := time.Now()
-	requestPrc := w.getMarketPrice(req.Strategy, false)
+	datafeed := event.OpenTradeRequest.Strategy.Account.Datafeed
+
+	var requestPrc float64
+	if event.OpenTradeRequest.Strategy.Direction == models.Up {
+		requestPrc = datafeed.LastOffer
+	} else if event.OpenTradeRequest.Strategy.Direction == models.Down {
+		requestPrc = datafeed.LastBid
+	}
 
 	trade, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
@@ -326,7 +341,7 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 		return
 	}
 
-	currentTick := w.tickMachine.Query()
+	currentTick := w.coinbaseDatafeed.Tick()
 
 	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
 	if err != nil {
@@ -361,6 +376,19 @@ func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.SignalRequest)
 	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, newSignalResult)
 }
 
+func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
+	ts := time.Now()
+	w.manualDatafeed.Update(models.Tick{
+		Timestamp: ts,
+		Bid:       ev.Bid,
+		Ask:       ev.Ask,
+	})
+
+	result := eventmodels.NewManualDatafeedUpdateResult(ev.RequestID, ts)
+
+	pubsub.Publish("AccountWorker.handleManualDatafeedUpdateRequest", pubsub.ManualDatafeedUpdateResult, result)
+}
+
 func (w *AccountWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
@@ -374,6 +402,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 
 	go func() {
 		defer w.wg.Done()
@@ -392,18 +421,36 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.Account) *AccountWorker {
+func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.Account, datafeedName models.DatafeedName) *AccountWorker {
+	coinbaseDatafeed := models.NewDatafeed(models.CoinbaseDatafeed)
+	manualDatafeed := models.NewDatafeed(models.ManualDatafeed)
+
+	switch datafeedName {
+	case models.CoinbaseDatafeed:
+		for _, acc := range accounts {
+			acc.Datafeed = coinbaseDatafeed
+		}
+	case models.ManualDatafeed:
+		for _, acc := range accounts {
+			acc.Datafeed = manualDatafeed
+		}
+	default:
+		log.Fatalf("unknown datafeedName: %v", datafeedName)
+	}
+
 	return &AccountWorker{
-		wg:          wg,
-		accounts:    accounts,
-		tickMachine: models.NewTickMachine(),
+		wg:               wg,
+		accounts:         accounts,
+		coinbaseDatafeed: coinbaseDatafeed,
+		manualDatafeed:   manualDatafeed,
 	}
 }
 
 func NewAccountWorkerClient(wg *sync.WaitGroup) *AccountWorker {
 	return &AccountWorker{
-		wg:          wg,
-		accounts:    make([]*models.Account, 0),
-		tickMachine: models.NewTickMachine(),
+		wg:               wg,
+		accounts:         make([]*models.Account, 0),
+		coinbaseDatafeed: models.NewDatafeed(models.CoinbaseDatafeed),
+		manualDatafeed:   models.NewDatafeed(models.ManualDatafeed),
 	}
 }

@@ -17,6 +17,7 @@ type Strategy struct {
 	PriceLevels     *PriceLevels
 	Symbol          string
 	Direction       Direction
+	Account         *Account
 	mutex           sync.Mutex
 }
 
@@ -377,7 +378,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade) error {
 	return nil
 }
 
-func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel) (*Strategy, error) {
+func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
 	if balance <= 0 {
 		return nil, BalanceGreaterThanZeroErr
 	}
@@ -388,6 +389,7 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 		Direction:       direction,
 		EntryConditions: make([]*EntryCondition, 0),
 		Balance:         balance,
+		Account:         account,
 	}
 
 	priceLevels, err := NewPriceLevels(priceLevelInput, direction, strategy)

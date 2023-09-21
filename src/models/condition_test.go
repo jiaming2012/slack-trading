@@ -108,4 +108,12 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		constraintReturnValue2 = true
 		assert.True(t, c.IsSatisfied(strategy))
 	})
+
+	t.Run("reset signals", func(t *testing.T) {
+		assert.Fail(t, "wrtie the test")
+	})
+
+	t.Run("max number of triggers", func(t *testing.T) {
+		assert.Fail(t, "wrtie the test")
+	})
 }
