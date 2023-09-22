@@ -172,7 +172,7 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 	realizedPL := 0.0
 
 	for _, tr := range *trades {
-		if tr.Type == TradeTypeClose {
+		if tr.Type == TradeTypeClose { // ignore close trades since their volume is already accounted for in the open trades PartialCloses
 			continue
 		}
 

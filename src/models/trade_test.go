@@ -263,8 +263,18 @@ func TestMaxRisk(t *testing.T) {
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 
 		clsTrade, err := NewCloseTrade(id, []*Trade{tr1}, tf, timestamp, reqPrice+500.0, reqVol)
+		paritalCloseItemRequests := []*PartialCloseItemRequest{
+			{
+				Trade: tr1,
+				PartialCloseItem: &PartialCloseItem{
+					ClosedBy: clsTrade,
+					Volume:   tr1.ExecutedVolume * -1,
+					Price:    reqPrice + 500.0,
+				},
+			},
+		}
 		assert.NoError(t, err)
-		clsTrade.AutoExecute(nil)
+		clsTrade.AutoExecute(paritalCloseItemRequests)
 		trades.Add(clsTrade)
 
 		maxRisk, realizedPL = trades.MaxRisk(sl)

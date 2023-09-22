@@ -81,25 +81,25 @@ func TestPlacingTrades(t *testing.T) {
 		}
 	}
 
-	//newDownPriceLevels := func() []*PriceLevel {
-	//	return []*PriceLevel{
-	//		{
-	//			Price: 1.0,
-	//		},
-	//		{
-	//			Price:             2.0,
-	//			MaxNoOfTrades:     2,
-	//			AllocationPercent: 0.5,
-	//			StopLoss:          12.5,
-	//		},
-	//		{
-	//			Price:             3.0,
-	//			MaxNoOfTrades:     2,
-	//			AllocationPercent: 0.5,
-	//			StopLoss:          3.5,
-	//		},
-	//	}
-	//}
+	newDownPriceLevels := func() []*PriceLevel {
+		return []*PriceLevel{
+			{
+				Price: 1.0,
+			},
+			{
+				Price:             2.0,
+				MaxNoOfTrades:     2,
+				AllocationPercent: 0.5,
+				StopLoss:          12.5,
+			},
+			{
+				Price:             3.0,
+				MaxNoOfTrades:     2,
+				AllocationPercent: 0.5,
+				StopLoss:          3.5,
+			},
+		}
+	}
 
 	t.Run("can place an open trade request", func(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
@@ -132,7 +132,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, Down, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategy(name, symbol, Down, balance/2.0, newDownPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -180,15 +180,11 @@ func TestPlacingTrades(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(trade3)
 		assert.NoError(t, err)
 
-		trade4, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.NoError(t, err)
-		_, err = strategy.AutoExecuteTrade(trade4)
-		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
+		_, err = strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.ErrorIs(t, err, NoRemainingRiskAvailableErr)
 
-		trade5, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
-		assert.NoError(t, err)
-		_, err = strategy.AutoExecuteTrade(trade5)
-		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
+		_, err = strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
+		assert.ErrorIs(t, err, NoRemainingRiskAvailableErr)
 
 		trade6, err := strategy.NewOpenTrade(id, timeframe, timestamp, 3.5)
 		assert.NoError(t, err)
@@ -231,10 +227,8 @@ func TestPlacingTrades(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(trade2)
 		assert.NoError(t, err)
 
-		trade3, err := strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
-		assert.NoError(t, err)
-		_, err = strategy.AutoExecuteTrade(trade3)
-		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
+		_, err = strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
+		assert.ErrorIs(t, err, NoRemainingRiskAvailableErr)
 
 		trade4, err := strategy.NewCloseTrades(id, timeframe, timestamp, requestedPrice, t1Result.PriceLevelIndex, 1.0)
 		assert.NoError(t, err)

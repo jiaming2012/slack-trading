@@ -188,7 +188,7 @@ func (s *Strategy) calculateTradeVolume(priceLevel *PriceLevel, requestedPrice f
 	}
 
 	if remainingRisk <= 0 {
-		return 0.0, fmt.Errorf("Strategy.NewOpenTrade: remainingRisk = %v: %w", remainingRisk, NoRemainingRiskAvailable)
+		return 0.0, fmt.Errorf("Strategy.NewOpenTrade: remainingRisk = %v: %w", remainingRisk, NoRemainingRiskAvailableErr)
 	}
 
 	requestedVolume := remainingRisk / math.Abs(requestedPrice-priceLevel.StopLoss)
