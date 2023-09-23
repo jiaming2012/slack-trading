@@ -69,7 +69,7 @@ func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
 	//	log.Error("TradingBot.handleAddStrategy::resistance-break: not yet implemented")
 	//	return
 	//case "trendline-break":
-	//	signal = eventmodels.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.Price, ev.Direction, ev.PriceActionEvent)
+	//	signal = eventmodels.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.ExecutedPrice, ev.Direction, ev.PriceActionEvent)
 	//default:
 	//	log.Errorf("TradingBot.handleAddStrategy: unknown signal %v", ev.Header.Signal)
 	//	return

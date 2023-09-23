@@ -33,7 +33,7 @@ func (levels PriceLevels) String() string {
 
 	table.SetAlignment(tablewriter.ALIGN_CENTER)
 	table.SetColumnSeparator("")
-	display.WriteString("Price Levels:\n")
+	display.WriteString("ExecutedPrice Levels:\n")
 
 	for _, lvl := range levels.Bands {
 		price := fmt.Sprintf("$%s", p.Sprintf("%.2f", lvl.Price))

@@ -40,7 +40,7 @@ func m5RsiHandler(payload ...interface{}) {
 		lastPrice = c.Close
 	}
 
-	fmt.Println("M5 Last Price: ", lastPrice)
+	fmt.Println("M5 Last ExecutedPrice: ", lastPrice)
 	fmt.Println("M5 RSI: ", val)
 	fmt.Println("M5 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }
@@ -68,7 +68,7 @@ func m15RsiHandler(payload ...interface{}) {
 		lastPrice = c.Close
 	}
 
-	fmt.Println("M15 Last Price: ", lastPrice)
+	fmt.Println("M15 Last ExecutedPrice: ", lastPrice)
 	fmt.Println("M15 RSI: ", val)
 	fmt.Println("M15 Bollinger: ", bollingerStat.Lower, " - ", bollingerStat.Upper)
 }

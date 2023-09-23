@@ -77,7 +77,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 					//	log.Println(len(update.Events), update.Events[0].Type)
 					//}
 
-					//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].Price)
+					//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Type, update.Events[0].Tickers[0].ExecutedPrice)
 					//log.Println(len(update.Events[0].Tickers), update.Events[0].Tickers[0].Volume24High)
 
 					ch <- update

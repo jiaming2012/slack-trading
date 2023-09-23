@@ -67,27 +67,35 @@ func (a *Account) GetTrades() *Trades {
 	return &trades
 }
 
-func (a *Account) checkSL(price float64) CloseTradesRequest {
-	requests := make([]*CloseTradeRequestV1, 0)
+func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
+	requests := make([]*CloseTradesRequest, 0)
 
-	for _, trade := range *a.GetTrades() {
-		if trade.Side() == TradeTypeBuy {
-			if price <= trade.StopLoss {
-				requests = append(requests, &CloseTradeRequestV1{
-					Trade:  trade,
-					Reason: "SL",
-					Volume: trade.ExecutedVolume,
-				})
-			}
-		}
-
-		if trade.Side() == TradeTypeSell {
-			if price >= trade.StopLoss {
-				requests = append(requests, &CloseTradeRequestV1{
-					Trade:  trade,
-					Reason: "SL",
-					Volume: trade.ExecutedVolume,
-				})
+	for _, strategy := range a.Strategies {
+		for levelIndex, level := range strategy.PriceLevels.Bands {
+			if strategy.Direction == Up {
+				if tick.Ask <= level.StopLoss {
+					if level.Trades.OpenTrades().Count() > 0 {
+						requests = append(requests, &CloseTradesRequest{
+							Strategy:        &strategy,
+							Timeframe:       nil,
+							PriceLevelIndex: levelIndex,
+							Reason:          "sl",
+							Percent:         1.0,
+						})
+					}
+				}
+			} else if strategy.Direction == Down {
+				if tick.Bid >= level.StopLoss {
+					if level.Trades.OpenTrades().Count() > 0 {
+						requests = append(requests, &CloseTradesRequest{
+							Strategy:        &strategy,
+							Timeframe:       nil,
+							PriceLevelIndex: levelIndex,
+							Reason:          "sl",
+							Percent:         1.0,
+						})
+					}
+				}
 			}
 		}
 	}
@@ -99,19 +107,27 @@ func (a *Account) checkSL(price float64) CloseTradesRequest {
 	return nil
 }
 
-func (a *Account) checkStopOut(timeframe int, price float64, timestampGen func() time.Time, idGen func() uuid.UUID) (CloseTradesRequest, error) {
+func (a *Account) CheckStopOut(tick Tick) ([]*CloseTradesRequest, error) {
 	for _, s := range a.Strategies {
+		// todo: analyze if calling PL() so many times on each tick causes a bottleneck
 		vwap, vol, realizedPL := s.GetTrades().GetTradeStatsItems()
-		unrealizedPL := UnrealizedPL(vwap, vol, price)
+		unrealizedPL := UnrealizedPL(vwap, vol, tick)
 		pl := unrealizedPL + float64(realizedPL)
 
+		var closeTradeRequests []*CloseTradesRequest
 		if pl <= -s.Balance {
-			req, err := NewCloseTradesRequestV1(idGen(), timeframe, timestampGen(), price, "stop out", *s.GetTrades())
-			if err != nil {
-				return nil, fmt.Errorf("checkStopOut: new close trades request failed: %w", err)
+			for priceLevelIndex, level := range s.PriceLevels.Bands {
+				if level.Trades.Count() > 0 {
+					req, err := NewCloseTradesRequest(&s, nil, priceLevelIndex, 1.0, "stop out")
+					if err != nil {
+						return nil, fmt.Errorf("checkStopOut: new close trades request failed: %w", err)
+					}
+
+					closeTradeRequests = append(closeTradeRequests, req)
+				}
 			}
 
-			return req, nil
+			return closeTradeRequests, nil
 		}
 	}
 
@@ -126,21 +142,21 @@ func (a *Account) GetCurrentTime() time.Time {
 	return time.Now()
 }
 
-func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, error) {
-	if closeReq := a.checkSL(price); closeReq != nil {
-		return closeReq, nil
-	}
-
-	if closeReq, err := a.checkStopOut(timeframe, price, a.GetCurrentTime, a.NewUUID); err != nil || closeReq != nil {
-		if err != nil {
-			return nil, fmt.Errorf("Account.Update: checkStopOut: %w", err)
-		}
-
-		return closeReq, nil
-	}
-
-	return nil, nil
-}
+//func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, error) {
+//	if closeReq := a.checkSL(price); closeReq != nil {
+//		return closeReq, nil
+//	}
+//
+//	if closeReq, err := a.checkStopOut(timeframe, price, a.GetCurrentTime, a.NewUUID); err != nil || closeReq != nil {
+//		if err != nil {
+//			return nil, fmt.Errorf("Account.Update: checkStopOut: %w", err)
+//		}
+//
+//		return closeReq, nil
+//	}
+//
+//	return nil, nil
+//}
 
 func (a *Account) getStrategiesBalance() float64 {
 	balance := 0.0
@@ -185,7 +201,7 @@ strategyName is the name of the strategy to close
 priceLevelIndex is an integer between zero and the number of price levels that we wish to close
 closePercent is the percentage of trades to close. Trades will be closed either by FIFO or LIFO
 */
-func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float64, reason string) (CloseTradesRequest, error) {
+func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float64, reason string) (CloseTradesRequestV1, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 

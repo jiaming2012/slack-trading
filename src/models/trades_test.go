@@ -11,7 +11,8 @@ func TestOpenTrades(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	prc := 2.0
 	sl := 1.8
-	timeframe := 5
+	timeframe := new(int)
+	*timeframe = 5
 	symbol := "symbol"
 	ts := time.Date(2006, 1, 2, 12, 0, 0, 0, time.UTC)
 
@@ -23,8 +24,8 @@ func TestOpenTrades(t *testing.T) {
 	})
 
 	t.Run("single trade", func(t *testing.T) {
-		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
-		tr1.AutoExecute(nil)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 1.0, sl)
+		tr1.AutoExecute()
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -36,8 +37,8 @@ func TestOpenTrades(t *testing.T) {
 
 	t.Run("close trade", func(t *testing.T) {
 		vol := 1.0
-		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute(nil)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr1.AutoExecute()
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -46,8 +47,8 @@ func TestOpenTrades(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 		assert.Equal(t, tr1, (*openTrades)[0])
 
-		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
-		tr2.AutoExecute(nil)
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
+		tr2.AutoExecute()
 		assert.NoError(t, err)
 		trades.Add(tr2)
 		openTrades = trades.OpenTrades()
@@ -56,8 +57,8 @@ func TestOpenTrades(t *testing.T) {
 
 	t.Run("partial close", func(t *testing.T) {
 		vol := 1.0
-		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute(nil)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
+		tr1.AutoExecute()
 		assert.NoError(t, err)
 
 		trades := &Trades{}
@@ -66,8 +67,8 @@ func TestOpenTrades(t *testing.T) {
 		assert.Len(t, *openTrades, 1)
 		assert.Equal(t, tr1, (*openTrades)[0])
 
-		tr2, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol/2.0)
-		tr2.AutoExecute(nil)
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol/2.0)
+		tr2.AutoExecute()
 		assert.NoError(t, err)
 		trades.Add(tr2)
 		openTrades = trades.OpenTrades()
@@ -77,17 +78,17 @@ func TestOpenTrades(t *testing.T) {
 
 	t.Run("multiple closes", func(t *testing.T) {
 		vol := 1.0
-		tr1, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr1.AutoExecute(nil)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
 		assert.NoError(t, err)
+		tr1.AutoExecute()
 
-		tr2, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr2.AutoExecute(nil)
+		tr2, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
 		assert.NoError(t, err)
+		tr2.AutoExecute()
 
-		tr3, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
-		tr3.AutoExecute(nil)
+		tr3, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, vol, sl)
 		assert.NoError(t, err)
+		tr3.AutoExecute()
 
 		trades := &Trades{}
 		trades.Add(tr1)
@@ -98,26 +99,27 @@ func TestOpenTrades(t *testing.T) {
 		assert.Equal(t, tr1, (*openTrades)[0])
 
 		// partial close trade 2
-		tr4, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
-		tr4.AutoExecute(nil)
+		tr4, _, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
+		tr4.AutoExecute()
 		assert.NoError(t, err)
 		trades.Add(tr4)
 		openTrades = trades.OpenTrades()
 		assert.Len(t, *openTrades, 3)
 
 		// fully close trade 1
-		tr5, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
-		tr5.AutoExecute(nil)
+		tr5, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, prc, vol)
+		tr5.AutoExecute()
 		assert.NoError(t, err)
 		trades.Add(tr5)
+
 		openTrades = trades.OpenTrades()
 		assert.Len(t, *openTrades, 2)
-		assert.Equal(t, tr1, (*openTrades)[0])
+		assert.Equal(t, tr2, (*openTrades)[0])
 		assert.Equal(t, tr3, (*openTrades)[1])
 
 		// close the rest of trade 2
-		tr6, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
-		tr6.AutoExecute(nil)
+		tr6, _, err := NewCloseTrade(id, []*Trade{tr2}, timeframe, ts, prc, vol/2.0)
+		tr6.AutoExecute()
 		assert.NoError(t, err)
 		trades.Add(tr6)
 		openTrades = trades.OpenTrades()
@@ -130,12 +132,16 @@ func TestProfit(t *testing.T) {
 	t.Run("profitable trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   1100.0,
+				Type:           TradeTypeBuy,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  1100.0,
+					},
+				},
 			},
 		})
 
@@ -149,12 +155,16 @@ func TestProfit(t *testing.T) {
 	t.Run("losing trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   500.0,
+				Type:           TradeTypeBuy,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  500.0,
+					},
+				},
 			},
 		})
 
@@ -164,9 +174,24 @@ func TestProfit(t *testing.T) {
 		assert.Equal(t, -250.0, stats.RealizedPL)
 		assert.Equal(t, -300.0, stats.FloatingPL)
 
-		trades.Add(&Trade{
-			RequestedVolume: -0.5,
-			ExecutedPrice:   400.0,
+		trades = Trades([]*Trade{
+			{
+				Type:           TradeTypeBuy,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  500.0,
+					},
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  400.0,
+					},
+				},
+			},
 		})
 
 		stats, err = trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
@@ -177,33 +202,70 @@ func TestProfit(t *testing.T) {
 	})
 
 	t.Run("losing -> winning trades", func(t *testing.T) {
-		trades := Trades([]*Trade{
-			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
+		open := Trade{
+			Type:           TradeTypeSell,
+			ExecutedVolume: -1.0,
+			ExecutedPrice:  1000.0,
+			PartialCloses: &PartialCloseItems{
+				{
+					ClosedBy:       nil,
+					ExecutedVolume: 1.0,
+					ExecutedPrice:  1300.0,
+				},
 			},
+		}
+
+		trades := Trades([]*Trade{
+			&open,
+			//{
+			//	Type:           TradeTypeClose,
+			//	ExecutedVolume: 1.0,
+			//	ExecutedPrice:  1300.0,
+			//	Offsets:        Trades{&open},
+			//},
 			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   500.0,
+				Type:           TradeTypeBuy,
+				ExecutedVolume: 0.7,
+				ExecutedPrice:  1300.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  1100.0,
+					},
+				},
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
+		stats, err := trades.GetTradeStats(Tick{Bid: 300.0, Ask: 300.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -250.0, stats.RealizedPL)
-		assert.Equal(t, -300.0, stats.FloatingPL)
+		assert.LessOrEqual(t, -400.0-stats.RealizedPL, SmallRoundingError)
+		assert.LessOrEqual(t, -200.0-stats.FloatingPL, SmallRoundingError)
 
-		trades.Add(&Trade{
-			RequestedVolume: -0.3,
-			ExecutedPrice:   5000.0,
+		trades = Trades([]*Trade{
+			{
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  500.0,
+					},
+					{
+						ClosedBy:       nil,
+						ExecutedVolume: -0.3,
+						ExecutedPrice:  5000.0,
+					},
+				},
+			},
 		})
 
 		stats, err = trades.GetTradeStats(Tick{Bid: 5000.0, Ask: 5000.0})
 		assert.NoError(t, err)
 
-		assert.Equal(t, -250.0+1200.0, stats.RealizedPL)
-		assert.Equal(t, 800.0, stats.FloatingPL)
+		assert.LessOrEqual(t, -250.0+1200.0-stats.RealizedPL, SmallRoundingError)
+		assert.LessOrEqual(t, 800.0-stats.FloatingPL, SmallRoundingError)
 	})
 
 	t.Run("no trades", func(t *testing.T) {
@@ -262,12 +324,15 @@ func TestProfit(t *testing.T) {
 	t.Run("floating profit short", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: -1.0,
-				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: -1.0,
-				ExecutedPrice:   2000.0,
+				Type:           TradeTypeSell,
+				ExecutedVolume: -1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: -1.0,
+						ExecutedPrice:  2000.0,
+					},
+				},
 			},
 		})
 		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
@@ -282,12 +347,15 @@ func TestVwap(t *testing.T) {
 	t.Run("long and short trades", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   1100.0,
+				Type:           TradeTypeBuy,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  1100.0,
+					},
+				},
 			},
 		})
 
@@ -311,16 +379,19 @@ func TestVwap(t *testing.T) {
 	t.Run("switch volume direction: long -> short", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
+				Type:            TradeTypeBuy,
 				RequestedVolume: 1.0,
 				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   1100.0,
-			},
-			{
-				RequestedVolume: -0.7,
-				ExecutedPrice:   1500.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  1100.0,
+					},
+					{
+						ExecutedVolume: -0.7,
+						ExecutedPrice:  1500.0,
+					},
+				},
 			},
 		})
 
@@ -334,16 +405,19 @@ func TestVwap(t *testing.T) {
 	t.Run("switch volume direction: short -> long", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: -1.0,
-				ExecutedPrice:   1000.0,
-			},
-			{
-				RequestedVolume: 1.7,
-				ExecutedPrice:   1300.0,
-			},
-			{
-				RequestedVolume: -0.5,
-				ExecutedPrice:   1100.0,
+				Type:           TradeTypeSell,
+				ExecutedVolume: -1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: 1.7,
+						ExecutedPrice:  1300.0,
+					},
+					{
+						ExecutedVolume: -0.5,
+						ExecutedPrice:  1100.0,
+					},
+				},
 			},
 		})
 

@@ -62,7 +62,7 @@ func parseAccountRequestParams(params string) (interface{}, error) {
 		}
 
 		if math.Mod(float64(len(tokens)-5), 3) != 0 {
-			return nil, fmt.Errorf("each price level must have 3 components. Price Levels: %v", tokens[3:])
+			return nil, fmt.Errorf("each price level must have 3 components. ExecutedPrice Levels: %v", tokens[3:])
 		}
 
 		balance, err := strconv.ParseFloat(tokens[2], 64)

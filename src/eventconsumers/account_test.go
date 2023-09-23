@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel) ([]*models.Account, error) {
-	accountFixture, err := models.NewAccount(accountName, balance)
+func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel, datafeed *models.Datafeed) ([]*models.Account, error) {
+	accountFixture, err := models.NewAccount(accountName, balance, datafeed)
 	if err != nil {
 		return nil, err
 	}
 
-	trendlineBreakStrategyFixture, err := models.NewStrategy(strategyName, symbol, direction, balance, priceLevels)
+	trendlineBreakStrategyFixture, err := models.NewStrategy(strategyName, symbol, direction, balance, priceLevels, accountFixture)
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +58,10 @@ func TestStopOut(t *testing.T) {
 
 	t.Run("no stop out when first create", func(t *testing.T) {
 		wg := sync.WaitGroup{}
+		//datafeed := models.NewDatafeed("test")
+		//datafeed.Update(models.Tick{Bid: 0, Ask: 0})
 		c := NewAccountWorkerClient(&wg)
-		strategy, err := c.checkForStopOut(models.Tick{
-			Bid: 0,
-			Ask: 0,
-		})
+		strategy, err := c.checkStopOut()
 
 		assert.NoError(t, err)
 		assert.Nil(t, strategy)
@@ -74,8 +73,9 @@ func TestStopOut(t *testing.T) {
 		direction := models.Direction("up")
 		accountName := "playground"
 		strategyName := "trendline-break"
+		datafeed := models.NewDatafeed("test")
 
-		accounts, err := createAccountFixtures(accountName, symbol, direction, strategyName, balance, priceLevels)
+		accounts, err := createAccountFixtures(accountName, symbol, direction, strategyName, balance, priceLevels, datafeed)
 		assert.NoError(t, err)
 		assert.Len(t, accounts, 1)
 

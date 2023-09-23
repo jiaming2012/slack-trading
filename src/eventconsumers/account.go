@@ -43,22 +43,6 @@ func (w *AccountWorker) addAccount(account *models.Account, balance float64, pri
 	return nil
 }
 
-//func (r *AccountWorker) newOpenTradeRequest(accountName string, strategyName string, tradeType models.TradeType) (*models.OpenTradeRequest, error) {
-//	account, err := r.findAccount(accountName)
-//	if err != nil {
-//		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: could not find account: %w", err)
-//	}
-//
-//	currentTick := r.coinbaseDatafeed.Query()
-//
-//	openTradeRequest, err := account.PlaceOpenTradeRequest(strategyName, currentTick.Bid)
-//	if err != nil {
-//		return nil, fmt.Errorf("AccountWorker.placeOpenTradeRequest: PlaceOrderOpen: %w", err)
-//	}
-//
-//	return openTradeRequest, nil
-//}
-
 func (w *AccountWorker) findAccount(name string) (*models.Account, error) {
 	for _, a := range w.accounts {
 		if name == a.Name {
@@ -108,22 +92,21 @@ func (w *AccountWorker) getAccountsRequestHandler(request *eventmodels.GetAccoun
 	})
 }
 
-func (w *AccountWorker) checkForStopOut(tick models.Tick) (*models.Strategy, error) {
-	// todo: analyze if calling PL() so many times on each tick causes a bottleneck
-	for _, account := range w.accounts {
-		for _, strategy := range account.Strategies {
-			stats, err := strategy.GetTrades().GetTradeStats(tick)
-			if err != nil {
-				return nil, fmt.Errorf("AccountWorker.checkForStopOut: GetTradeStats failed: %w", err)
-			}
+// todo: test this
+func (w *AccountWorker) checkStopOut() ([]*models.CloseTradesRequest, error) {
+	var aggregateCloseTradesRequests []*models.CloseTradesRequest
 
-			if stats.RealizedPL+stats.FloatingPL >= strategy.Balance {
-				return &strategy, nil
-			}
+	for _, account := range w.accounts {
+		tick := account.Datafeed.Tick()
+		closeTradesRequests, err := account.CheckStopOut(*tick)
+		if err != nil {
+			return nil, fmt.Errorf("checkStopOut failed: %w", err)
 		}
+
+		aggregateCloseTradesRequests = append(aggregateCloseTradesRequests, closeTradesRequests...)
 	}
 
-	return nil, nil
+	return aggregateCloseTradesRequests, nil
 }
 
 func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
@@ -136,16 +119,19 @@ func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 }
 
 func (w *AccountWorker) update() {
-	tick := w.coinbaseDatafeed.Tick()
-	strategy, err := w.checkForStopOut(*tick)
+	closeTradeRequests, err := w.checkStopOut()
 	if err != nil {
 		log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
 		return
 	}
 
-	if strategy != nil {
-		// send for event
+	for _, req := range closeTradeRequests {
+		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
+			//RequestID:          nil,
+			CloseTradesRequest: req,
+		})
 
+		panic("add request id")
 	}
 }
 
@@ -167,7 +153,7 @@ func (w *AccountWorker) handleNewCloseTradeRequest(event eventmodels.CloseTradeR
 		return
 	}
 
-	closeTradesRequest, err := models.NewCloseTradesRequestV2(strategy, event.Timeframe, event.PriceLevelIndex, event.Percent)
+	closeTradesRequest, err := models.NewCloseTradesRequest(strategy, &event.Timeframe, event.PriceLevelIndex, event.Percent, strategy.Name)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("new close trades request failed: %w", err))
 		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
@@ -195,7 +181,8 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 		requestPrc = datafeed.LastOffer
 	}
 
-	trade, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
+	// todo: unify models: partialCloseRequestItems. Strategy.AutoExecuteTrade handles differently than trade.AutoExecuteTrade
+	trade, _, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new close trade: %w", err))
 		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
@@ -253,7 +240,7 @@ func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 		requestPrc = datafeed.LastBid
 	}
 
-	trade, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
+	trade, _, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new trade: %w", err))
 		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", requestErr)
@@ -298,7 +285,7 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	// Furthermore, is there a difference between a request originating from outside of the system - e.g. NewOpenTradeRequest
 	// and inside of the system - e.g. ExecuteOpenTradeRequest
 	openTradeReq, err := models.NewOpenTradeRequest(
-		event.Timeframe,
+		&event.Timeframe,
 		strategy,
 	)
 

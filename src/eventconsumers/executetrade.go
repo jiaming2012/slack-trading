@@ -37,7 +37,7 @@ func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
 	btcPrice := <-btcPriceCh
 
 	// todo: this should go to Coinbase
-	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume, nil)
+	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume)
 
 	pubsub.Publish("TradeExecutor.executeBotTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
 		Timestamp:      time.Now(),

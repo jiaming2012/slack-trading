@@ -7,7 +7,7 @@ import (
 
 type ExecuteCloseTradesRequest struct {
 	RequestID          uuid.UUID
-	CloseTradesRequest *models.CloseTradesRequestV2
+	CloseTradesRequest *models.CloseTradesRequest
 }
 
 type ExecuteOpenTradeRequest struct {

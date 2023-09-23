@@ -41,16 +41,16 @@ func (p *PriceLevel) Add(trade *Trade, executedPrice float64, executedVolume flo
 		return err
 	}
 
-	partialCloseItems, err := trade.PreparePartialCloseItems(executedPrice, executedVolume)
-	if err != nil {
-		return fmt.Errorf("Trade.Execute: failed to modify trades to add partial close items: %w", err)
-	}
+	//partialCloseItems, err := trade.PreparePartialCloseItems(executedPrice, executedVolume)
+	//if err != nil {
+	//	return fmt.Errorf("Trade.Execute: failed to modify trades to add partial close items: %w", err)
+	//}
 
-	if err = trade.Validate(partialCloseItems); err != nil {
-		return fmt.Errorf("PriceLevel.Add: trade is not valid: %w", err)
-	}
+	//if err = trade.Validate(partialCloseItems); err != nil {
+	//	return fmt.Errorf("PriceLevel.Add: trade is not valid: %w", err)
+	//}
 
-	if err = trade.Execute(executedPrice, executedVolume, partialCloseItems); err != nil {
+	if err := trade.Execute(executedPrice, executedVolume); err != nil {
 		return fmt.Errorf("PriceLevel.Add: failed to execute trade: %w", err)
 	}
 

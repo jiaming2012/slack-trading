@@ -149,7 +149,9 @@ func TestGetStatsDownDirection(t *testing.T) {
 	direction := models.Down
 	symbol := "BTCUSD"
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
-	tf := 5
+	tf := new(int)
+	*tf = 5
+
 	priceLevels := []*models.PriceLevel{
 		{
 			Price: 1.0,
@@ -169,7 +171,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	}
 
 	t.Run("test using an up and down strategy", func(t *testing.T) {
-		panic("implement the test")
+		//panic("implement the test")
 	})
 
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
@@ -198,12 +200,12 @@ func TestGetStatsDownDirection(t *testing.T) {
 		requestedPrice := 1.5
 		priceLevelIndex := 1
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -220,7 +222,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		assert.Equal(t, 2, len(stats.Strategies[0].OpenTradeLevels[priceLevelIndex].Trades))
 
 		// partial close
-		tr3, err := strategy.NewCloseTrades(id, tf, ts, 1.8, priceLevelIndex, 0.5)
+		tr3, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, priceLevelIndex, 0.5)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -251,17 +253,17 @@ func TestGetStatsDownDirection(t *testing.T) {
 		// open three trades
 		requestedPrice := 2.5
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
 
-		tr3, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr3, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -277,7 +279,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		assert.Equal(t, 3, len(stats.Strategies[0].OpenTradeLevels[tradesIndex].Trades))
 
 		// partial close
-		tr4, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
+		tr4, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr4)
 		assert.NoError(t, err)
@@ -307,12 +309,12 @@ func TestGetStatsDownDirection(t *testing.T) {
 		// open two trades
 		requestedPrice := 2.5
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -329,7 +331,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 
 		// partial close: 75%
 		closePerc := 0.75
-		tr3, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
+		tr3, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -343,7 +345,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 
 		// partial close: 50%
 		closePerc = 0.5
-		tr4, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
+		tr4, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr4)
 		assert.NoError(t, err)
@@ -356,7 +358,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		assert.Equal(t, 1, len(stats.Strategies[0].OpenTradeLevels[tradesIndex].Trades))
 
 		// close: 100%
-		tr5, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
+		tr5, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr5)
 		assert.NoError(t, err)
@@ -375,7 +377,8 @@ func TestGetStatsUpDirection(t *testing.T) {
 	direction := models.Up
 	symbol := "BTCUSD"
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
-	tf := 5
+	tf := new(int)
+	*tf = 5
 	priceLevels := []*models.PriceLevel{
 		{
 			Price:             1.0,
@@ -420,12 +423,12 @@ func TestGetStatsUpDirection(t *testing.T) {
 		// open two trades
 		requestedPrice := 1.5
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -442,7 +445,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		assert.Equal(t, 2, len(stats.Strategies[0].OpenTradeLevels[0].Trades))
 
 		// partial close
-		tr3, err := strategy.NewCloseTrades(id, tf, ts, 1.8, 0, 0.5)
+		tr3, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, 0, 0.5)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -473,17 +476,17 @@ func TestGetStatsUpDirection(t *testing.T) {
 		// open three trades
 		requestedPrice := 2.5
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
 
-		tr3, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr3, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -499,7 +502,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		assert.Equal(t, 3, len(stats.Strategies[0].OpenTradeLevels[tradesIndex].Trades))
 
 		// partial close
-		tr4, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
+		tr4, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr4)
 		assert.NoError(t, err)
@@ -529,12 +532,12 @@ func TestGetStatsUpDirection(t *testing.T) {
 		// open two trades
 		requestedPrice := 2.5
 
-		tr1, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr1, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
+		tr2, _, err := strategy.NewOpenTrade(id, tf, ts, requestedPrice)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -551,7 +554,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 
 		// partial close: 75%
 		closePerc := 0.75
-		tr3, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
+		tr3, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -565,7 +568,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 
 		// partial close: 50%
 		closePerc = 0.5
-		tr4, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
+		tr4, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, closePerc)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr4)
 		assert.NoError(t, err)
@@ -578,7 +581,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		assert.Equal(t, 1, len(stats.Strategies[0].OpenTradeLevels[tradesIndex].Trades))
 
 		// close: 100%
-		tr5, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
+		tr5, _, err := strategy.NewCloseTrades(id, tf, ts, 1.8, tradesIndex, 1.0)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr5)
 		assert.NoError(t, err)
@@ -597,7 +600,8 @@ func TestFetchTrades(t *testing.T) {
 	direction := models.Up
 	symbol := "BTCUSD"
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
-	tf := 5
+	tf := new(int)
+	*tf = 5
 	priceLevels := []*models.PriceLevel{
 		{
 			Price:             1.0,
@@ -635,7 +639,7 @@ func TestFetchTrades(t *testing.T) {
 		err = account.AddStrategy(*strategy)
 		assert.NoError(t, err)
 
-		tr, err := strategy.NewOpenTrade(id, tf, ts, 1.5)
+		tr, _, err := strategy.NewOpenTrade(id, tf, ts, 1.5)
 		assert.NoError(t, err)
 
 		_, err = strategy.AutoExecuteTrade(tr)

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type CloseTradesRequest []*CloseTradeRequestV1
+type CloseTradesRequestV1 []*CloseTradeRequestV1
 
 type CloseTradeRequestV1 struct {
 	Trade     *Trade
@@ -17,24 +17,25 @@ type CloseTradeRequestV1 struct {
 	Reason    string
 }
 
-type CloseTradesRequestV2 struct {
+type CloseTradesRequest struct {
 	Strategy        *Strategy
-	Timeframe       int
+	Timeframe       *int
 	PriceLevelIndex int
 	Percent         float64
+	Reason          string
 }
 
-func (r *CloseTradesRequestV2) Validate() error {
+func (r *CloseTradesRequest) Validate() error {
 	if r.Strategy == nil {
-		return fmt.Errorf("CloseTradesRequestV2.Validate: strategy not set")
+		return fmt.Errorf("CloseTradesRequest.Validate: strategy not set")
 	}
 
-	if r.Timeframe <= 0 {
+	if r.Timeframe != nil && *r.Timeframe <= 0 {
 		return InvalidTimeframeErr
 	}
 
-	if r.PriceLevelIndex <= 0 {
-		return fmt.Errorf("CloseTradesRequestV2.Validate: found %v: %w", r.PriceLevelIndex, InvalidPriceLevelIndexErr)
+	if r.PriceLevelIndex < 0 {
+		return fmt.Errorf("CloseTradesRequest.Validate: found %v: %w", r.PriceLevelIndex, InvalidPriceLevelIndexErr)
 	}
 
 	if r.Percent < 0 || r.Percent > 1 {
@@ -44,31 +45,14 @@ func (r *CloseTradesRequestV2) Validate() error {
 	return nil
 }
 
-func NewCloseTradesRequestV2(strategy *Strategy, timeframe int, priceLevelIndex int, percent float64) (*CloseTradesRequestV2, error) {
-	closeReq := &CloseTradesRequestV2{Strategy: strategy, Timeframe: timeframe, PriceLevelIndex: priceLevelIndex, Percent: percent}
+func NewCloseTradesRequest(strategy *Strategy, timeframe *int, priceLevelIndex int, percent float64, reason string) (*CloseTradesRequest, error) {
+	closeReq := &CloseTradesRequest{Strategy: strategy, Timeframe: timeframe, PriceLevelIndex: priceLevelIndex, Percent: percent, Reason: reason}
 
 	if err := closeReq.Validate(); err != nil {
-		return nil, fmt.Errorf("NewCloseTradesRequestV2 validation failed: %w", err)
+		return nil, fmt.Errorf("NewCloseTradesRequest validation failed: %w", err)
 	}
 
 	return closeReq, nil
-}
-
-func NewCloseTradesRequestV1(id uuid.UUID, timeframe int, timestamp time.Time, requestedPrice float64, reason string, trades Trades) (CloseTradesRequest, error) {
-	_, vol, _ := trades.GetTradeStatsItems()
-	clsTrade, err := NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, float64(vol))
-	if err != nil {
-		return nil, fmt.Errorf("NewCloseTradesRequest: failed to create new close trade: %w", err)
-	}
-
-	return []*CloseTradeRequestV1{
-		{
-			Trade:     clsTrade,
-			Timeframe: timeframe,
-			Volume:    float64(-vol),
-			Reason:    reason,
-		},
-	}, nil
 }
 
 func (r *CloseTradeRequestV1) Validate() error {
@@ -111,7 +95,7 @@ type BulkCloseRequest struct {
 }
 
 // todo: remove legacy models
-func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe int) ([]*Trade, error) {
+func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe *int) ([]*Trade, error) {
 	trades := make([]*Trade, 0)
 	for _, it := range r.Items {
 		if it.ClosePercent < 0 || it.ClosePercent > 1 {
@@ -121,7 +105,7 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe int) 
 		if it.Level.Trades != nil {
 			_, vol, _ := it.Level.Trades.GetTradeStatsItems()
 			closeVol := float64(vol) * it.ClosePercent * -1
-			tr, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0)
+			tr, _, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0)
 			if err != nil {
 				return nil, fmt.Errorf("BulkCloseRequest.Execute: failed to open NewTrade: %w", err)
 			}
@@ -137,11 +121,11 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe int) 
 }
 
 type OpenTradeRequest struct {
-	Timeframe int
+	Timeframe *int
 	Strategy  *Strategy
 }
 
-func NewOpenTradeRequest(timeframe int, strategy *Strategy) (*OpenTradeRequest, error) {
+func NewOpenTradeRequest(timeframe *int, strategy *Strategy) (*OpenTradeRequest, error) {
 	request := &OpenTradeRequest{
 		Timeframe: timeframe,
 		Strategy:  strategy,
@@ -159,7 +143,7 @@ func (r *OpenTradeRequest) Validate() error {
 		return fmt.Errorf("OpenTradeRequest.Validate: strategy not set")
 	}
 
-	if r.Timeframe <= 0 {
+	if r.Timeframe != nil && *r.Timeframe <= 0 {
 		return InvalidTimeframeErr
 	}
 

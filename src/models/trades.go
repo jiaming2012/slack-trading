@@ -66,6 +66,14 @@ type TradeGroup struct {
 	mutex  sync.Mutex
 }
 
+func (trades *Trades) Count() int {
+	if trades == nil {
+		return 0
+	}
+
+	return len(*trades)
+}
+
 func (trades *Trades) OpenTrades() *Trades {
 	tradeToClosedVolumeMap := make(map[*Trade]float64)
 	openTrades := &Trades{}
@@ -153,7 +161,7 @@ func (trades *Trades) BulkAdd(newTrades *Trades) {
 	}
 }
 
-func (trades *Trades) MaxRisk(stopLoss float64) (float64, RealizedPL) {
+func (trades *Trades) MaxLoss(stopLoss float64) (float64, RealizedPL) {
 	vwap, vol, realizedPL := trades.GetTradeStatsItems()
 
 	var maxRisk float64
