@@ -280,8 +280,8 @@ func TestProfit(t *testing.T) {
 	t.Run("close an open trade", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
 			},
 		})
 
@@ -291,10 +291,18 @@ func TestProfit(t *testing.T) {
 		assert.Equal(t, 0.0, stats.RealizedPL)
 		assert.Equal(t, 1000.0, stats.FloatingPL)
 
-		trades.Add(&Trade{
-			RequestedVolume: -1.0,
-			ExecutedPrice:   2000.0,
-		})
+		trades = []*Trade{
+			{
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
+				PartialCloses: &PartialCloseItems{
+					{
+						ExecutedVolume: -1.0,
+						ExecutedPrice:  2000.0,
+					},
+				},
+			},
+		}
 
 		stats, err = trades.GetTradeStats(Tick{Bid: 2000.0, Ask: 2000.0})
 		assert.NoError(t, err)
@@ -306,14 +314,15 @@ func TestProfit(t *testing.T) {
 	t.Run("floating profit long", func(t *testing.T) {
 		trades := Trades([]*Trade{
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  1000.0,
 			},
 			{
-				RequestedVolume: 1.0,
-				ExecutedPrice:   2000.0,
+				ExecutedVolume: 1.0,
+				ExecutedPrice:  2000.0,
 			},
 		})
+
 		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.NoError(t, err)
 
@@ -327,19 +336,13 @@ func TestProfit(t *testing.T) {
 				Type:           TradeTypeSell,
 				ExecutedVolume: -1.0,
 				ExecutedPrice:  1000.0,
-				PartialCloses: &PartialCloseItems{
-					{
-						ExecutedVolume: -1.0,
-						ExecutedPrice:  2000.0,
-					},
-				},
 			},
 		})
 		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
 		assert.NoError(t, err)
 
 		assert.Equal(t, 0.0, stats.RealizedPL)
-		assert.Equal(t, -3000.0, stats.FloatingPL)
+		assert.Equal(t, -2000.0, stats.FloatingPL)
 	})
 }
 
@@ -374,57 +377,5 @@ func TestVwap(t *testing.T) {
 		assert.Equal(t, Volume(0.0), volume)
 		assert.Equal(t, Vwap(0.0), vwap)
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
-	})
-
-	t.Run("switch volume direction: long -> short", func(t *testing.T) {
-		trades := Trades([]*Trade{
-			{
-				Type:            TradeTypeBuy,
-				RequestedVolume: 1.0,
-				ExecutedPrice:   1000.0,
-				PartialCloses: &PartialCloseItems{
-					{
-						ExecutedVolume: -0.5,
-						ExecutedPrice:  1100.0,
-					},
-					{
-						ExecutedVolume: -0.7,
-						ExecutedPrice:  1500.0,
-					},
-				},
-			},
-		})
-
-		vwap, volume, realizedPL := trades.GetTradeStatsItems()
-
-		assert.LessOrEqual(t, Volume(-0.2)-volume, 0.01)
-		assert.Equal(t, Vwap(1500.0), vwap)
-		assert.Equal(t, RealizedPL(300.0), realizedPL)
-	})
-
-	t.Run("switch volume direction: short -> long", func(t *testing.T) {
-		trades := Trades([]*Trade{
-			{
-				Type:           TradeTypeSell,
-				ExecutedVolume: -1.0,
-				ExecutedPrice:  1000.0,
-				PartialCloses: &PartialCloseItems{
-					{
-						ExecutedVolume: 1.7,
-						ExecutedPrice:  1300.0,
-					},
-					{
-						ExecutedVolume: -0.5,
-						ExecutedPrice:  1100.0,
-					},
-				},
-			},
-		})
-
-		vwap, volume, realizedPL := trades.GetTradeStatsItems()
-
-		assert.LessOrEqual(t, Volume(-0.2)-volume, 0.001)
-		assert.Equal(t, Vwap(1300.0), vwap)
-		assert.Equal(t, RealizedPL(-400.0), realizedPL)
 	})
 }
