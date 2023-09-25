@@ -10,9 +10,18 @@ type CloseTradeRequest struct {
 	AccountName     string  `json:"AccountName"`
 	StrategyName    string  `json:"strategyName"`
 	PriceLevelIndex int     `json:"priceLevelIndex"`
-	Timeframe       int     `json:"timeframe"`
+	Timeframe       *int    `json:"timeframe"`
 	Percent         float64 `json:"percent"`
 	Reason          string  `json:"reason"`
+}
+
+func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
+	req := &CloseTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 func (r *CloseTradeRequest) Validate() error {
@@ -28,7 +37,7 @@ func (r *CloseTradeRequest) Validate() error {
 		return fmt.Errorf("validate: price level must be >= 0")
 	}
 
-	if r.Timeframe <= 0 {
+	if r.Timeframe != nil && *r.Timeframe <= 0 {
 		return fmt.Errorf("validate: timeframe must be > 0")
 	}
 

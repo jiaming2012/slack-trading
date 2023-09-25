@@ -205,9 +205,6 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 					tradeWeight := openVolume / (openVolume + volume)
 					vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 				} else {
-					//closeVolume := math.Min(volume, math.Abs(openVolume))
-					//realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
-
 					if math.Abs(openVolume) > volume {
 						vwap = tr.ExecutedPrice
 					}
@@ -217,9 +214,6 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 					tradeWeight := openVolume / (openVolume + volume)
 					vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
 				} else {
-					//closeVolume := math.Min(math.Abs(volume), openVolume)
-					//realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
-
 					if openVolume > math.Abs(volume) {
 						vwap = tr.ExecutedPrice
 					}

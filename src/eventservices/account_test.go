@@ -3,7 +3,6 @@ package eventservices
 import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"slack-trading/src/eventmodels"
 	"slack-trading/src/models"
 	"testing"
 	"time"
@@ -37,12 +36,10 @@ func TestUpdateConditions(t *testing.T) {
 		assert.NoError(t, err)
 
 		accounts := []models.Account{*account}
-		signalRequest := eventmodels.NewSignalRequest(id, signalName)
+		signalRequest := models.NewSignalRequest(id, signalName)
 
-		signalResult, entryConditionsSatisfied := UpdateConditions(accounts, signalRequest)
-		assert.Equal(t, signalName, signalResult.Name)
-		assert.Equal(t, id, signalResult.GetRequestID())
-		assert.Nil(t, entryConditionsSatisfied)
+		entryConditionsSatisfied := UpdateEntryConditions(accounts, signalRequest)
+		assert.Len(t, entryConditionsSatisfied, 0)
 	})
 
 	t.Run("1 entry condition", func(t *testing.T) {
@@ -60,7 +57,7 @@ func TestUpdateConditions(t *testing.T) {
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
-		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entrySignalName))
+		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entrySignalName))
 		assert.Len(t, entryConditionsSatisfied, 1)
 		assert.Equal(t, account, entryConditionsSatisfied[0].Account)
 		assert.Equal(t, strategy, entryConditionsSatisfied[0].Strategy)
@@ -82,7 +79,7 @@ func TestUpdateConditions(t *testing.T) {
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
-		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, otherSignalName))
+		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, otherSignalName))
 		assert.Len(t, entryConditionsSatisfied, 0)
 	})
 
@@ -102,9 +99,9 @@ func TestUpdateConditions(t *testing.T) {
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
-		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
-		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition2.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition2.Name))
 		assert.Len(t, entryConditionsSatisfied, 1)
 		assert.Equal(t, strategy, entryConditionsSatisfied[0].Strategy)
 	})
@@ -126,19 +123,19 @@ func TestUpdateConditions(t *testing.T) {
 		account.AddStrategy(*strategy)
 		accounts := []models.Account{*account}
 
-		_, entryConditionsSatisfied := UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 
-		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, exitCondition1.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, exitCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 
-		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition2.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition2.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 
-		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, entryCondition1.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 1)
 
-		_, entryConditionsSatisfied = UpdateConditions(accounts, eventmodels.NewSignalRequest(id, exitCondition2.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, exitCondition2.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 	})
 }

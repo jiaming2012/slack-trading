@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/models"
 )
 
 type ApiRequest interface {
@@ -15,7 +16,7 @@ type ApiRequest interface {
 
 type SignalRequest interface {
 	ApiRequest
-	GetSource() eventmodels.RequestSource
+	GetSource() models.RequestSource
 }
 
 func SignalRequestHandler[Request SignalRequest, Response any](eventName pubsub.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
@@ -29,7 +30,7 @@ func SignalRequestHandler[Request SignalRequest, Response any](eventName pubsub.
 	id := uuid.New()
 	req.SetRequestID(id)
 
-	if req.GetSource() == eventmodels.WebClient {
+	if req.GetSource() == models.WebClient {
 		resultCh, errCh := eventmodels.RegisterResultCallback(id)
 
 		pubsub.Publish("GenericHandler", eventName, req)

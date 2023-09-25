@@ -21,7 +21,7 @@ const (
 	ResistanceBreakSignal       EventName = "ResistanceBreakSignal"
 	TrendlineBreakSignal        EventName = "TrendlineBreakSignal"
 	AddStrategyRequest          EventName = "AddStrategyRequest"
-	NewCloseTradesRequest       EventName = "NewCloseTradesRequest"
+	CloseTradesRequest          EventName = "CloseTradesRequest"
 	ExecuteOpenTradeRequest     EventName = "ExecuteOpenTradeRequest"
 	ExecuteCloseTradesRequest   EventName = "ExecuteCloseTradesRequest"
 	ExecuteOpenTradeResult      EventName = "ExecuteOpenTradeResult"

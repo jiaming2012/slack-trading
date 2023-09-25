@@ -142,22 +142,6 @@ func (a *Account) GetCurrentTime() time.Time {
 	return time.Now()
 }
 
-//func (a *Account) Update(price float64, timeframe int) (CloseTradesRequest, error) {
-//	if closeReq := a.checkSL(price); closeReq != nil {
-//		return closeReq, nil
-//	}
-//
-//	if closeReq, err := a.checkStopOut(timeframe, price, a.GetCurrentTime, a.NewUUID); err != nil || closeReq != nil {
-//		if err != nil {
-//			return nil, fmt.Errorf("Account.Update: checkStopOut: %w", err)
-//		}
-//
-//		return closeReq, nil
-//	}
-//
-//	return nil, nil
-//}
-
 func (a *Account) getStrategiesBalance() float64 {
 	balance := 0.0
 

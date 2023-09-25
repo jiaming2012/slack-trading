@@ -7,11 +7,33 @@ import (
 	"slack-trading/src/models"
 )
 
-// UpdateConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
+func UpdateExitConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) ([]*models.ExitConditionsSatisfied, error) {
+	var aggregatedExitConditionsSatisfied []*models.ExitConditionsSatisfied
+
+	for _, account := range accounts {
+		tick := account.Datafeed.Tick()
+		for _, strategy := range account.Strategies {
+			conditionsAffected := strategy.UpdateExitConditions(newSignalRequest.Name)
+
+			if conditionsAffected > 0 {
+				exitConditionsSatisfied, err := strategy.ExitConditionsSatisfied(*tick)
+				if err != nil {
+					return nil, fmt.Errorf("UpdateExitConditions: strategy.ExitConditionsSatisfied failed %w", err)
+				}
+
+				aggregatedExitConditionsSatisfied = append(aggregatedExitConditionsSatisfied, exitConditionsSatisfied...)
+			}
+		}
+	}
+
+	return aggregatedExitConditionsSatisfied, nil
+}
+
+// UpdateEntryConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
 // the handler would emit both events if not nil
 // this allows updates to not mix with other operations
-func UpdateConditions(accounts []models.Account, newSignalRequest *eventmodels.SignalRequest) (*eventmodels.NewSignalResult, []*eventmodels.EntryConditionsSatisfied) {
-	var entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied
+func UpdateEntryConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) []*models.EntryConditionsSatisfied {
+	var entryConditionsSatisfied []*models.EntryConditionsSatisfied
 
 	for _, account := range accounts {
 		for _, strategy := range account.Strategies {
@@ -19,16 +41,13 @@ func UpdateConditions(accounts []models.Account, newSignalRequest *eventmodels.S
 
 			if conditionsAffected > 0 {
 				if strategy.EntryConditionsSatisfied() {
-					entryConditionsSatisfied = append(entryConditionsSatisfied, eventmodels.NewEntryConditionsSatisfied(&account, &strategy))
+					entryConditionsSatisfied = append(entryConditionsSatisfied, models.NewEntryConditionsSatisfied(&account, &strategy))
 				}
 			}
 		}
 	}
 
-	return &eventmodels.NewSignalResult{
-		RequestID: newSignalRequest.RequestID,
-		Name:      newSignalRequest.Name,
-	}, entryConditionsSatisfied
+	return entryConditionsSatisfied
 }
 
 func FetchTrades(requestID uuid.UUID, account *models.Account) *eventmodels.FetchTradesResult {

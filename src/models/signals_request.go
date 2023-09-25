@@ -1,4 +1,4 @@
-package eventmodels
+package models
 
 import (
 	"encoding/json"

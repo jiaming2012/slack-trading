@@ -29,7 +29,8 @@ func (c *EntryCondition) String() string {
 }
 
 type ExitCondition struct {
-	ExitSignals     []*SignalV2       `json:"exitSignals"`
+	Name            string            `json:"name"`
+	ExitSignals     []*ExitSignal     `json:"exitSignals"`
 	ResetSignals    []*SignalV2       `json:"resetSignals"`
 	Constraints     SignalConstraints `json:"constraints"`
 	LevelIndex      int               `json:"levelIndex"`
@@ -39,9 +40,35 @@ type ExitCondition struct {
 	AwaitingReset   bool              `json:"awaitingReset"`
 }
 
-func NewExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*SignalV2, constraints []*ExitSignalConstraint, closePercent ClosePercent, maxTriggerCount *int) (*ExitCondition, error) {
+//func (c *ExitCondition) UpdateSignals(signalName string) {
+//	//switch signalType {
+//	//case SignalTypeEntry:
+//	//	return
+//	//case SignalTypeExit:
+//	//
+//	//case SignalTypeReset:
+//	//
+//	//default:
+//	//	return
+//	//}
+//	for
+//	if isEntry {
+//		c.EntrySignal.IsSatisfied = true
+//		c.ResetSignal.IsSatisfied = false
+//
+//		log.Infof("entry condition %v was met", c.EntrySignal.Name)
+//	} else {
+//		c.EntrySignal.IsSatisfied = false
+//		c.ResetSignal.IsSatisfied = true
+//
+//		log.Infof("exit condition %v was met", c.ResetSignal.Name)
+//	}
+//}
+
+func NewExitCondition(name string, levelIndex int, exitSignals []*ExitSignal, resetSignals []*SignalV2, constraints []*ExitSignalConstraint, closePercent ClosePercent, maxTriggerCount *int) (*ExitCondition, error) {
 	condition := &ExitCondition{
-		ExitSignals:     signals,
+		Name:            name,
+		ExitSignals:     exitSignals,
 		ResetSignals:    resetSignals,
 		Constraints:     constraints,
 		LevelIndex:      levelIndex,
@@ -67,18 +94,41 @@ func NewExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*Signa
 
 func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]interface{}) (bool, error) {
 	if len(c.ExitSignals) == 0 {
-		log.Infof("ExitCondition.IsSatisfied: false due to no exit signals set")
+		log.Infof("ExitCondition.modifyIsSatisfiedState: false due to no exit signals set")
 		return false, nil
 	}
 
 	if c.MaxTriggerCount != nil && c.TriggerCount >= *c.MaxTriggerCount {
-		log.Infof("ExitCondition.IsSatisfied: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
+		log.Infof("ExitCondition.modifyIsSatisfiedState: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
+		return false, nil
+	}
+
+	if c.AwaitingReset {
+		if len(c.ResetSignals) == 0 {
+			log.Warnf("ExitCondition.modifyIsSatisfiedState: awaiting reset will always be true: no reset signals set")
+		} else {
+			resetSignalsAllSatisfied := true
+			for _, signal := range c.ResetSignals {
+				if !signal.IsSatisfied {
+					resetSignalsAllSatisfied = false
+					break
+				}
+			}
+
+			if resetSignalsAllSatisfied {
+				log.Infof("ExitCondition.modifyIsSatisfiedState: switching awaiting reset from true -> false for %v", c.Name)
+				c.AwaitingReset = false
+			}
+		}
+	}
+
+	if c.AwaitingReset {
+		log.Infof("ExitCondition.modifyIsSatisfiedState: false due to awaiting reset")
 		return false, nil
 	}
 
 	for _, signal := range c.ExitSignals {
-		if !signal.IsSatisfied {
-			c.AwaitingReset = false
+		if !signal.Signal.IsSatisfied {
 			return false, nil
 		}
 	}
@@ -89,23 +139,26 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 			return false, fmt.Errorf("contraint check failed: %w", err)
 		}
 		if !check {
-			log.Infof("ExitCondition.IsSatisfied: false due to failed constraint check, %v", constraint.Name)
+			log.Infof("ExitCondition.modifyIsSatisfiedState: false due to failed constraint check, %v", constraint.Name)
 			return false, nil
 		}
 	}
 
-	if c.AwaitingReset {
-		log.Infof("ExitCondition.IsSatisfied: false due to awaiting reset")
-		return false, nil
-	}
-
+	// todo: condition should update from an event that notifies that a trade was opened
+	// currently this creates a bug if the signal fires, but the execution of the trade fails, e.g.
+	// because the broker is offline
 	c.TriggerCount += 1
 	c.AwaitingReset = true
+	log.Infof("ExitCondition.modifyIsSatisfiedState: %v exit condition satisfied", c.Name)
 
 	return true, nil
 }
 
 func (c *ExitCondition) Validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("ExitCondition.Validate: name is not set")
+	}
+
 	if c.LevelIndex < 0 {
 		return fmt.Errorf("ExitCondition.Validate: LevelIndex must be >= 0, found %v", c.LevelIndex)
 	}

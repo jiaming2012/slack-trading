@@ -101,9 +101,15 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
 	trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
 
-	exitSignals := []*models.SignalV2{
-		models.NewSignalV2("h1-ma(50)-cross-below"),
-		models.NewSignalV2("m5-bollinger-touch-below"),
+	exitSignals := []*models.ExitSignal{
+		{
+			Signal:      models.NewSignalV2("h1-ma(50)-cross-below"),
+			ResetSignal: models.NewSignalV2("h1-ma(50)-cross-above"),
+		},
+		{
+			Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
+			ResetSignal: models.NewSignalV2("m5-bollinger-touch-above"),
+		},
 	}
 
 	exitResetSignals := []*models.SignalV2{
@@ -114,7 +120,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
 
 	maxTriggerCount := 2
-	trendlineBreakStrategy.AddExitCondition(1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	trendlineBreakStrategy.AddExitCondition("momentum", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
 		account,

@@ -9,7 +9,8 @@ import (
 const SmallRoundingError = 0.000001
 
 type PriceLevel struct {
-	Strategy             *Strategy  `json:"-"`
+	Strategy *Strategy `json:"-"`
+	// todo: add Index
 	Price                float64    `json:"price"`
 	MinimumTradeDistance float64    `json:"minimumTradeDistance"` // the minimum distance of the requested price of two trades in the same price band
 	MaxNoOfTrades        int        `json:"maxNoOfTrades"`

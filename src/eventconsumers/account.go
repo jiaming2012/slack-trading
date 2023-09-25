@@ -136,7 +136,7 @@ func (w *AccountWorker) update() {
 }
 
 // todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
-func (w *AccountWorker) handleNewCloseTradeRequest(event eventmodels.CloseTradeRequest) {
+func (w *AccountWorker) handleCloseTradesRequest(event eventmodels.CloseTradeRequest) {
 	log.Debug("<- AccountWorker.handleNewCloseTradeRequest")
 
 	account, err := w.findAccount(event.AccountName)
@@ -153,7 +153,7 @@ func (w *AccountWorker) handleNewCloseTradeRequest(event eventmodels.CloseTradeR
 		return
 	}
 
-	closeTradesRequest, err := models.NewCloseTradesRequest(strategy, &event.Timeframe, event.PriceLevelIndex, event.Percent, strategy.Name)
+	closeTradesRequest, err := models.NewCloseTradesRequest(strategy, event.Timeframe, event.PriceLevelIndex, event.Percent, strategy.Name)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("new close trades request failed: %w", err))
 		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
@@ -285,7 +285,7 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	// Furthermore, is there a difference between a request originating from outside of the system - e.g. NewOpenTradeRequest
 	// and inside of the system - e.g. ExecuteOpenTradeRequest
 	openTradeReq, err := models.NewOpenTradeRequest(
-		&event.Timeframe,
+		event.Timeframe,
 		strategy,
 	)
 
@@ -340,28 +340,82 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
 }
 
-func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.SignalRequest) {
-	newSignalResult, entryConditionsSatisfied := eventservices.UpdateConditions(w.getAccounts(), event)
+func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []*models.ExitConditionsSatisfied) ([]*eventmodels.CloseTradeRequest, error) {
+	var clsTradeRequests []*eventmodels.CloseTradeRequest
 
-	if entryConditionsSatisfied != nil {
-		for _, satisfiedConditions := range entryConditionsSatisfied {
-			id := uuid.New()
+	for _, exitCondition := range exitConditionsSatisfied {
+		// todo: should be able to only pass the price level to the request
+		priceLevel := exitCondition.PriceLevel
+		strategy := priceLevel.Strategy
+		account := strategy.Account
 
-			// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
-			// as the request didn't originate from an api call but is still picked up by the lister
-			eventmodels.RegisterResultCallback(id)
+		req, closeTradeReqErr := eventmodels.NewCloseTradeRequest(uuid.New(), account.Name, strategy.Name, exitCondition.PriceLevelIndex, nil, float64(exitCondition.PercentClose), exitCondition.Reason)
+		if closeTradeReqErr != nil {
+			return nil, closeTradeReqErr
+		}
 
-			req, err := eventmodels.NewOpenTradeRequest(id, satisfiedConditions.Account.Name, satisfiedConditions.Strategy.Name, 5) // todo: timeframe should come from signal
-			if err != nil {
+		clsTradeRequests = append(clsTradeRequests, req)
+	}
+
+	return clsTradeRequests, nil
+}
+
+func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied []*models.EntryConditionsSatisfied) ([]*eventmodels.OpenTradeRequest, error) {
+	var openTradeRequests []*eventmodels.OpenTradeRequest
+
+	for _, entryConditions := range entryConditionsSatisfied {
+		req, openTradeReqErr := eventmodels.NewOpenTradeRequest(uuid.New(), entryConditions.Account.Name, entryConditions.Strategy.Name, nil) // todo: timeframe should come from signal
+		if openTradeReqErr != nil {
+			return nil, openTradeReqErr
+		}
+
+		openTradeRequests = append(openTradeRequests, req)
+	}
+
+	return openTradeRequests, nil
+}
+
+func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
+	// handle exit conditions
+	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
+	if updateErr == nil {
+		if exitConditionsSatisfied != nil {
+			clsTradeRequests, err := w.handleExitConditionsSatisfied(exitConditionsSatisfied)
+			if err == nil {
+				for _, req := range clsTradeRequests {
+					// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
+					// as the request didn't originate from an api call but is still picked up by the lister
+					eventmodels.RegisterResultCallback(req.RequestID)
+
+					pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.CloseTradesRequest, req)
+				}
+			} else {
 				pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
-				return
 			}
+		}
+	} else {
+		pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, updateErr)
+	}
 
-			pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+	if entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event); entryConditionsSatisfied != nil {
+		openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
+		if err == nil {
+			for _, req := range openTradeRequests {
+				// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
+				// as the request didn't originate from an api call but is still picked up by the lister
+				eventmodels.RegisterResultCallback(req.RequestID)
+
+				pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+			}
+		} else {
+			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 		}
 	}
 
-	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, newSignalResult)
+	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, &eventmodels.NewSignalResult{
+		Name:      event.Name,
+		RequestID: event.RequestID,
+	})
 }
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
@@ -385,7 +439,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, w.updateTickMachine)
 	pubsub.Subscribe("AccountWorker", pubsub.NewOpenTradeRequest, w.handleNewOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteNewOpenTradeRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewCloseTradesRequest, w.handleNewCloseTradeRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.CloseTradesRequest, w.handleCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)

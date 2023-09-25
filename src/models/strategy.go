@@ -38,8 +38,25 @@ func (s *Strategy) Validate() error {
 	return nil
 }
 
+// UpdateExitConditions todo: test this
 func (s *Strategy) UpdateExitConditions(signalName string) int {
-	return 0
+	conditionsAffected := 0
+
+	for _, condition := range s.ExitConditions {
+		for _, exitSignal := range condition.ExitSignals {
+			if signalName == exitSignal.Signal.Name {
+				exitSignal.Update(SignalTypeExit)
+				conditionsAffected += 1
+				log.Infof("setting exit condition %v to true", signalName)
+			} else if signalName == exitSignal.ResetSignal.Name {
+				exitSignal.Update(SignalTypeReset)
+				conditionsAffected += 1
+				log.Infof("setting exit reset condition %v to true", signalName)
+			}
+		}
+	}
+
+	return conditionsAffected
 }
 
 func (s *Strategy) UpdateEntryConditions(signalName string) int {
@@ -58,6 +75,41 @@ func (s *Strategy) UpdateEntryConditions(signalName string) int {
 	}
 
 	return conditionsAffected
+}
+
+func (s *Strategy) ExitConditionsSatisfied(tick Tick) ([]*ExitConditionsSatisfied, error) {
+	if len(s.ExitConditions) == 0 {
+		log.Warnf("ExitConditionsSatisfied for Strategy %v will never return true until at least one entry condition is added", s)
+		return nil, nil
+	}
+
+	var exitConditionsSatisfied []*ExitConditionsSatisfied
+	params := map[string]interface{}{"tick": tick}
+	for levelIndex, level := range s.PriceLevels.Bands {
+		var exitCondition *ExitCondition
+		for _, cond := range s.ExitConditions {
+			isSatisfied, err := cond.IsSatisfied(level, params)
+			if err != nil {
+				return nil, fmt.Errorf("ExitConditionsSatisfied: condition check failed: %w", err)
+			}
+
+			if !isSatisfied {
+				exitCondition = cond
+				break
+			}
+		}
+
+		if exitCondition != nil {
+			exitConditionsSatisfied = append(exitConditionsSatisfied, &ExitConditionsSatisfied{
+				PriceLevel:      level,
+				PriceLevelIndex: levelIndex,
+				PercentClose:    exitCondition.ClosePercent,
+				Reason:          exitCondition.Name,
+			})
+		}
+	}
+
+	return exitConditionsSatisfied, nil
 }
 
 func (s *Strategy) EntryConditionsSatisfied() bool {
@@ -252,8 +304,8 @@ func (s *Strategy) RemoveCondition(signal SignalV2) error {
 	return fmt.Errorf("Strategy.RemoveCondition: could not find signal %v", signal)
 }
 
-func (s *Strategy) AddExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*SignalV2, constraints SignalConstraints, closePercent ClosePercent, maxTriggerCount *int) error {
-	condition, err := NewExitCondition(levelIndex, signals, resetSignals, constraints, closePercent, maxTriggerCount)
+func (s *Strategy) AddExitCondition(name string, levelIndex int, signals []*ExitSignal, resetSignals []*SignalV2, constraints SignalConstraints, closePercent ClosePercent, maxTriggerCount *int) error {
+	condition, err := NewExitCondition(name, levelIndex, signals, resetSignals, constraints, closePercent, maxTriggerCount)
 	if err != nil {
 		return fmt.Errorf("Strategy.AddExitCondition: failed to create new exit condition: %w", err)
 	}
