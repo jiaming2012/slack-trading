@@ -17,15 +17,22 @@ func (constraints SignalConstraints) Validate() error {
 }
 
 type ExitSignalConstraint struct {
-	Name  string                                 `json:"name"`
-	Check func(*PriceLevel, *ExitCondition) bool `json:"-"`
+	Name  string                                                                  `json:"name"`
+	Check func(*PriceLevel, *ExitCondition, map[string]interface{}) (bool, error) `json:"-"`
 }
 
-func NewExitSignalConstraint(name string, check func(level *PriceLevel, condition *ExitCondition) bool) *ExitSignalConstraint {
+func NewExitSignalConstraint(name string, check func(level *PriceLevel, condition *ExitCondition, params map[string]interface{}) (bool, error)) *ExitSignalConstraint {
 	return &ExitSignalConstraint{Name: name, Check: check}
 }
 
-func PriceLevelProfitLossAboveZeroConstraint(priceLevel *PriceLevel, exitCondition *ExitCondition) bool {
+func PriceLevelProfitLossAboveZeroConstraint(priceLevel *PriceLevel, _ *ExitCondition, params map[string]interface{}) (bool, error) {
+	tick := params["tick"].(Tick)
+	stats, err := priceLevel.Trades.GetTradeStats(tick)
+	if err != nil {
+		return false, fmt.Errorf("PriceLevelProfitLossAboveZeroConstraint: failed to get trade stats: %w", err)
+	}
 
-	return false
+	pl := stats.RealizedPL + stats.FloatingPL
+
+	return pl > 0, nil
 }

@@ -78,6 +78,10 @@ func (trades *Trades) OpenTrades() *Trades {
 	tradeToClosedVolumeMap := make(map[*Trade]float64)
 	openTrades := &Trades{}
 
+	if trades == nil {
+		return openTrades
+	}
+
 	for _, tr := range *trades {
 		if tr.Type == TradeTypeClose {
 			if math.Abs(tr.ExecutedVolume) < math.SmallestNonzeroFloat64 || tr.ExecutedVolume == math.NaN() {
@@ -117,19 +121,21 @@ func (trades *Trades) OpenTrades() *Trades {
 func (trades *Trades) Copy() *Trades {
 	result := &Trades{}
 
-	for _, tr := range *trades {
-		result.Add(&Trade{
-			ID:              tr.ID,
-			Type:            tr.Type,
-			Symbol:          tr.Symbol,
-			Timestamp:       tr.Timestamp,
-			RequestedVolume: tr.RequestedVolume,
-			ExecutedVolume:  tr.ExecutedVolume,
-			ExecutedPrice:   tr.ExecutedPrice,
-			RequestedPrice:  tr.RequestedPrice,
-			StopLoss:        tr.StopLoss,
-			Offsets:         tr.Offsets,
-		})
+	if trades != nil {
+		for _, tr := range *trades {
+			result.Add(&Trade{
+				ID:              tr.ID,
+				Type:            tr.Type,
+				Symbol:          tr.Symbol,
+				Timestamp:       tr.Timestamp,
+				RequestedVolume: tr.RequestedVolume,
+				ExecutedVolume:  tr.ExecutedVolume,
+				ExecutedPrice:   tr.ExecutedPrice,
+				RequestedPrice:  tr.RequestedPrice,
+				StopLoss:        tr.StopLoss,
+				Offsets:         tr.Offsets,
+			})
+		}
 	}
 
 	return result
@@ -138,14 +144,16 @@ func (trades *Trades) Copy() *Trades {
 func (trades *Trades) ToRows() [][]interface{} {
 	results := make([][]interface{}, 0)
 
-	for _, tr := range *trades {
-		results = append(results, []interface{}{
-			tr.Timestamp.Format(time.RFC3339),
-			tr.Symbol,
-			tr.RequestedVolume,
-			tr.RequestedPrice,
-			tr.ExecutedPrice,
-		})
+	if trades != nil {
+		for _, tr := range *trades {
+			results = append(results, []interface{}{
+				tr.Timestamp.Format(time.RFC3339),
+				tr.Symbol,
+				tr.RequestedVolume,
+				tr.RequestedPrice,
+				tr.ExecutedPrice,
+			})
+		}
 	}
 
 	return results
@@ -179,47 +187,49 @@ func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {
 	volume := 0.0
 	realizedPL := 0.0
 
-	for _, tr := range *trades {
-		if tr.Type == TradeTypeClose { // ignore close trades since their volume is already accounted for in the open trades PartialCloses
-			continue
-		}
-
-		realizedPL += tr.RealizedPL()
-
-		openVolume := tr.RemainingOpenVolume()
-		if math.Abs(openVolume) < SmallRoundingError {
-			continue
-		}
-
-		if volume > 0 {
-			if openVolume > 0 {
-				tradeWeight := openVolume / (openVolume + volume)
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
-			} else {
-				//closeVolume := math.Min(volume, math.Abs(openVolume))
-				//realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
-
-				if math.Abs(openVolume) > volume {
-					vwap = tr.ExecutedPrice
-				}
+	if trades != nil {
+		for _, tr := range *trades {
+			if tr.Type == TradeTypeClose { // ignore close trades since their volume is already accounted for in the open trades PartialCloses
+				continue
 			}
-		} else if volume < 0 {
-			if openVolume < 0 {
-				tradeWeight := openVolume / (openVolume + volume)
-				vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
-			} else {
-				//closeVolume := math.Min(math.Abs(volume), openVolume)
-				//realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
 
-				if openVolume > math.Abs(volume) {
-					vwap = tr.ExecutedPrice
-				}
+			realizedPL += tr.RealizedPL()
+
+			openVolume := tr.RemainingOpenVolume()
+			if math.Abs(openVolume) < SmallRoundingError {
+				continue
 			}
-		} else {
-			vwap = tr.ExecutedPrice
-		}
 
-		volume += openVolume
+			if volume > 0 {
+				if openVolume > 0 {
+					tradeWeight := openVolume / (openVolume + volume)
+					vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
+				} else {
+					//closeVolume := math.Min(volume, math.Abs(openVolume))
+					//realizedPL += (tr.ExecutedPrice - vwap) * closeVolume
+
+					if math.Abs(openVolume) > volume {
+						vwap = tr.ExecutedPrice
+					}
+				}
+			} else if volume < 0 {
+				if openVolume < 0 {
+					tradeWeight := openVolume / (openVolume + volume)
+					vwap = ((1 - tradeWeight) * vwap) + (tradeWeight * tr.ExecutedPrice)
+				} else {
+					//closeVolume := math.Min(math.Abs(volume), openVolume)
+					//realizedPL += (vwap - tr.ExecutedPrice) * closeVolume
+
+					if openVolume > math.Abs(volume) {
+						vwap = tr.ExecutedPrice
+					}
+				}
+			} else {
+				vwap = tr.ExecutedPrice
+			}
+
+			volume += openVolume
+		}
 	}
 
 	if volume == 0 {

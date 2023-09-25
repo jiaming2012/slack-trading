@@ -65,39 +65,44 @@ func NewExitCondition(levelIndex int, signals []*SignalV2, resetSignals []*Signa
 	return condition, nil
 }
 
-func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel) bool {
+func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]interface{}) (bool, error) {
 	if len(c.ExitSignals) == 0 {
 		log.Infof("ExitCondition.IsSatisfied: false due to no exit signals set")
-		return false
+		return false, nil
 	}
 
 	if c.MaxTriggerCount != nil && c.TriggerCount >= *c.MaxTriggerCount {
 		log.Infof("ExitCondition.IsSatisfied: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
-		return false
+		return false, nil
 	}
 
 	for _, signal := range c.ExitSignals {
 		if !signal.IsSatisfied {
 			c.AwaitingReset = false
-			return false
+			return false, nil
 		}
 	}
 
 	for _, constraint := range c.Constraints {
-		if !constraint.Check(priceLevel, c) {
+		check, err := constraint.Check(priceLevel, c, params)
+		if err != nil {
+			return false, fmt.Errorf("contraint check failed: %w", err)
+		}
+		if !check {
 			log.Infof("ExitCondition.IsSatisfied: false due to failed constraint check, %v", constraint.Name)
-			return false
+			return false, nil
 		}
 	}
 
 	if c.AwaitingReset {
 		log.Infof("ExitCondition.IsSatisfied: false due to awaiting reset")
-		return false
+		return false, nil
 	}
 
 	c.TriggerCount += 1
 	c.AwaitingReset = true
-	return true
+
+	return true, nil
 }
 
 func (c *ExitCondition) Validate() error {
