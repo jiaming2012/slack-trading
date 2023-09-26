@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"net/http"
+	"slack-trading/src/models"
 	"time"
 )
 
@@ -23,14 +24,15 @@ func (r *ManualDatafeedUpdateRequest) SetRequestID(id uuid.UUID) {
 }
 
 type ManualDatafeedUpdateResult struct {
-	RequestID uuid.UUID `json:"requestID"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	RequestID uuid.UUID   `json:"requestID"`
+	UpdatedAt time.Time   `json:"updatedAt"`
+	Tick      models.Tick `json:"tick"`
 }
 
 func (r *ManualDatafeedUpdateResult) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
 
-func NewManualDatafeedUpdateResult(requestID uuid.UUID, updatedAt time.Time) *ManualDatafeedUpdateResult {
-	return &ManualDatafeedUpdateResult{RequestID: requestID, UpdatedAt: updatedAt}
+func NewManualDatafeedUpdateResult(requestID uuid.UUID, updatedAt time.Time, tick models.Tick) *ManualDatafeedUpdateResult {
+	return &ManualDatafeedUpdateResult{RequestID: requestID, UpdatedAt: updatedAt, Tick: tick}
 }

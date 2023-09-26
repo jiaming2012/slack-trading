@@ -31,7 +31,7 @@ func (c *EntryCondition) String() string {
 type ExitCondition struct {
 	Name            string            `json:"name"`
 	ExitSignals     []*ExitSignal     `json:"exitSignals"`
-	ResetSignals    []*SignalV2       `json:"resetSignals"`
+	ReentrySignals  []*SignalV2       `json:"reentrySignals"`
 	Constraints     SignalConstraints `json:"constraints"`
 	LevelIndex      int               `json:"levelIndex"`
 	MaxTriggerCount *int              `json:"maxTriggerCount"`
@@ -69,7 +69,7 @@ func NewExitCondition(name string, levelIndex int, exitSignals []*ExitSignal, re
 	condition := &ExitCondition{
 		Name:            name,
 		ExitSignals:     exitSignals,
-		ResetSignals:    resetSignals,
+		ReentrySignals:  resetSignals,
 		Constraints:     constraints,
 		LevelIndex:      levelIndex,
 		ClosePercent:    closePercent,
@@ -104,11 +104,11 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 	}
 
 	if c.AwaitingReset {
-		if len(c.ResetSignals) == 0 {
+		if len(c.ReentrySignals) == 0 {
 			log.Warnf("ExitCondition.modifyIsSatisfiedState: awaiting reset will always be true: no reset signals set")
 		} else {
 			resetSignalsAllSatisfied := true
-			for _, signal := range c.ResetSignals {
+			for _, signal := range c.ReentrySignals {
 				if !signal.IsSatisfied {
 					resetSignalsAllSatisfied = false
 					break

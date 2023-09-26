@@ -6,9 +6,9 @@ import (
 )
 
 type FetchTradesRequest struct {
-	RequestID    uuid.UUID
-	AccountName  string
-	StrategyName *string
+	RequestID    uuid.UUID `json:"requestID"`
+	AccountName  string    `json:"accountName"`
+	StrategyName *string   `json:"strategyName"`
 }
 
 func (r *FetchTradesRequest) GetRequestID() uuid.UUID {
@@ -20,8 +20,8 @@ func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName
 }
 
 type FetchTradesResult struct {
-	RequestID uuid.UUID
-	Trades    []*models.TradeLevels
+	RequestID uuid.UUID             `json:"requestID"`
+	Trades    []*models.TradeLevels `json:"trades"`
 }
 
 func (r *FetchTradesResult) GetRequestID() uuid.UUID {

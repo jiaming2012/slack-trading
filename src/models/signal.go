@@ -11,7 +11,7 @@ const (
 )
 
 type ExitSignal struct {
-	Signal      *SignalV2 `json:"signal"`
+	Signal      *SignalV2 `json:"exitSignal"`
 	ResetSignal *SignalV2 `json:"resetSignal"`
 }
 

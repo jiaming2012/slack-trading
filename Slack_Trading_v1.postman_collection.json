@@ -1,0 +1,1639 @@
+{
+	"info": {
+		"_postman_id": "4326fe29-52b2-414a-84b4-8bd8a44b4a61",
+		"name": "Slack Trading",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "6979062"
+	},
+	"item": [
+		{
+			"name": "Trades",
+			"item": [
+				{
+					"name": "Fetch Trades By Account",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/trades/account/playground",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"account",
+								"playground"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Open Trade Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"playground\",\n    \"strategyName\": \"trendline-break\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Close Trades Request",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"playground\",\n    \"strategyName\": \"trendline-break\",\n    \"priceLevelIndex\": 2,\n    \"timeframe\": 5,\n    \"percent\": 0.5,\n    \"reason\": \"manual\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Queries for sending and fetching trades"
+		},
+		{
+			"name": "Accounts",
+			"item": [
+				{
+					"name": "Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/playground/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"playground",
+								"stats"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				},
+				{
+					"name": "Accounts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Signals",
+			"item": [
+				{
+					"name": "ltf-ma-crossover-up",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"htf-heikin-ashi-down\"\n}s",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/signals",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"signals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "m5-ma(50)-cross-above",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"htf-heikin-ashi-down\"\n}s",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/signals",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"signals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "h1-heikin-ashi-down",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"htf-heikin-ashi-down\"\n}s",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/signals",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"signals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "htf-heikin-ashi-down",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"htf-heikin-ashi-down\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/signals",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"signals"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Requests for creating trading signals"
+		},
+		{
+			"name": "Datafeeds",
+			"item": [
+				{
+					"name": "Send Tick",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"symbol\": \"BTCUSD\",\n    \"bid\": 25000,\n    \"ask\": 25010\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/datafeeds/manual",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"datafeeds",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tests",
+			"item": [
+				{
+					"name": "Fetch Account Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"  pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"var accountIndex = -1;",
+									"pm.test(\"find playground account\", () => {",
+									"    for (let i=0; i<jsonData.accounts.length; i++) {",
+									"        if (jsonData.accounts[i].name == \"playground\") {",
+									"            accountIndex = i;",
+									"            break",
+									"        }",
+									"    }",
+									"",
+									"    pm.expect(accountIndex).to.be.gte(0);",
+									"})",
+									"",
+									"const account = jsonData.accounts[accountIndex];",
+									"",
+									"pm.test(\"find account parameters\", () => {",
+									"    pm.collectionVariables.set(\"testAccountName\", account.name);    ",
+									"})",
+									"",
+									"const strategy = account.strategies[0];",
+									"",
+									"pm.test(\"find strategy parameters\", () => {",
+									"    pm.expect(account.strategies.length).to.eql(1);",
+									"    pm.collectionVariables.set(\"testStrategyName\", strategy.name);",
+									"    pm.collectionVariables.set(\"testSymbol\", strategy.symbol);",
+									"})",
+									"",
+									"pm.test(\"find entry condition parameters\", () => {",
+									"    pm.expect(strategy.entryConditions.length).to.eql(2);",
+									"    pm.collectionVariables.set(\"testEntrySignal1\", strategy.entryConditions[0].entrySignal.name);",
+									"    pm.collectionVariables.set(\"testEntryResetSignal1\", strategy.entryConditions[0].resetSignal.name);",
+									"    pm.collectionVariables.set(\"testEntrySignal2\", strategy.entryConditions[1].entrySignal.name);",
+									"    pm.collectionVariables.set(\"testEntryResetSignal2\", strategy.entryConditions[1].resetSignal.name);",
+									"})",
+									"",
+									"pm.test(\"find exit conditions parameters\", () => {",
+									"    pm.expect(strategy.exitConditions.length).to.eql(1);",
+									"    pm.expect(strategy.exitConditions[0].exitSignals.length).to.eql(2);",
+									"    pm.collectionVariables.set(\"testExitSignal1\", strategy.exitConditions[0].exitSignals[0].exitSignal.name);",
+									"    pm.collectionVariables.set(\"testExitResetSignal1\", strategy.exitConditions[0].exitSignals[0].resetSignal.name);",
+									"    pm.collectionVariables.set(\"testExitSignal2\", strategy.exitConditions[0].exitSignals[1].exitSignal.name);",
+									"    pm.collectionVariables.set(\"testExitResetSignal2\", strategy.exitConditions[0].exitSignals[1].resetSignal.name);",
+									"",
+									"    pm.collectionVariables.set(\"testExitSignal1LevelIndex\", strategy.exitConditions[0].levelIndex);",
+									"    pm.collectionVariables.set(\"testExitSignal1MaxTriggerCount\", strategy.exitConditions[0].maxTriggerCount);",
+									"    pm.collectionVariables.set(\"testExitSignal1ClosePercent\", strategy.exitConditions[0].closePercent);",
+									"})",
+									"",
+									"pm.test(\"find reentry signal parameters\", () => {",
+									"    pm.expect(strategy.exitConditions[0].reentrySignals.length).to.eql(1);",
+									"    pm.collectionVariables.set(\"testReentrySignal1\", strategy.exitConditions[0].reentrySignals[0].name);",
+									"})",
+									"",
+									"pm.test(\"find price levels\", () => {",
+									"    pm.expect(strategy.priceLevels.Bands.length).to.eql(4);",
+									"    pm.collectionVariables.set(\"testPriceLevel0_lower\", strategy.priceLevels.Bands[0].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel0_upper\", strategy.priceLevels.Bands[1].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel0_sl\", strategy.priceLevels.Bands[1].stopLoss);",
+									"    pm.collectionVariables.set(\"testPriceLevel0_maxNoOfTrades\", strategy.priceLevels.Bands[1].maxNoOfTrades);",
+									"",
+									"    pm.collectionVariables.set(\"testPriceLevel1_lower\", strategy.priceLevels.Bands[1].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel1_upper\", strategy.priceLevels.Bands[2].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel1_sl\", strategy.priceLevels.Bands[2].stopLoss);",
+									"    pm.collectionVariables.set(\"testPriceLevel1_maxNoOfTrades\", strategy.priceLevels.Bands[2].maxNoOfTrades);",
+									"",
+									"    pm.collectionVariables.set(\"testPriceLevel2_lower\", strategy.priceLevels.Bands[2].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel2_upper\", strategy.priceLevels.Bands[3].price);",
+									"    pm.collectionVariables.set(\"testPriceLevel2_sl\", strategy.priceLevels.Bands[3].stopLoss);",
+									"    pm.collectionVariables.set(\"testPriceLevel2_maxNoOfTrades\", strategy.priceLevels.Bands[3].maxNoOfTrades);",
+									"})",
+									"",
+									"pm.test(\"strategy value assertions\", () => {",
+									"    pm.expect(account.datafeed.name).to.eql(\"ManualDatafeed\");",
+									"    pm.expect(strategy.direction).to.eql(\"down\");",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Begin With No Open Trades",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"Test data type of the response\", () => {",
+									"    pm.expect(jsonData).to.be.an(\"object\");",
+									"});",
+									"",
+									"const trades = jsonData.strategies[0].openTrades;",
+									"pm.test(\"Test data type of trades\", () => {",
+									"    pm.expect(trades).to.be.an(\"array\");",
+									"});",
+									"",
+									"pm.test(\"No open trades\", () => {",
+									"    for (let i=0; i<trades.length; i++) {",
+									"        pm.expect(trades[i].trades.length).to.eql(0);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/{{testAccountName}}/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"{{testAccountName}}",
+								"stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Tick to Price Level 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const bid = pm.collectionVariables.get(\"testPriceLevel0_lower\");",
+									"const ask = bid + 10.0;",
+									"",
+									"pm.variables.set(\"bid\", bid);",
+									"pm.variables.set(\"ask\", ask);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"symbol\": \"{{testSymbol}}\",\n    \"bid\": {{bid}},\n    \"ask\": {{ask}} \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/datafeeds/manual",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"datafeeds",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place First Trade Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"check data\", () => {",
+									"    pm.expect(jsonData.result.priceLevelIndex).to.eql(1);",
+									"    pm.expect(jsonData.result.trade.symbol).to.eql(pm.collectionVariables.get(\"testSymbol\"));",
+									"    pm.expect(jsonData.result.trade.stopLoss).to.eql(pm.collectionVariables.get(\"testPriceLevel0_sl\"))",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Second Trade Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"check data\", () => {",
+									"    pm.expect(jsonData.result.priceLevelIndex).to.eql(1);",
+									"    pm.expect(jsonData.result.trade.symbol).to.eql(pm.collectionVariables.get(\"testSymbol\"));",
+									"    pm.expect(jsonData.result.trade.stopLoss).to.eql(pm.collectionVariables.get(\"testPriceLevel0_sl\"))",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Third Trade Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"check data\", () => {",
+									"    pm.expect(jsonData.result.priceLevelIndex).to.eql(1);",
+									"    pm.expect(jsonData.result.trade.symbol).to.eql(pm.collectionVariables.get(\"testSymbol\"));",
+									"    pm.expect(jsonData.result.trade.stopLoss).to.eql(pm.collectionVariables.get(\"testPriceLevel0_sl\"))",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Fourth Trade Fails",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"error message\", function () {",
+									"    const errMsg = jsonData.message;",
+									"    pm.expect(errMsg).contains(\"cannot open trade because no risk is available\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Tick to Price Level 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const bid = pm.collectionVariables.get(\"testPriceLevel1_lower\");",
+									"const ask = bid + 10.0;",
+									"",
+									"pm.variables.set(\"bid\", bid);",
+									"pm.variables.set(\"ask\", ask);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"symbol\": \"{{testSymbol}}\",\n    \"bid\": {{bid}},\n    \"ask\": {{ask}} \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/datafeeds/manual",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"datafeeds",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Fifth Trade Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"check data\", () => {",
+									"    pm.expect(jsonData.result.priceLevelIndex).to.eql(2);",
+									"    pm.expect(jsonData.result.trade.symbol).to.eql(pm.collectionVariables.get(\"testSymbol\"));",
+									"    pm.expect(jsonData.result.trade.stopLoss).to.eql(pm.collectionVariables.get(\"testPriceLevel1_sl\"))",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Sixth Trade Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"check data\", () => {",
+									"    pm.expect(jsonData.result.priceLevelIndex).to.eql(2);",
+									"    pm.expect(jsonData.result.trade.symbol).to.eql(pm.collectionVariables.get(\"testSymbol\"));",
+									"    pm.expect(jsonData.result.trade.stopLoss).to.eql(pm.collectionVariables.get(\"testPriceLevel1_sl\"))",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Seventh Trade Fails",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"error message\", function () {",
+									"    const errMsg = jsonData.message;",
+									"    pm.expect(errMsg).contains(\"cannot open trade because no risk is available\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"timeframe\": 5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1st Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"stats\", function () {",
+									"    const stats = jsonData.strategies[0].stats;",
+									"    ",
+									"    pm.expect(stats.floatingPL).to.be.lt(0, \"floatingPL\");",
+									"    pm.expect(stats.realizedPL).to.gte(0, \"realizedPL\");",
+									"    pm.expect(stats.volume).to.be.lt(0, \"volume\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/{{testAccountName}}/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"{{testAccountName}}",
+								"stats"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Tick to Make Loss",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const bid = pm.collectionVariables.get(\"testPriceLevel2_upper\");",
+									"const ask = bid + 10.0;",
+									"",
+									"pm.variables.set(\"bid\", bid);",
+									"pm.variables.set(\"ask\", ask);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"symbol\": \"{{testSymbol}}\",\n    \"bid\": {{bid}},\n    \"ask\": {{ask}} \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/datafeeds/manual",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"datafeeds",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Close Price Level 1 Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"close\", () => {",
+									"    pm.expect(jsonData.side).to.eql(\"buy\");",
+									"    pm.expect(jsonData.result.trade.type).to.eql(2);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 1,\n    \"timeframe\": 5,\n    \"percent\": 1.0,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Close Price Level 1 Fails",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"error message\", () => {",
+									"    pm.expect(jsonData.message).contains(\"closing trades must have at least one offsetting trade\");",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 1,\n    \"timeframe\": 5,\n    \"percent\": 1.0,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2nd Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"stats\", function () {",
+									"    const stats = jsonData.strategies[0].stats;",
+									"    ",
+									"    pm.expect(stats.floatingPL).to.be.lt(0);",
+									"    pm.expect(stats.realizedPL).to.be.lt(0);",
+									"    pm.expect(stats.volume).to.be.lt(0);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/{{testAccountName}}/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"{{testAccountName}}",
+								"stats"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				},
+				{
+					"name": "Set Tick to Make Loss Profit",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const bid = pm.collectionVariables.get(\"testPriceLevel0_lower\") * 0.02;",
+									"const ask = bid + 10.0;",
+									"",
+									"pm.variables.set(\"bid\", bid);",
+									"pm.variables.set(\"ask\", ask);",
+									"",
+									"console.log(bid);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"symbol\": \"{{testSymbol}}\",\n    \"bid\": {{bid}},\n    \"ask\": {{ask}} \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/datafeeds/manual",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"datafeeds",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3rd Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"stats\", function () {",
+									"    const stats = jsonData.strategies[0].stats;",
+									"    ",
+									"    pm.expect(stats.floatingPL).to.be.gt(0);",
+									"    pm.expect(stats.realizedPL).to.be.lt(0);",
+									"    pm.expect(stats.volume).to.be.lt(0);",
+									"",
+									"    pm.collectionVariables.set(\"testFloatingPL\", stats.floatingPL);",
+									"    pm.collectionVariables.set(\"testRealizedPL\", stats.realizedPL);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/{{testAccountName}}/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"{{testAccountName}}",
+								"stats"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				},
+				{
+					"name": "Partial 1: Close Price Level 2 Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"close\", () => {",
+									"    pm.expect(jsonData.side).to.eql(\"buy\");",
+									"    pm.expect(jsonData.result.trade.type).to.eql(2);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 2,\n    \"timeframe\": 5,\n    \"percent\": 0.5,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Partial 2: Close Price Level 2 Succeeds Copy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"close\", () => {",
+									"    pm.expect(jsonData.side).to.eql(\"buy\");",
+									"    pm.expect(jsonData.result.trade.type).to.eql(2);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 2,\n    \"timeframe\": 5,\n    \"percent\": 0.5,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Partial 3: Close Price Level 2 Succeeds",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"close\", () => {",
+									"    pm.expect(jsonData.side).to.eql(\"buy\");",
+									"    pm.expect(jsonData.result.trade.type).to.eql(2);",
+									"})",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 2,\n    \"timeframe\": 5,\n    \"percent\": 1.0,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Close Price Level 2 Fails",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"pm.test(\"error message\", () => {",
+									"    pm.expect(jsonData.message).contains(\"closing trades must have at least one offsetting trade\");",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountName\": \"{{testAccountName}}\",\n    \"strategyName\": \"{{testStrategyName}}\",\n    \"priceLevelIndex\": 2,\n    \"timeframe\": 5,\n    \"percent\": 1.0,\n    \"reason\": \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{HOST}}/trades/close",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"trades",
+								"close"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4th Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"",
+									"pm.test(\"stats\", () => {",
+									"    const stats = jsonData.strategies[0].stats;",
+									"    const pastFloating = pm.collectionVariables.get(\"testFloatingPL\");",
+									"    const pastRealized = pm.collectionVariables.get(\"testRealizedPL\");",
+									"",
+									"    const delta = 0.001;",
+									"    pm.expect(stats.floatingPL).to.be.approximately(0, delta, \"check floatingPL\");",
+									"    pm.expect(stats.realizedPL).to.be.approximately(pastFloating + pastRealized, delta, \"check realizedPL\");",
+									"    pm.expect(stats.volume).to.be.approximately(0, delta, \"check volume\");",
+									"    pm.expect(stats.vwap).to.be.approximately(0, delta, \"check vwap\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{HOST}}/accounts/{{testAccountName}}/stats",
+							"host": [
+								"{{HOST}}"
+							],
+							"path": [
+								"accounts",
+								"{{testAccountName}}",
+								"stats"
+							]
+						},
+						"description": "Accounts stats consist of vwap, volume, floatingPL, realizedPL, openTrades"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "HOST",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "accountName",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "testStrategyName",
+			"value": ""
+		},
+		{
+			"key": "entrySignal1",
+			"value": ""
+		},
+		{
+			"key": "resetSignal1",
+			"value": ""
+		},
+		{
+			"key": "entrySignal2",
+			"value": ""
+		},
+		{
+			"key": "resetSignal2",
+			"value": ""
+		},
+		{
+			"key": "exitSignal1",
+			"value": ""
+		},
+		{
+			"key": "exitSignal2",
+			"value": ""
+		},
+		{
+			"key": "entryResetSignal1",
+			"value": ""
+		},
+		{
+			"key": "entryResetSignal2",
+			"value": ""
+		},
+		{
+			"key": "exitResetSignal1",
+			"value": ""
+		},
+		{
+			"key": "exitResetSignal2",
+			"value": ""
+		},
+		{
+			"key": "reentrySignal1",
+			"value": ""
+		},
+		{
+			"key": "exitSignal1LevelIndex",
+			"value": ""
+		},
+		{
+			"key": "exitSignal1MaxTriggerCount",
+			"value": ""
+		},
+		{
+			"key": "exitSignal1ClosePercent",
+			"value": ""
+		},
+		{
+			"key": "testAccountName",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel0_lower",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel0_upper",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel0_sl",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel0_maxNoOfTrades",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel1_lower",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel1_upper",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel2_lower",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel2_upper",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel1_sl",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel1_maxNoOfTrades",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel2_sl",
+			"value": ""
+		},
+		{
+			"key": "testPriceLevel2_maxNoOfTrades",
+			"value": ""
+		},
+		{
+			"key": "testEntrySignal1",
+			"value": ""
+		},
+		{
+			"key": "testEntryResetSignal1",
+			"value": ""
+		},
+		{
+			"key": "testEntrySignal2",
+			"value": ""
+		},
+		{
+			"key": "testEntryResetSignal2",
+			"value": ""
+		},
+		{
+			"key": "testExitSignal1",
+			"value": ""
+		},
+		{
+			"key": "testExitResetSignal1",
+			"value": ""
+		},
+		{
+			"key": "testExitSignal2",
+			"value": ""
+		},
+		{
+			"key": "testExitResetSignal2",
+			"value": ""
+		},
+		{
+			"key": "testExitSignal1LevelIndex",
+			"value": ""
+		},
+		{
+			"key": "testExitSignal1MaxTriggerCount",
+			"value": ""
+		},
+		{
+			"key": "testExitSignal1ClosePercent",
+			"value": ""
+		},
+		{
+			"key": "testReentrySignal1",
+			"value": ""
+		},
+		{
+			"key": "testSymbol",
+			"value": ""
+		},
+		{
+			"key": "testFloatingPL",
+			"value": ""
+		},
+		{
+			"key": "testRealizedPL",
+			"value": ""
+		}
+	]
+}

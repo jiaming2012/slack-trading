@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Trades []*Trade
+type Trades []*Trade // todo: maybe???: should be refactored to be a struct with a price level
 type Vwap float64
 type Volume float64
 type RealizedPL float64
@@ -169,8 +169,8 @@ func (trades *Trades) BulkAdd(newTrades *Trades) {
 	}
 }
 
-func (trades *Trades) MaxLoss(stopLoss float64) (float64, RealizedPL) {
-	vwap, vol, realizedPL := trades.GetTradeStatsItems()
+func (trades *Trades) CurrentRisk(stopLoss float64) float64 {
+	vwap, vol, _ := trades.GetTradeStatsItems()
 
 	var maxRisk float64
 	if vol != 0 {
@@ -179,7 +179,7 @@ func (trades *Trades) MaxLoss(stopLoss float64) (float64, RealizedPL) {
 		maxRisk = 0
 	}
 
-	return maxRisk, realizedPL
+	return maxRisk
 }
 
 func (trades *Trades) GetTradeStatsItems() (Vwap, Volume, RealizedPL) {

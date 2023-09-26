@@ -119,20 +119,22 @@ func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 }
 
 func (w *AccountWorker) update() {
-	closeTradeRequests, err := w.checkStopOut()
-	if err != nil {
-		log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
-		return
-	}
-
-	for _, req := range closeTradeRequests {
-		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
-			//RequestID:          nil,
-			CloseTradesRequest: req,
-		})
-
-		panic("add request id")
-	}
+	// todo: current timing out. might need to implement caching
+	//closeTradeRequests, err := w.checkStopOut()
+	//if err != nil {
+	//	log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
+	//	return
+	//}
+	//
+	//for _, req := range closeTradeRequests {
+	//	pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
+	//		//RequestID:          nil,
+	//		CloseTradesRequest: req,
+	//	})
+	//
+	//	//panic("add request id")
+	//	log.Error("add request id")
+	//}
 }
 
 // todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
@@ -329,7 +331,7 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 		return
 	}
 
-	currentTick := w.coinbaseDatafeed.Tick()
+	currentTick := account.Datafeed.Tick()
 
 	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
 	if err != nil {
@@ -420,13 +422,15 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
 	ts := time.Now()
-	w.manualDatafeed.Update(models.Tick{
+	tick := models.Tick{
 		Timestamp: ts,
 		Bid:       ev.Bid,
 		Ask:       ev.Ask,
-	})
+	}
 
-	result := eventmodels.NewManualDatafeedUpdateResult(ev.RequestID, ts)
+	w.manualDatafeed.Update(tick)
+
+	result := eventmodels.NewManualDatafeedUpdateResult(ev.RequestID, ts, tick)
 
 	pubsub.Publish("AccountWorker.handleManualDatafeedUpdateRequest", pubsub.ManualDatafeedUpdateResult, result)
 }

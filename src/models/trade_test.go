@@ -211,7 +211,7 @@ func TestMaxRisk(t *testing.T) {
 
 	t.Run("max risk is zero when no trades are open", func(t *testing.T) {
 		trades := &Trades{}
-		maxRisk, realizedPL := trades.MaxLoss(sl)
+		maxRisk, realizedPL := trades.CurrentRisk(sl)
 		assert.Equal(t, 0.0, maxRisk)
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 	})
@@ -224,7 +224,7 @@ func TestMaxRisk(t *testing.T) {
 		trades := Trades{}
 		trades.Add(tr)
 
-		maxRisk, realizedPL := trades.MaxLoss(sl)
+		maxRisk, realizedPL := trades.CurrentRisk(sl)
 		assert.Equal(t, 500.0, maxRisk)
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 	})
@@ -244,7 +244,7 @@ func TestMaxRisk(t *testing.T) {
 		trades.Add(tr1)
 		trades.Add(tr2)
 
-		maxRisk, realizedPL := trades.MaxLoss(sl)
+		maxRisk, realizedPL := trades.CurrentRisk(sl)
 		assert.Equal(t, 2000.0, maxRisk)
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 	})
@@ -262,7 +262,7 @@ func TestMaxRisk(t *testing.T) {
 		trades.Add(tr1)
 		trades.Add(tr2)
 
-		maxLoss, realizedPL := trades.MaxLoss(sl)
+		maxLoss, realizedPL := trades.CurrentRisk(sl)
 		assert.Equal(t, 1000.0, maxLoss)
 		assert.Equal(t, RealizedPL(0.0), realizedPL)
 
@@ -271,7 +271,7 @@ func TestMaxRisk(t *testing.T) {
 		clsTrade.AutoExecute()
 		trades.Add(clsTrade)
 
-		maxLoss, realizedPL = trades.MaxLoss(sl)
+		maxLoss, realizedPL = trades.CurrentRisk(sl)
 		assert.Equal(t, RealizedPL(1000.0), realizedPL)
 		assert.Equal(t, 500.0, maxLoss)
 	})

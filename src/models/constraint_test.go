@@ -83,7 +83,7 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 
 		exitCondition := ExitCondition{
 			ExitSignals:     nil,
-			ResetSignals:    nil,
+			ReentrySignals:  nil,
 			Constraints:     nil,
 			LevelIndex:      0,
 			MaxTriggerCount: nil,

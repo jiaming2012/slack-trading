@@ -7,7 +7,7 @@ import (
 )
 
 type GetAccountsRequestEvent struct {
-	RequestID uuid.UUID
+	RequestID uuid.UUID `json:"requestID"`
 }
 
 func (e *GetAccountsRequestEvent) ParseHTTPRequest(r *http.Request) error {
@@ -19,8 +19,8 @@ func (e *GetAccountsRequestEvent) SetRequestID(id uuid.UUID) {
 }
 
 type GetAccountsResponseEvent struct {
-	RequestID uuid.UUID
-	Accounts  []models.Account
+	RequestID uuid.UUID        `json:"requestID"`
+	Accounts  []models.Account `json:"accounts"`
 }
 
 func (e *GetAccountsResponseEvent) GetRequestID() uuid.UUID {

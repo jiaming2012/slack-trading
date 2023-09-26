@@ -10,15 +10,16 @@ import (
 )
 
 type Strategy struct {
-	Name            string            `json:"name"`
-	EntryConditions []*EntryCondition `json:"entryConditions"`
-	ExitConditions  []*ExitCondition  `json:"exitConditions"`
-	Balance         float64           `json:"balance"`
-	PriceLevels     *PriceLevels      `json:"priceLevels"`
-	Symbol          string            `json:"symbol"`
-	Direction       Direction         `json:"direction"`
-	Account         *Account          `json:"-"`
-	mutex           sync.Mutex        `json:"-"`
+	Name                         string            `json:"name"`
+	EntryConditions              []*EntryCondition `json:"entryConditions"`
+	ExitConditions               []*ExitCondition  `json:"exitConditions"`
+	Balance                      float64           `json:"balance"`
+	PriceLevels                  *PriceLevels      `json:"priceLevels"`
+	Symbol                       string            `json:"symbol"`
+	Direction                    Direction         `json:"direction"`
+	Account                      *Account          `json:"-"`
+	getTradesMutex               sync.Mutex        `json:"-"`
+	executeOpenTradeRequestMutex sync.Mutex        `json:"-"`
 }
 
 // Validate todo: modify to allow adding price level to strategy after creation
@@ -175,8 +176,8 @@ func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*TradeLevels {
 }
 
 func (s *Strategy) GetTrades() *Trades {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.getTradesMutex.Lock()
+	defer s.getTradesMutex.Unlock()
 
 	trades := Trades{}
 
@@ -229,7 +230,8 @@ func (s *Strategy) NewCloseTrades(id uuid.UUID, timeframe *int, timestamp time.T
 
 func (s *Strategy) calculateTradeVolume(priceLevel *PriceLevel, requestedPrice float64) (float64, error) {
 	maxLoss := s.Balance * priceLevel.AllocationPercent
-	currentRisk, realizedPL := priceLevel.Trades.MaxLoss(priceLevel.StopLoss)
+	_, _, realizedPL := s.GetTrades().GetTradeStatsItems()
+	currentRisk := priceLevel.Trades.CurrentRisk(priceLevel.StopLoss)
 	tradesRemaining, _ := priceLevel.NewTradesRemaining()
 
 	var remainingRisk float64
@@ -352,8 +354,8 @@ func (s *Strategy) AutoExecuteTrade(trade *Trade) (*ExecuteOpenTradeResult, erro
 }
 
 func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume float64) (*ExecuteOpenTradeResult, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.executeOpenTradeRequestMutex.Lock()
+	defer s.executeOpenTradeRequestMutex.Unlock()
 
 	if err := trade.Validate(nil); err != nil {
 		return nil, fmt.Errorf("ExecuteTradeRequest failed to Validate trade: %w", err)
@@ -418,12 +420,12 @@ func (s *Strategy) CanPlaceTrade(trade *Trade, isClose bool) error {
 		}
 	}
 
-	_, _, realizedPL := priceLevel.Trades.GetTradeStatsItems()
+	_, _, realizedPL := s.GetTrades().GetTradeStatsItems()
 
 	maxPriceLevelLoss := s.Balance * priceLevel.AllocationPercent
 	maxTradeLoss := maxPriceLevelLoss / float64(priceLevel.MaxNoOfTrades)
 
-	if float64(realizedPL)+maxTradeLoss > maxPriceLevelLoss {
+	if maxTradeLoss-float64(realizedPL) > maxPriceLevelLoss {
 		return MaxLossPriceBandErr
 	}
 
