@@ -253,17 +253,17 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, 3, tradesRemaining)
 		assert.Equal(t, side, TradeTypeNone)
 
-		trade1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
+		trade1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(trade1)
 		assert.NoError(t, err)
 
-		trade2, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
+		trade2, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(trade2)
 		assert.NoError(t, err)
 
-		trade3, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
+		trade3, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(trade3)
 		assert.NoError(t, err)
@@ -272,12 +272,12 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, 0, tradesRemaining)
 		assert.Equal(t, side, TradeTypeBuy)
 
-		trade4, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1)
+		trade4, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, curPrice, 1.0, 1, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(trade4)
 		assert.ErrorIs(t, err, MaxTradesPerPriceLevelErr)
 
-		trade5, _, err := NewCloseTrade(id, []*Trade{trade1, trade2, trade3}, timeframe, timestamp, curPrice, 2.5)
+		trade5, _, err := NewCloseTrade(id, []*Trade{trade1, trade2, trade3}, timeframe, timestamp, curPrice, 2.5, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(trade5)
 		assert.NoError(t, err)
@@ -298,13 +298,13 @@ func TestPlacingTrades(t *testing.T) {
 		assert.NoError(t, err)
 
 		tr1Volume := 1.0
-		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
 		tr1ClosePrc := 10.5
-		closeTr, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume)
+		closeTr, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume, nil)
 		assert.NoError(t, err)
 
 		assert.Equal(t, TradeTypeClose, closeTr.Type)
@@ -327,14 +327,14 @@ func TestPlacingTrades(t *testing.T) {
 		assert.NoError(t, err)
 
 		tr1Volume := 1.0
-		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, tr1Volume, 1.0, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
 		tr1ClosePrc := 10.5
-		_, _, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume-0.001)
-		assert.ErrorIs(t, err, InvalidClosingTradeVolumeErr)
+		_, _, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume-0.001, nil)
+		assert.ErrorIs(t, err, DuplicateCloseTradeErr)
 	})
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {
@@ -352,12 +352,12 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, 3, tradesRemaining)
 
 		trVolume := 1.0
-		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0)
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0)
+		tr2, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, timestamp, 1.5, trVolume, 1.0, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -366,7 +366,7 @@ func TestPlacingTrades(t *testing.T) {
 		assert.Equal(t, 1, tradesRemaining)
 
 		tr1ClosePrc := 10.5
-		tr3, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, trVolume/2.0)
+		tr3, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, trVolume/2.0, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr3)
 		assert.NoError(t, err)
@@ -391,7 +391,7 @@ func TestPlacingTrades(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.9, trVolume)
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.9, trVolume, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)
@@ -419,7 +419,7 @@ func TestPlacingTrades(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(tr1)
 		assert.NoError(t, err)
 
-		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.2, tr1.ExecutedVolume)
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, 1.2, tr1.ExecutedVolume, nil)
 		assert.NoError(t, err)
 		_, err = strategy.AutoExecuteTrade(tr2)
 		assert.NoError(t, err)

@@ -17,6 +17,29 @@ type CloseTradeRequestV1 struct {
 	Reason    string
 }
 
+type CloseTradeRequestV2 struct {
+	Trade     *Trade
+	Timeframe *int
+	Percent   float64
+	Reason    string
+}
+
+func (r *CloseTradeRequestV2) Validate() error {
+	if r.Trade == nil {
+		return fmt.Errorf("CloseTradesRequest.Validate: trade not set")
+	}
+
+	if r.Timeframe != nil && *r.Timeframe <= 0 {
+		return InvalidTimeframeErr
+	}
+
+	if r.Percent < 0 || r.Percent > 1 {
+		return InvalidClosePercentErr
+	}
+
+	return nil
+}
+
 type CloseTradesRequest struct {
 	Strategy        *Strategy
 	Timeframe       *int
@@ -40,6 +63,10 @@ func (r *CloseTradesRequest) Validate() error {
 
 	if r.Percent < 0 || r.Percent > 1 {
 		return InvalidClosePercentErr
+	}
+
+	if r.Reason == "" {
+		return fmt.Errorf("CloseTradesRequest.Validate: reason not set")
 	}
 
 	return nil
@@ -105,7 +132,7 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe *int)
 		if it.Level.Trades != nil {
 			_, vol, _ := it.Level.Trades.GetTradeStatsItems()
 			closeVol := float64(vol) * it.ClosePercent * -1
-			tr, _, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0)
+			tr, _, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0, nil)
 			if err != nil {
 				return nil, fmt.Errorf("BulkCloseRequest.Execute: failed to open NewTrade: %w", err)
 			}

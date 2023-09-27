@@ -67,6 +67,17 @@ func (a *Account) GetTrades() *Trades {
 	return &trades
 }
 
+func (a *Account) GetOpenTrades() *Trades {
+	trades := Trades{}
+
+	for _, strategy := range a.Strategies {
+		trades.BulkAdd(strategy.GetOpenTrade())
+	}
+
+	return &trades
+}
+
+// todo: remove duplicate: in favor of CheckStopLoss()
 func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 	requests := make([]*CloseTradesRequest, 0)
 
@@ -105,6 +116,24 @@ func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 	}
 
 	return nil
+}
+
+func (a *Account) CheckStopLoss(tick Tick) ([]*CloseTradeRequestV2, error) {
+	trades := a.GetOpenTrades()
+
+	var closeTradeRequests []*CloseTradeRequestV2
+	for _, t := range *trades {
+		closeTradeReq, err := t.IsStopLossTriggered(tick)
+		if err != nil {
+			return nil, fmt.Errorf("Account.CheckStopLoss: is stop loss triggered failed: %w", err)
+		}
+
+		if closeTradeReq != nil {
+			closeTradeRequests = append(closeTradeRequests, closeTradeReq)
+		}
+	}
+
+	return closeTradeRequests, nil
 }
 
 func (a *Account) CheckStopOut(tick Tick) ([]*CloseTradesRequest, error) {

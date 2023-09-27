@@ -195,7 +195,7 @@ func main() {
 	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
 	eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
-	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
+	//eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
 	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewRsiBotClient(&wg).Start(ctx)

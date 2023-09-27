@@ -5,6 +5,13 @@ import (
 	"slack-trading/src/models"
 )
 
+type ExecuteCloseTradeRequest struct {
+	RequestID uuid.UUID
+	Timeframe *int
+	Trade     *models.Trade
+	Percent   float64
+}
+
 type ExecuteCloseTradesRequest struct {
 	RequestID          uuid.UUID
 	CloseTradesRequest *models.CloseTradesRequest

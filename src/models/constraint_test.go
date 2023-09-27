@@ -41,7 +41,7 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 			mutex:                sync.Mutex{},
 		}
 
-		t1, _, err := NewOpenTrade(id, TradeTypeBuy, "symbol", nil, ts, reqPrice, reqVol, sl)
+		t1, _, err := NewOpenTrade(id, TradeTypeBuy, "symbol", nil, ts, reqPrice, reqVol, sl, nil)
 
 		err = priceLevel.Add(t1, reqPrice, reqVol)
 

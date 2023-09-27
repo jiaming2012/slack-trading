@@ -7,31 +7,30 @@ import (
 	"time"
 )
 
+func newDownPriceLevels() []*PriceLevel {
+	return []*PriceLevel{
+		{
+			Price: 1.0,
+		},
+		{
+			Price:             2.0,
+			StopLoss:          12.5,
+			MaxNoOfTrades:     1,
+			AllocationPercent: 0.5,
+		},
+		{
+			Price:             10.0,
+			StopLoss:          13.5,
+			MaxNoOfTrades:     3,
+			AllocationPercent: 0.5,
+		},
+	}
+}
+
 func TestEntryConditionsSatisfied(t *testing.T) {
 	name := "test"
 	symbol := "symbol"
 	balance := 1000.0
-	newUpPriceLevels := func() []*PriceLevel {
-		return []*PriceLevel{
-			{
-				Price:             1.0,
-				StopLoss:          0.5,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
-			},
-			{
-				Price:             2.0,
-				StopLoss:          1.5,
-				MaxNoOfTrades:     1,
-				AllocationPercent: 0.5,
-			},
-			{
-				Price:             10.0,
-				MaxNoOfTrades:     0,
-				AllocationPercent: 0,
-			},
-		}
-	}
 
 	entrySignal := NewSignalV2("entrySignal")
 	exitSignal := NewSignalV2("exitSignal")
@@ -80,47 +79,126 @@ func TestNewCloseTrade(t *testing.T) {
 
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	balance := 1000.0
-	newUpPriceLevels := func() []*PriceLevel {
-		return []*PriceLevel{
-			{
-				Price:             1.0,
-				StopLoss:          0.5,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
-			},
-			{
-				Price:             2.0,
-				StopLoss:          1.5,
-				MaxNoOfTrades:     1,
-				AllocationPercent: 0.5,
-			},
-			{
-				Price:             10.0,
-				MaxNoOfTrades:     0,
-				AllocationPercent: 0,
-			},
-		}
-	}
 
-	newDownPriceLevels := func() []*PriceLevel {
-		return []*PriceLevel{
-			{
-				Price: 1.0,
-			},
-			{
-				Price:             2.0,
-				StopLoss:          12.5,
-				MaxNoOfTrades:     1,
-				AllocationPercent: 0.5,
-			},
-			{
-				Price:             10.0,
-				StopLoss:          13.5,
-				MaxNoOfTrades:     3,
-				AllocationPercent: 0.5,
-			},
-		}
-	}
+	t.Run("test close trade buy", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		assert.NoError(t, err)
+
+		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
+
+		closeTr, _, err := s.NewCloseTrade(id, tf, ts, 1.7, 1.0, tr1)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(closeTr)
+		assert.NoError(t, err)
+
+		assert.Equal(t, TradeTypeClose, closeTr.Type)
+		assert.Equal(t, tf, closeTr.Timeframe)
+		assert.Equal(t, tr1, closeTr.Offsets[0])
+		assert.Equal(t, tr1.ExecutedVolume*-1, closeTr.RequestedVolume)
+	})
+
+	t.Run("test close trade sell", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels(), nil)
+		assert.NoError(t, err)
+
+		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
+
+		closeTr, _, err := s.NewCloseTrade(id, tf, ts, 1.7, 1.0, tr1)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(closeTr)
+		assert.NoError(t, err)
+
+		assert.Equal(t, TradeTypeClose, closeTr.Type)
+		assert.Equal(t, tf, closeTr.Timeframe)
+		assert.Equal(t, tr1, closeTr.Offsets[0])
+		assert.Equal(t, tr1.ExecutedVolume*-1, closeTr.RequestedVolume)
+	})
+
+	t.Run("test partial close trade", func(t *testing.T) {
+		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		assert.NoError(t, err)
+
+		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(tr1)
+		assert.NoError(t, err)
+
+		totalOpenVolume := tr1.ExecutedVolume
+
+		// first partial close
+		partial1, _, err := s.NewCloseTrade(id, tf, ts, 1.7, 0.25, tr1)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(partial1)
+		assert.NoError(t, err)
+
+		assert.Equal(t, TradeTypeClose, partial1.Type)
+		assert.Equal(t, tf, partial1.Timeframe)
+		assert.Equal(t, tr1, partial1.Offsets[0])
+		assert.Equal(t, tr1.ExecutedVolume*0.25*-1, partial1.RequestedVolume)
+
+		totalOpenVolume -= partial1.RequestedVolume * -1
+
+		// second partial close
+		partial2, _, err := s.NewCloseTrade(id, tf, ts, 1.7, 0.15, tr1)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(partial2)
+		assert.NoError(t, err)
+
+		assert.Equal(t, TradeTypeClose, partial2.Type)
+		assert.Equal(t, tr1, partial2.Offsets[0])
+		assert.Equal(t, totalOpenVolume*0.15*-1, partial2.RequestedVolume)
+
+		totalOpenVolume -= partial2.RequestedVolume * -1
+
+		// third partial close
+		partial3, _, err := s.NewCloseTrade(id, tf, ts, 1.7, 1.0, tr1)
+		assert.NoError(t, err)
+		_, err = s.AutoExecuteTrade(partial3)
+		assert.NoError(t, err)
+
+		assert.Equal(t, TradeTypeClose, partial3.Type)
+		assert.Equal(t, tr1, partial3.Offsets[0])
+		assert.Equal(t, totalOpenVolume*-1, partial3.RequestedVolume)
+	})
+}
+
+func TestNewCloseTrades(t *testing.T) {
+	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
+	name := "test"
+	symbol := "symbol"
+
+	tf := new(int)
+	*tf = 5
+
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	balance := 1000.0
+	//newUpPriceLevels := func() []*PriceLevel {
+	//	return []*PriceLevel{
+	//		{
+	//			Price:             1.0,
+	//			StopLoss:          0.5,
+	//			MaxNoOfTrades:     3,
+	//			AllocationPercent: 0.5,
+	//		},
+	//		{
+	//			Price:             2.0,
+	//			StopLoss:          1.5,
+	//			MaxNoOfTrades:     1,
+	//			AllocationPercent: 0.5,
+	//		},
+	//		{
+	//			Price:             10.0,
+	//			MaxNoOfTrades:     0,
+	//			AllocationPercent: 0,
+	//		},
+	//	}
+	//}
 
 	t.Run("close the entire buy trade", func(t *testing.T) {
 		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)

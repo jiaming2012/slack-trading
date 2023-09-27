@@ -175,6 +175,21 @@ func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*TradeLevels {
 	return priceLevelTrades
 }
 
+func (s *Strategy) GetOpenTrade() *Trades {
+	s.getTradesMutex.Lock()
+	defer s.getTradesMutex.Unlock()
+
+	trades := Trades{}
+
+	for _, level := range s.PriceLevels.Bands {
+		for _, tr := range *level.Trades.OpenTrades() {
+			trades = append(trades, tr)
+		}
+	}
+
+	return &trades
+}
+
 func (s *Strategy) GetTrades() *Trades {
 	s.getTradesMutex.Lock()
 	defer s.getTradesMutex.Unlock()
@@ -225,7 +240,16 @@ func (s *Strategy) NewCloseTrades(id uuid.UUID, timeframe *int, timestamp time.T
 
 	closeVol := startingVolumeToClose - volumeToClose
 
-	return NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, closeVol)
+	return NewCloseTrade(id, trades, timeframe, timestamp, requestedPrice, closeVol, priceLevel)
+}
+
+func (s *Strategy) NewCloseTrade(id uuid.UUID, timeframe *int, timestamp time.Time, requestedPrice float64, percent float64, openTrade *Trade) (*Trade, []*PartialCloseItemRequest, error) {
+	if percent < 0 || percent > 1 {
+		return nil, nil, InvalidClosePercentErr
+	}
+
+	closeVol := openTrade.RemainingOpenVolume() * percent
+	return NewCloseTrade(id, Trades{openTrade}, timeframe, timestamp, requestedPrice, closeVol, openTrade.PriceLevel)
 }
 
 func (s *Strategy) calculateTradeVolume(priceLevel *PriceLevel, requestedPrice float64) (float64, error) {
@@ -260,7 +284,7 @@ func (s *Strategy) NewOpenTrade(id uuid.UUID, timeframe *int, timestamp time.Tim
 		return nil, nil, fmt.Errorf("Strategy.NewOpenTrade: failed to calculate trade volume: %w", err)
 	}
 
-	return NewOpenTrade(id, s.GetTradeType(false), s.Symbol, timeframe, timestamp, requestedPrice, requestedVolume, priceLevel.StopLoss)
+	return NewOpenTrade(id, s.GetTradeType(false), s.Symbol, timeframe, timestamp, requestedPrice, requestedVolume, priceLevel.StopLoss, priceLevel)
 }
 
 func (s *Strategy) TradesRemaining(price float64) (int, TradeType) {

@@ -23,6 +23,7 @@ const (
 	AddStrategyRequest          EventName = "AddStrategyRequest"
 	CloseTradesRequest          EventName = "CloseTradesRequest"
 	ExecuteOpenTradeRequest     EventName = "ExecuteOpenTradeRequest"
+	ExecuteCloseTradeRequest    EventName = "ExecuteCloseTradeRequest"
 	ExecuteCloseTradesRequest   EventName = "ExecuteCloseTradesRequest"
 	ExecuteOpenTradeResult      EventName = "ExecuteOpenTradeResult"
 	ExecuteCloseTradesResult    EventName = "ExecuteCloseTradesResult"
@@ -35,5 +36,6 @@ const (
 	NewSignalsResult            EventName = "NewSignalsResult"
 	ManualDatafeedUpdateRequest EventName = "ManualDatafeedUpdateRequest"
 	ManualDatafeedUpdateResult  EventName = "ManualDatafeedUpdateResult"
+	AutoExecuteTrade            EventName = "AutoExecuteTrade"
 	Error                       EventName = "DefaultError"
 )

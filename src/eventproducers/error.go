@@ -11,7 +11,7 @@ func SetGenericResponse(obj interface{}, w http.ResponseWriter) error {
 	w.WriteHeader(200)
 
 	if err := json.NewEncoder(w).Encode(obj); err != nil {
-		return fmt.Errorf("SetResponse: encode: %w", err)
+		return fmt.Errorf("SetGenericResponse: encode: %w", err)
 	}
 
 	return nil

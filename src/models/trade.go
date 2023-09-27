@@ -94,7 +94,7 @@ type Trade struct {
 	StopLoss        float64            `json:"stopLoss"`
 	Offsets         []*Trade           `json:"offsets"`
 	PartialCloses   *PartialCloseItems `json:"-"`
-	PriceLevel      *PriceLevel        `json:"priceLevel"`
+	PriceLevel      *PriceLevel        `json:"-"`
 }
 
 type ClosePercent float64
@@ -248,7 +248,7 @@ func (tr *Trade) Validate(partialCloseItems []*PartialCloseItemRequest) error {
 		}
 
 		if math.Abs(tr.RequestedVolume) > math.Abs(totalOffsetVolume)+SmallRoundingError {
-			return InvalidClosingTradeVolumeErr
+			return DuplicateCloseTradeErr
 		}
 	}
 
@@ -314,6 +314,31 @@ func (tr *Trade) PreparePartialCloseItems(executedPrice float64, executedVolume 
 	return partialCloseItems, nil
 }
 
+func (tr *Trade) IsStopLossTriggered(tick Tick) (*CloseTradeRequestV2, error) {
+	switch tr.Type {
+	case TradeTypeBuy:
+		if tick.Bid <= tr.StopLoss {
+			return &CloseTradeRequestV2{
+				Trade:     tr,
+				Timeframe: nil,
+				Percent:   1.0,
+				Reason:    "sl",
+			}, nil
+		}
+	case TradeTypeSell:
+		if tick.Ask >= tr.StopLoss {
+			return &CloseTradeRequestV2{
+				Trade:     tr,
+				Timeframe: nil,
+				Percent:   1.0,
+				Reason:    "sl",
+			}, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // Execute sets the actual price that the trade was executed at when sending the trade to the market
 func (tr *Trade) Execute(executedPrice float64, executedVolume float64) error {
 	partialCloseItems, err := tr.PreparePartialCloseItems(executedPrice, executedVolume)
@@ -339,7 +364,7 @@ func (tr *Trade) AutoExecute() {
 	tr.Execute(tr.RequestedPrice, tr.RequestedVolume)
 }
 
-func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade) (*Trade, []*PartialCloseItemRequest, error) {
+func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, offsets []*Trade, priceLevel *PriceLevel) (*Trade, []*PartialCloseItemRequest, error) {
 	var vol float64
 	var volSign float64 // placeholder for volume: +1 if buy, else -1
 
@@ -380,6 +405,7 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, 
 		StopLoss:        stopLoss,
 		Offsets:         offsets,
 		PartialCloses:   &PartialCloseItems{},
+		PriceLevel:      priceLevel,
 	}
 
 	// add partial closes
@@ -401,9 +427,11 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, 
 		}
 
 		if absVol != 0 {
-			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, InvalidClosingTradeVolumeErr)
+			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, DuplicateCloseTradeErr)
 		}
 	}
+
+	// I EITHER HAVE TO IGNORE THE DUPLICATE OR PREVENT IT FROM HAPPENING
 
 	if err := trade.Validate(nil); err != nil {
 		return nil, nil, fmt.Errorf("newTrade: failed to open new trade: %w", err)
@@ -412,11 +440,11 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, 
 	return trade, partialCloseItemRequests, nil
 }
 
-func NewOpenTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64) (*Trade, []*PartialCloseItemRequest, error) {
-	return newTrade(id, tradeType, symbol, timeframe, timestamp, requestedPrice, requestedVolume, stopLoss, nil)
+func NewOpenTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64, stopLoss float64, priceLevel *PriceLevel) (*Trade, []*PartialCloseItemRequest, error) {
+	return newTrade(id, tradeType, symbol, timeframe, timestamp, requestedPrice, requestedVolume, stopLoss, nil, priceLevel)
 }
 
-func NewCloseTrade(id uuid.UUID, trades []*Trade, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64) (*Trade, []*PartialCloseItemRequest, error) {
+func NewCloseTrade(id uuid.UUID, trades []*Trade, timeframe *int, timestamp time.Time, requestedPrice float64, requestedVolume float64, priceLevel *PriceLevel) (*Trade, []*PartialCloseItemRequest, error) {
 	if len(trades) == 0 {
 		return nil, nil, fmt.Errorf("NewTradeClose: %w", NoOffsettingTradeErr)
 	}
@@ -434,5 +462,5 @@ func NewCloseTrade(id uuid.UUID, trades []*Trade, timeframe *int, timestamp time
 		}
 	}
 
-	return newTrade(id, TradeTypeClose, symbol, timeframe, timestamp, requestedPrice, requestedVolume, 0, trades)
+	return newTrade(id, TradeTypeClose, symbol, timeframe, timestamp, requestedPrice, requestedVolume, 0, trades, priceLevel)
 }

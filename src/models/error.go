@@ -30,7 +30,8 @@ var NoOfTradeMustBeNonzeroErr = fmt.Errorf("number of trades for level with allo
 var NoOfTradesMustBeZeroErr = fmt.Errorf("number of trades for a level with allocation of zero must also be zero")
 var NoClosePercentSetErr = fmt.Errorf("closing trades must have a closePercent set")
 var InvalidClosePercentErr = fmt.Errorf("close percent value must be be > 0 and <= 1")
-var InvalidClosingTradeVolumeErr = fmt.Errorf("volume of closing trade must be less than or equal to the sum of offset trade's volume")
+
+//var DuplicateCloseTradeErr = fmt.Errorf("volume of closing trade must be less than or equal to the sum of offset trade's volume")
 var BalanceGreaterThanZeroErr = fmt.Errorf("balance must be greater than zero")
 var OffsetTradesVolumeExceedsClosingTradeVolumeErr = fmt.Errorf("the sum of N-1 offsetting trades volume cannot be greater or equal to the closing trades volume")
 var NoOffsettingTradeErr = fmt.Errorf("closing trades must have at least one offsetting trade")
@@ -40,6 +41,7 @@ var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum
 var PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr = fmt.Errorf("sl of price level must be less than the lower level and greater than the upper level")
 var InvalidPriceLevelIndexErr = fmt.Errorf("price level index must be greater than or equal to zero")
 var PartialCloseItemNotSetErr = fmt.Errorf("partial close item was not set on offsetting trade. This is most likely an internal error")
+var DuplicateCloseTradeErr = fmt.Errorf("trade already closed")
 
 type ErrorDTO struct {
 	Msg string `json:"msg"`

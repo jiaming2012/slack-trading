@@ -61,7 +61,7 @@ func TestStopOut(t *testing.T) {
 		//datafeed := models.NewDatafeed("test")
 		//datafeed.Update(models.Tick{Bid: 0, Ask: 0})
 		c := NewAccountWorkerClient(&wg)
-		strategy, err := c.checkStopOut()
+		strategy, _, err := c.checkTradeCloseParameters()
 
 		assert.NoError(t, err)
 		assert.Nil(t, strategy)

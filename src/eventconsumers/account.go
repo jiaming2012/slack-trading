@@ -2,6 +2,7 @@ package eventconsumers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -93,20 +94,24 @@ func (w *AccountWorker) getAccountsRequestHandler(request *eventmodels.GetAccoun
 }
 
 // todo: test this
-func (w *AccountWorker) checkStopOut() ([]*models.CloseTradesRequest, error) {
-	var aggregateCloseTradesRequests []*models.CloseTradesRequest
+func (w *AccountWorker) checkTradeCloseParameters() ([]*models.CloseTradesRequest, []*models.CloseTradeRequestV2, error) {
+	var closeTradesRequests []*models.CloseTradesRequest
+	var closeTradeRequests []*models.CloseTradeRequestV2
 
 	for _, account := range w.accounts {
 		tick := account.Datafeed.Tick()
-		closeTradesRequests, err := account.CheckStopOut(*tick)
+		stopOutRequests, err := account.CheckStopOut(*tick)
+		stopLossRequests, err := account.CheckStopLoss(*tick)
+
 		if err != nil {
-			return nil, fmt.Errorf("checkStopOut failed: %w", err)
+			return nil, nil, fmt.Errorf("checkStopOut failed: %w", err)
 		}
 
-		aggregateCloseTradesRequests = append(aggregateCloseTradesRequests, closeTradesRequests...)
+		closeTradesRequests = append(closeTradesRequests, stopOutRequests...)
+		closeTradeRequests = append(closeTradeRequests, stopLossRequests...)
 	}
 
-	return aggregateCloseTradesRequests, nil
+	return closeTradesRequests, closeTradeRequests, nil
 }
 
 func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
@@ -119,22 +124,42 @@ func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
 }
 
 func (w *AccountWorker) update() {
+
 	// todo: current timing out. might need to implement caching
-	//closeTradeRequests, err := w.checkStopOut()
-	//if err != nil {
-	//	log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
-	//	return
-	//}
-	//
-	//for _, req := range closeTradeRequests {
-	//	pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
-	//		//RequestID:          nil,
-	//		CloseTradesRequest: req,
-	//	})
-	//
-	//	//panic("add request id")
-	//	log.Error("add request id")
-	//}
+	closeTradesRequests, closeTradeRequests, err := w.checkTradeCloseParameters()
+	if err != nil {
+		log.Errorf("AccountWorker.update: check for stop out failed: %v", err)
+		return
+	}
+
+	fmt.Printf("%v closeTradeRequests\n", len(closeTradeRequests))
+	fmt.Printf("%v closeTradeRequests\n", len(closeTradesRequests))
+
+	for _, req := range closeTradesRequests {
+		requestID := uuid.New()
+
+		// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
+		eventmodels.RegisterResultCallback(requestID)
+
+		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
+			RequestID:          uuid.New(),
+			CloseTradesRequest: req,
+		})
+	}
+
+	for _, req := range closeTradeRequests {
+		requestID := uuid.New()
+
+		// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
+		eventmodels.RegisterResultCallback(requestID)
+
+		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradeRequest, &eventmodels.ExecuteCloseTradeRequest{
+			RequestID: requestID,
+			Timeframe: req.Timeframe,
+			Trade:     req.Trade,
+			Percent:   req.Percent,
+		})
+	}
 }
 
 // todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
@@ -168,6 +193,38 @@ func (w *AccountWorker) handleCloseTradesRequest(event eventmodels.CloseTradeReq
 	})
 }
 
+func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) {
+	tradeID := uuid.New()
+	now := time.Now()
+
+	strategy := event.Trade.PriceLevel.Strategy
+	datafeed := strategy.Account.Datafeed
+
+	var requestPrc float64
+	if strategy.Direction == models.Up {
+		requestPrc = datafeed.LastBid
+	} else if strategy.Direction == models.Down {
+		requestPrc = datafeed.LastOffer
+	}
+
+	trade, _, err := strategy.NewCloseTrade(tradeID, event.Timeframe, now, requestPrc, event.Percent, event.Trade)
+	if err != nil {
+		if errors.Is(err, models.DuplicateCloseTradeErr) {
+			log.Debugf("duplicate close: skip closing %v", event.Trade.ID)
+			return
+		}
+
+		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new close trade: %w", err))
+		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		return
+	}
+
+	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.AutoExecuteTrade, &eventmodels.AutoExecuteTrade{
+		RequestID: event.RequestID,
+		Trade:     trade,
+	})
+}
+
 func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.ExecuteCloseTradesRequest) {
 	log.Debug("<- AccountWorker.handleExecuteCloseTradesRequest")
 
@@ -191,7 +248,15 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 		return
 	}
 
-	result, err := clsTradeReq.Strategy.AutoExecuteTrade(trade)
+	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.AutoExecuteTrade, &eventmodels.AutoExecuteTrade{
+		RequestID: event.RequestID,
+		Trade:     trade,
+	})
+}
+
+func (w *AccountWorker) handleAutoExecuteTrade(event *eventmodels.AutoExecuteTrade) {
+	strategy := event.Trade.PriceLevel.Strategy
+	result, err := strategy.AutoExecuteTrade(event.Trade)
 	if err != nil {
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to place execute trade: %w", err))
 		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
@@ -200,7 +265,7 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 
 	executeCloseTradesResult := &eventmodels.ExecuteCloseTradesResult{
 		RequestID: event.RequestID,
-		Side:      clsTradeReq.Strategy.GetTradeType(true).String(),
+		Side:      strategy.GetTradeType(true).String(),
 		Result:    result,
 	}
 
@@ -385,8 +450,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 			clsTradeRequests, err := w.handleExitConditionsSatisfied(exitConditionsSatisfied)
 			if err == nil {
 				for _, req := range clsTradeRequests {
-					// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
-					// as the request didn't originate from an api call but is still picked up by the lister
+					// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
 					eventmodels.RegisterResultCallback(req.RequestID)
 
 					pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.CloseTradesRequest, req)
@@ -445,10 +509,12 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteNewOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.CloseTradesRequest, w.handleCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
 
 	go func() {
 		defer w.wg.Done()
