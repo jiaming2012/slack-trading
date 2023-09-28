@@ -82,14 +82,14 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 		}
 
 		exitCondition := ExitCondition{
-			ExitSignals:     nil,
-			ReentrySignals:  nil,
-			Constraints:     nil,
-			LevelIndex:      0,
-			MaxTriggerCount: nil,
-			TriggerCount:    0,
-			ClosePercent:    0,
-			AwaitingReset:   false,
+			ExitSignals:            nil,
+			ReentrySignals:         nil,
+			Constraints:            nil,
+			LevelIndex:             0,
+			MaxTriggerCount:        nil,
+			TriggerCount:           0,
+			ClosePercent:           0,
+			AwaitingReentrySignals: false,
 		}
 
 		params := map[string]interface{}{

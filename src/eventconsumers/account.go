@@ -163,7 +163,7 @@ func (w *AccountWorker) update() {
 }
 
 // todo: make this the model: NewCloseTradeRequest -> ExecuteCloseTradesRequest
-func (w *AccountWorker) handleCloseTradesRequest(event eventmodels.CloseTradeRequest) {
+func (w *AccountWorker) handleCloseTradesRequest(event *eventmodels.CloseTradeRequest) {
 	log.Debug("<- AccountWorker.handleNewCloseTradeRequest")
 
 	account, err := w.findAccount(event.AccountName)
@@ -477,6 +477,10 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 		}
 	}
+
+	// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
+	// as the request didn't originate from an api call but is still picked up by the lister
+	eventmodels.RegisterResultCallback(event.RequestID)
 
 	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, &eventmodels.NewSignalResult{
 		Name:      event.Name,

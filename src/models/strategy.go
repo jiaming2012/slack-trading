@@ -45,6 +45,7 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 
 	for _, condition := range s.ExitConditions {
 		for _, exitSignal := range condition.ExitSignals {
+			//--- update exit signal
 			if signalName == exitSignal.Signal.Name {
 				exitSignal.Update(SignalTypeExit)
 				conditionsAffected += 1
@@ -53,6 +54,13 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 				exitSignal.Update(SignalTypeReset)
 				conditionsAffected += 1
 				log.Infof("setting exit reset condition %v to true", signalName)
+			}
+
+			//--- update reentry signals
+			for _, reentrySignal := range condition.ReentrySignals {
+				if signalName == reentrySignal.Name {
+					reentrySignal.IsSatisfied = true
+				}
 			}
 		}
 	}
@@ -89,12 +97,16 @@ func (s *Strategy) ExitConditionsSatisfied(tick Tick) ([]*ExitConditionsSatisfie
 	for levelIndex, level := range s.PriceLevels.Bands {
 		var exitCondition *ExitCondition
 		for _, cond := range s.ExitConditions {
+			if cond.LevelIndex != levelIndex {
+				// todo: handle this inside of cond.IsSatisfied once price levels has an index attribute
+				continue
+			}
 			isSatisfied, err := cond.IsSatisfied(level, params)
 			if err != nil {
 				return nil, fmt.Errorf("ExitConditionsSatisfied: condition check failed: %w", err)
 			}
 
-			if !isSatisfied {
+			if isSatisfied {
 				exitCondition = cond
 				break
 			}

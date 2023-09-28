@@ -1,6 +1,7 @@
 package eventpubsub
 
 import (
+	"fmt"
 	"github.com/asaskevich/EventBus"
 	log "github.com/sirupsen/logrus"
 	"slack-trading/src/eventmodels"
@@ -28,8 +29,22 @@ func Publish(publisherName string, topic EventName, event interface{}) {
 }
 
 func PublishWithFlags(publisherName string, topic EventName, event interface{}, logEvent bool) {
+	var requestID *string
+	switch ev := event.(type) {
+	case eventmodels.RequestEvent:
+		_id := ev.GetRequestID().String()
+		requestID = &_id
+	}
+
 	if logEvent {
-		log.Debugf("[%v] Published to topic %s", publisherName, topic)
+		var logMessage string
+		if requestID != nil {
+			logMessage = fmt.Sprintf("[%v] Published to topic %s, using requestID %s", publisherName, topic, *requestID)
+		} else {
+			logMessage = fmt.Sprintf("[%v] Published to topic %s", publisherName, topic)
+		}
+
+		log.Debugf(logMessage)
 	}
 
 	bus.Publish(string(topic), event)
