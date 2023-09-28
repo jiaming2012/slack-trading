@@ -87,7 +87,7 @@ func closeTradeHandler(w http.ResponseWriter, r *http.Request) {
 		req.RequestID = uuid.New()
 		resultCh, errCh := eventmodels.RegisterResultCallback(req.RequestID)
 
-		pubsub.Publish("closeTradeHandler", pubsub.CloseTradesRequest, req)
+		pubsub.Publish("closeTradeHandler", pubsub.CloseTradesRequest, &req)
 
 		select {
 		case result := <-resultCh:
