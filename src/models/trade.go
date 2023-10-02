@@ -97,6 +97,52 @@ type Trade struct {
 	PriceLevel      *PriceLevel        `json:"-"`
 }
 
+func (t *Trade) ConvertToTradeDTO() *TradeDTO {
+	var pl *float64
+	if t.PartialCloses != nil && len(*t.PartialCloses) > 0 {
+		var realizedPL float64
+		for _, partialClose := range *t.PartialCloses {
+			if partialClose.ExecutedVolume < 0 {
+				realizedPL += (partialClose.ExecutedPrice - t.ExecutedPrice) * partialClose.ExecutedVolume
+			} else if partialClose.ExecutedVolume > 0 {
+				realizedPL += (t.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
+			}
+		}
+
+		pl = &realizedPL
+	}
+
+	return &TradeDTO{
+		ID:              t.ID,
+		Type:            t.Type,
+		Timeframe:       t.Timeframe,
+		Symbol:          t.Symbol,
+		Timestamp:       t.Timestamp,
+		RequestedVolume: t.RequestedVolume,
+		ExecutedVolume:  t.ExecutedVolume,
+		RemainingVolume: t.RemainingOpenVolume(),
+		ExecutedPrice:   t.ExecutedPrice,
+		RequestedPrice:  t.RequestedPrice,
+		StopLoss:        t.StopLoss,
+		ProfitLoss:      pl,
+	}
+}
+
+type TradeDTO struct {
+	ID              uuid.UUID `json:"id"`
+	Type            TradeType `json:"type"`
+	Timeframe       *int      `json:"timeframe"`
+	Symbol          string    `json:"symbol"`
+	Timestamp       time.Time `json:"timestamp"`
+	RequestedVolume float64   `json:"requestedVolume"`
+	ExecutedVolume  float64   `json:"executedVolume"`
+	RemainingVolume float64   `json:"remainingVolume"`
+	ExecutedPrice   float64   `json:"executedPrice"`
+	RequestedPrice  float64   `json:"requestedPrice"`
+	StopLoss        float64   `json:"stopLoss"`
+	ProfitLoss      *float64  `json:"profitLoss"`
+}
+
 type ClosePercent float64
 
 func (p ClosePercent) Validate() error {
@@ -147,7 +193,7 @@ func (tr *Trade) Side() TradeType {
 	return TradeTypeNone
 }
 
-func (tr Trade) String() string {
+func (tr *Trade) String() string {
 	volumeStr := strconv.FormatFloat(tr.RequestedVolume, 'f', -1, 64)
 	return fmt.Sprintf("%s %s @%.2f", volumeStr, tr.Symbol, tr.ExecutedPrice)
 }

@@ -1,6 +1,6 @@
 package models
 
 type TradeLevels struct {
-	PriceLevelIndex int    `json:"priceLevelIndex"`
-	Trades          Trades `json:"trades"`
+	PriceLevelIndex int         `json:"priceLevelIndex"`
+	Trades          []*TradeDTO `json:"trades"`
 }

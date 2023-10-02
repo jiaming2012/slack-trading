@@ -194,6 +194,38 @@ func TestTradeClose(t *testing.T) {
 	symbol := "symbol"
 	ts := time.Date(2006, 1, 2, 12, 0, 0, 0, time.UTC)
 
+	t.Run("test calculate profit", func(t *testing.T) {
+		tr1, _, err := NewOpenTrade(id, TradeTypeBuy, symbol, timeframe, ts, prc, 2.0, sl, nil)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Nil(t, tr1.ConvertToTradeDTO().ProfitLoss)
+
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, closePrc, 2.0, nil)
+		assert.Nil(t, err)
+		tr2.AutoExecute()
+
+		pl := tr2.ConvertToTradeDTO().ProfitLoss
+		assert.NotNil(t, pl)
+
+		assert.Equal(t, 2.0, *pl)
+	})
+
+	t.Run("test calculate loss", func(t *testing.T) {
+		tr1, _, err := NewOpenTrade(id, TradeTypeSell, symbol, timeframe, ts, prc, 2.0, prc+sl, nil)
+		assert.NoError(t, err)
+		tr1.AutoExecute()
+		assert.Nil(t, tr1.ConvertToTradeDTO().ProfitLoss)
+
+		tr2, _, err := NewCloseTrade(id, []*Trade{tr1}, timeframe, ts, closePrc, 2.0, nil)
+		assert.Nil(t, err)
+		tr2.AutoExecute()
+
+		pl := tr2.ConvertToTradeDTO().ProfitLoss
+		assert.NotNil(t, pl)
+
+		assert.Equal(t, -2.0, *pl)
+	})
+
 	t.Run("closing trade MUST have an offsetting trade", func(t *testing.T) {
 		_, _, err := NewCloseTrade(id, []*Trade{}, timeframe, ts, closePrc, 0.8, nil)
 		assert.ErrorIs(t, err, NoOffsettingTradeErr)

@@ -17,7 +17,6 @@ import (
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
-	"slack-trading/src/sheets"
 	"sync"
 	"syscall"
 )
@@ -145,9 +144,9 @@ func main() {
 	eventpubsub.Init()
 
 	// Set up google sheets
-	if err := sheets.Init(ctx); err != nil {
-		panic(err)
-	}
+	//if err := sheets.Init(ctx); err != nil {
+	//	panic(err)
+	//}
 
 	// Setup router
 	port := os.Getenv("PORT")
@@ -192,9 +191,9 @@ func main() {
 	// Start event clients
 	eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
-	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
+	//eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
 	eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
-	eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
+	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	//eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
 	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
