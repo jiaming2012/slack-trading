@@ -217,7 +217,7 @@ func (s *Strategy) GetTrades() *Trades {
 	return &trades
 }
 
-func (s Strategy) String() string {
+func (s *Strategy) String() string {
 	return s.Name
 }
 

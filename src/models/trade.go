@@ -103,7 +103,7 @@ func (t *Trade) ConvertToTradeDTO() *TradeDTO {
 		var realizedPL float64
 		for _, partialClose := range *t.PartialCloses {
 			if partialClose.ExecutedVolume < 0 {
-				realizedPL += (partialClose.ExecutedPrice - t.ExecutedPrice) * partialClose.ExecutedVolume
+				realizedPL += (partialClose.ExecutedPrice - t.ExecutedPrice) * math.Abs(partialClose.ExecutedVolume)
 			} else if partialClose.ExecutedVolume > 0 {
 				realizedPL += (t.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
 			}

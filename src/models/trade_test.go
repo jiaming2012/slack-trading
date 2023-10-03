@@ -204,7 +204,7 @@ func TestTradeClose(t *testing.T) {
 		assert.Nil(t, err)
 		tr2.AutoExecute()
 
-		pl := tr2.ConvertToTradeDTO().ProfitLoss
+		pl := tr1.ConvertToTradeDTO().ProfitLoss
 		assert.NotNil(t, pl)
 
 		assert.Equal(t, 2.0, *pl)
@@ -220,7 +220,7 @@ func TestTradeClose(t *testing.T) {
 		assert.Nil(t, err)
 		tr2.AutoExecute()
 
-		pl := tr2.ConvertToTradeDTO().ProfitLoss
+		pl := tr1.ConvertToTradeDTO().ProfitLoss
 		assert.NotNil(t, pl)
 
 		assert.Equal(t, -2.0, *pl)

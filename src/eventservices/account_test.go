@@ -231,7 +231,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		assert.Less(t, stats.Strategies[0].Stats.FloatingPL, models.FloatingPL(0))
 		assert.Less(t, stats.Strategies[0].Stats.RealizedPL, models.RealizedPL(0))
 		assert.Equal(t, 1, len(stats.Strategies[0].OpenTradeLevels[priceLevelIndex].Trades))
-		assert.Equal(t, tr2, stats.Strategies[0].OpenTradeLevels[priceLevelIndex].Trades[0])
+		assert.Equal(t, tr2.ID, stats.Strategies[0].OpenTradeLevels[priceLevelIndex].Trades[0].ID)
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
@@ -454,7 +454,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		assert.Greater(t, stats.Strategies[0].Stats.FloatingPL, models.FloatingPL(0))
 		assert.Greater(t, stats.Strategies[0].Stats.RealizedPL, models.RealizedPL(0))
 		assert.Equal(t, 1, len(stats.Strategies[0].OpenTradeLevels[0].Trades))
-		assert.Equal(t, tr2, stats.Strategies[0].OpenTradeLevels[0].Trades[0])
+		assert.Equal(t, tr2.ID, stats.Strategies[0].OpenTradeLevels[0].Trades[0].ID)
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
