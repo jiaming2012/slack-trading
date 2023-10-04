@@ -21,6 +21,10 @@ type AccountWorker struct {
 	manualDatafeed   *models.Datafeed
 }
 
+func (w *AccountWorker) monitorTrades() {
+
+}
+
 func (w *AccountWorker) getAccounts() []models.Account {
 	var accounts []models.Account
 
