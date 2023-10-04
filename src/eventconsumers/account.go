@@ -136,9 +136,6 @@ func (w *AccountWorker) update() {
 		return
 	}
 
-	fmt.Printf("%v closeTradeRequests\n", len(closeTradeRequests))
-	fmt.Printf("%v closeTradeRequests\n", len(closeTradesRequests))
-
 	for _, req := range closeTradesRequests {
 		requestID := uuid.New()
 
