@@ -84,8 +84,8 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	entrySignal1 := models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line")
-	resetSignal1 := models.NewSignalV2("reset_rsiMA_crossed")
+	//entrySignal1 := models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line")
+	//resetSignal1 := models.NewSignalV2("reset_rsiMA_crossed")
 
 	//entrySignal2 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
 	//resetSignal2 := models.NewSignalV2("reset_rsiMA_crossed")
@@ -96,7 +96,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
 	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
 
-	trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
+	//trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
 	//trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
 	trendlineBreakStrategy.AddEntryCondition(entrySignal3, resetSignal3)
 	//trendlineBreakStrategy.AddEntryCondition(entrySignal4, resetSignal4)
