@@ -30,8 +30,15 @@ func (r *SignalRequest) GetSource() RequestSource {
 }
 
 func (r *SignalRequest) ParseHTTPRequest(req *http.Request) error {
-	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
+	var values map[string]interface{}
+	if err := json.NewDecoder(req.Body).Decode(&values); err != nil {
 		return fmt.Errorf("SignalRequest.ParseHTTPRequest: failed to decode json: %w", err)
+	}
+
+	if payload, found := values["payload"]; found {
+		if val, ok := payload.(string); ok {
+			r.Name = val
+		}
 	}
 
 	if r.Name == "" {

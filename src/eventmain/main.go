@@ -56,27 +56,20 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	balance := 2000.0
 	priceLevels := []*models.PriceLevel{
 		{
-			Price: 24000.0,
+			Price: 23866.0,
 		},
 		{
-			Price:                25000.0,
+			Price:                30327.0,
+			MaxNoOfTrades:        8,
+			AllocationPercent:    0.7,
+			StopLoss:             33681.0,
+			MinimumTradeDistance: 100,
+		},
+		{
+			Price:                33681.0,
 			MaxNoOfTrades:        3,
-			AllocationPercent:    0.45,
-			StopLoss:             26000.0,
-			MinimumTradeDistance: 0,
-		},
-		{
-			Price:                27000.0,
-			MaxNoOfTrades:        2,
-			AllocationPercent:    0.45,
-			StopLoss:             28000.0,
-			MinimumTradeDistance: 0,
-		},
-		{
-			Price:                27350.0,
-			MaxNoOfTrades:        3,
-			AllocationPercent:    0.1,
-			StopLoss:             27530.0,
+			AllocationPercent:    0.3,
+			StopLoss:             33681.0,
 			MinimumTradeDistance: 50,
 		},
 	}
@@ -91,34 +84,43 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	entrySignal1 := models.NewSignalV2("h1-heikin-ashi-down")
-	resetSignal1 := models.NewSignalV2("h1-heikin-ashi-up")
+	entrySignal1 := models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line")
+	resetSignal1 := models.NewSignalV2("reset_rsiMA_crossed")
 
-	entrySignal2 := models.NewSignalV2("m5-ma(50)-cross-above")
-	resetSignal2 := models.NewSignalV2("m5-ma(50)-cross-below")
+	//entrySignal2 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
+	//resetSignal2 := models.NewSignalV2("reset_rsiMA_crossed")
+
+	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band")
+	resetSignal3 := models.NewSignalV2("reset_rsi_crossed")
+
+	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
+	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
 
 	trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
-	trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
+	//trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
+	trendlineBreakStrategy.AddEntryCondition(entrySignal3, resetSignal3)
+	//trendlineBreakStrategy.AddEntryCondition(entrySignal4, resetSignal4)
 
 	exitSignals := []*models.ExitSignal{
 		{
-			Signal:      models.NewSignalV2("h1-ma(50)-cross-below"),
-			ResetSignal: models.NewSignalV2("h1-ma(50)-cross-above"),
+			Signal:      models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line"),
+			ResetSignal: models.NewSignalV2("reset_rsiMA_crossed"),
 		},
-		{
-			Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
-			ResetSignal: models.NewSignalV2("m5-bollinger-touch-above"),
-		},
+		//{
+		//	Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
+		//	ResetSignal: models.NewSignalV2("m5-bollinger-touch-above"),
+		//},
 	}
 
 	exitResetSignals := []*models.SignalV2{
-		models.NewSignalV2("h1-ma(50)-cross-above"),
+		models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line"),
 	}
 
 	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
 	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
 
-	maxTriggerCount := 2
+	maxTriggerCount := 3
+	trendlineBreakStrategy.AddExitCondition("momentum", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 	trendlineBreakStrategy.AddExitCondition("momentum", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
