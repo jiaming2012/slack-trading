@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"os"
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
@@ -548,6 +549,10 @@ func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.A
 			acc.Datafeed = coinbaseDatafeed
 		}
 	case models.ManualDatafeed:
+		if os.Getenv("ENV") == "PRODUCTION" {
+			log.Fatalf("cannot use manual datafeed in production")
+		}
+
 		for _, acc := range accounts {
 			acc.Datafeed = manualDatafeed
 		}
