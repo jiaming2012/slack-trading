@@ -201,7 +201,7 @@ func main() {
 	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	eventconsumers.NewRsiBotClient(&wg).Start(ctx)
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures, models.ManualDatafeed).Start(ctx)
+	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures, models.CoinbaseDatafeed).Start(ctx)
 	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 
 	log.Info("Main: init complete")
