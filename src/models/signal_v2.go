@@ -7,7 +7,7 @@ import (
 
 type SignalV2DTO struct {
 	Name        string    `json:"name"`
-	IsSatisfied bool      `json:"is_satisfied"`
+	IsSatisfied bool      `json:"isSatisfied"`
 	LastUpdated time.Time `json:"lastUpdated"`
 }
 
