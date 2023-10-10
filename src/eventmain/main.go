@@ -19,6 +19,7 @@ import (
 	"slack-trading/src/models"
 	"sync"
 	"syscall"
+	"time"
 )
 
 /* Slack commands
@@ -90,8 +91,9 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	//entrySignal2 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
 	//resetSignal2 := models.NewSignalV2("reset_rsiMA_crossed")
 
-	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band")
-	resetSignal3 := models.NewSignalV2("reset_rsi_crossed")
+	now := time.Now()
+	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band", now)
+	resetSignal3 := models.NewSignalV2("reset_rsi_crossed", now)
 
 	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
 	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
@@ -103,8 +105,8 @@ func loadAccountFixtures() ([]*models.Account, error) {
 
 	exitSignals := []*models.ExitSignal{
 		{
-			Signal:      models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line"),
-			ResetSignal: models.NewSignalV2("reset_rsiMA_crossed"),
+			Signal:      models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line", now),
+			ResetSignal: models.NewSignalV2("reset_rsiMA_crossed", now),
 		},
 		//{
 		//	Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
@@ -113,7 +115,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	}
 
 	exitResetSignals := []*models.SignalV2{
-		models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line"),
+		models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
 	}
 
 	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)

@@ -22,11 +22,11 @@ func NewExitSignal(signal *SignalV2, resetSignal *SignalV2) *ExitSignal {
 func (s *ExitSignal) Update(signalType SignalType) {
 	switch signalType {
 	case SignalTypeExit:
-		s.Signal.IsSatisfied = true
-		s.ResetSignal.IsSatisfied = false
+		s.Signal.Update(true)
+		s.ResetSignal.Update(false)
 	case SignalTypeReset:
-		s.Signal.IsSatisfied = false
-		s.ResetSignal.IsSatisfied = true
+		s.Signal.Update(false)
+		s.ResetSignal.Update(true)
 	default:
 		return
 	}

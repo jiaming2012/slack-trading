@@ -12,13 +12,13 @@ type EntryCondition struct {
 
 func (c *EntryCondition) UpdateState(isEntry bool) {
 	if isEntry {
-		c.EntrySignal.IsSatisfied = true
-		c.ResetSignal.IsSatisfied = false
+		c.EntrySignal.Update(true)
+		c.ResetSignal.Update(false)
 
 		log.Infof("entry condition %v was met", c.EntrySignal.Name)
 	} else {
-		c.EntrySignal.IsSatisfied = false
-		c.ResetSignal.IsSatisfied = true
+		c.EntrySignal.Update(false)
+		c.ResetSignal.Update(true)
 
 		log.Infof("exit condition %v was met", c.ResetSignal.Name)
 	}
@@ -42,7 +42,7 @@ type ExitCondition struct {
 
 func (c *ExitCondition) ResetReentrySignals() {
 	for _, s := range c.ReentrySignals {
-		s.IsSatisfied = false
+		s.Update(false)
 	}
 }
 
@@ -75,29 +75,29 @@ func NewExitCondition(name string, levelIndex int, exitSignals []*ExitSignal, re
 
 func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]interface{}) (bool, error) {
 	if len(c.ExitSignals) == 0 {
-		log.Infof("ExitCondition.IsSatisfied: false due to no exit signals set")
+		log.Infof("ExitCondition.isSatisfied: false due to no exit signals set")
 		return false, nil
 	}
 
 	if c.MaxTriggerCount != nil && c.TriggerCount >= *c.MaxTriggerCount {
-		log.Infof("ExitCondition.IsSatisfied: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
+		log.Infof("ExitCondition.isSatisfied: false due to triggerCount(%v) >= maxTriggerCount(%v)", c.TriggerCount, *c.MaxTriggerCount)
 		return false, nil
 	}
 
 	if c.AwaitingReentrySignals {
 		if len(c.ReentrySignals) == 0 {
-			log.Warnf("ExitCondition.IsSatisfied: awaiting reset will always be true: no reset signals set")
+			log.Warnf("ExitCondition.isSatisfied: awaiting reset will always be true: no reset signals set")
 		} else {
 			resetSignalsAllSatisfied := true
 			for _, signal := range c.ReentrySignals {
-				if !signal.IsSatisfied {
+				if !signal.IsSatisfied() {
 					resetSignalsAllSatisfied = false
 					break
 				}
 			}
 
 			if resetSignalsAllSatisfied {
-				log.Infof("ExitCondition.IsSatisfied: switching awaiting reset from true -> false for %v", c.Name)
+				log.Infof("ExitCondition.isSatisfied: switching awaiting reset from true -> false for %v", c.Name)
 				c.AwaitingReentrySignals = false
 				c.ResetReentrySignals()
 			}
@@ -105,12 +105,12 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 	}
 
 	if c.AwaitingReentrySignals {
-		log.Infof("ExitCondition.IsSatisfied: false due to awaiting reset")
+		log.Infof("ExitCondition.isSatisfied: false due to awaiting reset")
 		return false, nil
 	}
 
 	for _, signal := range c.ExitSignals {
-		if !signal.Signal.IsSatisfied {
+		if !signal.Signal.IsSatisfied() {
 			return false, nil
 		}
 	}
@@ -121,7 +121,7 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 			return false, fmt.Errorf("contraint check failed: %w", err)
 		}
 		if !check {
-			log.Infof("ExitCondition.IsSatisfied: false due to failed constraint check, %v", constraint.Name)
+			log.Infof("ExitCondition.isSatisfied: false due to failed constraint check, %v", constraint.Name)
 			return false, nil
 		}
 	}
@@ -131,7 +131,7 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 	// because the broker is offline
 	c.TriggerCount += 1
 	c.AwaitingReentrySignals = true
-	log.Infof("ExitCondition.IsSatisfied: %v exit condition satisfied", c.Name)
+	log.Infof("ExitCondition.isSatisfied: %v exit condition satisfied", c.Name)
 
 	return true, nil
 }

@@ -59,7 +59,7 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 			//--- update reentry signals
 			for _, reentrySignal := range condition.ReentrySignals {
 				if signalName == reentrySignal.Name {
-					reentrySignal.IsSatisfied = true
+					reentrySignal.Update(true)
 				}
 			}
 		}
@@ -98,7 +98,7 @@ func (s *Strategy) ExitConditionsSatisfied(tick Tick) ([]*ExitConditionsSatisfie
 		var exitCondition *ExitCondition
 		for _, cond := range s.ExitConditions {
 			if cond.LevelIndex != levelIndex {
-				// todo: handle this inside of cond.IsSatisfied once price levels has an index attribute
+				// todo: handle this inside of cond.isSatisfied once price levels has an index attribute
 				continue
 			}
 			isSatisfied, err := cond.IsSatisfied(level, params)
@@ -132,7 +132,7 @@ func (s *Strategy) EntryConditionsSatisfied() bool {
 	}
 
 	for _, cond := range s.EntryConditions {
-		if !cond.EntrySignal.IsSatisfied || cond.ResetSignal.IsSatisfied {
+		if !cond.EntrySignal.IsSatisfied() || cond.ResetSignal.IsSatisfied() {
 			return false
 		}
 	}
