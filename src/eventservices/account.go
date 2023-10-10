@@ -68,11 +68,21 @@ func GetStats(requestID uuid.UUID, account *models.Account, currentTick *models.
 
 		openTradesByPriceLevel := strategy.GetTradesByPriceLevel(true)
 
+		var entryConditions []*models.EntryConditionDTO
+		for _, c := range strategy.EntryConditions {
+			entryConditions = append(entryConditions, c.ConvertToDTO())
+		}
+
+		var exitConditions []*models.ExitConditionDTO
+		for _, c := range strategy.ExitConditions {
+			exitConditions = append(exitConditions, c.ConvertToDTO())
+		}
+
 		statsResult.Strategies = append(statsResult.Strategies, &eventmodels.GetStatsResultItem{
 			StrategyName:    strategy.Name,
 			Stats:           &stats,
-			EntryConditions: strategy.EntryConditions,
-			ExitConditions:  strategy.ExitConditions,
+			EntryConditions: entryConditions,
+			ExitConditions:  exitConditions,
 			OpenTradeLevels: openTradesByPriceLevel,
 		})
 	}

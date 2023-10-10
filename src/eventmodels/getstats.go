@@ -34,11 +34,11 @@ func (r *GetStatsRequest) Validate(request *http.Request) error {
 }
 
 type GetStatsResultItem struct {
-	StrategyName    string                   `json:"name"`
-	Stats           *models.TradeStats       `json:"stats"`
-	EntryConditions []*models.EntryCondition `json:"entryConditions"`
-	ExitConditions  []*models.ExitCondition  `json:"exitConditions"`
-	OpenTradeLevels []*models.TradeLevels    `json:"openTrades"`
+	StrategyName    string                      `json:"name"`
+	Stats           *models.TradeStats          `json:"stats"`
+	EntryConditions []*models.EntryConditionDTO `json:"entryConditions"`
+	ExitConditions  []*models.ExitConditionDTO  `json:"exitConditions"`
+	OpenTradeLevels []*models.TradeLevels       `json:"openTrades"`
 }
 
 type GetStatsResult struct {
