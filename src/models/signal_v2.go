@@ -5,10 +5,24 @@ import (
 	"time"
 )
 
-type SignalV2 struct {
+type SignalV2DTO struct {
 	Name        string    `json:"name"`
-	isSatisfied bool      `json:"is_satisfied"`
+	IsSatisfied bool      `json:"is_satisfied"`
 	LastUpdated time.Time `json:"lastUpdated"`
+}
+
+type SignalV2 struct {
+	Name        string `json:"name"`
+	isSatisfied bool
+	LastUpdated time.Time `json:"lastUpdated"`
+}
+
+func (s *SignalV2) ConvertToDTO() *SignalV2DTO {
+	return &SignalV2DTO{
+		Name:        s.Name,
+		IsSatisfied: s.IsSatisfied(),
+		LastUpdated: s.LastUpdated,
+	}
 }
 
 func (s *SignalV2) IsSatisfied() bool {

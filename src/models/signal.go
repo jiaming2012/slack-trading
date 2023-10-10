@@ -10,9 +10,21 @@ const (
 	SignalTypeReset
 )
 
+type ExitSignalDTO struct {
+	Signal      *SignalV2DTO `json:"exitSignal"`
+	ResetSignal *SignalV2DTO `json:"resetSignal"`
+}
+
+func (s *ExitSignal) ConvertToDTO() *ExitSignalDTO {
+	return &ExitSignalDTO{
+		Signal:      s.Signal.ConvertToDTO(),
+		ResetSignal: s.ResetSignal.ConvertToDTO(),
+	}
+}
+
 type ExitSignal struct {
-	Signal      *SignalV2 `json:"exitSignal"`
-	ResetSignal *SignalV2 `json:"resetSignal"`
+	Signal      *SignalV2
+	ResetSignal *SignalV2
 }
 
 func NewExitSignal(signal *SignalV2, resetSignal *SignalV2) *ExitSignal {
