@@ -75,12 +75,12 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		},
 	}
 
-	account, err := models.NewAccount("playground", balance, nil)
+	account, err := models.NewAccount("playground", balance, models.NewDatafeed(models.CoinbaseDatafeed))
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	trendlineBreakStrategy, err := models.NewStrategy("trendline-break", "BTC-USD", models.Down, balance, priceLevels, account)
+	strategy1, err := models.NewStrategy("rsi-crossed-over-upper-band", "BTC-USD", models.Down, balance, priceLevels, account)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
@@ -98,10 +98,10 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
 	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
 
-	//trendlineBreakStrategy.AddEntryCondition(entrySignal1, resetSignal1)
-	//trendlineBreakStrategy.AddEntryCondition(entrySignal2, resetSignal2)
-	trendlineBreakStrategy.AddEntryCondition(entrySignal3, resetSignal3)
-	//trendlineBreakStrategy.AddEntryCondition(entrySignal4, resetSignal4)
+	//strategy1.AddEntryCondition(entrySignal1, resetSignal1)
+	//strategy1.AddEntryCondition(entrySignal2, resetSignal2)
+	strategy1.AddEntryCondition(entrySignal3, resetSignal3)
+	//strategy1.AddEntryCondition(entrySignal4, resetSignal4)
 
 	exitSignals := []*models.ExitSignal{
 		{
@@ -122,14 +122,14 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
 
 	maxTriggerCount := 3
-	trendlineBreakStrategy.AddExitCondition("momentum", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
-	trendlineBreakStrategy.AddExitCondition("momentum", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
 		account,
 	}
 
-	if err = accountFixtures[0].AddStrategy(*trendlineBreakStrategy); err != nil {
+	if err = accountFixtures[0].AddStrategy(*strategy1); err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
@@ -195,7 +195,7 @@ func main() {
 	// Start event clients
 	eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
-	//eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
+	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
 	eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	//eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)

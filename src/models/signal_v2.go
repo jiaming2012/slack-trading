@@ -14,14 +14,14 @@ type SignalV2DTO struct {
 type SignalV2 struct {
 	Name        string `json:"name"`
 	isSatisfied bool
-	LastUpdated time.Time `json:"lastUpdated"`
+	lastUpdated time.Time
 }
 
 func (s *SignalV2) ConvertToDTO() *SignalV2DTO {
 	return &SignalV2DTO{
 		Name:        s.Name,
 		IsSatisfied: s.IsSatisfied(),
-		LastUpdated: s.LastUpdated,
+		LastUpdated: s.lastUpdated,
 	}
 }
 
@@ -31,11 +31,11 @@ func (s *SignalV2) IsSatisfied() bool {
 
 func (s *SignalV2) Update(isSatisfied bool) {
 	s.isSatisfied = isSatisfied
-	s.LastUpdated = time.Now()
+	s.lastUpdated = time.Now()
 }
 
 func NewSignalV2(name string, lastUpdated time.Time) *SignalV2 {
-	return &SignalV2{Name: name, isSatisfied: false, LastUpdated: lastUpdated}
+	return &SignalV2{Name: name, isSatisfied: false, lastUpdated: lastUpdated}
 }
 
 func (s *SignalV2) String() string {
