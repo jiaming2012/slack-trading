@@ -64,7 +64,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 			MaxNoOfTrades:        8,
 			AllocationPercent:    0.7,
 			StopLoss:             33681.0,
-			MinimumTradeDistance: 100,
+			MinimumTradeDistance: 50,
 		},
 		{
 			Price:                33681.0,
