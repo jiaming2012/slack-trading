@@ -445,6 +445,8 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 }
 
 func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
+	log.Infof("received %v", event)
+
 	// handle exit conditions
 	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr == nil {

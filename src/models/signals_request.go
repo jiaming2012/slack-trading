@@ -17,6 +17,10 @@ func NewSignalRequest(requestID uuid.UUID, name string) *SignalRequest {
 	return &SignalRequest{RequestID: requestID, Name: name}
 }
 
+func (r *SignalRequest) String() string {
+	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Source)
+}
+
 func (r *SignalRequest) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
