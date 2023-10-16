@@ -8,7 +8,7 @@ import (
 type SignalV2DTO struct {
 	Name        string    `json:"name"`
 	IsSatisfied bool      `json:"isSatisfied"`
-	LastUpdated time.Time `json:"LastUpdated"`
+	LastUpdated time.Time `json:"lastUpdated"`
 }
 
 type SignalV2 struct {
@@ -20,7 +20,7 @@ type SignalV2 struct {
 type ResetSignal struct {
 	Name           string    `json:"name"`
 	AffectedSignal *SignalV2 `json:"-"`
-	LastUpdated    time.Time `json:"LastUpdated"`
+	LastUpdated    time.Time `json:"lastUpdated"`
 }
 
 func NewResetSignal(name string, affectedSignal *SignalV2, lastUpdated time.Time) *ResetSignal {
