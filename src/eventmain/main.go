@@ -93,7 +93,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 
 	now := time.Now()
 	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band", now)
-	resetSignal3 := models.NewSignalV2("reset_rsi_crossed", now)
+	resetSignal3 := models.NewResetSignal("reset_rsi_crossed", entrySignal3, now)
 
 	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
 	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
@@ -103,10 +103,11 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	strategy1.AddEntryCondition(entrySignal3, resetSignal3)
 	//strategy1.AddEntryCondition(entrySignal4, resetSignal4)
 
+	exitSignal1 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line", now)
 	exitSignals := []*models.ExitSignal{
 		{
-			Signal:      models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line", now),
-			ResetSignal: models.NewSignalV2("reset_rsiMA_crossed", now),
+			Signal:      exitSignal1,
+			ResetSignal: models.NewResetSignal("reset_rsiMA_crossed", exitSignal1, now),
 		},
 		//{
 		//	Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
@@ -193,15 +194,15 @@ func main() {
 	}
 
 	// Start event clients
-	eventproducers.NewReportClient(&wg).Start(ctx)
+	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
 	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
-	eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
+	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	//eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
-	eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
-	eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
-	eventconsumers.NewRsiBotClient(&wg).Start(ctx)
+	//eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
+	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
+	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures, models.CoinbaseDatafeed).Start(ctx)
 	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)

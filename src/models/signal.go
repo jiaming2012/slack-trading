@@ -1,6 +1,9 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type SignalType int
 
@@ -12,33 +15,33 @@ const (
 
 type ExitSignalDTO struct {
 	Signal      *SignalV2DTO `json:"exitSignal"`
-	ResetSignal *SignalV2DTO `json:"resetSignal"`
+	ResetSignal *ResetSignal `json:"resetSignal"`
 }
 
 func (s *ExitSignal) ConvertToDTO() *ExitSignalDTO {
 	return &ExitSignalDTO{
 		Signal:      s.Signal.ConvertToDTO(),
-		ResetSignal: s.ResetSignal.ConvertToDTO(),
+		ResetSignal: s.ResetSignal,
 	}
 }
 
 type ExitSignal struct {
 	Signal      *SignalV2
-	ResetSignal *SignalV2
+	ResetSignal *ResetSignal
 }
 
-func NewExitSignal(signal *SignalV2, resetSignal *SignalV2) *ExitSignal {
+func NewExitSignal(signal *SignalV2, resetSignal *ResetSignal) *ExitSignal {
 	return &ExitSignal{Signal: signal, ResetSignal: resetSignal}
 }
 
 func (s *ExitSignal) Update(signalType SignalType) {
+	now := time.Now()
+
 	switch signalType {
 	case SignalTypeExit:
-		s.Signal.Update(true)
-		s.ResetSignal.Update(false)
+		s.Signal.Update(true, now)
 	case SignalTypeReset:
-		s.Signal.Update(false)
-		s.ResetSignal.Update(true)
+		s.ResetSignal.Update(now)
 	default:
 		return
 	}

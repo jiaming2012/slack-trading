@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"slack-trading/src/models"
+	"time"
 )
 
 type GetStatsRequest struct {
@@ -39,6 +40,7 @@ type GetStatsResultItem struct {
 	EntryConditions []*models.EntryConditionDTO `json:"entryConditions"`
 	ExitConditions  []*models.ExitConditionDTO  `json:"exitConditions"`
 	OpenTradeLevels []*models.TradeLevels       `json:"openTrades"`
+	CreatedOn       time.Time                   `json:"createdOn"`
 }
 
 type GetStatsResult struct {

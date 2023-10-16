@@ -20,6 +20,7 @@ type Strategy struct {
 	Account                      *Account          `json:"-"`
 	getTradesMutex               sync.Mutex        `json:"-"`
 	executeOpenTradeRequestMutex sync.Mutex        `json:"-"`
+	CreatedOn                    time.Time         `json:"CreatedOn"`
 }
 
 // Validate todo: modify to allow adding price level to strategy after creation
@@ -42,6 +43,7 @@ func (s *Strategy) Validate() error {
 // UpdateExitConditions todo: test this
 func (s *Strategy) UpdateExitConditions(signalName string) int {
 	conditionsAffected := 0
+	now := time.Now()
 
 	for _, condition := range s.ExitConditions {
 		for _, exitSignal := range condition.ExitSignals {
@@ -59,7 +61,7 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 			//--- update reentry signals
 			for _, reentrySignal := range condition.ReentrySignals {
 				if signalName == reentrySignal.Name {
-					reentrySignal.Update(true)
+					reentrySignal.Update(true, now)
 				}
 			}
 		}
@@ -132,7 +134,7 @@ func (s *Strategy) EntryConditionsSatisfied() bool {
 	}
 
 	for _, cond := range s.EntryConditions {
-		if !cond.EntrySignal.IsSatisfied() || cond.ResetSignal.IsSatisfied() {
+		if !cond.EntrySignal.IsSatisfied() {
 			return false
 		}
 	}
@@ -353,14 +355,14 @@ func (s *Strategy) AddExitCondition(name string, levelIndex int, signals []*Exit
 	return nil
 }
 
-func (s *Strategy) AddEntryCondition(entrySignal *SignalV2, exitSignal *SignalV2) error {
+func (s *Strategy) AddEntryCondition(entrySignal *SignalV2, resetSignal *ResetSignal) error {
 	if !s.isConditionUnique(entrySignal) {
 		return fmt.Errorf("signal %v already exists", entrySignal)
 	}
 
 	s.EntryConditions = append(s.EntryConditions, &EntryCondition{
 		EntrySignal: entrySignal,
-		ResetSignal: exitSignal,
+		ResetSignal: resetSignal,
 	})
 
 	return nil
@@ -468,7 +470,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade, isClose bool) error {
 	return nil
 }
 
-func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+func NewStrategyRaw(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account, createdOn time.Time) (*Strategy, error) {
 	if balance <= 0 {
 		return nil, BalanceGreaterThanZeroErr
 	}
@@ -480,6 +482,7 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 		EntryConditions: make([]*EntryCondition, 0),
 		Balance:         balance,
 		Account:         account,
+		CreatedOn:       createdOn,
 	}
 
 	priceLevels, err := NewPriceLevels(priceLevelInput, direction, strategy)
@@ -494,4 +497,9 @@ func NewStrategy(name string, symbol string, direction Direction, balance float6
 	}
 
 	return strategy, nil
+}
+
+func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+	createdOn := time.Now()
+	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, createdOn)
 }

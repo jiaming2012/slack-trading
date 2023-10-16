@@ -8,13 +8,31 @@ import (
 type SignalV2DTO struct {
 	Name        string    `json:"name"`
 	IsSatisfied bool      `json:"isSatisfied"`
-	LastUpdated time.Time `json:"lastUpdated"`
+	LastUpdated time.Time `json:"LastUpdated"`
 }
 
 type SignalV2 struct {
 	Name        string `json:"name"`
 	isSatisfied bool
 	lastUpdated time.Time
+}
+
+type ResetSignal struct {
+	Name           string    `json:"name"`
+	AffectedSignal *SignalV2 `json:"-"`
+	LastUpdated    time.Time `json:"LastUpdated"`
+}
+
+func NewResetSignal(name string, affectedSignal *SignalV2, lastUpdated time.Time) *ResetSignal {
+	return &ResetSignal{Name: name, AffectedSignal: affectedSignal, LastUpdated: lastUpdated}
+}
+
+func (s *ResetSignal) Update(timestamp time.Time) {
+	if s.AffectedSignal.isSatisfied {
+		s.AffectedSignal.Update(false, timestamp)
+	}
+
+	s.LastUpdated = timestamp
 }
 
 func (s *SignalV2) ConvertToDTO() *SignalV2DTO {
@@ -29,9 +47,9 @@ func (s *SignalV2) IsSatisfied() bool {
 	return s.isSatisfied
 }
 
-func (s *SignalV2) Update(isSatisfied bool) {
+func (s *SignalV2) Update(isSatisfied bool, timestamp time.Time) {
 	s.isSatisfied = isSatisfied
-	s.lastUpdated = time.Now()
+	s.lastUpdated = timestamp
 }
 
 func NewSignalV2(name string, lastUpdated time.Time) *SignalV2 {

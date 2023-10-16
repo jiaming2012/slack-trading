@@ -3,35 +3,34 @@ package models
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 type EntryConditionDTO struct {
 	EntrySignal *SignalV2DTO `json:"entrySignal"`
-	ResetSignal *SignalV2DTO `json:"resetSignal"`
+	ResetSignal *ResetSignal `json:"resetSignal"`
 }
 
 func (c *EntryCondition) ConvertToDTO() *EntryConditionDTO {
 	return &EntryConditionDTO{
 		EntrySignal: c.EntrySignal.ConvertToDTO(),
-		ResetSignal: c.ResetSignal.ConvertToDTO(),
+		ResetSignal: c.ResetSignal,
 	}
 }
 
 type EntryCondition struct {
 	EntrySignal *SignalV2
-	ResetSignal *SignalV2
+	ResetSignal *ResetSignal
 }
 
 func (c *EntryCondition) UpdateState(isEntry bool) {
-	if isEntry {
-		c.EntrySignal.Update(true)
-		c.ResetSignal.Update(false)
+	now := time.Now()
 
+	if isEntry {
+		c.EntrySignal.Update(true, now)
 		log.Infof("entry condition %v was met", c.EntrySignal.Name)
 	} else {
-		c.EntrySignal.Update(false)
-		c.ResetSignal.Update(true)
-
+		c.ResetSignal.Update(now)
 		log.Infof("exit condition %v was met", c.ResetSignal.Name)
 	}
 }
@@ -89,8 +88,9 @@ type ExitCondition struct {
 }
 
 func (c *ExitCondition) ResetReentrySignals() {
+	now := time.Now()
 	for _, s := range c.ReentrySignals {
-		s.Update(false)
+		s.Update(false, now)
 	}
 }
 
