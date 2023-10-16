@@ -115,17 +115,20 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		//},
 	}
 
-	exitResetSignals := []*models.SignalV2{
-		models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
+	//exitReentrySignals := []*models.SignalV2{
+	//	models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
+	//}
+
+	exitReentrySignals := []*models.SignalV2{
+		models.NewSignalV2("reset_rsiMA_crossed", now),
 	}
 
-	//exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
-	//exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
-	exitConstraints := []*models.ExitSignalConstraint{}
+	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
 
 	maxTriggerCount := 3
-	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
-	strategy1.AddExitCondition("momentum_level_1", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitReentrySignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum_level_1", 1, exitSignals, exitReentrySignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
 		account,
