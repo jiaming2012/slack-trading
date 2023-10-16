@@ -64,7 +64,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 			MaxNoOfTrades:        8,
 			AllocationPercent:    0.7,
 			StopLoss:             33681.0,
-			MinimumTradeDistance: 50,
+			MinimumTradeDistance: 15,
 		},
 		{
 			Price:                33681.0,
@@ -119,12 +119,13 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
 	}
 
-	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
-	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+	//exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
+	//exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+	exitConstraints := []*models.ExitSignalConstraint{}
 
 	maxTriggerCount := 3
-	strategy1.AddExitCondition("momentum", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
-	strategy1.AddExitCondition("momentum", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum_level_1", 1, exitSignals, exitResetSignals, exitConstraints, .5, &maxTriggerCount)
 
 	accountFixtures := []*models.Account{
 		account,
@@ -199,7 +200,7 @@ func main() {
 	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
 	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
-	//eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
+	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
 	//eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)

@@ -26,12 +26,35 @@ type SlackNotifierClient struct {
 	wg *sync.WaitGroup
 }
 
+// tradeFulfilledHandler: todo: remove - deprecated
 func (c *SlackNotifierClient) tradeFulfilledHandler(ev eventmodels.TradeFulfilledEvent) {
 	log.Debugf("SlackNotifierClient.sendTradeConfirmation <- %v", ev)
 
 	msg := fmt.Sprintf("%.2f btc @%.8f successfully placed", ev.Volume, ev.ExecutedPrice)
 
 	_, err := sendResponse(msg, ev.ResponseURL, false)
+	if err != nil {
+		log.Error(err)
+	}
+}
+
+func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.ExecuteCloseTradesResult) {
+	log.Debugf("SlackNotifierClient.executeCloseTradesResultHandler <- %v", ev)
+
+	msg := fmt.Sprintf("%v close (priceLevel %v): %v", ev.Side, ev.Result.PriceLevelIndex, ev.Result.Trade)
+
+	_, err := sendResponse(msg, WebhookURL, false)
+	if err != nil {
+		log.Error(err)
+	}
+}
+
+func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.ExecuteOpenTradeResult) {
+	log.Debugf("SlackNotifierClient.executeOpenTradeResultHandler <- %v", ev)
+
+	msg := fmt.Sprintf("%v open (priceLevel %v): %v", ev.Side, ev.Result.PriceLevelIndex, ev.Result.Trade)
+
+	_, err := sendResponse(msg, WebhookURL, false)
 	if err != nil {
 		log.Error(err)
 	}
@@ -108,6 +131,8 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	pubsub.Subscribe("SlackNotifierClient", pubsub.GetAccountsResponseEvent, c.getAccountsResponseHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.BalanceResultEvent, c.balanceResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.TradeFulfilledEvent, c.tradeFulfilledHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteOpenTradeResult, c.executeOpenTradeResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteCloseTradesResult, c.executeCloseTradesResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.Error, c.sendError)
 
 	go func() {

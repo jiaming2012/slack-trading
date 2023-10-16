@@ -62,6 +62,22 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 			for _, reentrySignal := range condition.ReentrySignals {
 				if signalName == reentrySignal.Name {
 					reentrySignal.Update(true, now)
+					conditionsAffected += 1
+
+					// update AwaitingReentrySignals
+					if condition.AwaitingReentrySignals {
+						resetSignalsAllSatisfied := true
+						for _, signal := range condition.ReentrySignals {
+							if !signal.IsSatisfied() {
+								resetSignalsAllSatisfied = false
+								break
+							}
+						}
+
+						if resetSignalsAllSatisfied {
+							condition.ResetReentrySignals()
+						}
+					}
 				}
 			}
 		}
@@ -103,6 +119,7 @@ func (s *Strategy) ExitConditionsSatisfied(tick Tick) ([]*ExitConditionsSatisfie
 				// todo: handle this inside of cond.isSatisfied once price levels has an index attribute
 				continue
 			}
+
 			isSatisfied, err := cond.IsSatisfied(level, params)
 			if err != nil {
 				return nil, fmt.Errorf("ExitConditionsSatisfied: condition check failed: %w", err)
@@ -115,6 +132,11 @@ func (s *Strategy) ExitConditionsSatisfied(tick Tick) ([]*ExitConditionsSatisfie
 		}
 
 		if exitCondition != nil {
+			if _, openTradeVol, _ := level.Trades.OpenTrades().GetTradeStatsItems(); math.Abs(float64(openTradeVol)) == 0 {
+				log.Debugf("level %v: skipping: exit conditions satisfied; however, no trades are open", levelIndex)
+				continue
+			}
+
 			exitConditionsSatisfied = append(exitConditionsSatisfied, &ExitConditionsSatisfied{
 				PriceLevel:      level,
 				PriceLevelIndex: levelIndex,

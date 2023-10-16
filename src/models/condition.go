@@ -92,6 +92,16 @@ func (c *ExitCondition) ResetReentrySignals() {
 	for _, s := range c.ReentrySignals {
 		s.Update(false, now)
 	}
+
+	var curState string
+	if c.AwaitingReentrySignals {
+		curState = "true"
+	} else {
+		curState = "false"
+	}
+
+	log.Infof("ExitCondition.isSatisfied: switching awaiting reset from %s -> false for %v", curState, c.Name)
+	c.AwaitingReentrySignals = false
 }
 
 func NewExitCondition(name string, levelIndex int, exitSignals []*ExitSignal, resetSignals []*SignalV2, constraints []*ExitSignalConstraint, closePercent ClosePercent, maxTriggerCount *int) (*ExitCondition, error) {
@@ -135,24 +145,8 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 	if c.AwaitingReentrySignals {
 		if len(c.ReentrySignals) == 0 {
 			log.Warnf("ExitCondition.isSatisfied: awaiting reset will always be true: no reset signals set")
-		} else {
-			resetSignalsAllSatisfied := true
-			for _, signal := range c.ReentrySignals {
-				if !signal.IsSatisfied() {
-					resetSignalsAllSatisfied = false
-					break
-				}
-			}
-
-			if resetSignalsAllSatisfied {
-				log.Infof("ExitCondition.isSatisfied: switching awaiting reset from true -> false for %v", c.Name)
-				c.AwaitingReentrySignals = false
-				c.ResetReentrySignals()
-			}
 		}
-	}
 
-	if c.AwaitingReentrySignals {
 		log.Infof("ExitCondition.isSatisfied: false due to awaiting reset")
 		return false, nil
 	}

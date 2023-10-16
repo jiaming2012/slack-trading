@@ -97,15 +97,15 @@ type Trade struct {
 	PriceLevel      *PriceLevel        `json:"-"`
 }
 
-func (t *Trade) ConvertToTradeDTO() *TradeDTO {
+func (tr *Trade) ConvertToTradeDTO() *TradeDTO {
 	var pl *float64
-	if t.PartialCloses != nil && len(*t.PartialCloses) > 0 {
+	if tr.PartialCloses != nil && len(*tr.PartialCloses) > 0 {
 		var realizedPL float64
-		for _, partialClose := range *t.PartialCloses {
+		for _, partialClose := range *tr.PartialCloses {
 			if partialClose.ExecutedVolume < 0 {
-				realizedPL += (partialClose.ExecutedPrice - t.ExecutedPrice) * math.Abs(partialClose.ExecutedVolume)
+				realizedPL += (partialClose.ExecutedPrice - tr.ExecutedPrice) * math.Abs(partialClose.ExecutedVolume)
 			} else if partialClose.ExecutedVolume > 0 {
-				realizedPL += (t.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
+				realizedPL += (tr.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
 			}
 		}
 
@@ -113,17 +113,17 @@ func (t *Trade) ConvertToTradeDTO() *TradeDTO {
 	}
 
 	return &TradeDTO{
-		ID:              t.ID,
-		Type:            t.Type,
-		Timeframe:       t.Timeframe,
-		Symbol:          t.Symbol,
-		Timestamp:       t.Timestamp,
-		RequestedVolume: t.RequestedVolume,
-		ExecutedVolume:  t.ExecutedVolume,
-		RemainingVolume: t.RemainingOpenVolume(),
-		ExecutedPrice:   t.ExecutedPrice,
-		RequestedPrice:  t.RequestedPrice,
-		StopLoss:        t.StopLoss,
+		ID:              tr.ID,
+		Type:            tr.Type,
+		Timeframe:       tr.Timeframe,
+		Symbol:          tr.Symbol,
+		Timestamp:       tr.Timestamp,
+		RequestedVolume: tr.RequestedVolume,
+		ExecutedVolume:  tr.ExecutedVolume,
+		RemainingVolume: tr.RemainingOpenVolume(),
+		ExecutedPrice:   tr.ExecutedPrice,
+		RequestedPrice:  tr.RequestedPrice,
+		StopLoss:        tr.StopLoss,
 		ProfitLoss:      pl,
 	}
 }
@@ -156,16 +156,30 @@ func (p ClosePercent) Validate() error {
 func (tr *Trade) RealizedPL() float64 {
 	realizedPL := 0.0
 
-	if tr.PartialCloses != nil {
-		for _, partialClose := range *tr.PartialCloses {
-			if tr.ExecutedPrice <= 0 {
-				continue
+	if tr.Type == TradeTypeClose {
+		for _, offset := range tr.Offsets {
+			for _, partialCloseItem := range *offset.PartialCloses {
+				if partialCloseItem.ClosedBy == tr {
+					if partialCloseItem.ExecutedVolume < 0 {
+						realizedPL = (partialCloseItem.ExecutedPrice - offset.ExecutedPrice) * math.Abs(partialCloseItem.ExecutedVolume)
+					} else {
+						realizedPL = (offset.ExecutedPrice - partialCloseItem.ExecutedPrice) * partialCloseItem.ExecutedVolume
+					}
+				}
 			}
+		}
+	} else {
+		if tr.PartialCloses != nil {
+			for _, partialClose := range *tr.PartialCloses {
+				if tr.ExecutedPrice <= 0 {
+					continue
+				}
 
-			if tr.Type == TradeTypeBuy {
-				realizedPL += (partialClose.ExecutedPrice - tr.ExecutedPrice) * math.Abs(partialClose.ExecutedVolume)
-			} else if tr.Type == TradeTypeSell {
-				realizedPL += (tr.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
+				if tr.Type == TradeTypeBuy {
+					realizedPL += (partialClose.ExecutedPrice - tr.ExecutedPrice) * math.Abs(partialClose.ExecutedVolume)
+				} else if tr.Type == TradeTypeSell {
+					realizedPL += (tr.ExecutedPrice - partialClose.ExecutedPrice) * partialClose.ExecutedVolume
+				}
 			}
 		}
 	}
@@ -194,8 +208,11 @@ func (tr *Trade) Side() TradeType {
 }
 
 func (tr *Trade) String() string {
-	volumeStr := strconv.FormatFloat(tr.RequestedVolume, 'f', -1, 64)
-	return fmt.Sprintf("%s %s @%.2f", volumeStr, tr.Symbol, tr.ExecutedPrice)
+	volumeStr := strconv.FormatFloat(tr.RequestedVolume, 'f', 8, 64)
+
+	realizedPL := tr.RealizedPL()
+
+	return fmt.Sprintf("%s %s @%.2f, realizedPL %.2f", volumeStr, tr.Symbol, tr.ExecutedPrice, realizedPL)
 }
 
 func (tr *Trade) Validate(partialCloseItems []*PartialCloseItemRequest) error {
