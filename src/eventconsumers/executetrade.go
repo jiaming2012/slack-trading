@@ -21,7 +21,7 @@ func (r *TradeExecutor) executeTrade(request models.TradeRequestEvent) {
 	btcPrice := <-btcPriceCh
 
 	pubsub.Publish("TradeExecutor.executeTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
-		Timestamp:      time.Now(),
+		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Symbol,
 		RequestedPrice: request.Price,
 		ExecutedPrice:  btcPrice,
@@ -40,7 +40,7 @@ func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
 	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume)
 
 	pubsub.Publish("TradeExecutor.executeBotTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
-		Timestamp:      time.Now(),
+		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Trade.Symbol,
 		RequestedPrice: request.Trade.RequestedPrice,
 		ExecutedPrice:  btcPrice,

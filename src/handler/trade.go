@@ -64,7 +64,7 @@ func parseBTCRequest(data url.Values) (models.Trade, error) {
 
 	trade := models.Trade{
 		Symbol:        "btc",
-		Timestamp:     time.Now(),
+		Timestamp:     time.Now().UTC(),
 		ExecutedPrice: btcPrice,
 	}
 

@@ -132,7 +132,7 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe *int)
 		if it.Level.Trades != nil {
 			_, vol, _ := it.Level.Trades.GetTradeStatsItems()
 			closeVol := float64(vol) * it.ClosePercent * -1
-			tr, _, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now(), price, closeVol, 0, nil)
+			tr, _, err := NewOpenTrade(uuid.New(), TradeTypeClose, symbol, timeframe, time.Now().UTC(), price, closeVol, 0, nil)
 			if err != nil {
 				return nil, fmt.Errorf("BulkCloseRequest.Execute: failed to open NewTrade: %w", err)
 			}

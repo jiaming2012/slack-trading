@@ -41,11 +41,11 @@ func FetchCurrentPrice() chan float64 {
 
 func MinuteTimer(minuteInterval int) *time.Timer {
 	// Current time
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// Get the number of seconds until the next minute
 	var d time.Duration
-	minutes := float64(minuteInterval-1) - math.Mod(float64(time.Now().Minute()), float64(minuteInterval))
+	minutes := float64(minuteInterval-1) - math.Mod(float64(time.Now().UTC().Minute()), float64(minuteInterval))
 
 	// todo: remove this
 	d = (time.Second * time.Duration(60-now.Second())) + (time.Minute * time.Duration(minutes))
@@ -55,7 +55,7 @@ func MinuteTimer(minuteInterval int) *time.Timer {
 	nextTick := now.Add(d)
 
 	// Subtract next tick from now
-	diff := nextTick.Sub(time.Now())
+	diff := nextTick.Sub(time.Now().UTC())
 
 	// Return new ticker
 	return time.NewTimer(diff)
@@ -82,7 +82,7 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 				}
 
 				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.Tick{
-					Timestamp: time.Now(),
+					Timestamp: time.Now().UTC(),
 					Price:     price,
 				}, false)
 

@@ -168,7 +168,7 @@ func (a *Account) NewUUID() uuid.UUID {
 }
 
 func (a *Account) GetCurrentTime() time.Time {
-	return time.Now()
+	return time.Now().UTC()
 }
 
 func (a *Account) getStrategiesBalance() float64 {

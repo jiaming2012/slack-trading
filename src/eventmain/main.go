@@ -91,7 +91,7 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	//entrySignal2 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
 	//resetSignal2 := models.NewSignalV2("reset_rsiMA_crossed")
 
-	now := time.Now()
+	now := time.Now().UTC()
 	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band", now)
 	resetSignal3 := models.NewResetSignal("reset_rsi_crossed", entrySignal3, now)
 

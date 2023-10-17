@@ -35,7 +35,7 @@ func NewExitSignal(signal *SignalV2, resetSignal *ResetSignal) *ExitSignal {
 }
 
 func (s *ExitSignal) Update(signalType SignalType) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	switch signalType {
 	case SignalTypeExit:

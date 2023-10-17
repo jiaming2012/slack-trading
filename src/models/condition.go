@@ -24,7 +24,7 @@ type EntryCondition struct {
 }
 
 func (c *EntryCondition) UpdateState(isEntry bool) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	if isEntry {
 		c.EntrySignal.Update(true, now)
@@ -88,7 +88,7 @@ type ExitCondition struct {
 }
 
 func (c *ExitCondition) ResetReentrySignals() {
-	now := time.Now()
+	now := time.Now().UTC()
 	for _, s := range c.ReentrySignals {
 		s.Update(false, now)
 	}

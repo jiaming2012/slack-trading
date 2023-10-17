@@ -52,11 +52,11 @@ func (c *Candle) Update(price float64) {
 
 	c.Close = price
 
-	c.LastUpdated = time.Now()
+	c.LastUpdated = time.Now().UTC()
 }
 
 func NewCandle(price float64) *Candle {
-	timestamp := time.Now()
+	timestamp := time.Now().UTC()
 	return &Candle{
 		Timestamp:   timestamp,
 		LastUpdated: timestamp,

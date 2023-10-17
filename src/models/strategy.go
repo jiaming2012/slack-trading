@@ -43,7 +43,7 @@ func (s *Strategy) Validate() error {
 // UpdateExitConditions todo: test this
 func (s *Strategy) UpdateExitConditions(signalName string) int {
 	conditionsAffected := 0
-	now := time.Now()
+	now := time.Now().UTC()
 
 	for _, condition := range s.ExitConditions {
 		for _, exitSignal := range condition.ExitSignals {
@@ -522,6 +522,6 @@ func NewStrategyRaw(name string, symbol string, direction Direction, balance flo
 }
 
 func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
-	createdOn := time.Now()
+	createdOn := time.Now().UTC()
 	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, createdOn)
 }

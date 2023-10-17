@@ -141,7 +141,7 @@ func parseBTCTradeRequest(data url.Values) (eventmodels.TradeRequestEvent, error
 	params := strings.Fields(paramsPayload[0])
 
 	tradeReq := eventmodels.TradeRequestEvent{
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Symbol:    "btc",
 	}
 

@@ -51,7 +51,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 			case <-ctx.Done():
 				return
 			default:
-				c.SetReadDeadline(time.Now().Add(30 * time.Second))
+				c.SetReadDeadline(time.Now().UTC().Add(30 * time.Second))
 				_, message, err := c.ReadMessage()
 				if err != nil {
 					log.Errorf("ReadMessage(): %v", err)
@@ -117,7 +117,7 @@ func Subscribe() *WsSub {
 	productIDs := []string{"BTC-USD"}
 	channel := "ticker_batch"
 
-	ts := strconv.Itoa(int(time.Now().Unix()))
+	ts := strconv.Itoa(int(time.Now().UTC().Unix()))
 	strToSign := fmt.Sprintf("%s%s%s", ts, channel, strings.Join(productIDs, ","))
 
 	h := hmac.New(sha256.New, key)

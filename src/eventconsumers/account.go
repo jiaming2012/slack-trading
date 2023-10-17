@@ -197,7 +197,7 @@ func (w *AccountWorker) handleCloseTradesRequest(event *eventmodels.CloseTradeRe
 
 func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) {
 	tradeID := uuid.New()
-	now := time.Now()
+	now := time.Now().UTC()
 
 	strategy := event.Trade.PriceLevel.Strategy
 	datafeed := strategy.Account.Datafeed
@@ -232,7 +232,7 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 
 	clsTradeReq := event.CloseTradesRequest
 	tradeID := uuid.New()
-	now := time.Now()
+	now := time.Now().UTC()
 	datafeed := event.CloseTradesRequest.Strategy.Account.Datafeed
 
 	var requestPrc float64
@@ -299,7 +299,7 @@ func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 
 	req := event.OpenTradeRequest
 	tradeID := uuid.New()
-	now := time.Now()
+	now := time.Now().UTC()
 	datafeed := event.OpenTradeRequest.Strategy.Account.Datafeed
 
 	var requestPrc float64
@@ -493,7 +493,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 }
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
-	ts := time.Now()
+	ts := time.Now().UTC()
 	tick := models.Tick{
 		Timestamp: ts,
 		Bid:       ev.Bid,
