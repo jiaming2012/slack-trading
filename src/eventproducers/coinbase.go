@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 	"slack-trading/src/worker"
 	"sync"
 )
@@ -18,12 +19,18 @@ func (r *coinbaseClient) Start(ctx context.Context) {
 
 	// setup coinbase worker
 	ch := make(chan worker.CoinbaseDTO)
-	go worker.Run(ctx, ch)
+	workerContext := context.Background()
+	go worker.Run(workerContext, ch)
 
 	go func() {
 		defer r.wg.Done()
 		for {
 			select {
+			case <-workerContext.Done():
+				// todo: reduce log level
+				log.Errorf("Coinbase worker stopped. Resetting worker context ...")
+				workerContext = context.Background()
+				go worker.Run(workerContext, ch)
 			case <-ctx.Done():
 				fmt.Printf("\nstopping Coinbase producer\n")
 				return

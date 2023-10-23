@@ -86,7 +86,7 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 					Price:     price,
 				}, false)
 
-				// todo: should this be moved to a separate service?
+				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers
 				mu.Lock()
 				currentPrice = price
 				mu.Unlock()
