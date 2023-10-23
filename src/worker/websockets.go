@@ -68,10 +68,16 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 					}
 
 					c = newConn
+					continue
 				}
 
 				var update CoinbaseDTO
-				json.Unmarshal(message, &update)
+				err = json.Unmarshal(message, &update)
+				if err != nil {
+					log.Errorf("failed to unmarshal json: %v", err)
+					continue
+				}
+
 				if update.Channel == "ticker" || update.Channel == "ticker_batch" {
 					//if len(update.Events) > 0 {
 					//	log.Println(len(update.Events), update.Events[0].Type)
@@ -110,6 +116,7 @@ type CoinbaseDTO struct {
 }
 
 func Subscribe() *WsSub {
+	// todo: make this secret
 	const secret = "s2RceoHWEaLYxnaeOUm2tpmNLsELkaGy"
 	key := []byte(secret)
 
