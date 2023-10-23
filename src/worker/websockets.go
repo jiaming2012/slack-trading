@@ -25,6 +25,10 @@ func connect() (*websocket.Conn, error) {
 		return nil, err
 	}
 
+	if c == nil {
+		return nil, fmt.Errorf("failed to connect to websocket server: connection is nil")
+	}
+
 	sub := Subscribe()
 
 	c.WriteJSON(sub)
