@@ -2,12 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
@@ -17,9 +26,6 @@ import (
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
-	"sync"
-	"syscall"
-	"time"
 )
 
 /* Slack commands
@@ -141,7 +147,90 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	return accountFixtures, nil
 }
 
+type TestEvent struct {
+	Id            string `json:"id"`
+	ImportantData string `json:"importantData"`
+}
+
+func eventSourceDBSetup() {
+	// settings, err := esdb.ParseConnectionString("esdb://localhost:2113?tls=false")
+	settings, err := esdb.ParseConnectionString("esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000")
+
+	if err != nil {
+		panic(err)
+	}
+
+	db, err := esdb.NewClient(settings)
+
+	// ---- read event ----
+	stream, err := db.ReadStream(context.Background(), "some-stream", esdb.ReadStreamOptions{}, 10)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer stream.Close()
+
+	for {
+		event, err := stream.Recv()
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		// Doing something productive with the event
+		fmt.Println(event.Event.EventNumber)
+		fmt.Println(event.Event.EventType)
+		fmt.Println(event.Event.EventID)
+
+		var testEvent TestEvent
+		err = json.Unmarshal(event.Event.Data, &testEvent)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(testEvent)
+	}
+
+	// ---- write event ----
+	// testEvent := TestEvent{
+	// 	Id:            uuid.Must(uuid.NewV4()).String(),
+	// 	ImportantData: "I wrote my first event!",
+	// }
+
+	// data, err := json.Marshal(testEvent)
+
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// eventData := esdb.EventData{
+	// 	ContentType: esdb.JsonContentType,
+	// 	EventType:   "TestEvent",
+	// 	Data:        data,
+	// }
+
+	// _, err = db.AppendToStream(context.Background(), "some-stream", esdb.AppendToStreamOptions{}, eventData)
+
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+}
+
+func run2() {
+	eventSourceDBSetup()
+}
+
 func main() {
+	run()
+}
+
+func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup

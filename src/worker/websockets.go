@@ -17,6 +17,7 @@ import (
 )
 
 func connect() (*websocket.Conn, error) {
+	// todo: remove fixed url
 	u := url.URL{Scheme: "wss", Host: "advanced-trade-ws.coinbase.com", Path: "/"}
 	log.Printf("connecting to %s", u.String())
 

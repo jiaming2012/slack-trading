@@ -65,9 +65,6 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 
 	go WsTick(ctx, tickerCh)
 
-	// todo: figure out if we need this?
-	//go strategy.Worker()
-
 	for {
 		select {
 		case <-ctx.Done():
