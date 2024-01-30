@@ -235,6 +235,10 @@ func run() {
 
 	var wg sync.WaitGroup
 
+	// todo: move to environment variables
+	// Constants
+	iBServerURL := "wss://localhost:5000/v1/api/ws"
+
 	// Set up logger
 	log.SetLevel(log.DebugLevel)
 
@@ -290,6 +294,7 @@ func run() {
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
 	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
+	eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
 	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)

@@ -2,11 +2,12 @@ package eventproducers
 
 import (
 	"context"
-	"fmt"
+	"sync"
+
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/worker"
-	"sync"
 )
 
 type coinbaseClient struct {
@@ -32,7 +33,7 @@ func (r *coinbaseClient) Start(ctx context.Context) {
 				workerContext = context.Background()
 				go worker.Run(workerContext, ch)
 			case <-ctx.Done():
-				fmt.Printf("\nstopping Coinbase producer\n")
+				log.Infof("stopping Coinbase producer")
 				return
 			}
 		}

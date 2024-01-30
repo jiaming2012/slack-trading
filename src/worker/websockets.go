@@ -7,19 +7,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 func connect() (*websocket.Conn, error) {
 	// todo: remove fixed url
 	u := url.URL{Scheme: "wss", Host: "advanced-trade-ws.coinbase.com", Path: "/"}
-	log.Printf("connecting to %s", u.String())
+	log.Infof("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -27,12 +28,14 @@ func connect() (*websocket.Conn, error) {
 	}
 
 	if c == nil {
-		return nil, fmt.Errorf("failed to connect to websocket server: connection is nil")
+		return nil, fmt.Errorf("coinbase: failed to connect to websocket server: connection is nil")
 	}
 
-	sub := Subscribe()
+	payload := Subscribe()
 
-	c.WriteJSON(sub)
+	if err := c.WriteJSON(payload); err != nil {
+		return nil, fmt.Errorf("coinbase: connect: failed to write json: %v, using payload %v", err, payload)
+	}
 
 	return c, nil
 }
@@ -43,7 +46,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 
 	c, ConnErr := connect()
 	if ConnErr != nil {
-		log.Fatal("initial connect failed:", ConnErr)
+		log.Fatal("coinbase: initial connect failed:", ConnErr)
 	}
 
 	defer c.Close()
@@ -56,8 +59,10 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 			case <-ctx.Done():
 				return
 			default:
+				// Read from the websocket
 				c.SetReadDeadline(time.Now().UTC().Add(30 * time.Second))
 				_, message, err := c.ReadMessage()
+
 				if err != nil {
 					log.Errorf("ReadMessage(): %v", err)
 
@@ -76,6 +81,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 					continue
 				}
 
+				// Unmarshal the message
 				var update CoinbaseDTO
 				err = json.Unmarshal(message, &update)
 				if err != nil {
@@ -112,6 +118,7 @@ type CoinbaseEventDTO struct {
 	Tickers []CoinbaseTickerDTO `json:"tickers"`
 }
 
+// todo: move to models
 type CoinbaseDTO struct {
 	Channel        string             `json:"channel"`
 	ClientID       string             `json:"client_id"`
