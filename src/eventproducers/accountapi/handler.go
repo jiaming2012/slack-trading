@@ -70,7 +70,7 @@ func handleStrategies(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		w.WriteHeader(404)
 	} else if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(pubsub.CreateStrategyRequestEvent, &eventmodels.AccountsStrategiesPostRequest{}, &eventmodels.AccountsStrategiesPostRequest{}, w, r)
+		eventproducers.ApiRequestHandler(pubsub.CreateAccountStrategyRequestEvent, &eventmodels.CreateAccountStrategyRequestEvent{}, &eventmodels.CreateAccountStrategyResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

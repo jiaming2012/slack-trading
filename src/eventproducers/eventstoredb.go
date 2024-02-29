@@ -18,7 +18,7 @@ type eventStoreDBClient struct {
 	db *esdb.Client
 }
 
-func (cli *eventStoreDBClient) InsertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, eventType string, data []byte) error {
+func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, data []byte) error {
 	eventData := esdb.EventData{
 		ContentType: esdb.JsonContentType,
 		EventType:   string(eventName),
@@ -31,17 +31,28 @@ func (cli *eventStoreDBClient) InsertEvent(ctx context.Context, eventName pubsub
 	return err
 }
 
-func (cli *eventStoreDBClient) createAccountRequestHandler(request *eventmodels.CreateAccountRequestEvent) {
-	log.Debug("<- eventStoreDBClient.createAccountRequestHandler")
+func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
+	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
 
 	bytes, err := json.Marshal(request)
 	if err != nil {
-		pubsub.PublishRequestError("eventStoreDBClient", request, err)
+		pubsub.PublishError("eventStoreDBClient", err)
 		return
 	}
 
-	if err := cli.InsertEvent(context.Background(), pubsub.CreateAccountRequestEvent, "accounts", "CreateAccountRequestEvent", bytes); err != nil {
-		pubsub.PublishRequestError("eventStoreDBClient", request, err)
+	switch req := request.(type) {
+	case *eventmodels.CreateAccountRequestEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.CreateAccountRequestEvent, "accounts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient", req, err)
+			return
+		}
+	case *eventmodels.CreateAccountStrategyRequestEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.CreateAccountStrategyRequestEvent, "accounts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient", req, err)
+			return
+		}
+	default:
+		pubsub.PublishError("eventStoreDBClient.storeRequestEventHandler", fmt.Errorf("unknown request type: %T", request))
 		return
 	}
 }
@@ -50,43 +61,31 @@ func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subs
 	for {
 		payload := stream.Recv()
 
-		// if err, ok := esdb.FromError(err); !ok {
-		// 	if err.Code() == esdb.ErrorCodeResourceNotFound {
-		// 		fmt.Print("Stream not found")
-		// 	} else if errors.Is(err, io.EOF) {
-		// 		break
-		// 	} else {
-		// 		panic(err)
-		// 	}
-		// }
-		// if errors.Is(err, io.EOF) {
-		// 	log.Infof("exiting stream ...")
-		// 	return
-		// }
-
-		// if err != nil {
-		// 	log.Errorf("failed to read event: %v", err)
-		// }
-
-		// if event == nil {
-		// 	continue
-		// }
-
 		if payload.EventAppeared == nil {
 			continue
 		}
 
-		event := payload.EventAppeared.Event
+		ev := payload.EventAppeared.Event
 
-		switch event.EventType {
-		case "CreateAccountRequestEvent":
+		switch pubsub.EventName(ev.EventType) {
+		case pubsub.CreateAccountRequestEvent:
 			var request eventmodels.CreateAccountRequestEvent
-			if err := json.Unmarshal(event.Data, &request); err != nil {
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
 				pubsub.PublishError("eventStoreDBClient.CreateAccountRequestEvent", err)
 				continue
 			}
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountRequestEventStoredSuccess, &request)
+		case pubsub.CreateAccountStrategyRequestEvent:
+			var request eventmodels.CreateAccountStrategyRequestEvent
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
+				pubsub.PublishError("eventStoreDBClient.CreateAccountStrategyRequestEvent", err)
+				continue
+			}
+
+			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
+		default:
+			pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
 		}
 	}
 }
@@ -104,19 +103,18 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
 
-	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.createAccountRequestHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEvent, cli.storeRequestEventHandler)
 
 	streamNames := []string{"accounts"}
 	for _, streamName := range streamNames {
 		subscription, err := cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
 			From: esdb.Start{},
 		})
-		// stream, err := cli.db.ReadStream(ctx, streamName, esdb.ReadStreamOptions{}, 10)
+
 		if err != nil {
 			log.Panicf("failed to create stream: %v", err)
 		}
-
-		// defer subscription.Close()
 
 		go cli.readStream(ctx, subscription)
 	}

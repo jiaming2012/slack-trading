@@ -585,26 +585,26 @@ func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.Manual
 	pubsub.Publish("AccountWorker.handleManualDatafeedUpdateRequest", pubsub.ManualDatafeedUpdateResult, result)
 }
 
-func (w *AccountWorker) handleCreateStrategyRequest(ev *eventmodels.AccountsStrategiesPostRequest) {
+func (w *AccountWorker) createAccountStrategyRequestHandler(ev *eventmodels.CreateAccountStrategyRequestEvent) {
 	account, err := w.findAccount(ev.AccountName)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to find account: %w", err))
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to find account: %w", err))
 		return
 	}
 
 	strategy, err := models.NewStrategy(ev.Strategy.Name, ev.Strategy.Symbol, ev.Strategy.Direction, ev.Strategy.Balance, ev.Strategy.EntryConditions, ev.Strategy.ExitConditions, ev.Strategy.PriceLevels, account)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to create strategy: %w", err))
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to create strategy: %w", err))
 		return
 	}
 
 	if err := account.AddStrategy(strategy); err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to add strategy: %w", err))
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to add strategy: %w", err))
 		return
 	}
 
 	// todo: add the requestID as a parameter when dispatching to the event bus, instead of in the event itself
-	pubsub.PublishResult("AccountWorker.handleCreateStrategyRequest", pubsub.CreateStrategyResponseEvent, &eventmodels.AccountsStrategiesPostResponse{
+	pubsub.PublishResult("AccountWorker.createAccountStrategyRequestHandler", pubsub.CreateStrategyResponseEvent, &eventmodels.CreateAccountStrategyResponseEvent{
 		AccountsRequestHeader: eventmodels.AccountsRequestHeader{
 			RequestHeader: eventmodels.RequestHeader{
 				RequestID: ev.RequestHeader.RequestID,
@@ -633,7 +633,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
-	pubsub.Subscribe("AccountWorker", pubsub.CreateStrategyRequestEvent, w.handleCreateStrategyRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.CreateAccountStrategyRequestEventStoredSuccess, w.createAccountStrategyRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.CreateAccountRequestEventStoredSuccess, w.createAccountRequestHandler)
 
 	go func() {

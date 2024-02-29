@@ -11,25 +11,25 @@ import (
 	"slack-trading/src/models"
 )
 
-type AccountsStrategiesPostRequest struct {
+type CreateAccountStrategyRequestEvent struct {
 	AccountsRequestHeader
 	Strategy StrategiesPostRequest `json:"strategy"`
 }
 
-func (r *AccountsStrategiesPostRequest) Validate(request *http.Request) error {
+func (r *CreateAccountStrategyRequestEvent) Validate(request *http.Request) error {
 	if r.AccountName == "" {
-		return fmt.Errorf("AccountsStrategiesPostRequest.Validate: account name was not set")
+		return fmt.Errorf("CreateAccountsStrategiesRequestEvent.Validate: account name was not set")
 	}
 
 	return nil
 }
 
-func (r *AccountsStrategiesPostRequest) ParseHTTPRequest(request *http.Request) error {
+func (r *CreateAccountStrategyRequestEvent) ParseHTTPRequest(request *http.Request) error {
 	// Get the account name from the path parameters
 	vars := mux.Vars(request)
 	accountName, found := vars["accountName"]
 	if !found {
-		return fmt.Errorf("AccountsStrategiesPostRequest.Validate: could not find account name in path parameters")
+		return fmt.Errorf("CreateAccountsStrategiesRequestEvent.Validate: could not find account name in path parameters")
 	}
 
 	// Set request variables from path parameters
@@ -38,31 +38,31 @@ func (r *AccountsStrategiesPostRequest) ParseHTTPRequest(request *http.Request) 
 	// Decode the JSON request body into the map
 	var data map[string]json.RawMessage
 	if err := json.NewDecoder(request.Body).Decode(&data); err != nil {
-		return fmt.Errorf("AccountsStrategiesPostRequest.ParseHTTPRequest: failed to decode json: %w", err)
+		return fmt.Errorf("CreateAccountsStrategiesRequestEvent.ParseHTTPRequest: failed to decode json: %w", err)
 	}
 
 	var strategy json.RawMessage
 	if strategy, found = data["strategy"]; !found {
-		return fmt.Errorf("AccountsStrategiesPostRequest.ParseHTTPRequest: strategy was not found")
+		return fmt.Errorf("CreateAccountsStrategiesRequestEvent.ParseHTTPRequest: strategy was not found")
 	}
 
 	// Set request variables from json
 	if err := json.Unmarshal(strategy, &r.Strategy); err != nil {
-		return fmt.Errorf("AccountsStrategiesPostRequest.ParseHTTPRequest: failed to decode strategy: %w", err)
+		return fmt.Errorf("CreateAccountsStrategiesRequestEvent.ParseHTTPRequest: failed to decode strategy: %w", err)
 	}
 
 	return nil
 }
 
-func (r *AccountsStrategiesPostRequest) SetRequestID(id uuid.UUID) {
+func (r *CreateAccountStrategyRequestEvent) SetRequestID(id uuid.UUID) {
 	r.RequestID = id
 }
 
-func (r *AccountsStrategiesPostRequest) GetRequestID() uuid.UUID {
+func (r *CreateAccountStrategyRequestEvent) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
 
-type AccountsStrategiesPostResponse struct {
+type CreateAccountStrategyResponseEvent struct {
 	AccountsRequestHeader
 	Strategy *models.Strategy `json:"strategy"`
 }

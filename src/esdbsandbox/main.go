@@ -63,6 +63,7 @@ func main() {
 		fmt.Println(event.Event.EventNumber)
 		fmt.Println(event.Event.EventType)
 		fmt.Println(event.Event.EventID)
+		fmt.Println("--------------------")
 
 		var data map[string]interface{}
 		err = json.Unmarshal(event.Event.Data, &data)
