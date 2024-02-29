@@ -2,8 +2,10 @@ package eventpubsub
 
 import (
 	"fmt"
+
 	"github.com/asaskevich/EventBus"
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventmodels"
 )
 
@@ -21,6 +23,10 @@ func PublishRequestError[T eventmodels.RequestEvent](publisherName string, reque
 func PublishError(publisherName string, err error) {
 	log.Error(err)
 	Publish(publisherName, Error, err)
+}
+
+func PublishResult[T eventmodels.ResultEvent](publisherName string, topic EventName, event T) {
+	PublishWithFlags(publisherName, topic, event, true)
 }
 
 // Publish todo: only publish pointers to events

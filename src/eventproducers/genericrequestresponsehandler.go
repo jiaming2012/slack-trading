@@ -1,9 +1,11 @@
 package eventproducers
 
 import (
+	"net/http"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"net/http"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
@@ -11,6 +13,7 @@ import (
 
 type ApiRequest interface {
 	ParseHTTPRequest(r *http.Request) error
+	Validate(r *http.Request) error
 	SetRequestID(id uuid.UUID)
 }
 
@@ -57,14 +60,25 @@ func SignalRequestHandler[Request SignalRequest, Response any](eventName pubsub.
 
 func ApiRequestHandler[Request ApiRequest, Response any](eventName pubsub.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
-		if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
-			log.Errorf("GenericHandler: failed to set error response: %v", respErr)
+		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
+			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
 		}
 		return
 	}
 
+	if err := req.Validate(r); err != nil {
+		if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
+			log.Errorf("ApiRequestHandler: failed to validate http request: %v", respErr)
+		}
+		return
+	}
+
+	// save the request to eventstore db???
+	// document adding a new request endpoint
+
 	id := uuid.New()
 	req.SetRequestID(id)
+
 	resultCh, errCh := eventmodels.RegisterResultCallback(id)
 
 	pubsub.Publish("GenericHandler", eventName, req)

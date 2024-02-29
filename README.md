@@ -3,14 +3,24 @@ A mock trading platform.
 
 # Installation
 1. Make sure docker is running
-2. Run the interactive brokers daemon
+2. Install eventstoredb
+``` bash
+docker pull eventstore/eventstore:release-5.0.11
+```
+
+# Start Up
+3. Make sure eventstoredb is running
+``` bash
+cd eventstoredb
+docker-compose up
+```
+4. Run the interactive brokers daemon
 ``` bash
 cd path/to/grodt/interactive-brokers/clientportal
 ./bin/run.sh root/conf.yaml
 ```
 Open https://localhost:5000 to login
 
-3. Start eventstore db
 
 # Interactive brokers
 Common instructions for working with interactive brokers
@@ -19,11 +29,6 @@ Common instructions for working with interactive brokers
 
 ![Postman Request](interactive_brokers_fetch_new_symbol.png)
 
-``` bash
-cd eventstoredb
-docker pull eventstore/eventstore:release-5.0.11
-docker-compose up
-``````
 
 ## Google Sheets Authentication
 To authenticate, create a service account on Google Cloud. Under **Keys**, select "Add Key" -> "Create new key". Download and base64 the JSON credentials file, and set the environment variable `KEY_JSON_BASE64` to base64 string.

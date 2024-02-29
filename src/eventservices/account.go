@@ -2,12 +2,14 @@ package eventservices
 
 import (
 	"fmt"
+
 	"github.com/google/uuid"
+
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/models"
 )
 
-func UpdateExitConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) ([]*models.ExitConditionsSatisfied, error) {
+func UpdateExitConditions(accounts []*models.Account, newSignalRequest *models.SignalRequest) ([]*models.ExitConditionsSatisfied, error) {
 	var aggregatedExitConditionsSatisfied []*models.ExitConditionsSatisfied
 
 	for _, account := range accounts {
@@ -32,7 +34,7 @@ func UpdateExitConditions(accounts []models.Account, newSignalRequest *models.Si
 // UpdateEntryConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
 // the handler would emit both events if not nil
 // this allows updates to not mix with other operations
-func UpdateEntryConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) []*models.EntryConditionsSatisfied {
+func UpdateEntryConditions(accounts []*models.Account, newSignalRequest *models.SignalRequest) []*models.EntryConditionsSatisfied {
 	var entryConditionsSatisfied []*models.EntryConditionsSatisfied
 
 	for _, account := range accounts {
@@ -41,7 +43,7 @@ func UpdateEntryConditions(accounts []models.Account, newSignalRequest *models.S
 
 			if conditionsAffected > 0 {
 				if strategy.EntryConditionsSatisfied() {
-					entryConditionsSatisfied = append(entryConditionsSatisfied, models.NewEntryConditionsSatisfied(&account, &strategy))
+					entryConditionsSatisfied = append(entryConditionsSatisfied, models.NewEntryConditionsSatisfied(account, strategy))
 				}
 			}
 		}

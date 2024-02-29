@@ -18,6 +18,18 @@ type ExitSignalDTO struct {
 	ResetSignal *ResetSignal `json:"resetSignal"`
 }
 
+func (s *ExitSignalDTO) ToExitSignal() *ExitSignal {
+	var signal *SignalV2
+	if s.Signal != nil {
+		signal = s.Signal.ToSignalV2()
+	}
+
+	return &ExitSignal{
+		Signal:      signal,
+		ResetSignal: s.ResetSignal,
+	}
+}
+
 func (s *ExitSignal) ConvertToDTO() *ExitSignalDTO {
 	return &ExitSignalDTO{
 		Signal:      s.Signal.ConvertToDTO(),

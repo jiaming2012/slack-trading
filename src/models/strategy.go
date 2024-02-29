@@ -2,11 +2,12 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 type Strategy struct {
@@ -492,7 +493,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade, isClose bool) error {
 	return nil
 }
 
-func NewStrategyRaw(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account, createdOn time.Time) (*Strategy, error) {
+func NewStrategyRaw(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account, entryConditions []*EntryCondition, exitConditions []*ExitCondition, createdOn time.Time) (*Strategy, error) {
 	if balance <= 0 {
 		return nil, BalanceGreaterThanZeroErr
 	}
@@ -501,7 +502,8 @@ func NewStrategyRaw(name string, symbol string, direction Direction, balance flo
 		Name:            name,
 		Symbol:          symbol,
 		Direction:       direction,
-		EntryConditions: make([]*EntryCondition, 0),
+		EntryConditions: entryConditions,
+		ExitConditions:  exitConditions,
 		Balance:         balance,
 		Account:         account,
 		CreatedOn:       createdOn,
@@ -521,7 +523,28 @@ func NewStrategyRaw(name string, symbol string, direction Direction, balance flo
 	return strategy, nil
 }
 
-func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+func NewStrategy(name string, symbol string, direction Direction, balance float64, entryConditionInput []EntryConditionDTO, exitConditionInput []ExitConditionDTO, priceLevelInput []PriceLevelDTO, account *Account) (*Strategy, error) {
 	createdOn := time.Now().UTC()
-	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, createdOn)
+
+	priceLevels := make([]*PriceLevel, 0)
+	for _, pl := range priceLevelInput {
+		priceLevels = append(priceLevels, pl.ToPriceLevel())
+	}
+
+	entryConditions := make([]*EntryCondition, 0)
+	for _, ec := range entryConditionInput {
+		entryConditions = append(entryConditions, ec.ToEntryCondition())
+	}
+
+	exitConditions := make([]*ExitCondition, 0)
+	for _, ec := range exitConditionInput {
+		exitConditions = append(exitConditions, ec.ToExitCondition())
+	}
+
+	return NewStrategyRaw(name, symbol, direction, balance, priceLevels, account, entryConditions, exitConditions, createdOn)
+}
+
+func NewStrategyDeprecated(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+	createdOn := time.Now().UTC()
+	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, nil, nil, createdOn)
 }

@@ -55,10 +55,74 @@ All of the following:.................................................... no
 
 // {"header": {"timeframe": "m5", "signal": "%alert_name%", "symbol": "%alert_symbol%", "price_action_event": "%price_action_event%"}, "data": {"price": "%last_price%", "direction": "up"}}
 
-
 */
 
-func loadAccountFixtures() ([]*models.Account, error) {
+func loadAccountFixtures2(datafeed *models.Datafeed) (*models.Account, error) {
+	// todo: fetch from database
+	balance := 2000.0
+	priceLevels := []*models.PriceLevel{
+		{
+			Price:                63.605,
+			MaxNoOfTrades:        8,
+			AllocationPercent:    0.7,
+			StopLoss:             63.0,
+			MinimumTradeDistance: 0.5,
+		},
+		{
+			Price:                83.485,
+			MaxNoOfTrades:        3,
+			AllocationPercent:    0.3,
+			StopLoss:             71,
+			MinimumTradeDistance: 0.5,
+		},
+		{
+			Price: 93.729,
+		},
+	}
+
+	account, err := models.NewAccount("oil playground", balance, datafeed)
+	if err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	strategy1, err := models.NewStrategyDeprecated("elliot wave", "/CL", models.Up, balance, priceLevels, account)
+	if err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	now := time.Now().UTC()
+	entrySignal := models.NewSignalV2("push_up", now)
+	resetSignal := models.NewResetSignal("stall", entrySignal, now)
+
+	strategy1.AddEntryCondition(entrySignal, resetSignal)
+
+	exitSignal1 := models.NewSignalV2("sqzmom_pivot_down", now)
+	exitSignals := []*models.ExitSignal{
+		{
+			Signal:      exitSignal1,
+			ResetSignal: models.NewResetSignal("sqzmom_pivot_up", exitSignal1, now),
+		},
+	}
+
+	exitReentrySignals := []*models.SignalV2{
+		models.NewSignalV2("sqzmom_pivot_up", now),
+	}
+
+	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+
+	maxTriggerCount := 3
+	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitReentrySignals, exitConstraints, .25, &maxTriggerCount)
+	strategy1.AddExitCondition("momentum_level_1", 1, exitSignals, exitReentrySignals, exitConstraints, .25, &maxTriggerCount)
+
+	if err = account.AddStrategy(strategy1); err != nil {
+		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
+	}
+
+	return account, nil
+}
+
+func loadAccountFixtures1(datafeed *models.Datafeed) (*models.Account, error) {
 	// todo: fetch from database
 	balance := 2000.0
 	priceLevels := []*models.PriceLevel{
@@ -81,12 +145,12 @@ func loadAccountFixtures() ([]*models.Account, error) {
 		},
 	}
 
-	account, err := models.NewAccount("playground", balance, models.NewDatafeed(models.CoinbaseDatafeed))
+	account, err := models.NewAccount("btc playground", balance, datafeed)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	strategy1, err := models.NewStrategy("rsi-crossed-over-upper-band", "BTC-USD", models.Down, balance, priceLevels, account)
+	strategy1, err := models.NewStrategyDeprecated("rsi-crossed-over-upper-band", "BTC-USD", models.Down, balance, priceLevels, account)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
@@ -136,15 +200,11 @@ func loadAccountFixtures() ([]*models.Account, error) {
 	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitReentrySignals, exitConstraints, .5, &maxTriggerCount)
 	strategy1.AddExitCondition("momentum_level_1", 1, exitSignals, exitReentrySignals, exitConstraints, .5, &maxTriggerCount)
 
-	accountFixtures := []*models.Account{
-		account,
-	}
-
-	if err = accountFixtures[0].AddStrategy(*strategy1); err != nil {
+	if err = account.AddStrategy(strategy1); err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	return accountFixtures, nil
+	return account, nil
 }
 
 type TestEvent struct {
@@ -238,6 +298,7 @@ func run() {
 	// todo: move to environment variables
 	// Constants
 	iBServerURL := "wss://localhost:5000/v1/api/ws"
+	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
 
 	// Set up logger
 	log.SetLevel(log.DebugLevel)
@@ -263,6 +324,7 @@ func run() {
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
+	// strategyapi.SetupHandler(router.PathPrefix("/strategies").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{
@@ -285,10 +347,24 @@ func run() {
 	signal.Notify(stop, os.Interrupt)
 	signal.Notify(stop, syscall.SIGTERM)
 
-	accountFixtures, err := loadAccountFixtures()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Create datafeeds
+	coinbaseDatafeed := models.NewDatafeed(models.CoinbaseDatafeed)
+	ibDatafeed := models.NewDatafeed(models.IBDatafeed)
+	manualDatafeed := models.NewDatafeed(models.ManualDatafeed)
+
+	// Load account fixtures
+	// account1, err := loadAccountFixtures1(coinbaseDatafeed)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// account2, err := loadAccountFixtures2(ibDatafeed)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// accounts := []*models.Account{account1, account2}
+	accounts := make([]*models.Account, 0)
 
 	// Start event clients
 	//eventproducers.NewReportClient(&wg).Start(ctx)
@@ -302,8 +378,9 @@ func run() {
 	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accountFixtures, models.CoinbaseDatafeed).Start(ctx)
+	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
 	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
+	eventproducers.NewEventStoreDBClient(&wg).Start(ctx, eventStoreDbURL)
 
 	log.Info("Main: init complete")
 

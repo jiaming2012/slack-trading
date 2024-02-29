@@ -3,8 +3,9 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 type SignalRequest struct {
@@ -31,6 +32,14 @@ func (r *SignalRequest) SetRequestID(id uuid.UUID) {
 
 func (r *SignalRequest) GetSource() RequestSource {
 	return r.Source
+}
+
+func (r *SignalRequest) Validate(req *http.Request) error {
+	if r.Name == "" {
+		return fmt.Errorf("SignalRequest.Validate: name was not set")
+	}
+
+	return nil
 }
 
 func (r *SignalRequest) ParseHTTPRequest(req *http.Request) error {

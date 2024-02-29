@@ -2,10 +2,13 @@ package eventmodels
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
+	"fmt"
 	"net/http"
-	"slack-trading/src/models"
 	"time"
+
+	"github.com/google/uuid"
+
+	"slack-trading/src/models"
 )
 
 type ManualDatafeedUpdateRequest struct {
@@ -13,6 +16,22 @@ type ManualDatafeedUpdateRequest struct {
 	Symbol    string    `json:"symbol"`
 	Bid       float64   `json:"bid"`
 	Ask       float64   `json:"ask"`
+}
+
+func (r *ManualDatafeedUpdateRequest) Validate(req *http.Request) error {
+	if r.Symbol == "" {
+		return fmt.Errorf("ManualDatafeedUpdateRequest.Validate: symbol was not set")
+	}
+
+	if r.Bid <= 0 {
+		return fmt.Errorf("ManualDatafeedUpdateRequest.Validate: bid was not set")
+	}
+
+	if r.Ask <= 0 {
+		return fmt.Errorf("ManualDatafeedUpdateRequest.Validate: ask was not set")
+	}
+
+	return nil
 }
 
 func (r *ManualDatafeedUpdateRequest) ParseHTTPRequest(req *http.Request) error {

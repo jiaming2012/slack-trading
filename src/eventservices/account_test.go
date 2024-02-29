@@ -1,11 +1,12 @@
 package eventservices
 
 import (
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"slack-trading/src/models"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateConditions(t *testing.T) {
@@ -46,7 +47,7 @@ func TestUpdateConditions(t *testing.T) {
 		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		entrySignalName := "entry1"
@@ -67,7 +68,7 @@ func TestUpdateConditions(t *testing.T) {
 		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels, nil)
+		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, nil)
 		assert.NoError(t, err)
 
 		entrySignalName := "entry1"
@@ -87,7 +88,7 @@ func TestUpdateConditions(t *testing.T) {
 		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		entryCondition1 := models.SignalV2{Name: "entry1"}
@@ -110,7 +111,7 @@ func TestUpdateConditions(t *testing.T) {
 		account, err := models.NewAccount("test account", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(strategyName, symbol, models.Down, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		entryCondition1 := models.SignalV2{Name: "entry1"}
@@ -175,7 +176,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -238,7 +239,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -294,7 +295,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -399,7 +400,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -461,7 +462,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -517,7 +518,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -630,7 +631,7 @@ func TestFetchTrades(t *testing.T) {
 		account, err := models.NewAccount("testAccount", 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := models.NewStrategy(name, symbol, direction, 100, priceLevels, account)
+		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)

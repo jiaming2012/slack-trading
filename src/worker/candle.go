@@ -2,13 +2,16 @@ package worker
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"math"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
 	"strconv"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventpubsub"
+	"slack-trading/src/models"
 )
 
 const (
@@ -78,10 +81,11 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 					panic(err)
 				}
 
-				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.Tick{
-					Timestamp: time.Now().UTC(),
-					Price:     price,
-				}, false)
+				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
+					time.Now().UTC(),
+					price,
+					models.CoinbaseDatafeed,
+				), false)
 
 				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers
 				mu.Lock()

@@ -2,19 +2,22 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
+	"log"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Account struct {
-	Name       string     `json:"name"`
-	Balance    float64    `json:"balance"`
-	Strategies []Strategy `json:"strategies"`
-	Datafeed   *Datafeed  `json:"datafeed"`
-	mutex      sync.Mutex `json:"-"`
+	Name       string      `json:"name"`
+	Balance    float64     `json:"balance"`
+	Strategies []*Strategy `json:"strategies"`
+	Datafeed   *Datafeed   `json:"datafeed"`
+	mutex      sync.Mutex  `json:"-"`
 }
 
 /* todo: change account model:
@@ -87,7 +90,7 @@ func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 				if tick.Ask <= level.StopLoss {
 					if level.Trades.OpenTrades().Count() > 0 {
 						requests = append(requests, &CloseTradesRequest{
-							Strategy:        &strategy,
+							Strategy:        strategy,
 							Timeframe:       nil,
 							PriceLevelIndex: levelIndex,
 							Reason:          "sl",
@@ -99,7 +102,7 @@ func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 				if tick.Bid >= level.StopLoss {
 					if level.Trades.OpenTrades().Count() > 0 {
 						requests = append(requests, &CloseTradesRequest{
-							Strategy:        &strategy,
+							Strategy:        strategy,
 							Timeframe:       nil,
 							PriceLevelIndex: levelIndex,
 							Reason:          "sl",
@@ -147,7 +150,7 @@ func (a *Account) CheckStopOut(tick Tick) ([]*CloseTradesRequest, error) {
 		if pl <= -s.Balance {
 			for priceLevelIndex, level := range s.PriceLevels.Bands {
 				if level.Trades.Count() > 0 {
-					req, err := NewCloseTradesRequest(&s, nil, priceLevelIndex, 1.0, "stop out")
+					req, err := NewCloseTradesRequest(s, nil, priceLevelIndex, 1.0, "stop out")
 					if err != nil {
 						return nil, fmt.Errorf("checkStopOut: new close trades request failed: %w", err)
 					}
@@ -181,7 +184,7 @@ func (a *Account) getStrategiesBalance() float64 {
 	return balance
 }
 
-func (a *Account) AddStrategy(strategy Strategy) error {
+func (a *Account) AddStrategy(strategy *Strategy) error {
 	for _, s := range a.Strategies {
 		if strategy.Name == s.Name {
 			return fmt.Errorf("Account.AddStrategy: strategy name %v must be unique", strategy.Name)
@@ -200,7 +203,7 @@ func (a *Account) AddStrategy(strategy Strategy) error {
 func (a *Account) FindStrategy(strategyName string) (*Strategy, error) {
 	for _, s := range a.Strategies {
 		if strategyName == s.Name {
-			return &s, nil
+			return s, nil
 		}
 	}
 
@@ -265,6 +268,17 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 }
 
 func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, error) {
+	switch datafeed.Name {
+	case CoinbaseDatafeed:
+	case IBDatafeed:
+	case ManualDatafeed:
+		if os.Getenv("ENV") == "PRODUCTION" {
+			log.Fatalf("cannot use manual datafeed in production")
+		}
+	default:
+		log.Fatalf("unknown datafeedName: %v", datafeed.Name)
+	}
+
 	return &Account{
 		Name:     name,
 		Balance:  balance,

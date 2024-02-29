@@ -4,21 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"os"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
 	"slack-trading/src/models"
-	"sync"
-	"time"
 )
 
 type AccountWorker struct {
 	wg               *sync.WaitGroup
 	accounts         []*models.Account
 	coinbaseDatafeed *models.Datafeed
+	ibDatafeed       *models.Datafeed
 	manualDatafeed   *models.Datafeed
 }
 
@@ -26,25 +28,43 @@ func (w *AccountWorker) monitorTrades() {
 
 }
 
-func (w *AccountWorker) getAccounts() []models.Account {
-	var accounts []models.Account
+func (w *AccountWorker) getAccounts() []*models.Account {
+	var accounts []*models.Account
 
 	for _, acc := range w.accounts {
-		accounts = append(accounts, *acc)
+		accounts = append(accounts, acc)
 	}
 
 	return accounts
 }
 
+// todo: add a mutex
+func (w *AccountWorker) addAccountWithoutStrategy(account *models.Account, balance float64) error {
+
+	for _, acc := range w.accounts {
+		if acc.Name == account.Name {
+			return fmt.Errorf("AccountWorker.addAccountWithoutStrategy: account with name %v already exists", account.Name)
+		}
+	}
+
+	w.accounts = append(w.accounts, account)
+
+	return nil
+}
+
+// todo: remove this
 func (w *AccountWorker) addAccount(account *models.Account, balance float64, priceLevels []*models.PriceLevel) error {
-	strategy, err := models.NewStrategy("trendline-break", "BTC-USD", "down", balance, priceLevels, account)
+
+	strategy, err := models.NewStrategyDeprecated("trendline-break", "BTC-USD", "down", balance, priceLevels, account)
 	if err != nil {
 		return err
 	}
 
-	account.AddStrategy(*strategy)
+	account.AddStrategy(strategy)
 
-	w.accounts = append(w.accounts, account)
+	if err := w.addAccountWithoutStrategy(account, balance); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -57,6 +77,40 @@ func (w *AccountWorker) findAccount(name string) (*models.Account, error) {
 	}
 
 	return nil, fmt.Errorf("AccountWorker.findAccount: could not find account with name %v", name)
+}
+
+func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateAccountRequestEvent) {
+	log.Debug("<- AccountWorker.createAccountRequestHandler")
+
+	var datafeed *models.Datafeed
+	switch request.DatafeedName {
+	case models.CoinbaseDatafeed:
+		datafeed = w.coinbaseDatafeed
+	case models.IBDatafeed:
+		datafeed = w.ibDatafeed
+	case models.ManualDatafeed:
+		datafeed = w.manualDatafeed
+	default:
+		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", request, fmt.Errorf("datafeed source: %v", request.DatafeedName))
+		return
+	}
+
+	account, err := models.NewAccount(request.Name, request.Balance, datafeed)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", request, err)
+		return
+	}
+
+	err = w.addAccountWithoutStrategy(account, request.Balance)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.addAccountWithoutStrategy", request, err)
+		return
+	}
+
+	pubsub.Publish("AccountWorker.createAccountRequestHandler", pubsub.CreateAccountResponseEvent, &eventmodels.CreateAccountResponseEvent{
+		RequestID: request.RequestID,
+		Account:   account,
+	})
 }
 
 func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountRequestEvent) {
@@ -72,7 +126,19 @@ func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountR
 		})
 	}
 
-	account, err := models.NewAccount(request.Name, request.Balance, nil)
+	var datafeed *models.Datafeed
+	switch request.DatafeedName {
+	case models.CoinbaseDatafeed:
+		datafeed = w.coinbaseDatafeed
+	case models.IBDatafeed:
+		datafeed = w.ibDatafeed
+	case models.ManualDatafeed:
+		datafeed = w.manualDatafeed
+	default:
+		pubsub.PublishError("AccountWorker.addAccountHandler", fmt.Errorf("datafeed source: %v", request.DatafeedName))
+	}
+
+	account, err := models.NewAccount(request.Name, request.Balance, datafeed)
 	if err != nil {
 		pubsub.PublishError("AccountWorker.addAccountHandler", err)
 		return
@@ -84,8 +150,8 @@ func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountR
 		return
 	}
 
-	pubsub.Publish("AccountWorker.addAccountHandler", pubsub.AddAccountResponseEvent, eventmodels.AddAccountResponseEvent{
-		Account: *account,
+	pubsub.Publish("AccountWorker.addAccountHandler", pubsub.AddAccountResponseEvent, &eventmodels.AddAccountResponseEvent{
+		Account: account,
 	})
 }
 
@@ -119,13 +185,25 @@ func (w *AccountWorker) checkTradeCloseParameters() ([]*models.CloseTradesReques
 	return closeTradesRequests, closeTradeRequests, nil
 }
 
-func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
+func (w *AccountWorker) updateTickMachine(tick *eventmodels.Tick) {
 	// todo: eventually update based off level 2 quotes to get bid and ask
-	w.coinbaseDatafeed.Update(models.Tick{
+	t := models.Tick{
 		Timestamp: tick.Timestamp,
 		Bid:       tick.Price,
 		Ask:       tick.Price,
-	})
+	}
+
+	switch tick.Source {
+	case models.CoinbaseDatafeed:
+		w.coinbaseDatafeed.Update(t)
+	case models.IBDatafeed:
+		w.ibDatafeed.Update(t)
+	// todo: current updates in different section of code. Should be refactored to update in the same place
+	// case models.ManualDatafeed:
+	// 	w.manualDatafeed.Update(t)
+	default:
+		log.Fatalf("unknown datafeed source: %v", tick.Source)
+	}
 }
 
 func (w *AccountWorker) update() {
@@ -274,25 +352,25 @@ func (w *AccountWorker) handleAutoExecuteTrade(event *eventmodels.AutoExecuteTra
 	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.ExecuteCloseTradesResult, executeCloseTradesResult)
 }
 
-func (w *AccountWorker) getMarketPrice(strategy *models.Strategy, isClose bool) float64 {
-	tick := w.coinbaseDatafeed.Tick()
-	var requestPrc float64
-	if strategy.Direction == models.Up {
-		if isClose {
-			requestPrc = tick.Bid
-		} else {
-			requestPrc = tick.Ask
-		}
-	} else if strategy.Direction == models.Down {
-		if isClose {
-			requestPrc = tick.Ask
-		} else {
-			requestPrc = tick.Bid
-		}
-	}
+// func (w *AccountWorker) getMarketPrice(strategy *models.Strategy, isClose bool) float64 {
+// 	tick := w.coinbaseDatafeed.Tick()
+// 	var requestPrc float64
+// 	if strategy.Direction == models.Up {
+// 		if isClose {
+// 			requestPrc = tick.Bid
+// 		} else {
+// 			requestPrc = tick.Ask
+// 		}
+// 	} else if strategy.Direction == models.Down {
+// 		if isClose {
+// 			requestPrc = tick.Ask
+// 		} else {
+// 			requestPrc = tick.Bid
+// 		}
+// 	}
 
-	return requestPrc
-}
+// 	return requestPrc
+// }
 
 func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
 	log.Debug("<- AccountWorker.handleExecuteNewOpenTradeRequest")
@@ -507,8 +585,40 @@ func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.Manual
 	pubsub.Publish("AccountWorker.handleManualDatafeedUpdateRequest", pubsub.ManualDatafeedUpdateResult, result)
 }
 
+func (w *AccountWorker) handleCreateStrategyRequest(ev *eventmodels.AccountsStrategiesPostRequest) {
+	account, err := w.findAccount(ev.AccountName)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to find account: %w", err))
+		return
+	}
+
+	strategy, err := models.NewStrategy(ev.Strategy.Name, ev.Strategy.Symbol, ev.Strategy.Direction, ev.Strategy.Balance, ev.Strategy.EntryConditions, ev.Strategy.ExitConditions, ev.Strategy.PriceLevels, account)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to create strategy: %w", err))
+		return
+	}
+
+	if err := account.AddStrategy(strategy); err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleCreateStrategyRequest", ev, fmt.Errorf("failed to add strategy: %w", err))
+		return
+	}
+
+	// todo: add the requestID as a parameter when dispatching to the event bus, instead of in the event itself
+	pubsub.PublishResult("AccountWorker.handleCreateStrategyRequest", pubsub.CreateStrategyResponseEvent, &eventmodels.AccountsStrategiesPostResponse{
+		AccountsRequestHeader: eventmodels.AccountsRequestHeader{
+			RequestHeader: eventmodels.RequestHeader{
+				RequestID: ev.RequestHeader.RequestID,
+			},
+			AccountName: ev.AccountName,
+		},
+		Strategy: strategy,
+	})
+}
+
 func (w *AccountWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
+
+	// task: *** create an AccountManager to hold each account worker and subscribe to events
 
 	pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, w.addAccountRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.getAccountsRequestHandler)
@@ -523,6 +633,8 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
+	pubsub.Subscribe("AccountWorker", pubsub.CreateStrategyRequestEvent, w.handleCreateStrategyRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.CreateAccountRequestEventStoredSuccess, w.createAccountRequestHandler)
 
 	go func() {
 		defer w.wg.Done()
@@ -541,31 +653,12 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.Account, datafeedName models.DatafeedName) *AccountWorker {
-	coinbaseDatafeed := models.NewDatafeed(models.CoinbaseDatafeed)
-	manualDatafeed := models.NewDatafeed(models.ManualDatafeed)
-
-	switch datafeedName {
-	case models.CoinbaseDatafeed:
-		for _, acc := range accounts {
-			acc.Datafeed = coinbaseDatafeed
-		}
-	case models.ManualDatafeed:
-		if os.Getenv("ENV") == "PRODUCTION" {
-			log.Fatalf("cannot use manual datafeed in production")
-		}
-
-		for _, acc := range accounts {
-			acc.Datafeed = manualDatafeed
-		}
-	default:
-		log.Fatalf("unknown datafeedName: %v", datafeedName)
-	}
-
+func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.Account, coinbaseDatafeed *models.Datafeed, ibDatafeed *models.Datafeed, manualDatafeed *models.Datafeed) *AccountWorker {
 	return &AccountWorker{
 		wg:               wg,
 		accounts:         accounts,
 		coinbaseDatafeed: coinbaseDatafeed,
+		ibDatafeed:       ibDatafeed,
 		manualDatafeed:   manualDatafeed,
 	}
 }
@@ -575,6 +668,7 @@ func NewAccountWorkerClient(wg *sync.WaitGroup) *AccountWorker {
 		wg:               wg,
 		accounts:         make([]*models.Account, 0),
 		coinbaseDatafeed: models.NewDatafeed(models.CoinbaseDatafeed),
+		ibDatafeed:       models.NewDatafeed(models.IBDatafeed),
 		manualDatafeed:   models.NewDatafeed(models.ManualDatafeed),
 	}
 }

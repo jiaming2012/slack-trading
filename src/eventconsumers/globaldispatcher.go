@@ -3,10 +3,12 @@ package eventconsumers
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
-	"sync"
 )
 
 type GlobalDispatchWorker struct {
@@ -53,6 +55,8 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.NewSignalsResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ManualDatafeedUpdateResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()

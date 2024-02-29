@@ -2,13 +2,21 @@ package models
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type EntryConditionDTO struct {
 	EntrySignal *SignalV2DTO `json:"entrySignal"`
 	ResetSignal *ResetSignal `json:"resetSignal"`
+}
+
+func (c *EntryConditionDTO) ToEntryCondition() *EntryCondition {
+	return &EntryCondition{
+		EntrySignal: c.EntrySignal.ToSignalV2(),
+		ResetSignal: c.ResetSignal,
+	}
 }
 
 func (c *EntryCondition) ConvertToDTO() *EntryConditionDTO {
@@ -49,6 +57,30 @@ type ExitConditionDTO struct {
 	TriggerCount           int               `json:"triggerCount"`
 	ClosePercent           ClosePercent      `json:"closePercent"`
 	AwaitingReentrySignals bool              `json:"awaitingReentrySignals"`
+}
+
+func (c *ExitConditionDTO) ToExitCondition() *ExitCondition {
+	var exitSignals []*ExitSignal
+	for _, s := range c.ExitSignals {
+		exitSignals = append(exitSignals, s.ToExitSignal())
+	}
+
+	var reentrySignals []*SignalV2
+	for _, s := range c.ReentrySignals {
+		reentrySignals = append(reentrySignals, s.ToSignalV2())
+	}
+
+	return &ExitCondition{
+		Name:                   c.Name,
+		ExitSignals:            exitSignals,
+		ReentrySignals:         reentrySignals,
+		Constraints:            c.Constraints,
+		LevelIndex:             c.LevelIndex,
+		MaxTriggerCount:        c.MaxTriggerCount,
+		TriggerCount:           c.TriggerCount,
+		ClosePercent:           c.ClosePercent,
+		AwaitingReentrySignals: c.AwaitingReentrySignals,
+	}
 }
 
 func (c *ExitCondition) ConvertToDTO() *ExitConditionDTO {

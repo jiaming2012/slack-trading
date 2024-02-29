@@ -11,6 +11,14 @@ type SignalV2DTO struct {
 	LastUpdated time.Time `json:"lastUpdated"`
 }
 
+func (s *SignalV2DTO) ToSignalV2() *SignalV2 {
+	return &SignalV2{
+		Name:        s.Name,
+		isSatisfied: s.IsSatisfied,
+		lastUpdated: s.LastUpdated,
+	}
+}
+
 type SignalV2 struct {
 	Name        string `json:"name"`
 	isSatisfied bool

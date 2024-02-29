@@ -1,11 +1,12 @@
 package eventservices
 
 import (
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"slack-trading/src/models"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRealizedDrawdown(t *testing.T) {
@@ -55,12 +56,12 @@ func TestRealizedDrawdown(t *testing.T) {
 	account, err := models.NewAccount("testAccount", 1000, nil)
 	assert.NoError(t, err)
 
-	buyStrategy, err := models.NewStrategy("longStrategy", symbol, models.Up, 100, priceLevelsUp, account)
+	buyStrategy, err := models.NewStrategyDeprecated("longStrategy", symbol, models.Up, 100, priceLevelsUp, account)
 	assert.NoError(t, err)
 	err = account.AddStrategy(*buyStrategy)
 	assert.NoError(t, err)
 
-	sellStrategy, err := models.NewStrategy("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
+	sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
 	assert.NoError(t, err)
 	err = account.AddStrategy(*sellStrategy)
 	assert.NoError(t, err)

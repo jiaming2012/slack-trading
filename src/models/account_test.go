@@ -1,10 +1,11 @@
 package models
 
 import (
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAccountStrategy(t *testing.T) {
@@ -35,13 +36,13 @@ func TestAccountStrategy(t *testing.T) {
 		account, err := NewAccount(name, 1000, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
 		assert.NoError(t, err)
 
-		strategy2, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
+		strategy2, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy2)
@@ -107,7 +108,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -134,7 +135,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, Down, balance/2.0, newDownPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance/2.0, newDownPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -161,7 +162,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -213,7 +214,7 @@ func TestPlacingTrades(t *testing.T) {
 
 		account, err := NewAccount(name, balance, nil)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevels, account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -243,7 +244,7 @@ func TestPlacingTrades(t *testing.T) {
 		curPrice := 1.5
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -291,7 +292,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -320,7 +321,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -341,7 +342,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -379,7 +380,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -408,7 +409,7 @@ func TestPlacingTrades(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -470,7 +471,7 @@ func TestUpdate(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, priceLevel, account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevel, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -518,7 +519,7 @@ func TestUpdate(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, Up, balance, priceLevels, account)
+		strategy, err := NewStrategyDeprecated(name, symbol, Up, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -577,7 +578,7 @@ func TestUpdate(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, Down, balance, priceLevels, account)
+		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance, priceLevels, account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -652,7 +653,7 @@ func TestTradeValidation(t *testing.T) {
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)
@@ -666,7 +667,7 @@ func TestTradeValidation(t *testing.T) {
 		account, err := NewAccount(name, balance, nil)
 		assert.NoError(t, err)
 
-		strategy, err := NewStrategy(name, symbol, direction, balance/2.0, newPriceLevels(), account)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newPriceLevels(), account)
 		assert.NoError(t, err)
 
 		err = account.AddStrategy(*strategy)

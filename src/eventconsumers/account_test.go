@@ -1,10 +1,11 @@
 package eventconsumers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"slack-trading/src/models"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel, datafeed *models.Datafeed) ([]*models.Account, error) {
@@ -13,7 +14,7 @@ func createAccountFixtures(accountName string, symbol string, direction models.D
 		return nil, err
 	}
 
-	trendlineBreakStrategyFixture, err := models.NewStrategy(strategyName, symbol, direction, balance, priceLevels, accountFixture)
+	trendlineBreakStrategyFixture, err := models.NewStrategyDeprecated(strategyName, symbol, direction, balance, priceLevels, accountFixture)
 	if err != nil {
 		return nil, err
 	}
