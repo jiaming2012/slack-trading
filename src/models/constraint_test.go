@@ -1,11 +1,12 @@
 package models
 
 import (
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSignalConstraints_Validate(t *testing.T) {
@@ -82,14 +83,13 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 		}
 
 		exitCondition := ExitCondition{
-			ExitSignals:            nil,
-			ReentrySignals:         nil,
-			Constraints:            nil,
-			LevelIndex:             0,
-			MaxTriggerCount:        nil,
-			TriggerCount:           0,
-			ClosePercent:           0,
-			AwaitingReentrySignals: false,
+			ExitSignals:     nil,
+			ReentrySignals:  nil,
+			Constraints:     nil,
+			LevelIndex:      0,
+			MaxTriggerCount: nil,
+			TriggerCount:    0,
+			ClosePercent:    0,
 		}
 
 		params := map[string]interface{}{

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -41,15 +42,23 @@ func main() {
 	}
 
 	// ---- read event ----
-	stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{}, 10)
+	// stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{}, 12)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	subscription, err := db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
+		From: esdb.Start{},
+	})
+
 	if err != nil {
 		panic(err)
 	}
 
-	defer stream.Close()
+	// defer stream.Close()
 
 	for {
-		event, err := stream.Recv()
+		// event, err := stream.Recv()
+		event := subscription.Recv()
 
 		if errors.Is(err, io.EOF) {
 			break
@@ -59,18 +68,35 @@ func main() {
 			panic(err)
 		}
 
+		ev := event.EventAppeared.Event
+
 		// Doing something productive with the event
-		fmt.Println(event.Event.EventNumber)
-		fmt.Println(event.Event.EventType)
-		fmt.Println(event.Event.EventID)
-		fmt.Println("--------------------")
+		fmt.Println(ev.EventNumber)
+		fmt.Println(ev.EventType)
+		fmt.Println(ev.EventID)
 
 		var data map[string]interface{}
-		err = json.Unmarshal(event.Event.Data, &data)
+		err = json.Unmarshal(ev.Data, &data)
 		if err != nil {
 			panic(err)
 		}
 
 		fmt.Println(data)
+
+		if reqId, found := data["requestID"]; found {
+			id, err := uuid.Parse(reqId.(string))
+			if err == nil {
+				// Convert the UUID to a byte slice
+				binary := id[:]
+
+				// Print the binary representation
+				fmt.Printf("requestID (binary): %#v\n", binary)
+			} else {
+				fmt.Println("error:", err)
+				continue
+			}
+		}
+
+		fmt.Println("--------------------")
 	}
 }

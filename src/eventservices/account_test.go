@@ -1,12 +1,13 @@
 package eventservices
 
 import (
-	"slack-trading/src/models"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"slack-trading/src/models"
 )
 
 func TestUpdateConditions(t *testing.T) {
@@ -14,6 +15,8 @@ func TestUpdateConditions(t *testing.T) {
 	strategyName := "testStrategy"
 	signalName := "testSignal"
 	symbol := "testSymbol"
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	datafeed := models.NewDatafeed(models.ManualDatafeed)
 	priceLevels := []*models.PriceLevel{
 		{
 			Price: 1.0,
@@ -33,10 +36,10 @@ func TestUpdateConditions(t *testing.T) {
 	}
 
 	t.Run("0 entry conditions", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000, nil)
+		account, err := models.NewAccount("test account", 1000, datafeed)
 		assert.NoError(t, err)
 
-		accounts := []models.Account{*account}
+		accounts := []*models.Account{account}
 		signalRequest := models.NewSignalRequest(id, signalName)
 
 		entryConditionsSatisfied := UpdateEntryConditions(accounts, signalRequest)
@@ -44,7 +47,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("1 entry condition", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000, nil)
+		account, err := models.NewAccount("test account", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
@@ -52,11 +55,11 @@ func TestUpdateConditions(t *testing.T) {
 
 		entrySignalName := "entry1"
 		entryCondition := models.SignalV2{Name: entrySignalName}
-		exitCondition := models.SignalV2{Name: "exit1"}
+		resetCondition := models.NewResetSignal("exit1", &entryCondition, ts)
 
-		strategy.AddEntryCondition(&entryCondition, &exitCondition)
-		account.AddStrategy(*strategy)
-		accounts := []models.Account{*account}
+		strategy.AddEntryCondition(&entryCondition, resetCondition)
+		account.AddStrategy(strategy)
+		accounts := []*models.Account{account}
 
 		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entrySignalName))
 		assert.Len(t, entryConditionsSatisfied, 1)
@@ -65,7 +68,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("missed entry condition", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000, nil)
+		account, err := models.NewAccount("test account", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, nil)
@@ -74,18 +77,18 @@ func TestUpdateConditions(t *testing.T) {
 		entrySignalName := "entry1"
 		otherSignalName := "entry2"
 		entryCondition := models.SignalV2{Name: entrySignalName}
-		exitCondition := models.SignalV2{Name: "exit1"}
+		resetCondition := models.NewResetSignal("exit1", &entryCondition, ts)
 
-		strategy.AddEntryCondition(&entryCondition, &exitCondition)
-		account.AddStrategy(*strategy)
-		accounts := []models.Account{*account}
+		strategy.AddEntryCondition(&entryCondition, resetCondition)
+		account.AddStrategy(strategy)
+		accounts := []*models.Account{account}
 
 		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, otherSignalName))
 		assert.Len(t, entryConditionsSatisfied, 0)
 	})
 
 	t.Run("2 entry conditions", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000, nil)
+		account, err := models.NewAccount("test account", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
@@ -93,12 +96,13 @@ func TestUpdateConditions(t *testing.T) {
 
 		entryCondition1 := models.SignalV2{Name: "entry1"}
 		entryCondition2 := models.SignalV2{Name: "entry2"}
-		exitCondition := models.SignalV2{Name: "exit1"}
+		resetCondition1 := models.NewResetSignal("exit1", &entryCondition1, ts)
+		resetCondition2 := models.NewResetSignal("exit1", &entryCondition2, ts)
 
-		strategy.AddEntryCondition(&entryCondition1, &exitCondition)
-		strategy.AddEntryCondition(&entryCondition2, &exitCondition)
-		account.AddStrategy(*strategy)
-		accounts := []models.Account{*account}
+		strategy.AddEntryCondition(&entryCondition1, resetCondition1)
+		strategy.AddEntryCondition(&entryCondition2, resetCondition2)
+		account.AddStrategy(strategy)
+		accounts := []*models.Account{account}
 
 		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
@@ -108,7 +112,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("entry condition not satisfied when exit condition is satisfied", func(t *testing.T) {
-		account, err := models.NewAccount("test account", 1000, nil)
+		account, err := models.NewAccount("test account", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(strategyName, symbol, models.Down, 100, priceLevels, account)
@@ -116,18 +120,18 @@ func TestUpdateConditions(t *testing.T) {
 
 		entryCondition1 := models.SignalV2{Name: "entry1"}
 		entryCondition2 := models.SignalV2{Name: "entry2"}
-		exitCondition1 := models.SignalV2{Name: "exit1"}
-		exitCondition2 := models.SignalV2{Name: "exit2"}
+		resetCondition1 := models.NewResetSignal("exit1", &entryCondition1, ts)
+		resetCondition2 := models.NewResetSignal("exit2", &entryCondition2, ts)
 
-		strategy.AddEntryCondition(&entryCondition1, &exitCondition1)
-		strategy.AddEntryCondition(&entryCondition2, &exitCondition2)
-		account.AddStrategy(*strategy)
-		accounts := []models.Account{*account}
+		strategy.AddEntryCondition(&entryCondition1, resetCondition1)
+		strategy.AddEntryCondition(&entryCondition2, resetCondition2)
+		account.AddStrategy(strategy)
+		accounts := []*models.Account{account}
 
 		entryConditionsSatisfied := UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 
-		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, exitCondition1.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, resetCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 
 		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition2.Name))
@@ -136,7 +140,7 @@ func TestUpdateConditions(t *testing.T) {
 		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, entryCondition1.Name))
 		assert.Len(t, entryConditionsSatisfied, 1)
 
-		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, exitCondition2.Name))
+		entryConditionsSatisfied = UpdateEntryConditions(accounts, models.NewSignalRequest(id, resetCondition2.Name))
 		assert.Len(t, entryConditionsSatisfied, 0)
 	})
 }
@@ -147,6 +151,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	direction := models.Down
 	symbol := "BTCUSD"
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	datafeed := models.NewDatafeed(models.ManualDatafeed)
 	tf := new(int)
 	*tf = 5
 
@@ -173,13 +178,13 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -236,13 +241,13 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -292,13 +297,13 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close via two partial closes", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -374,6 +379,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	direction := models.Up
 	symbol := "BTCUSD"
+	datafeed := models.NewDatafeed(models.ManualDatafeed)
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	tf := new(int)
 	*tf = 5
@@ -397,13 +403,13 @@ func TestGetStatsUpDirection(t *testing.T) {
 	}
 
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -459,13 +465,13 @@ func TestGetStatsUpDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -515,13 +521,13 @@ func TestGetStatsUpDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close via two partial closes", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		stats, err := GetStats(id, account, &models.Tick{Bid: 1.5, Ask: 1.5})
@@ -597,6 +603,7 @@ func TestFetchTrades(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	direction := models.Up
 	symbol := "BTCUSD"
+	datafeed := models.NewDatafeed(models.ManualDatafeed)
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	tf := new(int)
 	*tf = 5
@@ -620,7 +627,7 @@ func TestFetchTrades(t *testing.T) {
 	}
 
 	t.Run("Fetch trades is nil when no trades have been placed", func(t *testing.T) {
-		account, err := models.NewAccount("test", 1000, nil)
+		account, err := models.NewAccount("test", 1000, datafeed)
 		assert.NoError(t, err)
 		result := FetchTrades(id, account)
 		assert.NotNil(t, result)
@@ -628,13 +635,13 @@ func TestFetchTrades(t *testing.T) {
 	})
 
 	t.Run("one buy trade", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, nil)
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
 		assert.NoError(t, err)
 
 		strategy, err := models.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		tr, _, err := strategy.NewOpenTrade(id, tf, ts, 1.5)

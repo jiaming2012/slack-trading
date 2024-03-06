@@ -42,44 +42,21 @@ func (s *Strategy) Validate() error {
 }
 
 // UpdateExitConditions todo: test this
-func (s *Strategy) UpdateExitConditions(signalName string) int {
+func (s *Strategy) UpdateExitConditions(newSignal *NewSignalRequestEvent) int {
 	conditionsAffected := 0
-	now := time.Now().UTC()
+	// now := time.Now().UTC()
 
 	for _, condition := range s.ExitConditions {
 		for _, exitSignal := range condition.ExitSignals {
 			//--- update exit signal
-			if signalName == exitSignal.Signal.Name {
+			if newSignal.Name == exitSignal.Signal.Name {
 				exitSignal.Update(SignalTypeExit)
 				conditionsAffected += 1
-				log.Infof("setting exit condition %v to true", signalName)
-			} else if signalName == exitSignal.ResetSignal.Name {
+				log.Infof("setting exit condition %v to true", newSignal)
+			} else if newSignal.Name == exitSignal.ResetSignal.Name {
 				exitSignal.Update(SignalTypeReset)
 				conditionsAffected += 1
-				log.Infof("setting exit reset condition %v to true", signalName)
-			}
-
-			//--- update reentry signals
-			for _, reentrySignal := range condition.ReentrySignals {
-				if signalName == reentrySignal.Name {
-					reentrySignal.Update(true, now)
-					conditionsAffected += 1
-
-					// update AwaitingReentrySignals
-					if condition.AwaitingReentrySignals {
-						resetSignalsAllSatisfied := true
-						for _, signal := range condition.ReentrySignals {
-							if !signal.IsSatisfied() {
-								resetSignalsAllSatisfied = false
-								break
-							}
-						}
-
-						if resetSignalsAllSatisfied {
-							condition.ResetReentrySignals()
-						}
-					}
-				}
+				log.Infof("setting exit reset condition %v to true", newSignal)
 			}
 		}
 	}
@@ -87,18 +64,18 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 	return conditionsAffected
 }
 
-func (s *Strategy) UpdateEntryConditions(signalName string) int {
+func (s *Strategy) UpdateEntryConditions(newSignal *NewSignalRequestEvent) int {
 	conditionsAffected := 0
 
 	for _, condition := range s.EntryConditions {
-		if signalName == condition.EntrySignal.Name {
-			condition.UpdateState(true)
+		if newSignal.Name == condition.EntrySignal.Name {
+			condition.UpdateState(true, newSignal.LastUpdated)
 			conditionsAffected += 1
-			log.Infof("setting entry condition %v to true", signalName)
-		} else if signalName == condition.ResetSignal.Name {
-			condition.UpdateState(false)
+			log.Infof("setting entry condition %v to true", newSignal.Name)
+		} else if newSignal.Name == condition.ResetSignal.Name {
+			condition.UpdateState(false, newSignal.LastUpdated)
 			conditionsAffected += 1
-			log.Infof("setting exit condition %v to true", signalName)
+			log.Infof("setting exit condition %v to true", newSignal.Name)
 		}
 	}
 

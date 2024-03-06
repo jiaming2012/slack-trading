@@ -14,14 +14,16 @@ const (
 )
 
 type ExitSignalDTO struct {
-	Signal      *SignalV2DTO `json:"exitSignal"`
+	Signal      *SignalV2DTO `json:"signal"`
 	ResetSignal *ResetSignal `json:"resetSignal"`
 }
 
 func (s *ExitSignalDTO) ToExitSignal() *ExitSignal {
 	var signal *SignalV2
+
 	if s.Signal != nil {
 		signal = s.Signal.ToSignalV2()
+		s.ResetSignal.AffectedSignal = signal
 	}
 
 	return &ExitSignal{

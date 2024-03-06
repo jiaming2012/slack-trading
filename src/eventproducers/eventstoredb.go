@@ -7,15 +7,18 @@ import (
 	"sync"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/models"
 )
 
 type eventStoreDBClient struct {
-	wg *sync.WaitGroup
-	db *esdb.Client
+	wg    *sync.WaitGroup
+	db    *esdb.Client
+	mutex pubsub.SafeMutex
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, data []byte) error {
@@ -26,7 +29,9 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub
 	}
 
 	// todo: verify that the stream is thread safe
-	_, err := cli.db.AppendToStream(ctx, streamName, esdb.AppendToStreamOptions{}, eventData)
+	writeResult, err := cli.db.AppendToStream(ctx, streamName, esdb.AppendToStreamOptions{}, eventData)
+
+	log.Info(writeResult.CommitPosition)
 
 	return err
 }
@@ -43,12 +48,17 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	switch req := request.(type) {
 	case *eventmodels.CreateAccountRequestEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.CreateAccountRequestEvent, "accounts", bytes); err != nil {
-			pubsub.PublishRequestError("eventStoreDBClient", req, err)
+			pubsub.PublishRequestError("eventStoreDBClient:CreateAccountRequestEvent", req, err)
 			return
 		}
 	case *eventmodels.CreateAccountStrategyRequestEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.CreateAccountStrategyRequestEvent, "accounts", bytes); err != nil {
-			pubsub.PublishRequestError("eventStoreDBClient", req, err)
+			pubsub.PublishRequestError("eventStoreDBClient:CreateAccountStrategyRequestEvent", req, err)
+			return
+		}
+	case *models.NewSignalRequestEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.NewSignalRequestEvent, "accounts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient:NewSignalRequest", req, err)
 			return
 		}
 	default:
@@ -59,6 +69,8 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 
 func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subscription) {
 	for {
+		cli.mutex.Lock()
+
 		payload := stream.Recv()
 
 		if payload.EventAppeared == nil {
@@ -72,7 +84,7 @@ func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subs
 			var request eventmodels.CreateAccountRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
 				pubsub.PublishError("eventStoreDBClient.CreateAccountRequestEvent", err)
-				continue
+				break
 			}
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountRequestEventStoredSuccess, &request)
@@ -80,14 +92,28 @@ func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subs
 			var request eventmodels.CreateAccountStrategyRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
 				pubsub.PublishError("eventStoreDBClient.CreateAccountStrategyRequestEvent", err)
-				continue
+				break
 			}
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
+		case pubsub.NewSignalRequestEvent:
+			var request models.NewSignalRequestEvent
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
+				pubsub.PublishError("eventStoreDBClient.NewSignalsRequestEvent", err)
+				break
+			}
+
+			pubsub.PublishResult("eventStoreDBClient", pubsub.NewSignalRequestEventStoredSuccess, &request)
 		default:
 			pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
 		}
 	}
+}
+
+func (cli *eventStoreDBClient) wait(id uuid.UUID) {
+	log.Debugf("<- eventStoreDBClient.wait: uuid %v", id)
+
+	cli.mutex.Unlock()
 }
 
 func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
@@ -105,6 +131,8 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.NewSignalRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.wait)
 
 	streamNames := []string{"accounts"}
 	for _, streamName := range streamNames {

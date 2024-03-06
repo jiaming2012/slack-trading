@@ -53,6 +53,8 @@ func PublishWithFlags(publisherName string, topic EventName, event interface{}, 
 		log.Debugf(logMessage)
 	}
 
+	bus.Publish(string(ProcessRequestComplete), event)
+
 	bus.Publish(string(topic), event)
 }
 

@@ -13,9 +13,14 @@ type EntryConditionDTO struct {
 }
 
 func (c *EntryConditionDTO) ToEntryCondition() *EntryCondition {
+	entrySignal := c.EntrySignal.ToSignalV2()
+	resetSignal := c.ResetSignal
+
+	resetSignal.AffectedSignal = entrySignal
+
 	return &EntryCondition{
-		EntrySignal: c.EntrySignal.ToSignalV2(),
-		ResetSignal: c.ResetSignal,
+		EntrySignal: entrySignal,
+		ResetSignal: resetSignal,
 	}
 }
 
@@ -31,14 +36,12 @@ type EntryCondition struct {
 	ResetSignal *ResetSignal
 }
 
-func (c *EntryCondition) UpdateState(isEntry bool) {
-	now := time.Now().UTC()
-
+func (c *EntryCondition) UpdateState(isEntry bool, timestamp time.Time) {
 	if isEntry {
-		c.EntrySignal.Update(true, now)
+		c.EntrySignal.Update(true, timestamp)
 		log.Infof("entry condition %v was met", c.EntrySignal.Name)
 	} else {
-		c.ResetSignal.Update(now)
+		c.ResetSignal.Update(timestamp)
 		log.Infof("exit condition %v was met", c.ResetSignal.Name)
 	}
 }
@@ -71,15 +74,14 @@ func (c *ExitConditionDTO) ToExitCondition() *ExitCondition {
 	}
 
 	return &ExitCondition{
-		Name:                   c.Name,
-		ExitSignals:            exitSignals,
-		ReentrySignals:         reentrySignals,
-		Constraints:            c.Constraints,
-		LevelIndex:             c.LevelIndex,
-		MaxTriggerCount:        c.MaxTriggerCount,
-		TriggerCount:           c.TriggerCount,
-		ClosePercent:           c.ClosePercent,
-		AwaitingReentrySignals: c.AwaitingReentrySignals,
+		Name:            c.Name,
+		ExitSignals:     exitSignals,
+		ReentrySignals:  reentrySignals,
+		Constraints:     c.Constraints,
+		LevelIndex:      c.LevelIndex,
+		MaxTriggerCount: c.MaxTriggerCount,
+		TriggerCount:    c.TriggerCount,
+		ClosePercent:    c.ClosePercent,
 	}
 }
 
@@ -103,37 +105,38 @@ func (c *ExitCondition) ConvertToDTO() *ExitConditionDTO {
 		MaxTriggerCount:        c.MaxTriggerCount,
 		TriggerCount:           c.TriggerCount,
 		ClosePercent:           c.ClosePercent,
-		AwaitingReentrySignals: c.AwaitingReentrySignals,
+		AwaitingReentrySignals: c.AwaitingReentrySignals(),
 	}
 }
 
 type ExitCondition struct {
-	Name                   string            `json:"name"`
-	ExitSignals            []*ExitSignal     `json:"exitSignals"`
-	ReentrySignals         []*SignalV2       `json:"reentrySignals"`
-	Constraints            SignalConstraints `json:"constraints"`
-	LevelIndex             int               `json:"levelIndex"`
-	MaxTriggerCount        *int              `json:"maxTriggerCount"`
-	TriggerCount           int               `json:"triggerCount"`
-	ClosePercent           ClosePercent      `json:"closePercent"`
-	AwaitingReentrySignals bool              `json:"awaitingReentrySignals"`
+	Name            string            `json:"name"`
+	ExitSignals     []*ExitSignal     `json:"exitSignals"`
+	ReentrySignals  []*SignalV2       `json:"reentrySignals"`
+	Constraints     SignalConstraints `json:"constraints"`
+	LevelIndex      int               `json:"levelIndex"`
+	MaxTriggerCount *int              `json:"maxTriggerCount"`
+	TriggerCount    int               `json:"triggerCount"`
+	ClosePercent    ClosePercent      `json:"closePercent"`
+	isTriggered     bool
 }
 
-func (c *ExitCondition) ResetReentrySignals() {
-	now := time.Now().UTC()
-	for _, s := range c.ReentrySignals {
-		s.Update(false, now)
+func (c *ExitCondition) AwaitingReentrySignals() bool {
+	if len(c.ReentrySignals) == 0 {
+		log.Warnf("ExitCondition.isSatisfied: awaiting reset will always be true: no reset signals set")
 	}
 
-	var curState string
-	if c.AwaitingReentrySignals {
-		curState = "true"
-	} else {
-		curState = "false"
+	if c.isTriggered {
+		for _, s := range c.ReentrySignals {
+			if !s.IsSatisfied() {
+				return true
+			}
+		}
+
+		c.isTriggered = false
 	}
 
-	log.Infof("ExitCondition.isSatisfied: switching awaiting reset from %s -> false for %v", curState, c.Name)
-	c.AwaitingReentrySignals = false
+	return false
 }
 
 func NewExitCondition(name string, levelIndex int, exitSignals []*ExitSignal, resetSignals []*SignalV2, constraints []*ExitSignalConstraint, closePercent ClosePercent, maxTriggerCount *int) (*ExitCondition, error) {
@@ -174,11 +177,7 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 		return false, nil
 	}
 
-	if c.AwaitingReentrySignals {
-		if len(c.ReentrySignals) == 0 {
-			log.Warnf("ExitCondition.isSatisfied: awaiting reset will always be true: no reset signals set")
-		}
-
+	if c.AwaitingReentrySignals() {
 		log.Infof("ExitCondition.isSatisfied: false due to awaiting reset")
 		return false, nil
 	}
@@ -204,7 +203,8 @@ func (c *ExitCondition) IsSatisfied(priceLevel *PriceLevel, params map[string]in
 	// currently this creates a bug if the signal fires, but the execution of the trade fails, e.g.
 	// because the broker is offline
 	c.TriggerCount += 1
-	c.AwaitingReentrySignals = true
+	c.isTriggered = true
+
 	log.Infof("ExitCondition.isSatisfied: %v exit condition satisfied", c.Name)
 
 	return true, nil

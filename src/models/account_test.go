@@ -33,19 +33,20 @@ func TestAccountStrategy(t *testing.T) {
 	}
 
 	t.Run("cannot add a strategy with the same name", func(t *testing.T) {
-		account, err := NewAccount(name, 1000, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, 1000, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		strategy2, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy2)
+		err = account.AddStrategy(strategy2)
 		assert.Error(t, err)
 	})
 }
@@ -105,13 +106,14 @@ func TestPlacingTrades(t *testing.T) {
 	}
 
 	t.Run("can place an open trade request", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
@@ -132,13 +134,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("can place a sell order", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance/2.0, newDownPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		assert.Len(t, *account.GetTrades(), 0)
@@ -159,13 +162,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		trade1, _, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
@@ -212,12 +216,13 @@ func TestPlacingTrades(t *testing.T) {
 
 		requestedPrice := 1.5
 
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		trade1, _, err := strategy.NewOpenTrade(id, timeframe, timestamp, requestedPrice)
@@ -240,14 +245,15 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to place additional trades in bands once previous trade is closed", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		curPrice := 1.5
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		tradesRemaining, side := strategy.TradesRemaining(curPrice)
@@ -289,13 +295,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("able to close a trade outside of price bands", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		tr1Volume := 1.0
@@ -318,13 +325,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("closing trades must have close percentage", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		tr1Volume := 1.0
@@ -339,13 +347,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		curPrice := 1.5
@@ -377,13 +386,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume increases in a specific band as winners increase", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		trVolume := 1.0
@@ -406,13 +416,14 @@ func TestPlacingTrades(t *testing.T) {
 	})
 
 	t.Run("volume decreases in a specific band as losers increase", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		tr1, _, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
@@ -468,13 +479,14 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevel, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		closeReq := account.checkSL(Tick{Bid: 1.5, Ask: 1.5})
@@ -516,13 +528,14 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Up, balance, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		maxLoss := balance
@@ -575,13 +588,14 @@ func TestUpdate(t *testing.T) {
 			},
 		}
 
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance, priceLevels, account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		maxLoss := balance
@@ -651,12 +665,13 @@ func TestTradeValidation(t *testing.T) {
 	}
 
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		_, _, err = strategy.NewOpenTrade(id, nil, timestamp, 0.5)
@@ -664,13 +679,14 @@ func TestTradeValidation(t *testing.T) {
 	})
 
 	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
-		account, err := NewAccount(name, balance, nil)
+		df := NewDatafeed(ManualDatafeed)
+		account, err := NewAccount(name, balance, df)
 		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newPriceLevels(), account)
 		assert.NoError(t, err)
 
-		err = account.AddStrategy(*strategy)
+		err = account.AddStrategy(strategy)
 		assert.NoError(t, err)
 
 		// success case

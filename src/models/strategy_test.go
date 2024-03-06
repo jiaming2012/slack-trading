@@ -32,9 +32,10 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 	name := "test"
 	symbol := "symbol"
 	balance := 1000.0
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 
-	entrySignal := NewSignalV2("entrySignal")
-	exitSignal := NewSignalV2("exitSignal")
+	entrySignal := NewSignalV2("entrySignal", ts)
+	resetSignal := NewResetSignal("resetSignal", entrySignal, ts)
 
 	t.Run("entry conditions not satisfied if strategy has no entry conditions", func(t *testing.T) {
 		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
@@ -45,11 +46,11 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 	t.Run("entry conditions are not satisfied", func(t *testing.T) {
 		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
-		err = s.AddEntryCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, resetSignal)
 		assert.NoError(t, err)
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)
-		assert.Equal(t, exitSignal.Name, s.EntryConditions[0].ResetSignal.Name)
+		assert.Equal(t, resetSignal.Name, s.EntryConditions[0].ResetSignal.Name)
 		assert.False(t, s.EntryConditionsSatisfied())
 	})
 
@@ -57,15 +58,19 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
-		err = s.AddEntryCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, resetSignal)
 		assert.NoError(t, err)
 
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)
-		assert.Equal(t, exitSignal.Name, s.EntryConditions[0].ResetSignal.Name)
+		assert.Equal(t, resetSignal.Name, s.EntryConditions[0].ResetSignal.Name)
 		assert.False(t, s.EntryConditionsSatisfied())
 
-		s.UpdateEntryConditions(entrySignal.Name)
+		req := NewSignalRequestEvent{
+			Name: entrySignal.Name,
+		}
+
+		s.UpdateEntryConditions(&req)
 		assert.True(t, s.EntryConditionsSatisfied())
 	})
 }

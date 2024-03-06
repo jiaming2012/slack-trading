@@ -1,17 +1,19 @@
 package eventservices
 
 import (
-	"slack-trading/src/models"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"slack-trading/src/models"
 )
 
 func TestRealizedDrawdown(t *testing.T) {
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	symbol := "BTCUSD"
+	datafeed := models.NewDatafeed(models.ManualDatafeed)
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	tf := new(int)
 	*tf = 5
@@ -53,20 +55,23 @@ func TestRealizedDrawdown(t *testing.T) {
 		},
 	}
 
-	account, err := models.NewAccount("testAccount", 1000, nil)
+	account, err := models.NewAccount("testAccount", 1000, datafeed)
 	assert.NoError(t, err)
 
 	buyStrategy, err := models.NewStrategyDeprecated("longStrategy", symbol, models.Up, 100, priceLevelsUp, account)
 	assert.NoError(t, err)
-	err = account.AddStrategy(*buyStrategy)
-	assert.NoError(t, err)
-
-	sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
-	assert.NoError(t, err)
-	err = account.AddStrategy(*sellStrategy)
+	err = account.AddStrategy(buyStrategy)
 	assert.NoError(t, err)
 
 	t.Run("ignores candles before trade open", func(t *testing.T) {
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
+		assert.NoError(t, err)
+
+		sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
+		assert.NoError(t, err)
+		err = account.AddStrategy(sellStrategy)
+		assert.NoError(t, err)
+
 		requestedPrice := 2.5
 
 		sellTrade, _, err2 := sellStrategy.NewOpenTrade(id, tf, ts, requestedPrice)
@@ -126,6 +131,14 @@ func TestRealizedDrawdown(t *testing.T) {
 	})
 
 	t.Run("sell trade", func(t *testing.T) {
+		account, err := models.NewAccount("testAccount", 1000, datafeed)
+		assert.NoError(t, err)
+
+		sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
+		assert.NoError(t, err)
+		err = account.AddStrategy(sellStrategy)
+		assert.NoError(t, err)
+
 		requestedPrice := 2.5
 
 		sellTrade, _, err2 := sellStrategy.NewOpenTrade(id, tf, ts, requestedPrice)

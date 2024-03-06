@@ -522,7 +522,8 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 	return openTradeRequests, nil
 }
 
-func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
+// g="coinbase: initial connect failed:EOF"
+func (w *AccountWorker) handleNewSignalRequest(event *models.NewSignalRequestEvent) {
 	log.Infof("received %v", event)
 
 	// handle exit conditions
@@ -545,6 +546,10 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 		pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, updateErr)
 	}
 
+	// 3/4/24: the current problem is that we need to consider the flow
+	// Flow 1: apiRequest -> parsedRequest (globaldispatcher) -> parsedRequestDBWrite -> (mutex.Lock) dbRead -> processRequest -> (mutex.Unlock) processRequestComplete -> (globaldispatcher) publishResult
+	// Flob 1b:  							  											                                                    -> (globaldispatcher) publishError vs publishRequestError (this should terminate the request)
+	// Flow 2: 																	      -> (mutex.Lock) dbRead -> processRequest -> (mutex.Unlock) processRequestComplete -> (globaldispatcher) publishResult
 	if entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event); entryConditionsSatisfied != nil {
 		openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
 		if err == nil {
@@ -564,7 +569,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
 	// as the request didn't originate from an api call but is still picked up by the lister
 	eventmodels.RegisterResultCallback(event.RequestID)
 
-	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, &eventmodels.NewSignalResult{
+	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.NewSignalResult{
 		Name:      event.Name,
 		RequestID: event.RequestID,
 	})
@@ -630,7 +635,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.NewSignalRequestEventStoredSuccess, w.handleNewSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
 	pubsub.Subscribe("AccountWorker", pubsub.CreateAccountStrategyRequestEventStoredSuccess, w.createAccountStrategyRequestHandler)

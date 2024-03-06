@@ -17,7 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func connect() (*websocket.Conn, error) {
+func Connect() (*websocket.Conn, error) {
 	// todo: remove fixed url
 	u := url.URL{Scheme: "wss", Host: "advanced-trade-ws.coinbase.com", Path: "/"}
 	log.Infof("connecting to %s", u.String())
@@ -40,16 +40,9 @@ func connect() (*websocket.Conn, error) {
 	return c, nil
 }
 
-func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
+func WsTick(ctx context.Context, ch chan CoinbaseDTO, c *websocket.Conn) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-
-	c, ConnErr := connect()
-	if ConnErr != nil {
-		log.Fatal("coinbase: initial connect failed:", ConnErr)
-	}
-
-	defer c.Close()
 
 	go func() {
 		defer wg.Done()
@@ -67,7 +60,7 @@ func WsTick(ctx context.Context, ch chan CoinbaseDTO) {
 					log.Errorf("ReadMessage(): %v", err)
 
 					// Reconnect
-					newConn, newErr := connect()
+					newConn, newErr := Connect()
 					if newErr != nil {
 						log.Errorf("failed to recconnect: %v", newErr)
 						continue
@@ -152,7 +145,7 @@ func Subscribe() *WsSub {
 	}
 }
 
-//1680318106
+// 1680318106
 type WsSub struct {
 	Type       string   `json:"type"`
 	Channel    string   `json:"channel"`

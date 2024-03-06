@@ -123,7 +123,7 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO) {
 
 	c, ConnErr := IBConnect(info.ServerURL, info.ConnID)
 	if ConnErr != nil {
-		fmt.Println("IBTickListener: initial connect failed:", ConnErr)
+		log.Fatalf("IBTickListener: initial connect failed: %v", ConnErr)
 	}
 
 	defer c.Close()
@@ -165,7 +165,7 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO) {
 
 				// discard unknown messages
 				if dto.Topic == "" {
-					log.Warn("IBTickListener: unknown message: %v", string(message))
+					log.Warnf("IBTickListener: unknown message: %v", string(message))
 					continue
 				}
 

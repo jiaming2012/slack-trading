@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
@@ -64,9 +65,8 @@ func MinuteTimer(minuteInterval int) *time.Timer {
 	return time.NewTimer(diff)
 }
 
-func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
-
-	go WsTick(ctx, tickerCh)
+func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
+	go WsTick(ctx, tickerCh, c)
 
 	for {
 		select {

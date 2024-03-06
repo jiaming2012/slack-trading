@@ -187,7 +187,7 @@ func (a *Account) getStrategiesBalance() float64 {
 func (a *Account) AddStrategy(strategy *Strategy) error {
 	for _, s := range a.Strategies {
 		if strategy.Name == s.Name {
-			return fmt.Errorf("Account.AddStrategy: strategy name %v must be unique", strategy.Name)
+			return fmt.Errorf("Account.AddStrategy: strategy name %v already exists", strategy.Name)
 		}
 	}
 

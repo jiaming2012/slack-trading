@@ -14,17 +14,21 @@ import (
 type GlobalDispatchWorker struct {
 	wg         *sync.WaitGroup
 	dispatcher *eventmodels.GlobalResponseDispatcher
-	mu         sync.Mutex // todo: maybe make use of this mutext ??
 }
 
 func (w *GlobalDispatchWorker) dispatchError(err error) {
 	requestErr, ok := err.(eventmodels.RequestError)
 	if !ok {
+		// pubsub.Publish("GlobalDispatchWorker.dispatchError", pubsub.RequestCompletedEvent, uuid.Nil)
+		log.Warn("dispatchError: failed to cast error to RequestError")
 		return
 	}
 
-	uuid := requestErr.RequestID()
-	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(uuid)
+	id := requestErr.RequestID()
+
+	// pubsub.Publish("GlobalDispatchWorker.dispatchError", pubsub.RequestCompletedEvent, id)
+
+	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
 	if err != nil {
 		pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher: %w", err))
 		return
@@ -34,10 +38,14 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
-	uuid := event.GetRequestID()
-	globalDispatchItem, found := w.dispatcher.Channels[uuid]
+	// todo: when the request is originated from the db, the requestID is not set
+	id := event.GetRequestID()
+	globalDispatchItem, found := w.dispatcher.Channels[id]
+	// pubsub.Publish("GlobalDispatchWorker.dispatchResult", pubsub.RequestCompletedEvent, id)
+
 	if !found {
-		pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher, using requestID %v", uuid))
+		// pubsub.PublishRequestError("GlobalDispatchWorker.dispatchResult", event, fmt.Errorf("failed to find dispatcher, using requestID %v", id))
+		log.Errorf("dispatchResult: failed to find dispatcher, using requestID %v", id)
 		return
 	}
 
@@ -52,7 +60,7 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.FetchTradesResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteCloseTradesResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetStatsResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.NewSignalsResult, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.NewSignalResultEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ManualDatafeedUpdateResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
