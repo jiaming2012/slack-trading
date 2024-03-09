@@ -81,11 +81,11 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
 					panic(err)
 				}
 
-				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
+				eventpubsub.PublishEventResult("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
 					time.Now().UTC(),
 					price,
 					models.CoinbaseDatafeed,
-				), false)
+				))
 
 				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers
 				mu.Lock()

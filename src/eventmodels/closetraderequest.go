@@ -1,7 +1,10 @@
 package eventmodels
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 )
 
@@ -15,16 +18,23 @@ type CloseTradeRequest struct {
 	Reason          string  `json:"reason"`
 }
 
-func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
-	req := &CloseTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
-	if err := req.Validate(); err != nil {
-		return nil, err
-	}
-
-	return req, nil
+func (r *CloseTradeRequest) GetRequestID() uuid.UUID {
+	return r.RequestID
 }
 
-func (r *CloseTradeRequest) Validate() error {
+func (r *CloseTradeRequest) SetRequestID(id uuid.UUID) {
+	r.RequestID = id
+}
+
+func (r *CloseTradeRequest) ParseHTTPRequest(req *http.Request) error {
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		return fmt.Errorf("CloseTradeRequest.ParseHTTPRequest: failed to decode json: %w", err)
+	}
+
+	return nil
+}
+
+func (r *CloseTradeRequest) Validate(request *http.Request) error {
 	if len(r.AccountName) == 0 {
 		return fmt.Errorf("validate: AccountName not set")
 	}
@@ -50,4 +60,13 @@ func (r *CloseTradeRequest) Validate() error {
 	}
 
 	return nil
+}
+
+func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
+	req := &CloseTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
+	if err := req.Validate(nil); err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }

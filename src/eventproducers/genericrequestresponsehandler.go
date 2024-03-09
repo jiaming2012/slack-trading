@@ -15,49 +15,13 @@ type ApiRequest interface {
 	ParseHTTPRequest(r *http.Request) error
 	Validate(r *http.Request) error
 	SetRequestID(id uuid.UUID)
+	GetRequestID() uuid.UUID
 }
 
 type SignalRequest interface {
 	ApiRequest
 	GetSource() models.RequestSource
 }
-
-// deprecated
-// func SignalRequestHandler[Request SignalRequest, Response any](eventName pubsub.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
-// 	if err := req.ParseHTTPRequest(r); err != nil {
-// 		if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
-// 			log.Errorf("GenericHandler: failed to set error response: %v", respErr)
-// 		}
-// 		return
-// 	}
-
-// 	id := uuid.New()
-// 	req.SetRequestID(id)
-
-// 	if req.GetSource() == models.WebClient {
-// 		resultCh, errCh := eventmodels.RegisterResultCallback(id)
-
-// 		pubsub.Publish("GenericHandler", eventName, req)
-
-// 		select {
-// 		case result := <-resultCh:
-// 			if err := SetGenericResponse(result, w); err != nil {
-// 				log.Errorf("GenericHandler: failed to set response: %v", err)
-// 				w.WriteHeader(500)
-// 				return
-// 			}
-// 		case err := <-errCh:
-// 			if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
-// 				log.Errorf("GenericHandler: failed to set error response: %v", respErr)
-// 				w.WriteHeader(500)
-// 				return
-// 			}
-// 		}
-// 	} else {
-// 		w.WriteHeader(200)
-// 		pubsub.Publish("GenericHandler", eventName, req)
-// 	}
-// }
 
 func ApiRequestHandler[Request ApiRequest, Response any](eventName pubsub.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
@@ -74,15 +38,16 @@ func ApiRequestHandler[Request ApiRequest, Response any](eventName pubsub.EventN
 		return
 	}
 
-	// save the request to eventstore db???
+	// todo: idea? save the request to eventstore db???
 	// document adding a new request endpoint
 
 	id := uuid.New()
+
 	req.SetRequestID(id)
 
 	resultCh, errCh := eventmodels.RegisterResultCallback(id)
 
-	pubsub.Publish("GenericHandler", eventName, req)
+	pubsub.PublishResult("GenericHandler", eventName, req)
 
 	select {
 	case result := <-resultCh:

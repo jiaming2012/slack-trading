@@ -2,6 +2,7 @@ package eventpubsub
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/asaskevich/EventBus"
 	log "github.com/sirupsen/logrus"
@@ -17,29 +18,46 @@ func Init() {
 
 func PublishRequestError[T eventmodels.RequestEvent](publisherName string, requestEvent T, err error) {
 	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
-	PublishError(publisherName, requestErr)
-}
-
-func PublishError(publisherName string, err error) {
-	log.Error(err)
-	Publish(publisherName, Error, err)
+	publishError(publisherName, requestErr)
 }
 
 func PublishResult[T eventmodels.ResultEvent](publisherName string, topic EventName, event T) {
-	PublishWithFlags(publisherName, topic, event, true)
+	publishWithFlags(publisherName, topic, event, true)
+}
+
+func PublishEventError(publisherName string, err error) {
+	publishError(publisherName, err)
+}
+
+func PublishEventResult(publisherName string, topic EventName, event interface{}) {
+	publish(publisherName, topic, event)
+}
+
+func publishError(publisherName string, err error) {
+	log.Error(err)
+	publish(publisherName, Error, err)
 }
 
 // Publish todo: only publish pointers to events
-func Publish(publisherName string, topic EventName, event interface{}) {
-	PublishWithFlags(publisherName, topic, event, true)
+func publish(publisherName string, topic EventName, event interface{}) {
+	publishWithFlags(publisherName, topic, event, true)
 }
 
-func PublishWithFlags(publisherName string, topic EventName, event interface{}, logEvent bool) {
+// APIRequestEvent (creates)-> StreamWriteEvent (creates)-> *StreamWriteProcessedEvent (creates)-> StreamReadEvent (creates)-> **StreamReadProcessedEvent -> APISuccessEvent
+// *StreamWriteErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
+// **StreamReadErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
+func publishWithFlags(publisherName string, topic EventName, event interface{}, logEvent bool) {
 	var requestID *string
 	switch ev := event.(type) {
+	// case eventmodels.APIRequestEvent:
+	// case eventmodels.StreamReadEvent:
 	case eventmodels.RequestEvent:
 		_id := ev.GetRequestID().String()
 		requestID = &_id
+
+		if !strings.Contains(strings.ToLower(string(topic)), "error") {
+			bus.Publish(string(ProcessRequestComplete), event)
+		}
 	}
 
 	if logEvent {
@@ -52,8 +70,6 @@ func PublishWithFlags(publisherName string, topic EventName, event interface{}, 
 
 		log.Debugf(logMessage)
 	}
-
-	bus.Publish(string(ProcessRequestComplete), event)
 
 	bus.Publish(string(topic), event)
 }

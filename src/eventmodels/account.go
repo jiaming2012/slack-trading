@@ -109,13 +109,17 @@ func (e *CreateAccountResponseEvent) GetRequestID() uuid.UUID {
 }
 
 // todo: remove this??
-type AddAccountRequestEvent struct {
-	Name              string
-	Balance           float64
-	MaxLossPercentage float64
-	PriceLevelsInput  [][3]float64
-	DatafeedName      models.DatafeedName
-}
+// type AddAccountRequestEvent struct {
+// 	Name              string
+// 	Balance           float64
+// 	MaxLossPercentage float64
+// 	PriceLevelsInput  [][3]float64
+// 	DatafeedName      models.DatafeedName
+// }
+
+// func (e *AddAccountRequestEvent) GetRequestID() uuid.UUID {
+// 	return uuid.New()
+// }
 
 type AddAccountResponseEvent struct {
 	RequestID uuid.UUID

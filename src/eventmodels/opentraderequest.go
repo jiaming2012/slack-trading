@@ -1,9 +1,14 @@
 package eventmodels
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 )
+
+// todo: make an APIRequestEvent struct
 
 type OpenTradeRequest struct {
 	RequestID    uuid.UUID
@@ -12,16 +17,32 @@ type OpenTradeRequest struct {
 	Timeframe    *int   `json:"timeframe"`
 }
 
+func (r *OpenTradeRequest) ParseHTTPRequest(req *http.Request) error {
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		return fmt.Errorf("OpenTradeRequest.ParseHTTPRequest: failed to decode json: %w", err)
+	}
+
+	return nil
+}
+
+func (r *OpenTradeRequest) GetRequestID() uuid.UUID {
+	return r.RequestID
+}
+
+func (r *OpenTradeRequest) SetRequestID(id uuid.UUID) {
+	r.RequestID = id
+}
+
 func NewOpenTradeRequest(requestID uuid.UUID, accountName string, strategyName string, timeframe *int) (*OpenTradeRequest, error) {
 	req := &OpenTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, Timeframe: timeframe}
-	if err := req.Validate(); err != nil {
+	if err := req.Validate(nil); err != nil {
 		return nil, err
 	}
 
 	return req, nil
 }
 
-func (r *OpenTradeRequest) Validate() error {
+func (r *OpenTradeRequest) Validate(request *http.Request) error {
 	if len(r.AccountName) == 0 {
 		return fmt.Errorf("validate: AccountName not set")
 	}

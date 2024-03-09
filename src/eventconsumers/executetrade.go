@@ -2,12 +2,14 @@ package eventconsumers
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	log "github.com/sirupsen/logrus"
+
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/worker"
-	"sync"
-	"time"
 )
 
 type TradeExecutor struct {
@@ -20,7 +22,8 @@ func (r *TradeExecutor) executeTrade(request models.TradeRequestEvent) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	pubsub.Publish("TradeExecutor.executeTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+	pubsub.PublishResult("TradeExecutor.executeTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+		RequestID:      request.GetRequestID(),
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Symbol,
 		RequestedPrice: request.Price,
@@ -37,9 +40,11 @@ func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
 	btcPrice := <-btcPriceCh
 
 	// todo: this should go to Coinbase
+	// todo: add a requestID
 	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume)
 
-	pubsub.Publish("TradeExecutor.executeBotTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+	pubsub.PublishResult("TradeExecutor.executeBotTrade", pubsub.TradeFulfilledEvent, models.TradeFulfilledEvent{
+		RequestID:      request.GetRequestID(),
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Trade.Symbol,
 		RequestedPrice: request.Trade.RequestedPrice,

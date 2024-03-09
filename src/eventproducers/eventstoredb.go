@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
@@ -16,9 +16,10 @@ import (
 )
 
 type eventStoreDBClient struct {
-	wg    *sync.WaitGroup
-	db    *esdb.Client
-	mutex pubsub.SafeMutex
+	wg              *sync.WaitGroup
+	db              *esdb.Client
+	mutex           pubsub.SafeMutex
+	lastEventNumber uint64
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, data []byte) error {
@@ -36,12 +37,12 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub
 	return err
 }
 
-func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
+func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.RequestEvent) {
 	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
 
 	bytes, err := json.Marshal(request)
 	if err != nil {
-		pubsub.PublishError("eventStoreDBClient", err)
+		pubsub.PublishRequestError("eventStoreDBClient", request, err)
 		return
 	}
 
@@ -62,28 +63,38 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 			return
 		}
 	default:
-		pubsub.PublishError("eventStoreDBClient.storeRequestEventHandler", fmt.Errorf("unknown request type: %T", request))
+		pubsub.PublishRequestError("eventStoreDBClient.storeRequestEventHandler", request, fmt.Errorf("unknown request type: %T", request))
 		return
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subscription) {
+func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 	for {
 		cli.mutex.Lock()
 
 		payload := stream.Recv()
 
+		if payload.SubscriptionDropped != nil {
+			// Handle the dropped subscription
+			log.Errorf("Subscription dropped: %v", payload.SubscriptionDropped.Error)
+			// cli.mutex.Unlock()
+			return
+		}
+
 		if payload.EventAppeared == nil {
+			cli.mutex.Unlock()
 			continue
 		}
 
 		ev := payload.EventAppeared.Event
 
+		cli.lastEventNumber = payload.EventAppeared.OriginalEvent().EventNumber
+
 		switch pubsub.EventName(ev.EventType) {
 		case pubsub.CreateAccountRequestEvent:
 			var request eventmodels.CreateAccountRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishError("eventStoreDBClient.CreateAccountRequestEvent", err)
+				pubsub.PublishRequestError("eventStoreDBClient.CreateAccountRequestEvent", &request, err)
 				break
 			}
 
@@ -91,7 +102,7 @@ func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subs
 		case pubsub.CreateAccountStrategyRequestEvent:
 			var request eventmodels.CreateAccountStrategyRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishError("eventStoreDBClient.CreateAccountStrategyRequestEvent", err)
+				pubsub.PublishRequestError("eventStoreDBClient.CreateAccountStrategyRequestEvent", &request, err)
 				break
 			}
 
@@ -99,21 +110,29 @@ func (cli *eventStoreDBClient) readStream(ctx context.Context, stream *esdb.Subs
 		case pubsub.NewSignalRequestEvent:
 			var request models.NewSignalRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishError("eventStoreDBClient.NewSignalsRequestEvent", err)
+				pubsub.PublishRequestError("eventStoreDBClient.NewSignalsRequestEvent", &request, err)
 				break
 			}
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.NewSignalRequestEventStoredSuccess, &request)
 		default:
-			pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
+			// pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
+			log.Errorf("unknown event type: %s", ev.EventType)
 		}
 	}
 }
 
-func (cli *eventStoreDBClient) wait(id uuid.UUID) {
-	log.Debugf("<- eventStoreDBClient.wait: uuid %v", id)
+func (cli *eventStoreDBClient) wait(event interface{}) {
+	log.Debugf("<- eventStoreDBClient.wait: finished processing %v", event)
 
-	cli.mutex.Unlock()
+	switch event.(type) {
+	case *eventmodels.CreateAccountRequestEvent:
+		cli.mutex.Unlock()
+	case *eventmodels.CreateAccountStrategyRequestEvent:
+		cli.mutex.Unlock()
+	case *models.NewSignalRequestEvent:
+		cli.mutex.Unlock()
+	}
 }
 
 func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
@@ -134,18 +153,34 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", pubsub.NewSignalRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.wait)
 
-	streamNames := []string{"accounts"}
-	for _, streamName := range streamNames {
-		subscription, err := cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
-			From: esdb.Start{},
-		})
+	// streamNames := []string{"accounts"}
+	// for _, streamName := range streamNames {
+	streamName := "accounts"
 
-		if err != nil {
-			log.Panicf("failed to create stream: %v", err)
-		}
+	subscription, err := cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
+		From: esdb.Start{},
+	})
 
-		go cli.readStream(ctx, subscription)
+	if err != nil {
+		log.Panicf("failed to create stream: %v", err)
 	}
+
+	go func() {
+		for {
+			if err == nil {
+				cli.readStream(subscription)
+			} else {
+				log.Errorf("failed to re-create stream: %v", err)
+				time.Sleep(5 * time.Second)
+			}
+
+			log.Debugf("re-creating subscription @ pos %v", cli.lastEventNumber)
+
+			subscription, err = cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
+				From: esdb.Revision(cli.lastEventNumber),
+			})
+		}
+	}()
 
 	go func() {
 		defer cli.wg.Done()

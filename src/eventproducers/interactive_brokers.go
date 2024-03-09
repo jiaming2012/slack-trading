@@ -34,7 +34,14 @@ func (c *IBClient) Start(ctx context.Context, symbol string) {
 		ServerURL: c.serverURL,
 	}
 
-	go worker.IBTickListener(workerContext, info, ch)
+	conn, ConnErr := worker.IBConnect(info.ServerURL, info.ConnID)
+	if ConnErr != nil {
+		log.Fatalf("IBTickListener: initial connect failed: %v", ConnErr)
+	}
+
+	defer conn.Close()
+
+	go worker.IBTickListener(workerContext, info, ch, conn)
 
 	go func() {
 		defer c.wg.Done()
@@ -44,7 +51,13 @@ func (c *IBClient) Start(ctx context.Context, symbol string) {
 			case <-workerContext.Done():
 				log.Errorf("IB worker stopped. Resetting worker context ...")
 				workerContext = context.Background()
-				go worker.IBTickListener(workerContext, info, ch)
+
+				conn, ConnErr := worker.IBConnect(info.ServerURL, info.ConnID)
+				if ConnErr != nil {
+					log.Fatalf("IBTickListener: initial connect failed: %v", ConnErr)
+				}
+
+				go worker.IBTickListener(workerContext, info, ch, conn)
 			case <-ctx.Done():
 				log.Infof("stopping IB producer")
 				return

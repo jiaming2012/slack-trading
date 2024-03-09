@@ -2,14 +2,16 @@ package eventconsumers
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"math"
+	"sync"
+
+	log "github.com/sirupsen/logrus"
+
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	models2 "slack-trading/src/models"
 	"slack-trading/src/sheets"
 	"slack-trading/src/worker"
-	"sync"
 )
 
 type BalanceWorker struct {
@@ -21,7 +23,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 
 	trades, fetchErr := sheets.FetchTrades(context.Background())
 	if fetchErr != nil {
-		pubsub.PublishError("BalanceWorker.calculateBalance", fetchErr)
+		pubsub.PublishEventError("BalanceWorker.calculateBalance", fetchErr)
 		return
 	}
 
@@ -31,7 +33,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 
 	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
 	if statsErr != nil {
-		pubsub.PublishError("BalanceWorker.calculateBalance", statsErr)
+		pubsub.PublishEventError("BalanceWorker.calculateBalance", statsErr)
 		return
 	}
 
@@ -42,7 +44,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.Publish("BalanceWorker", pubsub.BalanceResultEvent, models.Balance{
+	pubsub.PublishEventResult("BalanceWorker", pubsub.BalanceResultEvent, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,

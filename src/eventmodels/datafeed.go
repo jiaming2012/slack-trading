@@ -42,6 +42,10 @@ func (r *ManualDatafeedUpdateRequest) SetRequestID(id uuid.UUID) {
 	r.RequestID = id
 }
 
+func (r *ManualDatafeedUpdateRequest) GetRequestID() uuid.UUID {
+	return r.RequestID
+}
+
 type ManualDatafeedUpdateResult struct {
 	RequestID uuid.UUID   `json:"requestID"`
 	UpdatedAt time.Time   `json:"updatedAt"`

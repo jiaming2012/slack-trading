@@ -3,14 +3,16 @@ package slack
 import (
 	"errors"
 	"fmt"
-	"github.com/gorilla/schema"
 	"math"
 	"net/url"
-	"slack-trading/src/eventmodels"
-	models "slack-trading/src/eventmodels"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/schema"
+
+	"slack-trading/src/eventmodels"
+	models "slack-trading/src/eventmodels"
 )
 
 var NoRequestParamsErr = fmt.Errorf("no request params found")
@@ -75,6 +77,10 @@ func parseAccountRequestParams(params string) (interface{}, error) {
 			return nil, fmt.Errorf("failed to parse max loss percentage: %v. error=%v", tokens[3], err)
 		}
 
+		fmt.Println("balance: ", balance)
+
+		fmt.Println("maxLossPercentage: ", maxLossPercentage)
+
 		priceLevels := make([][3]float64, 0)
 		for i := 4; i < len(tokens)-1; i += 3 {
 			param1, err := strconv.ParseFloat(tokens[i], 64)
@@ -102,12 +108,13 @@ func parseAccountRequestParams(params string) (interface{}, error) {
 
 		priceLevels = append(priceLevels, [3]float64{finalPriceLevel, 0, 0})
 
-		return models.AddAccountRequestEvent{
-			Name:              tokens[1],
-			Balance:           balance,
-			MaxLossPercentage: maxLossPercentage,
-			PriceLevelsInput:  priceLevels,
-		}, nil
+		panic("not yet implemented")
+		// return models.AddAccountRequestEvent{
+		// 	Name:              tokens[1],
+		// 	Balance:           balance,
+		// 	MaxLossPercentage: maxLossPercentage,
+		// 	PriceLevelsInput:  priceLevels,
+		// }, nil
 	default:
 		return nil, fmt.Errorf("parseAccountRequestParams: unidentified token %v", tokens[0])
 	}
@@ -140,6 +147,7 @@ func parseBTCTradeRequest(data url.Values) (eventmodels.TradeRequestEvent, error
 
 	params := strings.Fields(paramsPayload[0])
 
+	// todo: add request ID
 	tradeReq := eventmodels.TradeRequestEvent{
 		Timestamp: time.Now().UTC(),
 		Symbol:    "btc",

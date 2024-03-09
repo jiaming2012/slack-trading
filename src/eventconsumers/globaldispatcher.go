@@ -2,7 +2,6 @@ package eventconsumers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -30,7 +29,8 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
 	if err != nil {
-		pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher: %w", err))
+		// pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher: %w", err))
+		log.Errorf("GlobalDispatchWorker.dispatchError: failed to find dispatcher: %v", err)
 		return
 	}
 
@@ -38,14 +38,14 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
-	// todo: when the request is originated from the db, the requestID is not set
+	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!
 	id := event.GetRequestID()
-	globalDispatchItem, found := w.dispatcher.Channels[id]
+	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
 	// pubsub.Publish("GlobalDispatchWorker.dispatchResult", pubsub.RequestCompletedEvent, id)
 
-	if !found {
-		// pubsub.PublishRequestError("GlobalDispatchWorker.dispatchResult", event, fmt.Errorf("failed to find dispatcher, using requestID %v", id))
-		log.Errorf("dispatchResult: failed to find dispatcher, using requestID %v", id)
+	if err != nil {
+		// pubsub.PublishError("GlobalDispatchWorker.dispatchResult", fmt.Errorf("failed to find dispatcher: %w", err))
+		log.Errorf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %w", err)
 		return
 	}
 

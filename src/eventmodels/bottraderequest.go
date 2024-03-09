@@ -1,7 +1,16 @@
 package eventmodels
 
-import "slack-trading/src/models"
+import (
+	"github.com/google/uuid"
+
+	"slack-trading/src/models"
+)
 
 type BotTradeRequestEvent struct {
-	Trade *models.Trade
+	RequestID uuid.UUID
+	Trade     *models.Trade
+}
+
+func (ev BotTradeRequestEvent) GetRequestID() uuid.UUID {
+	return ev.RequestID
 }

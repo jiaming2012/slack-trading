@@ -47,5 +47,7 @@ const (
 	NewSignalRequestEventStoredSuccess             EventName = "NewSignalRequestEventStoredSuccess"
 	// RequestCompletedEvent                          EventName = "RequestCompletedEvent"
 	ProcessRequestComplete EventName = "ProcessRequestComplete"
+	OpenTradeRequest       EventName = "OpenTradeRequest"
+	CloseTradeRequest      EventName = "CloseTradeRequest"
 	Error                  EventName = "DefaultError"
 )

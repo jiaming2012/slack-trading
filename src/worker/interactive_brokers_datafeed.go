@@ -117,16 +117,9 @@ type IBSMDMessage struct {
 	Code  int    `json:"code"`
 }
 
-func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO) {
+func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO, c *websocket.Conn) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-
-	c, ConnErr := IBConnect(info.ServerURL, info.ConnID)
-	if ConnErr != nil {
-		log.Fatalf("IBTickListener: initial connect failed: %v", ConnErr)
-	}
-
-	defer c.Close()
 
 	go func() {
 		for {
@@ -200,11 +193,11 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO) {
 					continue
 				}
 
-				eventpubsub.PublishWithFlags("IBTickListener.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
+				eventpubsub.PublishEventResult("IBTickListener.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
 					tick.Timestamp,
 					tick.Price,
 					models.IBDatafeed,
-				), false)
+				))
 			}
 		}
 	}()

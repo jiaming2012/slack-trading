@@ -2,11 +2,13 @@ package eventmodels
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"net/http"
+
 	"slack-trading/src/models"
-	"time"
 )
 
 type GetStatsRequest struct {
@@ -16,6 +18,14 @@ type GetStatsRequest struct {
 
 func (r *GetStatsRequest) GetRequestID() uuid.UUID {
 	return r.RequestID
+}
+
+func (r *GetStatsRequest) SetRequestID(id uuid.UUID) {
+	r.RequestID = id
+}
+
+func (r *GetStatsRequest) ParseHTTPRequest(request *http.Request) error {
+	return nil
 }
 
 func (r *GetStatsRequest) Validate(request *http.Request) error {

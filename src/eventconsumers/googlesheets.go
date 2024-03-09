@@ -2,13 +2,14 @@ package eventconsumers
 
 import (
 	"context"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	modelsV1 "slack-trading/src/models"
 	"slack-trading/src/sheets"
 	"sync"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 type GoogleSheetsClient struct {
@@ -30,7 +31,7 @@ func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFul
 	})
 
 	if err != nil {
-		pubsub.PublishError("GoogleSheetsClient.writeTradeToCSV", err)
+		pubsub.PublishEventError("GoogleSheetsClient.writeTradeToCSV", err)
 	}
 }
 
@@ -48,7 +49,7 @@ func (c *GoogleSheetsClient) writeCandleToCSV(candle models.Candle) {
 	})
 
 	if err != nil {
-		pubsub.PublishError("GoogleSheetsClient.writeCandleToCSV", err)
+		pubsub.PublishEventError("GoogleSheetsClient.writeCandleToCSV", err)
 	}
 }
 

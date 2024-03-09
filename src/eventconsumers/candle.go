@@ -2,15 +2,17 @@ package eventconsumers
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"math"
+	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	models2 "slack-trading/src/models"
 	"slack-trading/src/sheets"
 	"slack-trading/src/worker"
-	"sync"
-	"time"
 )
 
 const (
@@ -29,7 +31,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 
 	trades, fetchErr := sheets.FetchTrades(context.Background())
 	if fetchErr != nil {
-		pubsub.PublishError("CandleWorker.calculateBalance: fetchErr:", fetchErr)
+		pubsub.PublishEventError("CandleWorker.calculateBalance: fetchErr:", fetchErr)
 		return
 	}
 
@@ -39,7 +41,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 
 	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
 	if statsErr != nil {
-		pubsub.PublishError("CandleWorker.calculateBalance: statsErr", statsErr)
+		pubsub.PublishEventError("CandleWorker.calculateBalance: statsErr", statsErr)
 		return
 	}
 
@@ -50,7 +52,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.Publish("CandleWorker", pubsub.BalanceResultEvent, models.Balance{
+	pubsub.PublishEventResult("CandleWorker", pubsub.BalanceResultEvent, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -98,7 +100,7 @@ func (w *CandleWorker) CreateNewCandle() {
 
 	w.mu.Unlock()
 
-	pubsub.Publish("CandleWorker.CreateNewCandle", pubsub.NewCandleEvent, newCandle)
+	pubsub.PublishEventResult("CandleWorker.CreateNewCandle", pubsub.NewCandleEvent, newCandle)
 }
 
 func (w *CandleWorker) Start(ctx context.Context) {

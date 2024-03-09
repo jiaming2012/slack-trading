@@ -1,10 +1,9 @@
 package slack
 
 import (
-	"fmt"
 	"net/http"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
+
+	// "slack-trading/src/eventpubsub"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -18,50 +17,50 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
-	cmd, responseURL, err := validateForm(r.Form)
-	if err != nil {
-		eventpubsub.PublishError("TradeApiHandler/validateForm", err)
-		return
-	}
+	// cmd, responseURL, err := validateForm(r.Form)
+	// if err != nil {
+	// 	eventpubsub.PublishError("TradeApiHandler/validateForm", err)
+	// 	return
+	// }
 
-	switch cmd {
-	case "/accounts":
-		request, validationErr := parseAccountRequest(r.Form)
-		if validationErr != nil {
-			eventpubsub.PublishError("TradeApiHandler/accounts", validationErr)
-			return
-		}
+	// switch cmd {
+	// case "/accounts":
+	// 	request, validationErr := parseAccountRequest(r.Form)
+	// 	if validationErr != nil {
+	// 		eventpubsub.PublishError("TradeApiHandler/accounts", validationErr)
+	// 		return
+	// 	}
 
-		switch event := request.(type) {
-		case eventmodels.AddAccountRequestEvent:
-			eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.AddAccountRequestEvent, event)
-		case eventmodels.GetAccountsRequestEvent:
-			eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.GetAccountsRequestEvent, event)
-		default:
-			eventpubsub.PublishError("TradeApiHandler/accounts", fmt.Errorf("unknown request type: %T", request))
-		}
+	// 	switch event := request.(type) {
+	// 	case eventmodels.AddAccountRequestEvent:
+	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.AddAccountRequestEvent, event)
+	// 	case eventmodels.GetAccountsRequestEvent:
+	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.GetAccountsRequestEvent, event)
+	// 	default:
+	// 		eventpubsub.PublishError("TradeApiHandler/accounts", fmt.Errorf("unknown request type: %T", request))
+	// 	}
 
-	case "/balance":
-		symbol, validationErr := parseBalanceRequest(r.Form)
-		if validationErr != nil {
-			eventpubsub.PublishError("TradeApiHandler/balance", validationErr)
-			return
-		}
+	// case "/balance":
+	// 	symbol, validationErr := parseBalanceRequest(r.Form)
+	// 	if validationErr != nil {
+	// 		eventpubsub.PublishError("TradeApiHandler/balance", validationErr)
+	// 		return
+	// 	}
 
-		eventpubsub.Publish("TradeApiHandler/balance", eventpubsub.BalanceRequestEvent, symbol)
+	// 	eventpubsub.Publish("TradeApiHandler/balance", eventpubsub.BalanceRequestEvent, symbol)
 
-	case "/btc":
-		tradeReq, validationErr := parseBTCTradeRequest(r.Form)
-		if validationErr != nil {
-			eventpubsub.PublishError("TradeApiHandler/btc", validationErr)
-			return
-		}
+	// case "/btc":
+	// 	tradeReq, validationErr := parseBTCTradeRequest(r.Form)
+	// 	if validationErr != nil {
+	// 		eventpubsub.PublishError("TradeApiHandler/btc", validationErr)
+	// 		return
+	// 	}
 
-		tradeReq.ResponseURL = responseURL
-		eventpubsub.Publish("TradeApiHandler/btc", eventpubsub.TradeRequestEvent, tradeReq)
-	default:
-		cmdErr := fmt.Errorf("unknown cmd: %v", cmd)
-		eventpubsub.PublishError("TradeApiHandler/cmd", cmdErr)
-		return
-	}
+	// 	tradeReq.ResponseURL = responseURL
+	// 	eventpubsub.Publish("TradeApiHandler/btc", eventpubsub.TradeRequestEvent, tradeReq)
+	// default:
+	// 	cmdErr := fmt.Errorf("unknown cmd: %v", cmd)
+	// 	eventpubsub.PublishError("TradeApiHandler/cmd", cmdErr)
+	// 	return
+	// }
 }
