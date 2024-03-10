@@ -401,6 +401,7 @@ func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 	}
 
 	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
+		Meta:      eventmodels.NewMetaData(event.Meta),
 		RequestID: event.RequestID,
 		Side:      req.Strategy.GetTradeType(false).String(),
 		Result:    result,
@@ -436,6 +437,7 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	)
 
 	pubsub.PublishResult("AccountWorker.handleNewOpenTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
+		Meta:             eventmodels.NewMetaData(event.Meta),
 		RequestID:        event.RequestID,
 		OpenTradeRequest: openTradeReq,
 	})
@@ -529,13 +531,22 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.NewSignalRequestEve
 	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr == nil {
 		if exitConditionsSatisfied != nil {
+			var syncProcess pubsub.SyncProcess
 			clsTradeRequests, err := w.handleExitConditionsSatisfied(exitConditionsSatisfied)
 			if err == nil {
 				for _, req := range clsTradeRequests {
 					// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
-					eventmodels.RegisterResultCallback(req.RequestID)
+					// eventmodels.RegisterResultCallback(req.RequestID)
 
-					pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.CloseTradesRequest, req)
+					// todo: change to error
+					syncProcess.Add(func(c chan error) {
+						pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.CloseTradesRequest, req)
+					})
+				}
+
+				// todo: check error handling
+				if err := syncProcess.Run(); err != nil {
+					pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 				}
 			} else {
 				pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
@@ -552,12 +563,16 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.NewSignalRequestEve
 	if entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event); entryConditionsSatisfied != nil {
 		openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
 		if err == nil {
+			var syncProcess pubsub.SyncProcess
 			for _, req := range openTradeRequests {
 				// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
 				// as the request didn't originate from an api call but is still picked up by the lister
-				eventmodels.RegisterResultCallback(req.RequestID)
+				// eventmodels.RegisterResultCallback(req.RequestID)
 
-				pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+				syncProcess.Add(func(c chan error) {
+					req.Meta.RequestError = c
+					pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+				})
 			}
 		} else {
 			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
@@ -566,7 +581,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *models.NewSignalRequestEve
 
 	// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
 	// as the request didn't originate from an api call but is still picked up by the lister
-	eventmodels.RegisterResultCallback(event.RequestID)
+	// eventmodels.RegisterResultCallback(event.RequestID)
 
 	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.NewSignalResult{
 		Name:      event.Name,

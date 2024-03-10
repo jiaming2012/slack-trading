@@ -9,13 +9,18 @@ import (
 )
 
 type CloseTradeRequest struct {
-	RequestID       uuid.UUID
-	AccountName     string  `json:"AccountName"`
-	StrategyName    string  `json:"strategyName"`
-	PriceLevelIndex int     `json:"priceLevelIndex"`
-	Timeframe       *int    `json:"timeframe"`
-	Percent         float64 `json:"percent"`
-	Reason          string  `json:"reason"`
+	Meta            *MetaData `json:"meta"`
+	RequestID       uuid.UUID `json:"requestID"`
+	AccountName     string    `json:"AccountName"`
+	StrategyName    string    `json:"strategyName"`
+	PriceLevelIndex int       `json:"priceLevelIndex"`
+	Timeframe       *int      `json:"timeframe"`
+	Percent         float64   `json:"percent"`
+	Reason          string    `json:"reason"`
+}
+
+func (r *CloseTradeRequest) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *CloseTradeRequest) GetRequestID() uuid.UUID {

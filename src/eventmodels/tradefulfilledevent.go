@@ -8,6 +8,7 @@ import (
 )
 
 type TradeFulfilledEvent struct {
+	Meta           *MetaData
 	RequestID      uuid.UUID
 	Timestamp      time.Time
 	ResponseURL    string
@@ -15,6 +16,10 @@ type TradeFulfilledEvent struct {
 	RequestedPrice float64
 	ExecutedPrice  float64
 	Volume         float64
+}
+
+func (ev TradeFulfilledEvent) GetMetaData() *MetaData {
+	return ev.Meta
 }
 
 func (ev TradeFulfilledEvent) GetRequestID() uuid.UUID {

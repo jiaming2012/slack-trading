@@ -11,9 +11,14 @@ import (
 )
 
 type FetchTradesRequest struct {
+	Meta         *MetaData `json:"meta"`
 	RequestID    uuid.UUID `json:"requestID"`
 	AccountName  string    `json:"accountName"`
 	StrategyName *string   `json:"strategyName"`
+}
+
+func (r *FetchTradesRequest) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *FetchTradesRequest) ParseHTTPRequest(req *http.Request) error {
@@ -48,8 +53,13 @@ func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName
 }
 
 type FetchTradesResult struct {
+	Meta      *MetaData             `json:"meta"`
 	RequestID uuid.UUID             `json:"requestID"`
 	Trades    []*models.TradeLevels `json:"trades"`
+}
+
+func (r *FetchTradesResult) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *FetchTradesResult) GetRequestID() uuid.UUID {

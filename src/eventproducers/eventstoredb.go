@@ -12,7 +12,6 @@ import (
 
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
-	"slack-trading/src/models"
 )
 
 type eventStoreDBClient struct {
@@ -57,7 +56,7 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.Requ
 			pubsub.PublishRequestError("eventStoreDBClient:CreateAccountStrategyRequestEvent", req, err)
 			return
 		}
-	case *models.NewSignalRequestEvent:
+	case *eventmodels.NewSignalRequestEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.NewSignalRequestEvent, "accounts", bytes); err != nil {
 			pubsub.PublishRequestError("eventStoreDBClient:NewSignalRequest", req, err)
 			return
@@ -108,7 +107,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
 		case pubsub.NewSignalRequestEvent:
-			var request models.NewSignalRequestEvent
+			var request eventmodels.NewSignalRequestEvent
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
 				pubsub.PublishRequestError("eventStoreDBClient.NewSignalsRequestEvent", &request, err)
 				break
@@ -130,7 +129,7 @@ func (cli *eventStoreDBClient) wait(event interface{}) {
 		cli.mutex.Unlock()
 	case *eventmodels.CreateAccountStrategyRequestEvent:
 		cli.mutex.Unlock()
-	case *models.NewSignalRequestEvent:
+	case *eventmodels.NewSignalRequestEvent:
 		cli.mutex.Unlock()
 	}
 }

@@ -2,8 +2,9 @@ package eventmodels
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 var dispatcher *GlobalResponseDispatcher

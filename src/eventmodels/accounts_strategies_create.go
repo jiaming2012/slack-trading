@@ -13,7 +13,12 @@ import (
 
 type CreateAccountStrategyRequestEvent struct {
 	AccountsRequestHeader
+	Meta     *MetaData             `json:"meta"`
 	Strategy StrategiesPostRequest `json:"strategy"`
+}
+
+func (r *CreateAccountStrategyRequestEvent) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *CreateAccountStrategyRequestEvent) Validate(request *http.Request) error {

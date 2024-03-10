@@ -7,10 +7,15 @@ import (
 )
 
 type ExecuteCloseTradeRequest struct {
+	Meta      *MetaData
 	RequestID uuid.UUID
 	Timeframe *int
 	Trade     *models.Trade
 	Percent   float64
+}
+
+func (r ExecuteCloseTradeRequest) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r ExecuteCloseTradeRequest) GetRequestID() uuid.UUID {
@@ -18,19 +23,15 @@ func (r ExecuteCloseTradeRequest) GetRequestID() uuid.UUID {
 }
 
 type ExecuteCloseTradesRequest struct {
+	Meta               *MetaData
 	RequestID          uuid.UUID
 	CloseTradesRequest *models.CloseTradesRequest
 }
 
+func (r ExecuteCloseTradesRequest) GetMetaData() *MetaData {
+	return r.Meta
+}
+
 func (r ExecuteCloseTradesRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-type ExecuteOpenTradeRequest struct {
-	RequestID        uuid.UUID
-	OpenTradeRequest *models.OpenTradeRequest
-}
-
-func (r ExecuteOpenTradeRequest) GetRequestID() uuid.UUID {
 	return r.RequestID
 }

@@ -15,6 +15,7 @@ type ApiRequest interface {
 	ParseHTTPRequest(r *http.Request) error
 	Validate(r *http.Request) error
 	SetRequestID(id uuid.UUID)
+	GetMetaData() *eventmodels.MetaData
 	GetRequestID() uuid.UUID
 }
 

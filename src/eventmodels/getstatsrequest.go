@@ -3,17 +3,19 @@ package eventmodels
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"slack-trading/src/models"
 )
 
 type GetStatsRequest struct {
+	Meta        *MetaData `json:"meta"`
 	RequestID   uuid.UUID `json:"requestID"`
 	AccountName string    `json:"AccountName"`
+}
+
+func (r *GetStatsRequest) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *GetStatsRequest) GetRequestID() uuid.UUID {
@@ -42,22 +44,4 @@ func (r *GetStatsRequest) Validate(request *http.Request) error {
 	}
 
 	return nil
-}
-
-type GetStatsResultItem struct {
-	StrategyName    string                      `json:"name"`
-	Stats           *models.TradeStats          `json:"stats"`
-	EntryConditions []*models.EntryConditionDTO `json:"entryConditions"`
-	ExitConditions  []*models.ExitConditionDTO  `json:"exitConditions"`
-	OpenTradeLevels []*models.TradeLevels       `json:"openTrades"`
-	CreatedOn       time.Time                   `json:"createdOn"`
-}
-
-type GetStatsResult struct {
-	RequestID  uuid.UUID             `json:"requestID"`
-	Strategies []*GetStatsResultItem `json:"strategies"`
-}
-
-func (r *GetStatsResult) GetRequestID() uuid.UUID {
-	return r.RequestID
 }

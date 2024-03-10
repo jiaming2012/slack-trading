@@ -11,10 +11,15 @@ import (
 // todo: make an APIRequestEvent struct
 
 type OpenTradeRequest struct {
+	Meta         *MetaData
 	RequestID    uuid.UUID
 	AccountName  string `json:"AccountName"`
 	StrategyName string `json:"strategyName"`
 	Timeframe    *int   `json:"timeframe"`
+}
+
+func (r *OpenTradeRequest) GetMetaData() *MetaData {
+	return r.Meta
 }
 
 func (r *OpenTradeRequest) ParseHTTPRequest(req *http.Request) error {

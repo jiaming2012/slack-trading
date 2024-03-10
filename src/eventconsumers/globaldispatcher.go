@@ -45,9 +45,11 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 
 	if err != nil {
 		// pubsub.PublishError("GlobalDispatchWorker.dispatchResult", fmt.Errorf("failed to find dispatcher: %w", err))
-		log.Errorf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %w", err)
+		log.Errorf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
 		return
 	}
+
+	event.GetMetaData().EndProcess(nil)
 
 	globalDispatchItem.ResultCh <- event
 }
