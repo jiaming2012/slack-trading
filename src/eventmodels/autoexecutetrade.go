@@ -2,14 +2,12 @@ package eventmodels
 
 import (
 	"github.com/google/uuid"
-
-	"slack-trading/src/models"
 )
 
 type AutoExecuteTrade struct {
 	Meta      *MetaData
 	RequestID uuid.UUID
-	Trade     *models.Trade
+	Trade     *Trade
 }
 
 func (r AutoExecuteTrade) GetMetaData() *MetaData {

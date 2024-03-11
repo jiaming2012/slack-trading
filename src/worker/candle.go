@@ -12,7 +12,6 @@ import (
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventpubsub"
-	"slack-trading/src/models"
 )
 
 const (
@@ -84,7 +83,7 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
 				eventpubsub.PublishEventResult("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
 					time.Now().UTC(),
 					price,
-					models.CoinbaseDatafeed,
+					eventmodels.CoinbaseDatafeed,
 				))
 
 				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers

@@ -5,16 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
+
+	"slack-trading/src/eventmodels"
+	pubsub "slack-trading/src/eventpubsub"
 )
 
 // todo: add config
@@ -41,7 +43,7 @@ func (c *SlackNotifierClient) tradeFulfilledHandler(ev eventmodels.TradeFulfille
 func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.ExecuteCloseTradesResult) {
 	log.Debugf("SlackNotifierClient.executeCloseTradesResultHandler <- %v", ev)
 
-	msg := fmt.Sprintf("%v close (priceLevel %v): %v", ev.Side, ev.Result.PriceLevelIndex, ev.Result.Trade)
+	msg := fmt.Sprintf("close trade: %v", ev.Trade)
 
 	_, err := sendResponse(msg, WebhookURL, false)
 	if err != nil {
@@ -52,7 +54,7 @@ func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.Ex
 func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.ExecuteOpenTradeResult) {
 	log.Debugf("SlackNotifierClient.executeOpenTradeResultHandler <- %v", ev)
 
-	msg := fmt.Sprintf("%v open (priceLevel %v): %v", ev.Side, ev.Result.PriceLevelIndex, ev.Result.Trade)
+	msg := fmt.Sprintf("open trade: %v", ev.Trade)
 
 	_, err := sendResponse(msg, WebhookURL, false)
 	if err != nil {

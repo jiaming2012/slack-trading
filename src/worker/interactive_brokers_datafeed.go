@@ -15,7 +15,6 @@ import (
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventpubsub"
-	"slack-trading/src/models"
 )
 
 func IBSubscribe(conId string) []byte {
@@ -196,7 +195,7 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO, c *
 				eventpubsub.PublishEventResult("IBTickListener.worker", eventpubsub.NewTickEvent, eventmodels.NewTick(
 					tick.Timestamp,
 					tick.Price,
-					models.IBDatafeed,
+					eventmodels.IBDatafeed,
 				))
 			}
 		}

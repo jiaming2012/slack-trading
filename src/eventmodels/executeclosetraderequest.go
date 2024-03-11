@@ -2,15 +2,13 @@ package eventmodels
 
 import (
 	"github.com/google/uuid"
-
-	"slack-trading/src/models"
 )
 
 type ExecuteCloseTradeRequest struct {
 	Meta      *MetaData
 	RequestID uuid.UUID
 	Timeframe *int
-	Trade     *models.Trade
+	Trade     *Trade
 	Percent   float64
 }
 
@@ -25,7 +23,7 @@ func (r ExecuteCloseTradeRequest) GetRequestID() uuid.UUID {
 type ExecuteCloseTradesRequest struct {
 	Meta               *MetaData
 	RequestID          uuid.UUID
-	CloseTradesRequest *models.CloseTradesRequest
+	CloseTradesRequest *CloseTradesRequest
 }
 
 func (r ExecuteCloseTradesRequest) GetMetaData() *MetaData {

@@ -25,7 +25,6 @@ import (
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
-	"slack-trading/src/models"
 )
 
 /* Slack commands
@@ -57,10 +56,10 @@ All of the following:.................................................... no
 
 */
 
-func loadAccountFixtures2(datafeed *models.Datafeed) (*models.Account, error) {
+func loadAccountFixtures2(datafeed *eventmodels.Datafeed) (*eventmodels.Account, error) {
 	// todo: fetch from database
 	balance := 2000.0
-	priceLevels := []*models.PriceLevel{
+	priceLevels := []*eventmodels.PriceLevel{
 		{
 			Price:                63.605,
 			MaxNoOfTrades:        8,
@@ -80,36 +79,36 @@ func loadAccountFixtures2(datafeed *models.Datafeed) (*models.Account, error) {
 		},
 	}
 
-	account, err := models.NewAccount("oil playground", balance, datafeed)
+	account, err := eventmodels.NewAccount("oil playground", balance, datafeed)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	strategy1, err := models.NewStrategyDeprecated("elliot wave", "/CL", models.Up, balance, priceLevels, account)
+	strategy1, err := eventmodels.NewStrategyDeprecated("elliot wave", "/CL", eventmodels.Up, balance, priceLevels, account)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
 	now := time.Now().UTC()
-	entrySignal := models.NewSignalV2("push_up", now)
-	resetSignal := models.NewResetSignal("stall", entrySignal, now)
+	entrySignal := eventmodels.NewSignalV2("push_up", now)
+	resetSignal := eventmodels.NewResetSignal("stall", entrySignal, now)
 
 	strategy1.AddEntryCondition(entrySignal, resetSignal)
 
-	exitSignal1 := models.NewSignalV2("sqzmom_pivot_down", now)
-	exitSignals := []*models.ExitSignal{
+	exitSignal1 := eventmodels.NewSignalV2("sqzmom_pivot_down", now)
+	exitSignals := []*eventmodels.ExitSignal{
 		{
 			Signal:      exitSignal1,
-			ResetSignal: models.NewResetSignal("sqzmom_pivot_up", exitSignal1, now),
+			ResetSignal: eventmodels.NewResetSignal("sqzmom_pivot_up", exitSignal1, now),
 		},
 	}
 
-	exitReentrySignals := []*models.SignalV2{
-		models.NewSignalV2("sqzmom_pivot_up", now),
+	exitReentrySignals := []*eventmodels.SignalV2{
+		eventmodels.NewSignalV2("sqzmom_pivot_up", now),
 	}
 
-	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
-	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+	exitConstraint1 := eventmodels.NewExitSignalConstraint("PL(levelIndex) > 0", eventmodels.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*eventmodels.ExitSignalConstraint{exitConstraint1}
 
 	maxTriggerCount := 3
 	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitReentrySignals, exitConstraints, .25, &maxTriggerCount)
@@ -122,10 +121,10 @@ func loadAccountFixtures2(datafeed *models.Datafeed) (*models.Account, error) {
 	return account, nil
 }
 
-func loadAccountFixtures1(datafeed *models.Datafeed) (*models.Account, error) {
+func loadAccountFixtures1(datafeed *eventmodels.Datafeed) (*eventmodels.Account, error) {
 	// todo: fetch from database
 	balance := 2000.0
-	priceLevels := []*models.PriceLevel{
+	priceLevels := []*eventmodels.PriceLevel{
 		{
 			Price: 23866.0,
 		},
@@ -145,56 +144,56 @@ func loadAccountFixtures1(datafeed *models.Datafeed) (*models.Account, error) {
 		},
 	}
 
-	account, err := models.NewAccount("btc playground", balance, datafeed)
+	account, err := eventmodels.NewAccount("btc playground", balance, datafeed)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	strategy1, err := models.NewStrategyDeprecated("rsi-crossed-over-upper-band", "BTC-USD", models.Down, balance, priceLevels, account)
+	strategy1, err := eventmodels.NewStrategyDeprecated("rsi-crossed-over-upper-band", "BTC-USD", eventmodels.Down, balance, priceLevels, account)
 	if err != nil {
 		return nil, fmt.Errorf("loadAccountFixtures: %w", err)
 	}
 
-	//entrySignal1 := models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line")
-	//resetSignal1 := models.NewSignalV2("reset_rsiMA_crossed")
+	//entrySignal1 := eventmodels.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line")
+	//resetSignal1 := eventmodels.NewSignalV2("reset_rsiMA_crossed")
 
-	//entrySignal2 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
-	//resetSignal2 := models.NewSignalV2("reset_rsiMA_crossed")
+	//entrySignal2 := eventmodels.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line")
+	//resetSignal2 := eventmodels.NewSignalV2("reset_rsiMA_crossed")
 
 	now := time.Now().UTC()
-	entrySignal3 := models.NewSignalV2("rsi_crossed_over_upper_band", now)
-	resetSignal3 := models.NewResetSignal("reset_rsi_crossed", entrySignal3, now)
+	entrySignal3 := eventmodels.NewSignalV2("rsi_crossed_over_upper_band", now)
+	resetSignal3 := eventmodels.NewResetSignal("reset_rsi_crossed", entrySignal3, now)
 
-	//entrySignal4 := models.NewSignalV2("rsi_crossed_under_upper_band")
-	//resetSignal4 := models.NewSignalV2("reset_rsi_crossed")
+	//entrySignal4 := eventmodels.NewSignalV2("rsi_crossed_under_upper_band")
+	//resetSignal4 := eventmodels.NewSignalV2("reset_rsi_crossed")
 
 	//strategy1.AddEntryCondition(entrySignal1, resetSignal1)
 	//strategy1.AddEntryCondition(entrySignal2, resetSignal2)
 	strategy1.AddEntryCondition(entrySignal3, resetSignal3)
 	//strategy1.AddEntryCondition(entrySignal4, resetSignal4)
 
-	exitSignal1 := models.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line", now)
-	exitSignals := []*models.ExitSignal{
+	exitSignal1 := eventmodels.NewSignalV2("rsi_crossed_over_rsiMA_below_the_oversold_line", now)
+	exitSignals := []*eventmodels.ExitSignal{
 		{
 			Signal:      exitSignal1,
-			ResetSignal: models.NewResetSignal("reset_rsiMA_crossed", exitSignal1, now),
+			ResetSignal: eventmodels.NewResetSignal("reset_rsiMA_crossed", exitSignal1, now),
 		},
 		//{
-		//	Signal:      models.NewSignalV2("m5-bollinger-touch-below"),
-		//	ResetSignal: models.NewSignalV2("m5-bollinger-touch-above"),
+		//	Signal:      eventmodels.NewSignalV2("m5-bollinger-touch-below"),
+		//	ResetSignal: eventmodels.NewSignalV2("m5-bollinger-touch-above"),
 		//},
 	}
 
-	//exitReentrySignals := []*models.SignalV2{
-	//	models.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
+	//exitReentrySignals := []*eventmodels.SignalV2{
+	//	eventmodels.NewSignalV2("rsi_crossed_under_rsiMA_above_the_overbought_line", now),
 	//}
 
-	exitReentrySignals := []*models.SignalV2{
-		models.NewSignalV2("reset_rsiMA_crossed", now),
+	exitReentrySignals := []*eventmodels.SignalV2{
+		eventmodels.NewSignalV2("reset_rsiMA_crossed", now),
 	}
 
-	exitConstraint1 := models.NewExitSignalConstraint("PL(levelIndex) > 0", models.PriceLevelProfitLossAboveZeroConstraint)
-	exitConstraints := []*models.ExitSignalConstraint{exitConstraint1}
+	exitConstraint1 := eventmodels.NewExitSignalConstraint("PL(levelIndex) > 0", eventmodels.PriceLevelProfitLossAboveZeroConstraint)
+	exitConstraints := []*eventmodels.ExitSignalConstraint{exitConstraint1}
 
 	maxTriggerCount := 3
 	strategy1.AddExitCondition("momentum_level_0", 0, exitSignals, exitReentrySignals, exitConstraints, .5, &maxTriggerCount)
@@ -348,9 +347,9 @@ func run() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// Create datafeeds
-	coinbaseDatafeed := models.NewDatafeed(models.CoinbaseDatafeed)
-	ibDatafeed := models.NewDatafeed(models.IBDatafeed)
-	manualDatafeed := models.NewDatafeed(models.ManualDatafeed)
+	coinbaseDatafeed := eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed)
+	ibDatafeed := eventmodels.NewDatafeed(eventmodels.IBDatafeed)
+	manualDatafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
 
 	// Load account fixtures
 	// account1, err := loadAccountFixtures1(coinbaseDatafeed)
@@ -363,8 +362,8 @@ func run() {
 	// 	log.Fatal(err)
 	// }
 
-	// accounts := []*models.Account{account1, account2}
-	accounts := make([]*models.Account, 0)
+	// accounts := []*eventmodels.Account{account1, account2}
+	accounts := make([]*eventmodels.Account, 0)
 
 	// Start event clients
 	//eventproducers.NewReportClient(&wg).Start(ctx)

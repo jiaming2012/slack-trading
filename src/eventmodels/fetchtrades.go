@@ -6,8 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"slack-trading/src/models"
 )
 
 type FetchTradesRequest struct {
@@ -53,9 +51,9 @@ func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName
 }
 
 type FetchTradesResult struct {
-	Meta      *MetaData             `json:"meta"`
-	RequestID uuid.UUID             `json:"requestID"`
-	Trades    []*models.TradeLevels `json:"trades"`
+	Meta      *MetaData      `json:"meta"`
+	RequestID uuid.UUID      `json:"requestID"`
+	Trades    []*TradeLevels `json:"trades"`
 }
 
 func (r *FetchTradesResult) GetMetaData() *MetaData {
@@ -66,6 +64,6 @@ func (r *FetchTradesResult) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
 
-func NewFetchTradesResult(requestID uuid.UUID, trades []*models.TradeLevels) *FetchTradesResult {
+func NewFetchTradesResult(requestID uuid.UUID, trades []*TradeLevels) *FetchTradesResult {
 	return &FetchTradesResult{RequestID: requestID, Trades: trades}
 }

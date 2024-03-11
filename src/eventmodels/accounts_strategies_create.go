@@ -7,8 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"slack-trading/src/models"
 )
 
 type CreateAccountStrategyRequestEvent struct {
@@ -69,5 +67,5 @@ func (r *CreateAccountStrategyRequestEvent) GetRequestID() uuid.UUID {
 
 type CreateAccountStrategyResponseEvent struct {
 	AccountsRequestHeader
-	Strategy *models.Strategy `json:"strategy"`
+	Strategy *Strategy `json:"strategy"`
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/schema"
 
 	"slack-trading/src/eventmodels"
-	models "slack-trading/src/eventmodels"
 )
 
 var NoRequestParamsErr = fmt.Errorf("no request params found")
@@ -121,7 +120,7 @@ func parseAccountRequestParams(params string) (interface{}, error) {
 }
 
 func parseAccountRequest(data url.Values) (interface{}, error) {
-	req := new(models.IncomingSlackRequest)
+	req := new(eventmodels.IncomingSlackRequest)
 	schema.NewDecoder().Decode(req, data)
 
 	request, err := parseAccountRequestParams(req.Params)
