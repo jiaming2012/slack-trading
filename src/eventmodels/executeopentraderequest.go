@@ -5,6 +5,7 @@ import (
 )
 
 type ExecuteOpenTradeRequest struct {
+	ParentRequest    interface{}
 	Meta             *MetaData
 	RequestID        uuid.UUID
 	OpenTradeRequest *OpenTradeRequest

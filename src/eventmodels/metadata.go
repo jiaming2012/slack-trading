@@ -1,8 +1,8 @@
 package eventmodels
 
 type MetaData struct {
-	ParentMeta   *MetaData
-	RequestError chan error
+	ParentMeta   *MetaData  `json:"-"`
+	RequestError chan error `json:"-"`
 }
 
 func NewMetaData(parentMeta *MetaData) *MetaData {

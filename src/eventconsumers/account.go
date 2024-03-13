@@ -310,7 +310,7 @@ func (w *AccountWorker) handleAutoExecuteTrade(event *eventmodels.AutoExecuteTra
 	pubsub.PublishResult("AccountWorker.handleExecuteCloseTradesRequest", pubsub.ExecuteCloseTradesResult, executeCloseTradesResult)
 }
 
-func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
+func (w *AccountWorker) handleExecuteOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
 	log.Debug("<- AccountWorker.handleExecuteNewOpenTradeRequest")
 
 	req := event.OpenTradeRequest
@@ -342,8 +342,9 @@ func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.Execu
 
 	trade, _, err := strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
+		// event.Meta.EndProcess(err)
 		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new trade: %w", err))
-		pubsub.PublishRequestError("AccountWorker.handleExecuteNewOpenTradeRequest", event, requestErr)
+		pubsub.PublishRequestErrorInterface("AccountWorker.handleExecuteNewOpenTradeRequest", event, requestErr)
 		return
 	}
 
@@ -397,6 +398,7 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	// )
 
 	pubsub.PublishResult("AccountWorker.handleNewOpenTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
+		ParentRequest:    &event,
 		Meta:             eventmodels.NewMetaData(event.Meta),
 		RequestID:        event.RequestID,
 		OpenTradeRequest: &event,
@@ -431,6 +433,11 @@ func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesR
 func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest) {
 	log.Debug("<- AccountWorker.handleGetStatsRequest")
 
+	event.Meta = &eventmodels.MetaData{
+		ParentMeta:   nil,
+		RequestError: make(chan error),
+	}
+
 	account, err := w.findAccount(event.AccountName)
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
@@ -443,6 +450,11 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, err)
 		return
+	}
+
+	statsResult.Meta = &eventmodels.MetaData{
+		ParentMeta:   event.Meta,
+		RequestError: make(chan error),
 	}
 
 	pubsub.PublishResult("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
@@ -487,6 +499,11 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalRequestEvent) {
 	log.Infof("received %v", event)
 
+	meta := &eventmodels.MetaData{
+		ParentMeta:   nil,
+		RequestError: make(chan error),
+	}
+
 	// handle exit conditions
 	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr == nil {
@@ -504,7 +521,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalReque
 					})
 				}
 
-				// todo: check error handling
+				// todo: test error handling
 				if err := syncProcess.Run(); err != nil {
 					pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 				}
@@ -523,17 +540,39 @@ func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalReque
 	if entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event); entryConditionsSatisfied != nil {
 		openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
 		if err == nil {
-			var syncProcess pubsub.SyncProcess
+			// var syncProcess pubsub.SyncProcess
 			for _, req := range openTradeRequests {
 				// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
 				// as the request didn't originate from an api call but is still picked up by the lister
 				// eventmodels.RegisterResultCallback(req.RequestID)
 
-				syncProcess.Add(func(c chan error) {
-					req.Meta.RequestError = c
-					pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
-				})
+				// syncProcess.Add(func(c chan error) {
+				// req.Meta.RequestError = c
+				reqErrCh := req.Wait()
+
+				pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+
+				for e := range reqErrCh {
+					bFoundExecuteOpenTradeRequest := false
+					log.Errorf("Trade error, %T: %v", e.Request, e.Error)
+					switch e.Request.(type) {
+					case eventmodels.ExecuteOpenTradeRequest:
+						bFoundExecuteOpenTradeRequest = true
+					}
+
+					if bFoundExecuteOpenTradeRequest {
+						pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, e.Error)
+						break
+					}
+				}
+				// })
+				fmt.Println("hellow boss")
 			}
+
+			fmt.Println("hello world")
+			// if err := syncProcess.Run(); err != nil {
+
+			// }
 		} else {
 			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 		}
@@ -544,6 +583,10 @@ func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalReque
 	// eventmodels.RegisterResultCallback(event.RequestID)
 
 	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.NewSignalResult{
+		Meta: &eventmodels.MetaData{
+			ParentMeta:   meta,
+			RequestError: make(chan error),
+		},
 		Name:      event.Name,
 		RequestID: event.RequestID,
 	})
@@ -602,7 +645,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.getAccountsRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, w.updateTickMachine)
 	pubsub.Subscribe("AccountWorker", pubsub.NewOpenTradeRequest, w.handleNewOpenTradeRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteNewOpenTradeRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.CloseTradesRequest, w.handleCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)

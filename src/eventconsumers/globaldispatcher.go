@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventpubsub"
 	pubsub "slack-trading/src/eventpubsub"
 )
 
@@ -30,7 +31,7 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
 	if err != nil {
 		// pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher: %w", err))
-		log.Errorf("GlobalDispatchWorker.dispatchError: failed to find dispatcher: %v", err)
+		log.Debugf("GlobalDispatchWorker.dispatchError: failed to find dispatcher: %v", err)
 		return
 	}
 
@@ -38,6 +39,15 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
+	switch ev := event.(type) {
+	case *eventmodels.CreateAccountResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.CreateAccountStrategyResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.NewSignalResult:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	}
+
 	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!
 	id := event.GetRequestID()
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
@@ -45,11 +55,11 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 
 	if err != nil {
 		// pubsub.PublishError("GlobalDispatchWorker.dispatchResult", fmt.Errorf("failed to find dispatcher: %w", err))
-		log.Errorf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
+		log.Debugf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
 		return
 	}
 
-	event.GetMetaData().EndProcess(nil)
+	// event.GetMetaData().EndProcess(nil)
 
 	globalDispatchItem.ResultCh <- event
 }

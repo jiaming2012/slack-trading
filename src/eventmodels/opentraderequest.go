@@ -13,9 +13,14 @@ import (
 type OpenTradeRequest struct {
 	Meta         *MetaData
 	RequestID    uuid.UUID
-	AccountName  string `json:"AccountName"`
-	StrategyName string `json:"strategyName"`
-	Timeframe    *int   `json:"timeframe"`
+	AccountName  string          `json:"AccountName"`
+	StrategyName string          `json:"strategyName"`
+	Timeframe    *int            `json:"timeframe"`
+	Error        chan EventError `json:"-"`
+}
+
+func (r *OpenTradeRequest) Wait() chan EventError {
+	return r.Error
 }
 
 func (r *OpenTradeRequest) GetMetaData() *MetaData {
@@ -39,7 +44,14 @@ func (r *OpenTradeRequest) SetRequestID(id uuid.UUID) {
 }
 
 func NewOpenTradeRequest(requestID uuid.UUID, accountName string, strategyName string, timeframe *int) (*OpenTradeRequest, error) {
-	req := &OpenTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, Timeframe: timeframe}
+	req := &OpenTradeRequest{
+		Meta:      &MetaData{ParentMeta: nil, RequestError: make(chan error)},
+		RequestID: requestID, AccountName: accountName,
+		StrategyName: strategyName,
+		Timeframe:    timeframe,
+		Error:        make(chan EventError),
+	}
+
 	if err := req.Validate(nil); err != nil {
 		return nil, err
 	}

@@ -121,15 +121,18 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 	}
 }
 
-func (cli *eventStoreDBClient) wait(event interface{}) {
-	log.Debugf("<- eventStoreDBClient.wait: finished processing %v", event)
+func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
+	log.Debugf("<- eventStoreDBClient.handleProcessRequestComplete: finished processing %v", event)
 
 	switch event.(type) {
-	case *eventmodels.CreateAccountRequestEvent:
+	// case *eventmodels.CreateAccountRequestEvent:
+	case *eventmodels.CreateAccountResponseEvent:
 		cli.mutex.Unlock()
-	case *eventmodels.CreateAccountStrategyRequestEvent:
+		// case *eventmodels.CreateAccountStrategyRequestEvent:
+	case *eventmodels.CreateAccountStrategyResponseEvent:
 		cli.mutex.Unlock()
-	case *eventmodels.NewSignalRequestEvent:
+	// case *eventmodels.NewSignalRequestEvent:
+	case *eventmodels.NewSignalResult:
 		cli.mutex.Unlock()
 	}
 }
@@ -150,7 +153,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.NewSignalRequestEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.wait)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
 
 	// streamNames := []string{"accounts"}
 	// for _, streamName := range streamNames {

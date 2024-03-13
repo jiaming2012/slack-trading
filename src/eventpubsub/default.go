@@ -2,7 +2,6 @@ package eventpubsub
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/asaskevich/EventBus"
 	log "github.com/sirupsen/logrus"
@@ -16,13 +15,32 @@ func Init() {
 	bus = EventBus.New()
 }
 
+func PublishRequestErrorInterface(publisherName string, requestEvent eventmodels.RequestEvent, err error) {
+	switch ev := requestEvent.(type) {
+	case eventmodels.ExecuteOpenTradeRequest:
+		fmt.Println(ev)
+		openTradeReq := ev.ParentRequest.(*eventmodels.OpenTradeRequest)
+		openTradeReq.Error <- eventmodels.EventError{
+			Request: ev,
+			Error:   err,
+		}
+	}
+
+	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
+	publishError(publisherName, requestErr)
+}
+
 func PublishRequestError[T eventmodels.RequestEvent](publisherName string, requestEvent T, err error) {
 	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
 	publishError(publisherName, requestErr)
 }
 
+func PublishResultWithMetadata[T eventmodels.ResultEvent](publisherName string, topic EventName, event T, meta *eventmodels.MetaData) {
+	publish(publisherName, topic, event)
+}
+
 func PublishResult[T eventmodels.ResultEvent](publisherName string, topic EventName, event T) {
-	publishWithFlags(publisherName, topic, event, true)
+	publish(publisherName, topic, event)
 }
 
 func PublishEventError(publisherName string, err error) {
@@ -51,13 +69,15 @@ func publishWithFlags(publisherName string, topic EventName, event interface{}, 
 	switch ev := event.(type) {
 	// case eventmodels.APIRequestEvent:
 	// case eventmodels.StreamReadEvent:
+	case eventmodels.RequestError:
+		fmt.Println(ev)
 	case eventmodels.RequestEvent:
 		_id := ev.GetRequestID().String()
 		requestID = &_id
 
-		if !strings.Contains(strings.ToLower(string(topic)), "error") {
-			bus.Publish(string(ProcessRequestComplete), event)
-		}
+		// if !strings.Contains(strings.ToLower(string(topic)), "error") {
+
+		// }
 	}
 
 	if logEvent {
