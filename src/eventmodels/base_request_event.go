@@ -4,7 +4,7 @@ import "github.com/google/uuid"
 
 type BaseRequstEvent struct {
 	Meta      *MetaData `json:"meta"`
-	RequestID uuid.UUID `json:"id"`
+	RequestID uuid.UUID `json:"requestID"`
 }
 
 func (r *BaseRequstEvent) GetMetaData() *MetaData {

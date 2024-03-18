@@ -19,7 +19,7 @@ func createAlert(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteAlert(w http.ResponseWriter, r *http.Request) {
-	// eventproducers.ApiRequestHandler(eventpubsub.DeleteAlertRequestEvent, &eventmodels.DeleteOptionAlertRequestEvent{}, &eventmodels.DeleteOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler(eventpubsub.DeleteOptionAlertRequestEvent, &eventmodels.DeleteOptionAlertRequestEvent{}, &eventmodels.DeleteOptionAlertResponseEvent{}, w, r)
 }
 
 func handleAlerts(w http.ResponseWriter, r *http.Request) {
