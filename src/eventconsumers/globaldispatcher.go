@@ -77,6 +77,8 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetOptionAlertResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateOptionAlertResponseEvent, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()

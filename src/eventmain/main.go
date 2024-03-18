@@ -21,6 +21,7 @@ import (
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventproducers/accountapi"
+	"slack-trading/src/eventproducers/alertapi"
 	"slack-trading/src/eventproducers/datafeedapi"
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
@@ -296,7 +297,7 @@ func run() {
 
 	// todo: move to environment variables
 	// Constants
-	iBServerURL := "wss://localhost:5000/v1/api/ws"
+	// iBServerURL := "wss://localhost:5000/v1/api/ws"
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
 
 	// Set up logger
@@ -323,6 +324,7 @@ func run() {
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
+	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 	// strategyapi.SetupHandler(router.PathPrefix("/strategies").Subrouter())
 
 	// Setup web server
@@ -347,9 +349,9 @@ func run() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// Create datafeeds
-	coinbaseDatafeed := eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed)
-	ibDatafeed := eventmodels.NewDatafeed(eventmodels.IBDatafeed)
-	manualDatafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
+	// coinbaseDatafeed := eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed)
+	// ibDatafeed := eventmodels.NewDatafeed(eventmodels.IBDatafeed)
+	// manualDatafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
 
 	// Load account fixtures
 	// account1, err := loadAccountFixtures1(coinbaseDatafeed)
@@ -363,13 +365,13 @@ func run() {
 	// }
 
 	// accounts := []*eventmodels.Account{account1, account2}
-	accounts := make([]*eventmodels.Account, 0)
+	// accounts := make([]*eventmodels.Account, 0)
 
 	// Start event clients
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
-	eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
-	eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
+	// eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
+	// eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
 	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
@@ -377,9 +379,11 @@ func run() {
 	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
-	eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
+	// eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
+	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 	eventproducers.NewEventStoreDBClient(&wg).Start(ctx, eventStoreDbURL)
+
+	eventconsumers.NewOptionAlertWorker(&wg).Start(ctx)
 
 	log.Info("Main: init complete")
 
