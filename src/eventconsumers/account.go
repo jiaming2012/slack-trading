@@ -23,10 +23,6 @@ type AccountWorker struct {
 	manualDatafeed   *eventmodels.Datafeed
 }
 
-func (w *AccountWorker) monitorTrades() {
-
-}
-
 func (w *AccountWorker) getAccounts() []*eventmodels.Account {
 	accounts := []*eventmodels.Account{}
 
@@ -45,23 +41,6 @@ func (w *AccountWorker) addAccountWithoutStrategy(account *eventmodels.Account) 
 	}
 
 	w.accounts = append(w.accounts, account)
-
-	return nil
-}
-
-// todo: remove this
-func (w *AccountWorker) addAccount(account *eventmodels.Account, balance float64, priceLevels []*eventmodels.PriceLevel) error {
-
-	strategy, err := eventmodels.NewStrategyDeprecated("trendline-break", "BTC-USD", "down", balance, priceLevels, account)
-	if err != nil {
-		return err
-	}
-
-	account.AddStrategy(strategy)
-
-	if err := w.addAccountWithoutStrategy(account); err != nil {
-		return err
-	}
 
 	return nil
 }
