@@ -234,12 +234,7 @@ func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.Execut
 	strategy := event.Trade.PriceLevel.Strategy
 	datafeed := strategy.Account.Datafeed
 
-	var requestPrc float64
-	if strategy.Direction == eventmodels.Up {
-		requestPrc = datafeed.LastBid
-	} else if strategy.Direction == eventmodels.Down {
-		requestPrc = datafeed.LastOffer
-	}
+	requestPrc := datafeed.LastTick
 
 	trade, _, err := strategy.NewCloseTrade(tradeID, event.Timeframe, now, requestPrc, event.Percent, event.Trade)
 	if err != nil {
@@ -267,12 +262,7 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 	now := time.Now().UTC()
 	datafeed := event.CloseTradesRequest.Strategy.Account.Datafeed
 
-	var requestPrc float64
-	if event.CloseTradesRequest.Strategy.Direction == eventmodels.Up {
-		requestPrc = datafeed.LastBid
-	} else if event.CloseTradesRequest.Strategy.Direction == eventmodels.Down {
-		requestPrc = datafeed.LastOffer
-	}
+	requestPrc := datafeed.LastTick
 
 	// todo: unify models: partialCloseRequestItems. Strategy.AutoExecuteTrade handles differently than trade.AutoExecuteTrade
 	trade, _, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
@@ -331,12 +321,7 @@ func (w *AccountWorker) handleExecuteOpenTradeRequest(event eventmodels.ExecuteO
 
 	datafeed := strategy.Account.Datafeed
 
-	var requestPrc float64
-	if strategy.Direction == eventmodels.Up {
-		requestPrc = datafeed.LastOffer
-	} else if strategy.Direction == eventmodels.Down {
-		requestPrc = datafeed.LastBid
-	}
+	requestPrc := datafeed.LastTick
 
 	trade, _, err := strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
 	if err != nil {
