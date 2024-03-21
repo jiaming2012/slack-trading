@@ -44,7 +44,11 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	case *eventmodels.CreateAccountStrategyResponseEvent:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.CreateSignalResultEvent:
+	case *eventmodels.CreateSignalResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.CreateOptionAlertResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.DeleteOptionAlertResponseEvent:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	}
 
@@ -72,11 +76,14 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.FetchTradesResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteCloseTradesResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetStatsResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.NewSignalResultEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateSignalResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ManualDatafeedUpdateResult, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetOptionAlertResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateOptionAlertResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.DeleteOptionAlertResponseEvent, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()

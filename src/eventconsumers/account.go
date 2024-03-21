@@ -36,7 +36,7 @@ func (w *AccountWorker) getAccounts() []*eventmodels.Account {
 }
 
 // todo: add a mutex
-func (w *AccountWorker) addAccountWithoutStrategy(account *eventmodels.Account, balance float64) error {
+func (w *AccountWorker) addAccountWithoutStrategy(account *eventmodels.Account) error {
 
 	for _, acc := range w.accounts {
 		if acc.Name == account.Name {
@@ -59,7 +59,7 @@ func (w *AccountWorker) addAccount(account *eventmodels.Account, balance float64
 
 	account.AddStrategy(strategy)
 
-	if err := w.addAccountWithoutStrategy(account, balance); err != nil {
+	if err := w.addAccountWithoutStrategy(account); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateA
 		return
 	}
 
-	err = w.addAccountWithoutStrategy(account, request.Balance)
+	err = w.addAccountWithoutStrategy(account)
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.addAccountWithoutStrategy", request, err)
 		return
@@ -127,10 +127,13 @@ func (w *AccountWorker) checkTradeCloseParameters() ([]*eventmodels.CloseTradesR
 	for _, account := range w.accounts {
 		tick := account.Datafeed.Tick()
 		stopOutRequests, err := account.CheckStopOut(*tick)
-		stopLossRequests, err := account.CheckStopLoss(*tick)
-
 		if err != nil {
 			return nil, nil, fmt.Errorf("checkStopOut failed: %w", err)
+		}
+
+		stopLossRequests, err := account.CheckStopLoss(*tick)
+		if err != nil {
+			return nil, nil, fmt.Errorf("CheckStopLoss failed: %w", err)
 		}
 
 		closeTradesRequests = append(closeTradesRequests, stopOutRequests...)
@@ -565,7 +568,7 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 	// as the request didn't originate from an api call but is still picked up by the lister
 	// eventmodels.RegisterResultCallback(event.RequestID)
 
-	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.CreateSignalResultEvent{
+	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.CreateSignalResponseEvent, &eventmodels.CreateSignalResponseEvent{
 		Meta: &eventmodels.MetaData{
 			ParentMeta:   meta,
 			RequestError: make(chan error),

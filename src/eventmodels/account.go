@@ -280,8 +280,9 @@ func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, err
 	}
 
 	return &Account{
-		Name:     name,
-		Balance:  balance,
-		Datafeed: datafeed,
+		Name:       name,
+		Strategies: make([]*Strategy, 0),
+		Balance:    balance,
+		Datafeed:   datafeed,
 	}, nil
 }
