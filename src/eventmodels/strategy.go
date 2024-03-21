@@ -168,7 +168,7 @@ func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*TradeLevels {
 	var priceLevelTrades []*TradeLevels
 
 	for index, level := range s.PriceLevels.Bands {
-		var trades []*TradeDTO
+		trades := make([]*TradeDTO, 0)
 
 		if openTradesOnly {
 			for _, tr := range *level.Trades.OpenTrades() {

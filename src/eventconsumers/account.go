@@ -428,8 +428,8 @@ func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesR
 	pubsub.PublishResult("AccountWorker.handleFetchTradesRequest", pubsub.FetchTradesResult, fetchTradesResult)
 }
 
-func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest) {
-	log.Debug("<- AccountWorker.handleGetStatsRequest")
+func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStatsRequest) {
+	log.Debug("<- AccountWorker.handleGetAccountStatsRequest")
 
 	event.Meta = &eventmodels.MetaData{
 		ParentMeta:   nil,
@@ -438,7 +438,7 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 
 	account, err := w.findAccount(event.AccountName)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
+		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
 		return
 	}
 
@@ -446,7 +446,7 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 
 	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, err)
+		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", event, err)
 		return
 	}
 
@@ -455,7 +455,7 @@ func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest
 		RequestError: make(chan error),
 	}
 
-	pubsub.PublishResult("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
+	pubsub.PublishResult("AccountWorker.handleGetAccountStatsRequest", pubsub.GetStatsResult, statsResult)
 }
 
 func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []*eventmodels.ExitConditionsSatisfied) ([]*eventmodels.CloseTradeRequest, error) {
@@ -648,7 +648,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetAccountStatsRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewSignalRequestEventStoredSuccess, w.handleNewSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
