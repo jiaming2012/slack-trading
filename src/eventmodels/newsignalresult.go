@@ -2,16 +2,16 @@ package eventmodels
 
 import "github.com/google/uuid"
 
-type NewSignalResult struct {
+type CreateSignalResultEvent struct {
 	Meta      *MetaData `json:"meta"`
 	Name      string    `json:"name"`
 	RequestID uuid.UUID `json:"requestID"`
 }
 
-func (r *NewSignalResult) GetMetaData() *MetaData {
+func (r *CreateSignalResultEvent) GetMetaData() *MetaData {
 	return r.Meta
 }
 
-func (r *NewSignalResult) GetRequestID() uuid.UUID {
+func (r *CreateSignalResultEvent) GetRequestID() uuid.UUID {
 	return r.RequestID
 }

@@ -56,8 +56,8 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.Requ
 			pubsub.PublishRequestError("eventStoreDBClient:CreateAccountStrategyRequestEvent", req, err)
 			return
 		}
-	case *eventmodels.NewSignalRequestEvent:
-		if err := cli.insertEvent(context.Background(), pubsub.NewSignalRequestEvent, "accounts", bytes); err != nil {
+	case *eventmodels.CreateSignalRequest:
+		if err := cli.insertEvent(context.Background(), pubsub.CreateSignalRequestEvent, "accounts", bytes); err != nil {
 			pubsub.PublishRequestError("eventStoreDBClient:NewSignalRequest", req, err)
 			return
 		}
@@ -106,14 +106,14 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 			}
 
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
-		case pubsub.NewSignalRequestEvent:
-			var request eventmodels.NewSignalRequestEvent
+		case pubsub.CreateSignalRequestEvent:
+			var request eventmodels.CreateSignalRequest
 			if err := json.Unmarshal(ev.Data, &request); err != nil {
 				pubsub.PublishRequestError("eventStoreDBClient.NewSignalsRequestEvent", &request, err)
 				break
 			}
 
-			pubsub.PublishResult("eventStoreDBClient", pubsub.NewSignalRequestEventStoredSuccess, &request)
+			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateSignalRequestStoredSuccessEvent, &request)
 		default:
 			// pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
 			log.Errorf("unknown event type: %s", ev.EventType)
@@ -132,7 +132,7 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 	case *eventmodels.CreateAccountStrategyResponseEvent:
 		cli.mutex.Unlock()
 	// case *eventmodels.NewSignalRequestEvent:
-	case *eventmodels.NewSignalResult:
+	case *eventmodels.CreateSignalResultEvent:
 		cli.mutex.Unlock()
 	}
 }
@@ -152,7 +152,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", pubsub.NewSignalRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateSignalRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
 
 	// streamNames := []string{"accounts"}

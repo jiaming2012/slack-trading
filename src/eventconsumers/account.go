@@ -479,7 +479,7 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 }
 
 // g="coinbase: initial connect failed:EOF"
-func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalRequestEvent) {
+func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequest) {
 	log.Infof("received %v", event)
 
 	meta := &eventmodels.MetaData{
@@ -565,7 +565,7 @@ func (w *AccountWorker) handleNewSignalRequest(event *eventmodels.NewSignalReque
 	// as the request didn't originate from an api call but is still picked up by the lister
 	// eventmodels.RegisterResultCallback(event.RequestID)
 
-	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.NewSignalResult{
+	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.NewSignalResultEvent, &eventmodels.CreateSignalResultEvent{
 		Meta: &eventmodels.MetaData{
 			ParentMeta:   meta,
 			RequestError: make(chan error),
@@ -634,7 +634,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetAccountStatsRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewSignalRequestEventStoredSuccess, w.handleNewSignalRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.CreateSignalRequestStoredSuccessEvent, w.handleCreateSignalRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
 	pubsub.Subscribe("AccountWorker", pubsub.CreateAccountStrategyRequestEventStoredSuccess, w.createAccountStrategyRequestHandler)

@@ -10,7 +10,7 @@ import (
 )
 
 // todo: deprecated for event models
-type NewSignalRequestEvent struct {
+type CreateSignalRequest struct {
 	Meta        *MetaData     `json:"meta"`
 	RequestID   uuid.UUID     `json:"requestID"`
 	Name        string        `json:"name"`
@@ -18,32 +18,32 @@ type NewSignalRequestEvent struct {
 	LastUpdated time.Time     `json:"lastUpdated"`
 }
 
-func (r *NewSignalRequestEvent) GetMetaData() *MetaData {
+func (r *CreateSignalRequest) GetMetaData() *MetaData {
 	return r.Meta
 }
 
-func NewSignalRequest(requestID uuid.UUID, name string) *NewSignalRequestEvent {
-	return &NewSignalRequestEvent{RequestID: requestID, Name: name}
+func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequest {
+	return &CreateSignalRequest{RequestID: requestID, Name: name}
 }
 
-func (r *NewSignalRequestEvent) String() string {
+func (r *CreateSignalRequest) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Source)
 }
 
-func (r *NewSignalRequestEvent) GetRequestID() uuid.UUID {
+func (r *CreateSignalRequest) GetRequestID() uuid.UUID {
 	return r.RequestID
 }
 
-func (r *NewSignalRequestEvent) SetRequestID(id uuid.UUID) {
+func (r *CreateSignalRequest) SetRequestID(id uuid.UUID) {
 	r.RequestID = id
 	r.LastUpdated = time.Now().UTC()
 }
 
-func (r *NewSignalRequestEvent) GetSource() RequestSource {
+func (r *CreateSignalRequest) GetSource() RequestSource {
 	return r.Source
 }
 
-func (r *NewSignalRequestEvent) Validate(req *http.Request) error {
+func (r *CreateSignalRequest) Validate(req *http.Request) error {
 	if r.Name == "" {
 		return fmt.Errorf("SignalRequest.Validate: name was not set")
 	}
@@ -51,7 +51,7 @@ func (r *NewSignalRequestEvent) Validate(req *http.Request) error {
 	return nil
 }
 
-func (r *NewSignalRequestEvent) ParseHTTPRequest(req *http.Request) error {
+func (r *CreateSignalRequest) ParseHTTPRequest(req *http.Request) error {
 	var values map[string]interface{}
 	if err := json.NewDecoder(req.Body).Decode(&values); err != nil {
 		return fmt.Errorf("SignalRequest.ParseHTTPRequest: failed to decode json: %w", err)

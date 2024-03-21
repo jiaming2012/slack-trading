@@ -44,7 +44,7 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	case *eventmodels.CreateAccountStrategyResponseEvent:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.NewSignalResult:
+	case *eventmodels.CreateSignalResultEvent:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	}
 
