@@ -28,11 +28,9 @@ func (w *AccountWorker) monitorTrades() {
 }
 
 func (w *AccountWorker) getAccounts() []*eventmodels.Account {
-	var accounts []*eventmodels.Account
+	accounts := []*eventmodels.Account{}
 
-	for _, acc := range w.accounts {
-		accounts = append(accounts, acc)
-	}
+	accounts = append(accounts, w.accounts...)
 
 	return accounts
 }
@@ -112,7 +110,7 @@ func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateA
 	})
 }
 
-func (w *AccountWorker) getAccountsRequestHandler(request *eventmodels.GetAccountsRequestEvent) {
+func (w *AccountWorker) handleGetAccountsRequestEvent(request *eventmodels.GetAccountsRequestEvent) {
 	log.Debugf("<- AccountWorker.getAccountsRequestHandler")
 
 	pubsub.PublishResult("AccountWorker", pubsub.GetAccountsResponseEvent, &eventmodels.GetAccountsResponseEvent{
@@ -642,7 +640,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	// task: *** create an AccountManager to hold each account worker and subscribe to events
 
 	// pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, w.addAccountRequestHandler)
-	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.getAccountsRequestHandler)
+	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.handleGetAccountsRequestEvent)
 	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, w.updateTickMachine)
 	pubsub.Subscribe("AccountWorker", pubsub.NewOpenTradeRequest, w.handleNewOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteOpenTradeRequest)
