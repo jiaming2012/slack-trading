@@ -15,10 +15,11 @@ import (
 )
 
 type eventStoreDBClient struct {
-	wg              *sync.WaitGroup
-	db              *esdb.Client
-	mutex           pubsub.SafeMutex
-	lastEventNumber uint64
+	wg                 *sync.WaitGroup
+	db                 *esdb.Client
+	accountsMutex      pubsub.SafeMutex
+	optionsAlertsMutex pubsub.SafeMutex
+	lastEventNumber    uint64
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, data []byte) error {
@@ -61,27 +62,39 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.Requ
 			pubsub.PublishRequestError("eventStoreDBClient:NewSignalRequest", req, err)
 			return
 		}
+	case *eventmodels.CreateOptionAlertRequestEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.CreateOptionAlertRequestEvent, "option-alerts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient:CreateOptionAlertRequestEvent", req, err)
+			return
+		}
+	case *eventmodels.DeleteOptionAlertRequestEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.DeleteOptionAlertRequestEvent, "option-alerts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient:DeleteOptionAlertRequestEvent", req, err)
+			return
+		}
 	default:
 		pubsub.PublishRequestError("eventStoreDBClient.storeRequestEventHandler", request, fmt.Errorf("unknown request type: %T", request))
 		return
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
+func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName string) {
 	for {
-		cli.mutex.Lock()
-
 		payload := stream.Recv()
 
 		if payload.SubscriptionDropped != nil {
 			// Handle the dropped subscription
 			log.Errorf("Subscription dropped: %v", payload.SubscriptionDropped.Error)
-			// cli.mutex.Unlock()
 			return
 		}
 
 		if payload.EventAppeared == nil {
-			cli.mutex.Unlock()
+			if streamName == "accounts" {
+				cli.accountsMutex.Unlock()
+			} else if streamName == "option-alerts" {
+				cli.optionsAlertsMutex.Unlock()
+			}
+
 			continue
 		}
 
@@ -97,6 +110,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 				break
 			}
 
+			cli.accountsMutex.Lock()
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountRequestEventStoredSuccess, &request)
 		case pubsub.CreateAccountStrategyRequestEvent:
 			var request eventmodels.CreateAccountStrategyRequestEvent
@@ -105,6 +119,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 				break
 			}
 
+			cli.accountsMutex.Lock()
 			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
 		case pubsub.NewSignalRequestEvent:
 			var request eventmodels.NewSignalRequestEvent
@@ -113,7 +128,26 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription) {
 				break
 			}
 
+			cli.accountsMutex.Lock()
 			pubsub.PublishResult("eventStoreDBClient", pubsub.NewSignalRequestEventStoredSuccess, &request)
+		case pubsub.CreateOptionAlertRequestEvent:
+			var request eventmodels.CreateOptionAlertRequestEvent
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
+				pubsub.PublishRequestError("eventStoreDBClient.CreateOptionAlertRequestEvent", &request, err)
+				break
+			}
+
+			cli.optionsAlertsMutex.Lock()
+			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateOptionAlertRequestEventStoredSuccess, &request)
+		case pubsub.DeleteOptionAlertRequestEvent:
+			var request eventmodels.DeleteOptionAlertRequestEvent
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
+				pubsub.PublishRequestError("eventStoreDBClient.DeleteOptionAlertRequestEvent", &request, err)
+				break
+			}
+
+			cli.optionsAlertsMutex.Lock()
+			pubsub.PublishResult("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEventStoredSuccess, &request)
 		default:
 			// pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
 			log.Errorf("unknown event type: %s", ev.EventType)
@@ -125,15 +159,16 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 	log.Debugf("<- eventStoreDBClient.handleProcessRequestComplete: finished processing %v", event)
 
 	switch event.(type) {
-	// case *eventmodels.CreateAccountRequestEvent:
 	case *eventmodels.CreateAccountResponseEvent:
-		cli.mutex.Unlock()
-		// case *eventmodels.CreateAccountStrategyRequestEvent:
+		cli.accountsMutex.Unlock()
 	case *eventmodels.CreateAccountStrategyResponseEvent:
-		cli.mutex.Unlock()
-	// case *eventmodels.NewSignalRequestEvent:
+		cli.accountsMutex.Unlock()
 	case *eventmodels.NewSignalResult:
-		cli.mutex.Unlock()
+		cli.accountsMutex.Unlock()
+	case *eventmodels.CreateOptionAlertResponseEvent:
+		cli.optionsAlertsMutex.Unlock()
+	case *eventmodels.DeleteOptionAlertResponseEvent:
+		cli.optionsAlertsMutex.Unlock()
 	}
 }
 
@@ -153,36 +188,39 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.NewSignalRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateOptionAlertRequestEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
 
-	// streamNames := []string{"accounts"}
-	// for _, streamName := range streamNames {
-	streamName := "accounts"
+	streamNames := []string{"accounts", "option-alerts"}
+	for _, streamName := range streamNames {
+		name := streamName
 
-	subscription, err := cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
-		From: esdb.Start{},
-	})
+		subscription, err := cli.db.SubscribeToStream(context.Background(), name, esdb.SubscribeToStreamOptions{
+			From: esdb.Start{},
+		})
 
-	if err != nil {
-		log.Panicf("failed to create stream: %v", err)
-	}
-
-	go func() {
-		for {
-			if err == nil {
-				cli.readStream(subscription)
-			} else {
-				log.Errorf("failed to re-create stream: %v", err)
-				time.Sleep(5 * time.Second)
-			}
-
-			log.Debugf("re-creating subscription @ pos %v", cli.lastEventNumber)
-
-			subscription, err = cli.db.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
-				From: esdb.Revision(cli.lastEventNumber),
-			})
+		if err != nil {
+			log.Panicf("failed to subscribe to stream: %v", err)
 		}
-	}()
+
+		go func() {
+			for {
+				if err == nil {
+					cli.readStream(subscription, name)
+				} else {
+					log.Errorf("failed to re-subscribe stream: %v", err)
+					time.Sleep(5 * time.Second)
+				}
+
+				log.Debugf("re-subscribing subscription @ pos %v", cli.lastEventNumber)
+
+				subscription, err = cli.db.SubscribeToStream(context.Background(), name, esdb.SubscribeToStreamOptions{
+					From: esdb.Revision(cli.lastEventNumber),
+				})
+			}
+		}()
+	}
 
 	go func() {
 		defer cli.wg.Done()

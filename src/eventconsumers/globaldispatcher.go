@@ -46,6 +46,10 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	case *eventmodels.NewSignalResult:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.CreateOptionAlertResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	case *eventmodels.DeleteOptionAlertResponseEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	}
 
 	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!

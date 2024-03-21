@@ -33,7 +33,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmodels.CreateOptionAlertRequestEvent) {
 	log.Debugf("OptionAlertWorker.handleCreateOptionAlertRequestEvent: %v", event)
 
-	optionAlert, err := event.Convert()
+	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
 		eventpubsub.PublishRequestError("OptionAlertWorker", event, err)
 		return
@@ -70,8 +70,10 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
 	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.GetOptionAlertRequestEvent, w.handleGetOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEvent, w.handleCreateOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEvent, w.handleDeleteOptionAlertRequestEvent)
+	// eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEvent, w.handleCreateOptionAlertRequestEvent)
+	// eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEvent, w.handleDeleteOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEventStoredSuccess, w.handleCreateOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEventStoredSuccess, w.handleDeleteOptionAlertRequestEvent)
 
 	go func() {
 		defer w.wg.Done()

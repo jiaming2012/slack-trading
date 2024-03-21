@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 type CreateOptionAlertRequestEvent struct {
 	BaseRequstEvent
 	CreateOptionAlertDTO
+	ID uuid.UUID
 }
 
 func (r *CreateOptionAlertRequestEvent) ParseHTTPRequest(req *http.Request) error {
@@ -39,6 +42,10 @@ func (r *CreateOptionAlertRequestEvent) Validate(req *http.Request) error {
 	if r.Condition.Value <= 0 {
 		return fmt.Errorf("CreateOptionAlertRequestEvent.Validate: condition value must be greater than 0")
 	}
+
+	// todo: this is a hack to get around the fact that the request id is not being set
+	// it should be set in middleware
+	r.ID = uuid.New()
 
 	return nil
 }

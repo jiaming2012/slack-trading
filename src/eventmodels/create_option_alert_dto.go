@@ -1,6 +1,10 @@
 package eventmodels
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 type CreateOptionAlertDTO struct {
 	AlertType    string                  `json:"alertType"`
@@ -8,7 +12,7 @@ type CreateOptionAlertDTO struct {
 	Condition    OptionAlertConditionDTO `json:"condition"`
 }
 
-func (dto CreateOptionAlertDTO) Convert() (*OptionAlert, error) {
+func (dto CreateOptionAlertDTO) NewObject(id uuid.UUID) (*OptionAlert, error) {
 	alertType, err := NewOptionAlertType(dto.AlertType)
 	if err != nil {
 		return nil, fmt.Errorf("CreateOptionAlertDTO: invalid OptionAlertType: %w", err)
@@ -19,5 +23,5 @@ func (dto CreateOptionAlertDTO) Convert() (*OptionAlert, error) {
 		return nil, fmt.Errorf("CreateOptionAlertDTO: invalid OptionAlertCondition: %w", err)
 	}
 
-	return NewOptionAlert(alertType, dto.OptionSymbol, condition), nil
+	return NewOptionAlert(id, alertType, dto.OptionSymbol, condition), nil
 }

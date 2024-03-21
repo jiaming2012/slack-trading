@@ -9,9 +9,9 @@ type OptionAlert struct {
 	Condition    OptionAlertCondition `json:"condition"`
 }
 
-func NewOptionAlert(alertType OptionAlertType, optionSymbol string, condition OptionAlertCondition) *OptionAlert {
+func NewOptionAlert(id uuid.UUID, alertType OptionAlertType, optionSymbol string, condition OptionAlertCondition) *OptionAlert {
 	return &OptionAlert{
-		ID:           uuid.New(),
+		ID:           id,
 		AlertType:    alertType,
 		OptionSymbol: optionSymbol,
 		Condition:    condition,
