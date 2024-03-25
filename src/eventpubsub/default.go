@@ -19,8 +19,8 @@ func PublishRequestErrorInterface(publisherName string, requestEvent eventmodels
 	switch ev := requestEvent.(type) {
 	case eventmodels.ExecuteOpenTradeRequest:
 		fmt.Println(ev)
-		openTradeReq := ev.ParentRequest.(*eventmodels.OpenTradeRequest)
-		openTradeReq.Error <- eventmodels.EventError{
+		openTradeReq := ev.ParentRequest.(*eventmodels.CreateTradeRequest)
+		openTradeReq.Error <- eventmodels.RequestError2{
 			Request: ev,
 			Error:   err,
 		}
@@ -70,10 +70,16 @@ func publishWithFlags(publisherName string, topic EventName, event interface{}, 
 	// case eventmodels.APIRequestEvent:
 	// case eventmodels.StreamReadEvent:
 	case eventmodels.RequestError:
+		// RequestErrors should have ResultEvents??
 		fmt.Println(ev)
 	case eventmodels.RequestEvent:
 		_id := ev.GetRequestID().String()
 		requestID = &_id
+
+		meta, ok := event.(eventmodels.ResultEvent)
+		if ok {
+			meta.GetMetaData().EndProcess(event, nil)
+		}
 
 		// if !strings.Contains(strings.ToLower(string(topic)), "error") {
 

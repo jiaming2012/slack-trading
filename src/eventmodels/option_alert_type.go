@@ -5,7 +5,7 @@ import "fmt"
 type OptionAlertType string
 
 const (
-	LastPrice OptionAlertType = "lastPrice"
+	LastPrice OptionAlertType = "last_price"
 	Delta     OptionAlertType = "delta"
 )
 
@@ -14,7 +14,7 @@ func (t OptionAlertType) String() string {
 }
 
 func NewOptionAlertType(s string) (OptionAlertType, error) {
-	if s != "lastPrice" && s != "delta" {
+	if s != string(LastPrice) && s != string(Delta) {
 		return "", fmt.Errorf("invalid OptionAlertType: %s", s)
 	}
 

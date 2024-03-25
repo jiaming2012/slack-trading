@@ -320,7 +320,9 @@ func (w *AccountWorker) handleExecuteOpenTradeRequest(event eventmodels.ExecuteO
 		return
 	}
 
+	// todo: automatically insert the parent event
 	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
+		Meta:            eventmodels.NewMetaData(event.Meta),
 		PriceLevelIndex: result.PriceLevelIndex,
 		Trade:           trade,
 	}
@@ -334,22 +336,22 @@ func (w *AccountWorker) handleExecuteOpenTradeRequest(event eventmodels.ExecuteO
 	pubsub.PublishResult("AccountWorker.handleExecuteNewOpenTradeRequest", pubsub.ExecuteOpenTradeResult, executeOpenTradeResult)
 }
 
-func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeRequest) {
-	log.Debug("<- AccountWorker.handleNewOpenTradeRequest")
+func (w *AccountWorker) handleCreateTradeRequest(event eventmodels.CreateTradeRequest) {
+	log.Debug("<- AccountWorker.handleCreateTradeRequest")
 
 	// todo: refactor - can i remove this??
 
 	// account, err := w.findAccount(event.AccountName)
 	// if err != nil {
 	// 	requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
-	// 	pubsub.PublishRequestError("AccountWorker.handleNewOpenTradeRequest", &event, requestErr)
+	// 	pubsub.PublishRequestError("AccountWorker.handleCreateTradeRequest", &event, requestErr)
 	// 	return
 	// }
 
 	// strategy, err := account.FindStrategy(event.StrategyName)
 	// if err != nil {
 	// 	requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
-	// 	pubsub.PublishRequestError("AccountWorker.handleNewOpenTradeRequest", &event, requestErr)
+	// 	pubsub.PublishRequestError("AccountWorker.handleCreateTradeRequest", &event, requestErr)
 	// 	return
 	// }
 
@@ -362,7 +364,7 @@ func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeReq
 	// 	strategy,
 	// )
 
-	pubsub.PublishResult("AccountWorker.handleNewOpenTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
+	pubsub.PublishResult("AccountWorker.handleCreateTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
 		ParentRequest:    &event,
 		Meta:             eventmodels.NewMetaData(event.Meta),
 		RequestID:        event.RequestID,
@@ -400,7 +402,7 @@ func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStats
 
 	event.Meta = &eventmodels.MetaData{
 		ParentMeta:   nil,
-		RequestError: make(chan error),
+		RequestError: make(chan eventmodels.RequestError2),
 	}
 
 	account, err := w.findAccount(event.AccountName)
@@ -419,7 +421,7 @@ func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStats
 
 	statsResult.Meta = &eventmodels.MetaData{
 		ParentMeta:   event.Meta,
-		RequestError: make(chan error),
+		RequestError: make(chan eventmodels.RequestError2),
 	}
 
 	pubsub.PublishResult("AccountWorker.handleGetAccountStatsRequest", pubsub.GetStatsResult, statsResult)
@@ -445,8 +447,8 @@ func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []
 	return clsTradeRequests, nil
 }
 
-func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied) ([]*eventmodels.OpenTradeRequest, error) {
-	var openTradeRequests []*eventmodels.OpenTradeRequest
+func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied) ([]*eventmodels.CreateTradeRequest, error) {
+	var openTradeRequests []*eventmodels.CreateTradeRequest
 
 	for _, entryConditions := range entryConditionsSatisfied {
 		req, openTradeReqErr := eventmodels.NewOpenTradeRequest(uuid.New(), entryConditions.Account.Name, entryConditions.Strategy.Name, nil) // todo: timeframe should come from signal
@@ -466,7 +468,7 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 
 	meta := &eventmodels.MetaData{
 		ParentMeta:   nil,
-		RequestError: make(chan error),
+		RequestError: make(chan eventmodels.RequestError2),
 	}
 
 	// handle exit conditions
@@ -515,7 +517,7 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 				// req.Meta.RequestError = c
 				reqErrCh := req.Wait()
 
-				pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
+				pubsub.PublishEventResult("AccountWorker.handleNewSignalRequest", pubsub.CreateTradeRequest, *req)
 
 				for e := range reqErrCh {
 					bFoundExecuteOpenTradeRequest := false
@@ -530,14 +532,7 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 						break
 					}
 				}
-				// })
-				fmt.Println("hellow boss")
 			}
-
-			fmt.Println("hello world")
-			// if err := syncProcess.Run(); err != nil {
-
-			// }
 		} else {
 			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
 		}
@@ -550,7 +545,7 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", pubsub.CreateSignalResponseEvent, &eventmodels.CreateSignalResponseEvent{
 		Meta: &eventmodels.MetaData{
 			ParentMeta:   meta,
-			RequestError: make(chan error),
+			RequestError: make(chan eventmodels.RequestError2),
 		},
 		Name:      event.Name,
 		RequestID: event.RequestID,
@@ -609,7 +604,7 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	// pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, w.addAccountRequestHandler)
 	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.handleGetAccountsRequestEvent)
 	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, w.updateTickMachine)
-	pubsub.Subscribe("AccountWorker", pubsub.NewOpenTradeRequest, w.handleNewOpenTradeRequest)
+	pubsub.Subscribe("AccountWorker", pubsub.CreateTradeRequest, w.handleCreateTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteOpenTradeRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.CloseTradesRequest, w.handleCloseTradesRequest)
 	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)

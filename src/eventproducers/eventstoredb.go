@@ -72,6 +72,11 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.Requ
 			pubsub.PublishRequestError("eventStoreDBClient:DeleteOptionAlertRequestEvent", req, err)
 			return
 		}
+	case *eventmodels.OptionAlertUpdateEvent:
+		if err := cli.insertEvent(context.Background(), pubsub.OptionAlertUpdateEvent, "option-alerts", bytes); err != nil {
+			pubsub.PublishRequestError("eventStoreDBClient:OptionAlertUpdateEvent", req, err)
+			return
+		}
 	default:
 		pubsub.PublishRequestError("eventStoreDBClient.storeRequestEventHandler", request, fmt.Errorf("unknown request type: %T", request))
 		return
@@ -148,6 +153,15 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName 
 
 			cli.optionsAlertsMutex.Lock()
 			pubsub.PublishResult("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEventStoredSuccess, &request)
+		case pubsub.OptionAlertUpdateEvent:
+			var request eventmodels.OptionAlertUpdateEvent
+			if err := json.Unmarshal(ev.Data, &request); err != nil {
+				pubsub.PublishRequestError("eventStoreDBClient.OptionAlertUpdateEvent", &request, err)
+				break
+			}
+
+			cli.optionsAlertsMutex.Lock()
+			pubsub.PublishResult("eventStoreDBClient", pubsub.OptionAlertUpdateSavedEvent, &request)
 		default:
 			// pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
 			log.Errorf("unknown event type: %s", ev.EventType)
@@ -168,6 +182,9 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 	case *eventmodels.CreateOptionAlertResponseEvent:
 		cli.optionsAlertsMutex.Unlock()
 	case *eventmodels.DeleteOptionAlertResponseEvent:
+		cli.optionsAlertsMutex.Unlock()
+	// too many places to add
+	case *eventmodels.OptionAlertUpdateCompletedEvent:
 		cli.optionsAlertsMutex.Unlock()
 	}
 }
@@ -191,6 +208,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateOptionAlertRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.OptionAlertUpdateEvent, cli.storeRequestEventHandler)
 
 	streamNames := []string{"accounts", "option-alerts"}
 	for _, streamName := range streamNames {

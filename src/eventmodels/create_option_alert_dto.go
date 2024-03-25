@@ -7,8 +7,8 @@ import (
 )
 
 type CreateOptionAlertDTO struct {
-	AlertType    string                  `json:"alertType"`
-	OptionSymbol string                  `json:"optionSymbol"`
+	AlertType    string                  `json:"alert_type"`
+	OptionSymbol string                  `json:"option_symbol"`
 	Condition    OptionAlertConditionDTO `json:"condition"`
 }
 

@@ -297,7 +297,7 @@ func run() {
 
 	// todo: move to environment variables
 	// Constants
-	// iBServerURL := "wss://localhost:5000/v1/api/ws"
+	iBServerURL := "wss://localhost:5000/v1/api/ws"
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
 
 	// Set up logger
@@ -349,9 +349,9 @@ func run() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// Create datafeeds
-	// coinbaseDatafeed := eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed)
-	// ibDatafeed := eventmodels.NewDatafeed(eventmodels.IBDatafeed)
-	// manualDatafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
+	coinbaseDatafeed := eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed)
+	ibDatafeed := eventmodels.NewDatafeed(eventmodels.IBDatafeed)
+	manualDatafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
 
 	// Load account fixtures
 	// account1, err := loadAccountFixtures1(coinbaseDatafeed)
@@ -365,13 +365,13 @@ func run() {
 	// }
 
 	// accounts := []*eventmodels.Account{account1, account2}
-	// accounts := make([]*eventmodels.Account, 0)
+	accounts := make([]*eventmodels.Account, 0)
 
 	// Start event clients
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
 	// eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
-	// eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
+	eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
 	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
 	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
@@ -379,11 +379,13 @@ func run() {
 	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	// eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
+	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 	eventproducers.NewEventStoreDBClient(&wg).Start(ctx, eventStoreDbURL)
 
-	eventconsumers.NewOptionAlertWorker(&wg).Start(ctx)
+	brokerURL := "https://sandbox.tradier.com/v1/markets/quotes"
+	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
+	eventconsumers.NewOptionAlertWorker(&wg, brokerURL, brokerBearerToken).Start(ctx)
 
 	log.Info("Main: init complete")
 

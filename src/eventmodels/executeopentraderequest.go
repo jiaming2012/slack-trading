@@ -8,7 +8,7 @@ type ExecuteOpenTradeRequest struct {
 	ParentRequest    interface{}
 	Meta             *MetaData
 	RequestID        uuid.UUID
-	OpenTradeRequest *OpenTradeRequest
+	OpenTradeRequest *CreateTradeRequest
 }
 
 func (r ExecuteOpenTradeRequest) GetMetaData() *MetaData {

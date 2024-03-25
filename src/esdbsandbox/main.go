@@ -15,6 +15,7 @@ import (
 func main() {
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
 	streamName := "option-alerts"
+	// streamName := "accounts"
 	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
 
 	if err != nil {
@@ -86,11 +87,8 @@ func main() {
 		if reqId, found := data["requestID"]; found {
 			id, err := uuid.Parse(reqId.(string))
 			if err == nil {
-				// Convert the UUID to a byte slice
-				binary := id[:]
-
-				// Print the binary representation
-				fmt.Printf("requestID (binary): %#v\n", binary)
+				// Convert to decimal
+				fmt.Printf("requestID (decimal): %d\n", id)
 			} else {
 				fmt.Println("error:", err)
 				continue

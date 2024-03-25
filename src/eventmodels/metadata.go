@@ -1,8 +1,12 @@
 package eventmodels
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 type MetaData struct {
-	ParentMeta   *MetaData  `json:"-"`
-	RequestError chan error `json:"-"`
+	ParentMeta   *MetaData          `json:"-"`
+	RequestError chan RequestError2 `json:"-"`
 }
 
 func NewMetaData(parentMeta *MetaData) *MetaData {
@@ -12,11 +16,19 @@ func NewMetaData(parentMeta *MetaData) *MetaData {
 	}
 }
 
-func (m *MetaData) EndProcess(err error) {
-	// pass the error up the parent chain
-	if m.ParentMeta != nil {
-		m.ParentMeta.EndProcess(err)
+func (m *MetaData) EndProcess(req interface{}, err error) {
+	if m == nil {
+		log.Warnf("MetaData.EndProcess: m is nil, type=%T", req)
+		return
 	}
 
-	m.RequestError <- err
+	// pass the error up the parent chain
+	if m.ParentMeta != nil {
+		m.ParentMeta.EndProcess(req, err)
+	}
+
+	m.RequestError <- RequestError2{
+		Request: req,
+		Error:   err,
+	}
 }

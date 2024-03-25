@@ -29,7 +29,7 @@ const (
 	ExecuteCloseTradesRequest                      EventName = "ExecuteCloseTradesRequest"
 	ExecuteOpenTradeResult                         EventName = "ExecuteOpenTradeResult"
 	ExecuteCloseTradesResult                       EventName = "ExecuteCloseTradesResult"
-	NewOpenTradeRequest                            EventName = "NewOpenTradeRequest"
+	CreateTradeRequest                             EventName = "NewOpenTradeRequest"
 	NewGetStatsRequest                             EventName = "NewGetStatsRequest"
 	GetStatsResult                                 EventName = "GetStatsResult"
 	FetchTradesRequest                             EventName = "FetchTradesRequest"
@@ -56,5 +56,8 @@ const (
 	DeleteOptionAlertResponseEvent                 EventName = "DeleteOptionAlertResponseEvent"
 	CreateOptionAlertRequestEventStoredSuccess     EventName = "CreateOptionAlertRequestEventStoredSuccess"
 	DeleteOptionAlertRequestEventStoredSuccess     EventName = "DeleteOptionAlertRequestEventStoredSuccess"
+	OptionAlertUpdateEvent                         EventName = "OptionAlertUpdateEvent"
+	OptionAlertUpdateSavedEvent                    EventName = "OptionAlertUpdateSavedEvent"
+	OptionAlertUpdateCompletedEvent                EventName = "OptionAlertUpdateCompletedEvent"
 	Error                                          EventName = "DefaultError"
 )

@@ -189,8 +189,10 @@ func postJSON(url string, body map[string]interface{}) ([]byte, error) {
 
 	res, getErr := client.Do(req)
 	if getErr != nil {
-		return nil, fmt.Errorf("PostJSON (Do): %w", err)
+		return nil, fmt.Errorf("PostJSON (Do): %w", getErr)
 	}
+
+	defer res.Body.Close()
 
 	if res.Body != nil {
 		defer res.Body.Close()

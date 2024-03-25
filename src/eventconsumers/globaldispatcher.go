@@ -50,6 +50,11 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	case *eventmodels.DeleteOptionAlertResponseEvent:
 		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	// Too many places to add
+	case *eventmodels.OptionAlertUpdateCompletedEvent:
+		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+		// return as this cannot originate from an external request
+		return
 	}
 
 	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!
@@ -84,6 +89,8 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetOptionAlertResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateOptionAlertResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.DeleteOptionAlertResponseEvent, w.dispatchResult)
+	// too many places to add
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.OptionAlertUpdateCompletedEvent, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()
