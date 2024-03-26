@@ -64,7 +64,7 @@ type QuoteDTO struct {
 }
 
 type UnmatchedSymbolsDTO struct {
-	Symbol []string `json:"symbol"`
+	Symbols []string `json:"symbol"`
 }
 
 type UnmatchedSymbolDTO struct {
@@ -106,7 +106,7 @@ func (dto *OptionQuotesDTO) Parse() ([]QuoteDTO, UnmatchedSymbolsDTO, error) {
 			if unmatchedSymbolErr := json.Unmarshal(*dto.Quotes.UnmatchedSymbols, &unmatchedSymbol); unmatchedSymbolErr != nil {
 				return nil, UnmatchedSymbolsDTO{}, fmt.Errorf("Parse: Error decoding JSON: %v", unmatchedSymbolErr)
 			} else {
-				unmatchedSymbols.Symbol = append(unmatchedSymbols.Symbol, unmatchedSymbol.Symbol)
+				unmatchedSymbols.Symbols = append(unmatchedSymbols.Symbols, unmatchedSymbol.Symbol)
 			}
 		}
 	}
@@ -114,22 +114,20 @@ func (dto *OptionQuotesDTO) Parse() ([]QuoteDTO, UnmatchedSymbolsDTO, error) {
 	return quotes, unmatchedSymbols, nil
 }
 
-func (dto *OptionQuotesDTO) ToModel() (OptionQuoteMap, error) {
+func (dto *OptionQuotesDTO) ToModel() (OptionQuoteMap, OptionUnmatchedSymbols, error) {
 	optionQuotes := make(OptionQuoteMap)
 
-	quotes, _, err := dto.Parse()
+	quotesDTO, unmatchedSymbolsDTO, err := dto.Parse()
 	if err != nil {
-		return nil, fmt.Errorf("OptionQuotesDTO.ToModel: Error parsing dto: %w", err)
+		return nil, OptionUnmatchedSymbols{}, fmt.Errorf("OptionQuotesDTO.ToModel: Error parsing dto: %w", err)
 	}
 
-	// if len(unmatchedSymbols.Symbol) > 0 {
-	// 	return nil, fmt.Errorf("OptionQuotesDTO.ToModel: Unmatched symbols found: %v", unmatchedSymbols.Symbol)
-	// }
+	unmatchedSymbols := OptionUnmatchedSymbols(unmatchedSymbolsDTO.Symbols)
 
-	for _, item := range quotes {
+	for _, item := range quotesDTO {
 		expirationDate, err := time.Parse("2006-01-02", item.ExpirationDate)
 		if err != nil {
-			return nil, fmt.Errorf("OptionPriceDTO:ToModel(): failed to parse expiration date: %w", err)
+			return nil, OptionUnmatchedSymbols{}, fmt.Errorf("OptionPriceDTO:ToModel(): failed to parse expiration date: %w", err)
 		}
 
 		optionQuotes[item.Symbol] = OptionQuote{
@@ -141,5 +139,5 @@ func (dto *OptionQuotesDTO) ToModel() (OptionQuoteMap, error) {
 		}
 	}
 
-	return optionQuotes, nil
+	return optionQuotes, unmatchedSymbols, nil
 }
