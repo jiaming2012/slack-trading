@@ -154,15 +154,17 @@ func (w *OptionAlertWorker) checkOptionAlerts(quoteMap eventmodels.OptionQuoteMa
 			case eventmodels.Above:
 				if alertValue > alert.Condition.Value {
 					triggeredAlerts = append(triggeredAlerts, &eventmodels.OptionAlertUpdateEvent{
-						AlertID:   alert.ID,
-						CreatedAt: time.Now(),
+						AlertID:      alert.ID,
+						CreatedAt:    time.Now(),
+						AlertMessage: fmt.Sprintf("Option %s %s crossed above %f", alert.OptionSymbol, alert.AlertType, alert.Condition.Value),
 					})
 				}
 			case eventmodels.Below:
 				if alertValue < alert.Condition.Value {
 					triggeredAlerts = append(triggeredAlerts, &eventmodels.OptionAlertUpdateEvent{
-						AlertID:   alert.ID,
-						CreatedAt: time.Now(),
+						AlertID:      alert.ID,
+						CreatedAt:    time.Now(),
+						AlertMessage: fmt.Sprintf("Option %s %s crossed below %f", alert.OptionSymbol, alert.AlertType, alert.Condition.Value),
 					})
 				}
 			default:

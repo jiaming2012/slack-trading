@@ -7,8 +7,9 @@ import (
 )
 
 type OptionAlertUpdateEvent struct {
-	AlertID   uuid.UUID `json:"alert_id"`
-	CreatedAt time.Time `json:"created_at"`
+	AlertID      uuid.UUID `json:"alert_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	AlertMessage string    `json:"alert_message"`
 }
 
 func (ev *OptionAlertUpdateEvent) GetMetaData() *MetaData {

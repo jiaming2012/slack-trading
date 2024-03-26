@@ -62,12 +62,20 @@ func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.Exec
 	}
 }
 
+func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *eventmodels.OptionAlertUpdateEvent) {
+	log.Debugf("SlackNotifierClient.optionAlertUpdateEventHandler <- %v", ev)
+
+	if _, err := sendResponse(ev.AlertMessage, WebhookURL, false); err != nil {
+		log.Errorf("SlackNotifierClient.optionAlertUpdateEventHandler: %v", err)
+	}
+}
+
 func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) {
 	log.Debugf("SlackNotifierClient.sendBalance <- %v", balance)
 
 	_, sendErr := sendResponse(balance.String(), WebhookURL, false)
 	if sendErr != nil {
-		log.Error(sendErr)
+		log.Errorf("SlackNotifierClient.sendBalance: %v", sendErr)
 	}
 }
 
@@ -76,7 +84,7 @@ func (c *SlackNotifierClient) sendError(err error) {
 
 	_, sendErr := sendResponse(err.Error(), WebhookURL, false)
 	if sendErr != nil {
-		log.Error(sendErr)
+		log.Errorf("SlackNotifierClient.sendError: %v", sendErr)
 	}
 }
 
@@ -135,6 +143,7 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	pubsub.Subscribe("SlackNotifierClient", pubsub.TradeFulfilledEvent, c.tradeFulfilledHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteOpenTradeResult, c.executeOpenTradeResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteCloseTradesResult, c.executeCloseTradesResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", pubsub.OptionAlertUpdateEvent, c.optionAlertUpdateEventHandler)
 	pubsub.Subscribe("SlackNotifierClient", pubsub.Error, c.sendError)
 
 	go func() {

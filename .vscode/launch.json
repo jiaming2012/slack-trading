@@ -11,7 +11,8 @@
             "mode": "debug",
             "program": "${workspaceFolder}/src/eventmain/main.go",
             "env": {
-                "TRADIER_BEARER_TOKEN": "p8u9IJ1UkQI5OYdnRFrLEdPUraYG"
+                "TRADIER_BEARER_TOKEN": "p8u9IJ1UkQI5OYdnRFrLEdPUraYG",
+                "WEBHOOK_URL": "https://hooks.slack.com/services/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"
             }
         }
     ]
