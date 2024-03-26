@@ -3,4 +3,5 @@ credentials.json
 src/env.txt
 .idea/
 .run/
+.vscode/
 **__debug**
