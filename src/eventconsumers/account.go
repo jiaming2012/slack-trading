@@ -611,11 +611,11 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", eventmodels.ExecuteCloseTradeRequestEventName, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.FetchTradesRequestEventName, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.NewGetStatsRequestEventName, w.handleGetAccountStatsRequest)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateSignalRequestStoredSuccessEventName, w.handleCreateSignalRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.CreateSignalRequestSavedEventName, w.handleCreateSignalRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.ManualDatafeedUpdateRequestEventName, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.AutoExecuteTradeEventName, w.handleAutoExecuteTrade)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountStrategyRequestEventStoredSuccessEventName, w.createAccountStrategyRequestHandler)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountRequestEventStoredSuccessEventName, w.createAccountRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountStrategyRequestSavedEventName, w.createAccountStrategyRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountRequestEventSavedEventName, w.createAccountRequestHandler)
 
 	go func() {
 		defer w.wg.Done()

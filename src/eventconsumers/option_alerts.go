@@ -209,8 +209,8 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
 	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.CreateOptionAlertRequestEventStoredSuccessName, w.handleCreateOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.DeleteOptionAlertRequestEventStoredSuccessName, w.handleDeleteOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.CreateOptionAlertRequestSavedEventName, w.handleCreateOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.DeleteOptionAlertRequestSavedEventName, w.handleDeleteOptionAlertRequestEvent)
 	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.OptionAlertUpdateSavedEventName, w.handleOptionAlertUpdate)
 
 	timer := time.NewTicker(15 * time.Second)
