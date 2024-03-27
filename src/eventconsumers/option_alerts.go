@@ -227,7 +227,7 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 					continue
 				}
 
-				quotes, err := optionPrices.ToModel()
+				quotes, _, err := optionPrices.ToModel()
 				if err != nil {
 					log.Errorf("OptionAlertWorker: failed to convert option prices to model: %v", err)
 					continue
