@@ -148,7 +148,10 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 	log.Debugf("<- eventStoreDBClient.handleProcessRequestComplete: finished processing %v", event)
 
 	if req, ok := event.(pubsub.TerminalRequest); ok {
-		req.GetMetaData().Mutex.Unlock()
+		mutex := req.GetMetaData().Mutex
+		if mutex != nil {
+			mutex.Unlock()
+		}
 	}
 
 	// switch event.(type) {

@@ -31,7 +31,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.GetOptionAlertResponseEvent, &eventmodels.GetOptionAlertResponseEvent{
+	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.GetOptionAlertResponseEvent{
 		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
@@ -56,13 +56,6 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 		},
 		ID: optionAlert.ID.String(),
 	})
-
-	// eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.CreateOptionAlertResponseEvent, &eventmodels.CreateOptionAlertResponseEvent{
-	// 	BaseResponseEvent: eventmodels.BaseResponseEvent{
-	// 		Meta: eventmodels.NewMetaData(event.Meta),
-	// 	},
-	// 	ID: optionAlert.ID.String(),
-	// })
 }
 
 func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmodels.DeleteOptionAlertRequestEvent) {
@@ -80,12 +73,6 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
 	})
-
-	// eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.DeleteOptionAlertResponseEvent, &eventmodels.DeleteOptionAlertResponseEvent{
-	// 	BaseResponseEvent: eventmodels.BaseResponseEvent{
-	// 		RequestID: event.GetRequestID(),
-	// 	},
-	// })
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -216,8 +203,6 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
 	})
-	// too many places to add
-	// eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.OptionAlertUpdateCompletedEvent, &eventmodels.OptionAlertUpdateCompletedEvent{})
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {

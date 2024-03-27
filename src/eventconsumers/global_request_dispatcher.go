@@ -81,11 +81,9 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetOptionAlertResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateOptionAlertResponseEvent, w.dispatchResult)
-	// pubsub.Subscribe("GlobalDispatchWorker", pubsub.DeleteOptionAlertResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ProcessRequestComplete, w.dispatchResult)
-	// too many places to add
+
+	// fixed: too many places to add
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.OptionAlertUpdateCompletedEvent, w.dispatchResult)
 
 	go func() {
