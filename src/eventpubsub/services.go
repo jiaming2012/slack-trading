@@ -51,8 +51,24 @@ func PublishEventError(publisherName string, err error) {
 	publishError(publisherName, err)
 }
 
+func PublishEventError2(publisherName string, meta *eventmodels.MetaData, err error) {
+	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, &eventmodels.TerminalError{
+		Error: err,
+		Meta:  meta,
+	})
+
+	publishError(publisherName, err)
+}
+
 func PublishEventResult(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publish(publisherName, topic, event)
+}
+
+func PublishTerminalError(publisherName string, err *eventmodels.TerminalError) {
+	log.Error(err.Error)
+
+	publish(publisherName, eventmodels.TerminalErrorName, err)
+	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, err)
 }
 
 func publishError(publisherName string, err error) {

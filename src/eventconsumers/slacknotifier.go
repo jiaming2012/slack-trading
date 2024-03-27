@@ -88,6 +88,19 @@ func (c *SlackNotifierClient) sendError(err error) {
 	}
 }
 
+func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) {
+	log.Debugf("SlackNotifierClient.sendError <- %v", err)
+
+	if !err.GetMetaData().IsExternalRequest {
+		return
+	}
+
+	_, sendErr := sendResponse(err.Error.Error(), WebhookURL, false)
+	if sendErr != nil {
+		log.Errorf("SlackNotifierClient.sendError: %v", sendErr)
+	}
+}
+
 func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAccountsResponseEvent) {
 	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
 	if ev.GetRequestID() != uuid.Nil {
@@ -145,6 +158,7 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.Error, c.sendError)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.TerminalErrorName, c.sendTerminalError)
 
 	go func() {
 		defer c.wg.Done()

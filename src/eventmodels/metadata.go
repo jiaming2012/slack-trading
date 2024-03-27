@@ -8,20 +8,21 @@ import (
 )
 
 type MetaData struct {
-	ParentMeta   *MetaData          `json:"-"`
-	RequestError chan RequestError2 `json:"-"`
-	Mutex        *sync.Mutex        `json:"-"`
-	RequestID    uuid.UUID          `json:"request_id"`
+	ParentMeta        *MetaData          `json:"-"`
+	RequestError      chan RequestError2 `json:"-"`
+	Mutex             *sync.Mutex        `json:"-"`
+	RequestID         uuid.UUID          `json:"request_id"`
+	IsExternalRequest bool               `json:"-"`
 }
 
-func NewMetaData(parentMeta *MetaData) *MetaData {
-	return &MetaData{
-		ParentMeta:   parentMeta,
-		RequestError: parentMeta.RequestError,
-		Mutex:        parentMeta.Mutex,
-		RequestID:    parentMeta.RequestID,
-	}
-}
+// func NewMetaData(parentMeta *MetaData) *MetaData {
+// 	return &MetaData{
+// 		ParentMeta:   parentMeta,
+// 		RequestError: parentMeta.RequestError,
+// 		Mutex:        parentMeta.Mutex,
+// 		RequestID:    parentMeta.RequestID,
+// 	}
+// }
 
 func (m *MetaData) EndProcess(req interface{}, err error) {
 	if m == nil {

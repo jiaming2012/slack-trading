@@ -322,7 +322,7 @@ func (w *AccountWorker) handleExecuteOpenTradeRequest(event eventmodels.ExecuteO
 
 	// todo: automatically insert the parent event
 	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
-		Meta:            eventmodels.NewMetaData(event.Meta),
+		Meta:            event.Meta,
 		PriceLevelIndex: result.PriceLevelIndex,
 		Trade:           trade,
 	}
@@ -366,7 +366,7 @@ func (w *AccountWorker) handleCreateTradeRequest(event eventmodels.CreateTradeRe
 
 	pubsub.PublishResult("AccountWorker.handleCreateTradeRequest", eventmodels.ExecuteOpenTradeRequestEventName, eventmodels.ExecuteOpenTradeRequest{
 		ParentRequest:    &event,
-		Meta:             eventmodels.NewMetaData(event.Meta),
+		Meta:             event.Meta,
 		RequestID:        event.RequestID,
 		OpenTradeRequest: &event,
 	})

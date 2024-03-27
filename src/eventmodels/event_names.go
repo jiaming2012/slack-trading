@@ -57,5 +57,6 @@ const (
 	OptionAlertUpdateEventName             EventName = "OptionAlertUpdateEvent"
 	OptionAlertUpdateSavedEventName        EventName = "OptionAlertUpdateSavedEvent"
 	OptionAlertUpdateCompletedEventName    EventName = "OptionAlertUpdateCompletedEvent"
+	TerminalErrorName                      EventName = "TerminalError"
 	Error                                  EventName = "DefaultError"
 )

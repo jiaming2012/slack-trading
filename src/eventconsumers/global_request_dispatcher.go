@@ -15,6 +15,7 @@ type GlobalDispatchWorker struct {
 	dispatcher *eventmodels.GlobalResponseDispatcher
 }
 
+// todo: REMOVE THIS!!!
 func (w *GlobalDispatchWorker) dispatchError(err error) {
 	requestErr, ok := err.(eventmodels.RequestError)
 	if !ok {
@@ -38,23 +39,19 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
-	switch event.(type) {
-
-	// fixed: Too many places to add
-	case *eventmodels.OptionAlertUpdateCompletedEvent:
-		return
-	}
-
-	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!
 	id := event.GetMetaData().RequestID
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
-
 	if err != nil {
 		log.Debugf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
 		return
 	}
 
-	globalDispatchItem.ResultCh <- event
+	switch ev := event.(type) {
+	case *eventmodels.TerminalError:
+		globalDispatchItem.ErrCh <- ev.Error
+	default:
+		globalDispatchItem.ResultCh <- event
+	}
 }
 
 func (w *GlobalDispatchWorker) Start(ctx context.Context) {
