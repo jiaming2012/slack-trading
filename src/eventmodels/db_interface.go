@@ -1,6 +1,6 @@
 package eventmodels
 
-type DBInterface interface {
+type SavedEvent interface {
 	GetStreamName() string
 	GetEventName() EventName
 }

@@ -10,6 +10,6 @@ type TerminalRequest interface {
 }
 
 type SagaFlow struct {
-	Generator func() TerminalRequest
+	Generate  func() TerminalRequest
 	NextEvent eventmodels.EventName
 }

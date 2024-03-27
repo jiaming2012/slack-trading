@@ -42,7 +42,7 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventm
 	return nil
 }
 
-func (cli *eventStoreDBClient) storeRequestEventHandler(event eventmodels.DBInterface) {
+func (cli *eventStoreDBClient) storeRequestEventHandler(event eventmodels.SavedEvent) {
 	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
 
 	bytes, err := json.Marshal(event)
@@ -88,13 +88,15 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName 
 
 		cli.lastEventNumber = payload.EventAppeared.OriginalEvent().EventNumber
 
-		model, found := saga[eventmodels.EventName(ev.EventType)]
+		eventName := eventmodels.EventName(ev.EventType)
+
+		model, found := saga[eventName]
 		if !found {
 			log.Errorf("unknown event type: %s", ev.EventType)
 			continue
 		}
 
-		request := model.Generator()
+		request := model.Generate()
 		if err := json.Unmarshal(ev.Data, request); err != nil {
 			pubsub.PublishEventError("eventStoreDBClient.readStream", err)
 			continue
@@ -117,8 +119,10 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName 
 			IsExternalRequest: isExternalRequest,
 		})
 
+		nextEvent := eventmodels.NewSavedEvent(eventName)
+
 		streamMutex.Lock()
-		pubsub.PublishEventResult("eventStoreDBClient", model.NextEvent, request)
+		pubsub.PublishEventResult("eventStoreDBClient", nextEvent, request)
 	}
 }
 
@@ -151,16 +155,13 @@ func (cli *eventStoreDBClient) init() {
 		// 	Lock:      &cli.accountsMutex,
 		// },
 		eventmodels.CreateOptionAlertRequestEventName: {
-			Generator: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },
-			NextEvent: eventmodels.CreateOptionAlertRequestSavedEventName,
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },
 		},
 		eventmodels.DeleteOptionAlertRequestEventName: {
-			Generator: func() pubsub.TerminalRequest { return &eventmodels.DeleteOptionAlertRequestEvent{} },
-			NextEvent: eventmodels.DeleteOptionAlertRequestSavedEventName,
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.DeleteOptionAlertRequestEvent{} },
 		},
 		eventmodels.OptionAlertUpdateEventName: {
-			Generator: func() pubsub.TerminalRequest { return &eventmodels.OptionAlertUpdateEvent{} },
-			NextEvent: eventmodels.OptionAlertUpdateSavedEventName,
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.OptionAlertUpdateEvent{} },
 		},
 	}
 }
@@ -178,7 +179,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
 
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler) // SaveDBInterface -> SaveEvent
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountStrategyRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateSignalRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionAlertRequestEventName, cli.storeRequestEventHandler)

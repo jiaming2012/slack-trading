@@ -46,7 +46,6 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ProcessRequestCompleteEventName, w.dispatchResult)
 
 	// fixed: too many places to add
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.OptionAlertUpdateCompletedEventName, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()
