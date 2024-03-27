@@ -14,6 +14,14 @@ type CreateOptionAlertRequestEvent struct {
 	ID uuid.UUID
 }
 
+func (r *CreateOptionAlertRequestEvent) GetStreamName() string {
+	return "option-alerts"
+}
+
+func (r *CreateOptionAlertRequestEvent) GetEventName() EventName {
+	return CreateOptionAlertRequestEventName
+}
+
 func (r *CreateOptionAlertRequestEvent) ParseHTTPRequest(req *http.Request) error {
 	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		return fmt.Errorf("CreateOptionAlertRequestEvent.ParseHTTPRequest: failed to decode request body: %w", err)

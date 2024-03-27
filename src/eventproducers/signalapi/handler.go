@@ -7,12 +7,11 @@ import (
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	pubsub "slack-trading/src/eventpubsub"
 )
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(pubsub.CreateSignalRequestEvent, &eventmodels.CreateSignalRequest{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler(eventmodels.CreateSignalRequestEventName, &eventmodels.CreateSignalRequest{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

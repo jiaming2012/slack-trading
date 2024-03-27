@@ -27,7 +27,7 @@ func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
 
 		req := new(eventmodels.IncomingSlackRequest)
 		schema.NewDecoder().Decode(req, r.Form)
-		eventpubsub.PublishEventResult("SlackApiEventHandler", eventpubsub.GetAccountsRequestEvent, *req)
+		eventpubsub.PublishEventResult("SlackApiEventHandler", eventmodels.GetAccountsRequestEventName, *req)
 	case "application/json":
 		decoder := json.NewDecoder(r.Body)
 

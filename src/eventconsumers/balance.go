@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"slack-trading/src/eventmodels"
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	models2 "slack-trading/src/models"
@@ -44,7 +45,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResult("BalanceWorker", pubsub.BalanceResultEvent, models.Balance{
+	pubsub.PublishEventResult("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -55,7 +56,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 func (r *BalanceWorker) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("BalanceWorker", pubsub.BalanceRequestEvent, r.calculateBalance)
+	pubsub.Subscribe("BalanceWorker", eventmodels.BalanceRequestEventName, r.calculateBalance)
 
 	go func() {
 		defer r.wg.Done()

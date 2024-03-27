@@ -8,6 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"slack-trading/src/eventmodels"
 	models "slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	models2 "slack-trading/src/models"
@@ -52,7 +53,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResult("CandleWorker", pubsub.BalanceResultEvent, models.Balance{
+	pubsub.PublishEventResult("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -100,13 +101,13 @@ func (w *CandleWorker) CreateNewCandle() {
 
 	w.mu.Unlock()
 
-	pubsub.PublishEventResult("CandleWorker.CreateNewCandle", pubsub.NewCandleEvent, newCandle)
+	pubsub.PublishEventResult("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
 }
 
 func (w *CandleWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("CandleWorker", pubsub.NewTickEvent, w.Update)
+	pubsub.Subscribe("CandleWorker", eventmodels.NewTickEventName, w.Update)
 
 	go func() {
 		defer w.wg.Done()

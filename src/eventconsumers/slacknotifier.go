@@ -137,14 +137,14 @@ func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccoun
 func (c *SlackNotifierClient) Start(ctx context.Context) {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("SlackNotifierClient", pubsub.AddAccountResponseEvent, c.addAccountResponseHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.GetAccountsResponseEvent, c.getAccountsResponseHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.BalanceResultEvent, c.balanceResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.TradeFulfilledEvent, c.tradeFulfilledHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteOpenTradeResult, c.executeOpenTradeResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.ExecuteCloseTradesResult, c.executeCloseTradesResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.OptionAlertUpdateEvent, c.optionAlertUpdateEventHandler)
-	pubsub.Subscribe("SlackNotifierClient", pubsub.Error, c.sendError)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.AddAccountResponseEventEventName, c.addAccountResponseHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.GetAccountsResponseEventName, c.getAccountsResponseHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.BalanceResultEventName, c.balanceResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradeFulfilledEventName, c.tradeFulfilledHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.Error, c.sendError)
 
 	go func() {
 		defer c.wg.Done()

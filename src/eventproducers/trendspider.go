@@ -82,7 +82,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", pubsub.SupportBreakSignal, eventmodels.SupportBreakSignal{
+			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.SupportBreakSignalEventName, eventmodels.SupportBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -95,7 +95,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", pubsub.ResistanceBreakSignal, eventmodels.ResistanceBreakSignal{
+			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.ResistanceBreakSignalEventName, eventmodels.ResistanceBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -108,7 +108,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", pubsub.TrendlineBreakSignal, eventmodels.TrendlineBreakSignal{
+			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.TrendlineBreakSignalEventName, eventmodels.TrendlineBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,

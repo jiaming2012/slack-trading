@@ -7,12 +7,11 @@ import (
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	pubsub "slack-trading/src/eventpubsub"
 )
 
 func handleStrategy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler(pubsub.GetStrategiesRequestEvent, &eventmodels.GetStrategiesRequestEvent{}, &eventmodels.GetStrategiesResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler(eventmodels.GetStrategiesRequestEventName, &eventmodels.GetStrategiesRequestEvent{}, &eventmodels.GetStrategiesResponseEvent{}, w, r)
 	} else if r.Method == "POST" {
 
 	} else {

@@ -2,11 +2,13 @@ package eventconsumers
 
 import (
 	"context"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/models"
-	"sync"
 )
 
 type TradingBot struct {
@@ -83,10 +85,10 @@ func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
 func (b *TradingBot) Start(ctx context.Context) {
 	b.wg.Add(1)
 
-	pubsub.Subscribe("TradingBot", pubsub.SupportBreakSignal, b.handleSupportBreakSignal)
-	pubsub.Subscribe("TradingBot", pubsub.ResistanceBreakSignal, b.handleResistanceBreakSignal)
-	pubsub.Subscribe("TradingBot", pubsub.TrendlineBreakSignal, b.handleTrendlineBreakSignal)
-	pubsub.Subscribe("TradingBot", pubsub.AddStrategyRequest, b.handleAddStrategy)
+	pubsub.Subscribe("TradingBot", eventmodels.SupportBreakSignalEventName, b.handleSupportBreakSignal)
+	pubsub.Subscribe("TradingBot", eventmodels.ResistanceBreakSignalEventName, b.handleResistanceBreakSignal)
+	pubsub.Subscribe("TradingBot", eventmodels.TrendlineBreakSignalEventName, b.handleTrendlineBreakSignal)
+	pubsub.Subscribe("TradingBot", eventmodels.AddStrategyRequestEventName, b.handleAddStrategy)
 
 	go func() {
 		defer b.wg.Done()

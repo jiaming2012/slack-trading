@@ -13,6 +13,14 @@ type DeleteOptionAlertRequestEvent struct {
 	AlertID uuid.UUID
 }
 
+func (r *DeleteOptionAlertRequestEvent) GetStreamName() string {
+	return "option-alerts"
+}
+
+func (r *DeleteOptionAlertRequestEvent) GetEventName() EventName {
+	return DeleteOptionAlertRequestEventName
+}
+
 func (r *DeleteOptionAlertRequestEvent) ParseHTTPRequest(req *http.Request) error {
 	queryParams := req.URL.Query()
 	r.ID = queryParams.Get("id")

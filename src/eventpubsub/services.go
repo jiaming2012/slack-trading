@@ -35,15 +35,15 @@ func PublishRequestError[T eventmodels.RequestEvent](publisherName string, reque
 	publishError(publisherName, requestErr)
 }
 
-func PublishResultWithMetadata[T eventmodels.ResultEvent](publisherName string, topic EventName, event T, meta *eventmodels.MetaData) {
+func PublishResultWithMetadata[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T, meta *eventmodels.MetaData) {
 	publish(publisherName, topic, event)
 }
 
-func PublishResult2(publisherName string, topic EventName, event interface{}) {
+func PublishResult2(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publish(publisherName, topic, event)
 }
 
-func PublishResult[T eventmodels.ResultEvent](publisherName string, topic EventName, event T) {
+func PublishResult[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T) {
 	publish(publisherName, topic, event)
 }
 
@@ -51,24 +51,24 @@ func PublishEventError(publisherName string, err error) {
 	publishError(publisherName, err)
 }
 
-func PublishEventResult(publisherName string, topic EventName, event interface{}) {
+func PublishEventResult(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publish(publisherName, topic, event)
 }
 
 func publishError(publisherName string, err error) {
 	log.Error(err)
-	publish(publisherName, Error, err)
+	publish(publisherName, eventmodels.Error, err)
 }
 
 // Publish todo: only publish pointers to events
-func publish(publisherName string, topic EventName, event interface{}) {
+func publish(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publishWithFlags(publisherName, topic, event, true)
 }
 
 // APIRequestEvent (creates)-> StreamWriteEvent (creates)-> *StreamWriteProcessedEvent (creates)-> StreamReadEvent (creates)-> **StreamReadProcessedEvent -> APISuccessEvent
 // *StreamWriteErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
 // **StreamReadErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
-func publishWithFlags(publisherName string, topic EventName, event interface{}, logEvent bool) {
+func publishWithFlags(publisherName string, topic eventmodels.EventName, event interface{}, logEvent bool) {
 	var requestID *string
 	switch ev := event.(type) {
 	// case eventmodels.APIRequestEvent:
@@ -106,7 +106,7 @@ func publishWithFlags(publisherName string, topic EventName, event interface{}, 
 	bus.Publish(string(topic), event)
 }
 
-func Subscribe(subscriberName string, topic EventName, callbackFn interface{}) {
+func Subscribe(subscriberName string, topic eventmodels.EventName, callbackFn interface{}) {
 	if err := bus.SubscribeAsync(string(topic), callbackFn, false); err != nil {
 		log.Errorf("[%v] error: %v", subscriberName, err)
 	}

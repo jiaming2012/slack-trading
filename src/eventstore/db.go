@@ -5,10 +5,10 @@ import (
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
 
-	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/eventmodels"
 )
 
-func InsertEvent(ctx context.Context, eventName pubsub.EventName, streamName string, eventType string, data []byte, db *esdb.Client) error {
+func InsertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, eventType string, data []byte, db *esdb.Client) error {
 	eventData := esdb.EventData{
 		ContentType: esdb.JsonContentType,
 		EventType:   string(eventName),

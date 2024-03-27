@@ -39,20 +39,9 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 	switch event.(type) {
-	// case *eventmodels.CreateAccountResponseEvent:
-	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	// case *eventmodels.CreateAccountStrategyResponseEvent:
-	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	// case *eventmodels.CreateSignalResponseEvent:
-	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	// case *eventmodels.CreateOptionAlertResponseEvent:
-	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	// case *eventmodels.DeleteOptionAlertResponseEvent:
-	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	// Too many places to add
+
+	// fixed: Too many places to add
 	case *eventmodels.OptionAlertUpdateCompletedEvent:
-		// eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-		// return as this cannot originate from an external request
 		return
 	}
 
@@ -71,20 +60,20 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.Error, w.dispatchError)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteOpenTradeResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.FetchTradesResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ExecuteCloseTradesResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetStatsResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateSignalResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ManualDatafeedUpdateResult, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetAccountsResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateAccountResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ProcessRequestComplete, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.Error, w.dispatchError)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteOpenTradeResultEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.FetchTradesResultEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteCloseTradesResultEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.GetStatsResultEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateSignalResponseEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ManualDatafeedUpdateResultEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.GetAccountsResponseEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateAccountResponseEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateStrategyResponseEventName, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ProcessRequestCompleteEventName, w.dispatchResult)
 
 	// fixed: too many places to add
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.OptionAlertUpdateCompletedEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.OptionAlertUpdateCompletedEventName, w.dispatchResult)
 
 	go func() {
 		defer w.wg.Done()

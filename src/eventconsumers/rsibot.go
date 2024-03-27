@@ -32,7 +32,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 
 	if rsi > 0 {
 		if rsi <= 30 && r.prevRsi > 30 {
-			pubsub.PublishEventResult("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
+			pubsub.PublishEventResult("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          true,
 				RequestedPrice: candle.Close,
@@ -40,7 +40,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 		}
 
 		if rsi >= 70 && r.prevRsi < 70 {
-			pubsub.PublishEventResult("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
+			pubsub.PublishEventResult("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          false,
 				RequestedPrice: candle.Close,
@@ -54,7 +54,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 func (r *RsiBot) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("RsiBot", pubsub.NewCandleEvent, r.update)
+	pubsub.Subscribe("RsiBot", eventmodels.NewCandleEventName, r.update)
 
 	go func() {
 		defer r.wg.Done()

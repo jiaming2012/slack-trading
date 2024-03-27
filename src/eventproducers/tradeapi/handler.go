@@ -9,7 +9,6 @@ import (
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	pubsub "slack-trading/src/eventpubsub"
 )
 
 func signalHandler(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +25,7 @@ func signalHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(pubsub.OpenTradeRequest, &eventmodels.CreateTradeRequest{}, &eventmodels.ExecuteOpenTradeResult{}, w, r)
+		eventproducers.ApiRequestHandler(eventmodels.OpenTradeRequestEventName, &eventmodels.CreateTradeRequest{}, &eventmodels.ExecuteOpenTradeResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -34,7 +33,7 @@ func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(pubsub.CloseTradeRequest, &eventmodels.CloseTradeRequest{}, &eventmodels.ExecuteCloseTradesResult{}, w, r)
+		eventproducers.ApiRequestHandler(eventmodels.CloseTradeRequestEventName, &eventmodels.CloseTradeRequest{}, &eventmodels.ExecuteCloseTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -42,7 +41,7 @@ func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleTradesByAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler(pubsub.FetchTradesRequest, &eventmodels.FetchTradesRequest{}, &eventmodels.FetchTradesResult{}, w, r)
+		eventproducers.ApiRequestHandler(eventmodels.FetchTradesRequestEventName, &eventmodels.FetchTradesRequest{}, &eventmodels.FetchTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

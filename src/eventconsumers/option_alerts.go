@@ -31,7 +31,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.GetOptionAlertResponseEvent{
+	eventpubsub.PublishResult2("OptionAlertWorker", eventmodels.ProcessRequestCompleteEventName, &eventmodels.GetOptionAlertResponseEvent{
 		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
@@ -50,7 +50,7 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	w.optionAlerts = append(w.optionAlerts, optionAlert)
 
-	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.CreateOptionAlertResponseEvent{
+	eventpubsub.PublishResult2("OptionAlertWorker", eventmodels.ProcessRequestCompleteEventName, &eventmodels.CreateOptionAlertResponseEvent{
 		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
@@ -68,7 +68,7 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 		}
 	}
 
-	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.DeleteOptionAlertResponseEvent{
+	eventpubsub.PublishResult2("OptionAlertWorker", eventmodels.ProcessRequestCompleteEventName, &eventmodels.DeleteOptionAlertResponseEvent{
 		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
@@ -198,7 +198,7 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
-	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.OptionAlertUpdateCompletedEvent{
+	eventpubsub.PublishResult2("OptionAlertWorker", eventmodels.ProcessRequestCompleteEventName, &eventmodels.OptionAlertUpdateCompletedEvent{
 		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
 			Meta: eventmodels.NewMetaData(event.Meta),
 		},
@@ -208,10 +208,10 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.GetOptionAlertRequestEvent, w.handleGetOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEventStoredSuccess, w.handleCreateOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEventStoredSuccess, w.handleDeleteOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.OptionAlertUpdateSavedEvent, w.handleOptionAlertUpdate)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.CreateOptionAlertRequestEventStoredSuccessName, w.handleCreateOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.DeleteOptionAlertRequestEventStoredSuccessName, w.handleDeleteOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.OptionAlertUpdateSavedEventName, w.handleOptionAlertUpdate)
 
 	timer := time.NewTicker(15 * time.Second)
 
@@ -238,7 +238,7 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 
 				triggeredEvents := w.checkOptionAlerts(quotes)
 				for _, event := range triggeredEvents {
-					eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.OptionAlertUpdateEvent, event)
+					eventpubsub.PublishResult("OptionAlertWorker", eventmodels.OptionAlertUpdateEventName, event)
 				}
 			}
 		}

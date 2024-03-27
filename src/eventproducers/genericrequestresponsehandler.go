@@ -31,7 +31,7 @@ type SignalRequest interface {
 	GetSource() models.RequestSource
 }
 
-func ApiRequestHandler2(eventName pubsub.EventName, req ApiRequest2, resp any, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp any, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
@@ -75,7 +75,7 @@ func ApiRequestHandler2(eventName pubsub.EventName, req ApiRequest2, resp any, w
 	}
 }
 
-func ApiRequestHandler[Request ApiRequest, Response any](eventName pubsub.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler[Request ApiRequest, Response any](eventName eventmodels.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
