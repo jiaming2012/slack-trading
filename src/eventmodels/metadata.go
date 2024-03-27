@@ -1,18 +1,25 @@
 package eventmodels
 
 import (
+	"sync"
+
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 type MetaData struct {
 	ParentMeta   *MetaData          `json:"-"`
 	RequestError chan RequestError2 `json:"-"`
+	Mutex        *sync.Mutex        `json:"-"`
+	RequestID    uuid.UUID          `json:"request_id"`
 }
 
 func NewMetaData(parentMeta *MetaData) *MetaData {
 	return &MetaData{
 		ParentMeta:   parentMeta,
 		RequestError: parentMeta.RequestError,
+		Mutex:        parentMeta.Mutex,
+		RequestID:    parentMeta.RequestID,
 	}
 }
 

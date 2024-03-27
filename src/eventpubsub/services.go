@@ -39,6 +39,10 @@ func PublishResultWithMetadata[T eventmodels.ResultEvent](publisherName string, 
 	publish(publisherName, topic, event)
 }
 
+func PublishResult2(publisherName string, topic EventName, event interface{}) {
+	publish(publisherName, topic, event)
+}
+
 func PublishResult[T eventmodels.ResultEvent](publisherName string, topic EventName, event T) {
 	publish(publisherName, topic, event)
 }
@@ -72,15 +76,17 @@ func publishWithFlags(publisherName string, topic EventName, event interface{}, 
 	case eventmodels.RequestError:
 		// RequestErrors should have ResultEvents??
 		fmt.Println(ev)
+		log.Warnf("deprecated RequestEvent: %v", ev)
 	case eventmodels.RequestEvent:
-		_id := ev.GetRequestID().String()
-		requestID = &_id
+		// _id := ev.GetRequestID().String()
+		// requestID = &_id
 
-		meta, ok := event.(eventmodels.ResultEvent)
-		if ok {
-			meta.GetMetaData().EndProcess(event, nil)
-		}
-
+		// // THIS NEEDS TO GO!!!
+		// meta, ok := event.(eventmodels.ResultEvent)
+		// if ok {
+		// 	meta.GetMetaData().EndProcess(event, nil)
+		// }
+		log.Warnf("deprecated RequestEvent: %v", ev)
 		// if !strings.Contains(strings.ToLower(string(topic)), "error") {
 
 		// }
@@ -100,11 +106,10 @@ func publishWithFlags(publisherName string, topic EventName, event interface{}, 
 	bus.Publish(string(topic), event)
 }
 
-func Subscribe(subscriberName string, topic EventName, callbackFn interface{}) error {
+func Subscribe(subscriberName string, topic EventName, callbackFn interface{}) {
 	if err := bus.SubscribeAsync(string(topic), callbackFn, false); err != nil {
-		return err
+		log.Errorf("[%v] error: %v", subscriberName, err)
 	}
 
 	log.Infof("[%v] Subscribed to topic %s", subscriberName, topic)
-	return nil
 }

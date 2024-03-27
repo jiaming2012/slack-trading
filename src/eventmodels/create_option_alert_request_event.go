@@ -9,7 +9,7 @@ import (
 )
 
 type CreateOptionAlertRequestEvent struct {
-	BaseRequstEvent
+	BaseRequestEvent2
 	CreateOptionAlertDTO
 	ID uuid.UUID
 }

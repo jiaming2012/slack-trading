@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
 	pubsub "slack-trading/src/eventpubsub"
 )
 
@@ -39,36 +38,32 @@ func (w *GlobalDispatchWorker) dispatchError(err error) {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
-	switch ev := event.(type) {
-	case *eventmodels.CreateAccountResponseEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.CreateAccountStrategyResponseEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.CreateSignalResponseEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.CreateOptionAlertResponseEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
-	case *eventmodels.DeleteOptionAlertResponseEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	switch event.(type) {
+	// case *eventmodels.CreateAccountResponseEvent:
+	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	// case *eventmodels.CreateAccountStrategyResponseEvent:
+	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	// case *eventmodels.CreateSignalResponseEvent:
+	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	// case *eventmodels.CreateOptionAlertResponseEvent:
+	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+	// case *eventmodels.DeleteOptionAlertResponseEvent:
+	// 	eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 	// Too many places to add
 	case *eventmodels.OptionAlertUpdateCompletedEvent:
-		eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
+		// eventpubsub.PublishEventResult("GlobalDispatchWorker", pubsub.ProcessRequestComplete, ev)
 		// return as this cannot originate from an external request
 		return
 	}
 
 	// todo: when the request is originated from the db, the requestID is not set. I THINK THIS IS FIXED!
-	id := event.GetRequestID()
+	id := event.GetMetaData().RequestID
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
-	// pubsub.Publish("GlobalDispatchWorker.dispatchResult", pubsub.RequestCompletedEvent, id)
 
 	if err != nil {
-		// pubsub.PublishError("GlobalDispatchWorker.dispatchResult", fmt.Errorf("failed to find dispatcher: %w", err))
 		log.Debugf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
 		return
 	}
-
-	// event.GetMetaData().EndProcess(nil)
 
 	globalDispatchItem.ResultCh <- event
 }
@@ -88,7 +83,8 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateStrategyResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.GetOptionAlertResponseEvent, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.CreateOptionAlertResponseEvent, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", pubsub.DeleteOptionAlertResponseEvent, w.dispatchResult)
+	// pubsub.Subscribe("GlobalDispatchWorker", pubsub.DeleteOptionAlertResponseEvent, w.dispatchResult)
+	pubsub.Subscribe("GlobalDispatchWorker", pubsub.ProcessRequestComplete, w.dispatchResult)
 	// too many places to add
 	pubsub.Subscribe("GlobalDispatchWorker", pubsub.OptionAlertUpdateCompletedEvent, w.dispatchResult)
 

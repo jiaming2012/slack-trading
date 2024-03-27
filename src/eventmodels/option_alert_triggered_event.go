@@ -7,15 +7,8 @@ import (
 )
 
 type OptionAlertUpdateEvent struct {
+	BaseRequestEvent2
 	AlertID      uuid.UUID `json:"alert_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	AlertMessage string    `json:"alert_message"`
-}
-
-func (ev *OptionAlertUpdateEvent) GetMetaData() *MetaData {
-	return nil
-}
-
-func (ev *OptionAlertUpdateEvent) GetRequestID() uuid.UUID {
-	return ev.AlertID
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type DeleteOptionAlertRequestEvent struct {
-	BaseRequstEvent
+	BaseRequestEvent2
 	DeleteOptionAlertRequestDTO
 	AlertID uuid.UUID
 }

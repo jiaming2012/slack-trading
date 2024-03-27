@@ -31,9 +31,11 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.GetOptionAlertResponseEvent, &eventmodels.GetOptionAlertResponseEvent{
-		RequestID: event.GetRequestID(),
-		Alerts:    currentAlerts,
+	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.GetOptionAlertResponseEvent, &eventmodels.GetOptionAlertResponseEvent{
+		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
+			Meta: eventmodels.NewMetaData(event.Meta),
+		},
+		Alerts: currentAlerts,
 	})
 }
 
@@ -42,18 +44,25 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
-		eventpubsub.PublishRequestError("OptionAlertWorker", event, err)
+		// eventpubsub.PublishRequestError("OptionAlertWorker", event, err)
 		return
 	}
 
 	w.optionAlerts = append(w.optionAlerts, optionAlert)
 
-	eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.CreateOptionAlertResponseEvent, &eventmodels.CreateOptionAlertResponseEvent{
-		BaseResponseEvent: eventmodels.BaseResponseEvent{
-			RequestID: event.GetRequestID(),
+	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.CreateOptionAlertResponseEvent{
+		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
+			Meta: eventmodels.NewMetaData(event.Meta),
 		},
 		ID: optionAlert.ID.String(),
 	})
+
+	// eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.CreateOptionAlertResponseEvent, &eventmodels.CreateOptionAlertResponseEvent{
+	// 	BaseResponseEvent: eventmodels.BaseResponseEvent{
+	// 		Meta: eventmodels.NewMetaData(event.Meta),
+	// 	},
+	// 	ID: optionAlert.ID.String(),
+	// })
 }
 
 func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmodels.DeleteOptionAlertRequestEvent) {
@@ -66,11 +75,17 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 		}
 	}
 
-	eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.DeleteOptionAlertResponseEvent, &eventmodels.DeleteOptionAlertResponseEvent{
-		BaseResponseEvent: eventmodels.BaseResponseEvent{
-			RequestID: event.GetRequestID(),
+	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.DeleteOptionAlertResponseEvent{
+		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
+			Meta: eventmodels.NewMetaData(event.Meta),
 		},
 	})
+
+	// eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.DeleteOptionAlertResponseEvent, &eventmodels.DeleteOptionAlertResponseEvent{
+	// 	BaseResponseEvent: eventmodels.BaseResponseEvent{
+	// 		RequestID: event.GetRequestID(),
+	// 	},
+	// })
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -196,16 +211,19 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
+	eventpubsub.PublishResult2("OptionAlertWorker", eventpubsub.ProcessRequestComplete, &eventmodels.OptionAlertUpdateCompletedEvent{
+		BaseResponseEvent2: eventmodels.BaseResponseEvent2{
+			Meta: eventmodels.NewMetaData(event.Meta),
+		},
+	})
 	// too many places to add
-	eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.OptionAlertUpdateCompletedEvent, &eventmodels.OptionAlertUpdateCompletedEvent{})
+	// eventpubsub.PublishResult("OptionAlertWorker", eventpubsub.OptionAlertUpdateCompletedEvent, &eventmodels.OptionAlertUpdateCompletedEvent{})
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
 	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.GetOptionAlertRequestEvent, w.handleGetOptionAlertRequestEvent)
-	// eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEvent, w.handleCreateOptionAlertRequestEvent)
-	// eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEvent, w.handleDeleteOptionAlertRequestEvent)
 	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.CreateOptionAlertRequestEventStoredSuccess, w.handleCreateOptionAlertRequestEvent)
 	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.DeleteOptionAlertRequestEventStoredSuccess, w.handleDeleteOptionAlertRequestEvent)
 	eventpubsub.Subscribe("OptionAlertWorker", eventpubsub.OptionAlertUpdateSavedEvent, w.handleOptionAlertUpdate)

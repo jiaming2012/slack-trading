@@ -11,15 +11,15 @@ import (
 )
 
 func fetchAlerts(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler(eventpubsub.GetOptionAlertRequestEvent, &eventmodels.GetOptionAlertRequestEvent{}, &eventmodels.GetOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(eventpubsub.GetOptionAlertRequestEvent, &eventmodels.GetOptionAlertRequestEvent{}, &eventmodels.GetOptionAlertResponseEvent{}, w, r)
 }
 
 func createAlert(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler(eventpubsub.CreateOptionAlertRequestEvent, &eventmodels.CreateOptionAlertRequestEvent{}, &eventmodels.CreateOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(eventpubsub.CreateOptionAlertRequestEvent, &eventmodels.CreateOptionAlertRequestEvent{}, &eventmodels.CreateOptionAlertResponseEvent{}, w, r)
 }
 
 func deleteAlert(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler(eventpubsub.DeleteOptionAlertRequestEvent, &eventmodels.DeleteOptionAlertRequestEvent{}, &eventmodels.DeleteOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(eventpubsub.DeleteOptionAlertRequestEvent, &eventmodels.DeleteOptionAlertRequestEvent{}, &eventmodels.DeleteOptionAlertResponseEvent{}, w, r)
 }
 
 func handleAlerts(w http.ResponseWriter, r *http.Request) {

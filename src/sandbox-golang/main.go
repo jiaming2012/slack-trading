@@ -258,7 +258,7 @@ func main() {
 		fmt.Println("Error decoding JSON: ", err)
 	}
 
-	quotes, err := optionQuotes.ToModel()
+	quotes, _, err := optionQuotes.ToModel()
 	if err != nil {
 		fmt.Println("Error converting dto to model: ", err)
 	}

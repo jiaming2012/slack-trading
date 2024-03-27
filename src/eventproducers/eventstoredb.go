@@ -8,17 +8,20 @@ import (
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 )
 
+var saga map[pubsub.EventName]pubsub.SagaFlow
+
 type eventStoreDBClient struct {
 	wg                 *sync.WaitGroup
 	db                 *esdb.Client
-	accountsMutex      pubsub.SafeMutex
-	optionsAlertsMutex pubsub.SafeMutex
+	accountsMutex      sync.Mutex
+	optionsAlertsMutex sync.Mutex
 	lastEventNumber    uint64
 }
 
@@ -31,18 +34,20 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName pubsub
 
 	// todo: verify that the stream is thread safe
 	writeResult, err := cli.db.AppendToStream(ctx, streamName, esdb.AppendToStreamOptions{}, eventData)
+	if err != nil {
+		return fmt.Errorf("failed to append event to stream: %w", err)
+	}
 
 	log.Info(writeResult.CommitPosition)
-
-	return err
+	return nil
 }
 
-func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.RequestEvent) {
+func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
 
 	bytes, err := json.Marshal(request)
 	if err != nil {
-		pubsub.PublishRequestError("eventStoreDBClient", request, err)
+		// pubsub.PublishRequestError("eventStoreDBClient", request, err)
 		return
 	}
 
@@ -64,26 +69,28 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request eventmodels.Requ
 		}
 	case *eventmodels.CreateOptionAlertRequestEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.CreateOptionAlertRequestEvent, "option-alerts", bytes); err != nil {
-			pubsub.PublishRequestError("eventStoreDBClient:CreateOptionAlertRequestEvent", req, err)
+			// pubsub.PublishRequestError("eventStoreDBClient:CreateOptionAlertRequestEvent", req, err)
 			return
 		}
 	case *eventmodels.DeleteOptionAlertRequestEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.DeleteOptionAlertRequestEvent, "option-alerts", bytes); err != nil {
-			pubsub.PublishRequestError("eventStoreDBClient:DeleteOptionAlertRequestEvent", req, err)
+			// pubsub.PublishRequestError("eventStoreDBClient:DeleteOptionAlertRequestEvent", req, err)
 			return
 		}
 	case *eventmodels.OptionAlertUpdateEvent:
 		if err := cli.insertEvent(context.Background(), pubsub.OptionAlertUpdateEvent, "option-alerts", bytes); err != nil {
-			pubsub.PublishRequestError("eventStoreDBClient:OptionAlertUpdateEvent", req, err)
+			// pubsub.PublishRequestError("eventStoreDBClient:OptionAlertUpdateEvent", req, err)
 			return
 		}
 	default:
-		pubsub.PublishRequestError("eventStoreDBClient.storeRequestEventHandler", request, fmt.Errorf("unknown request type: %T", request))
+		// pubsub.PublishRequestError("eventStoreDBClient.storeRequestEventHandler", request, fmt.Errorf("unknown request type: %T", request))
 		return
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName string) {
+func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName string, streamMutex *sync.Mutex) {
+	cli.init()
+
 	for {
 		payload := stream.Recv()
 
@@ -107,85 +114,89 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName 
 
 		cli.lastEventNumber = payload.EventAppeared.OriginalEvent().EventNumber
 
-		switch pubsub.EventName(ev.EventType) {
-		case pubsub.CreateAccountRequestEvent:
-			var request eventmodels.CreateAccountRequestEvent
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.CreateAccountRequestEvent", &request, err)
-				break
-			}
-
-			cli.accountsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountRequestEventStoredSuccess, &request)
-		case pubsub.CreateAccountStrategyRequestEvent:
-			var request eventmodels.CreateAccountStrategyRequestEvent
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.CreateAccountStrategyRequestEvent", &request, err)
-				break
-			}
-
-			cli.accountsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateAccountStrategyRequestEventStoredSuccess, &request)
-		case pubsub.CreateSignalRequestEvent:
-			var request eventmodels.CreateSignalRequest
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.NewSignalsRequestEvent", &request, err)
-				break
-			}
-
-			cli.accountsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateSignalRequestStoredSuccessEvent, &request)
-		case pubsub.CreateOptionAlertRequestEvent:
-			var request eventmodels.CreateOptionAlertRequestEvent
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.CreateOptionAlertRequestEvent", &request, err)
-				break
-			}
-
-			cli.optionsAlertsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.CreateOptionAlertRequestEventStoredSuccess, &request)
-		case pubsub.DeleteOptionAlertRequestEvent:
-			var request eventmodels.DeleteOptionAlertRequestEvent
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.DeleteOptionAlertRequestEvent", &request, err)
-				break
-			}
-
-			cli.optionsAlertsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEventStoredSuccess, &request)
-		case pubsub.OptionAlertUpdateEvent:
-			var request eventmodels.OptionAlertUpdateEvent
-			if err := json.Unmarshal(ev.Data, &request); err != nil {
-				pubsub.PublishRequestError("eventStoreDBClient.OptionAlertUpdateEvent", &request, err)
-				break
-			}
-
-			cli.optionsAlertsMutex.Lock()
-			pubsub.PublishResult("eventStoreDBClient", pubsub.OptionAlertUpdateSavedEvent, &request)
-		default:
-			// pubsub.PublishError("eventStoreDBClient.readStream", fmt.Errorf("unknown event type: %s", ev.EventType))
+		model, found := saga[pubsub.EventName(ev.EventType)]
+		if !found {
 			log.Errorf("unknown event type: %s", ev.EventType)
+			continue
 		}
+
+		request := model.Generator()
+		if err := json.Unmarshal(ev.Data, request); err != nil {
+			pubsub.PublishEventError("eventStoreDBClient.readStream", err)
+			continue
+		}
+
+		meta := request.GetMetaData()
+		var requestID uuid.UUID
+		if meta == nil {
+			requestID = uuid.Nil
+		} else {
+			requestID = meta.RequestID
+		}
+
+		request.SetMetaData(&eventmodels.MetaData{
+			Mutex:     streamMutex,
+			RequestID: requestID,
+		})
+
+		streamMutex.Lock()
+		pubsub.PublishEventResult("eventStoreDBClient", model.NextEvent, request)
 	}
 }
 
 func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 	log.Debugf("<- eventStoreDBClient.handleProcessRequestComplete: finished processing %v", event)
 
-	switch event.(type) {
-	case *eventmodels.CreateAccountResponseEvent:
-		cli.accountsMutex.Unlock()
-	case *eventmodels.CreateAccountStrategyResponseEvent:
-		cli.accountsMutex.Unlock()
-	case *eventmodels.CreateSignalResponseEvent:
-		cli.accountsMutex.Unlock()
-	case *eventmodels.CreateOptionAlertResponseEvent:
-		cli.optionsAlertsMutex.Unlock()
-	case *eventmodels.DeleteOptionAlertResponseEvent:
-		cli.optionsAlertsMutex.Unlock()
-	// too many places to add
-	case *eventmodels.OptionAlertUpdateCompletedEvent:
-		cli.optionsAlertsMutex.Unlock()
+	if req, ok := event.(pubsub.TerminalRequest); ok {
+		req.GetMetaData().Mutex.Unlock()
+	}
+
+	// switch event.(type) {
+	// case *eventmodels.CreateAccountResponseEvent:
+	// 	cli.accountsMutex.Unlock()
+	// case *eventmodels.CreateAccountStrategyResponseEvent:
+	// 	cli.accountsMutex.Unlock()
+	// case *eventmodels.CreateSignalResponseEvent:
+	// 	cli.accountsMutex.Unlock()
+	// case *eventmodels.CreateOptionAlertResponseEvent:
+	// 	cli.optionsAlertsMutex.Unlock()
+	// case *eventmodels.DeleteOptionAlertResponseEvent:
+	// 	cli.optionsAlertsMutex.Unlock()
+	// // too many places to add
+	// case *eventmodels.OptionAlertUpdateCompletedEvent:
+	// 	cli.optionsAlertsMutex.Unlock()
+	// }
+}
+
+func (cli *eventStoreDBClient) init() {
+	saga = map[pubsub.EventName]pubsub.SagaFlow{
+		// pubsub.CreateAccountRequestEvent: {
+		// 	Generator: func() interface{} { return &eventmodels.CreateAccountRequestEvent{} },
+		// 	NextEvent: pubsub.CreateAccountRequestEventStoredSuccess,
+		// 	Lock:      &cli.accountsMutex,
+		// },
+		// pubsub.CreateAccountStrategyRequestEvent: {
+		// 	Generator: func() interface{} { return &eventmodels.CreateAccountStrategyRequestEvent{} },
+		// 	NextEvent: pubsub.CreateAccountStrategyRequestEventStoredSuccess,
+		// 	Lock:      &cli.accountsMutex,
+		// },
+		// pubsub.CreateSignalRequestEvent: {
+		// 	Generator: func() interface{} { return &eventmodels.CreateSignalRequest{} },
+		// 	NextEvent: pubsub.CreateSignalRequestStoredSuccessEvent,
+		// 	Lock:      &cli.accountsMutex,
+		// },
+		pubsub.CreateOptionAlertRequestEvent: {
+			Generator: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },
+			NextEvent: pubsub.CreateOptionAlertRequestEventStoredSuccess,
+		},
+		pubsub.DeleteOptionAlertRequestEvent: {
+			Generator: func() pubsub.TerminalRequest { return &eventmodels.DeleteOptionAlertRequestEvent{} },
+			NextEvent: pubsub.DeleteOptionAlertRequestEventStoredSuccess,
+		},
+		pubsub.OptionAlertUpdateEvent: {
+			Generator: func() pubsub.TerminalRequest { return &eventmodels.OptionAlertUpdateEvent{} },
+			NextEvent: pubsub.OptionAlertUpdateSavedEvent,
+		},
 	}
 }
 
@@ -207,10 +218,11 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateSignalRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.CreateOptionAlertRequestEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.DeleteOptionAlertRequestEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
 	pubsub.Subscribe("eventStoreDBClient", pubsub.OptionAlertUpdateEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", pubsub.ProcessRequestComplete, cli.handleProcessRequestComplete)
 
-	streamNames := []string{"accounts", "option-alerts"}
+	// streamNames := []string{"accounts", "option-alerts"}
+	streamNames := []string{"option-alerts"}
 	for _, streamName := range streamNames {
 		name := streamName
 
@@ -225,7 +237,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		go func() {
 			for {
 				if err == nil {
-					cli.readStream(subscription, name)
+					cli.readStream(subscription, name, &cli.optionsAlertsMutex)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)

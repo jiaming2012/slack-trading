@@ -1,5 +1,5 @@
 package eventmodels
 
 type DeleteOptionAlertResponseEvent struct {
-	BaseResponseEvent
+	BaseResponseEvent2
 }
