@@ -15,29 +15,6 @@ type GlobalDispatchWorker struct {
 	dispatcher *eventmodels.GlobalResponseDispatcher
 }
 
-// todo: REMOVE THIS!!!
-func (w *GlobalDispatchWorker) dispatchError(err error) {
-	requestErr, ok := err.(eventmodels.RequestError)
-	if !ok {
-		// pubsub.Publish("GlobalDispatchWorker.dispatchError", pubsub.RequestCompletedEvent, uuid.Nil)
-		log.Warn("dispatchError: failed to cast error to RequestError")
-		return
-	}
-
-	id := requestErr.RequestID()
-
-	// pubsub.Publish("GlobalDispatchWorker.dispatchError", pubsub.RequestCompletedEvent, id)
-
-	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
-	if err != nil {
-		// pubsub.PublishError("GlobalDispatchWorker.dispatchError", fmt.Errorf("failed to find dispatcher: %w", err))
-		log.Debugf("GlobalDispatchWorker.dispatchError: failed to find dispatcher: %v", err)
-		return
-	}
-
-	globalDispatchItem.ErrCh <- requestErr
-}
-
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 	id := event.GetMetaData().RequestID
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
@@ -57,7 +34,6 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.Error, w.dispatchError)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteOpenTradeResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.FetchTradesResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteCloseTradesResultEventName, w.dispatchResult)
