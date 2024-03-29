@@ -62,7 +62,7 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(event eventmodels.SavedE
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName string, streamMutex *sync.Mutex) {
+func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex *sync.Mutex) {
 	cli.init()
 
 	for {
@@ -75,12 +75,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamName 
 		}
 
 		if payload.EventAppeared == nil {
-			if streamName == "accounts" {
-				cli.accountsMutex.Unlock()
-			} else if streamName == "option-alerts" {
-				cli.optionsAlertsMutex.Unlock()
-			}
-
+			streamMutex.Unlock()
 			continue
 		}
 
@@ -179,7 +174,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
 
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler) // SaveDBInterface -> SaveEvent
+	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountStrategyRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateSignalRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionAlertRequestEventName, cli.storeRequestEventHandler)
@@ -203,7 +198,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		go func() {
 			for {
 				if err == nil {
-					cli.readStream(subscription, name, &cli.optionsAlertsMutex)
+					cli.readStream(subscription, &cli.optionsAlertsMutex)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)
