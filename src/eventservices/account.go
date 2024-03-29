@@ -57,9 +57,7 @@ func FetchTrades(requestID uuid.UUID, account *eventmodels.Account) *eventmodels
 }
 
 func GetStats(requestID uuid.UUID, account *eventmodels.Account, currentTick *eventmodels.Tick) (*eventmodels.GetStatsResult, error) {
-	statsResult := &eventmodels.GetStatsResult{
-		RequestID: requestID,
-	}
+	statsResult := &eventmodels.GetStatsResult{}
 
 	for _, strategy := range account.Strategies {
 		stats, statsErr := strategy.GetTrades().GetTradeStats(*currentTick)

@@ -67,35 +67,33 @@ func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateA
 	case eventmodels.ManualDatafeed:
 		datafeed = w.manualDatafeed
 	default:
-		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", request, fmt.Errorf("datafeed source: %v", request.DatafeedName))
+		pubsub.PublishTerminalError("AccountWorker.createAccountRequestHandler", fmt.Errorf("datafeed source: %v", request.DatafeedName), request.Meta)
 		return
 	}
 
 	account, err := eventmodels.NewAccount(request.Name, request.Balance, datafeed)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", request, err)
+		pubsub.PublishTerminalError("AccountWorker.createAccountRequestHandler", err, request.Meta)
 		return
 	}
 
 	err = w.addAccountWithoutStrategy(account)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.addAccountWithoutStrategy", request, err)
+		pubsub.PublishTerminalError("AccountWorker.addAccountWithoutStrategy", err, request.Meta)
 		return
 	}
 
-	pubsub.PublishResult("AccountWorker.createAccountRequestHandler", eventmodels.CreateAccountResponseEventName, &eventmodels.CreateAccountResponseEvent{
-		RequestID: request.RequestID,
-		Account:   account,
-	})
+	pubsub.PublishResult3("AccountWorker.createAccountRequestHandler", &eventmodels.CreateAccountResponseEvent{
+		Account: account,
+	}, request.Meta)
 }
 
 func (w *AccountWorker) handleGetAccountsRequestEvent(request *eventmodels.GetAccountsRequestEvent) {
 	log.Debugf("<- AccountWorker.getAccountsRequestHandler")
 
-	pubsub.PublishResult("AccountWorker", eventmodels.GetAccountsResponseEventName, &eventmodels.GetAccountsResponseEvent{
-		RequestID: request.RequestID,
-		Accounts:  w.getAccounts(),
-	})
+	pubsub.PublishResult3("AccountWorker", &eventmodels.GetAccountsResponseEvent{
+		Accounts: w.getAccounts(),
+	}, request.Meta)
 }
 
 // todo: test this
@@ -400,31 +398,21 @@ func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesR
 func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStatsRequest) {
 	log.Debug("<- AccountWorker.handleGetAccountStatsRequest")
 
-	event.Meta = &eventmodels.MetaData{
-		ParentMeta:   nil,
-		RequestError: make(chan eventmodels.RequestError2),
-	}
-
 	account, err := w.findAccount(event.AccountName)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
+		pubsub.PublishTerminalError("AccountWorker.handleGetAccountStatsRequest", fmt.Errorf("failed to find findAccount: %w", err), event.Meta)
 		return
 	}
 
 	currentTick := account.Datafeed.Tick()
 
-	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
+	statsResult, err := eventservices.GetStats(event.GetMetaData().RequestID, account, currentTick)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", event, err)
+		pubsub.PublishTerminalError("AccountWorker.handleGetAccountStatsRequest", err, event.Meta)
 		return
 	}
 
-	statsResult.Meta = &eventmodels.MetaData{
-		ParentMeta:   event.Meta,
-		RequestError: make(chan eventmodels.RequestError2),
-	}
-
-	pubsub.PublishResult("AccountWorker.handleGetAccountStatsRequest", eventmodels.GetStatsResultEventName, statsResult)
+	pubsub.PublishResult3("AccountWorker.handleGetAccountStatsRequest", statsResult, event.Meta)
 }
 
 func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []*eventmodels.ExitConditionsSatisfied) ([]*eventmodels.CloseTradeRequest, error) {
@@ -466,11 +454,6 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequest) {
 	log.Infof("received %v", event)
 
-	meta := &eventmodels.MetaData{
-		ParentMeta:   nil,
-		RequestError: make(chan eventmodels.RequestError2),
-	}
-
 	// handle exit conditions
 	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr == nil {
@@ -490,14 +473,14 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 
 				// todo: test error handling
 				if err := syncProcess.Run(); err != nil {
-					pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
+					pubsub.PublishTerminalError("AccountWorker.handleNewSignalRequest", err, event.Meta)
 				}
 			} else {
-				pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
+				pubsub.PublishTerminalError("AccountWorker.handleNewSignalRequest", err, event.Meta)
 			}
 		}
 	} else {
-		pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, updateErr)
+		pubsub.PublishTerminalError("AccountWorker.handleNewSignalRequest", updateErr, event.Meta)
 	}
 
 	// 3/4/24: the current problem is that we need to consider the flow
@@ -528,13 +511,13 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 					}
 
 					if bFoundExecuteOpenTradeRequest {
-						pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, e.Error)
+						pubsub.PublishTerminalError("AccountWorker.handleNewSignalRequest", e.Error, event.Meta)
 						break
 					}
 				}
 			}
 		} else {
-			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
+			pubsub.PublishTerminalError("AccountWorker.handleNewSignalRequest", err, event.Meta)
 		}
 	}
 
@@ -542,14 +525,9 @@ func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSigna
 	// as the request didn't originate from an api call but is still picked up by the lister
 	// eventmodels.RegisterResultCallback(event.RequestID)
 
-	pubsub.PublishResult("AccountWorker.handleNewSignalRequest", eventmodels.CreateSignalResponseEventName, &eventmodels.CreateSignalResponseEvent{
-		Meta: &eventmodels.MetaData{
-			ParentMeta:   meta,
-			RequestError: make(chan eventmodels.RequestError2),
-		},
-		Name:      event.Name,
-		RequestID: event.RequestID,
-	})
+	pubsub.PublishResult3("AccountWorker.handleNewSignalRequest", &eventmodels.CreateSignalResponseEvent{
+		Name: event.Name,
+	}, event.Meta)
 }
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
@@ -569,31 +547,28 @@ func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.Manual
 func (w *AccountWorker) createAccountStrategyRequestHandler(ev *eventmodels.CreateAccountStrategyRequestEvent) {
 	account, err := w.findAccount(ev.AccountName)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to find account: %w", err))
+		pubsub.PublishTerminalError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to find account: %w", err), ev.Meta)
 		return
 	}
 
 	strategy, err := eventmodels.NewStrategy(ev.Strategy.Name, ev.Strategy.Symbol, ev.Strategy.Direction, ev.Strategy.Balance, ev.Strategy.EntryConditions, ev.Strategy.ExitConditions, ev.Strategy.PriceLevels, account)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to create strategy: %w", err))
+		pubsub.PublishTerminalError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to create strategy: %w", err), ev.Meta)
 		return
 	}
 
 	if err := account.AddStrategy(strategy); err != nil {
-		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", ev, fmt.Errorf("failed to add strategy: %w", err))
+		pubsub.PublishTerminalError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to add strategy: %w", err), ev.Meta)
 		return
 	}
 
 	// todo: add the requestID as a parameter when dispatching to the event bus, instead of in the event itself
-	pubsub.PublishResult("AccountWorker.createAccountStrategyRequestHandler", eventmodels.CreateStrategyResponseEventName, &eventmodels.CreateAccountStrategyResponseEvent{
+	pubsub.PublishResult3("AccountWorker.createAccountStrategyRequestHandler", &eventmodels.CreateAccountStrategyResponseEvent{
 		AccountsRequestHeader: eventmodels.AccountsRequestHeader{
-			RequestHeader: eventmodels.RequestHeader{
-				RequestID: ev.RequestHeader.RequestID,
-			},
 			AccountName: ev.AccountName,
 		},
 		Strategy: strategy,
-	})
+	}, ev.Meta)
 }
 
 func (w *AccountWorker) Start(ctx context.Context) {
@@ -611,11 +586,11 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("AccountWorker", eventmodels.ExecuteCloseTradeRequestEventName, w.handleExecuteCloseTradeRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.FetchTradesRequestEventName, w.handleFetchTradesRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.NewGetStatsRequestEventName, w.handleGetAccountStatsRequest)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateSignalRequestSavedEventName, w.handleCreateSignalRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateSignalRequestEventName), w.handleCreateSignalRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.ManualDatafeedUpdateRequestEventName, w.handleManualDatafeedUpdateRequest)
 	pubsub.Subscribe("AccountWorker", eventmodels.AutoExecuteTradeEventName, w.handleAutoExecuteTrade)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountStrategyRequestSavedEventName, w.createAccountStrategyRequestHandler)
-	pubsub.Subscribe("AccountWorker", eventmodels.CreateAccountRequestEventSavedEventName, w.createAccountRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateAccountStrategyRequestEventName), w.createAccountStrategyRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateAccountRequestEventName), w.createAccountRequestHandler)
 
 	go func() {
 		defer w.wg.Done()

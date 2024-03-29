@@ -14,8 +14,8 @@ import (
 
 func main() {
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
-	streamName := "option-alerts"
-	// streamName := "accounts"
+	// streamName := "option-alerts"
+	streamName := "accounts"
 	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
 
 	if err != nil {

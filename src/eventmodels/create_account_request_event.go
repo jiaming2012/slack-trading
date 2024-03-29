@@ -4,28 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type CreateAccountRequestEvent struct {
-	Meta         *MetaData    `json:"meta"`
-	RequestID    uuid.UUID    `json:"requestID"`
+	BaseRequestEvent2
 	Name         string       `json:"name"`
 	Balance      float64      `json:"balance"`
 	DatafeedName DatafeedName `json:"datafeedName"`
 }
 
-func (e *CreateAccountRequestEvent) GetMetaData() *MetaData {
-	return e.Meta
-}
-
-func (e *CreateAccountRequestEvent) GetRequestID() uuid.UUID {
-	return e.RequestID
-}
-
-func (e *CreateAccountRequestEvent) SetRequestID(id uuid.UUID) {
-	e.RequestID = id
+func (e *CreateAccountRequestEvent) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: AccountsStreamName,
+		EventName:  CreateAccountRequestEventName,
+	}
 }
 
 func (e *CreateAccountRequestEvent) Validate(r *http.Request) error {
@@ -75,40 +67,4 @@ func (e *CreateAccountRequestEvent) ParseHTTPRequest(r *http.Request) error {
 	}
 
 	return nil
-}
-
-func (e *GetAccountsRequestEvent) ParseHTTPRequest(r *http.Request) error {
-	return nil
-}
-
-func (e *GetAccountsRequestEvent) SetRequestID(id uuid.UUID) {
-	e.RequestID = id
-}
-
-type GetAccountsResponseEvent struct {
-	Meta      *MetaData  `json:"meta"`
-	RequestID uuid.UUID  `json:"requestID"`
-	Accounts  []*Account `json:"accounts"`
-}
-
-func (e *GetAccountsResponseEvent) GetMetaData() *MetaData {
-	return e.Meta
-}
-
-func (e *GetAccountsResponseEvent) GetRequestID() uuid.UUID {
-	return e.RequestID
-}
-
-type CreateAccountResponseEvent struct {
-	Meta      *MetaData `json:"meta"`
-	RequestID uuid.UUID `json:"requestID"`
-	Account   *Account  `json:"account"`
-}
-
-func (e *CreateAccountResponseEvent) GetMetaData() *MetaData {
-	return e.Meta
-}
-
-func (e *CreateAccountResponseEvent) GetRequestID() uuid.UUID {
-	return e.RequestID
 }

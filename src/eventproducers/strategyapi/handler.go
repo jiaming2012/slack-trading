@@ -11,7 +11,7 @@ import (
 
 func handleStrategy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler(eventmodels.GetStrategiesRequestEventName, &eventmodels.GetStrategiesRequestEvent{}, &eventmodels.GetStrategiesResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.GetStrategiesRequestEventName, &eventmodels.GetStrategiesRequestEvent{}, &eventmodels.GetStrategiesResponseEvent{}, w, r)
 	} else if r.Method == "POST" {
 
 	} else {

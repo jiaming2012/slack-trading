@@ -42,8 +42,13 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventm
 	return nil
 }
 
-func (cli *eventStoreDBClient) storeRequestEventHandler(event eventmodels.SavedEvent) {
+func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
+
+	event, ok := request.(eventmodels.SavedEvent)
+	if !ok {
+		log.Fatalf("%T does not implement the SavedEvent interface", request)
+	}
 
 	bytes, err := json.Marshal(event)
 	if err != nil {
@@ -53,10 +58,10 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(event eventmodels.SavedE
 
 	// meta := event.GetMetaData()
 
-	eventName := event.GetEventName()
-	streamName := event.GetStreamName()
+	eventName := event.GetSavedEventParameters().EventName
+	streamName := event.GetSavedEventParameters().StreamName
 
-	if err := cli.insertEvent(context.Background(), eventName, streamName, bytes); err != nil {
+	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
 		// pubsub.PublishRequestError("eventStoreDBClient:CreateAccountRequestEvent", req, err)
 		return
 	}
@@ -134,21 +139,15 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 
 func (cli *eventStoreDBClient) init() {
 	saga = map[eventmodels.EventName]pubsub.SagaFlow{
-		// pubsub.CreateAccountRequestEvent: {
-		// 	Generator: func() interface{} { return &eventmodels.CreateAccountRequestEvent{} },
-		// 	NextEvent: pubsub.CreateAccountRequestSavedEventName,
-		// 	Lock:      &cli.accountsMutex,
-		// },
-		// pubsub.CreateAccountStrategyRequestEvent: {
-		// 	Generator: func() interface{} { return &eventmodels.CreateAccountStrategyRequestEvent{} },
-		// 	NextEvent: pubsub.CreateAccountStrategyRequestSavedEventName,
-		// 	Lock:      &cli.accountsMutex,
-		// },
-		// pubsub.CreateSignalRequestEvent: {
-		// 	Generator: func() interface{} { return &eventmodels.CreateSignalRequest{} },
-		// 	NextEvent: pubsub.CreateSignalRequestSavedEventName,
-		// 	Lock:      &cli.accountsMutex,
-		// },
+		eventmodels.CreateAccountRequestEventName: {
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateAccountRequestEvent{} },
+		},
+		eventmodels.CreateAccountStrategyRequestEventName: {
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateAccountStrategyRequestEvent{} },
+		},
+		eventmodels.CreateSignalRequestEventName: {
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateSignalRequest{} },
+		},
 		eventmodels.CreateOptionAlertRequestEventName: {
 			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },
 		},
@@ -182,10 +181,9 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
-	// streamNames := []string{"accounts", "option-alerts"}
-	streamNames := []string{"option-alerts"}
+	streamNames := []eventmodels.StreamName{eventmodels.AccountsStreamName, eventmodels.OptionAlertsStreamName}
 	for _, streamName := range streamNames {
-		name := streamName
+		name := string(streamName)
 
 		subscription, err := cli.db.SubscribeToStream(context.Background(), name, esdb.SubscribeToStreamOptions{
 			From: esdb.Start{},

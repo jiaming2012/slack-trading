@@ -11,7 +11,7 @@ import (
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(eventmodels.CreateSignalRequestEventName, &eventmodels.CreateSignalRequest{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.CreateSignalRequestEventName, &eventmodels.CreateSignalRequest{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

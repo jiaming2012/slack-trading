@@ -44,7 +44,7 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
-		eventpubsub.PublishTerminalError("OptionAlertWorker", eventmodels.NewTerminalError(event.Meta, err))
+		eventpubsub.PublishTerminalError("OptionAlertWorker", err, event.Meta)
 		return
 	}
 

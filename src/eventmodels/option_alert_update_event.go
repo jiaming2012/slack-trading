@@ -13,10 +13,9 @@ type OptionAlertUpdateEvent struct {
 	AlertMessage string    `json:"alert_message"`
 }
 
-func (r *OptionAlertUpdateEvent) GetStreamName() string {
-	return "option-alerts"
-}
-
-func (r *OptionAlertUpdateEvent) GetEventName() EventName {
-	return OptionAlertUpdateEventName
+func (r *OptionAlertUpdateEvent) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: OptionAlertsStreamName,
+		EventName:  OptionAlertUpdateEventName,
+	}
 }

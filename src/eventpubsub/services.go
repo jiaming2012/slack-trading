@@ -43,6 +43,11 @@ func PublishResult2(publisherName string, topic eventmodels.EventName, event int
 	publish(publisherName, topic, event)
 }
 
+func PublishResult3(publisherName string, event TerminalRequest, meta *eventmodels.MetaData) {
+	event.SetMetaData(meta)
+	publish(publisherName, eventmodels.ProcessRequestCompleteEventName, event)
+}
+
 func PublishResult[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T) {
 	publish(publisherName, topic, event)
 }
@@ -64,11 +69,12 @@ func PublishEventResult(publisherName string, topic eventmodels.EventName, event
 	publish(publisherName, topic, event)
 }
 
-func PublishTerminalError(publisherName string, err *eventmodels.TerminalError) {
-	log.Error(err.Error)
+func PublishTerminalError(publisherName string, err error, meta *eventmodels.MetaData) {
+	log.Error(err)
 
-	publish(publisherName, eventmodels.TerminalErrorName, err)
-	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, err)
+	terminalErr := eventmodels.NewTerminalError(meta, err)
+	publish(publisherName, eventmodels.TerminalErrorName, terminalErr)
+	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, terminalErr)
 }
 
 func publishError(publisherName string, err error) {

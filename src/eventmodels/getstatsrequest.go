@@ -4,26 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type GetStatsRequest struct {
-	Meta        *MetaData `json:"meta"`
-	RequestID   uuid.UUID `json:"requestID"`
-	AccountName string    `json:"AccountName"`
-}
-
-func (r *GetStatsRequest) GetMetaData() *MetaData {
-	return r.Meta
-}
-
-func (r *GetStatsRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-func (r *GetStatsRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
+	BaseRequestEvent2
+	AccountName string `json:"AccountName"`
 }
 
 func (r *GetStatsRequest) ParseHTTPRequest(request *http.Request) error {

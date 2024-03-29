@@ -11,32 +11,21 @@ import (
 
 // todo: deprecated for event models
 type CreateSignalRequest struct {
-	Meta        *MetaData     `json:"meta"`
-	RequestID   uuid.UUID     `json:"requestID"`
+	BaseRequestEvent2
 	Name        string        `json:"name"`
 	Source      RequestSource `json:"source"`
 	LastUpdated time.Time     `json:"lastUpdated"`
 }
 
-func (r *CreateSignalRequest) GetMetaData() *MetaData {
-	return r.Meta
-}
-
 func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequest {
-	return &CreateSignalRequest{RequestID: requestID, Name: name}
+	request := &CreateSignalRequest{Name: name}
+	request.SetMetaData(&MetaData{RequestID: requestID})
+
+	return request
 }
 
 func (r *CreateSignalRequest) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Source)
-}
-
-func (r *CreateSignalRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-func (r *CreateSignalRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
-	r.LastUpdated = time.Now().UTC()
 }
 
 func (r *CreateSignalRequest) GetSource() RequestSource {

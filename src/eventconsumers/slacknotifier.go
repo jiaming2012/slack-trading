@@ -103,7 +103,8 @@ func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) 
 
 func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAccountsResponseEvent) {
 	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
-	if ev.GetRequestID() != uuid.Nil {
+	meta := ev.GetMetaData()
+	if meta == nil || meta.RequestID != uuid.Nil {
 		log.Debugf("SlackNotifierClient.getAccountsResponseHandler: ignore requests that have a request id")
 		return
 	}
@@ -151,7 +152,7 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	c.wg.Add(1)
 
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.AddAccountResponseEventEventName, c.addAccountResponseHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.GetAccountsResponseEventName, c.getAccountsResponseHandler)
+	// pubsub.Subscribe("SlackNotifierClient", eventmodels.GetAccountsResponseEventName, c.getAccountsResponseHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.BalanceResultEventName, c.balanceResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradeFulfilledEventName, c.tradeFulfilledHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)

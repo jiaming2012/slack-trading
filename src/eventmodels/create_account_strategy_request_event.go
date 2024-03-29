@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type CreateAccountStrategyRequestEvent struct {
 	AccountsRequestHeader
-	Meta     *MetaData             `json:"meta"`
 	Strategy StrategiesPostRequest `json:"strategy"`
 }
 
-func (r *CreateAccountStrategyRequestEvent) GetMetaData() *MetaData {
-	return r.Meta
+func (r *CreateAccountStrategyRequestEvent) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: AccountsStreamName,
+		EventName:  CreateAccountStrategyRequestEventName,
+	}
 }
 
 func (r *CreateAccountStrategyRequestEvent) Validate(request *http.Request) error {
@@ -55,17 +56,4 @@ func (r *CreateAccountStrategyRequestEvent) ParseHTTPRequest(request *http.Reque
 	}
 
 	return nil
-}
-
-func (r *CreateAccountStrategyRequestEvent) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
-}
-
-func (r *CreateAccountStrategyRequestEvent) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-type CreateAccountStrategyResponseEvent struct {
-	AccountsRequestHeader
-	Strategy *Strategy `json:"strategy"`
 }

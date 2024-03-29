@@ -37,12 +37,6 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteOpenTradeResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.FetchTradesResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteCloseTradesResultEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.GetStatsResultEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateSignalResponseEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ManualDatafeedUpdateResultEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.GetAccountsResponseEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateAccountResponseEventName, w.dispatchResult)
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.CreateStrategyResponseEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ProcessRequestCompleteEventName, w.dispatchResult)
 
 	// fixed: too many places to add
