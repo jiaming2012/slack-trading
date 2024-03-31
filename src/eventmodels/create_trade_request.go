@@ -11,7 +11,7 @@ import (
 // todo: make an APIRequestEvent struct
 
 type CreateTradeRequest struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	AccountName  string `json:"AccountName"`
 	StrategyName string `json:"strategyName"`
 	Timeframe    *int   `json:"timeframe"`

@@ -166,12 +166,11 @@ func (w *AccountWorker) update() {
 		// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
 		eventmodels.RegisterResultCallback(requestID)
 
-		pubsub.PublishResult("AccountWorker.update", eventmodels.ExecuteCloseTradeRequestEventName, &eventmodels.ExecuteCloseTradeRequest{
-			RequestID: requestID,
+		pubsub.PublishResult4("AccountWorker.update", eventmodels.ExecuteCloseTradeRequestEventName, &eventmodels.ExecuteCloseTradeRequest{
 			Timeframe: req.Timeframe,
 			Trade:     req.Trade,
 			Percent:   req.Percent,
-		})
+		}, req.Meta)
 	}
 }
 
@@ -270,7 +269,7 @@ func (w *AccountWorker) handleAutoExecuteTrade(event *eventmodels.AutoExecuteTra
 		Trade: event.Trade,
 	}
 
-	pubsub.PublishResult("AccountWorker.handleExecuteCloseTradesRequest", eventmodels.ExecuteCloseTradesResultEventName, executeCloseTradesResult)
+	pubsub.PublishResult4("AccountWorker.handleExecuteCloseTradesRequest", eventmodels.ExecuteCloseTradesResultEventName, executeCloseTradesResult, event.Meta)
 }
 
 func (w *AccountWorker) executeOpenTradeRequest(req *eventmodels.CreateTradeRequest) (*eventmodels.ExecuteOpenTradeResult, error) {
@@ -372,7 +371,11 @@ func (w *AccountWorker) fetchTrades(event *eventmodels.FetchTradesRequest) (*eve
 		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: failed to find findAccount: %w", err)
 	}
 
-	fetchTradesResult := eventservices.FetchTrades(event.RequestID, account)
+	if event.Meta == nil {
+		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: meta is nil")
+	}
+
+	fetchTradesResult := eventservices.FetchTrades(event.Meta.RequestID, account)
 
 	return fetchTradesResult, nil
 }
@@ -382,11 +385,11 @@ func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesR
 
 	fetchTradesResult, err := w.fetchTrades(event)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleFetchTradesRequest", event, err)
+		pubsub.PublishTerminalError("AccountWorker.handleFetchTradesRequest", err, event.Meta)
 		return
 	}
 
-	pubsub.PublishResult("AccountWorker.handleFetchTradesRequest", eventmodels.FetchTradesResultEventName, fetchTradesResult)
+	pubsub.PublishResult4("AccountWorker.handleFetchTradesRequest", eventmodels.FetchTradesResultEventName, fetchTradesResult, event.Meta)
 }
 
 func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStatsRequest) {
@@ -527,9 +530,14 @@ func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.Manual
 
 	w.manualDatafeed.Update(tick)
 
-	result := eventmodels.NewManualDatafeedUpdateResult(ev.RequestID, ts, tick)
+	if ev.Meta == nil {
+		pubsub.PublishTerminalError("AccountWorker.handleManualDatafeedUpdateRequest", fmt.Errorf("meta is nil"), nil)
+		return
+	}
 
-	pubsub.PublishResult("AccountWorker.handleManualDatafeedUpdateRequest", eventmodels.ManualDatafeedUpdateResultEventName, result)
+	result := eventmodels.NewManualDatafeedUpdateResult(ev.Meta.RequestID, ts, tick)
+
+	pubsub.PublishResult4("AccountWorker.handleManualDatafeedUpdateRequest", eventmodels.ManualDatafeedUpdateResultEventName, result, ev.Meta)
 }
 
 func (w *AccountWorker) createAccountStrategyRequestHandler(ev *eventmodels.CreateAccountStrategyRequestEvent) {

@@ -127,7 +127,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 }
 
 func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
-	if req, ok := event.(pubsub.TerminalRequest); ok {
+	if req, ok := event.(pubsub.RequestEvent); ok {
 		log.Debugf("finished processing request: %s", req.GetMetaData().RequestID.String())
 
 		mutex := req.GetMetaData().Mutex
@@ -140,22 +140,22 @@ func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
 func (cli *eventStoreDBClient) init() {
 	saga = map[eventmodels.EventName]pubsub.SagaFlow{
 		eventmodels.CreateAccountRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateAccountRequestEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.CreateAccountRequestEvent{} },
 		},
 		eventmodels.CreateAccountStrategyRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateAccountStrategyRequestEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.CreateAccountStrategyRequestEvent{} },
 		},
 		eventmodels.CreateSignalRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateSignalRequestEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.CreateSignalRequestEvent{} },
 		},
 		eventmodels.CreateOptionAlertRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.CreateOptionAlertRequestEvent{} },
 		},
 		eventmodels.DeleteOptionAlertRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.DeleteOptionAlertRequestEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.DeleteOptionAlertRequestEvent{} },
 		},
 		eventmodels.OptionAlertUpdateEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.OptionAlertUpdateEvent{} },
+			Generate: func() pubsub.RequestEvent { return &eventmodels.OptionAlertUpdateEvent{} },
 		},
 	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type OptionAlertUpdateEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	AlertID      uuid.UUID `json:"alert_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	AlertMessage string    `json:"alert_message"`

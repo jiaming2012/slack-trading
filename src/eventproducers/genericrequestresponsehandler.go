@@ -51,56 +51,14 @@ func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp a
 
 	id := uuid.New()
 
-	req.SetMetaData(&eventmodels.MetaData{
+	meta := &eventmodels.MetaData{
 		RequestID:         id,
 		IsExternalRequest: true,
-	})
+	}
 
 	resultCh, errCh := eventmodels.RegisterResultCallback(id)
 
-	pubsub.PublishResult2("GenericHandler", eventName, req)
-
-	select {
-	case result := <-resultCh:
-		if err := SetGenericResponse(result, w); err != nil {
-			log.Errorf("GenericHandler: failed to set response: %v", err)
-			w.WriteHeader(500)
-			return
-		}
-	case err := <-errCh:
-		if respErr := SetErrorResponse("req", 400, err, w); respErr != nil {
-			log.Errorf("GenericHandler: failed to set error response: %v", respErr)
-			w.WriteHeader(500)
-			return
-		}
-	}
-}
-
-func ApiRequestHandler[Request ApiRequest, Response any](eventName eventmodels.EventName, req Request, resp Response, w http.ResponseWriter, r *http.Request) {
-	if err := req.ParseHTTPRequest(r); err != nil {
-		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
-			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
-		}
-		return
-	}
-
-	if err := req.Validate(r); err != nil {
-		if respErr := SetErrorResponse("validation", 400, err, w); respErr != nil {
-			log.Errorf("ApiRequestHandler: failed to validate http request: %v", respErr)
-		}
-		return
-	}
-
-	// todo: idea? save the request to eventstore db???
-	// document adding a new request endpoint
-
-	id := uuid.New()
-
-	req.SetRequestID(id)
-
-	resultCh, errCh := eventmodels.RegisterResultCallback(id)
-
-	pubsub.PublishResult("GenericHandler", eventName, req)
+	pubsub.PublishResult4("GenericHandler", eventName, req, meta)
 
 	select {
 	case result := <-resultCh:

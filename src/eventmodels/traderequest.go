@@ -3,21 +3,15 @@ package eventmodels
 import (
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type TradeRequestEvent struct {
-	RequestID   uuid.UUID
+	BaseRequestEvent
 	Timestamp   time.Time
 	Symbol      string
 	Price       float64
 	Volume      float64
 	ResponseURL string
-}
-
-func (ev TradeRequestEvent) GetRequestID() uuid.UUID {
-	return ev.RequestID
 }
 
 func (ev TradeRequestEvent) String() string {

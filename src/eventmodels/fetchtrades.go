@@ -9,14 +9,9 @@ import (
 )
 
 type FetchTradesRequest struct {
-	Meta         *MetaData `json:"meta"`
-	RequestID    uuid.UUID `json:"requestID"`
-	AccountName  string    `json:"accountName"`
-	StrategyName *string   `json:"strategyName"`
-}
-
-func (r *FetchTradesRequest) GetMetaData() *MetaData {
-	return r.Meta
+	BaseRequestEvent
+	AccountName  string  `json:"accountName"`
+	StrategyName *string `json:"strategyName"`
 }
 
 func (r *FetchTradesRequest) ParseHTTPRequest(req *http.Request) error {
@@ -38,32 +33,19 @@ func (r *FetchTradesRequest) Validate(request *http.Request) error {
 	return nil
 }
 
-func (r *FetchTradesRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
-}
-
-func (r *FetchTradesRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
 func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName *string) *FetchTradesRequest {
-	return &FetchTradesRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName}
+	return &FetchTradesRequest{
+		BaseRequestEvent: BaseRequestEvent{Meta: &MetaData{RequestID: requestID}},
+		AccountName:      accountName,
+		StrategyName:     strategyName,
+	}
 }
 
 type FetchTradesResult struct {
-	Meta      *MetaData      `json:"meta"`
-	RequestID uuid.UUID      `json:"requestID"`
-	Trades    []*TradeLevels `json:"trades"`
-}
-
-func (r *FetchTradesResult) GetMetaData() *MetaData {
-	return r.Meta
-}
-
-func (r *FetchTradesResult) GetRequestID() uuid.UUID {
-	return r.RequestID
+	BaseResponseEvent2
+	Trades []*TradeLevels `json:"trades"`
 }
 
 func NewFetchTradesResult(requestID uuid.UUID, trades []*TradeLevels) *FetchTradesResult {
-	return &FetchTradesResult{RequestID: requestID, Trades: trades}
+	return &FetchTradesResult{BaseResponseEvent2: BaseResponseEvent2{Meta: &MetaData{RequestID: requestID}}, Trades: trades}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type GetStatsRequest struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	AccountName string `json:"AccountName"`
 }
 

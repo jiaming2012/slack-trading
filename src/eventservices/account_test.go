@@ -652,7 +652,8 @@ func TestFetchTrades(t *testing.T) {
 
 		result := FetchTrades(id, account)
 		assert.NotNil(t, result)
-		assert.Equal(t, id, result.GetRequestID())
+		assert.NotNil(t, result.Meta)
+		assert.Equal(t, id, result.Meta.RequestID)
 		assert.Equal(t, len(priceLevels), len(result.Trades))
 		assert.Equal(t, len(result.Trades[0].Trades), 1)
 		assert.Equal(t, len(result.Trades[1].Trades), 0)

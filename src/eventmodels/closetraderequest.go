@@ -9,7 +9,7 @@ import (
 )
 
 type CloseTradeRequest struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	AccountName     string     `json:"AccountName"`
 	StrategyName    string     `json:"strategyName"`
 	PriceLevelIndex int        `json:"priceLevelIndex"`

@@ -5,7 +5,7 @@ import (
 )
 
 type GetStrategiesRequestEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 }
 
 func (e *GetStrategiesRequestEvent) Validate(r *http.Request) error {

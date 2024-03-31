@@ -11,7 +11,7 @@ import (
 
 // todo: deprecated for event models
 type CreateSignalRequestEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	Name        string        `json:"name"`
 	Source      RequestSource `json:"source"`
 	LastUpdated time.Time     `json:"lastUpdated"`

@@ -41,7 +41,7 @@ func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleTradesByAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler(eventmodels.FetchTradesRequestEventName, &eventmodels.FetchTradesRequest{}, &eventmodels.FetchTradesResult{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.FetchTradesRequestEventName, &eventmodels.FetchTradesRequest{}, &eventmodels.FetchTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

@@ -5,7 +5,7 @@ import (
 )
 
 type GetOptionAlertRequestEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 }
 
 func (r *GetOptionAlertRequestEvent) ParseHTTPRequest(req *http.Request) error {

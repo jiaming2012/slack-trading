@@ -1,6 +1,6 @@
 package eventmodels
 
 type AutoExecuteTrade struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	Trade *Trade
 }

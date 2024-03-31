@@ -20,25 +20,13 @@ func PublishRequestError[T eventmodels.RequestEvent](publisherName string, reque
 	publishError(publisherName, requestErr)
 }
 
-func PublishResultWithMetadata[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T, meta *eventmodels.MetaData) {
-	publish(publisherName, topic, event)
-}
-
-func PublishResult2(publisherName string, topic eventmodels.EventName, event interface{}) {
-	publish(publisherName, topic, event)
-}
-
-func PublishResult3(publisherName string, event TerminalRequest, meta *eventmodels.MetaData) {
+func PublishResult3(publisherName string, event RequestEvent, meta *eventmodels.MetaData) {
 	event.SetMetaData(meta)
 	publish(publisherName, eventmodels.ProcessRequestCompleteEventName, event)
 }
 
-func PublishResult4(publisherName string, topic eventmodels.EventName, event TerminalRequest, meta *eventmodels.MetaData) {
+func PublishResult4(publisherName string, topic eventmodels.EventName, event RequestEvent, meta *eventmodels.MetaData) {
 	event.SetMetaData(meta)
-	publish(publisherName, topic, event)
-}
-
-func PublishResult[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T) {
 	publish(publisherName, topic, event)
 }
 

@@ -3,7 +3,7 @@ package eventmodels
 import "net/http"
 
 type GetAccountsRequestEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 }
 
 func (e *GetAccountsRequestEvent) Validate(r *http.Request) error {

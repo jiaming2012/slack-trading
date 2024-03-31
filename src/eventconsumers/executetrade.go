@@ -22,15 +22,14 @@ func (r *TradeExecutor) executeTrade(request eventmodels.TradeRequestEvent) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	pubsub.PublishResult("TradeExecutor.executeTrade", eventmodels.TradeFulfilledEventName, eventmodels.TradeFulfilledEvent{
-		RequestID:      request.GetRequestID(),
+	pubsub.PublishResult4("TradeExecutor.executeTrade", eventmodels.TradeFulfilledEventName, &eventmodels.TradeFulfilledEvent{
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Symbol,
 		RequestedPrice: request.Price,
 		ExecutedPrice:  btcPrice,
 		Volume:         request.Volume,
 		ResponseURL:    request.ResponseURL,
-	})
+	}, request.Meta)
 }
 
 func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent) {
@@ -43,15 +42,14 @@ func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent
 	// todo: add a requestID
 	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume)
 
-	pubsub.PublishResult("TradeExecutor.executeBotTrade", eventmodels.TradeFulfilledEventName, eventmodels.TradeFulfilledEvent{
-		RequestID:      request.GetRequestID(),
+	pubsub.PublishResult4("TradeExecutor.executeBotTrade", eventmodels.TradeFulfilledEventName, &eventmodels.TradeFulfilledEvent{
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Trade.Symbol,
 		RequestedPrice: request.Trade.RequestedPrice,
 		ExecutedPrice:  btcPrice,
 		Volume:         request.Trade.RequestedVolume,
 		ResponseURL:    WebhookURL,
-	})
+	}, request.Meta)
 }
 
 func (r *TradeExecutor) Start(ctx context.Context) {

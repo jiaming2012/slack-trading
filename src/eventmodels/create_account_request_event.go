@@ -7,7 +7,7 @@ import (
 )
 
 type CreateAccountRequestEvent struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	Name         string       `json:"name"`
 	Balance      float64      `json:"balance"`
 	DatafeedName DatafeedName `json:"datafeedName"`

@@ -3,6 +3,7 @@ package eventmodels
 import "fmt"
 
 type CloseTradeRequestV2 struct {
+	BaseRequestEvent
 	Trade     *Trade
 	Timeframe *int
 	Percent   float64

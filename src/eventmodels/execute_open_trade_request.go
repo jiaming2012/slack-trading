@@ -1,6 +1,6 @@
 package eventmodels
 
 type ExecuteOpenTradeRequest struct {
-	BaseRequestEvent2
+	BaseRequestEvent
 	OpenTradeRequest *CreateTradeRequest
 }
