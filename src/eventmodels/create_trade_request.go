@@ -15,15 +15,6 @@ type CreateTradeRequest struct {
 	AccountName  string `json:"AccountName"`
 	StrategyName string `json:"strategyName"`
 	Timeframe    *int   `json:"timeframe"`
-	// Error        chan error `json:"-"`
-}
-
-// func (r *CreateTradeRequest) Wait() chan error {
-// 	return r.Error
-// }
-
-func (r *CreateTradeRequest) GetMetaData() *MetaData {
-	return r.Meta
 }
 
 func (r *CreateTradeRequest) ParseHTTPRequest(req *http.Request) error {

@@ -23,10 +23,6 @@ func (r *CloseTradeRequest) Wait() chan error {
 	return r.Error
 }
 
-func (r *CloseTradeRequest) GetMetaData() *MetaData {
-	return r.Meta
-}
-
 func (r *CloseTradeRequest) ParseHTTPRequest(req *http.Request) error {
 	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
 		return fmt.Errorf("CloseTradeRequest.ParseHTTPRequest: failed to decode json: %w", err)

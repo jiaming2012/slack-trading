@@ -14,20 +14,12 @@ import (
 type ApiRequest2 interface {
 	ParseHTTPRequest(r *http.Request) error
 	Validate(r *http.Request) error
-	GetMetaData() *eventmodels.MetaData
+	GetMetaData() eventmodels.MetaData
 	SetMetaData(*eventmodels.MetaData)
 }
 
-type ApiRequest interface {
-	ParseHTTPRequest(r *http.Request) error
-	Validate(r *http.Request) error
-	SetRequestID(id uuid.UUID)
-	GetMetaData() *eventmodels.MetaData
-	GetRequestID() uuid.UUID
-}
-
 type SignalRequest interface {
-	ApiRequest
+	ApiRequest2
 	GetSource() models.RequestSource
 }
 

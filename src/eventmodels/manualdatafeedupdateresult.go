@@ -13,5 +13,5 @@ type ManualDatafeedUpdateResult struct {
 }
 
 func NewManualDatafeedUpdateResult(requestID uuid.UUID, updatedAt time.Time, tick Tick) *ManualDatafeedUpdateResult {
-	return &ManualDatafeedUpdateResult{BaseResponseEvent2: BaseResponseEvent2{Meta: &MetaData{RequestID: requestID}}, UpdatedAt: updatedAt, Tick: tick}
+	return &ManualDatafeedUpdateResult{BaseResponseEvent2: BaseResponseEvent2{Meta: MetaData{RequestID: requestID}}, UpdatedAt: updatedAt, Tick: tick}
 }

@@ -53,15 +53,15 @@ func publish(publisherName string, topic eventmodels.EventName, event interface{
 }
 
 func publishWithFlags(publisherName string, topic eventmodels.EventName, event interface{}, logEvent bool) {
-	var requestID *uuid.UUID
+	var requestID uuid.UUID = uuid.Nil
 
 	if reqEvent, ok := event.(RequestEvent); ok {
-		requestID = &reqEvent.GetMetaData().RequestID
+		requestID = reqEvent.GetMetaData().RequestID
 	}
 
 	if logEvent {
 		var logMessage string
-		if requestID != nil {
+		if requestID != uuid.Nil {
 			logMessage = fmt.Sprintf("[%v] Published to topic %s, using requestID %s", publisherName, topic, requestID.String())
 		} else {
 			logMessage = fmt.Sprintf("[%v] Published to topic %s. No request id was set.", publisherName, topic)

@@ -35,7 +35,7 @@ func (r *FetchTradesRequest) Validate(request *http.Request) error {
 
 func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName *string) *FetchTradesRequest {
 	return &FetchTradesRequest{
-		BaseRequestEvent: BaseRequestEvent{Meta: &MetaData{RequestID: requestID}},
+		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		AccountName:      accountName,
 		StrategyName:     strategyName,
 	}
@@ -47,5 +47,5 @@ type FetchTradesResult struct {
 }
 
 func NewFetchTradesResult(requestID uuid.UUID, trades []*TradeLevels) *FetchTradesResult {
-	return &FetchTradesResult{BaseResponseEvent2: BaseResponseEvent2{Meta: &MetaData{RequestID: requestID}}, Trades: trades}
+	return &FetchTradesResult{BaseResponseEvent2: BaseResponseEvent2{Meta: MetaData{RequestID: requestID}}, Trades: trades}
 }

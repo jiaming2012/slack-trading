@@ -33,7 +33,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 
 	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.GetOptionAlertResponseEvent{
 		Alerts: currentAlerts,
-	}, event.Meta)
+	}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmodels.CreateOptionAlertRequestEvent) {
@@ -41,7 +41,7 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
-		eventpubsub.PublishRequestError("OptionAlertWorker", err, event.Meta)
+		eventpubsub.PublishRequestError("OptionAlertWorker", err, &event.Meta)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.CreateOptionAlertResponseEvent{
 		ID: optionAlert.ID.String(),
-	}, event.Meta)
+	}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmodels.DeleteOptionAlertRequestEvent) {
@@ -62,7 +62,7 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 		}
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.DeleteOptionAlertResponseEvent{}, event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.DeleteOptionAlertResponseEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -188,7 +188,7 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.OptionAlertUpdateCompletedEvent{}, event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.OptionAlertUpdateCompletedEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {

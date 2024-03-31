@@ -104,7 +104,7 @@ func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) 
 func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAccountsResponseEvent) {
 	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
 	meta := ev.GetMetaData()
-	if meta == nil || meta.RequestID != uuid.Nil {
+	if meta.RequestID != uuid.Nil {
 		log.Debugf("SlackNotifierClient.getAccountsResponseHandler: ignore requests that have a request id")
 		return
 	}

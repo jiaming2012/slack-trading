@@ -19,7 +19,7 @@ func (e *CreateOptionAlertResponseEvent) GetMutex() *sync.Mutex {
 func NewCreateOptionAlertResponseEvent(requestID uuid.UUID, id string, mutex *sync.Mutex) *CreateOptionAlertResponseEvent {
 	return &CreateOptionAlertResponseEvent{
 		BaseResponseEvent2: BaseResponseEvent2{
-			Meta: &MetaData{
+			Meta: MetaData{
 				RequestID: requestID,
 			},
 		},

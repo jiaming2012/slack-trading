@@ -105,13 +105,9 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 		var requestID uuid.UUID
 		var isExternalRequest bool
 		meta := request.GetMetaData()
-		if meta == nil {
-			requestID = uuid.Nil
-			isExternalRequest = false
-		} else {
-			requestID = meta.RequestID
-			isExternalRequest = eventmodels.DispatchedRequestExists(requestID)
-		}
+
+		requestID = meta.RequestID
+		isExternalRequest = eventmodels.DispatchedRequestExists(requestID)
 
 		request.SetMetaData(&eventmodels.MetaData{
 			Mutex:             streamMutex,

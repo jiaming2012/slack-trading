@@ -29,7 +29,7 @@ func (r *TradeExecutor) executeTrade(request eventmodels.TradeRequestEvent) {
 		ExecutedPrice:  btcPrice,
 		Volume:         request.Volume,
 		ResponseURL:    request.ResponseURL,
-	}, request.Meta)
+	}, &request.Meta)
 }
 
 func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent) {
@@ -49,7 +49,7 @@ func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent
 		ExecutedPrice:  btcPrice,
 		Volume:         request.Trade.RequestedVolume,
 		ResponseURL:    WebhookURL,
-	}, request.Meta)
+	}, &request.Meta)
 }
 
 func (r *TradeExecutor) Start(ctx context.Context) {
