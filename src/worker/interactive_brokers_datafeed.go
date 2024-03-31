@@ -192,7 +192,7 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO, c *
 					continue
 				}
 
-				eventpubsub.PublishEventResult("IBTickListener.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
+				eventpubsub.PublishEventResultDeprecated("IBTickListener.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
 					tick.Timestamp,
 					tick.Price,
 					eventmodels.IBDatafeed,

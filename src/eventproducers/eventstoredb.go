@@ -98,7 +98,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 
 		request := model.Generate()
 		if err := json.Unmarshal(ev.Data, request); err != nil {
-			pubsub.PublishEventError("eventStoreDBClient.readStream", err)
+			pubsub.PublishError("eventStoreDBClient.readStream", err)
 			continue
 		}
 
@@ -122,7 +122,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 		nextEvent := eventmodels.NewSavedEvent(eventName)
 
 		streamMutex.Lock()
-		pubsub.PublishEventResult("eventStoreDBClient", nextEvent, request)
+		pubsub.PublishEventResultDeprecated("eventStoreDBClient", nextEvent, request)
 	}
 }
 

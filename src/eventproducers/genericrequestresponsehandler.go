@@ -58,7 +58,7 @@ func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp a
 
 	resultCh, errCh := eventmodels.RegisterResultCallback(id)
 
-	pubsub.PublishResult4("GenericHandler", eventName, req, meta)
+	pubsub.PublishResponse("GenericHandler", eventName, req, meta)
 
 	select {
 	case result := <-resultCh:

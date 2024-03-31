@@ -32,7 +32,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 
 	trades, fetchErr := sheets.FetchTrades(context.Background())
 	if fetchErr != nil {
-		pubsub.PublishEventError("CandleWorker.calculateBalance: fetchErr:", fetchErr)
+		pubsub.PublishError("CandleWorker.calculateBalance: fetchErr:", fetchErr)
 		return
 	}
 
@@ -42,7 +42,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 
 	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
 	if statsErr != nil {
-		pubsub.PublishEventError("CandleWorker.calculateBalance: statsErr", statsErr)
+		pubsub.PublishError("CandleWorker.calculateBalance: statsErr", statsErr)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResult("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEventResultDeprecated("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -101,7 +101,7 @@ func (w *CandleWorker) CreateNewCandle() {
 
 	w.mu.Unlock()
 
-	pubsub.PublishEventResult("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
+	pubsub.PublishEventResultDeprecated("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
 }
 
 func (w *CandleWorker) Start(ctx context.Context) {

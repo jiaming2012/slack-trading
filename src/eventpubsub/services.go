@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/asaskevich/EventBus"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
@@ -15,39 +16,25 @@ func Init() {
 	bus = EventBus.New()
 }
 
-func PublishRequestError[T eventmodels.RequestEvent](publisherName string, requestEvent T, err error) {
-	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
-	publishError(publisherName, requestErr)
-}
-
-func PublishResult3(publisherName string, event RequestEvent, meta *eventmodels.MetaData) {
+func PublishCompletedResponse(publisherName string, event RequestEvent, meta *eventmodels.MetaData) {
 	event.SetMetaData(meta)
 	publish(publisherName, eventmodels.ProcessRequestCompleteEventName, event)
 }
 
-func PublishResult4(publisherName string, topic eventmodels.EventName, event RequestEvent, meta *eventmodels.MetaData) {
+func PublishResponse(publisherName string, topic eventmodels.EventName, event RequestEvent, meta *eventmodels.MetaData) {
 	event.SetMetaData(meta)
 	publish(publisherName, topic, event)
 }
 
-func PublishEventError(publisherName string, err error) {
+func PublishError(publisherName string, err error) {
 	publishError(publisherName, err)
 }
 
-func PublishEventError2(publisherName string, meta *eventmodels.MetaData, err error) {
-	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, &eventmodels.TerminalError{
-		Error: err,
-		Meta:  meta,
-	})
-
-	publishError(publisherName, err)
-}
-
-func PublishEventResult(publisherName string, topic eventmodels.EventName, event interface{}) {
+func PublishEventResultDeprecated(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publish(publisherName, topic, event)
 }
 
-func PublishTerminalError(publisherName string, err error, meta *eventmodels.MetaData) {
+func PublishRequestError(publisherName string, err error, meta *eventmodels.MetaData) {
 	log.Error(err)
 
 	terminalErr := eventmodels.NewTerminalError(meta, err)
@@ -65,39 +52,19 @@ func publish(publisherName string, topic eventmodels.EventName, event interface{
 	publishWithFlags(publisherName, topic, event, true)
 }
 
-// APIRequestEvent (creates)-> StreamWriteEvent (creates)-> *StreamWriteProcessedEvent (creates)-> StreamReadEvent (creates)-> **StreamReadProcessedEvent -> APISuccessEvent
-// *StreamWriteErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
-// **StreamReadErrorEvent (creates)-> APIErrorEvent | APIRequestLookup(success)
 func publishWithFlags(publisherName string, topic eventmodels.EventName, event interface{}, logEvent bool) {
-	var requestID *string
-	switch ev := event.(type) {
-	// case eventmodels.APIRequestEvent:
-	// case eventmodels.StreamReadEvent:
-	case eventmodels.RequestError:
-		// RequestErrors should have ResultEvents??
-		fmt.Println(ev)
-		log.Warnf("deprecated RequestEvent: %v", ev)
-	case eventmodels.RequestEvent:
-		// _id := ev.GetRequestID().String()
-		// requestID = &_id
+	var requestID *uuid.UUID
 
-		// // THIS NEEDS TO GO!!!
-		// meta, ok := event.(eventmodels.ResultEvent)
-		// if ok {
-		// 	meta.GetMetaData().EndProcess(event, nil)
-		// }
-		log.Warnf("deprecated RequestEvent: %v", ev)
-		// if !strings.Contains(strings.ToLower(string(topic)), "error") {
-
-		// }
+	if reqEvent, ok := event.(RequestEvent); ok {
+		requestID = &reqEvent.GetMetaData().RequestID
 	}
 
 	if logEvent {
 		var logMessage string
 		if requestID != nil {
-			logMessage = fmt.Sprintf("[%v] Published to topic %s, using requestID %s", publisherName, topic, *requestID)
+			logMessage = fmt.Sprintf("[%v] Published to topic %s, using requestID %s", publisherName, topic, requestID.String())
 		} else {
-			logMessage = fmt.Sprintf("[%v] Published to topic %s", publisherName, topic)
+			logMessage = fmt.Sprintf("[%v] Published to topic %s. No request id was set.", publisherName, topic)
 		}
 
 		log.Debugf(logMessage)

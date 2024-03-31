@@ -24,7 +24,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 
 	trades, fetchErr := sheets.FetchTrades(context.Background())
 	if fetchErr != nil {
-		pubsub.PublishEventError("BalanceWorker.calculateBalance", fetchErr)
+		pubsub.PublishError("BalanceWorker.calculateBalance", fetchErr)
 		return
 	}
 
@@ -34,7 +34,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 
 	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
 	if statsErr != nil {
-		pubsub.PublishEventError("BalanceWorker.calculateBalance", statsErr)
+		pubsub.PublishError("BalanceWorker.calculateBalance", statsErr)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResult("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEventResultDeprecated("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,

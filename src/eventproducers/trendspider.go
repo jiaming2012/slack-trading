@@ -82,7 +82,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.SupportBreakSignalEventName, eventmodels.SupportBreakSignal{
+			pubsub.PublishEventResultDeprecated("trendSpiderClient.handleWebhook", eventmodels.SupportBreakSignalEventName, eventmodels.SupportBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -95,7 +95,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.ResistanceBreakSignalEventName, eventmodels.ResistanceBreakSignal{
+			pubsub.PublishEventResultDeprecated("trendSpiderClient.handleWebhook", eventmodels.ResistanceBreakSignalEventName, eventmodels.ResistanceBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -108,14 +108,14 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEventResult("trendSpiderClient.handleWebhook", eventmodels.TrendlineBreakSignalEventName, eventmodels.TrendlineBreakSignal{
+			pubsub.PublishEventResultDeprecated("trendSpiderClient.handleWebhook", eventmodels.TrendlineBreakSignalEventName, eventmodels.TrendlineBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
 				PriceActionEvent: payload.Header.PriceActionEvent,
 			})
 		default:
-			pubsub.PublishEventError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %T", signal))
+			pubsub.PublishError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %T", signal))
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

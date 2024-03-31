@@ -32,7 +32,7 @@ func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent eventmodels.Tra
 	})
 
 	if err != nil {
-		pubsub.PublishEventError("GoogleSheetsClient.writeTradeToCSV", err)
+		pubsub.PublishError("GoogleSheetsClient.writeTradeToCSV", err)
 	}
 }
 
@@ -50,7 +50,7 @@ func (c *GoogleSheetsClient) writeCandleToCSV(candle eventmodels.Candle) {
 	})
 
 	if err != nil {
-		pubsub.PublishEventError("GoogleSheetsClient.writeCandleToCSV", err)
+		pubsub.PublishError("GoogleSheetsClient.writeCandleToCSV", err)
 	}
 }
 

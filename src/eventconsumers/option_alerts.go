@@ -31,7 +31,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishResult3("OptionAlertWorker", &eventmodels.GetOptionAlertResponseEvent{
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.GetOptionAlertResponseEvent{
 		Alerts: currentAlerts,
 	}, event.Meta)
 }
@@ -41,13 +41,13 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
-		eventpubsub.PublishTerminalError("OptionAlertWorker", err, event.Meta)
+		eventpubsub.PublishRequestError("OptionAlertWorker", err, event.Meta)
 		return
 	}
 
 	w.optionAlerts = append(w.optionAlerts, optionAlert)
 
-	eventpubsub.PublishResult3("OptionAlertWorker", &eventmodels.CreateOptionAlertResponseEvent{
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.CreateOptionAlertResponseEvent{
 		ID: optionAlert.ID.String(),
 	}, event.Meta)
 }
@@ -62,7 +62,7 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 		}
 	}
 
-	eventpubsub.PublishResult3("OptionAlertWorker", &eventmodels.DeleteOptionAlertResponseEvent{}, event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.DeleteOptionAlertResponseEvent{}, event.Meta)
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -188,7 +188,7 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
-	eventpubsub.PublishResult3("OptionAlertWorker", &eventmodels.OptionAlertUpdateCompletedEvent{}, event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.OptionAlertUpdateCompletedEvent{}, event.Meta)
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {
@@ -224,7 +224,7 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 
 				triggeredEvents := w.checkOptionAlerts(quotes)
 				for _, event := range triggeredEvents {
-					eventpubsub.PublishResult4("OptionAlertWorker", eventmodels.OptionAlertUpdateEventName, event, &eventmodels.MetaData{})
+					eventpubsub.PublishResponse("OptionAlertWorker", eventmodels.OptionAlertUpdateEventName, event, &eventmodels.MetaData{})
 				}
 			}
 		}
