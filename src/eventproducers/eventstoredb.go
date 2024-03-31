@@ -52,17 +52,17 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 
 	bytes, err := json.Marshal(event)
 	if err != nil {
-		// pubsub.PublishRequestError("eventStoreDBClient", request, err)
+		meta := event.GetMetaData()
+		pubsub.PublishRequestError("eventStoreDBClient:json.Marshal", err, &meta)
 		return
 	}
-
-	// meta := event.GetMetaData()
 
 	eventName := event.GetSavedEventParameters().EventName
 	streamName := event.GetSavedEventParameters().StreamName
 
 	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
-		// pubsub.PublishRequestError("eventStoreDBClient:CreateAccountRequestEvent", req, err)
+		meta := event.GetMetaData()
+		pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, &meta)
 		return
 	}
 }
