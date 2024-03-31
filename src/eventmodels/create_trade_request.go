@@ -11,17 +11,16 @@ import (
 // todo: make an APIRequestEvent struct
 
 type CreateTradeRequest struct {
-	Meta         *MetaData
-	RequestID    uuid.UUID
-	AccountName  string             `json:"AccountName"`
-	StrategyName string             `json:"strategyName"`
-	Timeframe    *int               `json:"timeframe"`
-	Error        chan RequestError2 `json:"-"`
+	BaseRequestEvent2
+	AccountName  string `json:"AccountName"`
+	StrategyName string `json:"strategyName"`
+	Timeframe    *int   `json:"timeframe"`
+	// Error        chan error `json:"-"`
 }
 
-func (r *CreateTradeRequest) Wait() chan RequestError2 {
-	return r.Error
-}
+// func (r *CreateTradeRequest) Wait() chan error {
+// 	return r.Error
+// }
 
 func (r *CreateTradeRequest) GetMetaData() *MetaData {
 	return r.Meta
@@ -35,22 +34,14 @@ func (r *CreateTradeRequest) ParseHTTPRequest(req *http.Request) error {
 	return nil
 }
 
-func (r *CreateTradeRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-func (r *CreateTradeRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
-}
-
 func NewOpenTradeRequest(requestID uuid.UUID, accountName string, strategyName string, timeframe *int) (*CreateTradeRequest, error) {
 	req := &CreateTradeRequest{
-		Meta:      &MetaData{ParentMeta: nil, RequestError: make(chan RequestError2)},
-		RequestID: requestID, AccountName: accountName,
+		AccountName:  accountName,
 		StrategyName: strategyName,
 		Timeframe:    timeframe,
-		// Error:        make(chan EventError),
 	}
+
+	req.SetMetaData(&MetaData{RequestID: requestID})
 
 	if err := req.Validate(nil); err != nil {
 		return nil, err

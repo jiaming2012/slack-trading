@@ -3,6 +3,7 @@ package eventmodels
 import "fmt"
 
 type CloseTradesRequest struct {
+	BaseRequestEvent2
 	Strategy        *Strategy
 	Timeframe       *int
 	PriceLevelIndex int

@@ -15,21 +15,6 @@ func Init() {
 	bus = EventBus.New()
 }
 
-func PublishRequestErrorInterface(publisherName string, requestEvent eventmodels.RequestEvent, err error) {
-	switch ev := requestEvent.(type) {
-	case eventmodels.ExecuteOpenTradeRequest:
-		fmt.Println(ev)
-		openTradeReq := ev.ParentRequest.(*eventmodels.CreateTradeRequest)
-		openTradeReq.Error <- eventmodels.RequestError2{
-			Request: ev,
-			Error:   err,
-		}
-	}
-
-	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
-	publishError(publisherName, requestErr)
-}
-
 func PublishRequestError[T eventmodels.RequestEvent](publisherName string, requestEvent T, err error) {
 	requestErr := eventmodels.NewRequestError(requestEvent.GetRequestID(), err)
 	publishError(publisherName, requestErr)
@@ -46,6 +31,11 @@ func PublishResult2(publisherName string, topic eventmodels.EventName, event int
 func PublishResult3(publisherName string, event TerminalRequest, meta *eventmodels.MetaData) {
 	event.SetMetaData(meta)
 	publish(publisherName, eventmodels.ProcessRequestCompleteEventName, event)
+}
+
+func PublishResult4(publisherName string, topic eventmodels.EventName, event TerminalRequest, meta *eventmodels.MetaData) {
+	event.SetMetaData(meta)
+	publish(publisherName, topic, event)
 }
 
 func PublishResult[T eventmodels.ResultEvent](publisherName string, topic eventmodels.EventName, event T) {

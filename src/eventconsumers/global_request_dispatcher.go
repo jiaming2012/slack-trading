@@ -16,13 +16,19 @@ type GlobalDispatchWorker struct {
 }
 
 func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
-	id := event.GetMetaData().RequestID
+	meta := event.GetMetaData()
+	if !meta.IsExternalRequest {
+		return
+	}
+
+	id := meta.RequestID
 	globalDispatchItem, err := w.dispatcher.GetChannelAndRemove(id)
 	if err != nil {
 		log.Debugf("GlobalDispatchWorker.dispatchResult: failed to find dispatcher: %v", err)
 		return
 	}
 
+	// return external api response
 	switch ev := event.(type) {
 	case *eventmodels.TerminalError:
 		globalDispatchItem.ErrCh <- ev.Error
@@ -34,7 +40,6 @@ func (w *GlobalDispatchWorker) dispatchResult(event eventmodels.ResultEvent) {
 func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteOpenTradeResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.FetchTradesResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteCloseTradesResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ProcessRequestCompleteEventName, w.dispatchResult)

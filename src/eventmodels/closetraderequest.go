@@ -9,26 +9,22 @@ import (
 )
 
 type CloseTradeRequest struct {
-	Meta            *MetaData `json:"meta"`
-	RequestID       uuid.UUID `json:"requestID"`
-	AccountName     string    `json:"AccountName"`
-	StrategyName    string    `json:"strategyName"`
-	PriceLevelIndex int       `json:"priceLevelIndex"`
-	Timeframe       *int      `json:"timeframe"`
-	Percent         float64   `json:"percent"`
-	Reason          string    `json:"reason"`
+	BaseRequestEvent2
+	AccountName     string     `json:"AccountName"`
+	StrategyName    string     `json:"strategyName"`
+	PriceLevelIndex int        `json:"priceLevelIndex"`
+	Timeframe       *int       `json:"timeframe"`
+	Percent         float64    `json:"percent"`
+	Reason          string     `json:"reason"`
+	Error           chan error `json:"-"`
+}
+
+func (r *CloseTradeRequest) Wait() chan error {
+	return r.Error
 }
 
 func (r *CloseTradeRequest) GetMetaData() *MetaData {
 	return r.Meta
-}
-
-func (r *CloseTradeRequest) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-func (r *CloseTradeRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
 }
 
 func (r *CloseTradeRequest) ParseHTTPRequest(req *http.Request) error {
@@ -68,7 +64,10 @@ func (r *CloseTradeRequest) Validate(request *http.Request) error {
 }
 
 func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
-	req := &CloseTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
+	req := &CloseTradeRequest{AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
+
+	req.SetMetaData(&MetaData{RequestID: requestID})
+
 	if err := req.Validate(nil); err != nil {
 		return nil, err
 	}

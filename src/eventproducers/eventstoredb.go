@@ -127,9 +127,9 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 }
 
 func (cli *eventStoreDBClient) handleProcessRequestComplete(event interface{}) {
-	log.Debugf("<- eventStoreDBClient.handleProcessRequestComplete: finished processing %v", event)
-
 	if req, ok := event.(pubsub.TerminalRequest); ok {
+		log.Debugf("finished processing request: %s", req.GetMetaData().RequestID.String())
+
 		mutex := req.GetMetaData().Mutex
 		if mutex != nil {
 			mutex.Unlock()
@@ -146,7 +146,7 @@ func (cli *eventStoreDBClient) init() {
 			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateAccountStrategyRequestEvent{} },
 		},
 		eventmodels.CreateSignalRequestEventName: {
-			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateSignalRequest{} },
+			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateSignalRequestEvent{} },
 		},
 		eventmodels.CreateOptionAlertRequestEventName: {
 			Generate: func() pubsub.TerminalRequest { return &eventmodels.CreateOptionAlertRequestEvent{} },

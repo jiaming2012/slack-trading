@@ -52,7 +52,8 @@ func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp a
 	id := uuid.New()
 
 	req.SetMetaData(&eventmodels.MetaData{
-		RequestID: id,
+		RequestID:         id,
+		IsExternalRequest: true,
 	})
 
 	resultCh, errCh := eventmodels.RegisterResultCallback(id)

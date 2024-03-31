@@ -23,7 +23,6 @@ const (
 	ExecuteOpenTradeRequestEventName      EventName = "ExecuteOpenTradeRequest"
 	ExecuteCloseTradeRequestEventName     EventName = "ExecuteCloseTradeRequest"
 	ExecuteCloseTradesRequestEventName    EventName = "ExecuteCloseTradesRequest"
-	ExecuteOpenTradeResultEventName       EventName = "ExecuteOpenTradeResult"
 	ExecuteCloseTradesResultEventName     EventName = "ExecuteCloseTradesResult"
 	CreateTradeRequestEventName           EventName = "NewOpenTradeRequest"
 	NewGetStatsRequestEventName           EventName = "NewGetStatsRequest"

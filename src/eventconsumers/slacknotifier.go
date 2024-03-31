@@ -155,7 +155,7 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	// pubsub.Subscribe("SlackNotifierClient", eventmodels.GetAccountsResponseEventName, c.getAccountsResponseHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.BalanceResultEventName, c.balanceResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradeFulfilledEventName, c.tradeFulfilledHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)
+	// pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.Error, c.sendError)

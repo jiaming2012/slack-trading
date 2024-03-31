@@ -25,7 +25,7 @@ func signalHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(eventmodels.OpenTradeRequestEventName, &eventmodels.CreateTradeRequest{}, &eventmodels.ExecuteOpenTradeResult{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.OpenTradeRequestEventName, &eventmodels.CreateTradeRequest{}, &eventmodels.ExecuteOpenTradeResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -33,7 +33,7 @@ func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler(eventmodels.CloseTradeRequestEventName, &eventmodels.CloseTradeRequest{}, &eventmodels.ExecuteCloseTradesResult{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.CloseTradeRequestEventName, &eventmodels.CloseTradeRequest{}, &eventmodels.ExecuteCloseTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

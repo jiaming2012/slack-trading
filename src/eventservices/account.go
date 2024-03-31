@@ -8,7 +8,7 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func UpdateExitConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequest) ([]*eventmodels.ExitConditionsSatisfied, error) {
+func UpdateExitConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequestEvent) ([]*eventmodels.ExitConditionsSatisfied, error) {
 	var aggregatedExitConditionsSatisfied []*eventmodels.ExitConditionsSatisfied
 
 	for _, account := range accounts {
@@ -33,7 +33,7 @@ func UpdateExitConditions(accounts []*eventmodels.Account, newSignalRequest *eve
 // UpdateEntryConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
 // the handler would emit both events if not nil
 // this allows updates to not mix with other operations
-func UpdateEntryConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequest) []*eventmodels.EntryConditionsSatisfied {
+func UpdateEntryConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequestEvent) []*eventmodels.EntryConditionsSatisfied {
 	var entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied
 
 	for _, account := range accounts {

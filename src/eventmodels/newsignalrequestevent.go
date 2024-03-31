@@ -10,29 +10,36 @@ import (
 )
 
 // todo: deprecated for event models
-type CreateSignalRequest struct {
+type CreateSignalRequestEvent struct {
 	BaseRequestEvent2
 	Name        string        `json:"name"`
 	Source      RequestSource `json:"source"`
 	LastUpdated time.Time     `json:"lastUpdated"`
 }
 
-func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequest {
-	request := &CreateSignalRequest{Name: name}
+func (r *CreateSignalRequestEvent) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: AccountsStreamName,
+		EventName:  CreateSignalRequestEventName,
+	}
+}
+
+func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequestEvent {
+	request := &CreateSignalRequestEvent{Name: name}
 	request.SetMetaData(&MetaData{RequestID: requestID})
 
 	return request
 }
 
-func (r *CreateSignalRequest) String() string {
+func (r *CreateSignalRequestEvent) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Source)
 }
 
-func (r *CreateSignalRequest) GetSource() RequestSource {
+func (r *CreateSignalRequestEvent) GetSource() RequestSource {
 	return r.Source
 }
 
-func (r *CreateSignalRequest) Validate(req *http.Request) error {
+func (r *CreateSignalRequestEvent) Validate(req *http.Request) error {
 	if r.Name == "" {
 		return fmt.Errorf("SignalRequest.Validate: name was not set")
 	}
@@ -40,7 +47,7 @@ func (r *CreateSignalRequest) Validate(req *http.Request) error {
 	return nil
 }
 
-func (r *CreateSignalRequest) ParseHTTPRequest(req *http.Request) error {
+func (r *CreateSignalRequestEvent) ParseHTTPRequest(req *http.Request) error {
 	var values map[string]interface{}
 	if err := json.NewDecoder(req.Body).Decode(&values); err != nil {
 		return fmt.Errorf("SignalRequest.ParseHTTPRequest: failed to decode json: %w", err)
