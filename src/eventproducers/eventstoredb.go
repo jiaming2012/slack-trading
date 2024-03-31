@@ -181,9 +181,14 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
-	streamNames := []eventmodels.StreamName{eventmodels.AccountsStreamName, eventmodels.OptionAlertsStreamName}
-	for _, streamName := range streamNames {
-		name := string(streamName)
+	streamParams := []eventmodels.StreamParameter{
+		{StreamName: eventmodels.AccountsStreamName, Mutex: &cli.accountsMutex},
+		{StreamName: eventmodels.OptionAlertsStreamName, Mutex: &cli.optionsAlertsMutex},
+	}
+
+	for _, param := range streamParams {
+		name := string(param.StreamName)
+		mutex := param.Mutex
 
 		subscription, err := cli.db.SubscribeToStream(context.Background(), name, esdb.SubscribeToStreamOptions{
 			From: esdb.Start{},
@@ -196,7 +201,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		go func() {
 			for {
 				if err == nil {
-					cli.readStream(subscription, &cli.optionsAlertsMutex)
+					cli.readStream(subscription, mutex)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)
