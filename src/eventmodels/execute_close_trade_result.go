@@ -1,6 +1,6 @@
 package eventmodels
 
 type ExecuteCloseTradesResult struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Trade *Trade `json:"trade"`
 }

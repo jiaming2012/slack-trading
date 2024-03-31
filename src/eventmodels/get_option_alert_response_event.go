@@ -1,6 +1,6 @@
 package eventmodels
 
 type GetOptionAlertResponseEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Alerts []OptionAlert `json:"alerts"`
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type CreateOptionAlertResponseEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	ID    string `json:"id"`
 	mutex *sync.Mutex
 }
@@ -18,7 +18,7 @@ func (e *CreateOptionAlertResponseEvent) GetMutex() *sync.Mutex {
 
 func NewCreateOptionAlertResponseEvent(requestID uuid.UUID, id string, mutex *sync.Mutex) *CreateOptionAlertResponseEvent {
 	return &CreateOptionAlertResponseEvent{
-		BaseResponseEvent2: BaseResponseEvent2{
+		BaseResponseEvent: BaseResponseEvent{
 			Meta: MetaData{
 				RequestID: requestID,
 			},

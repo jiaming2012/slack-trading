@@ -1,6 +1,6 @@
 package eventmodels
 
 type CreateSignalResponseEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Name string `json:"name"`
 }

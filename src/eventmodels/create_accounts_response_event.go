@@ -1,6 +1,6 @@
 package eventmodels
 
 type CreateAccountResponseEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Account *Account `json:"account"`
 }

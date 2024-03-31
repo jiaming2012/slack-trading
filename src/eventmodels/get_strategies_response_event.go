@@ -5,6 +5,6 @@ import (
 )
 
 type GetStrategiesResponseEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Strategies []*models.Strategy `json:"strategies"`
 }

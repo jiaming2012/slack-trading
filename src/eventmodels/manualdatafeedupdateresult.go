@@ -7,11 +7,11 @@ import (
 )
 
 type ManualDatafeedUpdateResult struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	UpdatedAt time.Time `json:"updatedAt"`
 	Tick      Tick      `json:"tick"`
 }
 
 func NewManualDatafeedUpdateResult(requestID uuid.UUID, updatedAt time.Time, tick Tick) *ManualDatafeedUpdateResult {
-	return &ManualDatafeedUpdateResult{BaseResponseEvent2: BaseResponseEvent2{Meta: MetaData{RequestID: requestID}}, UpdatedAt: updatedAt, Tick: tick}
+	return &ManualDatafeedUpdateResult{BaseResponseEvent: BaseResponseEvent{Meta: MetaData{RequestID: requestID}}, UpdatedAt: updatedAt, Tick: tick}
 }

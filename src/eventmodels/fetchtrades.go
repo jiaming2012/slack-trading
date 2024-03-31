@@ -42,10 +42,10 @@ func NewFetchTradesRequest(requestID uuid.UUID, accountName string, strategyName
 }
 
 type FetchTradesResult struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Trades []*TradeLevels `json:"trades"`
 }
 
 func NewFetchTradesResult(requestID uuid.UUID, trades []*TradeLevels) *FetchTradesResult {
-	return &FetchTradesResult{BaseResponseEvent2: BaseResponseEvent2{Meta: MetaData{RequestID: requestID}}, Trades: trades}
+	return &FetchTradesResult{BaseResponseEvent: BaseResponseEvent{Meta: MetaData{RequestID: requestID}}, Trades: trades}
 }

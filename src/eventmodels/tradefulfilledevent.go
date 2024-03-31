@@ -6,7 +6,7 @@ import (
 )
 
 type TradeFulfilledEvent struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Timestamp      time.Time
 	ResponseURL    string
 	Symbol         string

@@ -1,6 +1,6 @@
 package eventmodels
 
 type GetStatsResult struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	Strategies []*GetStatsResultItem `json:"strategies"`
 }

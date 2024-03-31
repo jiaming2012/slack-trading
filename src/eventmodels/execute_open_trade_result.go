@@ -1,7 +1,7 @@
 package eventmodels
 
 type ExecuteOpenTradeResult struct {
-	BaseResponseEvent2
+	BaseResponseEvent
 	PriceLevelIndex int    `json:"priceLevelIndex"`
 	Trade           *Trade `json:"trade"`
 }
