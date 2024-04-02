@@ -201,28 +201,45 @@ func (w *AccountWorker) handleCloseTradesRequest(event *eventmodels.CloseTradeRe
 	}, &event.Meta)
 }
 
-func (w *AccountWorker) executeCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) (*eventmodels.AutoExecuteTrade, error) {
+func (w *AccountWorker) executeCloseTradesRequest(req *eventmodels.CloseTradeRequest) (*eventmodels.AutoExecuteTrade, error) {
 	tradeID := uuid.New()
 	now := time.Now().UTC()
 
-	strategy := event.Trade.PriceLevel.Strategy
+	account, err := w.findAccount(req.AccountName)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
+	}
+
+	strategy, err := account.FindStrategy(req.StrategyName)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
+	}
+
 	datafeed := strategy.Account.Datafeed
 
 	requestPrc := datafeed.LastTick
 
-	trade, _, err := strategy.NewCloseTrade(tradeID, event.Timeframe, now, requestPrc, event.Percent, event.Trade)
+	trade, _, err := strategy.NewCloseTrades(tradeID, req.Timeframe, now, requestPrc, req.PriceLevelIndex, req.Percent)
 	if err != nil {
 		if errors.Is(err, eventmodels.DuplicateCloseTradeErr) {
-			log.Debugf("duplicate close: skip closing %v", event.Trade.ID)
+			log.Debugf("duplicate close: skipping")
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("unable to create new close trade: %w", err)
+		return nil, fmt.Errorf("executeCloseTradesRequest: unable to create new close trade: %w", err)
+	}
+
+	if _, err = strategy.AutoExecuteTrade(trade); err != nil {
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
 	}
 
 	return &eventmodels.AutoExecuteTrade{
 		Trade: trade,
 	}, nil
+}
+
+func (w *AccountWorker) executeCloseTradeRequest(req *eventmodels.ExecuteCloseTradeRequest) (*eventmodels.AutoExecuteTrade, error) {
+	return nil, fmt.Errorf("AccountWorker.executeCloseTradeRequest: not implemented")
 }
 
 func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) {
@@ -459,14 +476,10 @@ func (w *AccountWorker) handleExitConditions(event *eventmodels.CreateSignalRequ
 	}
 
 	for _, req := range clsTradeRequests {
-		reqErrCh := req.Wait()
-
-		pubsub.PublishEventResultDeprecated("AccountWorker.handleExitConditions", eventmodels.CloseTradesRequestEventName, req)
-
-		err := <-reqErrCh
-
+		// todo: return the close trade requests
+		_, err := w.executeCloseTradesRequest(req)
 		if err != nil {
-			return fmt.Errorf("AccountWorker.handleExitConditions: failed to create trade: %w", err)
+			return fmt.Errorf("AccountWorker.handleExitConditions: failed to execute close trade request: %w", err)
 		}
 	}
 

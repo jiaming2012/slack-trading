@@ -20,7 +20,8 @@ type ExitCondition struct {
 
 func (c *ExitCondition) AwaitingReentrySignals() bool {
 	if len(c.ReentrySignals) == 0 {
-		log.Warnf("ExitCondition.isSatisfied: awaiting reset will always be true: no reset signals set")
+		log.Warnf("ExitCondition.isSatisfied: awaiting reentry will always be false: no reentry signals set")
+		return false
 	}
 
 	if c.isTriggered {
