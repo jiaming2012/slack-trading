@@ -22,7 +22,7 @@ func main() {
 	ctx := context.Background()
 
 	// setup google sheets
-	if err := sheets.Init(ctx); err != nil {
+	if _, _, err := sheets.Init(ctx); err != nil {
 		log.Fatalf("failed to initialize google sheets: %v", err)
 	}
 

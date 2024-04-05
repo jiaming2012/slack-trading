@@ -80,7 +80,7 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
 					panic(err)
 				}
 
-				eventpubsub.PublishEventResultDeprecated("Coinbase.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
+				eventpubsub.PublishEvent("Coinbase.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
 					time.Now().UTC(),
 					price,
 					eventmodels.CoinbaseDatafeed,

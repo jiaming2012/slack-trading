@@ -15,7 +15,7 @@ type DeleteOptionAlertRequestEvent struct {
 
 func (r *DeleteOptionAlertRequestEvent) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: OptionAlertsStreamName,
+		StreamName: OptionAlertsStream,
 		EventName:  DeleteOptionAlertRequestEventName,
 	}
 }

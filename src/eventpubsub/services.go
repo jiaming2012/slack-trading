@@ -30,7 +30,7 @@ func PublishError(publisherName string, err error) {
 	publishError(publisherName, err)
 }
 
-func PublishEventResultDeprecated(publisherName string, topic eventmodels.EventName, event interface{}) {
+func PublishEvent(publisherName string, topic eventmodels.EventName, event interface{}) {
 	publish(publisherName, topic, event)
 }
 

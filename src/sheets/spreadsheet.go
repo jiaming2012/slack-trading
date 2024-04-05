@@ -3,30 +3,46 @@ package sheets
 import (
 	"context"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/sheets/v4"
+
 	"slack-trading/src/models"
 )
 
-func createSpreadsheet(ctx context.Context, srv *sheets.Service, title string) error {
+func CreateSpreadsheet(ctx context.Context, srv *sheets.Service, title string) (*sheets.Spreadsheet, error) {
 	// Create the new spreadsheet
 	spreadsheet := &sheets.Spreadsheet{
 		Properties: &sheets.SpreadsheetProperties{
 			Title: title,
 		},
 	}
-	spreadsheet, err := srv.Spreadsheets.Create(spreadsheet).Context(ctx).Do()
-	if err != nil {
-		return fmt.Errorf("unable to create spreadsheet: %v", err)
-	}
 
-	// Print the spreadsheet RequestID
-	fmt.Printf("Created new spreadsheet with ID: %s\n", spreadsheet.SpreadsheetId)
-
-	return nil
+	return srv.Spreadsheets.Create(spreadsheet).Context(ctx).Do()
 }
 
-func appendRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, values [][]interface{}) error {
+func MoveSpreadsheet(ctx context.Context, sheetSrv *sheets.Spreadsheet, driveSrv *drive.Service, folderId string) error {
+	file, err := driveSrv.Files.Get(sheetSrv.SpreadsheetId).Do()
+	if err != nil {
+		log.Fatalf("Failed to get file: %v", err)
+	}
+
+	var call *drive.FilesUpdateCall
+	call = driveSrv.Files.Update(file.Id, &drive.File{}).AddParents(folderId)
+
+	if len(file.Parents) > 0 {
+		call = call.RemoveParents(file.Parents[0])
+	}
+
+	if _, err := call.Do(); err != nil {
+		log.Fatalf("Failed to move file: %v", err)
+	}
+
+	return err
+}
+
+func AppendRows(ctx context.Context, srv *sheets.Service, spreadsheetId string, sheetName string, values [][]interface{}) error {
 	row := &sheets.ValueRange{
 		Values: values,
 	}

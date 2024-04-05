@@ -3,11 +3,12 @@ package sheets
 import (
 	"context"
 	"fmt"
-	"google.golang.org/api/sheets/v4"
 	"slack-trading/src/models"
 	"strconv"
 	"sync"
 	"time"
+
+	"google.golang.org/api/sheets/v4"
 )
 
 // trades Google sheet
@@ -95,7 +96,7 @@ func appendTrade(ctx context.Context, srv *sheets.Service, tr *models.Trade) err
 	trades := make(models.Trades, 0)
 	trades.Add(tr)
 	values := trades.ToRows()
-	return appendRows(ctx, srv, spreadsheetId, sheetName, values)
+	return AppendRows(ctx, srv, spreadsheetId, sheetName, values)
 }
 
 func AppendTrade(ctx context.Context, trade *models.Trade) error {

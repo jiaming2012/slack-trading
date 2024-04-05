@@ -19,7 +19,7 @@ type CreateSignalRequestEvent struct {
 
 func (r *CreateSignalRequestEvent) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: AccountsStreamName,
+		StreamName: AccountsStream,
 		EventName:  CreateSignalRequestEventName,
 	}
 }

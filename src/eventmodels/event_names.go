@@ -43,6 +43,8 @@ const (
 	CreateOptionAlertRequestEventName     EventName = "CreateOptionAlertRequestEvent"
 	DeleteOptionAlertRequestEventName     EventName = "DeleteOptionAlertRequestEvent"
 	OptionAlertUpdateEventName            EventName = "OptionAlertUpdateEvent"
+	CreateNewOptionChainTickEvent         EventName = "CreateNewOptionChainTickEvent"
+	CreateNewStockTickEvent               EventName = "CreateNewStockTickEvent"
 	TerminalErrorName                     EventName = "TerminalError"
 	Error                                 EventName = "DefaultError"
 )

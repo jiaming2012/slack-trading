@@ -15,7 +15,7 @@ type CreateAccountStrategyRequestEvent struct {
 
 func (r *CreateAccountStrategyRequestEvent) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: AccountsStreamName,
+		StreamName: AccountsStream,
 		EventName:  CreateAccountStrategyRequestEventName,
 	}
 }

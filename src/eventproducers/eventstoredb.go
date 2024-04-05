@@ -18,11 +18,10 @@ import (
 var saga map[eventmodels.EventName]pubsub.SagaFlow
 
 type eventStoreDBClient struct {
-	wg                 *sync.WaitGroup
-	db                 *esdb.Client
-	accountsMutex      sync.Mutex
-	optionsAlertsMutex sync.Mutex
-	lastEventNumber    uint64
+	wg              *sync.WaitGroup
+	db              *esdb.Client
+	streamParams    []eventmodels.StreamParameter
+	lastEventNumber uint64
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
@@ -33,12 +32,11 @@ func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventm
 	}
 
 	// todo: verify that the stream is thread safe
-	writeResult, err := cli.db.AppendToStream(ctx, streamName, esdb.AppendToStreamOptions{}, eventData)
+	_, err := cli.db.AppendToStream(ctx, streamName, esdb.AppendToStreamOptions{}, eventData)
 	if err != nil {
 		return fmt.Errorf("failed to append event to stream: %w", err)
 	}
 
-	log.Info(writeResult.CommitPosition)
 	return nil
 }
 
@@ -118,7 +116,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 		nextEvent := eventmodels.NewSavedEvent(eventName)
 
 		streamMutex.Lock()
-		pubsub.PublishEventResultDeprecated("eventStoreDBClient", nextEvent, request)
+		pubsub.PublishEvent("eventStoreDBClient", nextEvent, request)
 	}
 }
 
@@ -153,6 +151,12 @@ func (cli *eventStoreDBClient) init() {
 		eventmodels.OptionAlertUpdateEventName: {
 			Generate: func() pubsub.RequestEvent { return &eventmodels.OptionAlertUpdateEvent{} },
 		},
+		eventmodels.CreateNewOptionChainTickEvent: {
+			Generate: func() pubsub.RequestEvent { return &eventmodels.OptionChainTick{} },
+		},
+		eventmodels.CreateNewStockTickEvent: {
+			Generate: func() pubsub.RequestEvent { return &eventmodels.StockTick{} },
+		},
 	}
 }
 
@@ -169,6 +173,8 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
 
+	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateNewStockTickEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateNewOptionChainTickEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountStrategyRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateSignalRequestEventName, cli.storeRequestEventHandler)
@@ -177,12 +183,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
-	streamParams := []eventmodels.StreamParameter{
-		{StreamName: eventmodels.AccountsStreamName, Mutex: &cli.accountsMutex},
-		{StreamName: eventmodels.OptionAlertsStreamName, Mutex: &cli.optionsAlertsMutex},
-	}
-
-	for _, param := range streamParams {
+	for _, param := range cli.streamParams {
 		name := string(param.StreamName)
 		mutex := param.Mutex
 
@@ -223,8 +224,9 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	}()
 }
 
-func NewEventStoreDBClient(wg *sync.WaitGroup) *eventStoreDBClient {
+func NewEventStoreDBClient(wg *sync.WaitGroup, streamParams []eventmodels.StreamParameter) *eventStoreDBClient {
 	return &eventStoreDBClient{
-		wg: wg,
+		wg:           wg,
+		streamParams: streamParams,
 	}
 }

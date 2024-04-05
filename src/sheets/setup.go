@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
-	"os"
 )
 
 var service *sheets.Service
@@ -21,7 +22,7 @@ func setup(ctx context.Context) (*sheets.Service, *drive.Service, error) {
 	}
 
 	// authenticate and get configuration
-	config, err := google.JWTConfigFromJSON(credBytes, "https://www.googleapis.com/auth/spreadsheets")
+	config, err := google.JWTConfigFromJSON(credBytes, "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config from json: %w", err)
 	}
@@ -44,8 +45,7 @@ func setup(ctx context.Context) (*sheets.Service, *drive.Service, error) {
 	return srv, driveService, nil
 }
 
-func Init(ctx context.Context) error {
-	var err error
-	service, _, err = setup(ctx)
-	return err
+func Init(ctx context.Context) (*sheets.Service, *drive.Service, error) {
+	sheets, drive, err := setup(ctx)
+	return sheets, drive, err
 }

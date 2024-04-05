@@ -15,7 +15,7 @@ type OptionAlertUpdateEvent struct {
 
 func (r *OptionAlertUpdateEvent) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: OptionAlertsStreamName,
+		StreamName: OptionAlertsStream,
 		EventName:  OptionAlertUpdateEventName,
 	}
 }

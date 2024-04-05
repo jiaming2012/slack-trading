@@ -14,8 +14,11 @@ import (
 
 func main() {
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
-	// streamName := "option-alerts"
-	streamName := "accounts"
+	// eventStoreDbURL := "esdb+discover://dchome.loclx.io?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+	streamName1 := "option-alerts"
+	streamName2 := "accounts"
+	streamName3 := "option-chain-ticks"
+	streamName4 := "stock-ticks"
 	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
 
 	if err != nil {
@@ -25,6 +28,25 @@ func main() {
 	db, err := esdb.NewClient(settings)
 	if err != nil {
 		panic(err)
+	}
+
+	fmt.Printf("Which stream would you like to read from?\n1: %s\n2: %s\n3: %s\n4: %s\n", streamName1, streamName2, streamName3, streamName4)
+	var streamName string
+	if _, err := fmt.Scanln(&streamName); err != nil {
+		panic(err)
+	}
+
+	if streamName == "1" {
+		streamName = streamName1
+	} else if streamName == "2" {
+		streamName = streamName2
+	} else if streamName == "3" {
+		streamName = streamName3
+	} else if streamName == "4" {
+		streamName = streamName4
+	} else {
+		fmt.Println("Invalid stream name")
+		return
 	}
 
 	fmt.Printf("Would you like to delete the stream %s? (y/n)\n", streamName)

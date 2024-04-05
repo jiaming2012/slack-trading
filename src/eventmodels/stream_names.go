@@ -3,6 +3,8 @@ package eventmodels
 type StreamName string
 
 const (
-	AccountsStreamName     StreamName = "accounts"
-	OptionAlertsStreamName StreamName = "option-alerts"
+	AccountsStream        StreamName = "accounts"
+	OptionAlertsStream    StreamName = "option-alerts"
+	OptionChainTickStream StreamName = "option-chain-ticks"
+	StockTickStream       StreamName = "stock-ticks"
 )

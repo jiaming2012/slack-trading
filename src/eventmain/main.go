@@ -367,6 +367,12 @@ func run() {
 	// accounts := []*eventmodels.Account{account1, account2}
 	accounts := make([]*eventmodels.Account, 0)
 
+	streamParams := []eventmodels.StreamParameter{
+		{StreamName: eventmodels.AccountsStream, Mutex: &sync.Mutex{}},
+		{StreamName: eventmodels.OptionAlertsStream, Mutex: &sync.Mutex{}},
+		// {StreamName: eventmodels.OptionChainTicks, Mutex: &sync.Mutex{}},
+	}
+
 	// Start event clients
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
@@ -381,7 +387,7 @@ func run() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-	eventproducers.NewEventStoreDBClient(&wg).Start(ctx, eventStoreDbURL)
+	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, eventStoreDbURL)
 
 	brokerURL := "https://sandbox.tradier.com/v1/markets/quotes"
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")

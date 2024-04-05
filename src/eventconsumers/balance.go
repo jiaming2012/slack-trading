@@ -45,7 +45,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResultDeprecated("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEvent("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,

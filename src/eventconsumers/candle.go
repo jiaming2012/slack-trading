@@ -53,7 +53,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEventResultDeprecated("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEvent("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -101,7 +101,7 @@ func (w *CandleWorker) CreateNewCandle() {
 
 	w.mu.Unlock()
 
-	pubsub.PublishEventResultDeprecated("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
+	pubsub.PublishEvent("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
 }
 
 func (w *CandleWorker) Start(ctx context.Context) {
