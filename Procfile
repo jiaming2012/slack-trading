@@ -1,1 +1,1 @@
-web: eventticks
+web: go run src/eventticks/main.go
