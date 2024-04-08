@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
+
 	"slack-trading/src/models"
 	"slack-trading/src/sheets"
-	"sort"
 )
 
 type LevelInfo struct {
@@ -177,7 +178,7 @@ func main() {
 	ctx := context.Background()
 
 	// setup google sheets
-	if err := sheets.Init(ctx); err != nil {
+	if _, _, err := sheets.Init(ctx); err != nil {
 		panic(fmt.Errorf("failed to initialize google sheets: %v", err))
 	}
 

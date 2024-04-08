@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -98,6 +99,111 @@ func fetchStockTicks(symbol, url, bearerToken string) (*eventmodels.StockTickIte
 	return &dto.Quotes.Tick, nil
 }
 
+var cachedPayload *MarketCalendar
+
+type MarketCalendar struct {
+	Calendar struct {
+		Month int `json:"month"`
+		Year  int `json:"year"`
+		Days  struct {
+			Day []struct {
+				Date        string `json:"date"`
+				Status      string `json:"status"`
+				Description string `json:"description"`
+				Premarket   struct {
+					Start string `json:"start"`
+					End   string `json:"end"`
+				} `json:"premarket"`
+				Open struct {
+					Start string `json:"start"`
+					End   string `json:"end"`
+				} `json:"open"`
+				Postmarket struct {
+					Start string `json:"start"`
+					End   string `json:"end"`
+				} `json:"postmarket"`
+			} `json:"day"`
+		} `json:"days"`
+	} `json:"calendar"`
+}
+
+func fetchMarketCalendar(url, bearerToken string, now time.Time) (*MarketCalendar, error) {
+	currentMonth := now.Format("2006-01")
+	currentMonthInt, err := strconv.Atoi(currentMonth[5:])
+	if err != nil {
+		return nil, fmt.Errorf("fetchMarketCalendar: failed to parse current month: %w", err)
+	}
+
+	if cachedPayload != nil && cachedPayload.Calendar.Month == currentMonthInt {
+		return cachedPayload, nil
+	}
+
+	log.Debugf("Cache invalid. Fetching market calendar for %v", currentMonth)
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("fetchMarketCalendar: failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetchMarketCalendar: failed to fetch market calendar: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetchMarketCalendar: failed to fetch market calendar, http code %v", res.Status)
+	}
+
+	var dto MarketCalendar
+	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
+		return nil, fmt.Errorf("fetchMarketCalendar: failed to decode json: %w", err)
+	}
+
+	cachedPayload = &dto
+
+	return &dto, nil
+}
+
+func isMarketOpen(calendar *MarketCalendar, now time.Time) (bool, error) {
+	dateStr := now.Format("2006-01-02")
+	timeStr := now.Format("15:04")
+
+	for _, day := range calendar.Calendar.Days.Day {
+		if day.Date == dateStr {
+			if day.Status == "open" {
+				start, err := time.Parse("15:04", day.Open.Start)
+				if err != nil {
+					return false, err
+				}
+				end, err := time.Parse("15:04", day.Open.End)
+				if err != nil {
+					return false, err
+				}
+				currentTime, err := time.Parse("15:04", timeStr)
+				if err != nil {
+					return false, err
+				}
+
+				if currentTime.After(start) && currentTime.Before(end) {
+					return true, nil
+				}
+			}
+			break
+		}
+	}
+
+	return false, nil
+}
+
 func main() {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
@@ -107,6 +213,7 @@ func main() {
 	eventpubsub.Init()
 
 	stockURL := "https://sandbox.tradier.com/v1/markets/quotes"
+	calendarURL := "https://sandbox.tradier.com/v1/markets/calendar"
 	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 
@@ -127,9 +234,23 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			var ticks []*eventmodels.OptionChainTick
-
 			now := time.Now()
+			payload, err := fetchMarketCalendar(calendarURL, brokerBearerToken, now)
+			if err != nil {
+				log.Errorf("Failed to fetch market calendar: %v", err)
+			}
+
+			open, err := isMarketOpen(payload, now)
+			if err != nil {
+				log.Errorf("Failed to check if market is open: %v", err)
+			}
+
+			if !open {
+				log.Debug("Market is closed")
+				continue
+			}
+
+			var ticks []*eventmodels.OptionChainTick
 
 			// record stock ticks
 			stockTickDTO, err := fetchStockTicks("coin", stockURL, brokerBearerToken)
