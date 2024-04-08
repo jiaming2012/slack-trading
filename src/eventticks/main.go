@@ -283,7 +283,7 @@ func main() {
 				eventpubsub.PublishEvent("main", eventmodels.CreateNewOptionChainTickEvent, tick)
 			}
 
-			log.Infof("Recorded %d option contract ticks\n", len(ticks))
+			log.Infof("Recorded %d option contract ticks", len(ticks))
 		case <-ctx.Done():
 			return
 		}
