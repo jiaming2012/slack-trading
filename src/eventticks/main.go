@@ -243,13 +243,21 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			loc, err := time.LoadLocation("America/New_York")
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 			now := time.Now()
-			payload, err := fetchMarketCalendar(calendarURL, brokerBearerToken, now)
+			nowEST := now.In(loc)
+			nowUTC := now.UTC()
+
+			payload, err := fetchMarketCalendar(calendarURL, brokerBearerToken, nowEST)
 			if err != nil {
 				log.Errorf("Failed to fetch market calendar: %v", err)
 			}
 
-			open, err := isMarketOpen(payload, now)
+			open, err := isMarketOpen(payload, nowEST)
 			if err != nil {
 				log.Errorf("Failed to check if market is open: %v", err)
 			}
@@ -264,7 +272,7 @@ func main() {
 			// record stock ticks
 			stockTickDTO, err := fetchStockTicks("coin", stockURL, brokerBearerToken)
 			if err == nil {
-				stockTick := stockTickDTO.ToModel(uuid.New(), now)
+				stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
 				eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)
 			} else {
 				log.Errorf("Failed to fetch stock ticks: %v", err)
@@ -284,7 +292,7 @@ func main() {
 						continue
 					}
 
-					ticks = append(ticks, dto.ToModel(contractID, uuid.New(), now))
+					ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
 				}
 			}
 
