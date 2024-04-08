@@ -1,5 +1,5 @@
 # Start from the latest golang base image
-FROM golang:1.18
+FROM golang:1.20
 
 # Add Maintainer Info
 LABEL maintainer="Jamal Cole <jac475@cornell.edu>"
