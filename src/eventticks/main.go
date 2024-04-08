@@ -212,6 +212,15 @@ func main() {
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
 
+	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(level)
+	}
+
+	log.Infof("Log level set to %v", log.GetLevel())
+
 	stockURL := "https://sandbox.tradier.com/v1/markets/quotes"
 	calendarURL := "https://sandbox.tradier.com/v1/markets/calendar"
 	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"

@@ -47,3 +47,11 @@ heroku logs
 UI is administered via slack. Admin page can be found here: https://api.slack.com/apps/A03C4E2TA6M
 
 Events are sent to https://api.slack.com/apps/A03C4E2TA6M/event-subscriptions?
+
+# Heroku
+If deploying to heroku, there are some gochas:
+
+1. If the application does not have a web port, heroku will terminate the application. This can be prevented by running:
+``` bash
+heroku ps:scale worker=1
+```
