@@ -1,1 +1,1 @@
-web: eventmain
+web: eventticks
