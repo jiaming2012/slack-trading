@@ -1,1 +1,1 @@
-web: go install -v -tags heroku slack-trading/src/eventticks && slack-trading/src/eventticks
+web: slack-trading/src/eventticks
