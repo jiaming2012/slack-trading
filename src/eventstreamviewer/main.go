@@ -13,8 +13,8 @@ import (
 )
 
 func main() {
-	// eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
-	eventStoreDbURL := "esdb://us.loclx.io:21133?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+	// eventStoreDbURL := "esdb://us.loclx.io:21133?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
 	streamName1 := "option-alerts"
 	streamName2 := "accounts"
 	streamName3 := "option-chain-ticks"
