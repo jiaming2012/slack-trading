@@ -240,14 +240,15 @@ func main() {
 	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
 	defer ticker.Stop()
 
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	for {
 		select {
 		case <-ticker.C:
-			loc, err := time.LoadLocation("America/New_York")
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
 			now := time.Now()
 			nowEST := now.In(loc)
 			nowUTC := now.UTC()
