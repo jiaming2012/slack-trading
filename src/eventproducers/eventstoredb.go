@@ -13,15 +13,17 @@ import (
 
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
+	"slack-trading/src/eventservices"
 )
 
 var saga map[eventmodels.EventName]pubsub.SagaFlow
 
 type eventStoreDBClient struct {
-	wg              *sync.WaitGroup
-	db              *esdb.Client
-	streamParams    []eventmodels.StreamParameter
-	lastEventNumber uint64
+	wg                     *sync.WaitGroup
+	db                     *esdb.Client
+	readStreamParams       []eventmodels.StreamParameter
+	lastEventNumber        uint64
+	allEventsAtStartupRead chan bool
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
@@ -65,8 +67,12 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex *sync.Mutex) {
+func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
 	cli.init()
+
+	if lastEventNumberAtStartup == 0 {
+		cli.allEventsAtStartupRead <- true
+	}
 
 	for {
 		payload := stream.Recv()
@@ -86,6 +92,11 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 
 		cli.lastEventNumber = payload.EventAppeared.OriginalEvent().EventNumber
 
+		if lastEventNumberAtStartup > 0 && cli.lastEventNumber == lastEventNumberAtStartup {
+			cli.allEventsAtStartupRead <- true
+		}
+
+		// todo: add to interface method
 		eventName := eventmodels.EventName(ev.EventType)
 
 		model, found := saga[eventName]
@@ -157,6 +168,9 @@ func (cli *eventStoreDBClient) init() {
 		eventmodels.CreateNewStockTickEvent: {
 			Generate: func() pubsub.RequestEvent { return &eventmodels.StockTick{} },
 		},
+		eventmodels.CreateOptionContractEvent: {
+			Generate: func() pubsub.RequestEvent { return &eventmodels.OptionContract{} },
+		},
 	}
 }
 
@@ -181,24 +195,30 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionAlertRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.DeleteOptionAlertRequestEventName, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionContractEvent, cli.storeRequestEventHandler)
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
-	for _, param := range cli.streamParams {
+	for _, param := range cli.readStreamParams {
 		name := string(param.StreamName)
 		mutex := param.Mutex
+
+		lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, name)
+		if err != nil {
+			log.Panicf("eventStoreDBClient: failed to find last event number: %v", err)
+		}
 
 		subscription, err := cli.db.SubscribeToStream(context.Background(), name, esdb.SubscribeToStreamOptions{
 			From: esdb.Start{},
 		})
 
 		if err != nil {
-			log.Panicf("failed to subscribe to stream: %v", err)
+			log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 		}
 
 		go func() {
 			for {
 				if err == nil {
-					cli.readStream(subscription, mutex)
+					cli.readStream(subscription, mutex, lastEventNumber)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)
@@ -224,9 +244,14 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	}()
 }
 
-func NewEventStoreDBClient(wg *sync.WaitGroup, streamParams []eventmodels.StreamParameter) *eventStoreDBClient {
+func (cli *eventStoreDBClient) AllEventsAtStartUpRead() <-chan bool {
+	return cli.allEventsAtStartupRead
+}
+
+func NewEventStoreDBClient(wg *sync.WaitGroup, readStreamParams []eventmodels.StreamParameter) *eventStoreDBClient {
 	return &eventStoreDBClient{
-		wg:           wg,
-		streamParams: streamParams,
+		wg:                     wg,
+		readStreamParams:       readStreamParams,
+		allEventsAtStartupRead: make(chan bool),
 	}
 }

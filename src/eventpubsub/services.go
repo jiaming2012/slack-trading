@@ -34,6 +34,10 @@ func PublishEvent(publisherName string, topic eventmodels.EventName, event inter
 	publish(publisherName, topic, event)
 }
 
+func PublishAndSaveEvent(publisherName string, topic eventmodels.EventName, event eventmodels.SavedEvent) {
+	PublishEvent(publisherName, topic, event)
+}
+
 func PublishRequestError(publisherName string, err error, meta *eventmodels.MetaData) {
 	log.Error(err)
 
@@ -79,4 +83,14 @@ func Subscribe(subscriberName string, topic eventmodels.EventName, callbackFn in
 	}
 
 	log.Infof("[%v] Subscribed to topic %s", subscriberName, topic)
+}
+
+func Unsubscribe(subscriberName string, topic eventmodels.EventName, handler interface{}) error {
+	err := bus.Unsubscribe(string(topic), handler)
+
+	if err == nil {
+		log.Infof("[%v] Unsubscribed from topic %s", subscriberName, topic)
+	}
+
+	return err
 }

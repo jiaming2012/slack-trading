@@ -7,46 +7,21 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventproducers"
+	"slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
 )
 
-func listAllStreams(ctx context.Context, esdbClient *esdb.Client) []string {
-	readOptions := esdb.ReadStreamOptions{
-		Direction: esdb.Forwards,
-		From:      esdb.Start{},
-	}
-	stream, err := esdbClient.ReadStream(ctx, "$streams", readOptions, 4096)
-	if err != nil {
-		log.Fatalf("Failed to read from $streams: %v", err)
-	}
-	defer stream.Close()
-
-	streams := make([]string, 0)
-	for {
-		event, err := stream.Recv()
-		if err != nil {
-			break
-		}
-		streamName := string(event.Event.Data)[2:]
-		if strings.HasPrefix(streamName, "$$") {
-			continue
-		}
-
-		streams = append(streams, streamName)
-	}
-
-	return streams
-}
-
 func getStreamSize(ctx context.Context, esdbClient *esdb.Client) {
-	streamNames := listAllStreams(ctx, esdbClient)
+	streamNames := eventservices.ListAllStreams(ctx, esdbClient)
 
 	for _, streamName := range streamNames {
 		size, err := calculateStreamSize(ctx, esdbClient, streamName)
@@ -99,24 +74,6 @@ func fetchTradierOptionsByExpiration(url, bearerToken string, symbol string) (*e
 
 	return &dto, nil
 }
-
-// Helper function to find the next day above
-// func findNextDayAbove(days int, expirations []eventmodels.OptionContractDTO) *Expiration {
-// 	var nextDay *Expiration
-// 	minDiff := int(^uint(0) >> 1) // Max int
-
-// 	for _, exp := range expirations {
-// 		expDate, _ := time.Parse("2006-01-02", exp.Date)
-// 		daysUntilExpiration := int(expDate.Sub(time.Now()).Hours() / 24)
-
-// 		if daysUntilExpiration > days && daysUntilExpiration-days < minDiff {
-// 			minDiff = daysUntilExpiration - days
-// 			nextDay = &exp
-// 		}
-// 	}
-
-// 	return nextDay
-// }
 
 func findOptionContractsGroupedByExpiration(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContract) (time.Time, []eventmodels.OptionContract, error) {
 	var closestContractExpDate time.Time = time.Time{}
@@ -307,7 +264,7 @@ func fetchOptionChains(url, bearerToken, symbol string, expirations []time.Time)
 	return optionChainMapCh, nil
 }
 
-func addAdditionInfoToOptions(options []eventmodels.OptionContract, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
+func addAdditionInfoToOptions(requestID uuid.UUID, options []eventmodels.OptionContract, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
@@ -318,6 +275,7 @@ func addAdditionInfoToOptions(options []eventmodels.OptionContract, optionChainM
 
 		for _, tick := range chain {
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
+				options[i].SetMetaData(&eventmodels.MetaData{RequestID: requestID})
 				options[i].Symbol = tick.Symbol
 				options[i].Description = tick.Description
 				options[i].ExpirationType = tick.ExpirationType
@@ -334,20 +292,20 @@ func addAdditionInfoToOptions(options []eventmodels.OptionContract, optionChainM
 	return nil
 }
 
-func fetchOptionChainWithParams(optionsByExpirationURL, optionChainURL, stockURL, bearerToken, symbol string, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContract, error) {
+func fetchOptionChainWithParams(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken, symbol string, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContract, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch Tradier options: %v", err)
+		return nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
 	}
 
 	options, err := optionsDTO.ConvertToOptionContracts(optionTypes)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to convert Tradier options to contracts: %v", err)
+		return nil, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
 	}
 
 	stockTickDTO, err := eventservices.FetchStockTicks("coin", stockURL, bearerToken)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch stock tick: %v", err)
+		return nil, fmt.Errorf("failed to fetch stock tick: %v", err)
 	}
 
 	stockPrice := (stockTickDTO.Bid + stockTickDTO.Ask) / 2
@@ -356,22 +314,29 @@ func fetchOptionChainWithParams(optionsByExpirationURL, optionChainURL, stockURL
 
 	optionChainMap, err := fetchOptionChains(optionChainURL, bearerToken, symbol, expirationDates)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch option chains: %v", err)
+		return nil, fmt.Errorf("failed to fetch option chains: %v", err)
 	}
 
-	if err := addAdditionInfoToOptions(filteredOptions, optionChainMap); err != nil {
-		return nil, fmt.Errorf("Failed to add symbol name to options: %v", err)
+	if err := addAdditionInfoToOptions(requestID, filteredOptions, optionChainMap); err != nil {
+		return nil, fmt.Errorf("failed to add symbol name to options: %v", err)
 	}
 
 	return filteredOptions, nil
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
+
 	// Set the connection details
 	config, err := esdb.ParseConnectionString("esdb://localhost:2113?tls=false")
 	if err != nil {
 		log.Fatalf("Error parsing connection string: %v", err)
 	}
+
+	// Set up
+	eventmodels.InitializeGlobalDispatcher()
+	eventpubsub.Init()
 
 	// Get config
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
@@ -379,65 +344,111 @@ func main() {
 	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"
 	tradierOptionsExpirationURL := "https://sandbox.tradier.com/v1/markets/options/expirations"
 
+	// Eventstore setup
+	optionsContractStreamMutex := &sync.Mutex{}
+	streamParams := []eventmodels.StreamParameter{
+		{StreamName: eventmodels.OptionContractStream, Mutex: optionsContractStreamMutex},
+	}
+
+	esdbClient := eventproducers.NewEventStoreDBClient(&wg, streamParams)
+	esdbClient.Start(ctx, os.Getenv("EVENTSTOREDB_URL"))
+
 	// Create a new client
-	esdbClient, err := esdb.NewClient(config)
+	esdbConn, err := esdb.NewClient(config)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
-	defer esdbClient.Close()
+	defer esdbConn.Close()
 
 	fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch Tradier options\n")
-	var command int
-	fmt.Scanln(&command)
+	var command int = 3
+	// fmt.Scanln(&command)
 	fmt.Printf("***********************\n")
-
-	ctx := context.Background()
 
 	switch command {
 	case 1:
-		streams := listAllStreams(ctx, esdbClient)
+		streams := eventservices.ListAllStreams(ctx, esdbConn)
 		for _, stream := range streams {
 			fmt.Println(stream)
 		}
 	case 2:
-		getStreamSize(ctx, esdbClient)
+		getStreamSize(ctx, esdbConn)
 	case 3:
+		handleExisingOptionContracts := func(event eventmodels.SavedEvent) {
+			optionsContractStreamMutex.Unlock()
+		}
+
+		eventpubsub.Subscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts)
+
+		requestID := uuid.New()
 		symbol := "coin"
 		expirationInDays := []int{7, 14, 21}
 		minDistanceBetweenStrikes := 10.0
 		maxNoOfStrikes := 5
 		optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
 
-		options, err := fetchOptionChainWithParams(tradierOptionsExpirationURL, optionChainURL, stockURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
+		mu := sync.Mutex{}
+		savedEventsCount, err := eventservices.FindStreamLastEventNumber(esdbConn, string(eventmodels.OptionContractStream))
+		if err != nil {
+			log.Fatalf("Failed to find last event number: %v", err)
+		}
+
+		handleSavedOptionContractEvent := func(event eventmodels.SavedEvent) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			savedEventsCount--
+
+			if savedEventsCount == 0 {
+				cancel()
+				return
+			}
+
+			optionsContractStreamMutex.Unlock()
+		}
+
+		options, err := fetchOptionChainWithParams(requestID, tradierOptionsExpirationURL, optionChainURL, stockURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
 		if err != nil {
 			log.Fatalf("Failed to fetch option chain: %v", err)
 		}
 
+		existingContracts, err := eventservices.FetchAllOptionContracts(ctx, esdbConn)
+		if err != nil {
+			log.Fatalf("Failed to fetch existing contracts: %v", err)
+		}
+
+		// make sure all events are read before proceeding to save new events
+		<-esdbClient.AllEventsAtStartUpRead()
+
+		// unsubscribe to old handler
+		if err = eventpubsub.Unsubscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts); err != nil {
+			log.Fatalf("Failed to unsubscribe: %v", err)
+		}
+
+		// subscribe to new handler
+		eventpubsub.Subscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleSavedOptionContractEvent)
+
 		for _, option := range options {
+			if _, found := existingContracts[option.Symbol]; found {
+				log.Debugf("skip save: option contract %v already exists", option.ID)
+				continue
+			}
+
+			mu.Lock()
+			optionCopy := option
+			eventpubsub.PublishAndSaveEvent("main", eventmodels.CreateOptionContractEvent, &optionCopy)
+			savedEventsCount++
+			mu.Unlock()
+
 			fmt.Printf("Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
 		}
 
+		fmt.Println("Done")
 	default:
 		log.Fatalf("Invalid command: %d", command)
 	}
-}
 
-func findStreamLastEventNumber(db *esdb.Client, streamName string) uint64 {
-	stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{
-		Direction: esdb.Backwards,
-		From:      esdb.End{},
-	}, 1)
-
-	if err != nil {
-		panic(err)
-	}
-
-	event, err := stream.Recv()
-	if err != nil {
-		panic(err)
-	}
-
-	return event.Event.EventNumber
+	wg.Wait()
 }
 
 func calculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName string) (int64, error) {
@@ -449,7 +460,16 @@ func calculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 
 	count := 0
 	fetchSize := 4096
-	terminalEventNumber := int(findStreamLastEventNumber(esdbClient, streamName))
+	lastEventNo, err := eventservices.FindStreamLastEventNumber(esdbClient, streamName)
+	if err != nil {
+		return 0, fmt.Errorf("failed to find last event number: %v", err)
+	}
+
+	if lastEventNo == 0 {
+		return 0, nil
+	}
+
+	terminalEventNumber := int(lastEventNo)
 
 	for count < terminalEventNumber {
 		stream, err := esdbClient.ReadStream(ctx, streamName, readOptions, uint64(fetchSize))
