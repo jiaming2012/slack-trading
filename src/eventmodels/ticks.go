@@ -42,9 +42,14 @@ type OptionChainTickDTO struct {
 	BidSize          int     `json:"bidsize"`
 	AskSize          int     `json:"asksize"`
 	OpenInterest     int     `json:"open_interest"`
+	Strike           float64 `json:"strike"`
+	ContractSize     int     `json:"contract_size"`
+	OptionType       string  `json:"option_type"`
+	ExpirationType   string  `json:"expiration_type"`
 }
 
 func (d *OptionChainTickDTO) ToModel(id OptionContractID, uuid uuid.UUID, now time.Time) *OptionChainTick {
+	// todo: add error handling
 	return &OptionChainTick{
 		BaseRequestEvent: BaseRequestEvent{
 			Meta: MetaData{
@@ -69,6 +74,10 @@ func (d *OptionChainTickDTO) ToModel(id OptionContractID, uuid uuid.UUID, now ti
 		BidSize:          d.BidSize,
 		AskSize:          d.AskSize,
 		OpenInterest:     d.OpenInterest,
+		Strike:           d.Strike,
+		ContractSize:     d.ContractSize,
+		OptionType:       OptionType(d.OptionType),
+		ExpirationType:   d.ExpirationType,
 	}
 }
 
@@ -92,6 +101,10 @@ type OptionChainTick struct {
 	BidSize          int              `json:"bidsize"`
 	AskSize          int              `json:"asksize"`
 	OpenInterest     int              `json:"open_interest"`
+	Strike           float64          `json:"strike"`
+	ContractSize     int              `json:"contract_size"`
+	OptionType       OptionType       `json:"option_type"`
+	ExpirationType   string           `json:"expiration_type"`
 }
 
 func (t *OptionChainTick) GetSavedEventParameters() SavedEventParameters {
@@ -99,15 +112,6 @@ func (t *OptionChainTick) GetSavedEventParameters() SavedEventParameters {
 		EventName:  CreateNewOptionChainTickEvent,
 		StreamName: OptionChainTickStream,
 	}
-}
-
-type OptionContract struct {
-	ID           OptionContractID `json:"id"`
-	Symbol       string           `json:"symbol"`
-	Description  string           `json:"description"`
-	Strike       float64          `json:"strike"`
-	OptionType   OptionType       `json:"option_type"`
-	ContractSize int              `json:"contract_size"`
 }
 
 type OptionChain struct {

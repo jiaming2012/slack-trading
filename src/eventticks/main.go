@@ -16,6 +16,7 @@ import (
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventpubsub"
+	"slack-trading/src/eventservices"
 )
 
 func createCoinOptionContractsLookup(contracts []eventmodels.OptionContract) map[string]eventmodels.OptionContractID {
@@ -24,79 +25,6 @@ func createCoinOptionContractsLookup(contracts []eventmodels.OptionContract) map
 		lookup[contract.Symbol] = contract.ID
 	}
 	return lookup
-}
-
-func fetchOptionContractTicks(url, bearerToken string, symbol string, expiration string) ([]*eventmodels.OptionChainTickDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetchOptionContractTicks: failed to create request: %w", err)
-	}
-
-	q := req.URL.Query()
-	q.Add("symbol", symbol)
-	q.Add("expiration", expiration)
-
-	req.URL.RawQuery = q.Encode()
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetchOptionContractTicks: failed to fetch option chain: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetchOptionContractTicks: failed to fetch option chain, http code %v", res.Status)
-	}
-
-	var dto eventmodels.OptionContractChainDTO
-	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
-		return nil, fmt.Errorf("fetchOptionContractTicks: failed to decode json: %w", err)
-	}
-
-	return dto.Options.Values, nil
-}
-
-func fetchStockTicks(symbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetchStockTicks: failed to create request: %w", err)
-	}
-
-	q := req.URL.Query()
-	q.Add("symbols", symbol)
-
-	req.URL.RawQuery = q.Encode()
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetchStockTicks: failed to fetch stock tick: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetchStockTicks: failed to fetch stock tick, http code %v", res.Status)
-	}
-
-	var dto eventmodels.StockTickDTO
-	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
-		return nil, fmt.Errorf("fetchOptionContractTicks: failed to decode json: %w", err)
-	}
-
-	return &dto.Quotes.Tick, nil
 }
 
 var cachedPayload *MarketCalendar
@@ -271,7 +199,7 @@ func main() {
 			var ticks []*eventmodels.OptionChainTick
 
 			// record stock ticks
-			stockTickDTO, err := fetchStockTicks("coin", stockURL, brokerBearerToken)
+			stockTickDTO, err := eventservices.FetchStockTicks("coin", stockURL, brokerBearerToken)
 			if err == nil {
 				stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
 				eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)
@@ -281,7 +209,7 @@ func main() {
 
 			// record option contract ticks
 			for _, expiration := range []string{"2024-04-12", "2024-04-19", "2024-05-17"} {
-				ticksDTO, err := fetchOptionContractTicks(optionChainURL, brokerBearerToken, "coin", expiration)
+				ticksDTO, err := eventservices.FetchOptionContractTicks(optionChainURL, brokerBearerToken, "coin", expiration)
 				if err != nil {
 					log.Errorf("Failed to fetch option contract ticks: %v", err)
 					continue

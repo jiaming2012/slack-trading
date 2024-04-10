@@ -27,6 +27,8 @@ type StockTickItemDTO struct {
 	ChangePercentage float64 `json:"change_percentage"`
 	AskSize          int     `json:"asksize"`
 	BidSize          int     `json:"bidsize"`
+	Ask              float64 `json:"ask"`
+	Bid              float64 `json:"bid"`
 }
 
 type StockTick struct {
@@ -44,6 +46,8 @@ type StockTick struct {
 	ChangePercentage float64   `json:"change_percentage"`
 	AskSize          int       `json:"asksize"`
 	BidSize          int       `json:"bidsize"`
+	Ask              float64   `json:"ask"`
+	Bid              float64   `json:"bid"`
 }
 
 type StockTicks []StockTick
@@ -89,5 +93,7 @@ func (d *StockTickItemDTO) ToModel(uuid uuid.UUID, now time.Time) *StockTick {
 		ChangePercentage: d.ChangePercentage,
 		AskSize:          d.AskSize,
 		BidSize:          d.BidSize,
+		Ask:              d.Ask,
+		Bid:              d.Bid,
 	}
 }
