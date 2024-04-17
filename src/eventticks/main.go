@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
+	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventpubsub"
@@ -163,7 +164,11 @@ func main() {
 		{StreamName: eventmodels.StockTickStream, Mutex: &sync.Mutex{}},
 	}
 
+	accountID := "VA32432746"
+	tradierOrdersURL := fmt.Sprintf("https://sandbox.tradier.com/v1/accounts/%s/orders", accountID)
+
 	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, os.Getenv("EVENTSTOREDB_URL"))
+	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
 
 	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
 	defer ticker.Stop()

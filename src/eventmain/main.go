@@ -389,9 +389,10 @@ func run() {
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, eventStoreDbURL)
 
-	brokerURL := "https://sandbox.tradier.com/v1/markets/quotes"
+	tradierQuotesURL := "https://sandbox.tradier.com/v1/markets/quotes"
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	eventconsumers.NewOptionAlertWorker(&wg, brokerURL, brokerBearerToken).Start(ctx)
+
+	eventconsumers.NewOptionAlertWorker(&wg, tradierQuotesURL, brokerBearerToken).Start(ctx)
 
 	log.Info("Main: init complete")
 

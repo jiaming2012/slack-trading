@@ -82,7 +82,7 @@ func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, e
 
 	req, err := http.NewRequest(http.MethodGet, w.brokerURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("OptionAlertWorker:fetchOptionQuotes(): failed to create request: %w", err)
+		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to create request: %w", err)
 	}
 
 	q := req.URL.Query()
@@ -95,18 +95,18 @@ func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, e
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("OptionAlertWorker:fetchOptionQuotes(): failed to fetch option prices: %w", err)
+		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to fetch option prices: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OptionAlertWorker:fetchOptionQuotes(): failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to fetch option prices: %s", res.Status)
 	}
 
 	var optionQuotesDTO eventmodels.OptionQuotesDTO
 	if err := json.NewDecoder(res.Body).Decode(&optionQuotesDTO); err != nil {
-		return nil, fmt.Errorf("OptionAlertWorker:fetchOptionQuotes(): failed to decode json: %w", err)
+		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to decode json: %w", err)
 	}
 
 	return &optionQuotesDTO, nil
@@ -231,10 +231,10 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewOptionAlertWorker(wg *sync.WaitGroup, brokerURL string, brokerBearerToken string) *OptionAlertWorker {
+func NewOptionAlertWorker(wg *sync.WaitGroup, dataURL string, brokerBearerToken string) *OptionAlertWorker {
 	return &OptionAlertWorker{
 		wg:                wg,
-		brokerURL:         brokerURL,
+		brokerURL:         dataURL,
 		brokerBearerToken: brokerBearerToken,
 		optionAlerts:      []*eventmodels.OptionAlert{},
 	}
