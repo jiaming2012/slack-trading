@@ -13,7 +13,8 @@ import (
 )
 
 type TradeExecutor struct {
-	wg *sync.WaitGroup
+	wg         *sync.WaitGroup
+	webHookURL string
 }
 
 func (r *TradeExecutor) executeTrade(request eventmodels.TradeRequestEvent) {
@@ -48,7 +49,7 @@ func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent
 		RequestedPrice: request.Trade.RequestedPrice,
 		ExecutedPrice:  btcPrice,
 		Volume:         request.Trade.RequestedVolume,
-		ResponseURL:    WebhookURL,
+		ResponseURL:    r.webHookURL,
 	}, &request.Meta)
 }
 
@@ -70,8 +71,9 @@ func (r *TradeExecutor) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradeExecutorClient(wg *sync.WaitGroup) *TradeExecutor {
+func NewTradeExecutorClient(wg *sync.WaitGroup, webHookURL string) *TradeExecutor {
 	return &TradeExecutor{
-		wg: wg,
+		wg:         wg,
+		webHookURL: webHookURL,
 	}
 }

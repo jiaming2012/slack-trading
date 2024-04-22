@@ -299,6 +299,7 @@ func run() {
 	// Constants
 	iBServerURL := "wss://localhost:5000/v1/api/ws"
 	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 
 	// Set up logger
 	log.SetLevel(log.DebugLevel)
@@ -380,7 +381,7 @@ func run() {
 	eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
 	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
 	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
-	eventconsumers.NewSlackNotifierClient(&wg).Start(ctx)
+	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	//eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
 	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)

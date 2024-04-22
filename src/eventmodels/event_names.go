@@ -46,6 +46,9 @@ const (
 	CreateNewOptionChainTickEvent         EventName = "CreateNewOptionChainTickEvent"
 	CreateNewStockTickEvent               EventName = "CreateNewStockTickEvent"
 	CreateOptionContractEvent             EventName = "CreateOptionContractEvent"
+	TradierOrderUpdateEventName           EventName = "TradierOrderUpdateEvent"
+	TradierOrderCreateEventName           EventName = "TradierOrderCreateEvent"
+	TradierOrderDeleteEventName           EventName = "TradierOrderDeleteEvent"
 	TerminalErrorName                     EventName = "TerminalError"
 	Error                                 EventName = "DefaultError"
 )

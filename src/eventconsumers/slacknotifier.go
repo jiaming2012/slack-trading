@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -19,13 +18,9 @@ import (
 	pubsub "slack-trading/src/eventpubsub"
 )
 
-// todo: add config
-var (
-	WebhookURL = os.Getenv("WEBHOOK_URL")
-)
-
 type SlackNotifierClient struct {
-	wg *sync.WaitGroup
+	wg         *sync.WaitGroup
+	webHookURL string
 }
 
 // tradeFulfilledHandler: todo: remove - deprecated
@@ -45,7 +40,7 @@ func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.Ex
 
 	msg := fmt.Sprintf("close trade: %v", ev.Trade)
 
-	_, err := sendResponse(msg, WebhookURL, false)
+	_, err := sendResponse(msg, c.webHookURL, false)
 	if err != nil {
 		log.Error(err)
 	}
@@ -56,7 +51,7 @@ func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.Exec
 
 	msg := fmt.Sprintf("open trade: %v", ev.Trade)
 
-	_, err := sendResponse(msg, WebhookURL, false)
+	_, err := sendResponse(msg, c.webHookURL, false)
 	if err != nil {
 		log.Error(err)
 	}
@@ -65,15 +60,45 @@ func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.Exec
 func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *eventmodels.OptionAlertUpdateEvent) {
 	log.Debugf("SlackNotifierClient.optionAlertUpdateEventHandler <- %v", ev)
 
-	if _, err := sendResponse(ev.AlertMessage, WebhookURL, false); err != nil {
+	if _, err := sendResponse(ev.AlertMessage, c.webHookURL, false); err != nil {
 		log.Errorf("SlackNotifierClient.optionAlertUpdateEventHandler: %v", err)
+	}
+}
+
+func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *eventmodels.TradierOrderDeleteEvent) {
+	log.Debugf("SlackNotifierClient.tradierOrderDeleteEventHandler <- %v", ev)
+
+	msg := fmt.Sprintf("Order deleted -> ID: (%v)", ev.OrderID)
+
+	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
+		log.Errorf("SlackNotifierClient.tradierOrderDeleteEventHandler: %v", err)
+	}
+}
+
+func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *eventmodels.TradierOrderUpdateEvent) {
+	log.Debugf("SlackNotifierClient.tradierOrderUpdateEventHandler <- %v", ev)
+
+	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.OrderID, ev.Field, ev.Old, ev.New)
+
+	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
+		log.Errorf("SlackNotifierClient.tradierOrderUpdateEventHandler: %v", err)
+	}
+}
+
+func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *eventmodels.TradierOrderCreateEvent) {
+	log.Debugf("SlackNotifierClient.optionOrderCreateEventHandler <- %v", ev)
+
+	msg := fmt.Sprintf("Order created -> %v", ev.Order)
+
+	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
+		log.Errorf("SlackNotifierClient.optionOrderCreateEventHandler: %v", err)
 	}
 }
 
 func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) {
 	log.Debugf("SlackNotifierClient.sendBalance <- %v", balance)
 
-	_, sendErr := sendResponse(balance.String(), WebhookURL, false)
+	_, sendErr := sendResponse(balance.String(), c.webHookURL, false)
 	if sendErr != nil {
 		log.Errorf("SlackNotifierClient.sendBalance: %v", sendErr)
 	}
@@ -82,7 +107,7 @@ func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) 
 func (c *SlackNotifierClient) sendError(err error) {
 	log.Debugf("SlackNotifierClient.sendError <- %v", err)
 
-	_, sendErr := sendResponse(err.Error(), WebhookURL, false)
+	_, sendErr := sendResponse(err.Error(), c.webHookURL, false)
 	if sendErr != nil {
 		log.Errorf("SlackNotifierClient.sendError: %v", sendErr)
 	}
@@ -95,7 +120,7 @@ func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) 
 		return
 	}
 
-	_, sendErr := sendResponse(err.Error.Error(), WebhookURL, false)
+	_, sendErr := sendResponse(err.Error.Error(), c.webHookURL, false)
 	if sendErr != nil {
 		log.Errorf("SlackNotifierClient.sendError: %v", sendErr)
 	}
@@ -125,7 +150,7 @@ func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAcco
 		msg = str.String()
 	}
 
-	_, sendErr := sendResponse(msg, WebhookURL, false)
+	_, sendErr := sendResponse(msg, c.webHookURL, false)
 	if sendErr != nil {
 		log.Error(sendErr)
 	}
@@ -142,7 +167,7 @@ func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccoun
 
 	msg := fmt.Sprintf("Successfully added account:\n%v", ev.Account.String())
 
-	_, sendErr := sendResponse(msg, WebhookURL, false)
+	_, sendErr := sendResponse(msg, c.webHookURL, false)
 	if sendErr != nil {
 		log.Error(sendErr)
 	}
@@ -159,6 +184,9 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.Error, c.sendError)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderUpdateEventName, c.tradierOrderUpdateEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderDeleteEventName, c.tradierOrderDeleteEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderCreateEventName, c.tradierOrderCreateEventHandler)
 	pubsub.Subscribe("SlackNotifierClient", eventmodels.TerminalErrorName, c.sendTerminalError)
 
 	go func() {
@@ -173,9 +201,10 @@ func (c *SlackNotifierClient) Start(ctx context.Context) {
 	}()
 }
 
-func NewSlackNotifierClient(wg *sync.WaitGroup) *SlackNotifierClient {
+func NewSlackNotifierClient(wg *sync.WaitGroup, webHookURL string) *SlackNotifierClient {
 	return &SlackNotifierClient{
-		wg: wg,
+		wg:         wg,
+		webHookURL: webHookURL,
 	}
 }
 

@@ -154,6 +154,7 @@ func main() {
 	calendarURL := "https://sandbox.tradier.com/v1/markets/calendar"
 	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
+	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 
 	iDMap := createCoinOptionContractsLookup(eventmodels.CoinOptionContracts)
 
@@ -168,6 +169,7 @@ func main() {
 	tradierOrdersURL := fmt.Sprintf("https://sandbox.tradier.com/v1/accounts/%s/orders", accountID)
 
 	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, os.Getenv("EVENTSTOREDB_URL"))
+	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
 
 	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
