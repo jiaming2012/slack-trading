@@ -150,11 +150,14 @@ func main() {
 
 	log.Infof("Log level set to %v", log.GetLevel())
 
-	stockURL := "https://sandbox.tradier.com/v1/markets/quotes"
-	calendarURL := "https://sandbox.tradier.com/v1/markets/calendar"
-	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"
+	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
+	calendarURL := os.Getenv("MARKET_CALENDAR_URL")
+	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
+	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
+	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
+	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
 
 	iDMap := createCoinOptionContractsLookup(eventmodels.CoinOptionContracts)
 
@@ -165,10 +168,7 @@ func main() {
 		{StreamName: eventmodels.StockTickStream, Mutex: &sync.Mutex{}},
 	}
 
-	accountID := "VA32432746"
-	tradierOrdersURL := fmt.Sprintf("https://sandbox.tradier.com/v1/accounts/%s/orders", accountID)
-
-	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, os.Getenv("EVENTSTOREDB_URL"))
+	eventproducers.NewEventStoreDBClient(&wg, streamParams).Start(ctx, eventStoreDBURL)
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
 
@@ -206,7 +206,7 @@ func main() {
 			var ticks []*eventmodels.OptionChainTick
 
 			// record stock ticks
-			stockTickDTO, err := eventservices.FetchStockTicks("coin", stockURL, brokerBearerToken)
+			stockTickDTO, err := eventservices.FetchStockTicks("coin", stockQuotesURL, brokerBearerToken)
 			if err == nil {
 				stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
 				eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)

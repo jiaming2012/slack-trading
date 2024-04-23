@@ -8,6 +8,9 @@ A mock trading platform.
 docker pull eventstore/eventstore:release-5.0.11
 ```
 
+## Database
+See README.md in infra project. Currently running on local Ubuntu box.
+
 # Start Up
 3. Make sure eventstoredb is running
 ``` bash
