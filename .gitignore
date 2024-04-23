@@ -3,6 +3,6 @@ credentials.json
 src/env.txt
 .idea/
 .run/
-run.sh
+run*.sh
 .vscode/
 **__debug**
