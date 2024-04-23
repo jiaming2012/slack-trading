@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
-	// eventStoreDbURL := "esdb://us.loclx.io:21133?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 
 	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
 

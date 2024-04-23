@@ -103,6 +103,7 @@ func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []string {
 		From:      esdb.Start{},
 	}
 	stream, err := esdbClient.ReadStream(ctx, "$streams", readOptions, 4096)
+
 	if err != nil {
 		log.Fatalf("Failed to read from $streams: %v", err)
 	}

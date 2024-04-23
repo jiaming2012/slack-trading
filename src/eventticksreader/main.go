@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
@@ -100,7 +101,7 @@ func loadStockTicks(db *esdb.Client, streamName eventmodels.StreamName, output *
 		}, 100)
 
 		if err != nil {
-			panic(err)
+			log.Fatalf("Failed to read stream: %v", err)
 		}
 
 		for {
@@ -110,12 +111,12 @@ func loadStockTicks(db *esdb.Client, streamName eventmodels.StreamName, output *
 					break
 				}
 
-				panic(err)
+				log.Fatalf("Failed to receive event: %v", err)
 			}
 
 			var stockTick eventmodels.StockTick
 			if err := json.Unmarshal(event.Event.Data, &stockTick); err != nil {
-				panic(err)
+				log.Fatalf("Failed to unmarshal event data: %v", err)
 			}
 
 			*output = append(*output, stockTick)
@@ -197,6 +198,19 @@ func main() {
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
 
+	// Create EventStore client
+	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
+
+	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
+	if err != nil {
+		log.Fatalf("Failed to parse connection string: %v", err)
+	}
+
+	db, err := esdb.NewClient(settings)
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
 	// Create Google Sheets API client
 	srv, drive, err := sheets.Init(ctx)
 	if err != nil {
@@ -212,19 +226,6 @@ func main() {
 
 	if err := sheets.MoveSpreadsheet(ctx, spreadsheet, drive, tickDataFolderID); err != nil {
 		log.Fatalf("Failed to move spreadsheet: %v", err)
-	}
-
-	// eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
-	eventStoreDbURL := "esdb+discover://localhost:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
-
-	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
-	if err != nil {
-		panic(err)
-	}
-
-	db, err := esdb.NewClient(settings)
-	if err != nil {
-		panic(err)
 	}
 
 	stockTicks := []eventmodels.StockTick{}

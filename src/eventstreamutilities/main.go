@@ -329,7 +329,15 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	// Set the connection details
-	config, err := esdb.ParseConnectionString("esdb://localhost:2113?tls=false")
+	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
+	if eventStoreDBURL == "" {
+		log.Fatalf("EVENTSTOREDB_URL is required")
+	} else {
+		log.Infof("EventStoreDB URL: %s", eventStoreDBURL)
+
+	}
+
+	config, err := esdb.ParseConnectionString(eventStoreDBURL)
 	if err != nil {
 		log.Fatalf("Error parsing connection string: %v", err)
 	}
@@ -351,7 +359,7 @@ func main() {
 	}
 
 	esdbClient := eventproducers.NewEventStoreDBClient(&wg, streamParams)
-	esdbClient.Start(ctx, os.Getenv("EVENTSTOREDB_URL"))
+	esdbClient.Start(ctx, eventStoreDBURL)
 
 	// Create a new client
 	esdbConn, err := esdb.NewClient(config)
@@ -361,8 +369,8 @@ func main() {
 	defer esdbConn.Close()
 
 	fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch Tradier options\n")
-	var command int = 3
-	// fmt.Scanln(&command)
+	var command int
+	fmt.Scanln(&command)
 	fmt.Printf("***********************\n")
 
 	switch command {
@@ -371,8 +379,11 @@ func main() {
 		for _, stream := range streams {
 			fmt.Println(stream)
 		}
+
+		wg.Done()
 	case 2:
 		getStreamSize(ctx, esdbConn)
+		wg.Done()
 	case 3:
 		handleExisingOptionContracts := func(event eventmodels.SavedEvent) {
 			optionsContractStreamMutex.Unlock()
