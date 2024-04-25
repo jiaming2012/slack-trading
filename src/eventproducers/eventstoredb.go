@@ -23,7 +23,17 @@ type eventStoreDBClient struct {
 	db                     *esdb.Client
 	readStreamParams       []eventmodels.StreamParameter
 	lastEventNumber        uint64
-	allEventsAtStartupRead chan bool
+	allEventsAtStartupRead map[eventmodels.StreamName]chan bool
+	startRead              map[eventmodels.StreamName]chan bool
+}
+
+func (cli *eventStoreDBClient) StartRead(name eventmodels.StreamName) {
+	channel, found := cli.startRead[name]
+	if !found {
+		log.Fatalf("stream %s not found", name)
+	}
+
+	channel <- true
 }
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
@@ -67,16 +77,22 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	}
 }
 
-func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
+func (cli *eventStoreDBClient) readStream(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
 	cli.init()
 
+	fmt.Println("lastEventNumberAtStartup", lastEventNumberAtStartup)
+	allEventsAtStartUpRead := cli.allEventsAtStartupRead[streamName]
 	if lastEventNumberAtStartup == 0 {
-		cli.allEventsAtStartupRead <- true
+		allEventsAtStartUpRead <- true
 	}
+
+	log.Debugf("waiting for startRead: %s", streamName)
+	<-cli.startRead[streamName]
+	log.Debugf("startRead received: %s", streamName)
 
 	for {
 		payload := stream.Recv()
-
+		fmt.Println("revd payload")
 		if payload.SubscriptionDropped != nil {
 			// Handle the dropped subscription
 			log.Errorf("Subscription dropped: %v", payload.SubscriptionDropped.Error)
@@ -93,7 +109,7 @@ func (cli *eventStoreDBClient) readStream(stream *esdb.Subscription, streamMutex
 		cli.lastEventNumber = payload.EventAppeared.OriginalEvent().EventNumber
 
 		if lastEventNumberAtStartup > 0 && cli.lastEventNumber == lastEventNumberAtStartup {
-			cli.allEventsAtStartupRead <- true
+			allEventsAtStartUpRead <- true
 		}
 
 		// todo: add to interface method
@@ -199,7 +215,8 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
 	for _, param := range cli.readStreamParams {
-		name := string(param.StreamName)
+		streamName := param.StreamName
+		name := string(streamName)
 		mutex := param.Mutex
 
 		lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, name)
@@ -218,7 +235,7 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 		go func() {
 			for {
 				if err == nil {
-					cli.readStream(subscription, mutex, lastEventNumber)
+					cli.readStream(streamName, subscription, mutex, lastEventNumber)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)
@@ -244,14 +261,28 @@ func (cli *eventStoreDBClient) Start(ctx context.Context, url string) {
 	}()
 }
 
-func (cli *eventStoreDBClient) AllEventsAtStartUpRead() <-chan bool {
-	return cli.allEventsAtStartupRead
+func (cli *eventStoreDBClient) AllEventsAtStartUpRead(streamName eventmodels.StreamName) <-chan bool {
+	channel, found := cli.allEventsAtStartupRead[streamName]
+	if !found {
+		log.Fatalf("stream %s not found", streamName)
+	}
+
+	return channel
 }
 
 func NewEventStoreDBClient(wg *sync.WaitGroup, readStreamParams []eventmodels.StreamParameter) *eventStoreDBClient {
+	m1 := make(map[eventmodels.StreamName]chan bool)
+	m2 := make(map[eventmodels.StreamName]chan bool)
+
+	for _, param := range readStreamParams {
+		m1[param.StreamName] = make(chan bool, 1)
+		m2[param.StreamName] = make(chan bool)
+	}
+
 	return &eventStoreDBClient{
 		wg:                     wg,
 		readStreamParams:       readStreamParams,
-		allEventsAtStartupRead: make(chan bool),
+		allEventsAtStartupRead: m1,
+		startRead:              m2,
 	}
 }
