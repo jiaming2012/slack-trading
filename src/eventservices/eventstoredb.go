@@ -14,11 +14,54 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
+func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName eventmodels.StreamName) (int64, error) {
+	var size int64
+	readOptions := esdb.ReadStreamOptions{
+		Direction: esdb.Forwards,
+		From:      esdb.Start{},
+	}
+
+	count := 0
+	fetchSize := 4096
+	lastEventNo, err := FindStreamLastEventNumber(esdbClient, streamName)
+	if err != nil {
+		return 0, fmt.Errorf("failed to find last event number: %v", err)
+	}
+
+	if lastEventNo == 0 {
+		return 0, nil
+	}
+
+	terminalEventNumber := int(lastEventNo)
+
+	for count < terminalEventNumber {
+		stream, err := esdbClient.ReadStream(ctx, string(streamName), readOptions, uint64(fetchSize))
+		if err != nil {
+			return 0, err
+		}
+		defer stream.Close()
+
+		for {
+			event, err := stream.Recv()
+			if err != nil {
+				break
+			}
+			size += int64(len(event.Event.Data))
+			size += int64(len(event.Event.UserMetadata))
+			size += int64(len(event.Event.SystemMetadata))
+		}
+
+		count += fetchSize
+	}
+
+	return size, nil
+}
+
 func FetchAllOptionContracts(ctx context.Context, esdbClient *esdb.Client) (map[string]eventmodels.OptionContract, error) {
 	results := make(map[string]eventmodels.OptionContract)
 	var currentEventNumber uint64
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, string(eventmodels.OptionContractStream))
+	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, eventmodels.OptionContractStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find last event number: %w", err)
 	}
@@ -75,8 +118,8 @@ func FetchAllOptionContracts(ctx context.Context, esdbClient *esdb.Client) (map[
 	return results, nil
 }
 
-func FindStreamLastEventNumber(db *esdb.Client, streamName string) (uint64, error) {
-	stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{
+func FindStreamLastEventNumber(db *esdb.Client, streamName eventmodels.StreamName) (uint64, error) {
+	stream, err := db.ReadStream(context.Background(), string(streamName), esdb.ReadStreamOptions{
 		Direction: esdb.Backwards,
 		From:      esdb.End{},
 	}, 1)
@@ -97,7 +140,7 @@ func FindStreamLastEventNumber(db *esdb.Client, streamName string) (uint64, erro
 	return event.Event.EventNumber, nil
 }
 
-func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []string {
+func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []eventmodels.StreamName {
 	readOptions := esdb.ReadStreamOptions{
 		Direction: esdb.Forwards,
 		From:      esdb.Start{},
@@ -109,18 +152,18 @@ func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []string {
 	}
 	defer stream.Close()
 
-	streams := make([]string, 0)
+	streams := make([]eventmodels.StreamName, 0)
 	for {
 		event, err := stream.Recv()
 		if err != nil {
 			break
 		}
-		streamName := string(event.Event.Data)[2:]
-		if strings.HasPrefix(streamName, "$$") {
+		name := string(event.Event.Data)[2:]
+		if strings.HasPrefix(name, "$$") {
 			continue
 		}
 
-		streams = append(streams, streamName)
+		streams = append(streams, eventmodels.StreamName(name))
 	}
 
 	return streams

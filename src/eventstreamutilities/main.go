@@ -18,13 +18,14 @@ import (
 	"slack-trading/src/eventproducers"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
+	"slack-trading/src/utils"
 )
 
 func getStreamSize(ctx context.Context, esdbClient *esdb.Client) {
 	streamNames := eventservices.ListAllStreams(ctx, esdbClient)
 
 	for _, streamName := range streamNames {
-		size, err := calculateStreamSize(ctx, esdbClient, streamName)
+		size, err := eventservices.CalculateStreamSize(ctx, esdbClient, streamName)
 		if err != nil {
 			log.Errorf("Error calculating size for stream %s: %v", streamName, err)
 			continue
@@ -328,13 +329,23 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	// Set the connection details
+	// Set up
+	utils.InitEnvironmentVariables()
+	eventmodels.InitializeGlobalDispatcher()
+	eventpubsub.Init()
+
+	// Environment variables
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
+	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
+	stockURL := os.Getenv("STOCK_QUOTES_URL")
+	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+	tradierOptionsExpirationURL := os.Getenv("TRADIER_OPTIONS_EXPIRATION_URL")
+
+	// Log connection details
 	if eventStoreDBURL == "" {
 		log.Fatalf("EVENTSTOREDB_URL is required")
 	} else {
 		log.Infof("EventStoreDB URL: %s", eventStoreDBURL)
-
 	}
 
 	config, err := esdb.ParseConnectionString(eventStoreDBURL)
@@ -342,24 +353,14 @@ func main() {
 		log.Fatalf("Error parsing connection string: %v", err)
 	}
 
-	// Set up
-	eventmodels.InitializeGlobalDispatcher()
-	eventpubsub.Init()
-
-	// Get config
-	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	stockURL := "https://sandbox.tradier.com/v1/markets/quotes"
-	optionChainURL := "https://sandbox.tradier.com/v1/markets/options/chains"
-	tradierOptionsExpirationURL := "https://sandbox.tradier.com/v1/markets/options/expirations"
-
 	// Eventstore setup
 	optionsContractStreamMutex := &sync.Mutex{}
 	streamParams := []eventmodels.StreamParameter{
 		{StreamName: eventmodels.OptionContractStream, Mutex: optionsContractStreamMutex},
 	}
 
-	esdbClient := eventproducers.NewEventStoreDBClient(&wg, streamParams)
-	esdbClient.Start(ctx, eventStoreDBURL)
+	esdbClient := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, streamParams)
+	esdbClient.Start(ctx)
 
 	// Create a new client
 	esdbConn, err := esdb.NewClient(config)
@@ -399,7 +400,7 @@ func main() {
 		optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
 
 		mu := sync.Mutex{}
-		savedEventsCount, err := eventservices.FindStreamLastEventNumber(esdbConn, string(eventmodels.OptionContractStream))
+		savedEventsCount, err := eventservices.FindStreamLastEventNumber(esdbConn, eventmodels.OptionContractStream)
 		if err != nil {
 			log.Fatalf("Failed to find last event number: %v", err)
 		}
@@ -460,47 +461,4 @@ func main() {
 	}
 
 	wg.Wait()
-}
-
-func calculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName string) (int64, error) {
-	var size int64
-	readOptions := esdb.ReadStreamOptions{
-		Direction: esdb.Forwards,
-		From:      esdb.Start{},
-	}
-
-	count := 0
-	fetchSize := 4096
-	lastEventNo, err := eventservices.FindStreamLastEventNumber(esdbClient, streamName)
-	if err != nil {
-		return 0, fmt.Errorf("failed to find last event number: %v", err)
-	}
-
-	if lastEventNo == 0 {
-		return 0, nil
-	}
-
-	terminalEventNumber := int(lastEventNo)
-
-	for count < terminalEventNumber {
-		stream, err := esdbClient.ReadStream(ctx, streamName, readOptions, uint64(fetchSize))
-		if err != nil {
-			return 0, err
-		}
-		defer stream.Close()
-
-		for {
-			event, err := stream.Recv()
-			if err != nil {
-				break
-			}
-			size += int64(len(event.Event.Data))
-			size += int64(len(event.Event.UserMetadata))
-			size += int64(len(event.Event.SystemMetadata))
-		}
-
-		count += fetchSize
-	}
-
-	return size, nil
 }

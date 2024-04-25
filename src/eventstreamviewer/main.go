@@ -3,18 +3,44 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/EventStore/EventStore-Client-Go/esdb"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventservices"
 )
+
+func processEvent(ev *esdb.RecordedEvent) {
+	// Doing something productive with the event
+	fmt.Println(ev.EventNumber)
+	fmt.Println(ev.EventType)
+	fmt.Println(ev.EventID)
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(ev.Data, &data); err != nil {
+		panic(err)
+	}
+
+	fmt.Println(data)
+
+	if reqId, found := data["requestID"]; found {
+		id, err := uuid.Parse(reqId.(string))
+		if err == nil {
+			// Convert to decimal
+			fmt.Printf("requestID (decimal): %d\n", id)
+		} else {
+			fmt.Println("error:", err)
+			return
+		}
+	}
+
+	fmt.Println("--------------------")
+}
 
 func main() {
 	ctx := context.Background()
@@ -77,54 +103,53 @@ func main() {
 	// if err != nil {
 	// 	panic(err)
 	// }
-	subscription, err := esdbClient.SubscribeToStream(context.Background(), streamName, esdb.SubscribeToStreamOptions{
+	subscription, err := esdbClient.SubscribeToStream(ctx, streamName, esdb.SubscribeToStreamOptions{
 		From: esdb.Start{},
 	})
 
 	if err != nil {
-		panic(err)
+		log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 
-	// defer stream.Close()
+	log.Infof("subscribed to stream %s", streamName)
+
+	var lastEventNumber uint64 = 0
 
 	for {
-		// event, err := stream.Recv()
-		event := subscription.Recv()
+		for {
+			fmt.Println("A")
 
-		if errors.Is(err, io.EOF) {
-			break
-		}
+			event := subscription.Recv()
+			fmt.Println("B")
 
-		if err != nil {
-			panic(err)
-		}
+			if event.SubscriptionDropped != nil {
+				log.Infof("Subscription dropped: %v", event.SubscriptionDropped.Error)
+				break
+			}
 
-		ev := event.EventAppeared.Event
-
-		// Doing something productive with the event
-		fmt.Println(ev.EventNumber)
-		fmt.Println(ev.EventType)
-		fmt.Println(ev.EventID)
-
-		var data map[string]interface{}
-		err = json.Unmarshal(ev.Data, &data)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(data)
-
-		if reqId, found := data["requestID"]; found {
-			id, err := uuid.Parse(reqId.(string))
-			if err == nil {
-				// Convert to decimal
-				fmt.Printf("requestID (decimal): %d\n", id)
-			} else {
-				fmt.Println("error:", err)
+			if event.EventAppeared == nil {
 				continue
 			}
+
+			if event.CheckPointReached != nil {
+				fmt.Printf("checkpoint reached: %v\n", event.CheckPointReached)
+			}
+
+			ev := event.EventAppeared.Event
+
+			// lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
+			fmt.Printf("lastEventNumber: %d\n", lastEventNumber)
+			processEvent(ev)
 		}
 
-		fmt.Println("--------------------")
+		log.Infof("re-subscribing subscription @ pos %v", lastEventNumber)
+
+		subscription, err = esdbClient.SubscribeToStream(ctx, streamName, esdb.SubscribeToStreamOptions{
+			From: esdb.Revision(lastEventNumber),
+		})
+
+		if err != nil {
+			log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
+		}
 	}
 }
