@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventservices"
+	"slack-trading/src/utils"
 )
 
 func processEvent(ev *esdb.RecordedEvent) {
@@ -44,6 +45,9 @@ func processEvent(ev *esdb.RecordedEvent) {
 
 func main() {
 	ctx := context.Background()
+
+	utils.InitEnvironmentVariables()
+
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 
 	settings, err := esdb.ParseConnectionString(eventStoreDbURL)
@@ -117,10 +121,7 @@ func main() {
 
 	for {
 		for {
-			fmt.Println("A")
-
 			event := subscription.Recv()
-			fmt.Println("B")
 
 			if event.SubscriptionDropped != nil {
 				log.Infof("Subscription dropped: %v", event.SubscriptionDropped.Error)
@@ -137,7 +138,7 @@ func main() {
 
 			ev := event.EventAppeared.Event
 
-			// lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
+			lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
 			fmt.Printf("lastEventNumber: %d\n", lastEventNumber)
 			processEvent(ev)
 		}

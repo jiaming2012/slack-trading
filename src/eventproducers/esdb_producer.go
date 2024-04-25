@@ -101,9 +101,7 @@ func (cli *esdbProducer) readStream(streamName eventmodels.StreamName, stream *e
 				log.Fatalf("stream %s not found", streamName)
 			}
 
-			fmt.Printf("send channel before")
 			ch <- true
-			fmt.Printf("send channel after")
 		}
 
 		// todo: add to interface method
@@ -206,9 +204,7 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 						log.Fatalf("<-cli.startRead: stream %s not found", streamName)
 					}
 
-					fmt.Printf("receive channel before")
 					<-ch
-					fmt.Printf("receive channel after")
 					cli.readStream(streamName, subscription, mutex, lastEventNumber)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)

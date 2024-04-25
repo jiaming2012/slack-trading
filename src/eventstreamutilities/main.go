@@ -444,8 +444,6 @@ func main() {
 
 			savedEventsCount--
 
-			fmt.Printf("!! handleSavedOptionContractEvent: savedEventsCount: %d\n", savedEventsCount)
-
 			if savedEventsCount == 0 {
 				cancel()
 				return
