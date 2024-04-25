@@ -20,7 +20,7 @@ func FetchCurrentOptionContracts() []eventmodels.OptionContract {
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
 	// Set up
@@ -60,4 +60,14 @@ func main() {
 	eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL).Start(ctx, eventmodels.OptionContractStream)
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
+
+	log.Info("Main: init complete")
+
+	// Wait for event clients to shut down
+	wg.Wait()
+
+	// EntrySignal -> shut down event clients
+	cancel()
+
+	log.Info("Main: gracefully stopped!")
 }

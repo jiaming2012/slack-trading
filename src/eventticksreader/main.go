@@ -234,9 +234,15 @@ func main() {
 
 	fmt.Printf("Loaded %d stock ticks\n", len(stockTicks))
 
-	optionContract1 := eventmodels.CoinOptionContracts[11]
+	optionContract1 := eventmodels.OptionContract{}
 
-	optionContract2 := eventmodels.CoinOptionContracts[15]
+	optionContract2 := eventmodels.OptionContract{}
+
+	panic("implement fetch option contracts")
+
+	// optionContract1 := eventmodels.CoinOptionContracts[11]
+
+	// optionContract2 := eventmodels.CoinOptionContracts[15]
 
 	fmt.Printf("Loading data for option: %s\n", optionContract1.Description)
 

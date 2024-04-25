@@ -388,7 +388,7 @@ func run() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClientFromFixtures(&wg, accounts, coinbaseDatafeed, ibDatafeed, manualDatafeed).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-	eventproducers.NewESDBProducer(&wg, streamParams).Start(ctx, eventStoreDbURL)
+	eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams).Start(ctx)
 
 	tradierQuotesURL := "https://sandbox.tradier.com/v1/markets/quotes"
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")

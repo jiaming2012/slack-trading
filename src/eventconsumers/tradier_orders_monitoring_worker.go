@@ -118,42 +118,43 @@ func (w *TradierOrdersMonitoringWorker) CheckForCreateOrUpdate(ordersDTO []*even
 func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	timer := time.NewTicker(2 * time.Second)
+	timer := time.NewTicker(5 * time.Second)
 
-	for {
+	go func() {
 		defer w.wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("stopping TradierOrdersMonitoringWorker consumer")
+				return
+			case <-timer.C:
+				ordersDTO, err := w.fetchOrders()
+				if err != nil {
+					log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
+					continue
+				}
 
-		select {
-		case <-ctx.Done():
-			log.Info("stopping TradierOrdersMonitoringWorker consumer")
-			return
-		case <-timer.C:
-			ordersDTO, err := w.fetchOrders()
-			if err != nil {
-				log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
-				continue
-			}
+				// check for delete
+				orderIDs := w.CheckForDelete(ordersDTO)
+				for _, orderID := range orderIDs {
+					w.orders.Delete(orderID)
+					eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderDeleteEventName, &eventmodels.TradierOrderDeleteEvent{
+						OrderID: orderID,
+					})
+				}
 
-			// check for delete
-			orderIDs := w.CheckForDelete(ordersDTO)
-			for _, orderID := range orderIDs {
-				w.orders.Delete(orderID)
-				eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderDeleteEventName, &eventmodels.TradierOrderDeleteEvent{
-					OrderID: orderID,
-				})
-			}
+				// check for add or update
+				createOrderEvents, updateEvents := w.CheckForCreateOrUpdate(ordersDTO)
+				for _, orderEvent := range createOrderEvents {
+					eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderCreateEventName, orderEvent)
+				}
 
-			// check for add or update
-			createOrderEvents, updateEvents := w.CheckForCreateOrUpdate(ordersDTO)
-			for _, orderEvent := range createOrderEvents {
-				eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderCreateEventName, orderEvent)
-			}
-
-			for _, updateEvent := range updateEvents {
-				eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderUpdateEventName, updateEvent)
+				for _, updateEvent := range updateEvents {
+					eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderUpdateEventName, updateEvent)
+				}
 			}
 		}
-	}
+	}()
 }
 
 func NewTradierOrdersMonitoringWorker(wg *sync.WaitGroup, brokerURL, brokerBearerToken string) *TradierOrdersMonitoringWorker {

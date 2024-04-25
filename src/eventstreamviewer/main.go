@@ -81,7 +81,7 @@ func main() {
 		panic(fmt.Errorf("invalid stream index: %w", err))
 	}
 
-	streamName = streamNames[streamNameIndex-1]
+	streamName = string(streamNames[streamNameIndex-1])
 
 	fmt.Printf("Would you like to delete the stream %s? (y/n)\n", streamName)
 	var input string

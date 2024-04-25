@@ -335,11 +335,19 @@ func main() {
 	eventpubsub.Init()
 
 	// Environment variables
+	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(level)
+	}
+
+	// Set the connection details
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	stockURL := os.Getenv("STOCK_QUOTES_URL")
+	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
-	tradierOptionsExpirationURL := os.Getenv("TRADIER_OPTIONS_EXPIRATION_URL")
+	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 
 	// Log connection details
 	if eventStoreDBURL == "" {
@@ -355,6 +363,7 @@ func main() {
 
 	// Eventstore setup
 	optionsContractStreamMutex := &sync.Mutex{}
+	// optionsContractStreamMutex.Lock()
 	streamParams := []eventmodels.StreamParameter{
 		{StreamName: eventmodels.OptionContractStream, Mutex: optionsContractStreamMutex},
 	}
@@ -369,10 +378,28 @@ func main() {
 	}
 	defer esdbConn.Close()
 
-	fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch Tradier options\n")
+	var commandStr string
+	if len(os.Args) > 1 {
+		commandStr = os.Args[1]
+	}
+
+	log.Debugf("command: %s", commandStr)
+
 	var command int
-	fmt.Scanln(&command)
-	fmt.Printf("***********************\n")
+	switch commandStr {
+	case "LIST_ALL_STREAMS":
+		command = 1
+	case "CALCULATE_STREAM_SIZES":
+		command = 2
+	case "FETCH_AND_STORE_TRADIER_OPTIONS":
+		command = 3
+	default:
+		fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch and store Tradier options\n")
+		fmt.Scanln(&command)
+		fmt.Printf("***********************\n")
+	}
+
+	log.Infof("running command: %d", command)
 
 	switch command {
 	case 1:
@@ -386,23 +413,29 @@ func main() {
 		getStreamSize(ctx, esdbConn)
 		wg.Done()
 	case 3:
-		handleExisingOptionContracts := func(event eventmodels.SavedEvent) {
-			optionsContractStreamMutex.Unlock()
+		// Get the underlying stock symbol
+		var symbol string
+		if len(os.Args) > 2 {
+			symbol = os.Args[2]
 		}
 
-		eventpubsub.Subscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts)
+		if symbol == "" {
+			fmt.Printf("Enter a symbol: ")
+			fmt.Scanln(&symbol)
+		}
 
-		requestID := uuid.New()
-		symbol := "coin"
-		expirationInDays := []int{7, 14, 21}
-		minDistanceBetweenStrikes := 10.0
-		maxNoOfStrikes := 5
-		optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
+		log.Infof("fetching options for symbol: %s", symbol)
 
+		// Fetch and store Tradier options
 		mu := sync.Mutex{}
 		savedEventsCount, err := eventservices.FindStreamLastEventNumber(esdbConn, eventmodels.OptionContractStream)
 		if err != nil {
 			log.Fatalf("Failed to find last event number: %v", err)
+		}
+
+		handleExisingOptionContracts := func(event eventmodels.SavedEvent) {
+			fmt.Println("unlock")
+			optionsContractStreamMutex.Unlock()
 		}
 
 		handleSavedOptionContractEvent := func(event eventmodels.SavedEvent) {
@@ -410,6 +443,8 @@ func main() {
 			defer mu.Unlock()
 
 			savedEventsCount--
+
+			fmt.Printf("!! handleSavedOptionContractEvent: savedEventsCount: %d\n", savedEventsCount)
 
 			if savedEventsCount == 0 {
 				cancel()
@@ -419,7 +454,20 @@ func main() {
 			optionsContractStreamMutex.Unlock()
 		}
 
-		options, err := fetchOptionChainWithParams(requestID, tradierOptionsExpirationURL, optionChainURL, stockURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
+		eventpubsub.Subscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts)
+
+		// Needs to come after subscribe
+		// optionsContractStreamMutex.Unlock()
+		esdbClient.StartRead(eventmodels.OptionContractStream)
+
+		requestID := uuid.New()
+
+		expirationInDays := []int{7, 14, 21}
+		minDistanceBetweenStrikes := 10.0
+		maxNoOfStrikes := 5
+		optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
+
+		options, err := fetchOptionChainWithParams(requestID, optionsExpirationURL, optionChainURL, stockQuotesURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
 		if err != nil {
 			log.Fatalf("Failed to fetch option chain: %v", err)
 		}
@@ -429,8 +477,12 @@ func main() {
 			log.Fatalf("Failed to fetch existing contracts: %v", err)
 		}
 
+		fmt.Printf("Waiting for all events to be read before saving new events ...\n")
+
 		// make sure all events are read before proceeding to save new events
-		<-esdbClient.AllEventsAtStartUpRead()
+		<-esdbClient.AllEventsAtStartUpRead(eventmodels.OptionContractStream)
+
+		fmt.Printf("All events read, saving new events.\n")
 
 		// unsubscribe to old handler
 		if err = eventpubsub.Unsubscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts); err != nil {
@@ -456,6 +508,7 @@ func main() {
 		}
 
 		fmt.Println("Done")
+		// wg.Done()
 	default:
 		log.Fatalf("Invalid command: %d", command)
 	}
