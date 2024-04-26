@@ -455,7 +455,6 @@ func main() {
 		eventpubsub.Subscribe("main", eventmodels.NewSavedEvent(eventmodels.CreateOptionContractEvent), handleExisingOptionContracts)
 
 		// Needs to come after subscribe
-		// optionsContractStreamMutex.Unlock()
 		esdbClient.StartRead(eventmodels.OptionContractStream)
 
 		requestID := uuid.New()

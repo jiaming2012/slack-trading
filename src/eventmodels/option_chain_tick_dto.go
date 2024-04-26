@@ -6,23 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type OptionType string
-
-const (
-	Call OptionType = "call"
-	Put  OptionType = "put"
-)
-
-type OptionContractID uint
-
-type OptionContractChainDTO struct {
-	Options OptionChainDTO `json:"options"`
-}
-
-type OptionChainDTO struct {
-	Values []*OptionChainTickDTO `json:"option"`
-}
-
 type OptionChainTickDTO struct {
 	Symbol           string  `json:"symbol"`
 	Description      string  `json:"description"`
@@ -79,45 +62,4 @@ func (d *OptionChainTickDTO) ToModel(id OptionContractID, uuid uuid.UUID, now ti
 		OptionType:       OptionType(d.OptionType),
 		ExpirationType:   d.ExpirationType,
 	}
-}
-
-type OptionChainTick struct {
-	BaseRequestEvent
-	OptionContractID OptionContractID `json:"option_contract_id"`
-	Timestamp        time.Time        `json:"timestamp"`
-	ChangePercentage float64          `json:"change_percentage"`
-	LastVolume       int              `json:"last_volume"`
-	AverageVolume    int              `json:"average_volume"`
-	Bid              float64          `json:"bid"`
-	Ask              float64          `json:"ask"`
-	Last             float64          `json:"last"`
-	Change           float64          `json:"change"`
-	Volume           int              `json:"volume"`
-	Open             float64          `json:"open"`
-	High             float64          `json:"high"`
-	Low              float64          `json:"low"`
-	Close            float64          `json:"close"`
-	PrevClose        float64          `json:"prevclose"`
-	BidSize          int              `json:"bidsize"`
-	AskSize          int              `json:"asksize"`
-	OpenInterest     int              `json:"open_interest"`
-	Strike           float64          `json:"strike"`
-	ContractSize     int              `json:"contract_size"`
-	OptionType       OptionType       `json:"option_type"`
-	ExpirationType   string           `json:"expiration_type"`
-}
-
-func (t *OptionChainTick) GetSavedEventParameters() SavedEventParameters {
-	return SavedEventParameters{
-		EventName:  CreateNewOptionChainTickEvent,
-		StreamName: OptionChainTickStream,
-	}
-}
-
-type OptionChain struct {
-	Calls          []OptionContractID `json:"calls"`
-	Puts           []OptionContractID `json:"puts"`
-	ExpirationDate string             `json:"expiration_date"`
-	ExpirationType string             `json:"expiration_type"`
-	Underlying     string             `json:"underlying"`
 }

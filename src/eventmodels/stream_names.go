@@ -8,4 +8,5 @@ const (
 	OptionChainTickStream StreamName = "option-chain-ticks"
 	StockTickStream       StreamName = "stock-ticks"
 	OptionContractStream  StreamName = "option-contracts"
+	TrackersStream        StreamName = "trackers"
 )
