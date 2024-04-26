@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -334,7 +335,7 @@ func GetEsdbClient(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL stri
 	// Create a new client
 	esdbCli, err := esdb.NewClient(config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create client: %v", err)
+		return nil, fmt.Errorf("failed to create client: %v", err)
 	}
 
 	return esdbCli, nil
@@ -433,7 +434,11 @@ func main() {
 	wg.Wait()
 }
 
-func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) {
+func StartTracking() {
+
+}
+
+func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) error {
 	// Setup
 	// ctx, cancel := context.WithCancel(ctx)
 	optionsContractStreamMutex := &sync.Mutex{}
@@ -450,17 +455,65 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 	}
 
 	if symbol == "" {
-		fmt.Printf("Enter a symbol: ")
+		fmt.Printf("Enter an underlying symbol (e.g. coin): ")
 		fmt.Scanln(&symbol)
+	}
+
+	// Get expiration in days
+	var expirationInDays []int
+	var err error
+	if len(os.Args) > 3 {
+		expirationInDays, err = utils.AtoiSlice(os.Args[3])
+		if err != nil {
+			return fmt.Errorf("failed to parse expiration in days: %v", err)
+		}
+	}
+
+	if len(expirationInDays) == 0 {
+		fmt.Printf("Enter expiration in days (comma-separated list, e.g. 7, 14, 21): ")
+
+		var expirationInDaysStr string
+		fmt.Scanln(&expirationInDaysStr)
+
+		// parse the input
+		expirationInDays, err = utils.AtoiSlice(expirationInDaysStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse expiration in days: %v", err)
+		}
+	}
+
+	// Get min distance between strikes
+	var minDistanceBetweenStrikes float64
+	if len(os.Args) > 4 {
+		minDistanceBetweenStrikes, err = strconv.ParseFloat(os.Args[4], 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse min distance between strikes: %v", err)
+		}
+	}
+
+	if minDistanceBetweenStrikes == 0 {
+		fmt.Printf("Enter min distance between strikes (e.g. 10.0): ")
+		fmt.Scanln(&minDistanceBetweenStrikes)
+	}
+
+	// Get max number of strikes
+	var maxNoOfStrikes int
+	if len(os.Args) > 5 {
+		maxNoOfStrikes, err = strconv.Atoi(os.Args[5])
+		if err != nil {
+			return fmt.Errorf("failed to parse max number of strikes: %v", err)
+		}
+	}
+
+	if maxNoOfStrikes == 0 {
+		fmt.Printf("Enter max number of strikes (e.g. 5): ")
+		fmt.Scanln(&maxNoOfStrikes)
 	}
 
 	log.Infof("fetching options for symbol: %s", symbol)
 
 	requestID := uuid.New()
 
-	expirationInDays := []int{7, 14, 21}
-	minDistanceBetweenStrikes := 10.0
-	maxNoOfStrikes := 5
 	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
 
 	options, err := fetchOptionChainWithParams(requestID, optionsExpirationURL, optionChainURL, stockQuotesURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
@@ -482,4 +535,6 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 	}
 
 	fmt.Println("Done")
+
+	return nil
 }
