@@ -445,11 +445,7 @@ func StartTracking() {
 
 func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]*eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) error {
 	// Setup
-	optionsContractStreamMutex := &sync.Mutex{}
-
-	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{
-		{StreamName: eventmodels.OptionContractStream, Mutex: optionsContractStreamMutex},
-	})
+	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
 
 	// Get the underlying stock symbol
