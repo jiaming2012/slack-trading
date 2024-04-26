@@ -57,11 +57,11 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 	return size, nil
 }
 
-func FetchAllOptionContracts(ctx context.Context, esdbClient *esdb.Client) (map[string]eventmodels.OptionContract, error) {
-	results := make(map[string]eventmodels.OptionContract)
+func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[uint64]T, error) {
+	results := make(map[uint64]T)
 	var currentEventNumber uint64
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, eventmodels.OptionContractStream)
+	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, instance.GetSavedEventParameters().StreamName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find last event number: %w", err)
 	}
@@ -76,13 +76,13 @@ func FetchAllOptionContracts(ctx context.Context, esdbClient *esdb.Client) (map[
 	}
 
 	for {
-		stream, err := esdbClient.ReadStream(ctx, string(eventmodels.OptionContractStream), readOptions, 4096)
+		stream, err := esdbClient.ReadStream(ctx, string(instance.GetSavedEventParameters().StreamName), readOptions, 4096)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
 
-			return nil, fmt.Errorf("failed to read stream %s: %w", eventmodels.OptionContractStream, err)
+			return nil, fmt.Errorf("failed to read stream %s: %w", instance.GetSavedEventParameters().StreamName, err)
 		}
 		defer stream.Close()
 
@@ -96,16 +96,17 @@ func FetchAllOptionContracts(ctx context.Context, esdbClient *esdb.Client) (map[
 				return nil, fmt.Errorf("failed to read event from stream: %w", err)
 			}
 
-			var contract eventmodels.OptionContract
-			if err := json.Unmarshal(event.Event.Data, &contract); err != nil {
+			var object T
+			if err := json.Unmarshal(event.Event.Data, &object); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal event data: %w", err)
 			}
 
 			currentEventNumber = event.Event.EventNumber
 
-			contract.ID = eventmodels.OptionContractID(currentEventNumber)
+			// contract.ID = eventmodels.OptionContractID(currentEventNumber)
+			object.SetEventStreamID(currentEventNumber)
 
-			results[contract.Symbol] = contract
+			results[currentEventNumber] = object
 		}
 
 		if currentEventNumber == lastEventNumber {

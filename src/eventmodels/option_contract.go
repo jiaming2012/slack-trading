@@ -4,6 +4,7 @@ import "time"
 
 type OptionContract struct {
 	BaseRequestEvent
+	SaveParameters
 	ID             OptionContractID // we use the event number assigned by eventstore as the ID
 	Symbol         string           `json:"symbol"`
 	Description    string           `json:"description"`

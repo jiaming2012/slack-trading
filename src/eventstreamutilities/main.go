@@ -419,12 +419,17 @@ func main() {
 			log.Fatalf("Failed to find last event number: %v", err)
 		}
 
-		existingOptionContracts, err := eventservices.FetchAllOptionContracts(ctx, esdbConn)
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
 		if err != nil {
 			log.Fatalf("Failed to fetch existing contracts: %v", err)
 		}
 
-		FetchAndStoreTradierOptions(ctx, &wg, existingOptionContracts, optionContractStreamLastEventNumber, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL)
+		cache := make(map[string]*eventmodels.OptionContract)
+		for _, contract := range existingOptionContracts {
+			cache[contract.Symbol] = contract
+		}
+
+		FetchAndStoreTradierOptions(ctx, &wg, cache, optionContractStreamLastEventNumber, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL)
 
 		wg.Done()
 	default:
@@ -438,9 +443,8 @@ func StartTracking() {
 
 }
 
-func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) error {
+func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]*eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) error {
 	// Setup
-	// ctx, cancel := context.WithCancel(ctx)
 	optionsContractStreamMutex := &sync.Mutex{}
 
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{
@@ -525,7 +529,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 
 	for _, option := range options {
 		if _, found := existingContracts[option.Symbol]; found {
-			log.Debugf("skip save: option contract %v already exists", option.ID)
+			log.Debugf("skip save: option contract %v already exists", option.Symbol)
 			continue
 		}
 
