@@ -43,34 +43,37 @@ func (cli *esdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 	return nil
 }
 
+func (cli *esdbProducer) insert(event eventmodels.SavedEvent) error {
+	bytes, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	eventName := event.GetSavedEventParameters().EventName
+	streamName := event.GetSavedEventParameters().StreamName
+
+	log.Debugf("%s saving to stream %s ...", eventName, streamName)
+
+	return cli.insertEvent(context.Background(), eventName, string(streamName), bytes)
+}
+
 func (cli *esdbProducer) storeRequestEventHandler(request interface{}) {
-	log.Debug("<- eventStoreDBClient.storeRequestEventHandler")
+	log.Debug("<- esdbProducer.storeRequestEventHandler")
 
 	event, ok := request.(eventmodels.SavedEvent)
 	if !ok {
 		log.Fatalf("%T does not implement the SavedEvent interface", request)
 	}
 
-	bytes, err := json.Marshal(event)
-	if err != nil {
+	if err := cli.insert(event); err != nil {
 		meta := event.GetMetaData()
-		pubsub.PublishRequestError("eventStoreDBClient:json.Marshal", err, &meta)
+		pubsub.PublishRequestError("esdbProducer:cli.storeRequestEventHandler", err, &meta)
 		return
 	}
-
-	eventName := event.GetSavedEventParameters().EventName
-	streamName := event.GetSavedEventParameters().StreamName
-
-	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
-		meta := event.GetMetaData()
-		pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, &meta)
-		return
-	}
-
-	log.Infof("%s saved to stream %s", eventName, streamName)
 }
 
-func (cli *esdbProducer) readStream(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
+// todo: replace in favor of esdbConsumer
+func (cli *esdbProducer) readStreamDeprecated(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
 	cli.init()
 
 	if lastEventNumberAtStartup == 0 {
@@ -115,7 +118,7 @@ func (cli *esdbProducer) readStream(streamName eventmodels.StreamName, stream *e
 
 		request := model.Generate()
 		if err := json.Unmarshal(ev.Data, request); err != nil {
-			pubsub.PublishError("eventStoreDBClient.readStream", err)
+			pubsub.PublishError("esdbProducer.readStream", err)
 			continue
 		}
 
@@ -135,7 +138,7 @@ func (cli *esdbProducer) readStream(streamName eventmodels.StreamName, stream *e
 		nextEvent := eventmodels.NewSavedEvent(eventName)
 
 		streamMutex.Lock()
-		pubsub.PublishEvent("eventStoreDBClient", nextEvent, request)
+		pubsub.PublishEvent("esdbProducer", nextEvent, request)
 	}
 }
 
@@ -167,23 +170,23 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
 
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateNewStockTickEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateNewOptionChainTickEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateAccountStrategyRequestEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateSignalRequestEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionAlertRequestEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.DeleteOptionAlertRequestEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.CreateOptionContractEvent, cli.storeRequestEventHandler)
-	pubsub.Subscribe("eventStoreDBClient", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewStockTickEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewOptionChainTickEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateAccountRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateAccountStrategyRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateSignalRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateOptionAlertRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.DeleteOptionAlertRequestEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.OptionAlertUpdateEventName, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.CreateOptionContractEvent, cli.storeRequestEventHandler)
+	pubsub.Subscribe("esdbProducer", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
 	for _, param := range cli.readStreamParams {
 		mutex := param.Mutex
 
 		lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, param.StreamName)
 		if err != nil {
-			log.Panicf("eventStoreDBClient: failed to find last event number: %v", err)
+			log.Panicf("esdbProducer: failed to find last event number: %v", err)
 		}
 
 		streamName := param.StreamName
@@ -193,7 +196,7 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 		})
 
 		if err != nil {
-			log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
+			log.Panicf("esdbProducer: failed to subscribe to stream: %v", err)
 		}
 
 		go func() {
@@ -205,7 +208,7 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 					}
 
 					<-ch
-					cli.readStream(streamName, subscription, mutex, lastEventNumber)
+					cli.readStreamDeprecated(streamName, subscription, mutex, lastEventNumber)
 				} else {
 					log.Errorf("failed to re-subscribe stream: %v", err)
 					time.Sleep(5 * time.Second)
@@ -229,6 +232,10 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 			return
 		}
 	}()
+}
+
+func (cli *esdbProducer) Save(event eventmodels.SavedEvent) error {
+	return cli.insert(event)
 }
 
 func (cli *esdbProducer) StartRead(name eventmodels.StreamName) {
