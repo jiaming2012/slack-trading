@@ -20,7 +20,7 @@ type OptionChainTickWriterWorker struct {
 	optionChainURL      string
 	brokerBearerToken   string
 	calendarURL         string
-	optionContractIDMap map[string]eventmodels.OptionContractID
+	optionContractIDMap map[string]eventmodels.EventStreamID
 }
 
 func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL string) *OptionChainTickWriterWorker {
@@ -107,11 +107,11 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context) {
 	}
 }
 
-func (w *OptionChainTickWriterWorker) initializeOptionContractIDMap(contracts []eventmodels.OptionContract) map[string]eventmodels.OptionContractID {
-	optionContractIDMap := make(map[string]eventmodels.OptionContractID)
+func (w *OptionChainTickWriterWorker) initializeOptionContractIDMap(contracts []eventmodels.OptionContract) map[string]eventmodels.EventStreamID {
+	optionContractIDMap := make(map[string]eventmodels.EventStreamID)
 
 	for _, contract := range contracts {
-		optionContractIDMap[contract.Symbol] = contract.ID
+		optionContractIDMap[contract.Symbol] = contract.Meta.EventStreamID
 	}
 
 	return optionContractIDMap

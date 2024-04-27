@@ -427,6 +427,10 @@ func main() {
 		getStreamSize(ctx, esdbConn)
 		wg.Done()
 	case 3:
+		// Setup
+		esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, []eventmodels.StreamParameter{})
+		esdbProducer.Start(ctx)
+
 		params, err := getOptionParametersComponents()
 		if err != nil {
 			log.Fatalf("failed to get option parameters: %v", err)
@@ -442,7 +446,9 @@ func main() {
 			cache[contract.Symbol] = contract
 		}
 
-		if _, err = FetchAndStoreTradierOptions(ctx, &wg, params, cache, eventStoreDBURL, brokerCreds); err != nil {
+		requestID := uuid.New()
+
+		if _, err = FetchAndStoreTradierOptions(ctx, &wg, esdbProducer, params, cache, eventStoreDBURL, brokerCreds, requestID); err != nil {
 			log.Fatalf("failed to fetch and store Tradier options: %v", err)
 		}
 
@@ -473,6 +479,20 @@ func main() {
 		// 	log.Fatalf("failed to fetch existing trackers: %v", err)
 		// }
 
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
+		if err != nil {
+			log.Fatalf("failed to fetch existing contracts: %v", err)
+		}
+
+		cache := make(map[string]*eventmodels.OptionContract)
+		for _, contract := range existingOptionContracts {
+			cache[contract.Symbol] = contract
+		}
+
+		if err = StopTracking(ctx, &wg, cache, eventStoreDBURL, brokerCreds); err != nil {
+			log.Fatalf("failed to stop tracking: %v", err)
+		}
+
 		wg.Done()
 	default:
 		log.Fatalf("Invalid command: %d", command)
@@ -492,12 +512,76 @@ func getActiveTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.Track
 	}
 
 	for _, tracker := range trackers {
-		if tracker.Type == eventmodels.TrackerTypeStop && tracker.TrackerStartID != nil {
-			delete(activeTrackers, *tracker.TrackerStartID)
+		if tracker.Type == eventmodels.TrackerTypeStop {
+			delete(activeTrackers, tracker.StopTracker.TrackerStartID)
 		}
 	}
 
 	return activeTrackers
+}
+
+func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
+	// Setup
+	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
+	esdbProducer.Start(ctx)
+
+	// Get symbol
+	var symbol string
+	if len(os.Args) > 2 {
+		symbol = os.Args[2]
+	}
+
+	if symbol == "" {
+		fmt.Printf("Enter an underlying symbol (e.g. coin): ")
+		fmt.Scanln(&symbol)
+	}
+
+	// Get reason
+	var reason string
+	if len(os.Args) > 3 {
+		reason = os.Args[3]
+	}
+
+	if reason == "" {
+		fmt.Printf("Enter a reason: ")
+		fmt.Scanln(&reason)
+	}
+
+	// Check
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch all trackers: %v", err)
+	}
+
+	stopTracking := make([]*eventmodels.Tracker, 0)
+
+	activeTrackers := getActiveTrackers(allTrackers)
+	for _, t := range activeTrackers {
+		if t.StartTracker.UnderlyingSymbol == symbol && t.StartTracker.Reason == reason {
+			stopTracking = append(stopTracking, t)
+		}
+	}
+
+	if len(stopTracking) == 0 {
+		return fmt.Errorf("no active trackers found for symbol: %s", symbol)
+	}
+
+	requestID := uuid.New()
+
+	log.Infof("stop tracking symbol: %s, reason: %s, requestID: %s", symbol, reason, requestID.String())
+
+	for _, startTracker := range stopTracking {
+		now := time.Now()
+
+		tracker := eventmodels.NewStopTracker(startTracker.Meta.EventStreamID, now, reason, requestID)
+
+		// Save the tracker
+		if err := esdbProducer.Save(tracker); err != nil {
+			return fmt.Errorf("failed to save tracker: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
@@ -521,9 +605,11 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 		fmt.Scanln(&reason)
 	}
 
-	log.Infof("start tracking symbol: %s", params.Symbol)
+	requestID := uuid.New()
 
-	options, err := FetchAndStoreTradierOptions(ctx, wg, params, optionContractsCache, eventStoreDBURL, brokerCreds)
+	log.Infof("start tracking symbol: %s, requestID: %s", params.Symbol, requestID.String())
+
+	options, err := FetchAndStoreTradierOptions(ctx, wg, esdbProducer, params, optionContractsCache, eventStoreDBURL, brokerCreds, requestID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch and store Tradier options: %v", err)
 	}
@@ -536,30 +622,18 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 	underlyingSymbol := params.Symbol
 	now := time.Now()
 
-	tracker := eventmodels.Tracker{
-		Timestamp:         now,
-		Reason:            reason,
-		Type:              eventmodels.TrackerTypeStart,
-		UnderlyingSymbol:  &underlyingSymbol,
-		OptionContractIDs: &optionContractIDs,
-	}
+	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractIDs, now, reason, requestID)
 
 	// Save the tracker
-	if err := esdbProducer.Save(&tracker); err != nil {
+	if err := esdbProducer.Save(tracker); err != nil {
 		return fmt.Errorf("failed to save tracker: %v", err)
 	}
 
 	return nil
 }
 
-func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, params eventmodels.OptionParameterComponents, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) ([]*eventmodels.OptionContract, error) {
-	// Setup
-	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-	esdbProducer.Start(ctx)
-
-	log.Infof("fetching options for symbol: %s", params.Symbol)
-
-	requestID := uuid.New()
+func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbProducer *eventproducers.EsdbProducer, params eventmodels.OptionParameterComponents, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials, requestID uuid.UUID) ([]*eventmodels.OptionContract, error) {
+	log.Infof("fetching options for symbol: %s, requestID: %s", params.Symbol, requestID.String())
 
 	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
 

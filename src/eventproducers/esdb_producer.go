@@ -16,7 +16,7 @@ import (
 	"slack-trading/src/eventservices"
 )
 
-type esdbProducer struct {
+type EsdbProducer struct {
 	wg                     *sync.WaitGroup
 	db                     *esdb.Client
 	url                    string
@@ -27,7 +27,7 @@ type esdbProducer struct {
 	saga                   map[eventmodels.EventName]pubsub.SagaFlow
 }
 
-func (cli *esdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
+func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
 	eventData := esdb.EventData{
 		ContentType: esdb.JsonContentType,
 		EventType:   string(eventName),
@@ -43,7 +43,7 @@ func (cli *esdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 	return nil
 }
 
-func (cli *esdbProducer) insert(event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 	// set the event streamID
 	eventID := eventmodels.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
@@ -62,7 +62,7 @@ func (cli *esdbProducer) insert(event eventmodels.SavedEvent) error {
 	return cli.insertEvent(context.Background(), eventName, string(streamName), bytes)
 }
 
-func (cli *esdbProducer) storeRequestEventHandler(request interface{}) {
+func (cli *EsdbProducer) storeRequestEventHandler(request interface{}) {
 	log.Debug("<- esdbProducer.storeRequestEventHandler")
 
 	event, ok := request.(eventmodels.SavedEvent)
@@ -78,7 +78,7 @@ func (cli *esdbProducer) storeRequestEventHandler(request interface{}) {
 }
 
 // todo: replace in favor of esdbConsumer
-func (cli *esdbProducer) readStreamDeprecated(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
+func (cli *EsdbProducer) readStreamDeprecated(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
 	cli.init()
 
 	if lastEventNumberAtStartup == 0 {
@@ -147,7 +147,7 @@ func (cli *esdbProducer) readStreamDeprecated(streamName eventmodels.StreamName,
 	}
 }
 
-func (cli *esdbProducer) handleProcessRequestComplete(event interface{}) {
+func (cli *EsdbProducer) handleProcessRequestComplete(event interface{}) {
 	if req, ok := event.(pubsub.RequestEvent); ok {
 		log.Debugf("finished processing request: %s", req.GetMetaData().RequestID.String())
 
@@ -158,11 +158,11 @@ func (cli *esdbProducer) handleProcessRequestComplete(event interface{}) {
 	}
 }
 
-func (cli *esdbProducer) init() {
+func (cli *EsdbProducer) init() {
 	cli.saga = pubsub.NewSagaFlow()
 }
 
-func (cli *esdbProducer) Start(ctx context.Context) {
+func (cli *EsdbProducer) Start(ctx context.Context) {
 	cli.wg.Add(1)
 
 	settings, err := esdb.ParseConnectionString(cli.url)
@@ -239,11 +239,11 @@ func (cli *esdbProducer) Start(ctx context.Context) {
 	}()
 }
 
-func (cli *esdbProducer) Save(event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) Save(event eventmodels.SavedEvent) error {
 	return cli.insert(event)
 }
 
-func (cli *esdbProducer) StartRead(name eventmodels.StreamName) {
+func (cli *EsdbProducer) StartRead(name eventmodels.StreamName) {
 	channel, found := cli.startRead[name]
 	if !found {
 		log.Fatalf("stream %s not found", name)
@@ -252,7 +252,7 @@ func (cli *esdbProducer) StartRead(name eventmodels.StreamName) {
 	channel <- true
 }
 
-func (cli *esdbProducer) AllEventsAtStartUpRead(streamName eventmodels.StreamName) <-chan bool {
+func (cli *EsdbProducer) AllEventsAtStartUpRead(streamName eventmodels.StreamName) <-chan bool {
 	channel, found := cli.allEventsAtStartupRead[streamName]
 	if !found {
 		log.Fatalf("esdbProducer:stream %s not found", streamName)
@@ -261,7 +261,11 @@ func (cli *esdbProducer) AllEventsAtStartUpRead(streamName eventmodels.StreamNam
 	return channel
 }
 
-func NewESDBProducer(wg *sync.WaitGroup, url string, readStreamParams []eventmodels.StreamParameter) *esdbProducer {
+func (cli *EsdbProducer) GetClient() *esdb.Client {
+	return cli.db
+}
+
+func NewESDBProducer(wg *sync.WaitGroup, url string, readStreamParams []eventmodels.StreamParameter) *EsdbProducer {
 	m1 := make(map[eventmodels.StreamName]chan bool)
 	m2 := make(map[eventmodels.StreamName]chan bool)
 
@@ -270,7 +274,7 @@ func NewESDBProducer(wg *sync.WaitGroup, url string, readStreamParams []eventmod
 		m2[param.StreamName] = make(chan bool)
 	}
 
-	return &esdbProducer{
+	return &EsdbProducer{
 		wg:                     wg,
 		url:                    url,
 		readStreamParams:       readStreamParams,
