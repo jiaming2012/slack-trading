@@ -57,8 +57,8 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 	return size, nil
 }
 
-func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[uint64]T, error) {
-	results := make(map[uint64]T)
+func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[eventmodels.EventStreamID]T, error) {
+	results := make(map[eventmodels.EventStreamID]T)
 	var currentEventNumber uint64
 
 	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, instance.GetSavedEventParameters().StreamName)
@@ -103,10 +103,11 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 
 			currentEventNumber = event.Event.EventNumber
 
-			// contract.ID = eventmodels.OptionContractID(currentEventNumber)
-			object.SetEventStreamID(currentEventNumber)
+			// eventStreamID := eventmodels.EventStreamID(currentEventNumber)
 
-			results[currentEventNumber] = object
+			// object.SetEventStreamID(eventStreamID)
+
+			results[object.GetMetaData().EventStreamID] = object
 		}
 
 		if currentEventNumber == lastEventNumber {

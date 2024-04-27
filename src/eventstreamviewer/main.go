@@ -18,9 +18,9 @@ import (
 
 func processEvent(ev *esdb.RecordedEvent) {
 	// Doing something productive with the event
-	fmt.Println(ev.EventNumber)
+	fmt.Printf("EventStreamID: %v\n", ev.EventNumber)
 	fmt.Println(ev.EventType)
-	fmt.Println(ev.EventID)
+	// fmt.Println(ev.EventID)
 
 	var data map[string]interface{}
 	if err := json.Unmarshal(ev.Data, &data); err != nil {
@@ -139,7 +139,7 @@ func main() {
 			ev := event.EventAppeared.Event
 
 			lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
-			fmt.Printf("lastEventNumber: %d\n", lastEventNumber)
+
 			processEvent(ev)
 		}
 

@@ -46,6 +46,7 @@ const (
 	CreateNewOptionChainTickEvent         EventName = "CreateNewOptionChainTickEvent"
 	CreateNewStockTickEvent               EventName = "CreateNewStockTickEvent"
 	CreateOptionContractEvent             EventName = "CreateOptionContractEvent"
+	CreateTrackerEvent                    EventName = "CreateTrackerEvent"
 	TradierOrderUpdateEventName           EventName = "TradierOrderUpdateEvent"
 	TradierOrderCreateEventName           EventName = "TradierOrderCreateEvent"
 	TradierOrderDeleteEventName           EventName = "TradierOrderDeleteEvent"

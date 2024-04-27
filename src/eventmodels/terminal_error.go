@@ -5,8 +5,8 @@ type TerminalError struct {
 	Meta  MetaData
 }
 
-func (e *TerminalError) GetMetaData() MetaData {
-	return e.Meta
+func (e *TerminalError) GetMetaData() *MetaData {
+	return &e.Meta
 }
 
 func (e *TerminalError) SetMetaData(meta *MetaData) {

@@ -14,7 +14,7 @@ import (
 type ApiRequest2 interface {
 	ParseHTTPRequest(r *http.Request) error
 	Validate(r *http.Request) error
-	GetMetaData() eventmodels.MetaData
+	GetMetaData() *eventmodels.MetaData
 	SetMetaData(*eventmodels.MetaData)
 }
 

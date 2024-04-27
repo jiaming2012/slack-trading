@@ -341,6 +341,13 @@ func GetEsdbClient(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL stri
 	return esdbCli, nil
 }
 
+type BrokerCredentials struct {
+	BearerToken          string
+	StockQuotesURL       string
+	OptionChainURL       string
+	OptionsExpirationURL string
+}
+
 func main() {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
@@ -360,10 +367,12 @@ func main() {
 
 	// Set the connection details
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
-	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
-	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
-	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
+	brokerCreds := BrokerCredentials{
+		BearerToken:          os.Getenv("TRADIER_BEARER_TOKEN"),
+		StockQuotesURL:       os.Getenv("STOCK_QUOTES_URL"),
+		OptionChainURL:       os.Getenv("OPTION_CHAIN_URL"),
+		OptionsExpirationURL: os.Getenv("OPTION_EXPIRATIONS_URL"),
+	}
 
 	// Log connection details
 	if eventStoreDBURL == "" {
@@ -374,7 +383,7 @@ func main() {
 
 	esdbConn, err := GetEsdbClient(ctx, &wg, eventStoreDBURL)
 	if err != nil {
-		log.Fatalf("Failed to create ESDB client: %v", err)
+		log.Fatalf("failed to create ESDB client: %v", err)
 	}
 
 	defer esdbConn.Close()
@@ -394,8 +403,12 @@ func main() {
 		command = 2
 	case "FETCH_AND_STORE_TRADIER_OPTIONS":
 		command = 3
+	case "START_TRACKING":
+		command = 4
+	case "STOP_TRACKING":
+		command = 5
 	default:
-		fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch and store Tradier options\n")
+		fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch and store Tradier options\n4. Start tracking\n5. Stop tracking\n")
 		fmt.Scanln(&command)
 		fmt.Printf("***********************\n")
 	}
@@ -414,14 +427,14 @@ func main() {
 		getStreamSize(ctx, esdbConn)
 		wg.Done()
 	case 3:
-		optionContractStreamLastEventNumber, err := eventservices.FindStreamLastEventNumber(esdbConn, eventmodels.OptionContractStream)
+		params, err := getOptionParametersComponents()
 		if err != nil {
-			log.Fatalf("Failed to find last event number: %v", err)
+			log.Fatalf("failed to get option parameters: %v", err)
 		}
 
 		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
 		if err != nil {
-			log.Fatalf("Failed to fetch existing contracts: %v", err)
+			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
 
 		cache := make(map[string]*eventmodels.OptionContract)
@@ -429,7 +442,36 @@ func main() {
 			cache[contract.Symbol] = contract
 		}
 
-		FetchAndStoreTradierOptions(ctx, &wg, cache, optionContractStreamLastEventNumber, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL)
+		if _, err = FetchAndStoreTradierOptions(ctx, &wg, params, cache, eventStoreDBURL, brokerCreds); err != nil {
+			log.Fatalf("failed to fetch and store Tradier options: %v", err)
+		}
+
+		wg.Done()
+	case 4:
+		// todo: check if tracker already exists
+		// activeTrackers := getActiveTrackers(existingTrackers)
+
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
+		if err != nil {
+			log.Fatalf("failed to fetch existing contracts: %v", err)
+		}
+
+		cache := make(map[string]*eventmodels.OptionContract)
+		for _, contract := range existingOptionContracts {
+			cache[contract.Symbol] = contract
+		}
+
+		// create a new tracker
+		if err = StartTracking(ctx, &wg, cache, eventStoreDBURL, brokerCreds); err != nil {
+			log.Fatalf("failed to start tracking: %v", err)
+		}
+
+		wg.Done()
+	case 5:
+		// existingTrackers, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.Tracker{})
+		// if err != nil {
+		// 	log.Fatalf("failed to fetch existing trackers: %v", err)
+		// }
 
 		wg.Done()
 	default:
@@ -439,15 +481,117 @@ func main() {
 	wg.Wait()
 }
 
-func StartTracking() {
+func getActiveTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.Tracker) map[eventmodels.EventStreamID]*eventmodels.Tracker {
+	activeTrackers := make(map[eventmodels.EventStreamID]*eventmodels.Tracker)
 
+	for _, tracker := range trackers {
+		if tracker.Type == eventmodels.TrackerTypeStart {
+			id := tracker.GetMetaData().EventStreamID
+			activeTrackers[id] = tracker
+		}
+	}
+
+	for _, tracker := range trackers {
+		if tracker.Type == eventmodels.TrackerTypeStop && tracker.TrackerStartID != nil {
+			delete(activeTrackers, *tracker.TrackerStartID)
+		}
+	}
+
+	return activeTrackers
 }
 
-func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existingContracts map[string]*eventmodels.OptionContract, savedEventsCount uint64, eventStoreDBURL, brokerBearerToken, stockQuotesURL, optionChainURL, optionsExpirationURL string) error {
+func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
 
+	params, err := getOptionParametersComponents()
+	if err != nil {
+		return fmt.Errorf("failed to get option parameters: %v", err)
+	}
+
+	// Get reason
+	var reason string
+	if len(os.Args) > 6 {
+		reason = os.Args[6]
+	}
+
+	if reason == "" {
+		fmt.Printf("Enter a reason: ")
+		fmt.Scanln(&reason)
+	}
+
+	log.Infof("start tracking symbol: %s", params.Symbol)
+
+	options, err := FetchAndStoreTradierOptions(ctx, wg, params, optionContractsCache, eventStoreDBURL, brokerCreds)
+	if err != nil {
+		return fmt.Errorf("failed to fetch and store Tradier options: %v", err)
+	}
+
+	optionContractIDs := make([]eventmodels.EventStreamID, 0)
+	for _, option := range options {
+		optionContractIDs = append(optionContractIDs, option.GetMetaData().GetEventStreamID())
+	}
+
+	underlyingSymbol := params.Symbol
+	now := time.Now()
+
+	tracker := eventmodels.Tracker{
+		Timestamp:         now,
+		Reason:            reason,
+		Type:              eventmodels.TrackerTypeStart,
+		UnderlyingSymbol:  &underlyingSymbol,
+		OptionContractIDs: &optionContractIDs,
+	}
+
+	// Save the tracker
+	if err := esdbProducer.Save(&tracker); err != nil {
+		return fmt.Errorf("failed to save tracker: %v", err)
+	}
+
+	return nil
+}
+
+func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, params eventmodels.OptionParameterComponents, optionContractsCache map[string]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) ([]*eventmodels.OptionContract, error) {
+	// Setup
+	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
+	esdbProducer.Start(ctx)
+
+	log.Infof("fetching options for symbol: %s", params.Symbol)
+
+	requestID := uuid.New()
+
+	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
+
+	options, err := fetchOptionChainWithParams(requestID, brokerCreds.OptionsExpirationURL, brokerCreds.OptionChainURL, brokerCreds.StockQuotesURL, brokerCreds.BearerToken, params.Symbol, optionTypes, params.ExpirationInDays, params.MinDistanceBetweenStrikes, params.MaxNoOfStrikes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch option chain: %v", err)
+	}
+
+	fmt.Printf("Saving %d option contracts ...\n", len(options))
+
+	created := make([]*eventmodels.OptionContract, 0)
+	for i := 0; i < len(options); i++ {
+		option := options[i]
+
+		if o, found := optionContractsCache[option.Symbol]; found {
+			created = append(created, o)
+			log.Debugf("skip save: option contract %v already exists", option.Symbol)
+			continue
+		}
+
+		esdbProducer.Save(&option)
+		created = append(created, &option)
+
+		fmt.Printf("Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
+	}
+
+	fmt.Println("Done")
+
+	return created, nil
+}
+
+func getOptionParametersComponents() (eventmodels.OptionParameterComponents, error) {
 	// Get the underlying stock symbol
 	var symbol string
 	if len(os.Args) > 2 {
@@ -465,7 +609,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 	if len(os.Args) > 3 {
 		expirationInDays, err = utils.AtoiSlice(os.Args[3])
 		if err != nil {
-			return fmt.Errorf("failed to parse expiration in days: %v", err)
+			return eventmodels.OptionParameterComponents{}, fmt.Errorf("getOptionParameters:failed to parse expiration in days: %v", err)
 		}
 	}
 
@@ -478,7 +622,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 		// parse the input
 		expirationInDays, err = utils.AtoiSlice(expirationInDaysStr)
 		if err != nil {
-			return fmt.Errorf("failed to parse expiration in days: %v", err)
+			return eventmodels.OptionParameterComponents{}, fmt.Errorf("getOptionParameters:failed to parse expiration in days: %v", err)
 		}
 	}
 
@@ -487,7 +631,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 	if len(os.Args) > 4 {
 		minDistanceBetweenStrikes, err = strconv.ParseFloat(os.Args[4], 64)
 		if err != nil {
-			return fmt.Errorf("failed to parse min distance between strikes: %v", err)
+			return eventmodels.OptionParameterComponents{}, fmt.Errorf("getOptionParameters:failed to parse min distance between strikes: %v", err)
 		}
 	}
 
@@ -501,7 +645,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 	if len(os.Args) > 5 {
 		maxNoOfStrikes, err = strconv.Atoi(os.Args[5])
 		if err != nil {
-			return fmt.Errorf("failed to parse max number of strikes: %v", err)
+			return eventmodels.OptionParameterComponents{}, fmt.Errorf("getOptionParameters:failed to parse max number of strikes: %v", err)
 		}
 	}
 
@@ -510,31 +654,11 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, existi
 		fmt.Scanln(&maxNoOfStrikes)
 	}
 
-	log.Infof("fetching options for symbol: %s", symbol)
-
-	requestID := uuid.New()
-
-	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
-
-	options, err := fetchOptionChainWithParams(requestID, optionsExpirationURL, optionChainURL, stockQuotesURL, brokerBearerToken, symbol, optionTypes, expirationInDays, minDistanceBetweenStrikes, maxNoOfStrikes)
-	if err != nil {
-		log.Fatalf("Failed to fetch option chain: %v", err)
-	}
-
-	fmt.Printf("Saving %d option contracts ...\n", len(options))
-
-	for _, option := range options {
-		if _, found := existingContracts[option.Symbol]; found {
-			log.Debugf("skip save: option contract %v already exists", option.Symbol)
-			continue
-		}
-
-		esdbProducer.Save(&option)
-
-		fmt.Printf("Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
-	}
-
-	fmt.Println("Done")
-
-	return nil
+	return eventmodels.OptionParameterComponents{
+		Symbol:                    symbol,
+		ExpirationInDays:          expirationInDays,
+		Strikes:                   []int{},
+		MinDistanceBetweenStrikes: minDistanceBetweenStrikes,
+		MaxNoOfStrikes:            maxNoOfStrikes,
+	}, nil
 }

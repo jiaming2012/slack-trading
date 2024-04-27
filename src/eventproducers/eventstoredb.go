@@ -62,7 +62,7 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 	bytes, err := json.Marshal(event)
 	if err != nil {
 		meta := event.GetMetaData()
-		pubsub.PublishRequestError("eventStoreDBClient:json.Marshal", err, &meta)
+		pubsub.PublishRequestError("eventStoreDBClient:json.Marshal", err, meta)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 
 	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
 		meta := event.GetMetaData()
-		pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, &meta)
+		pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, meta)
 		return
 	}
 }

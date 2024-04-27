@@ -44,6 +44,11 @@ func (cli *esdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 }
 
 func (cli *esdbProducer) insert(event eventmodels.SavedEvent) error {
+	// set the event streamID
+	eventID := eventmodels.EventStreamID(uuid.New())
+	metaData := event.GetMetaData()
+	metaData.SetEventStreamID(eventID)
+
 	bytes, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -67,7 +72,7 @@ func (cli *esdbProducer) storeRequestEventHandler(request interface{}) {
 
 	if err := cli.insert(event); err != nil {
 		meta := event.GetMetaData()
-		pubsub.PublishRequestError("esdbProducer:cli.storeRequestEventHandler", err, &meta)
+		pubsub.PublishRequestError("esdbProducer:cli.storeRequestEventHandler", err, meta)
 		return
 	}
 }

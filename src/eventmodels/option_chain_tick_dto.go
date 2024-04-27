@@ -31,7 +31,7 @@ type OptionChainTickDTO struct {
 	ExpirationType   string  `json:"expiration_type"`
 }
 
-func (d *OptionChainTickDTO) ToModel(id OptionContractID, uuid uuid.UUID, now time.Time) *OptionChainTick {
+func (d *OptionChainTickDTO) ToModel(id EventStreamID, uuid uuid.UUID, now time.Time) *OptionChainTick {
 	// todo: add error handling
 	return &OptionChainTick{
 		BaseRequestEvent: BaseRequestEvent{
