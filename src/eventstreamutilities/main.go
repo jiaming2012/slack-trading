@@ -431,7 +431,7 @@ func main() {
 		esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 		esdbProducer.Start(ctx)
 
-		params, err := getOptionParametersComponents()
+		params, err := getOptionParametersComponents(nil)
 		if err != nil {
 			log.Fatalf("failed to get option parameters: %v", err)
 		}
@@ -454,9 +454,6 @@ func main() {
 
 		wg.Done()
 	case 4:
-		// todo: check if tracker already exists
-		// activeTrackers := getActiveTrackers(existingTrackers)
-
 		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
@@ -474,11 +471,6 @@ func main() {
 
 		wg.Done()
 	case 5:
-		// existingTrackers, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.Tracker{})
-		// if err != nil {
-		// 	log.Fatalf("failed to fetch existing trackers: %v", err)
-		// }
-
 		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
@@ -589,20 +581,16 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
 
-	params, err := getOptionParametersComponents()
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch all trackers: %v", err)
+	}
+
+	activeTrackers := getActiveTrackers(allTrackers)
+
+	params, err := getOptionParametersComponents(activeTrackers)
 	if err != nil {
 		return fmt.Errorf("failed to get option parameters: %v", err)
-	}
-
-	// Get reason
-	var reason string
-	if len(os.Args) > 6 {
-		reason = os.Args[6]
-	}
-
-	if reason == "" {
-		fmt.Printf("Enter a reason: ")
-		fmt.Scanln(&reason)
 	}
 
 	requestID := uuid.New()
@@ -622,7 +610,7 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 	underlyingSymbol := params.Symbol
 	now := time.Now()
 
-	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractIDs, now, reason, requestID)
+	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractIDs, now, params.Reason, requestID)
 
 	// Save the tracker
 	if err := esdbProducer.Save(tracker); err != nil {
@@ -665,7 +653,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbPr
 	return created, nil
 }
 
-func getOptionParametersComponents() (eventmodels.OptionParameterComponents, error) {
+func getOptionParametersComponents(activeTrackers map[eventmodels.EventStreamID]*eventmodels.Tracker) (eventmodels.OptionParameterComponents, error) {
 	// Get the underlying stock symbol
 	var symbol string
 	if len(os.Args) > 2 {
@@ -675,6 +663,25 @@ func getOptionParametersComponents() (eventmodels.OptionParameterComponents, err
 	if symbol == "" {
 		fmt.Printf("Enter an underlying symbol (e.g. coin): ")
 		fmt.Scanln(&symbol)
+	}
+
+	var reason string
+	if activeTrackers != nil {
+		// Get the reason
+		if len(os.Args) > 6 {
+			reason = os.Args[6]
+		}
+
+		if reason == "" {
+			fmt.Printf("Enter a reason: ")
+			fmt.Scanln(&reason)
+		}
+
+		for _, tracker := range activeTrackers {
+			if tracker.StartTracker.UnderlyingSymbol == symbol && tracker.StartTracker.Reason == reason {
+				return eventmodels.OptionParameterComponents{}, fmt.Errorf("tracker already exists for symbol %s and reason %s", symbol, reason)
+			}
+		}
 	}
 
 	// Get expiration in days
@@ -734,5 +741,6 @@ func getOptionParametersComponents() (eventmodels.OptionParameterComponents, err
 		Strikes:                   []int{},
 		MinDistanceBetweenStrikes: minDistanceBetweenStrikes,
 		MaxNoOfStrikes:            maxNoOfStrikes,
+		Reason:                    reason,
 	}, nil
 }
