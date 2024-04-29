@@ -3,6 +3,7 @@ package eventmodels
 type TrackerType string
 
 const (
-	TrackerTypeStart TrackerType = "start"
-	TrackerTypeStop  TrackerType = "stop"
+	TrackerTypeStart  TrackerType = "start"
+	TrackerTypeStop   TrackerType = "stop"
+	TrackerTypeSignal TrackerType = "signal"
 )

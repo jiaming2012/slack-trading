@@ -408,8 +408,10 @@ func main() {
 		command = 4
 	case "STOP_TRACKING":
 		command = 5
+	case "CREATE_SIGNAL":
+		command = 6
 	default:
-		fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch and store Tradier options\n4. Start tracking\n5. Stop tracking\n")
+		fmt.Printf("Enter a command:\n1. List all streams\n2. Calculate all stream sizes\n3. Fetch and store Tradier options\n4. Start tracking\n5. Stop tracking\n6. Create signal\n")
 		if err := utils.ReadLineFromStdin(&commandStr); err != nil {
 			log.Fatalf("failed to read command: %v", err)
 		}
@@ -496,6 +498,12 @@ func main() {
 		}
 
 		wg.Done()
+	case 6:
+		if err = CreateSignal(ctx, &wg, eventStoreDBURL); err != nil {
+			log.Fatalf("failed to create signal: %v", err)
+		}
+
+		wg.Done()
 	default:
 		log.Fatalf("Invalid command: %d", command)
 	}
@@ -574,6 +582,75 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 	return nil
 }
 
+func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL string) error {
+	// Setup
+	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
+	esdbProducer.Start(ctx)
+
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	if err != nil {
+		return fmt.Errorf("failed to fetch all trackers: %v", err)
+	}
+
+	// Get symbol
+	var symbol eventmodels.StockSymbol
+	if len(os.Args) > 2 {
+		symbol = eventmodels.StockSymbol(os.Args[2])
+	}
+
+	if symbol == "" {
+		var s string
+		fmt.Printf("Enter an underlying symbol (e.g. coin): ")
+		if err := utils.ReadLineFromStdin(&s); err != nil {
+			return fmt.Errorf("failed to read symbol: %v", err)
+		}
+
+		symbol = eventmodels.StockSymbol(s)
+	}
+
+	// Check:
+	activeTrackers := eventservices.GetActiveTrackers(allTrackers)
+	found := false
+	for _, t := range activeTrackers {
+		if symbol == t.StartTracker.UnderlyingSymbol {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("no active trackers found for symbol: %s", symbol)
+	}
+
+	// Get signal name
+	var signalName string
+	if len(os.Args) > 3 {
+		signalName = os.Args[3]
+	}
+
+	if signalName == "" {
+		fmt.Printf("Enter a signal name: ")
+		if err := utils.ReadLineFromStdin(&signalName); err != nil {
+			return fmt.Errorf("failed to read signal name: %v", err)
+		}
+	}
+
+	// Create signal tracker
+	requestID := uuid.New()
+
+	log.Infof("create signal requestID: %s", requestID.String())
+
+	ts := time.Now()
+	signalTracker := eventmodels.NewSignalTracker(symbol, ts, signalName, requestID)
+
+	// Save the signal tracker
+	if err := esdbProducer.Save(signalTracker); err != nil {
+		return fmt.Errorf("failed to save signal tracker: %v", err)
+	}
+
+	return nil
+}
+
 func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
@@ -584,13 +661,16 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
 
+	// Check:
 	activeTrackers := eventservices.GetActiveTrackers(allTrackers)
 
+	// Check if tracker already exists
 	params, err := getOptionParametersComponents(activeTrackers)
 	if err != nil {
 		return fmt.Errorf("failed to get option parameters: %v", err)
 	}
 
+	// Create tracker
 	requestID := uuid.New()
 
 	log.Infof("start tracking symbol: %s, requestID: %s", params.Symbol, requestID.String())
@@ -682,8 +762,6 @@ func getOptionParametersComponents(activeTrackers map[eventmodels.EventStreamID]
 			if err = utils.ReadLineFromStdin(&reason); err != nil {
 				return eventmodels.OptionParameterComponents{}, fmt.Errorf("getOptionParameters:failed to read reason: %v", err)
 			}
-
-			// fmt.Println("reason: ", reason)
 		}
 
 		for _, tracker := range activeTrackers {

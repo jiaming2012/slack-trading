@@ -104,15 +104,15 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 						ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
 					}
 
-					// for _, dto := range ticksDTO {
-					// 	symbol := eventmodels.StockSymbol(dto.Symbol)
-					// 	contractID, found := w.optionContractIDMap[symbol]
-					// 	if !found {
-					// 		continue
-					// 	}
+					for _, dto := range ticksDTO {
+						symbol := eventmodels.StockSymbol(dto.Symbol)
+						contractID, found := w.optionContractIDMap[symbol]
+						if !found {
+							continue
+						}
 
-					// 	ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
-					// }
+						ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
+					}
 				}
 			}
 
@@ -127,20 +127,8 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 	}
 }
 
-// func (w *OptionChainTickWriterWorker) initializeOptionContractIDMap(contracts []*eventmodels.OptionContract) map[eventmodels.StockSymbol]eventmodels.EventStreamID {
-// 	optionContractIDMap := make(map[eventmodels.StockSymbol]eventmodels.EventStreamID)
-
-// 	for _, contract := range contracts {
-// 		optionContractIDMap[contract.Symbol] = contract.Meta.EventStreamID
-// 	}
-
-// 	return optionContractIDMap
-// }
-
 func (w *OptionChainTickWriterWorker) Start(ctx context.Context, currentStockSymbols []eventmodels.StockSymbol, currentOptionContracts []*eventmodels.OptionContract) {
 	w.wg.Add(1)
-
-	// w.optionContractIDMap = w.initializeOptionContractIDMap(currentOptionContracts)
 
 	go w.run(ctx, currentStockSymbols, currentOptionContracts)
 }
