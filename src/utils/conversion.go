@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -10,9 +11,10 @@ func AtoiSlice(s string) ([]int, error) {
 	strVals := strings.Split(s, ",")
 	intVals := make([]int, len(strVals))
 	for i, strVal := range strVals {
+		strVal = strings.TrimSpace(strVal)
 		intVal, err := strconv.Atoi(strVal)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to convert '%s' to int: %v", strVal, err)
 		}
 		intVals[i] = intVal
 	}

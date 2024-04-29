@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slack-trading/src/eventmodels"
 	"time"
+
+	"slack-trading/src/eventmodels"
 )
 
-func FetchOptionContractTicks(url, bearerToken string, symbol string, expiration string) ([]*eventmodels.OptionChainTickDTO, error) {
+func FetchOptionContractTicks(url, bearerToken string, symbol eventmodels.StockSymbol, expiration string) ([]*eventmodels.OptionChainTickDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -19,7 +20,7 @@ func FetchOptionContractTicks(url, bearerToken string, symbol string, expiration
 	}
 
 	q := req.URL.Query()
-	q.Add("symbol", symbol)
+	q.Add("symbol", string(symbol))
 	q.Add("expiration", expiration)
 
 	req.URL.RawQuery = q.Encode()

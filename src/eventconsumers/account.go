@@ -613,16 +613,6 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*eventmodels.Account, coinbaseDatafeed *eventmodels.Datafeed, ibDatafeed *eventmodels.Datafeed, manualDatafeed *eventmodels.Datafeed) *AccountWorker {
-	return &AccountWorker{
-		wg:               wg,
-		accounts:         accounts,
-		coinbaseDatafeed: coinbaseDatafeed,
-		ibDatafeed:       ibDatafeed,
-		manualDatafeed:   manualDatafeed,
-	}
-}
-
 func NewAccountWorkerClient(wg *sync.WaitGroup) *AccountWorker {
 	return &AccountWorker{
 		wg:               wg,

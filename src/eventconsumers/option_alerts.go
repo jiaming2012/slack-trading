@@ -101,7 +101,7 @@ func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, e
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: invalid status code: %s", res.Status)
 	}
 
 	var optionQuotesDTO eventmodels.OptionQuotesDTO
@@ -210,6 +210,10 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 				log.Info("stopping OptionAlertWorker consumer")
 				return
 			case <-timer.C:
+				if w.getSymbolList() == "" {
+					continue
+				}
+
 				optionPrices, err := w.fetchOptionQuotes()
 				if err != nil {
 					log.Errorf("OptionAlertWorker: failed to fetch option prices: %v", err)

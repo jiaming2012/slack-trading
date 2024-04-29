@@ -9,7 +9,7 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func FetchStockTicks(symbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {
+func FetchStockTicks(symbol eventmodels.StockSymbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -20,7 +20,7 @@ func FetchStockTicks(symbol, url, bearerToken string) (*eventmodels.StockTickIte
 	}
 
 	q := req.URL.Query()
-	q.Add("symbols", symbol)
+	q.Add("symbols", string(symbol))
 
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")

@@ -15,12 +15,11 @@ import (
 )
 
 type OptionChainTickWriterWorker struct {
-	wg                  *sync.WaitGroup
-	stockQuotesURL      string
-	optionChainURL      string
-	brokerBearerToken   string
-	calendarURL         string
-	optionContractIDMap map[string]eventmodels.EventStreamID
+	wg                *sync.WaitGroup
+	stockQuotesURL    string
+	optionChainURL    string
+	brokerBearerToken string
+	calendarURL       string
 }
 
 func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL string) *OptionChainTickWriterWorker {
@@ -33,10 +32,10 @@ func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionCh
 	}
 }
 
-func (w *OptionChainTickWriterWorker) run(ctx context.Context) {
+func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []eventmodels.StockSymbol, optionContracts eventmodels.OptionContracts) {
 	defer w.wg.Done()
 
-	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
+	ticker := time.NewTicker(10 * time.Second) // Adjust the duration as needed
 	defer ticker.Stop()
 
 	loc, err := time.LoadLocation("America/New_York")
@@ -70,29 +69,50 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context) {
 			var ticks []*eventmodels.OptionChainTick
 
 			// record stock ticks
-			stockTickDTO, err := eventservices.FetchStockTicks("coin", w.stockQuotesURL, w.brokerBearerToken)
-			if err == nil {
-				stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
-				eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)
-			} else {
-				log.Errorf("Failed to fetch stock ticks: %v", err)
+			for _, symbol := range stockSymbols {
+				stockTickDTO, err := eventservices.FetchStockTicks(symbol, w.stockQuotesURL, w.brokerBearerToken)
+				if err == nil {
+					stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
+					eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)
+				} else {
+					log.Errorf("Failed to fetch stock ticks: %v", err)
+				}
 			}
 
 			// record option contract ticks
-			for _, expiration := range []string{"2024-04-12", "2024-04-19", "2024-05-17"} {
-				ticksDTO, err := eventservices.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, "coin", expiration)
-				if err != nil {
-					log.Errorf("Failed to fetch option contract ticks: %v", err)
-					continue
-				}
-
-				for _, dto := range ticksDTO {
-					contractID, found := w.optionContractIDMap[dto.Symbol]
-					if !found {
+			expirations := optionContracts.GetListOfExpirations()
+			for _, optionContract := range optionContracts {
+				for _, expiration := range expirations {
+					ticksDTO, err := eventservices.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, optionContract.UnderlyingSymbol, expiration)
+					if err != nil {
+						log.Errorf("Failed to fetch option contract ticks: %v", err)
 						continue
 					}
 
-					ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
+					// todo: make option symbol
+					cache := map[string]*eventmodels.OptionChainTickDTO{}
+					for _, dto := range ticksDTO {
+						cache[dto.Symbol] = dto
+					}
+
+					for _, optionContract := range optionContracts {
+						dto, found := cache[string(optionContract.Symbol)]
+						if !found {
+							continue
+						}
+
+						ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
+					}
+
+					// for _, dto := range ticksDTO {
+					// 	symbol := eventmodels.StockSymbol(dto.Symbol)
+					// 	contractID, found := w.optionContractIDMap[symbol]
+					// 	if !found {
+					// 		continue
+					// 	}
+
+					// 	ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
+					// }
 				}
 			}
 
@@ -107,20 +127,20 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context) {
 	}
 }
 
-func (w *OptionChainTickWriterWorker) initializeOptionContractIDMap(contracts []eventmodels.OptionContract) map[string]eventmodels.EventStreamID {
-	optionContractIDMap := make(map[string]eventmodels.EventStreamID)
+// func (w *OptionChainTickWriterWorker) initializeOptionContractIDMap(contracts []*eventmodels.OptionContract) map[eventmodels.StockSymbol]eventmodels.EventStreamID {
+// 	optionContractIDMap := make(map[eventmodels.StockSymbol]eventmodels.EventStreamID)
 
-	for _, contract := range contracts {
-		optionContractIDMap[contract.Symbol] = contract.Meta.EventStreamID
-	}
+// 	for _, contract := range contracts {
+// 		optionContractIDMap[contract.Symbol] = contract.Meta.EventStreamID
+// 	}
 
-	return optionContractIDMap
-}
+// 	return optionContractIDMap
+// }
 
-func (w *OptionChainTickWriterWorker) Start(ctx context.Context, currentOptionContracts []eventmodels.OptionContract) {
+func (w *OptionChainTickWriterWorker) Start(ctx context.Context, currentStockSymbols []eventmodels.StockSymbol, currentOptionContracts []*eventmodels.OptionContract) {
 	w.wg.Add(1)
 
-	w.optionContractIDMap = w.initializeOptionContractIDMap(currentOptionContracts)
+	// w.optionContractIDMap = w.initializeOptionContractIDMap(currentOptionContracts)
 
-	go w.run(ctx)
+	go w.run(ctx, currentStockSymbols, currentOptionContracts)
 }
