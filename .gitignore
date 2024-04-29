@@ -6,3 +6,4 @@ src/env.txt
 run*.sh
 .vscode/
 **__debug**
+main

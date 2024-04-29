@@ -103,16 +103,6 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 
 						ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
 					}
-
-					for _, dto := range ticksDTO {
-						symbol := eventmodels.StockSymbol(dto.Symbol)
-						contractID, found := w.optionContractIDMap[symbol]
-						if !found {
-							continue
-						}
-
-						ticks = append(ticks, dto.ToModel(contractID, uuid.New(), nowUTC))
-					}
 				}
 			}
 
