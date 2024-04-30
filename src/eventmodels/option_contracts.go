@@ -15,3 +15,17 @@ func (c OptionContracts) GetListOfExpirations() []string {
 
 	return expirations
 }
+
+func (c OptionContracts) GetListOfUnderlyingSymbols() []StockSymbol {
+	symbolsMap := make(map[StockSymbol]struct{})
+	for _, contract := range c {
+		symbolsMap[contract.UnderlyingSymbol] = struct{}{}
+	}
+
+	symbols := make([]StockSymbol, 0, len(symbolsMap))
+	for symbol := range symbolsMap {
+		symbols = append(symbols, symbol)
+	}
+
+	return symbols
+}

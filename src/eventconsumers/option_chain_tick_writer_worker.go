@@ -80,30 +80,31 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 			}
 
 			// record option contract ticks
+			cache := map[string]*eventmodels.OptionChainTickDTO{}
 			expirations := optionContracts.GetListOfExpirations()
-			for _, optionContract := range optionContracts {
+			underlyingSymbols := optionContracts.GetListOfUnderlyingSymbols()
+			for _, underlyingSymbol := range underlyingSymbols {
 				for _, expiration := range expirations {
-					ticksDTO, err := eventservices.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, optionContract.UnderlyingSymbol, expiration)
+					ticksDTO, err := eventservices.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, underlyingSymbol, expiration)
 					if err != nil {
 						log.Errorf("Failed to fetch option contract ticks: %v", err)
 						continue
 					}
 
-					// todo: make option symbol
-					cache := map[string]*eventmodels.OptionChainTickDTO{}
 					for _, dto := range ticksDTO {
 						cache[dto.Symbol] = dto
 					}
-
-					for _, optionContract := range optionContracts {
-						dto, found := cache[string(optionContract.Symbol)]
-						if !found {
-							continue
-						}
-
-						ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
-					}
 				}
+			}
+
+			for _, optionContract := range optionContracts {
+				dto, found := cache[string(optionContract.Symbol)]
+				if !found {
+					log.Errorf("Option contract %s not found in cache", optionContract.Symbol)
+					continue
+				}
+
+				ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
 			}
 
 			for _, tick := range ticks {

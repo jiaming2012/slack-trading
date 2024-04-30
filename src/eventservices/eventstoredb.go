@@ -66,10 +66,6 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 		return nil, fmt.Errorf("failed to find last event number: %w", err)
 	}
 
-	if lastEventNumber == 0 {
-		return results, nil
-	}
-
 	readOptions := esdb.ReadStreamOptions{
 		Direction: esdb.Forwards,
 		From:      esdb.Start{},
@@ -102,10 +98,6 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 			}
 
 			currentEventNumber = event.Event.EventNumber
-
-			// eventStreamID := eventmodels.EventStreamID(currentEventNumber)
-
-			// object.SetEventStreamID(eventStreamID)
 
 			results[object.GetMetaData().EventStreamID] = object
 		}

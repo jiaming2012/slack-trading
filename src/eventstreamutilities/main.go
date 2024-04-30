@@ -723,10 +723,10 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbPr
 		esdbProducer.Save(&option)
 		created = append(created, &option)
 
-		fmt.Printf("Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
+		log.Infof("Created contract -> Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
 	}
 
-	fmt.Println("Done")
+	log.Info("Done")
 
 	return created, nil
 }
