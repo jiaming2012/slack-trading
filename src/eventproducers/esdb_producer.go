@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
@@ -29,7 +29,7 @@ type EsdbProducer struct {
 
 func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
 	eventData := esdb.EventData{
-		ContentType: esdb.JsonContentType,
+		ContentType: esdb.ContentTypeJson,
 		EventType:   string(eventName),
 		Data:        data,
 	}

@@ -9,7 +9,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/EventStore/EventStore-Client-Go/esdb"
+	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 
 	"slack-trading/src/eventmodels"
 )
@@ -119,9 +119,10 @@ func FindStreamLastEventNumber(db *esdb.Client, streamName eventmodels.StreamNam
 	}, 1)
 
 	if err != nil {
-		if errors.Is(err, esdb.ErrStreamNotFound) {
-			return 0, nil
-		}
+		// todo: re-enable this
+		// if errors.Is(err, esdb.ErrStreamNotFound) {
+		// 	return 0, nil
+		// }
 
 		return 0, fmt.Errorf("failed to read stream %s: %w", streamName, err)
 	}
