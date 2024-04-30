@@ -37,7 +37,7 @@ func (cli *eventStoreDBClient) StartRead(name eventmodels.StreamName) {
 
 func (cli *eventStoreDBClient) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
 	eventData := esdb.EventData{
-		ContentType: esdb.JsonContentType,
+		ContentType: esdb.ContentTypeJson,
 		EventType:   string(eventName),
 		Data:        data,
 	}
