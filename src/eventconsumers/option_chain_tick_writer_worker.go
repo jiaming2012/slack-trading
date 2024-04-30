@@ -35,7 +35,7 @@ func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionCh
 func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []eventmodels.StockSymbol, optionContracts eventmodels.OptionContracts) {
 	defer w.wg.Done()
 
-	ticker := time.NewTicker(10 * time.Second) // Adjust the duration as needed
+	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
 	defer ticker.Stop()
 
 	loc, err := time.LoadLocation("America/New_York")
