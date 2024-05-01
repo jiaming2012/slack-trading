@@ -8,11 +8,9 @@ type Tracker struct {
 	SignalTracker *SignalTracker `json:"signalTracker"`
 }
 
-func (c *Tracker) GetSavedEventParameters() []SavedEventParameters {
-	return []SavedEventParameters{
-		{
-			StreamName: TrackersStream,
-			EventName:  CreateTrackerEvent,
-		},
+func (c *Tracker) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: TrackersStream,
+		EventName:  CreateTrackerEvent,
 	}
 }

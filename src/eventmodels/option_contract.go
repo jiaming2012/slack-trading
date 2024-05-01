@@ -14,11 +14,9 @@ type OptionContract struct {
 	ExpirationType   string       `json:"expiration_type"`
 }
 
-func (c *OptionContract) GetSavedEventParameters() []SavedEventParameters {
-	return []SavedEventParameters{
-		{
-			StreamName: OptionContractStream,
-			EventName:  CreateOptionContractEvent,
-		},
+func (c *OptionContract) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName: OptionContractStream,
+		EventName:  CreateOptionContractEvent,
 	}
 }

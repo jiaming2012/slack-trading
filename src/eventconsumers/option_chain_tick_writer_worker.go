@@ -51,7 +51,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 			nowEST := now.In(loc)
 			nowUTC := now.UTC()
 
-			payload, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowEST)
+			payload, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
 			if err != nil {
 				log.Errorf("Failed to fetch market calendar: %v", err)
 			}

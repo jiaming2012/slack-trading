@@ -11,13 +11,13 @@ import (
 
 func FetchCurrentStockAndOptionContracts(ctx context.Context, esdbClient *esdb.Client) ([]eventmodels.StockSymbol, []*eventmodels.OptionContract, error) {
 	// todo: replace with a stream
-	allOptionContracts, err := FetchAll(ctx, esdbClient, &eventmodels.OptionContract{}, 0)
+	allOptionContracts, err := FetchAll(ctx, esdbClient, &eventmodels.OptionContract{})
 	if err != nil {
 		return []eventmodels.StockSymbol{}, nil, fmt.Errorf("failed to fetch all option contracts: %v", err)
 	}
 
 	// todo: replace with a stream
-	allTrackers, err := FetchAll(ctx, esdbClient, &eventmodels.Tracker{}, 0)
+	allTrackers, err := FetchAll(ctx, esdbClient, &eventmodels.Tracker{})
 	if err != nil {
 		return []eventmodels.StockSymbol{}, nil, fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
