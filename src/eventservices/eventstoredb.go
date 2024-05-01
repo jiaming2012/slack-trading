@@ -57,11 +57,13 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 	return size, nil
 }
 
-func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[eventmodels.EventStreamID]T, error) {
+func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T, streamIndex int) (map[eventmodels.EventStreamID]T, error) {
 	results := make(map[eventmodels.EventStreamID]T)
 	var currentEventNumber uint64
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, instance.GetSavedEventParameters().StreamName)
+	params := instance.GetSavedEventParameters()[streamIndex]
+
+	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find last event number: %w", err)
 	}
@@ -72,13 +74,13 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 	}
 
 	for {
-		stream, err := esdbClient.ReadStream(ctx, string(instance.GetSavedEventParameters().StreamName), readOptions, 4096)
+		stream, err := esdbClient.ReadStream(ctx, string(params.StreamName), readOptions, 4096)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
 
-			return nil, fmt.Errorf("failed to read stream %s: %w", instance.GetSavedEventParameters().StreamName, err)
+			return nil, fmt.Errorf("failed to read stream %s: %w", params.StreamName, err)
 		}
 		defer stream.Close()
 

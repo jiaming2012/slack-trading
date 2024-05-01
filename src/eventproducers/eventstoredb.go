@@ -66,13 +66,16 @@ func (cli *eventStoreDBClient) storeRequestEventHandler(request interface{}) {
 		return
 	}
 
-	eventName := event.GetSavedEventParameters().EventName
-	streamName := event.GetSavedEventParameters().StreamName
+	params := event.GetSavedEventParameters()
+	for _, param := range params {
+		eventName := param.EventName
+		streamName := param.StreamName
 
-	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
-		meta := event.GetMetaData()
-		pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, meta)
-		return
+		if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
+			meta := event.GetMetaData()
+			pubsub.PublishRequestError("eventStoreDBClient:cli.insertEvent", err, meta)
+			continue
+		}
 	}
 }
 

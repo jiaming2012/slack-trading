@@ -1,6 +1,6 @@
 package eventmodels
 
 type SavedEvent interface {
-	GetSavedEventParameters() SavedEventParameters
+	GetSavedEventParameters() []SavedEventParameters
 	GetMetaData() *MetaData
 }

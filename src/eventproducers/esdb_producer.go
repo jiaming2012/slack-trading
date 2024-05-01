@@ -54,12 +54,20 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 		return err
 	}
 
-	eventName := event.GetSavedEventParameters().EventName
-	streamName := event.GetSavedEventParameters().StreamName
+	params := event.GetSavedEventParameters()
+	for _, param := range params {
 
-	log.Debugf("%s saving to stream %s ...", eventName, streamName)
+		eventName := param.EventName
+		streamName := param.StreamName
 
-	return cli.insertEvent(context.Background(), eventName, string(streamName), bytes)
+		log.Debugf("%s saving to stream %s ...", eventName, streamName)
+
+		if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
+			return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (cli *EsdbProducer) storeRequestEventHandler(request interface{}) {
