@@ -4,6 +4,5 @@ src/env.txt
 .idea/
 .run/
 run*.sh
-.vscode/
 **__debug**
 main

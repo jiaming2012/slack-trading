@@ -21,6 +21,7 @@ import (
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
+	"slack-trading/src/eventservices"
 	"slack-trading/src/utils"
 )
 
@@ -59,23 +60,33 @@ func main() {
 
 func run() {
 	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
 
+	// Set up
 	utils.InitEnvironmentVariables()
-
-	var wg sync.WaitGroup
-
-	// Constants
-	// iBServerURL := os.Getenv("IB_SERVER_URL")
-	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
-	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
-	tradierQuotesURL := os.Getenv("STOCK_QUOTES_URL")
-	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-
-	// Set up logger
-	log.SetLevel(log.DebugLevel)
-
-	// Set up event bus
+	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
+
+	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(level)
+	}
+
+	log.Infof("Log level set to %v", log.GetLevel())
+
+	// Get env
+	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
+	calendarURL := os.Getenv("MARKET_CALENDAR_URL")
+	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
+	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
+	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
+	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
+	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
+	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
+	tradierQuotesURL := os.Getenv("TRADIER_QUOTES_URL")
 
 	// Set up google sheets
 	//if err := sheets.Init(ctx); err != nil {
@@ -121,10 +132,24 @@ func run() {
 	streamParams := []eventmodels.StreamParameter{
 		{StreamName: eventmodels.AccountsStream, Mutex: &sync.Mutex{}},
 		{StreamName: eventmodels.OptionAlertsStream, Mutex: &sync.Mutex{}},
-		// {StreamName: eventmodels.OptionChainTicks, Mutex: &sync.Mutex{}},
+		{StreamName: eventmodels.OptionChainTickStream, Mutex: &sync.Mutex{}},
+		{StreamName: eventmodels.StockTickStream, Mutex: &sync.Mutex{}},
+	}
+
+	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, streamParams)
+	esdbProducer.Start(ctx)
+	eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL).Start(ctx, eventmodels.OptionContractStream)
+	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
+	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
+
+	currentStockSymbols, currentOptionContracts, err := eventservices.FetchCurrentStockAndOptionContracts(ctx, esdbProducer.GetClient())
+	if err != nil {
+		log.Fatalf("failed to fetch current option contracts: %v", err)
 	}
 
 	// Start event clients
+	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, currentStockSymbols, currentOptionContracts)
+
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
 	// eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
