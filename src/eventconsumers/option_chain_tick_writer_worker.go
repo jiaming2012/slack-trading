@@ -122,7 +122,8 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			}
 
 			for _, tick := range ticks {
-				eventpubsub.PublishEvent("main", eventmodels.CreateNewOptionChainTickEvent, tick)
+				t := tick
+				eventpubsub.PublishEvent("main", eventmodels.CreateNewOptionChainTickEvent, t)
 			}
 
 			log.Infof("Recorded %d option contract ticks", len(ticks))

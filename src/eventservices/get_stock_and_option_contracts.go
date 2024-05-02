@@ -30,13 +30,13 @@ func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts [
 	}
 
 	stockSymbols := make([]eventmodels.StockSymbol, 0, len(stockSymbolsMap))
-	for stockSymbol := range stockSymbolsMap {
-		stockSymbols = append(stockSymbols, stockSymbol)
+	for s := range stockSymbolsMap {
+		stockSymbols = append(stockSymbols, s)
 	}
 
 	optionContracts := make([]*eventmodels.OptionContractV1, 0, len(optionContractsMap))
-	for _, optionContract := range optionContractsMap {
-		optionContracts = append(optionContracts, optionContract)
+	for _, c := range optionContractsMap {
+		optionContracts = append(optionContracts, c)
 	}
 
 	return stockSymbols, optionContracts, nil

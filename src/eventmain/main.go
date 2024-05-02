@@ -82,7 +82,6 @@ func run() {
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
-	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
 	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
 	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
 	tradierQuotesURL := os.Getenv("TRADIER_QUOTES_URL")
@@ -136,13 +135,10 @@ func run() {
 		{StreamName: eventmodels.StockTickStream, Mutex: &sync.Mutex{}},
 	}
 
-	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, streamParams)
-	esdbProducer.Start(ctx)
-
-	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.OptionContractV1{})
+	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.OptionContractV1{})
 	optionContractClient.Start(ctx)
 
-	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.TrackerV1{})
+	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.TrackerV1{})
 	trackersClient.Start(ctx)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
