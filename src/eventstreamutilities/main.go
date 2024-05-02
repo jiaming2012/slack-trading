@@ -633,13 +633,36 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 		}
 	}
 
+	// Get timeframe
+	var timeframeStr string
+	if len(os.Args) > 4 {
+		timeframeStr = os.Args[4]
+	}
+
+	if timeframeStr == "" {
+		fmt.Printf("Enter a timeframe: ")
+		if err := utils.ReadLineFromStdin(&timeframeStr); err != nil {
+			return fmt.Errorf("failed to read timeframe: %v", err)
+		}
+	}
+
+	timeframe, err := strconv.Atoi(timeframeStr)
+	if err != nil {
+		return fmt.Errorf("failed to convert timeframe to int: %v", err)
+	}
+
 	// Create signal tracker
 	requestID := uuid.New()
 
 	log.Infof("create signal requestID: %s", requestID.String())
 
-	ts := time.Now()
-	signalTracker := eventmodels.NewSignalTracker(symbol, ts, signalName, requestID)
+	header := eventmodels.SignalRequestHeader{
+		Symbol:    symbol,
+		Source:    eventmodels.SignalSourceManual,
+		Timeframe: uint(timeframe),
+	}
+	ts := time.Now().UTC()
+	signalTracker := eventmodels.NewSignalTrackerV2(signalName, header, ts, requestID)
 
 	// Save the signal tracker
 	if err := esdbProducer.Save(signalTracker); err != nil {

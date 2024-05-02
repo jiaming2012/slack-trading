@@ -81,7 +81,9 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 		return
 	}
 
-	tracker, err := request.ConvertToTracker()
+	now := time.Now().UTC()
+
+	tracker, err := request.ConvertToTracker(now)
 	if err != nil {
 		meta := request.GetMetaData()
 		pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)

@@ -25,13 +25,13 @@ func (r *CreateSignalRequestEventV1) GetSavedEventParameters() SavedEventParamet
 	}
 }
 
-func (r *CreateSignalRequestEventV1) ConvertToTracker() (*TrackerV1, error) {
+func (r *CreateSignalRequestEventV1) ConvertToTracker(now time.Time) (*TrackerV2, error) {
 	symbol := StockSymbol(r.Header.Symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("CreateSignalRequestEvent.ConvertToTracker: symbol was not set")
 	}
 
-	return NewSignalTracker(symbol, r.LastUpdated, r.Name, r.GetMetaData().RequestID), nil
+	return NewSignalTrackerV2(r.Name, r.Header, now, r.GetMetaData().RequestID), nil
 }
 
 func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequestEventV1 {
@@ -45,7 +45,7 @@ func (r *CreateSignalRequestEventV1) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Header.Source)
 }
 
-func (r *CreateSignalRequestEventV1) GetSource() SignalRequestSource {
+func (r *CreateSignalRequestEventV1) GetSource() SignalSource {
 	return r.Header.Source
 }
 

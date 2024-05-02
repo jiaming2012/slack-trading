@@ -5,7 +5,7 @@ type TrackerDTO struct {
 	Type          TrackerType      `json:"type"`
 	StartTracker  *StartTrackerDTO `json:"startTracker"`
 	StopTracker   *StopTrackerDTO  `json:"stopTracker"`
-	SignalTracker *SignalTracker   `json:"signalTracker"`
+	SignalTracker *SignalTrackerV1 `json:"signalTracker"`
 }
 
 func (dto *TrackerDTO) ConvertToObject() *TrackerV1 {

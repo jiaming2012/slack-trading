@@ -6,17 +6,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type SignalTracker struct {
+type SignalTrackerV1 struct {
 	Symbol    StockSymbol `json:"symbol"`
 	Timestamp time.Time   `json:"timestamp"`
 	Name      string      `json:"name"`
 }
 
-func NewSignalTracker(symbol StockSymbol, timestamp time.Time, name string, requestID uuid.UUID) *TrackerV1 {
+func NewSignalTrackerV1(symbol StockSymbol, timestamp time.Time, name string, requestID uuid.UUID) *TrackerV1 {
 	return &TrackerV1{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		Type:             TrackerTypeSignal,
-		SignalTracker: &SignalTracker{
+		SignalTracker: &SignalTrackerV1{
 			Symbol:    symbol,
 			Timestamp: timestamp,
 			Name:      name,
