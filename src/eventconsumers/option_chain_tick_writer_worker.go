@@ -32,7 +32,7 @@ func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionCh
 	}
 }
 
-func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []eventmodels.StockSymbol, optionContracts eventmodels.OptionContracts) {
+func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsClient *OptionContractConsumer, trackerClient *TrackerConsumer) {
 	defer w.wg.Done()
 
 	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
@@ -67,6 +67,20 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 			}
 
 			var ticks []*eventmodels.OptionChainTick
+
+			// get real time stock symbols and option contracts
+			allOptionContracts, allOptionContractsDone := optionContractsClient.GetSavedEvents()
+			allTrackers, allTrackersDone := trackerClient.GetSavedEvents()
+
+			stockSymbols, optionContracts, err := eventservices.GetCurrentStockAndOptionContracts(ctx, allOptionContracts, allTrackers)
+
+			allOptionContractsDone()
+			allTrackersDone()
+
+			if err != nil {
+				log.Errorf("Failed to get current stock and option contracts: %v", err)
+				continue
+			}
 
 			// record stock ticks
 			for _, symbol := range stockSymbols {
@@ -118,8 +132,8 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, stockSymbols []ev
 	}
 }
 
-func (w *OptionChainTickWriterWorker) Start(ctx context.Context, currentStockSymbols []eventmodels.StockSymbol, currentOptionContracts []*eventmodels.OptionContract) {
+func (w *OptionChainTickWriterWorker) Start(ctx context.Context, optionContractsCli *OptionContractConsumer, trackersCli *TrackerConsumer) {
 	w.wg.Add(1)
 
-	go w.run(ctx, currentStockSymbols, currentOptionContracts)
+	go w.run(ctx, optionContractsCli, trackersCli)
 }

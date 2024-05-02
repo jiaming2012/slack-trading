@@ -18,7 +18,6 @@ type CreateSignalRequestEvent struct {
 }
 
 func (r *CreateSignalRequestEvent) ConvertToTracker() (*Tracker, error) {
-
 	symbol := StockSymbol(r.Header.Symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("CreateSignalRequestEvent.ConvertToTracker: symbol was not set")

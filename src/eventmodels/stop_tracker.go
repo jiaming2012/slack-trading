@@ -12,6 +12,14 @@ type StopTracker struct {
 	Reason         string        `json:"reason"`
 }
 
+func (t *StopTracker) ConvertToDTO() *StopTrackerDTO {
+	return &StopTrackerDTO{
+		TrackerStartID: uuid.UUID(t.TrackerStartID),
+		Timestamp:      t.Timestamp,
+		Reason:         t.Reason,
+	}
+}
+
 func NewStopTracker(trackerStartID EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *Tracker {
 	return &Tracker{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},

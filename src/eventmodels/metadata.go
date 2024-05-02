@@ -7,19 +7,19 @@ import (
 )
 
 type MetaData struct {
-	RequestError      chan error    `json:"-"`
-	Mutex             *sync.Mutex   `json:"-"`
-	RequestID         uuid.UUID     `json:"request_id"`
-	IsExternalRequest bool          `json:"-"`
-	EventStreamID     EventStreamID `json:"event_stream_id"`
+	RequestError      chan error  `json:"-"`
+	Mutex             *sync.Mutex `json:"-"`
+	RequestID         uuid.UUID   `json:"request_id"`
+	IsExternalRequest bool        `json:"-"`
+	EventStreamID     uuid.UUID   `json:"event_stream_id"`
 }
 
 func (m *MetaData) SetEventStreamID(id EventStreamID) {
-	m.EventStreamID = id
+	m.EventStreamID = uuid.UUID(id)
 }
 
 func (m *MetaData) GetEventStreamID() EventStreamID {
-	return m.EventStreamID
+	return EventStreamID(m.EventStreamID)
 }
 
 func (m *MetaData) EndProcess(err error) {

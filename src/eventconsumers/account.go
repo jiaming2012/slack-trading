@@ -504,34 +504,31 @@ func (w *AccountWorker) handleOpenConditions(event *eventmodels.CreateSignalRequ
 	return nil
 }
 
-func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSignalRequestEvent) (*eventmodels.CreateSignalResponseEvent, error) {
+func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSignalRequestEvent) error {
 	log.Infof("received %v", event)
 
 	if err := w.handleExitConditions(event); err != nil {
-		return nil, fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle exit conditions: %w", err)
+		return fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle exit conditions: %w", err)
 	}
 
 	if err := w.handleOpenConditions(event); err != nil {
-		return nil, fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle open conditions: %w", err)
+		return fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle open conditions: %w", err)
 	}
 
 	// todo: publish any newly created trades
 
-	return &eventmodels.CreateSignalResponseEvent{
-		Name: event.Name,
-	}, nil
+	return nil
 }
 
 func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequestEvent) {
 	log.Infof("received %v", event)
 
-	responseEvent, err := w.handleCreateSignalResponse(event)
-	if err != nil {
+	if err := w.handleCreateSignalResponse(event); err != nil {
 		pubsub.PublishRequestError("AccountWorker.handleCreateSignalRequest", fmt.Errorf("failed to handle signal request: %w", err), &event.Meta)
 		return
 	}
 
-	pubsub.PublishCompletedResponse("AccountWorker.handleCreateSignalRequest", responseEvent, &event.Meta)
+	pubsub.PublishEvent("AccountWorker.handleCreateSignalRequest", eventmodels.CreateSignalRequestProcessedByAccount, nil)
 }
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {

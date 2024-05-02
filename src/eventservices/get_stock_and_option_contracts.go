@@ -2,32 +2,28 @@ package eventservices
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 
 	"slack-trading/src/eventmodels"
 )
 
-func FetchCurrentStockAndOptionContracts(ctx context.Context, esdbClient *esdb.Client) ([]eventmodels.StockSymbol, []*eventmodels.OptionContract, error) {
-	// todo: replace with a stream
-	allOptionContracts, err := FetchAll(ctx, esdbClient, &eventmodels.OptionContract{})
-	if err != nil {
-		return []eventmodels.StockSymbol{}, nil, fmt.Errorf("failed to fetch all option contracts: %v", err)
+func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts []*eventmodels.OptionContract, allTrackers []*eventmodels.Tracker) ([]eventmodels.StockSymbol, eventmodels.OptionContracts, error) {
+	allOptionContractsMap := make(map[eventmodels.EventStreamID]*eventmodels.OptionContract)
+	for _, contract := range allOptionContracts {
+		allOptionContractsMap[contract.GetMetaData().GetEventStreamID()] = contract
 	}
 
-	// todo: replace with a stream
-	allTrackers, err := FetchAll(ctx, esdbClient, &eventmodels.Tracker{})
-	if err != nil {
-		return []eventmodels.StockSymbol{}, nil, fmt.Errorf("failed to fetch all trackers: %v", err)
+	allTrackersMap := make(map[eventmodels.EventStreamID]*eventmodels.Tracker)
+	for _, tracker := range allTrackers {
+		allTrackersMap[tracker.GetMetaData().GetEventStreamID()] = tracker
 	}
-	activeTrackers := GetActiveTrackers(allTrackers)
+
+	activeTrackers := GetActiveTrackers(allTrackersMap)
 
 	stockSymbolsMap := make(map[eventmodels.StockSymbol]struct{})
 	optionContractsMap := make(map[eventmodels.EventStreamID]*eventmodels.OptionContract)
 	for _, tracker := range activeTrackers {
 		for _, optionContractID := range tracker.StartTracker.OptionContractIDs {
-			contract := allOptionContracts[optionContractID]
+			contract := allOptionContractsMap[optionContractID]
 			stockSymbolsMap[contract.UnderlyingSymbol] = struct{}{}
 			optionContractsMap[optionContractID] = contract
 		}

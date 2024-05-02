@@ -9,7 +9,7 @@ func GetActiveTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.Track
 
 	for _, tracker := range trackers {
 		if tracker.Type == eventmodels.TrackerTypeStart {
-			id := tracker.GetMetaData().EventStreamID
+			id := tracker.GetMetaData().GetEventStreamID()
 			activeTrackers[id] = tracker
 		}
 	}

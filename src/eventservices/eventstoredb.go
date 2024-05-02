@@ -65,7 +65,7 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 
 	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find last event number: %w", err)
+		return nil, fmt.Errorf("FetchAll: failed to find last event number: %w", err)
 	}
 
 	readOptions := esdb.ReadStreamOptions{
@@ -80,7 +80,7 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 				break
 			}
 
-			return nil, fmt.Errorf("failed to read stream %s: %w", params.StreamName, err)
+			return nil, fmt.Errorf("FetchAll: failed to read stream %s: %w", params.StreamName, err)
 		}
 		defer stream.Close()
 
@@ -91,17 +91,21 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 					break
 				}
 
-				return nil, fmt.Errorf("failed to read event from stream: %w", err)
+				if esdbError, ok := err.(*esdb.Error); ok && esdbError.IsErrorCode(esdb.ErrorCodeResourceNotFound) {
+					break
+				}
+
+				return nil, fmt.Errorf("FetchAll: failed to read event from stream: %w", err)
 			}
 
 			var object T
 			if err := json.Unmarshal(event.Event.Data, &object); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal event data: %w", err)
+				return nil, fmt.Errorf("FetchAll: failed to unmarshal event data: %w", err)
 			}
 
 			currentEventNumber = event.Event.EventNumber
 
-			results[object.GetMetaData().EventStreamID] = object
+			results[object.GetMetaData().GetEventStreamID()] = object
 		}
 
 		if currentEventNumber == lastEventNumber {
@@ -121,17 +125,20 @@ func FindStreamLastEventNumber(db *esdb.Client, streamName eventmodels.StreamNam
 	}, 1)
 
 	if err != nil {
-		// todo: re-enable this
-		// if errors.Is(err, esdb.ErrStreamNotFound) {
-		// 	return 0, nil
-		// }
+		if esdbError, ok := err.(*esdb.Error); ok && esdbError.IsErrorCode(esdb.ErrorCodeResourceNotFound) {
+			return 0, nil
+		}
 
-		return 0, fmt.Errorf("failed to read stream %s: %w", streamName, err)
+		return 0, fmt.Errorf("FindStreamLastEventNumber: failed to read stream %s: %w", streamName, err)
 	}
 
 	event, err := stream.Recv()
 	if err != nil {
-		return 0, fmt.Errorf("failed to read event from stream %s: %w", streamName, err)
+		if esdbError, ok := err.(*esdb.Error); ok && esdbError.IsErrorCode(esdb.ErrorCodeResourceNotFound) {
+			return 0, nil
+		}
+
+		return 0, fmt.Errorf("FindStreamLastEventNumber: failed to read event from stream %s: %w", streamName, err)
 	}
 
 	return event.Event.EventNumber, nil

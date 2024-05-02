@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
@@ -16,43 +15,44 @@ import (
 	"slack-trading/src/eventservices"
 )
 
-type esdbConsumer struct {
-	wg              *sync.WaitGroup
-	db              *esdb.Client
-	url             string
-	mu              sync.Mutex
-	optionContracts []eventmodels.OptionContract
-	done            chan bool
+type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContract]
+
+type TrackerConsumer = esdbConsumer[*eventmodels.Tracker]
+
+type esdbConsumer[T eventmodels.SavedEvent] struct {
+	wg          *sync.WaitGroup
+	db          *esdb.Client
+	url         string
+	mu          sync.Mutex
+	savedEvents []T
+	streamName  eventmodels.StreamName
 }
 
-func NewESDBConsumer(wg *sync.WaitGroup, url string) *esdbConsumer {
-	return &esdbConsumer{
-		wg:   wg,
-		url:  url,
-		done: make(chan bool),
+func NewESDBConsumer[T eventmodels.SavedEvent](wg *sync.WaitGroup, url string, instance T) *esdbConsumer[T] {
+	return &esdbConsumer[T]{
+		wg:          wg,
+		url:         url,
+		savedEvents: make([]T, 0),
+		streamName:  instance.GetSavedEventParameters().StreamName,
 	}
 }
 
-// In order to avoid race conditons and copying optionContracts, we block the write operation with a mutex until the caller is done reading the data
-func (cli *esdbConsumer) GetOptionContracts() ([]eventmodels.OptionContract, <-chan bool) {
+// In order to avoid race conditons and needing to make a copy of saved events on each call, we block the write operation with a mutex until the caller is done reading the data
+func (cli *esdbConsumer[T]) GetSavedEvents() ([]T, func()) {
 	cli.mu.Lock()
-	return cli.optionContracts, cli.done
+
+	done := func() {
+		cli.mu.Unlock()
+	}
+
+	return cli.savedEvents, done
 }
 
-func (cli *esdbConsumer) run(ctx context.Context, errCh chan error) {
+func (cli *esdbConsumer[T]) run(ctx context.Context, errCh chan error) {
 	defer cli.wg.Done()
-
-	timer := time.NewTimer(5 * time.Second)
 
 	for {
 		select {
-		case <-timer.C:
-			cli.mu.Lock()
-
-			fmt.Printf("Found %d option contracts\n", len(cli.optionContracts))
-
-			cli.mu.Unlock()
-			timer.Reset(5 * time.Second)
 		case err := <-errCh:
 			log.Panicf("eventStoreDBClient: error channel: %v", err)
 		case <-ctx.Done():
@@ -61,13 +61,13 @@ func (cli *esdbConsumer) run(ctx context.Context, errCh chan error) {
 	}
 }
 
-func (cli *esdbConsumer) subscribeToStream(ctx context.Context, streamName eventmodels.StreamName, initialEventNumber uint64) (error, chan error) {
+func (cli *esdbConsumer[T]) subscribeToStream(ctx context.Context, streamName eventmodels.StreamName, initialEventNumber uint64) (chan error, error) {
 	subscription, err := cli.db.SubscribeToStream(ctx, string(streamName), esdb.SubscribeToStreamOptions{
 		From: esdb.Revision(initialEventNumber),
 	})
 
 	if err != nil {
-		return fmt.Errorf("eventStoreDBClient: failed to subscribe to stream: %v", err), nil
+		return nil, fmt.Errorf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 
 	log.Infof("subscribed to stream %s", streamName)
@@ -116,23 +116,24 @@ func (cli *esdbConsumer) subscribeToStream(ctx context.Context, streamName event
 		}
 	}()
 
-	return nil, errCh
+	return errCh, nil
 }
 
-func (cli *esdbConsumer) processEvent(event *esdb.RecordedEvent) error {
-	var contract eventmodels.OptionContract
-	if err := json.Unmarshal(event.Data, &contract); err != nil {
+func (cli *esdbConsumer[T]) processEvent(event *esdb.RecordedEvent) error {
+	var savedEvent T
+
+	if err := json.Unmarshal(event.Data, &savedEvent); err != nil {
 		return fmt.Errorf("esdbConsumer.processEvent: failed to unmarshal event data: %v", err)
 	}
 
-	cli.optionContracts = append(cli.optionContracts, contract)
+	cli.mu.Lock()
+	cli.savedEvents = append(cli.savedEvents, savedEvent)
+	cli.mu.Unlock()
+
 	return nil
 }
 
-func (cli *esdbConsumer) replayEvents(ctx context.Context, name eventmodels.StreamName, lastEventNumber uint64) error {
-	cli.mu.Lock()
-	defer cli.mu.Unlock()
-
+func (cli *esdbConsumer[T]) replayEvents(ctx context.Context, name eventmodels.StreamName, lastEventNumber uint64) error {
 	if lastEventNumber == 0 {
 		return nil
 	}
@@ -160,30 +161,30 @@ func (cli *esdbConsumer) replayEvents(ctx context.Context, name eventmodels.Stre
 	return nil
 }
 
-func (cli *esdbConsumer) Start(ctx context.Context, name eventmodels.StreamName) {
+func (cli *esdbConsumer[T]) Start(ctx context.Context) {
 	cli.wg.Add(1)
 
 	settings, err := esdb.ParseConnectionString(cli.url)
 	if err != nil {
-		panic(fmt.Errorf("failed to parse connection string: %w", err))
+		log.Panicf("failed to parse connection string: %v", err)
 	}
 
 	cli.db, err = esdb.NewClient(settings)
 	if err != nil {
-		panic(fmt.Errorf("failed to create client: %w", err))
+		log.Panicf("failed to create client: %v", err)
 	}
 
-	lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, name)
+	lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, cli.streamName)
 	if err != nil {
 		log.Panicf("eventStoreDBClient: failed to find last event number: %v", err)
 	}
 
-	if err := cli.replayEvents(ctx, name, lastEventNumber); err != nil {
+	if err := cli.replayEvents(ctx, cli.streamName, lastEventNumber); err != nil {
 		log.Panicf("eventStoreDBClient: failed to replay events: %v", err)
 	}
 
 	var errCh chan error
-	if err, errCh = cli.subscribeToStream(ctx, name, lastEventNumber); err != nil {
+	if errCh, err = cli.subscribeToStream(ctx, cli.streamName, lastEventNumber); err != nil {
 		log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 

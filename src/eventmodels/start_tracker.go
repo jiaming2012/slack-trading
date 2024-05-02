@@ -7,10 +7,23 @@ import (
 )
 
 type StartTracker struct {
-	UnderlyingSymbol  StockSymbol     `json:"underlyingSymbol"`
-	OptionContractIDs []EventStreamID `json:"optionContractIDs"`
-	Timestamp         time.Time       `json:"timestamp"`
-	Reason            string          `json:"reason"`
+	UnderlyingSymbol  StockSymbol
+	OptionContractIDs []EventStreamID
+	Timestamp         time.Time
+	Reason            string
+}
+
+func (t *StartTracker) ConvertToDTO() *StartTrackerDTO {
+	contractIDs := make([]uuid.UUID, len(t.OptionContractIDs))
+	for i, id := range t.OptionContractIDs {
+		contractIDs[i] = uuid.UUID(id)
+	}
+	return &StartTrackerDTO{
+		UnderlyingSymbol:  t.UnderlyingSymbol,
+		OptionContractIDs: contractIDs,
+		Timestamp:         t.Timestamp,
+		Reason:            t.Reason,
+	}
 }
 
 func NewStartTracker(underlyingSymbol StockSymbol, optionContractIDs []EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *Tracker {

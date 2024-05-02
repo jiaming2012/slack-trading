@@ -67,11 +67,11 @@ func loadOptionChainTicks(db *esdb.Client, streamName eventmodels.StreamName, co
 				panic(err)
 			}
 
-			if optionChainTick.OptionContractID == contract1.Meta.EventStreamID {
+			if optionChainTick.OptionContractID == contract1.Meta.GetEventStreamID() {
 				*output1 = append(*output1, optionChainTick)
 			}
 
-			if optionChainTick.OptionContractID == contract2.Meta.EventStreamID {
+			if optionChainTick.OptionContractID == contract2.Meta.GetEventStreamID() {
 				*output2 = append(*output2, optionChainTick)
 			}
 

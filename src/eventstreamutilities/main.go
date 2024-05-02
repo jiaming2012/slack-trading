@@ -571,7 +571,7 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 	for _, startTracker := range stopTracking {
 		now := time.Now()
 
-		tracker := eventmodels.NewStopTracker(startTracker.Meta.EventStreamID, now, reason, requestID)
+		tracker := eventmodels.NewStopTracker(startTracker.Meta.GetEventStreamID(), now, reason, requestID)
 
 		// Save the tracker
 		if err := esdbProducer.Save(tracker); err != nil {

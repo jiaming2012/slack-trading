@@ -21,7 +21,6 @@ import (
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
-	"slack-trading/src/eventservices"
 	"slack-trading/src/utils"
 )
 
@@ -62,7 +61,6 @@ func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	// Set up
 	utils.InitEnvironmentVariables()
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
@@ -85,8 +83,8 @@ func run() {
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
 	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
 	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
-	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 	tradierQuotesURL := os.Getenv("TRADIER_QUOTES_URL")
+	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 
 	// Set up google sheets
 	//if err := sheets.Init(ctx); err != nil {
@@ -138,17 +136,18 @@ func run() {
 
 	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, streamParams)
 	esdbProducer.Start(ctx)
-	eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL).Start(ctx, eventmodels.OptionContractStream)
+
+	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.OptionContract{})
+	optionContractClient.Start(ctx)
+
+	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.Tracker{})
+	trackersClient.Start(ctx)
+
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
 
-	currentStockSymbols, currentOptionContracts, err := eventservices.FetchCurrentStockAndOptionContracts(ctx, esdbProducer.GetClient())
-	if err != nil {
-		log.Fatalf("failed to fetch current option contracts: %v", err)
-	}
-
 	// Start event clients
-	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, currentStockSymbols, currentOptionContracts)
+	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
 
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
@@ -164,6 +163,11 @@ func run() {
 	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
 	eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams).Start(ctx)
+
+	// todo: add back in
+	// for _, streamParam := range streamParams {
+	// 	eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, []eventmodels.StreamParameter{streamParam}).Start(ctx)
+	// }
 
 	eventconsumers.NewOptionAlertWorker(&wg, tradierQuotesURL, brokerBearerToken).Start(ctx)
 
