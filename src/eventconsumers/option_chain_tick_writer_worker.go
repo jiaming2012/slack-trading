@@ -118,7 +118,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 					continue
 				}
 
-				ticks = append(ticks, dto.ToModel(optionContract.GetMetaData().GetEventStreamID(), uuid.New(), nowUTC))
+				ticks = append(ticks, dto.ToModel(optionContract.Symbol, uuid.New(), nowUTC))
 			}
 
 			for _, tick := range ticks {

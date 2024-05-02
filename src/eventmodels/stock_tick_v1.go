@@ -1,6 +1,8 @@
 package eventmodels
 
-import "time"
+import (
+	"time"
+)
 
 type StockTickV1 struct {
 	BaseRequestEvent
@@ -24,7 +26,7 @@ type StockTickV1 struct {
 func (d *StockTickV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
 		EventName:     CreateNewStockTickEvent,
-		StreamName:    StockTickStream,
+		StreamName:    NewStockTickStreamName(string(d.Symbol)),
 		SchemaVersion: 1,
 	}
 }

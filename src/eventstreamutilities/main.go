@@ -678,15 +678,15 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 		return fmt.Errorf("failed to fetch and store Tradier options: %v", err)
 	}
 
-	optionContractIDs := make([]eventmodels.EventStreamID, 0)
+	optionContractSymbols := make([]eventmodels.OptionSymbol, 0)
 	for _, option := range options {
-		optionContractIDs = append(optionContractIDs, option.GetMetaData().GetEventStreamID())
+		optionContractSymbols = append(optionContractSymbols, option.Symbol)
 	}
 
 	underlyingSymbol := params.Symbol
 	now := time.Now()
 
-	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractIDs, now, params.Reason, requestID)
+	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractSymbols, now, params.Reason, requestID)
 
 	// Save the tracker
 	if err := esdbProducer.Save(tracker); err != nil {

@@ -7,9 +7,9 @@ import (
 )
 
 func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts []*eventmodels.OptionContractV1, allTrackers []*eventmodels.TrackerV1) ([]eventmodels.StockSymbol, eventmodels.OptionContracts, error) {
-	allOptionContractsMap := make(map[eventmodels.EventStreamID]*eventmodels.OptionContractV1)
+	allOptionContractsMap := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 	for _, contract := range allOptionContracts {
-		allOptionContractsMap[contract.GetMetaData().GetEventStreamID()] = contract
+		allOptionContractsMap[contract.Symbol] = contract
 	}
 
 	allTrackersMap := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV1)
@@ -20,12 +20,12 @@ func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts [
 	activeTrackers := GetActiveTrackers(allTrackersMap)
 
 	stockSymbolsMap := make(map[eventmodels.StockSymbol]struct{})
-	optionContractsMap := make(map[eventmodels.EventStreamID]*eventmodels.OptionContractV1)
+	optionContractsMap := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 	for _, tracker := range activeTrackers {
-		for _, optionContractID := range tracker.StartTracker.OptionContractIDs {
-			contract := allOptionContractsMap[optionContractID]
+		for _, optionContractSymbol := range tracker.StartTracker.OptionContractSymbols {
+			contract := allOptionContractsMap[optionContractSymbol]
 			stockSymbolsMap[contract.UnderlyingSymbol] = struct{}{}
-			optionContractsMap[optionContractID] = contract
+			optionContractsMap[optionContractSymbol] = contract
 		}
 	}
 

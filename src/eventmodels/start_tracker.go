@@ -7,34 +7,32 @@ import (
 )
 
 type StartTracker struct {
-	UnderlyingSymbol  StockSymbol
-	OptionContractIDs []EventStreamID
-	Timestamp         time.Time
-	Reason            string
+	UnderlyingSymbol      StockSymbol
+	OptionContractSymbols []OptionSymbol
+	Timestamp             time.Time
+	Reason                string
 }
 
 func (t *StartTracker) ConvertToDTO() *StartTrackerDTO {
-	contractIDs := make([]uuid.UUID, len(t.OptionContractIDs))
-	for i, id := range t.OptionContractIDs {
-		contractIDs[i] = uuid.UUID(id)
-	}
+	contractIDs := make([]OptionSymbol, len(t.OptionContractSymbols))
+	copy(contractIDs, t.OptionContractSymbols)
 	return &StartTrackerDTO{
-		UnderlyingSymbol:  t.UnderlyingSymbol,
-		OptionContractIDs: contractIDs,
-		Timestamp:         t.Timestamp,
-		Reason:            t.Reason,
+		UnderlyingSymbol: t.UnderlyingSymbol,
+		OptionSymbols:    contractIDs,
+		Timestamp:        t.Timestamp,
+		Reason:           t.Reason,
 	}
 }
 
-func NewStartTracker(underlyingSymbol StockSymbol, optionContractIDs []EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *TrackerV1 {
+func NewStartTracker(underlyingSymbol StockSymbol, optionContractSymbols []OptionSymbol, timestamp time.Time, reason string, requestID uuid.UUID) *TrackerV1 {
 	return &TrackerV1{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		Type:             TrackerTypeStart,
 		StartTracker: &StartTracker{
-			UnderlyingSymbol:  underlyingSymbol,
-			OptionContractIDs: optionContractIDs,
-			Timestamp:         timestamp,
-			Reason:            reason,
+			UnderlyingSymbol:      underlyingSymbol,
+			OptionContractSymbols: optionContractSymbols,
+			Timestamp:             timestamp,
+			Reason:                reason,
 		},
 	}
 }
