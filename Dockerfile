@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main ./src/eventticks/main.go
+RUN go build -o main ./src/eventmain/main.go
 
 # Command to run the executable
 CMD ["./main"]
