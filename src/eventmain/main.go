@@ -95,7 +95,7 @@ func run() {
 	// Setup router
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
-		port = "3000"
+		log.Fatal("$PORT must be set")
 	}
 
 	// Setup dispatcher
