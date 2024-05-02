@@ -2,7 +2,7 @@ package eventmodels
 
 import "time"
 
-type OptionChainTick struct {
+type OptionChainTickV1 struct {
 	BaseRequestEvent
 	OptionContractID EventStreamID `json:"option_contract_id"`
 	Timestamp        time.Time     `json:"timestamp"`
@@ -28,9 +28,10 @@ type OptionChainTick struct {
 	ExpirationType   string        `json:"expiration_type"`
 }
 
-func (t *OptionChainTick) GetSavedEventParameters() SavedEventParameters {
+func (t *OptionChainTickV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		EventName:  CreateNewOptionChainTickEvent,
-		StreamName: OptionChainTickStream,
+		EventName:     CreateNewOptionChainTickEvent,
+		StreamName:    OptionChainTickStream,
+		SchemaVersion: 1,
 	}
 }

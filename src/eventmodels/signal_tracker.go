@@ -12,8 +12,8 @@ type SignalTracker struct {
 	Name      string      `json:"name"`
 }
 
-func NewSignalTracker(symbol StockSymbol, timestamp time.Time, name string, requestID uuid.UUID) *Tracker {
-	return &Tracker{
+func NewSignalTracker(symbol StockSymbol, timestamp time.Time, name string, requestID uuid.UUID) *TrackerV1 {
+	return &TrackerV1{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		Type:             TrackerTypeSignal,
 		SignalTracker: &SignalTracker{

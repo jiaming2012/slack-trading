@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type StockTicks []StockTick
+type StockTicks []StockTickV1
 
 func (ticks StockTicks) ToRows() [][]interface{} {
 	results := make([][]interface{}, 0)

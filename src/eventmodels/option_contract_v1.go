@@ -2,7 +2,7 @@ package eventmodels
 
 import "time"
 
-type OptionContract struct {
+type OptionContractV1 struct {
 	BaseRequestEvent
 	Symbol           OptionSymbol `json:"symbol"`
 	UnderlyingSymbol StockSymbol  `json:"underlying_symbol"`
@@ -14,9 +14,10 @@ type OptionContract struct {
 	ExpirationType   string       `json:"expiration_type"`
 }
 
-func (c *OptionContract) GetSavedEventParameters() SavedEventParameters {
+func (c *OptionContractV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: OptionContractStream,
-		EventName:  CreateOptionContractEvent,
+		StreamName:    OptionContractStream,
+		EventName:     CreateOptionContractEvent,
+		SchemaVersion: 1,
 	}
 }

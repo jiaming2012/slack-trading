@@ -13,7 +13,7 @@ func handleAccounts(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		eventproducers.ApiRequestHandler2(eventmodels.GetAccountsRequestEventName, &eventmodels.GetAccountsRequestEvent{}, &eventmodels.GetAccountsResponseEvent{}, w, r)
 	} else if r.Method == "POST" {
-		eventproducers.ApiRequestHandler2(eventmodels.CreateAccountRequestEventName, &eventmodels.CreateAccountRequestEvent{}, &eventmodels.CreateAccountResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.CreateAccountRequestEventName, &eventmodels.CreateAccountRequestEventV1{}, &eventmodels.CreateAccountResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

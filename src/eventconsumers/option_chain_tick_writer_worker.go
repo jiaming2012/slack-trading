@@ -66,7 +66,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 				continue
 			}
 
-			var ticks []*eventmodels.OptionChainTick
+			var ticks []*eventmodels.OptionChainTickV1
 
 			// get real time stock symbols and option contracts
 			allOptionContracts, allOptionContractsDone := optionContractsClient.GetSavedEvents()

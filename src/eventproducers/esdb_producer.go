@@ -49,6 +49,10 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 	metaData := event.GetMetaData()
 	metaData.SetEventStreamID(eventID)
 
+	// set the schema version
+	schemaVersion := event.GetSavedEventParameters().SchemaVersion
+	metaData.SetSchemaVersion(schemaVersion)
+
 	bytes, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -68,7 +72,7 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 	return nil
 }
 
-func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEvent) {
+func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1) {
 	log.Debug("<- esdbProducer.handleSaveCreateSignalRequestEvent")
 
 	if err := cli.insert(request); err != nil {

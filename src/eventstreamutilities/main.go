@@ -78,7 +78,7 @@ func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels
 	return &dto, nil
 }
 
-func findOptionContractsGroupedByExpiration(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContract) (time.Time, []eventmodels.OptionContract, error) {
+func findOptionContractsGroupedByExpiration(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContractV1) (time.Time, []eventmodels.OptionContractV1, error) {
 	var closestContractExpDate time.Time = time.Time{}
 	minDiff := int(^uint(0) >> 1) // Max int
 
@@ -108,13 +108,13 @@ func findOptionContractsGroupedByExpiration(targetExpirationDate string, contrac
 
 type OptionLadder struct {
 	AtTheMoneyStrike float64
-	CallsAboveStrike []eventmodels.OptionContract
-	CallsBelowStrike []eventmodels.OptionContract
-	PutsAboveStrike  []eventmodels.OptionContract
-	PutsBelowStrike  []eventmodels.OptionContract
+	CallsAboveStrike []eventmodels.OptionContractV1
+	CallsBelowStrike []eventmodels.OptionContractV1
+	PutsAboveStrike  []eventmodels.OptionContractV1
+	PutsBelowStrike  []eventmodels.OptionContractV1
 }
 
-func splitAndSortContractsByStrike(contracts []eventmodels.OptionContract, strike float64) OptionLadder {
+func splitAndSortContractsByStrike(contracts []eventmodels.OptionContractV1, strike float64) OptionLadder {
 	var ladder OptionLadder
 
 	for _, c := range contracts {
@@ -155,8 +155,8 @@ func splitAndSortContractsByStrike(contracts []eventmodels.OptionContract, strik
 	return ladder
 }
 
-func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContract, expirationInDays []int, optionTypes []eventmodels.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []eventmodels.OptionContract) {
-	allResults := make([]eventmodels.OptionContract, 0)
+func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContractV1, expirationInDays []int, optionTypes []eventmodels.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []eventmodels.OptionContractV1) {
+	allResults := make([]eventmodels.OptionContractV1, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
 		if optionType == eventmodels.Call {
@@ -177,8 +177,8 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 
 		expirationDates = append(expirationDates, contractsExpirationDate)
 
-		callResults := make([]eventmodels.OptionContract, 0)
-		putResults := make([]eventmodels.OptionContract, 0)
+		callResults := make([]eventmodels.OptionContractV1, 0)
+		putResults := make([]eventmodels.OptionContractV1, 0)
 		var callStrikesAbove, callStrikesBelow, putStrikesAbove, putStrikesBelow int
 
 		ladder := splitAndSortContractsByStrike(contracts, underlyingStockPrice)
@@ -267,7 +267,7 @@ func fetchOptionChains(url, bearerToken string, symbol eventmodels.StockSymbol, 
 	return optionChainMapCh, nil
 }
 
-func addAdditionInfoToOptions(requestID uuid.UUID, options []eventmodels.OptionContract, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
+func addAdditionInfoToOptions(requestID uuid.UUID, options []eventmodels.OptionContractV1, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
@@ -295,7 +295,7 @@ func addAdditionInfoToOptions(requestID uuid.UUID, options []eventmodels.OptionC
 	return nil
 }
 
-func fetchOptionChainWithParams(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContract, error) {
+func fetchOptionChainWithParams(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
@@ -433,8 +433,6 @@ func main() {
 		for _, stream := range streams {
 			fmt.Println(stream)
 		}
-
-		wg.Done()
 	case 2:
 		getStreamSize(ctx, esdbConn)
 		wg.Done()
@@ -448,12 +446,12 @@ func main() {
 			log.Fatalf("failed to get option parameters: %v", err)
 		}
 
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
 
-		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContract)
+		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 		for _, contract := range existingOptionContracts {
 			cache[contract.Symbol] = contract
 		}
@@ -466,12 +464,12 @@ func main() {
 
 		wg.Done()
 	case 4:
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
 
-		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContract)
+		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 		for _, contract := range existingOptionContracts {
 			cache[contract.Symbol] = contract
 		}
@@ -483,12 +481,12 @@ func main() {
 
 		wg.Done()
 	case 5:
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContract{})
+		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
 
-		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContract)
+		cache := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 		for _, contract := range existingOptionContracts {
 			cache[contract.Symbol] = contract
 		}
@@ -511,7 +509,7 @@ func main() {
 	wg.Wait()
 }
 
-func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
+func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
@@ -546,12 +544,12 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 	}
 
 	// Check
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV1{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
 
-	stopTracking := make([]*eventmodels.Tracker, 0)
+	stopTracking := make([]*eventmodels.TrackerV1, 0)
 
 	activeTrackers := eventservices.GetActiveTrackers(allTrackers)
 	for _, t := range activeTrackers {
@@ -587,7 +585,7 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
 
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV1{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
@@ -651,12 +649,12 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 	return nil
 }
 
-func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
+func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx)
 
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.Tracker{})
+	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV1{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
@@ -698,7 +696,7 @@ func StartTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache
 	return nil
 }
 
-func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbProducer *eventproducers.EsdbProducer, params eventmodels.OptionParameterComponents, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContract, eventStoreDBURL string, brokerCreds BrokerCredentials, requestID uuid.UUID) ([]*eventmodels.OptionContract, error) {
+func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbProducer *eventproducers.EsdbProducer, params eventmodels.OptionParameterComponents, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials, requestID uuid.UUID) ([]*eventmodels.OptionContractV1, error) {
 	log.Infof("fetching options for symbol: %s, requestID: %s", params.Symbol, requestID.String())
 
 	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
@@ -710,7 +708,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbPr
 
 	log.Infof("Saving %d option contracts ...\n", len(options))
 
-	created := make([]*eventmodels.OptionContract, 0)
+	created := make([]*eventmodels.OptionContractV1, 0)
 	for i := 0; i < len(options); i++ {
 		option := options[i]
 
@@ -731,7 +729,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbPr
 	return created, nil
 }
 
-func getOptionParametersComponents(activeTrackers map[eventmodels.EventStreamID]*eventmodels.Tracker) (eventmodels.OptionParameterComponents, error) {
+func getOptionParametersComponents(activeTrackers map[eventmodels.EventStreamID]*eventmodels.TrackerV1) (eventmodels.OptionParameterComponents, error) {
 	// Get the underlying stock symbol
 	var symbol eventmodels.StockSymbol
 	if len(os.Args) > 2 {

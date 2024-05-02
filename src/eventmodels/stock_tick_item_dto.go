@@ -23,8 +23,8 @@ type StockTickItemDTO struct {
 	Bid              float64 `json:"bid"`
 }
 
-func (d *StockTickItemDTO) ToModel(uuid uuid.UUID, now time.Time) *StockTick {
-	return &StockTick{
+func (d *StockTickItemDTO) ToModel(uuid uuid.UUID, now time.Time) *StockTickV1 {
+	return &StockTickV1{
 		BaseRequestEvent: BaseRequestEvent{
 			Meta: MetaData{
 				RequestID: uuid,

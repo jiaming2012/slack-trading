@@ -1,6 +1,6 @@
 package eventmodels
 
-type OptionContracts []*OptionContract
+type OptionContracts []*OptionContractV1
 
 func (c OptionContracts) GetListOfExpirations() []string {
 	expirationsMap := make(map[string]struct{})

@@ -20,8 +20,8 @@ func (t *StopTracker) ConvertToDTO() *StopTrackerDTO {
 	}
 }
 
-func NewStopTracker(trackerStartID EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *Tracker {
-	return &Tracker{
+func NewStopTracker(trackerStartID EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *TrackerV1 {
+	return &TrackerV1{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		Type:             TrackerTypeStop,
 		StopTracker: &StopTracker{

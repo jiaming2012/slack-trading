@@ -2,7 +2,7 @@ package eventmodels
 
 import "time"
 
-type StockTick struct {
+type StockTickV1 struct {
 	BaseRequestEvent
 	Timestamp        time.Time   `json:"timestamp"`
 	Symbol           StockSymbol `json:"symbol"`
@@ -21,9 +21,10 @@ type StockTick struct {
 	Bid              float64     `json:"bid"`
 }
 
-func (d *StockTick) GetSavedEventParameters() SavedEventParameters {
+func (d *StockTickV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		EventName:  CreateNewStockTickEvent,
-		StreamName: StockTickStream,
+		EventName:     CreateNewStockTickEvent,
+		StreamName:    StockTickStream,
+		SchemaVersion: 1,
 	}
 }

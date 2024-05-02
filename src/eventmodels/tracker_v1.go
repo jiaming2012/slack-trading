@@ -1,6 +1,6 @@
 package eventmodels
 
-type Tracker struct {
+type TrackerV1 struct {
 	BaseRequestEvent
 	Type          TrackerType    `json:"type"`
 	StartTracker  *StartTracker  `json:"startTracker"`
@@ -8,9 +8,10 @@ type Tracker struct {
 	SignalTracker *SignalTracker `json:"signalTracker"`
 }
 
-func (c *Tracker) GetSavedEventParameters() SavedEventParameters {
+func (c *TrackerV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: TrackersStream,
-		EventName:  CreateTrackerEvent,
+		StreamName:    TrackersStream,
+		EventName:     CreateTrackerEvent,
+		SchemaVersion: 1,
 	}
 }

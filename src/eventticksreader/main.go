@@ -36,7 +36,7 @@ func findFirstEventNumber(db *esdb.Client, streamName eventmodels.StreamName) ui
 	return event.Event.EventNumber
 }
 
-func loadOptionChainTicks(db *esdb.Client, streamName eventmodels.StreamName, contract1 eventmodels.OptionContract, output1 *[]eventmodels.OptionChainTick, contract2 eventmodels.OptionContract, output2 *[]eventmodels.OptionChainTick) {
+func loadOptionChainTicks(db *esdb.Client, streamName eventmodels.StreamName, contract1 eventmodels.OptionContractV1, output1 *[]eventmodels.OptionChainTickV1, contract2 eventmodels.OptionContractV1, output2 *[]eventmodels.OptionChainTickV1) {
 	var pos esdb.StreamPosition = esdb.End{}
 	var eventNumber uint64
 
@@ -62,7 +62,7 @@ func loadOptionChainTicks(db *esdb.Client, streamName eventmodels.StreamName, co
 				panic(err)
 			}
 
-			var optionChainTick eventmodels.OptionChainTick
+			var optionChainTick eventmodels.OptionChainTickV1
 			if err := json.Unmarshal(event.Event.Data, &optionChainTick); err != nil {
 				panic(err)
 			}
@@ -90,7 +90,7 @@ func loadOptionChainTicks(db *esdb.Client, streamName eventmodels.StreamName, co
 	}
 }
 
-func loadStockTicks(db *esdb.Client, streamName eventmodels.StreamName, output *[]eventmodels.StockTick) {
+func loadStockTicks(db *esdb.Client, streamName eventmodels.StreamName, output *[]eventmodels.StockTickV1) {
 	var pos esdb.StreamPosition = esdb.End{}
 	var eventNumber uint64
 
@@ -114,7 +114,7 @@ func loadStockTicks(db *esdb.Client, streamName eventmodels.StreamName, output *
 				log.Fatalf("Failed to receive event: %v", err)
 			}
 
-			var stockTick eventmodels.StockTick
+			var stockTick eventmodels.StockTickV1
 			if err := json.Unmarshal(event.Event.Data, &stockTick); err != nil {
 				log.Fatalf("Failed to unmarshal event data: %v", err)
 			}
@@ -141,13 +141,13 @@ type NormalizedData struct {
 
 type NormalizedDataSlice []NormalizedData
 
-func NormalizeTicks(stockTicks []eventmodels.StockTick, optionChainTicks1 []eventmodels.OptionChainTick, optionChainTicks2 []eventmodels.OptionChainTick) []NormalizedData {
-	option1TickMap := make(map[time.Time]eventmodels.OptionChainTick)
+func NormalizeTicks(stockTicks []eventmodels.StockTickV1, optionChainTicks1 []eventmodels.OptionChainTickV1, optionChainTicks2 []eventmodels.OptionChainTickV1) []NormalizedData {
+	option1TickMap := make(map[time.Time]eventmodels.OptionChainTickV1)
 	for _, optionTick := range optionChainTicks1 {
 		option1TickMap[optionTick.Timestamp] = optionTick
 	}
 
-	option2TickMap := make(map[time.Time]eventmodels.OptionChainTick)
+	option2TickMap := make(map[time.Time]eventmodels.OptionChainTickV1)
 	for _, optionTick := range optionChainTicks2 {
 		option2TickMap[optionTick.Timestamp] = optionTick
 	}
@@ -228,15 +228,15 @@ func main() {
 		log.Fatalf("Failed to move spreadsheet: %v", err)
 	}
 
-	stockTicks := []eventmodels.StockTick{}
+	stockTicks := []eventmodels.StockTickV1{}
 
 	loadStockTicks(db, eventmodels.StockTickStream, &stockTicks)
 
 	fmt.Printf("Loaded %d stock ticks\n", len(stockTicks))
 
-	optionContract1 := eventmodels.OptionContract{}
+	optionContract1 := eventmodels.OptionContractV1{}
 
-	optionContract2 := eventmodels.OptionContract{}
+	optionContract2 := eventmodels.OptionContractV1{}
 
 	panic("implement fetch option contracts")
 
@@ -248,9 +248,9 @@ func main() {
 
 	fmt.Printf("Loading data for option: %s\n", optionContract2.Description)
 
-	optionChainTicks1 := []eventmodels.OptionChainTick{}
+	optionChainTicks1 := []eventmodels.OptionChainTickV1{}
 
-	optionChainTicks2 := []eventmodels.OptionChainTick{}
+	optionChainTicks2 := []eventmodels.OptionChainTickV1{}
 
 	loadOptionChainTicks(db, eventmodels.OptionChainTickStream, optionContract1, &optionChainTicks1, optionContract2, &optionChainTicks2)
 

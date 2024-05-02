@@ -15,9 +15,9 @@ import (
 	"slack-trading/src/eventservices"
 )
 
-type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContract]
+type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContractV1]
 
-type TrackerConsumer = esdbConsumer[*eventmodels.Tracker]
+type TrackerConsumer = esdbConsumer[*eventmodels.TrackerV1]
 
 type esdbConsumer[T eventmodels.SavedEvent] struct {
 	wg          *sync.WaitGroup

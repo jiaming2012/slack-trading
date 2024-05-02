@@ -6,21 +6,22 @@ import (
 	"net/http"
 )
 
-type CreateAccountRequestEvent struct {
+type CreateAccountRequestEventV1 struct {
 	BaseRequestEvent
 	Name         string       `json:"name"`
 	Balance      float64      `json:"balance"`
 	DatafeedName DatafeedName `json:"datafeedName"`
 }
 
-func (e *CreateAccountRequestEvent) GetSavedEventParameters() SavedEventParameters {
+func (e *CreateAccountRequestEventV1) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName: AccountsStream,
-		EventName:  CreateAccountRequestEventName,
+		StreamName:    AccountsStream,
+		EventName:     CreateAccountRequestEventName,
+		SchemaVersion: 1,
 	}
 }
 
-func (e *CreateAccountRequestEvent) Validate(r *http.Request) error {
+func (e *CreateAccountRequestEventV1) Validate(r *http.Request) error {
 	if e.Name == "" {
 		return fmt.Errorf("CreateAccountRequestEvent.Validate: name was not set")
 	}
@@ -36,7 +37,7 @@ func (e *CreateAccountRequestEvent) Validate(r *http.Request) error {
 	return nil
 }
 
-func (e *CreateAccountRequestEvent) ParseHTTPRequest(r *http.Request) error {
+func (e *CreateAccountRequestEventV1) ParseHTTPRequest(r *http.Request) error {
 	var values map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&values); err != nil {
 		return fmt.Errorf("PostAccountsRequestEvent.ParseHTTPRequest: failed to decode json: %w", err)

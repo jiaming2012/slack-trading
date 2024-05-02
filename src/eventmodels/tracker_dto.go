@@ -8,8 +8,8 @@ type TrackerDTO struct {
 	SignalTracker *SignalTracker   `json:"signalTracker"`
 }
 
-func (dto *TrackerDTO) ConvertToObject() *Tracker {
-	return &Tracker{
+func (dto *TrackerDTO) ConvertToObject() *TrackerV1 {
+	return &TrackerV1{
 		BaseRequestEvent: dto.BaseRequestEvent,
 		Type:             dto.Type,
 		StartTracker:     dto.StartTracker.ConvertToObject(),

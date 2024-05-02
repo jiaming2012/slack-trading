@@ -139,10 +139,10 @@ func run() {
 	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, streamParams)
 	esdbProducer.Start(ctx)
 
-	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.OptionContract{})
+	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.OptionContractV1{})
 	optionContractClient.Start(ctx)
 
-	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.Tracker{})
+	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDBURL, &eventmodels.TrackerV1{})
 	trackersClient.Start(ctx)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)

@@ -10,14 +10,22 @@ import (
 )
 
 // todo: deprecated for event models
-type CreateSignalRequestEvent struct {
+type CreateSignalRequestEventV1 struct {
 	BaseRequestEvent
 	Header      SignalRequestHeader `json:"header"`
 	Name        string              `json:"name"`
 	LastUpdated time.Time           `json:"lastUpdated"`
 }
 
-func (r *CreateSignalRequestEvent) ConvertToTracker() (*Tracker, error) {
+func (r *CreateSignalRequestEventV1) GetSavedEventParameters() SavedEventParameters {
+	return SavedEventParameters{
+		StreamName:    AccountsStream,
+		EventName:     CreateSignalRequestEventName,
+		SchemaVersion: 1,
+	}
+}
+
+func (r *CreateSignalRequestEventV1) ConvertToTracker() (*TrackerV1, error) {
 	symbol := StockSymbol(r.Header.Symbol)
 	if symbol == "" {
 		return nil, fmt.Errorf("CreateSignalRequestEvent.ConvertToTracker: symbol was not set")
@@ -26,29 +34,22 @@ func (r *CreateSignalRequestEvent) ConvertToTracker() (*Tracker, error) {
 	return NewSignalTracker(symbol, r.LastUpdated, r.Name, r.GetMetaData().RequestID), nil
 }
 
-func (r *CreateSignalRequestEvent) GetSavedEventParameters() SavedEventParameters {
-	return SavedEventParameters{
-		StreamName: AccountsStream,
-		EventName:  CreateSignalRequestEventName,
-	}
-}
-
-func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequestEvent {
-	request := &CreateSignalRequestEvent{Name: name}
+func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequestEventV1 {
+	request := &CreateSignalRequestEventV1{Name: name}
 	request.SetMetaData(&MetaData{RequestID: requestID})
 
 	return request
 }
 
-func (r *CreateSignalRequestEvent) String() string {
+func (r *CreateSignalRequestEventV1) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Header.Source)
 }
 
-func (r *CreateSignalRequestEvent) GetSource() SignalRequestSource {
+func (r *CreateSignalRequestEventV1) GetSource() SignalRequestSource {
 	return r.Header.Source
 }
 
-func (r *CreateSignalRequestEvent) Validate(req *http.Request) error {
+func (r *CreateSignalRequestEventV1) Validate(req *http.Request) error {
 	if r.Name == "" {
 		return fmt.Errorf("SignalRequest.Validate: name was not set")
 	}
@@ -56,7 +57,7 @@ func (r *CreateSignalRequestEvent) Validate(req *http.Request) error {
 	return nil
 }
 
-func (r *CreateSignalRequestEvent) ParseHTTPRequest(req *http.Request) error {
+func (r *CreateSignalRequestEventV1) ParseHTTPRequest(req *http.Request) error {
 	if err := json.NewDecoder(req.Body).Decode(r); err != nil {
 		return fmt.Errorf("SignalRequest.ParseHTTPRequest: failed to unmarshal request body: %w", err)
 	}

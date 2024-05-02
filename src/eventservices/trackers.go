@@ -4,8 +4,8 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func GetActiveTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.Tracker) map[eventmodels.EventStreamID]*eventmodels.Tracker {
-	activeTrackers := make(map[eventmodels.EventStreamID]*eventmodels.Tracker)
+func GetActiveTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.TrackerV1) map[eventmodels.EventStreamID]*eventmodels.TrackerV1 {
+	activeTrackers := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV1)
 
 	for _, tracker := range trackers {
 		if tracker.Type == eventmodels.TrackerTypeStart {

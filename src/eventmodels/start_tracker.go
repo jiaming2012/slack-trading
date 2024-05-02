@@ -26,8 +26,8 @@ func (t *StartTracker) ConvertToDTO() *StartTrackerDTO {
 	}
 }
 
-func NewStartTracker(underlyingSymbol StockSymbol, optionContractIDs []EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *Tracker {
-	return &Tracker{
+func NewStartTracker(underlyingSymbol StockSymbol, optionContractIDs []EventStreamID, timestamp time.Time, reason string, requestID uuid.UUID) *TrackerV1 {
+	return &TrackerV1{
 		BaseRequestEvent: BaseRequestEvent{Meta: MetaData{RequestID: requestID}},
 		Type:             TrackerTypeStart,
 		StartTracker: &StartTracker{

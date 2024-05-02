@@ -12,17 +12,17 @@ type OptionContractDetailDTO struct {
 	Strikes        OptionStrikesDTO `json:"strikes"`
 }
 
-func (dto *OptionContractDetailDTO) convertToOptionContract(stockSymbol StockSymbol, optionTypes []OptionType) ([]OptionContract, error) {
+func (dto *OptionContractDetailDTO) convertToOptionContract(stockSymbol StockSymbol, optionTypes []OptionType) ([]OptionContractV1, error) {
 	expiration, err := time.Parse("2006-01-02", dto.Date)
 	if err != nil {
 		return nil, fmt.Errorf("convertToOptionContract: failed to parse expiration date: %w", err)
 	}
 
-	var contracts []OptionContract
+	var contracts []OptionContractV1
 
 	for _, optionType := range optionTypes {
 		for _, strike := range dto.Strikes.Strike {
-			contract := OptionContract{
+			contract := OptionContractV1{
 				Expiration:       expiration,
 				ContractSize:     dto.ContractSize,
 				ExpirationType:   dto.ExpirationType,
@@ -50,8 +50,8 @@ type OptionContractDTO struct {
 	Expirations OptionExpirationsDTO `json:"expirations"`
 }
 
-func (dto *OptionContractDTO) ConvertToOptionContracts(stockSymbol StockSymbol, optionTypes []OptionType) (map[time.Time][]OptionContract, error) {
-	contracts := make(map[time.Time][]OptionContract)
+func (dto *OptionContractDTO) ConvertToOptionContracts(stockSymbol StockSymbol, optionTypes []OptionType) (map[time.Time][]OptionContractV1, error) {
+	contracts := make(map[time.Time][]OptionContractV1)
 
 	for _, contractDetailDTO := range dto.Expirations.Values {
 		convertedContracts, err := contractDetailDTO.convertToOptionContract(stockSymbol, optionTypes)

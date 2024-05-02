@@ -14,13 +14,13 @@ type SagaFlow struct {
 func NewSagaFlow() map[eventmodels.EventName]SagaFlow {
 	return map[eventmodels.EventName]SagaFlow{
 		eventmodels.CreateAccountRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateAccountRequestEvent{} },
+			Generate: func() RequestEvent { return &eventmodels.CreateAccountRequestEventV1{} },
 		},
 		eventmodels.CreateAccountStrategyRequestEventName: {
 			Generate: func() RequestEvent { return &eventmodels.CreateAccountStrategyRequestEvent{} },
 		},
 		eventmodels.CreateSignalRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateSignalRequestEvent{} },
+			Generate: func() RequestEvent { return &eventmodels.CreateSignalRequestEventV1{} },
 		},
 		eventmodels.CreateOptionAlertRequestEventName: {
 			Generate: func() RequestEvent { return &eventmodels.CreateOptionAlertRequestEvent{} },
@@ -32,13 +32,13 @@ func NewSagaFlow() map[eventmodels.EventName]SagaFlow {
 			Generate: func() RequestEvent { return &eventmodels.OptionAlertUpdateEvent{} },
 		},
 		eventmodels.CreateNewOptionChainTickEvent: {
-			Generate: func() RequestEvent { return &eventmodels.OptionChainTick{} },
+			Generate: func() RequestEvent { return &eventmodels.OptionChainTickV1{} },
 		},
 		eventmodels.CreateNewStockTickEvent: {
-			Generate: func() RequestEvent { return &eventmodels.StockTick{} },
+			Generate: func() RequestEvent { return &eventmodels.StockTickV1{} },
 		},
 		eventmodels.CreateOptionContractEvent: {
-			Generate: func() RequestEvent { return &eventmodels.OptionContract{} },
+			Generate: func() RequestEvent { return &eventmodels.OptionContractV1{} },
 		},
 	}
 }
