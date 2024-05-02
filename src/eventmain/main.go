@@ -61,8 +61,10 @@ func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	utils.InitEnvironmentVariables()
-	eventmodels.InitializeGlobalDispatcher()
+	if err := utils.InitEnvironmentVariables(); err != nil {
+		log.Panic(err)
+	}
+
 	eventpubsub.Init()
 
 	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))

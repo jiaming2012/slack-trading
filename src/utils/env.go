@@ -5,9 +5,16 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	log "github.com/sirupsen/logrus"
 )
 
 func InitEnvironmentVariables() error {
+	// Currently, we use heroku for production which doesn't support .env files
+	if os.Getenv("GO_ENV") == "production" {
+		log.Info("Running in production environment")
+		return nil
+	}
+
 	// Determine which .env file to load
 	envFile := "../.env.development" // default to development environment
 

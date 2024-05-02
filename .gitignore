@@ -6,3 +6,5 @@ src/env.txt
 run*.sh
 **__debug**
 main
+src/.env.development
+src/.env.production
