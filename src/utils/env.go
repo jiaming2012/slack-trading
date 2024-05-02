@@ -10,7 +10,7 @@ import (
 
 func InitEnvironmentVariables() error {
 	// Currently, we use heroku for production which doesn't support .env files
-	if os.Getenv("GO_ENV") == "production" {
+	if os.Getenv("ENV") == "production" {
 		log.Info("Running in production environment")
 		return nil
 	}
