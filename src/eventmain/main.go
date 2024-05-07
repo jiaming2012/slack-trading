@@ -138,6 +138,9 @@ func run() {
 	optionContractClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.OptionContractV1{})
 	optionContractClient.Start(ctx)
 
+	// todo: both TrackerV1 and TrackerV2 should be processed
+	// todo: stream_version should be stored in eventstoredb UserMetadata field
+	// todo: the eventstore metadata field should be queried so that we can process and combine multiple versions of the same stream
 	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.TrackerV1{})
 	trackersClient.Start(ctx)
 
