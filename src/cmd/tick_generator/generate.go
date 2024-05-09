@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func transitionJump(probabilityUp float64, jumpSize float64) float64 {
@@ -22,29 +25,49 @@ func transitionJump(probabilityUp float64, jumpSize float64) float64 {
 func main() {
 	// Parameters
 	initialPrice := 1000.0
+	minStockPrice := 500.0
 	lowerRangeDifferential := -100.0
 	upperRangeDifferential := 100.0
 	initialRangeMin := initialPrice + lowerRangeDifferential
 	initialRangeMax := initialPrice + upperRangeDifferential
-	durationX := 24 // duration in hours, for simplicity treated as steps
-	durationY := 7  // duration in days, for simplicity treated as steps
-	probabilityUp := 0.60
+	durationHoursInDay := 24 // duration in hours, for simplicity treated as steps
+	durationDays := 90       // duration in days, for simplicity treated as steps
+	probabilityUp := 0.55
 	jumpSize := 200.0
+	startTimeStr := "2024-01-01 9:00:00"
+
+	// Initial Time
+	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
+	if err != nil {
+		log.Fatalf("Error parsing start time: %v", err)
+		return
+	}
 
 	// Slice to hold prices
+	var times []time.Time
 	var prices []float64
+
+	// Initial price
 	prices = append(prices, initialPrice)
+	times = append(times, startTime)
+	var j = 1
 
 	// Simulate the range-bound period
-	for i := 0; i < durationY; i++ {
-		for j := 0; j < durationX; j++ {
+	for i := 0; i < durationDays; i++ {
+		for ; j < durationHoursInDay; j++ {
 			nextPrice := initialRangeMin + rand.Float64()*(initialRangeMax-initialRangeMin)
 			prices = append(prices, nextPrice)
+			times = append(times, startTime.Add(time.Duration(j+i*durationHoursInDay)*time.Hour))
 		}
 
 		transitionJump := transitionJump(probabilityUp, jumpSize)
 		initialRangeMin += transitionJump
+		if initialRangeMin < minStockPrice {
+			initialRangeMin = minStockPrice
+		}
+
 		initialRangeMax += transitionJump
+		j = 0
 	}
 
 	// Export the prices
@@ -59,9 +82,9 @@ func main() {
 	defer writer.Flush()
 
 	// Write header
-	writer.Write([]string{"Time Step", "Stock Price"})
+	writer.Write([]string{"Time", "Stock Price"})
 
 	for i, price := range prices {
-		writer.Write([]string{fmt.Sprintf("%d", i), fmt.Sprintf("%.2f", price)})
+		writer.Write([]string{times[i].Format("2006-01-02 15:04:05"), fmt.Sprintf("%.2f", price)})
 	}
 }
