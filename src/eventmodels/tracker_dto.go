@@ -2,10 +2,11 @@ package eventmodels
 
 type TrackerDTO struct {
 	BaseRequestEvent
-	Type          TrackerType      `json:"type"`
-	StartTracker  *StartTrackerDTO `json:"startTracker"`
-	StopTracker   *StopTrackerDTO  `json:"stopTracker"`
-	SignalTracker *SignalTrackerV1 `json:"signalTracker"`
+	Type           TrackerType        `json:"type"`
+	StartTracker   *StartTrackerDTO   `json:"startTracker"`
+	StopTracker    *StopTrackerDTO    `json:"stopTracker"`
+	SignalTracker  *SignalTrackerV1   `json:"signalTracker"`
+	StartFxTracker *StartFxTrackerDTO `json:"startFxTracker"`
 }
 
 func (dto *TrackerDTO) ConvertToObject() *TrackerV1 {

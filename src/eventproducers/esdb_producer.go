@@ -101,7 +101,7 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 	}, request.GetMetaData())
 }
 
-func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
+func (cli *EsdbProducer) saveRequest(request interface{}) error {
 	log.Debug("<- esdbProducer.handleSaveRequest")
 
 	event, ok := request.(eventmodels.SavedEvent)
@@ -110,7 +110,15 @@ func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
 	}
 
 	if err := cli.saveEvent(event); err != nil {
-		meta := event.GetMetaData()
+		return fmt.Errorf("EsdbProducer: failed to save event: %w", err)
+	}
+
+	return nil
+}
+
+func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
+	if err := cli.saveRequest(request); err != nil {
+		meta := request.(eventmodels.SavedEvent).GetMetaData()
 		pubsub.PublishRequestError("esdbProducer:cli.saveEvent", err, meta)
 	}
 }
@@ -210,7 +218,7 @@ func (cli *EsdbProducer) init() {
 	cli.saga = pubsub.NewSagaFlow()
 }
 
-func (cli *EsdbProducer) Start(ctx context.Context) {
+func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodels.FxTick) {
 	cli.wg.Add(1)
 
 	settings, err := esdb.ParseConnectionString(cli.url)
@@ -222,6 +230,23 @@ func (cli *EsdbProducer) Start(ctx context.Context) {
 	if err != nil {
 		panic(fmt.Errorf("failed to create client: %w", err))
 	}
+
+	cli.wg.Add(1)
+
+	go func() {
+		defer cli.wg.Done()
+
+		for {
+			select {
+			case fxTick := <-fxTicksCh:
+				if err := cli.saveRequest(fxTick); err != nil {
+					pubsub.PublishError("esdbProducer: failed to save candle: ", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewStockTickEvent, cli.handleSaveRequest)
 	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewOptionChainTickEvent, cli.handleSaveRequest)

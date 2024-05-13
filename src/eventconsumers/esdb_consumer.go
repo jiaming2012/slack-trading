@@ -17,7 +17,9 @@ import (
 
 type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContractV1]
 
-type TrackerConsumer = esdbConsumer[*eventmodels.TrackerV1]
+type TrackerClientV1 = esdbConsumer[*eventmodels.TrackerV1]
+
+type TrackerClientV3 = esdbConsumer[*eventmodels.TrackerV3]
 
 type esdbConsumer[T eventmodels.SavedEvent] struct {
 	wg          *sync.WaitGroup

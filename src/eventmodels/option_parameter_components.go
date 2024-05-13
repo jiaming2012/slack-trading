@@ -1,7 +1,8 @@
 package eventmodels
 
 type OptionParameterComponents struct {
-	Symbol                    StockSymbol `json:"symbol"`
+	StockSymbol               StockSymbol `json:"stockSymbol"`
+	FxSymbol                  FxSymbol    `json:"fxSymbol"`
 	ExpirationInDays          []int       `json:"expirationInDays"`
 	Strikes                   []int       `json:"strikes"`
 	MinDistanceBetweenStrikes float64     `json:"minDistanceBetweenStrikes"`

@@ -86,6 +86,8 @@ func run() {
 	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
 	tradierQuotesURL := os.Getenv("TRADIER_QUOTES_URL")
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
+	oandaFxQuotesURLBase := os.Getenv("OANDA_FX_QUOTES_URL_BASE")
+	oandaBearerToken := os.Getenv("OANDA_BEARER_TOKEN")
 
 	// Set up google sheets
 	//if err := sheets.Init(ctx); err != nil {
@@ -141,7 +143,7 @@ func run() {
 	// todo: both TrackerV1 and TrackerV2 should be processed
 	// todo: stream_version should be stored in eventstoredb UserMetadata field
 	// todo: the eventstore metadata field should be queried so that we can process and combine multiple versions of the same stream
-	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.TrackerV1{})
+	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.TrackerV3{})
 	trackersClient.Start(ctx)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
@@ -149,6 +151,9 @@ func run() {
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
+
+	fxTicksCh := make(chan *eventmodels.FxTick)
+	eventconsumers.NewOandaFxTickWriter(&wg, trackersClient, oandaFxQuotesURLBase, oandaBearerToken).Start(ctx, fxTicksCh)
 
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
@@ -163,7 +168,7 @@ func run() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-	eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams).Start(ctx)
+	eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams).Start(ctx, fxTicksCh)
 
 	// todo: add back in
 	// for _, streamParam := range streamParams {

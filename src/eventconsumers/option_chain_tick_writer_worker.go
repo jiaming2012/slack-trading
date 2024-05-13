@@ -32,10 +32,10 @@ func NewOptionChainTickWriterWorker(wg *sync.WaitGroup, stockQuotesURL, optionCh
 	}
 }
 
-func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsClient *OptionContractConsumer, trackerClient *TrackerConsumer) {
+func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsClient *OptionContractConsumer, trackerClient *TrackerClientV3) {
 	defer w.wg.Done()
 
-	ticker := time.NewTicker(20 * time.Second) // Adjust the duration as needed
+	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 
 	loc, err := time.LoadLocation("America/New_York")
@@ -133,7 +133,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 	}
 }
 
-func (w *OptionChainTickWriterWorker) Start(ctx context.Context, optionContractsCli *OptionContractConsumer, trackersCli *TrackerConsumer) {
+func (w *OptionChainTickWriterWorker) Start(ctx context.Context, optionContractsCli *OptionContractConsumer, trackersCli *TrackerClientV3) {
 	w.wg.Add(1)
 
 	go w.run(ctx, optionContractsCli, trackersCli)

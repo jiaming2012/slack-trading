@@ -6,18 +6,18 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts []*eventmodels.OptionContractV1, allTrackers []*eventmodels.TrackerV1) ([]eventmodels.StockSymbol, eventmodels.OptionContracts, error) {
+func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts []*eventmodels.OptionContractV1, allTrackers []*eventmodels.TrackerV3) ([]eventmodels.StockSymbol, eventmodels.OptionContracts, error) {
 	allOptionContractsMap := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
 	for _, contract := range allOptionContracts {
 		allOptionContractsMap[contract.Symbol] = contract
 	}
 
-	allTrackersMap := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV1)
+	allTrackersMap := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV3)
 	for _, tracker := range allTrackers {
 		allTrackersMap[tracker.GetMetaData().GetEventStreamID()] = tracker
 	}
 
-	activeTrackers := GetActiveTrackers(allTrackersMap)
+	activeTrackers := GetActiveStockAndOptionTrackers(allTrackersMap)
 
 	stockSymbolsMap := make(map[eventmodels.StockSymbol]struct{})
 	optionContractsMap := make(map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1)
