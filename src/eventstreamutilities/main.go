@@ -440,8 +440,9 @@ func main() {
 		wg.Done()
 	case 3:
 		// Setup
+		fxTickCh := make(chan *eventmodels.FxTick)
 		esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-		esdbProducer.Start(ctx)
+		esdbProducer.Start(ctx, fxTickCh)
 
 		params, err := getOptionParametersComponents(nil, "options")
 		if err != nil {
@@ -520,8 +521,9 @@ func main() {
 
 func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
+	fxTickCh := make(chan *eventmodels.FxTick)
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-	esdbProducer.Start(ctx)
+	esdbProducer.Start(ctx, fxTickCh)
 
 	// Get symbol
 	var symbol eventmodels.StockSymbol
@@ -591,8 +593,9 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 
 func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL string) error {
 	// Setup
+	fxTickCh := make(chan *eventmodels.FxTick)
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-	esdbProducer.Start(ctx)
+	esdbProducer.Start(ctx, fxTickCh)
 
 	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
@@ -683,8 +686,9 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 
 func StartTrackingFx(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL string) error {
 	// Setup
+	fxTickCh := make(chan *eventmodels.FxTick)
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-	esdbProducer.Start(ctx)
+	esdbProducer.Start(ctx, fxTickCh)
 
 	allTrackersMap, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
@@ -725,8 +729,9 @@ func StartTrackingFx(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL st
 
 func StartTrackingStockAndOptions(ctx context.Context, wg *sync.WaitGroup, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials) error {
 	// Setup
+	fxTickCh := make(chan *eventmodels.FxTick)
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
-	esdbProducer.Start(ctx)
+	esdbProducer.Start(ctx, fxTickCh)
 
 	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {

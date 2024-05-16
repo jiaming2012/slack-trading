@@ -26,8 +26,8 @@ func main() {
 	// Parameters
 	initialPrice := 1000.0
 	minStockPrice := 500.0
-	lowerRangeDifferential := -100.0
-	upperRangeDifferential := 100.0
+	lowerRangeDifferential := -300.0
+	upperRangeDifferential := 300.0
 	initialRangeMin := initialPrice + lowerRangeDifferential
 	initialRangeMax := initialPrice + upperRangeDifferential
 	durationHoursInDay := 24 // duration in hours, for simplicity treated as steps
