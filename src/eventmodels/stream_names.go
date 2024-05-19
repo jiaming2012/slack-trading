@@ -12,7 +12,12 @@ const (
 	OptionContractStream  StreamName = "option-contracts"
 	FxTicksStream         StreamName = "fx-ticks"
 	TrackersStream        StreamName = "trackers"
+	CandleStream          StreamName = "candles"
 )
+
+func NewCandleStreamName(symbol string) StreamName {
+	return StreamName(fmt.Sprintf("%s-%s", CandleStream, symbol))
+}
 
 func NewStockTickStreamName(name string) StreamName {
 	return StreamName(fmt.Sprintf("%s-%s", StockTickStream, name))

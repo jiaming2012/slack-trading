@@ -9,12 +9,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// todo: deprecated for event models
-type CreateSignalRequestEventV1 struct {
-	BaseRequestEvent
+type CreateSignalV1 struct {
 	Header      SignalRequestHeader `json:"header"`
 	Name        string              `json:"name"`
 	LastUpdated time.Time           `json:"lastUpdated"`
+}
+
+// todo: deprecated for event models
+type CreateSignalRequestEventV1 struct {
+	BaseRequestEvent
+	CreateSignalV1
 }
 
 func (r *CreateSignalRequestEventV1) GetSavedEventParameters() SavedEventParameters {
@@ -35,7 +39,7 @@ func (r *CreateSignalRequestEventV1) ConvertToTracker(now time.Time) (*TrackerV2
 }
 
 func NewSignalRequest(requestID uuid.UUID, name string) *CreateSignalRequestEventV1 {
-	request := &CreateSignalRequestEventV1{Name: name}
+	request := &CreateSignalRequestEventV1{CreateSignalV1: CreateSignalV1{Name: name}}
 	request.SetMetaData(&MetaData{RequestID: requestID})
 
 	return request

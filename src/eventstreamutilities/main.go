@@ -354,7 +354,7 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	// Set up
-	utils.InitEnvironmentVariables()
+	utils.InitEnvironmentVariablesDefault()
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
 
@@ -449,7 +449,7 @@ func main() {
 			log.Fatalf("failed to get option parameters: %v", err)
 		}
 
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
+		existingOptionContracts, err := eventservices.FetchAllDeprecated(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
@@ -467,7 +467,7 @@ func main() {
 
 		wg.Done()
 	case 4:
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
+		existingOptionContracts, err := eventservices.FetchAllDeprecated(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
@@ -491,7 +491,7 @@ func main() {
 
 		wg.Done()
 	case 6:
-		existingOptionContracts, err := eventservices.FetchAll(ctx, esdbConn, &eventmodels.OptionContractV1{})
+		existingOptionContracts, err := eventservices.FetchAllDeprecated(ctx, esdbConn, &eventmodels.OptionContractV1{})
 		if err != nil {
 			log.Fatalf("failed to fetch existing contracts: %v", err)
 		}
@@ -555,7 +555,7 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 	}
 
 	// Check
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
+	allTrackers, err := eventservices.FetchAllDeprecated(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
@@ -597,7 +597,7 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx, fxTickCh)
 
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
+	allTrackers, err := eventservices.FetchAllDeprecated(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
@@ -690,7 +690,7 @@ func StartTrackingFx(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL st
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx, fxTickCh)
 
-	allTrackersMap, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
+	allTrackersMap, err := eventservices.FetchAllDeprecated(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}
@@ -733,7 +733,7 @@ func StartTrackingStockAndOptions(ctx context.Context, wg *sync.WaitGroup, optio
 	esdbProducer := eventproducers.NewESDBProducer(wg, eventStoreDBURL, []eventmodels.StreamParameter{})
 	esdbProducer.Start(ctx, fxTickCh)
 
-	allTrackers, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
+	allTrackers, err := eventservices.FetchAllDeprecated(ctx, esdbProducer.GetClient(), &eventmodels.TrackerV3{})
 	if err != nil {
 		return fmt.Errorf("failed to fetch all trackers: %v", err)
 	}

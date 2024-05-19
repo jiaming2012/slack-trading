@@ -61,7 +61,7 @@ func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
+	if err := utils.InitEnvironmentVariablesDefault(); err != nil {
 		log.Panic(err)
 	}
 

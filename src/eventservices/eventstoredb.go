@@ -57,7 +57,68 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 	return size, nil
 }
 
-func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[eventmodels.EventStreamID]T, error) {
+func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) ([]T, error) {
+	results := []T{}
+	var currentEventNumber uint64
+
+	params := instance.GetSavedEventParameters()
+
+	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
+	if err != nil {
+		return nil, fmt.Errorf("FetchAll: failed to find last event number: %w", err)
+	}
+
+	readOptions := esdb.ReadStreamOptions{
+		Direction: esdb.Forwards,
+		From:      esdb.Start{},
+	}
+
+	for {
+		stream, err := esdbClient.ReadStream(ctx, string(params.StreamName), readOptions, 4096)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			return nil, fmt.Errorf("FetchAll: failed to read stream %s: %w", params.StreamName, err)
+		}
+		defer stream.Close()
+
+		for {
+			event, err := stream.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+
+				if esdbError, ok := err.(*esdb.Error); ok && esdbError.IsErrorCode(esdb.ErrorCodeResourceNotFound) {
+					break
+				}
+
+				return nil, fmt.Errorf("FetchAll: failed to read event from stream: %w", err)
+			}
+
+			var object T
+			if err := json.Unmarshal(event.Event.Data, &object); err != nil {
+				return nil, fmt.Errorf("FetchAll: failed to unmarshal event data: %w", err)
+			}
+
+			currentEventNumber = event.Event.EventNumber
+
+			results = append(results, object)
+		}
+
+		if currentEventNumber == lastEventNumber {
+			break
+		}
+
+		readOptions.From = esdb.Revision(currentEventNumber)
+	}
+
+	return results, nil
+}
+
+func FetchAllDeprecated[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[eventmodels.EventStreamID]T, error) {
 	results := make(map[eventmodels.EventStreamID]T)
 	var currentEventNumber uint64
 

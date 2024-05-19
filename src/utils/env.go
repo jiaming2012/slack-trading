@@ -8,7 +8,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func InitEnvironmentVariables() error {
+func InitEnvironmentVariablesDefault() error {
+	pathToDevEnvFile := "../.env.development"
+	pathToProdEnvFile := "../.env.production"
+
+	return InitEnvironmentVariables(pathToDevEnvFile, pathToProdEnvFile)
+}
+
+func InitEnvironmentVariables(pathToDevEnvFile string, pathToProdEnvFile string) error {
 	// Currently, we use heroku for production which doesn't support .env files
 	if os.Getenv("ENV") == "production" {
 		log.Info("Running in production environment")
@@ -16,10 +23,10 @@ func InitEnvironmentVariables() error {
 	}
 
 	// Determine which .env file to load
-	envFile := "../.env.development" // default to development environment
+	envFile := pathToDevEnvFile // default to development environment
 
 	if os.Getenv("GO_ENV") == "production" {
-		envFile = "../.env.production"
+		envFile = pathToProdEnvFile
 	}
 
 	// Load the specified .env file

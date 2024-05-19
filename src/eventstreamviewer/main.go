@@ -46,7 +46,7 @@ func processEvent(ev *esdb.RecordedEvent) {
 func main() {
 	ctx := context.Background()
 
-	utils.InitEnvironmentVariables()
+	utils.InitEnvironmentVariablesDefault()
 
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 

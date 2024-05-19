@@ -9,7 +9,5 @@ main
 src/.env.development
 src/.env.production
 env/
-**/tick_generator/**.csv
-**/tick_generator/clean_data/**.csv
-**/tick_generator/**.png
-src/cmd/tick_generator/generate_data/**.csv
+*.csv
+*.png
