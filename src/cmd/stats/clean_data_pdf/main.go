@@ -118,7 +118,7 @@ func main() {
 		log.Fatalf("error fetching all candles: %v", err)
 	}
 
-	fmt.Printf("Fetched %d candles\n", len(csvCandles))
+	log.Infof("Fetched %d candles\n", len(csvCandles))
 
 	// Process the candles
 	candleDuration := 5 * time.Minute

@@ -9,7 +9,9 @@ type CsvCandle struct {
 	High            float64
 	Low             float64
 	Close           float64
+	UpTrend         float64
 	UpTrendBegins   float64
+	DownTrend       float64
 	DownTrendBegins float64
 }
 
