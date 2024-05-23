@@ -51,6 +51,7 @@ const (
 	TradierOrderCreateEventName           EventName = "TradierOrderCreateEvent"
 	TradierOrderDeleteEventName           EventName = "TradierOrderDeleteEvent"
 	CreateSignalRequestProcessedByAccount EventName = "CreateSignalRequestProcessedByAccount"
+	ReadOptionChainEvent                  EventName = "ReadOptionChainEvent"
 	FxTickSavedEvent                      EventName = "FxTickSavedEvent"
 	CandleSavedEvent                      EventName = "CandleSavedEvent"
 	TerminalErrorName                     EventName = "TerminalError"

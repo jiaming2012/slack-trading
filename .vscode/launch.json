@@ -75,14 +75,14 @@
             }
         },
         {
-            "name": "[DEV] eventstreamutilities/main.go",
+            "name": "[PROD] eventstreamutilities/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/eventstreamutilities/main.go",
-            "args": ["FETCH_AND_STORE_TRADIER_OPTIONS", "tost", "10,20", "10.0", "5"],
+            "args": ["FETCH_AND_STORE_TRADIER_OPTIONS", "coin", "10,20", "10.0", "5"],
             "env": {
-                "GO_ENV": "development"
+                "GO_ENV": "production"
             }
         },
         {

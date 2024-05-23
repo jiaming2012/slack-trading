@@ -17,7 +17,7 @@ x_values = np.linspace(mean - 3*std_dev, mean + 3*std_dev, 1000)
 pdf_values = pdf(x_values)
 
 # Define the profit function for a call option
-def profit_function(stock_price, strike_price, premium):
+def profit_function_call(stock_price, strike_price, premium):
     return max(stock_price - strike_price, 0) - premium
 
 # Parameters for the option
@@ -26,7 +26,7 @@ premium = 1.1
 
 # Function to integrate: profit function * PDF
 def integrand(stock_price):
-    return profit_function(stock_price, strike_price, premium) * pdf(stock_price)
+    return profit_function_call(stock_price, strike_price, premium) * pdf(stock_price)
 
 # Integrate the expected profit
 expected_profit, _ = integrate.quad(integrand, mean - 3*std_dev, mean + 3*std_dev)

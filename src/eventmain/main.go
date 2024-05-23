@@ -18,6 +18,7 @@ import (
 	"slack-trading/src/eventproducers/accountapi"
 	"slack-trading/src/eventproducers/alertapi"
 	"slack-trading/src/eventproducers/datafeedapi"
+	"slack-trading/src/eventproducers/optionsapi"
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
@@ -61,7 +62,7 @@ func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	if err := utils.InitEnvironmentVariablesDefault(); err != nil {
+	if err := utils.InitEnvironmentVariables(); err != nil {
 		log.Panic(err)
 	}
 
@@ -108,6 +109,7 @@ func run() {
 	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
+	optionsapi.SetupHandler(router.PathPrefix("/options").Subrouter())
 
 	// Setup web server
 	srv := &http.Server{

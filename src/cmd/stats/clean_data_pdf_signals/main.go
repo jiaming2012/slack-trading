@@ -124,9 +124,7 @@ func main() {
 
 	eventpubsub.Init()
 
-	pathToDevEnvFile := "../../../.env.development"
-	pathToProdEnvFile := "../../../.env.production"
-	if err := utils.InitEnvironmentVariables(pathToDevEnvFile, pathToProdEnvFile); err != nil {
+	if err := utils.InitEnvironmentVariables(); err != nil {
 		log.Fatalf("error initializing environment variables: %v", err)
 	}
 

@@ -2,4 +2,4 @@
 
 export GO_ENV=production
 
-go run $PROJECTS_DIR/grodt/slack-trading/src/eventstreamutilities/main.go
+go run $PROJECTS_DIR/slack-trading/src/eventstreamutilities/main.go
