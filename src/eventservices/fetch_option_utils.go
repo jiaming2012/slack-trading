@@ -44,7 +44,7 @@ func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionCh
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
-			return fmt.Errorf("no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			return fmt.Errorf("addAdditionInfoToOptionsV2: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
 		}
 
 		found := false
@@ -54,13 +54,15 @@ func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionCh
 				options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
 				options[i].Description = tick.Description
 				options[i].ExpirationType = tick.ExpirationType
+				options[i].Bid = tick.Bid
+				options[i].Ask = tick.Ask
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			return fmt.Errorf("no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
+			return fmt.Errorf("addAdditionInfoToOptionsV2: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
 		}
 	}
 
@@ -71,7 +73,7 @@ func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.Optio
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
-			return fmt.Errorf("no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			return fmt.Errorf("addAdditionInfoToOptionsV1: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
 		}
 
 		found := false
@@ -88,7 +90,7 @@ func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.Optio
 		}
 
 		if !found {
-			return fmt.Errorf("no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
+			return fmt.Errorf("addAdditionInfoToOptionsV1: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
 		}
 	}
 
@@ -117,13 +119,13 @@ func splitAndSortContractsByStrike(contracts []eventmodels.OptionContractV1, str
 
 	for _, c := range contracts {
 		switch c.OptionType {
-		case eventmodels.Calls:
+		case eventmodels.Call:
 			if c.Strike < strike {
 				ladder.CallsBelowStrike = append(ladder.CallsBelowStrike, c)
 			} else {
 				ladder.CallsAboveStrike = append(ladder.CallsAboveStrike, c)
 			}
-		case eventmodels.Puts:
+		case eventmodels.Put:
 			if c.Strike < strike {
 				ladder.PutsBelowStrike = append(ladder.PutsBelowStrike, c)
 			} else {
@@ -157,9 +159,9 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 	allResults := make([]eventmodels.OptionContractV1, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
-		if optionType == eventmodels.Calls {
+		if optionType == eventmodels.Call {
 			includeCalls = true
-		} else if optionType == eventmodels.Puts {
+		} else if optionType == eventmodels.Put {
 			includePuts = true
 		}
 	}

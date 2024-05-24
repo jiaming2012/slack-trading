@@ -81,6 +81,7 @@ func run() {
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
 	calendarURL := os.Getenv("MARKET_CALENDAR_URL")
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
@@ -89,6 +90,7 @@ func run() {
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 	oandaFxQuotesURLBase := os.Getenv("OANDA_FX_QUOTES_URL_BASE")
 	oandaBearerToken := os.Getenv("OANDA_BEARER_TOKEN")
+	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 
 	// Set up google sheets
 	//if err := sheets.Init(ctx); err != nil {
@@ -109,7 +111,15 @@ func run() {
 	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
-	optionsapi.SetupHandler(router.PathPrefix("/options").Subrouter())
+
+	optionChainRequestExector := &optionsapi.ReadOptionChainRequestExecutor{
+		OptionsByExpirationURL: optionsExpirationURL,
+		OptionChainURL:         optionChainURL,
+		StockURL:               stockQuotesURL,
+		BearerToken:            brokerBearerToken,
+	}
+
+	optionsapi.SetupHandler(router.PathPrefix("/options").Subrouter(), optionChainRequestExector)
 
 	// Setup web server
 	srv := &http.Server{

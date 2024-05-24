@@ -9,20 +9,20 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, error) {
+func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, *eventmodels.StockTickItemDTO, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
+		return nil, nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
 	}
 
 	options, err := optionsDTO.ConvertToOptionContracts(symbol, optionTypes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
+		return nil, nil, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
 	}
 
 	stockTickDTO, err := FetchStockTicks(symbol, stockURL, bearerToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch stock tick: %v", err)
+		return nil, nil, fmt.Errorf("failed to fetch stock tick: %v", err)
 	}
 
 	stockPrice := (stockTickDTO.Bid + stockTickDTO.Ask) / 2
@@ -31,14 +31,14 @@ func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockU
 
 	optionChainMap, err := fetchOptionChains(optionChainURL, bearerToken, symbol, expirationDates)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch option chains: %v", err)
+		return nil, nil, fmt.Errorf("failed to fetch option chains: %v", err)
 	}
 
 	if err := addAdditionInfoToOptionsV2(filteredOptions, optionChainMap); err != nil {
-		return nil, fmt.Errorf("failed to add symbol name to options: %v", err)
+		return nil, nil, fmt.Errorf("failed to add symbol name to options: %v", err)
 	}
 
-	return filteredOptions, nil
+	return filteredOptions, stockTickDTO, nil
 }
 
 func FetchOptionChainWithParamsV1(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, error) {

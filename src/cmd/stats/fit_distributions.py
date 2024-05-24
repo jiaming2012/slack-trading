@@ -6,7 +6,7 @@ from scipy.stats import (norm, lognorm, expon, t, beta, gamma, weibull_min, unif
                          chi2, logistic, laplace, pareto, cauchy, erlang, kstest, probplot)
 
 # Load data from Excel
-file_path = '/Users/jamal/projects/grodt/slack-trading/src/cmd/stats/clean_data_pdf/candles-COIN-5/percent_change-14400.csv'  # Update with the path to your Excel file
+file_path = '/Users/jamal/projects/slack-trading/src/cmd/stats/clean_data_pdf_signals/candles-COIN-5/percent_change-14400.csv'  # Update with the path to your Excel file
 df = pd.read_csv(file_path)
 prices = df['Percent_Change'].dropna()
 

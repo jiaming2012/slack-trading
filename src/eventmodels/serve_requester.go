@@ -2,6 +2,6 @@ package eventmodels
 
 import "net/http"
 
-type ServeRequester interface {
-	ServeRequest(r *http.Request) (chan interface{}, chan error)
+type RequestExecutor interface {
+	Serve(r *http.Request, req ApiRequest3) (chan interface{}, chan error)
 }

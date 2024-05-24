@@ -7,15 +7,11 @@ import (
 )
 
 type ReadOptionChainRequest struct {
-	Symbol                    string       `json:"symbol"`
+	Symbol                    StockSymbol  `json:"symbol"`
 	OptionTypes               []OptionType `json:"optionTypes"`
 	ExpirationsInDays         []int        `json:"expirationsInDays"`
 	MinDistanceBetweenStrikes float64      `json:"minDistanceBetweenStrikes"`
 	MaxNoOfStrikes            int          `json:"maxNoOfStrikes"`
-}
-
-func (o *ReadOptionChainRequest) ServeRequest(r *http.Request, serve ServeRequester) (chan interface{}, chan error) {
-	return serve.ServeRequest(r)
 }
 
 func (o *ReadOptionChainRequest) Validate(r *http.Request) error {
