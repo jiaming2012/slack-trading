@@ -21,14 +21,14 @@ class Option:
     bid: float
     ask: float
 
-def fetch_options() -> Tuple[Stock, List[Option]]:
-    url = 'http://localhost:8085/options'
+def fetch_options(symbol: str, expirationInDays: int) -> Tuple[Stock, List[Option]]:
+    url = 'http://localhost:8080/options'
     response = requests.get(url, json={
-        'symbol': 'coin',
+        'symbol': symbol,
         'optionTypes': ['call', 'put'],
-        'expirationsInDays': [7],
+        'expirationsInDays': [expirationInDays],
         'minDistanceBetweenStrikes': 10,
-        'maxNoOfStrikes': 3
+        'maxNoOfStrikes': 5
     })
 
     response_payload = response.json()
