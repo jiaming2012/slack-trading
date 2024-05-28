@@ -5,6 +5,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import gaussian_kde
 from scipy.integrate import quad
+import sys
+
+# to run this script
+# python pdf.py clean_data_pdf clean_data_pdf_signals candles-COIN-5
 
 def load_and_prepare_data(filepath):
     # Load data
@@ -68,18 +72,21 @@ def generate_pdfs(dfs1, dfs2, min_value, max_value):
     return fig
 
 # Input variables
-inputDirectoryType1 = 'clean_data_pdf'
-inputDirectoryValue1 = 'candles-COIN-5'
-inputDirectoryType2 = 'clean_data_pdf_signals'
-inputDirectoryValue2 = 'candles-COIN-5'
+inputDirectoryName1 = sys.argv[1]
+inputDirectoryName2 = sys.argv[2]
+inputStreamName = sys.argv[3]
+
+# Input directory value
+inputDirectory1 = f'{inputDirectoryName1}/{inputStreamName}'
+inputDirectory2 = f'{inputDirectoryName2}/{inputStreamName}'
 
 # Get a list of all .csv files in the clean_data_pdf folder
-csv_files_1 = glob.glob(f'{inputDirectoryType1}/{inputDirectoryValue1}/*.csv')
-csv_files_2 = glob.glob(f'{inputDirectoryType2}/{inputDirectoryValue2}/*.csv')
+csv_files_1 = glob.glob(f'{inputDirectory1}/*.csv')
+csv_files_2 = glob.glob(f'{inputDirectory2}/*.csv')
 
 # Print the list of .csv files
-prefix_1 = f'{inputDirectoryType1}/{inputDirectoryValue1}/percent_change-'
-prefix_2 = f'{inputDirectoryType2}/{inputDirectoryValue2}/percent_change-'
+prefix_1 = f'{inputDirectory1}/percent_change-'
+prefix_2 = f'{inputDirectory2}/percent_change-'
 
 colors_1 = ['red', 'green', 'purple', 'orange', 'black', 'brown', 'pink', 'cyan', 'magenta', 'blue']
 colors_2 = ['blue', 'red', 'green', 'purple', 'orange', 'black', 'brown', 'pink', 'cyan', 'magenta']
@@ -129,7 +136,7 @@ fig.update_layout(
     autosize=False,
     height=200*len(dfs1), 
     width=1000, 
-    title_text=f'PDF of {inputDirectoryValue2} from {start_time} to {end_time}',
+    title_text=f'PDF of {inputStreamName} from {start_time} to {end_time}',
     showlegend=True
 )
 

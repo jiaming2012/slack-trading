@@ -44,7 +44,7 @@ func processEvent(ev *esdb.RecordedEvent) {
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	utils.InitEnvironmentVariables()
 
@@ -102,6 +102,22 @@ func main() {
 		fmt.Printf("%s Deleted\n", streamName)
 	}
 
+	fmt.Println("Enter number of events to read (Hit ENTER to read all): ")
+	var numEvents string
+	if _, err := fmt.Scanln(&numEvents); err != nil {
+		panic(fmt.Errorf("failed to read number of events: %w", err))
+	}
+
+	var numEventsInt int
+	if len(numEvents) == 0 {
+		numEventsInt = 0
+	} else {
+		numEventsInt, err = strconv.Atoi(numEvents)
+		if err != nil {
+			panic(fmt.Errorf("invalid number of events: %w", err))
+		}
+	}
+
 	// ---- read event ----
 	// stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{}, 12)
 	// if err != nil {
@@ -118,6 +134,7 @@ func main() {
 	log.Infof("subscribed to stream %s", streamName)
 
 	var lastEventNumber uint64 = 0
+	eventsRead := 0
 
 	for {
 		for {
@@ -141,6 +158,13 @@ func main() {
 			lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
 
 			processEvent(ev)
+
+			if numEventsInt > 0 && eventsRead >= numEventsInt-1 {
+				cancel()
+				os.Exit(0)
+			}
+
+			eventsRead += 1
 		}
 
 		log.Infof("re-subscribing subscription @ pos %v", lastEventNumber)

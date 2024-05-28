@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"os"
-	"sort"
+	"path"
+	"strconv"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
@@ -17,80 +17,30 @@ import (
 	"slack-trading/src/utils"
 )
 
-type StockData struct {
-	Time          time.Time
-	PercentChange float64
-}
-
-type Interval struct {
-	LowPercentageChange  float64
-	HighPercentageChange float64
-}
-
-func processCandlesPercentChange(candles []*eventmodels.CsvCandle, lookahead int) []StockData {
-	stockData := make([]StockData, 0)
-	for i := 0; i < len(candles)-lookahead; i++ {
-		percentChange := (candles[i+lookahead].Close - candles[i].Close) / candles[i].Close * 100
-		stockData = append(stockData, StockData{
-			Time:          candles[i].Timestamp,
-			PercentChange: percentChange,
-		})
-	}
-
-	return stockData
-}
-
-func sortCandles(candles []*eventmodels.CsvCandle, timeFrameInMinutes time.Duration) []*eventmodels.CsvCandle {
-	xValues := map[time.Time]*eventmodels.CsvCandle{}
-
-	// remove duplicates
-	for _, candle := range candles {
-		xValues[candle.Timestamp] = candle
-	}
-
-	var candlesNoDuplicates []*eventmodels.CsvCandle
-	for _, candle := range xValues {
-		candlesNoDuplicates = append(candlesNoDuplicates, candle)
-	}
-
-	// sort candlesNoDuplicates by time
-	sort.Slice(candlesNoDuplicates, func(i, j int) bool {
-		return candlesNoDuplicates[i].Timestamp.Before(candlesNoDuplicates[j].Timestamp)
-	})
-
-	// check for gaps in the data
-	for i := 0; i < len(candlesNoDuplicates)-1; i++ {
-		if candlesNoDuplicates[i].Timestamp.Add(timeFrameInMinutes).Before(candlesNoDuplicates[i+1].Timestamp) {
-			if !isMarkedClosed(candlesNoDuplicates[i]) {
-				log.Warnf("Gap in data between %v and %v", candlesNoDuplicates[i].Timestamp, candlesNoDuplicates[i+1].Timestamp)
-			}
-		}
-	}
-
-	return candlesNoDuplicates
-}
-
-func isMarkedClosed(candle *eventmodels.CsvCandle) bool {
-	// yes if between 19:55:00 +0000 UTC and 13:30:00 +0000 UTC
-	// no otherwise
-	if candle.Timestamp.Hour() == 19 && candle.Timestamp.Minute() >= 55 {
-		return true
-	}
-
-	if candle.Timestamp.Hour() == 20 {
-		return true
-	}
-
-	if candle.Timestamp.Hour() == 13 && candle.Timestamp.Minute() < 30 {
-		return true
-	}
-
-	return false
-}
+// go run main.go SPX 15 "4,8,16,24,96,192,288,480,672"
 
 func main() {
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
 	// input variables
-	inputStream := "candles-COIN-5"
+	symbol := os.Args[1]
+	timeframeStr := os.Args[2]
+
+	timeframe, err := strconv.ParseInt(timeframeStr, 10, 64)
+	if err != nil {
+		log.Fatalf("error parsing timeframe: %v", err)
+	}
+
+	lookaheadPeriodsStr := os.Args[3]
+	lookaheadPeriods, err := utils.ParseLookaheadPeriods(lookaheadPeriodsStr)
+	if err != nil {
+		log.Fatalf("error parsing lookahead periods: %v", err)
+	}
+
+	inputStream := fmt.Sprintf("candles-%s-%s", symbol, timeframeStr)
 
 	ctx := context.Background()
 
@@ -110,46 +60,29 @@ func main() {
 		log.Fatalf("error creating new client: %v", err)
 	}
 
-	csvCandleInstance := eventmodels.NewCsvCandle(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
-	csvCandles, err := eventservices.FetchAll(ctx, esdbClient, csvCandleInstance)
+	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
+	csvCandlesDTO, err := eventservices.FetchAll(ctx, esdbClient, csvCandleInstance)
 	if err != nil {
 		log.Fatalf("error fetching all candles: %v", err)
+	}
+
+	var csvCandles []*eventmodels.TradingViewCandle
+	for _, csvCandlesDTO := range csvCandlesDTO {
+		csvCandles = append(csvCandles, csvCandlesDTO.ToModel())
 	}
 
 	log.Infof("Fetched %d candles\n", len(csvCandles))
 
 	// Process the candles
-	candleDuration := 5 * time.Minute
-	lookaheadPeriods := []int{3, 10, 20, 40, 60, 120, 240, 1440, 2880}
+	candleDuration := time.Duration(timeframe) * time.Minute
 
-	csvCandles = sortCandles(csvCandles, candleDuration)
+	csvCandles = utils.SortCandles(csvCandles, candleDuration)
 
-	for _, lookahead := range lookaheadPeriods {
-		stockData := processCandlesPercentChange(csvCandles, lookahead)
-
-		// Create export directory
-		if _, err := os.Stat(inputStream); os.IsNotExist(err) {
-			os.Mkdir(inputStream, 0755)
-		}
-
-		// Export the data
-		lookaheadLabel := fmt.Sprintf("%d", lookahead*int(candleDuration.Minutes()))
-		file, err := os.Create(fmt.Sprintf("%s/percent_change-%s.csv", inputStream, lookaheadLabel))
-		if err != nil {
-			fmt.Println("Error creating CSV file:", err)
-			return
-		}
-		defer file.Close()
-
-		writer := csv.NewWriter(file)
-		defer writer.Flush()
-
-		// Write header
-		writer.Write([]string{"Time", "Percent_Change"})
-
-		for _, data := range stockData {
-			timeInISO := data.Time.Format(time.RFC3339)
-			writer.Write([]string{timeInISO, fmt.Sprintf("%f", data.PercentChange)})
-		}
+	for _, c := range csvCandles {
+		c.IsSignal = true
 	}
+
+	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "clean_data_pdf", inputStream)
+
+	utils.ExportToCsv(csvCandles, lookaheadPeriods, candleDuration, outDir)
 }

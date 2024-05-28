@@ -2,4 +2,4 @@
 
 export GO_ENV=development
 
-go run $PROJECTS_DIR/grodt/slack-trading/src/eventstreamviewer/main.go
+go run $PROJECTS_DIR/slack-trading/src/eventstreamviewer/main.go

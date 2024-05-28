@@ -1,27 +1,47 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+import os
+import sys
+import plotly.express as px
+
+project_dir = os.getenv('PROJECTS_DIR')
+if project_dir is None:
+    raise ValueError('Please set the PROJECT_DIR environment variable')
+
+if len(sys.argv) < 2:
+    raise ValueError('Please provide the name of the CSV file in the /data directory as an argument')
+
+csv_file = sys.argv[1]
+
+file_path = os.path.join(project_dir, 'slack-trading', 'src', 'cmd', 'stats', 'data', csv_file)
 
 # Load data
-data = pd.read_csv('stock_data.csv')
+data = pd.read_csv(file_path)
 data['Time'] = pd.to_datetime(data['Time'])  # Ensure 'Time' is datetime type
 
-# Plot
-fig, ax = plt.subplots()
-ax.plot(data['Time'], data['Stock Price'], marker='', linestyle='-', color='blue')
-plt.title('Stock Price Over Time')
-plt.xlabel('Time')
-plt.ylabel('Stock Price')
-plt.grid(True)
+start_date = data['Time'].min()
+start_date_formatted = start_date.strftime('%Y-%m-%d')
+end_date = data['Time'].max()
+end_date_formatted = end_date.strftime('%Y-%m-%d')
 
-# Set the locator
-locator = mdates.AutoDateLocator()
-# formatter = mdates.ConciseDateFormatter(locator)
-ax.xaxis.set_major_locator(locator)
-# ax.xaxis.set_major_formatter(formatter)
+# Create the plot using Plotly
+fig = px.line(data, x='Time', y='Close', title=f'Stock Price from {start_date_formatted} to {end_date_formatted}', labels={'Close': 'Stock Price', 'Time': 'Time'})
 
-# Rotate date labels for better visibility
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.savefig('stock_price_plot.png')  # Save the plot to a file
-plt.show()
+# Update layout for better readability
+fig.update_layout(
+    xaxis_title='Time',
+    yaxis_title='Stock Price',
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(step="all")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="date"
+    )
+)
+
+# Show the plot
+fig.show()

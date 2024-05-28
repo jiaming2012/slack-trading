@@ -43,6 +43,35 @@ func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 	return nil
 }
 
+func (cli *EsdbProducer) insertData(event eventmodels.SavedEvent, data map[string]interface{}) error {
+	// set the event streamID
+	eventID := eventmodels.EventStreamID(uuid.New())
+	metaData := event.GetMetaData()
+	metaData.SetEventStreamID(eventID)
+
+	// set the schema version
+	schemaVersion := event.GetSavedEventParameters().SchemaVersion
+	metaData.SetSchemaVersion(schemaVersion)
+
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	params := event.GetSavedEventParameters()
+
+	eventName := params.EventName
+	streamName := params.StreamName
+
+	log.Debugf("%s saving to stream %s ...", eventName, streamName)
+
+	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
+		return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
+	}
+
+	return nil
+}
+
 func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 	// set the event streamID
 	eventID := eventmodels.EventStreamID(uuid.New())
@@ -310,6 +339,10 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 			return
 		}
 	}()
+}
+
+func (cli *EsdbProducer) SaveData(event eventmodels.SavedEvent, data map[string]interface{}) error {
+	return cli.insertData(event, data)
 }
 
 func (cli *EsdbProducer) Save(event eventmodels.SavedEvent) error {

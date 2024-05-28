@@ -15,11 +15,22 @@
             }
         },
         {
-            "name": "[DEV] cmd/tick_generator/clean_data_pdf/main.go",
+            "name": "[DEV] cmd/stats/clean_data_pdf/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/tick_generator/clean_data_pdf/main.go",
+            "program": "${workspaceFolder}/src/cmd/stats/clean_data_pdf/main.go",
+            "env": {
+                "GO_ENV": "development"
+            },
+            "args": ["SPX", "15", "4,8,16,24,96,192,288,480,672"]
+        },
+        {
+            "name": "[DEV] cmd/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/stats/transform_data_csv_to_signal_csv/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
             "env": {
                 "GO_ENV": "development"
             }
@@ -35,14 +46,26 @@
             }
         },
         {
-            "name": "[DEV] import_ticks/main.go",
+            "name": "[DEV] import_data/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/import_ticks/main.go",
+            "program": "${workspaceFolder}/src/cmd/import_data/main.go",
             "env": {
                 "GO_ENV": "development"
-            }
+            },
+            "args": ["candles-SPX-15"]
+        },
+        {
+            "name": "[DEV] esdb_export_to_csv/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/stats/esdb_export_to_csv/main.go",
+            "env": {
+                "GO_ENV": "development"
+            },
+            "args": ["candles-SPX-15"]
         },
         {
             "name": "[DEV] eventticks/main.go",
