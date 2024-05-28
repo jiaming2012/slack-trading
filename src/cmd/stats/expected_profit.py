@@ -1,32 +1,26 @@
 import numpy as np
 import scipy.integrate as integrate
 import plotly.graph_objs as go
-from scipy.stats import beta, kurtosis as scipy_kurtosis
 from fetch_options import fetch_options
+import distributions
+import sys
+import json
+
+# to run this script:
+# python expected_profit.py /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/candles-SPX-15/best_fit_percent_change-1440.json
+
+# Import the distribution
+input_file = sys.argv[1]
+with open(input_file, 'r') as file:
+    data = json.load(file)
+
+# Get the distribution
+print(f"using: {data}")
 
 # Parameters for the beta distribution
-loc = 30.636946866327758
-scale = 63.583766048450244
-beta_dist = beta(a=1.4535158435210316, b=1.7364129668111365, loc=loc, scale=scale)
-percent_change_pdf = beta_dist.pdf
+lower_limit, upper_limit, distribution = distributions.dist(data)
 
-# Calculate the mean
-mean = beta_dist.mean()
-
-# Calculate variance
-variance = beta_dist.var()
-
-# Calculate standard deviation
-std_dev = np.sqrt(variance)
-
-# Calculate skewness
-skewness = beta_dist.stats(moments='s')
-
-# Calculate kurtosis
-kurtosis = beta_dist.stats(moments='k')
-
-# Generate a range of percent changes
-percent_changes = np.linspace(loc, loc + scale, 1000)
+percent_change_pdf = distribution.pdf
 
 # Define the profit function for a call option based on percent change
 def profit_function_call_percent(percent_change, stock_price, strike_price, premium):
@@ -63,9 +57,9 @@ for option in options:
 
     # Integrate the expected profit over the range of percent changes
     if option.option_type == 'call':
-        expected_profit, _ = integrate.quad(call_integrand, loc, loc + scale)
+        expected_profit, _ = integrate.quad(call_integrand, lower_limit, upper_limit)
     elif option.option_type == 'put':
-        expected_profit, _ = integrate.quad(put_integrand, loc, loc + scale)
+        expected_profit, _ = integrate.quad(put_integrand, lower_limit, upper_limit)
     else:
         raise ValueError(f"Invalid option type: {option.option_type}")
 
@@ -76,24 +70,7 @@ for option in options:
 
     print(f"Expected Profit: {expected_profit:.2f}")
 
-# Print the results
-print("Beta Distribution Statistics:")
-print(f"Mean: {mean:.2f}")
-print(f"Standard Deviation: {std_dev:.2f}")
-print(f"Variance: {variance:.2f}")
-print(f"Skewness: {skewness:.2f}")
-print(f"Kurtosis: {kurtosis:.2f}") # A normal distribution has a kurtosis of 3
 
-# Calculate kurtosis for the left and right tails
-median = beta_dist.median()
-left_tail = beta_dist.rvs(size=1000, random_state=0)[beta_dist.rvs(size=1000, random_state=0) < median]
-right_tail = beta_dist.rvs(size=1000, random_state=0)[beta_dist.rvs(size=1000, random_state=0) > median]
-left_kurtosis = scipy_kurtosis(left_tail, fisher=False)  # Set fisher=False to get Pearson's kurtosis
-right_kurtosis = scipy_kurtosis(right_tail, fisher=False)
-
-# Print the results
-print(f"Left Tail Kurtosis: {left_kurtosis:.2f}")
-print(f"Right Tail Kurtosis: {right_kurtosis:.2f}")
 
 
 # # Generate x values for plotting the percent changes PDF
