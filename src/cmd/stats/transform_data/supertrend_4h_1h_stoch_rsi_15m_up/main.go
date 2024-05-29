@@ -45,9 +45,6 @@ func main() {
 		panic("missing PROJECTS_DIR environment variable")
 	}
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// wg := sync.WaitGroup{}
-
 	// fetch 15m candles
 	fName := "candles-SPX-15.csv"
 	inDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", fName)

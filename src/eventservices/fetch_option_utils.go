@@ -265,6 +265,7 @@ func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels
 	q.Add("strikes", "true")
 	q.Add("expirationType", "true")
 	q.Add("contractSize", "true")
+	q.Add("includeAllRoots", "true")
 
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")

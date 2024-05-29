@@ -77,7 +77,6 @@ func main() {
 	candleDuration := time.Duration(timeframe) * time.Minute
 
 	csvCandles = utils.SortCandles(csvCandles, candleDuration)
-
 	for _, c := range csvCandles {
 		c.IsSignal = true
 	}

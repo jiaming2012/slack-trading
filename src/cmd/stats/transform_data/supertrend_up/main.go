@@ -47,10 +47,15 @@ func main() {
 		log.Fatalf("error creating new client: %v", err)
 	}
 
-	csvCandleInstance := eventmodels.NewCsvCandle(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
-	allCandles, err := eventservices.FetchAll(ctx, esdbClient, csvCandleInstance)
+	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
+	allCandlesDTO, err := eventservices.FetchAll(ctx, esdbClient, csvCandleInstance)
 	if err != nil {
 		log.Fatalf("error fetching all candles: %v", err)
+	}
+
+	var allCandles []*eventmodels.TradingViewCandle
+	for _, dto := range allCandlesDTO {
+		allCandles = append(allCandles, dto.ToModel())
 	}
 
 	log.Infof("Fetched %d candles\n", len(allCandles))

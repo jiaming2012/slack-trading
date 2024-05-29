@@ -15,6 +15,16 @@
             }
         },
         {
+            "name": "[PROD] eventmain/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/eventmain/main.go",
+            "env": {
+                "GO_ENV": "production"
+            }
+        },
+        {
             "name": "[DEV] cmd/stats/clean_data_pdf/main.go",
             "type": "go",
             "request": "launch",
@@ -66,26 +76,6 @@
                 "GO_ENV": "development"
             },
             "args": ["candles-SPX-15"]
-        },
-        {
-            "name": "[DEV] eventticks/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventticks/main.go",
-            "env": {
-                "GO_ENV": "development"
-            }
-        },
-        {
-            "name": "[PROD] eventticks/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventticks/main.go",
-            "env": {
-                "GO_ENV": "production"
-            }
         },
         {
             "name": "[DEV] eventticksreader/main.go",
