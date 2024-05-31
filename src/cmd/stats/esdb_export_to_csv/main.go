@@ -68,7 +68,7 @@ func main() {
 		log.Fatalf("error creating new client: %v", err)
 	}
 
-	csvCandleInstance := eventmodels.NewCsvCandle(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
+	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
 	dataMap, err := eventservices.FetchAllData(ctx, esdbClient, csvCandleInstance)
 	if err != nil {
 		log.Fatalf("error fetching all candles: %v", err)

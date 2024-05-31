@@ -58,6 +58,50 @@ func main() {
 	run()
 }
 
+type RouterSetupItem struct {
+	Method   string
+	URL      string
+	Executor eventmodels.RequestExecutor
+}
+
+type RouterSetup struct {
+	Router    *mux.Router
+	Executors map[string]eventmodels.RequestExecutor
+}
+
+func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "GET" {
+		executer, found := r.Executors[req.Method]
+		if !found {
+			log.Errorf("No handler found for %v", req.Method)
+			w.WriteHeader(500)
+			return
+		}
+
+		eventproducers.ApiRequestHandler3(eventmodels.ReadOptionChainEvent, &eventmodels.ReadOptionChainRequest{}, &eventmodels.ReadOptionChainResponse{}, executer, w, req)
+	} else {
+		w.WriteHeader(404)
+	}
+}
+
+func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
+	r := &RouterSetup{
+		Router:    router,
+		Executors: make(map[string]eventmodels.RequestExecutor),
+	}
+
+	router.HandleFunc(prefix, r.ServeHTTP)
+
+	return r
+}
+
+func (r *RouterSetup) Add(item RouterSetupItem) {
+	r.Executors[item.Method] = item.Executor
+	r.Router.HandleFunc(item.URL, r.ServeHTTP)
+}
+
+type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
+
 func run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
@@ -119,7 +163,8 @@ func run() {
 		BearerToken:            brokerBearerToken,
 	}
 
-	optionsapi.SetupHandler(router.PathPrefix("/options").Subrouter(), optionChainRequestExector)
+	r := NewRouterSetup("/options", router)
+	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector})
 
 	// Setup web server
 	srv := &http.Server{

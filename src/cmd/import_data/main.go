@@ -86,8 +86,7 @@ func main() {
 
 			streamNameSuffix := getStreamNameSuffix(csvMeta)
 
-			allData, err := eventservices.FetchAllData(ctx, esdbProducer.GetClient(), eventmodels.NewCsvCandle(eventmodels.StreamName(fmt.Sprintf("candles-%s", streamNameSuffix)), eventmodels.CandleSavedEvent, 1))
-			// allCandles, err := eventservices.FetchAll(ctx, esdbProducer.GetClient(), eventmodels.NewCsvCandle(eventmodels.StreamName(fmt.Sprintf("candles-%s", streamNameSuffix)), eventmodels.CandleSavedEvent, 1))
+			allData, err := eventservices.FetchAllData(ctx, esdbProducer.GetClient(), eventmodels.NewCsvCandleDTO(eventmodels.StreamName(fmt.Sprintf("candles-%s", streamNameSuffix)), eventmodels.CandleSavedEvent, 1))
 			if err != nil {
 				log.Warnf("error fetching all (this can happen if the stream doesn't exist yet): %v", err)
 			}
@@ -120,7 +119,7 @@ func main() {
 			log.Infof("Found %d records in %s", len(records), file.Name())
 
 			// create a new event
-			event := eventmodels.NewCsvCandle(eventmodels.StreamName(fmt.Sprintf("candles-%s", streamNameSuffix)), eventmodels.CandleSavedEvent, 1)
+			event := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(fmt.Sprintf("candles-%s", streamNameSuffix)), eventmodels.CandleSavedEvent, 1)
 
 			// save to db
 			savedCount := 0

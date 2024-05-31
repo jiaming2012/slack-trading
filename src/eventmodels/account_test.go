@@ -218,6 +218,7 @@ func TestPlacingTrades(t *testing.T) {
 
 		df := NewDatafeed(ManualDatafeed)
 		account, err := NewAccount(name, balance, df)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		assert.NoError(t, err)
@@ -667,6 +668,7 @@ func TestTradeValidation(t *testing.T) {
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
 		account, err := NewAccount(name, balance, df)
+		assert.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), account)
 		assert.NoError(t, err)
