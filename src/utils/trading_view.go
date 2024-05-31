@@ -1,28 +1,28 @@
 package utils
 
 import (
+	"log"
 	"time"
 
 	"slack-trading/src/eventmodels"
 )
 
 func IsMarkedClosed(candle *eventmodels.TradingViewCandle) bool {
-	// no if saturday or sunday
-	if candle.Timestamp.Weekday() == time.Saturday || candle.Timestamp.Weekday() == time.Sunday {
+	// Load the New York time zone
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatalf("Error loading location: %v", err)
+	}
+
+	// Convert the timestamp to the New York time zone
+	nyTime := candle.Timestamp.In(loc)
+
+	if nyTime.Weekday() == time.Saturday || nyTime.Weekday() == time.Sunday {
 		return true
 	}
 
-	// yes if between 19:55:00 +0000 UTC and 13:30:00 +0000 UTC
-	// no otherwise
-	if candle.Timestamp.Hour() == 19 && candle.Timestamp.Minute() >= 55 {
-		return true
-	}
-
-	if candle.Timestamp.Hour() == 20 {
-		return true
-	}
-
-	if candle.Timestamp.Hour() == 13 && candle.Timestamp.Minute() < 30 {
+	// yes if > 4pm EST and < 9:30am EST
+	if nyTime.Hour() > 16 || (nyTime.Hour() == 16 && nyTime.Minute() >= 0) || nyTime.Hour() < 9 || (nyTime.Hour() == 9 && nyTime.Minute() < 30) {
 		return true
 	}
 

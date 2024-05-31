@@ -42,14 +42,14 @@ func FormatDuration(d time.Duration) string {
 	return strings.Join(parts, ", ")
 }
 
-func ConvertToMarketClose(time.Time) (time.Time, error) {
+func ConvertToMarketClose(expiration time.Time) (time.Time, error) {
 	// market close is 4:00 PM EST
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to load location: %w", err)
 	}
 
-	return time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 16, 0, 0, 0, loc), nil
+	return time.Date(expiration.Year(), expiration.Month(), expiration.Day(), 16, 0, 0, 0, loc), nil
 }
 
 func ParseDuration(s string) (int, int, int, error) {

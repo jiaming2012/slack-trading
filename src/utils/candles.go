@@ -9,7 +9,7 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
-func SortCandles(candles eventmodels.TradingViewCandles, timeFrameInMinutes time.Duration) eventmodels.TradingViewCandles {
+func SortCandles(candles eventmodels.TradingViewCandles, timeFrame time.Duration) eventmodels.TradingViewCandles {
 	xValues := map[time.Time]*eventmodels.TradingViewCandle{}
 
 	// remove duplicates
@@ -29,7 +29,7 @@ func SortCandles(candles eventmodels.TradingViewCandles, timeFrameInMinutes time
 
 	// check for gaps in the data
 	for i := 0; i < len(candlesNoDuplicates)-1; i++ {
-		if candlesNoDuplicates[i].Timestamp.Add(timeFrameInMinutes).Before(candlesNoDuplicates[i+1].Timestamp) {
+		if candlesNoDuplicates[i].Timestamp.Add(timeFrame).Before(candlesNoDuplicates[i+1].Timestamp) {
 			if !IsMarkedClosed(candlesNoDuplicates[i]) {
 				log.Warnf("Gap in data between %v and %v", candlesNoDuplicates[i].Timestamp, candlesNoDuplicates[i+1].Timestamp)
 			}

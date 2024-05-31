@@ -12,13 +12,13 @@ import distributions
 # to run this script:
 # python expected_profit.py /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/candles-SPX-15/best_fit_percent_change-1440.json
 
-def expiration_in_days(time_to_expiration_in_minutes: int, today: date):
+def expiration_in_days(time_until_expiration_in_minutes: int, today: date):
     nearest_contract_expiration = time_to_option_contract_expiration_in_minutes(today)
 
-    if time_to_expiration_in_minutes <= nearest_contract_expiration:
+    if time_until_expiration_in_minutes <= nearest_contract_expiration:
         return 0
     
-    days = time_to_expiration_in_minutes / 60 / 24
+    days = time_until_expiration_in_minutes / 60 / 24
     return max(1, round(days))
 
 def parse_option_expiration_in_days(fileURL: str, today: date):

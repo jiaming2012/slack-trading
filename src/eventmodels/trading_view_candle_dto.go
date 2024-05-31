@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
+// Write csvDto to CSV
 type TradingViewCandleDTO struct {
-	SavedEventParms SavedEventParameters `json:"-"`
+	SavedEventParms SavedEventParameters `csv:"-" json:"-"`
 	Timestamp       string               `csv:"time" json:"time"`
 	Open            string               `csv:"open" json:"open"`
 	High            string               `csv:"high" json:"high"`

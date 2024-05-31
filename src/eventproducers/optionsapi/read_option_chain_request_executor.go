@@ -1,6 +1,7 @@
 package optionsapi
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -40,10 +41,17 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 		},
 	}
 
-	var optionsDTO []*eventmodels.OptionContractV3DTO
 	now := time.Now()
+	var optionsDTO []*eventmodels.OptionContractV3DTO
+	var uniqueExpirationDates = make(map[eventmodels.ExpirationDate]time.Time)
 	for _, option := range options {
 		optionsDTO = append(optionsDTO, option.ToDTO(now))
+		uniqueExpirationDates[option.ExpirationDate] = option.Expiration
+	}
+
+	for _, exp := range uniqueExpirationDates {
+		fmt.Printf("Expiration: %v\n", exp)
+
 	}
 
 	result["options"] = optionsDTO
