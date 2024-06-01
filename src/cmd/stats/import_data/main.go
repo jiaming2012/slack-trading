@@ -25,6 +25,7 @@ type RunArgs struct {
 	StartsAt        string
 	EndsAt          string
 	TimeZone        string
+	GoEnv           string
 }
 
 var rootCmd = &cobra.Command{
@@ -32,14 +33,19 @@ var rootCmd = &cobra.Command{
 	Short: "Export data from EventStoreDB to CSV",
 	Long:  `This program exports data from EventStoreDB to CSV.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		goEnv, err := cmd.Flags().GetString("go-env")
+		if err != nil {
+			log.Fatalf("error getting go-env: %v", err)
+		}
+
 		startsAt, err := cmd.Flags().GetString("starts-at")
 		if err != nil {
-			log.Fatalf("error getting starts_at: %v", err)
+			log.Fatalf("error getting starts-at: %v", err)
 		}
 
 		endsAt, err := cmd.Flags().GetString("ends-at")
 		if err != nil {
-			log.Fatalf("error getting ends_at: %v", err)
+			log.Fatalf("error getting ends-at: %v", err)
 		}
 
 		timeZone, err := cmd.Flags().GetString("timezone")
@@ -57,6 +63,7 @@ var rootCmd = &cobra.Command{
 			EndsAt:          endsAt,
 			TimeZone:        timeZone,
 			InputStreamName: inputStreamName,
+			GoEnv:           goEnv,
 		}
 
 		if err := run(runArgs); err != nil {
@@ -70,6 +77,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(new(string), "ends-at", "e", "", "End period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
 	rootCmd.PersistentFlags().StringVarP(new(string), "stream-name", "n", "", "The eventstore db stream name to export data from, e.g. candles-SPX-15. This flag is required.")
 	rootCmd.PersistentFlags().StringVarP(new(string), "timezone", "t", "America/New_York", "Timezone for the start and end dates. This should be a golang standard timezone.")
+	rootCmd.PersistentFlags().StringVar(new(string), "go-env", "development", "The go environment to run the command in.")
+
 	rootCmd.MarkPersistentFlagRequired("start-at")
 	rootCmd.MarkPersistentFlagRequired("ends-at")
 	rootCmd.MarkPersistentFlagRequired("stream-name")
@@ -105,7 +114,7 @@ func run(args RunArgs) error {
 
 	eventpubsub.Init()
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
+	if err := utils.InitEnvironmentVariables(projectsDir, args.GoEnv); err != nil {
 		return fmt.Errorf("error initializing environment variables: %v", err)
 	}
 

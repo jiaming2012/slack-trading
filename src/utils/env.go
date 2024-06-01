@@ -12,25 +12,20 @@ import (
 const DEV_ENV_FILENAME = ".env.development"
 const PROD_ENV_FILENAME = ".env.production"
 
-func InitEnvironmentVariables() error {
+func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	// Currently, we use heroku for production which doesn't support .env files
 	if os.Getenv("ENV") == "production" {
 		log.Info("Running in production environment")
 		return nil
 	}
 
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		return fmt.Errorf("PROJECTS_DIR environment variable not set")
-	}
-
 	envDir := filepath.Join(projectsDir, "slack-trading", "src")
 
-	log.Infof("Using go environment: %s", os.Getenv("GO_ENV"))
+	log.Infof("Using go environment: %s", goEnvironment)
 
 	// Determine which .env file to load
 	envFile := filepath.Join(envDir, DEV_ENV_FILENAME) // default to development environment
-	if os.Getenv("GO_ENV") == "production" {
+	if goEnvironment == "production" {
 		envFile = filepath.Join(envDir, PROD_ENV_FILENAME)
 	}
 
