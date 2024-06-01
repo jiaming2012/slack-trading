@@ -7,176 +7,131 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
+	"slack-trading/src/cmd/stats/import_data/helpers"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
 	"slack-trading/src/utils"
 )
 
-func getHeaders(dataMap []map[string]interface{}) []string {
-	var header []string
-	if len(dataMap) == 0 {
-		return header
-	}
-
-	for key := range dataMap[0] {
-		if key == "Timestamp" {
-			continue
-		}
-
-		header = append(header, key)
-	}
-
-	return header
+type RunArgs struct {
+	InputStreamName string
+	StartsAt        string
+	EndsAt          string
+	TimeZone        string
 }
 
-func getHeadersFromStruct(i interface{}) []string {
-	t := reflect.TypeOf(i)
-	headers := make([]string, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		headers[i] = t.Field(i).Name
-	}
-	return headers
-}
-
-func getDurationFromStreamName(streamName string) (time.Duration, error) {
-	if streamName[0:7] != "candles" {
-		return 0, fmt.Errorf("invalid stream name: expected stream name to start with 'candles'")
-	}
-
-	components := strings.Split(streamName, "-")
-	if len(components) != 3 {
-		return 0, fmt.Errorf("invalid stream name: expected stream name to have 3 components ['candles', 'underlying_symbol', 'duration], found %v components", components)
-	}
-
-	duration := components[2]
-
-	// check if duration has D or W
-	if strings.Contains(duration, "D") {
-		// check number of days
-		daysStr := strings.Split(duration, "D")
-		if len(daysStr) != 2 {
-			return 0, fmt.Errorf("invalid duration: expected duration to have 2 components ['number', 'D'], found %v components", daysStr)
-		}
-
-		days, err := strconv.Atoi(daysStr[0])
+var rootCmd = &cobra.Command{
+	Use:   "main",
+	Short: "Export data from EventStoreDB to CSV",
+	Long:  `This program exports data from EventStoreDB to CSV.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		startsAt, err := cmd.Flags().GetString("starts-at")
 		if err != nil {
-			return 0, fmt.Errorf("invalid duration: expected duration to represent number of days, found %v", daysStr[0])
+			log.Fatalf("error getting starts_at: %v", err)
 		}
 
-		return time.Duration(days) * 24 * time.Hour, nil
-	}
-
-	if strings.Contains(duration, "W") {
-		// check number of weeks
-		weeksStr := strings.Split(duration, "W")
-		if len(weeksStr) != 2 {
-			return 0, fmt.Errorf("invalid duration: expected duration to have 2 components ['number', 'W'], found %v components", weeksStr)
-		}
-
-		weeks, err := strconv.Atoi(weeksStr[0])
+		endsAt, err := cmd.Flags().GetString("ends-at")
 		if err != nil {
-			return 0, fmt.Errorf("invalid duration: expected duration to represent number of weeks, found %v", weeksStr[0])
+			log.Fatalf("error getting ends_at: %v", err)
 		}
 
-		return time.Duration(weeks) * 7 * 24 * time.Hour, nil
-	}
+		timeZone, err := cmd.Flags().GetString("timezone")
+		if err != nil {
+			log.Fatalf("error getting timezone: %v", err)
+		}
 
-	hours, err := strconv.Atoi(duration)
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration: expected duration to be represent number of hours, found %v", duration)
-	}
+		inputStreamName, err := cmd.Flags().GetString("stream-name")
+		if err != nil {
+			log.Fatalf("error getting stream_name: %v", err)
+		}
 
-	return time.Duration(hours) * time.Hour, nil
+		runArgs := RunArgs{
+			StartsAt:        startsAt,
+			EndsAt:          endsAt,
+			TimeZone:        timeZone,
+			InputStreamName: inputStreamName,
+		}
+
+		if err := run(runArgs); err != nil {
+			log.Fatalf("error running command: %v", err)
+		}
+	},
 }
 
 func main() {
+	rootCmd.PersistentFlags().StringVarP(new(string), "starts-at", "s", "", "Start period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "ends-at", "e", "", "End period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "stream-name", "n", "", "The eventstore db stream name to export data from, e.g. candles-SPX-15. This flag is required.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "timezone", "t", "America/New_York", "Timezone for the start and end dates. This should be a golang standard timezone.")
+	rootCmd.MarkPersistentFlagRequired("start-at")
+	rootCmd.MarkPersistentFlagRequired("ends-at")
+	rootCmd.MarkPersistentFlagRequired("stream-name")
+	cobra.CheckErr(rootCmd.Execute())
+}
+
+func run(args RunArgs) error {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		panic("missing PROJECTS_DIR environment variable")
 	}
 
-	if len(os.Args) < 2 {
-		panic("missing input stream")
+	log.Infof("Running import_data_est using %v", args)
+
+	loc, err := time.LoadLocation(args.TimeZone)
+	if err != nil {
+		return fmt.Errorf("error loading location: %v", err)
 	}
 
-	log.Infof("Running import_data_est using %v", os.Args)
-
-	inputStream := os.Args[1]
-	if inputStream == "" {
-		panic("missing input stream")
+	startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", args.StartsAt, loc)
+	if err != nil {
+		return fmt.Errorf("error parsing start date: %v", err)
 	}
 
-	var startDate time.Time
-	var endDate time.Time
-	if len(os.Args) > 4 {
-		var timeZone string
-		timeZoneStr := os.Args[4]
-		if timeZoneStr == "est" {
-			timeZoneStr = "America/New_York"
-		}
-
-		loc, err := time.LoadLocation(timeZone)
-		if err != nil {
-			log.Fatalf("error loading location: %v", err)
-		}
-
-		startDateStr := os.Args[2]
-		s, err := time.ParseInLocation("2006-01-02T15:04:05", startDateStr, loc)
-		if err != nil {
-			log.Fatalf("error parsing start date: %v", err)
-		}
-
-		endDateStr := os.Args[3]
-		e, err := time.Parse("2006-01-02", endDateStr)
-		if err != nil {
-			log.Fatalf("error parsing end date: %v", err)
-		}
-
-		startDate = s
-		endDate = e
+	endsAt, err := time.Parse("2006-01-02", args.EndsAt)
+	if err != nil {
+		return fmt.Errorf("error parsing end date: %v", err)
 	}
 
-	log.Infof("Exporting %s to csv", inputStream)
+	log.Infof("Exporting %s to csv", args.InputStreamName)
 
 	ctx := context.Background()
 
 	eventpubsub.Init()
 
 	if err := utils.InitEnvironmentVariables(); err != nil {
-		log.Fatalf("error initializing environment variables: %v", err)
+		return fmt.Errorf("error initializing environment variables: %v", err)
 	}
 
 	settings, err := esdb.ParseConnectionString(os.Getenv("EVENTSTOREDB_URL"))
 	if err != nil {
-		log.Fatalf("error parsing connection string: %v", err)
+		return fmt.Errorf("error parsing connection string: %v", err)
 	}
 
 	esdbClient, err := esdb.NewClient(settings)
 	if err != nil {
-		log.Fatalf("error creating new client: %v", err)
+		return fmt.Errorf("error creating new client: %v", err)
 	}
 
 	// Fetch all data
-	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(inputStream), eventmodels.CandleSavedEvent, 1)
+	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(args.InputStreamName), eventmodels.CandleSavedEvent, 1)
 	dataMap, err := eventservices.FetchAll(ctx, esdbClient, csvCandleInstance)
 	if err != nil {
-		log.Fatalf("error fetching all candles: %v", err)
+		return fmt.Errorf("error fetching all candles: %v", err)
 	}
 
 	log.Infof("Fetched %d candles\n", len(dataMap))
 
 	// Process the data
-	duration, err := getDurationFromStreamName(inputStream)
+	duration, err := helpers.GetDurationFromStreamName(args.InputStreamName)
 	if err != nil {
-		log.Fatalf("error getting duration from stream name: %v", err)
+		return fmt.Errorf("error getting duration from stream name: %v", err)
 	}
 
 	var candles eventmodels.TradingViewCandles
@@ -188,11 +143,11 @@ func main() {
 
 	var filteredCandles eventmodels.TradingViewCandles
 	for _, c := range candles {
-		if !startDate.IsZero() && c.Timestamp.Before(startDate) {
+		if !startsAt.IsZero() && c.Timestamp.Before(startsAt) {
 			continue
 		}
 
-		if !endDate.IsZero() && c.Timestamp.After(endDate) {
+		if !endsAt.IsZero() && c.Timestamp.After(endsAt) {
 			break
 		}
 
@@ -201,18 +156,18 @@ func main() {
 
 	// Write headers
 	if len(filteredCandles) == 0 {
-		log.Fatalf("no candles to export")
+		return fmt.Errorf("no candles to export")
 	}
 
 	firstCandleStartDate := filteredCandles[0].Timestamp.Format("20060102_150405")
 	lastCandleStartDate := filteredCandles[len(filteredCandles)-1].Timestamp.Format("2006-01-02")
 
 	// Export the data
-	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", inputStream, firstCandleStartDate, lastCandleStartDate)
+	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", args.InputStreamName, firstCandleStartDate, lastCandleStartDate)
 	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
 	file, err := os.Create(outdir)
 	if err != nil {
-		log.Fatalf("error creating CSV file: %v", err)
+		return fmt.Errorf("error creating CSV file: %v", err)
 	}
 
 	defer file.Close()
@@ -222,14 +177,14 @@ func main() {
 
 	candlesOUT := filteredCandles.ToCsvDTO()
 
-	headers := getHeadersFromStruct(*candlesOUT[0])
+	headers := helpers.GetHeadersFromStruct(*candlesOUT[0])
 
 	writer.Write(headers)
 
 	for _, c := range candlesOUT {
 		// timeInISO, err := c.Timestamp
 		// if err != nil {
-		// 	log.Fatalf("error marshalling time to ISO: %v", err)
+		// 	return fmt.Errorf("error marshalling time to ISO: %v", err)
 		// }
 
 		// payload := []string{string(timeInISO)}
@@ -241,9 +196,11 @@ func main() {
 		writer.Write(payload)
 	}
 
-	if startDate.IsZero() {
+	if startsAt.IsZero() {
 		log.Infof("Exported %d candles to %s", len(filteredCandles), outdir)
 	} else {
-		log.Infof("Exported %d candles to %s from %s to %s", len(filteredCandles), outdir, startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02"))
+		log.Infof("Exported %d candles to %s from %s to %s", len(filteredCandles), outdir, startsAt.Format("2006-01-02 15:04:05"), endsAt.Format("2006-01-02"))
 	}
+
+	return nil
 }
