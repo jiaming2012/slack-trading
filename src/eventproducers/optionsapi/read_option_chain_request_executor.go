@@ -3,7 +3,11 @@ package optionsapi
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventservices"
@@ -42,6 +46,31 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 	}
 
 	now := time.Now()
+
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatalf("error getting location: %v", err)
+	}
+
+	nowInEst := now.In(loc)
+
+	startPeriodStr := nowInEst.Add(-req.EV.Lookback).Format("2006-01-02T00:00:00")
+	endPeriodStr := nowInEst.Format("2006-01-02")
+
+	log.Infof("fetching historical candles from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
+
+	// fetch historical candles
+	programPath := "/Users/jamal/projects/slack-trading/src/cmd/stats/import_data/main.go"
+
+	// todo: 15 comes from the EV.Timeframe
+	cmd := exec.Command("go", "run", programPath, "candles-SPX-15", startPeriodStr, endPeriodStr, "est")
+	cmd.Env = append(os.Environ(), fmt.Sprintf("GO_ENV=%s", "development"))
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("cmd.Run() failed with %s", err)
+	}
+
 	var optionsDTO []*eventmodels.OptionContractV3DTO
 	var uniqueExpirationDates = make(map[eventmodels.ExpirationDate]time.Time)
 	for _, option := range options {
@@ -49,9 +78,14 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 		uniqueExpirationDates[option.ExpirationDate] = option.Expiration
 	}
 
+	// run cmd/stats/import_data/main.go with args
 	for _, exp := range uniqueExpirationDates {
-		fmt.Printf("Expiration: %v\n", exp)
+		if exp.Before(nowInEst) {
+			log.Errorf("expiration date is in the past: %v", exp)
+			continue
+		}
 
+		fmt.Printf("get signal for expiration: %v\n", exp)
 	}
 
 	result["options"] = optionsDTO

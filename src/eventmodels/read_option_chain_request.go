@@ -8,8 +8,9 @@ import (
 )
 
 type ReadOptionChainExpectedValue struct {
-	Lookback time.Duration
-	Signal   string
+	Lookback  time.Duration
+	Timeframe time.Duration
+	Signal    string
 }
 
 type ReadOptionChainRequest struct {

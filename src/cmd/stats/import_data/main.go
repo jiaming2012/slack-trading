@@ -107,6 +107,8 @@ func main() {
 		panic("missing input stream")
 	}
 
+	log.Infof("Running import_data_est using %v", os.Args)
+
 	inputStream := os.Args[1]
 	if inputStream == "" {
 		panic("missing input stream")
@@ -114,9 +116,20 @@ func main() {
 
 	var startDate time.Time
 	var endDate time.Time
-	if len(os.Args) > 3 {
+	if len(os.Args) > 4 {
+		var timeZone string
+		timeZoneStr := os.Args[4]
+		if timeZoneStr == "est" {
+			timeZoneStr = "America/New_York"
+		}
+
+		loc, err := time.LoadLocation(timeZone)
+		if err != nil {
+			log.Fatalf("error loading location: %v", err)
+		}
+
 		startDateStr := os.Args[2]
-		s, err := time.Parse("2006-01-02", startDateStr)
+		s, err := time.ParseInLocation("2006-01-02T15:04:05", startDateStr, loc)
 		if err != nil {
 			log.Fatalf("error parsing start date: %v", err)
 		}
@@ -191,11 +204,12 @@ func main() {
 		log.Fatalf("no candles to export")
 	}
 
-	firstCandleStartDate := filteredCandles[0].Timestamp.Format("2006-01-02")
+	firstCandleStartDate := filteredCandles[0].Timestamp.Format("20060102_150405")
 	lastCandleStartDate := filteredCandles[len(filteredCandles)-1].Timestamp.Format("2006-01-02")
 
 	// Export the data
-	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", fmt.Sprintf("%s-from-%s-to-%s.csv", inputStream, firstCandleStartDate, lastCandleStartDate))
+	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", inputStream, firstCandleStartDate, lastCandleStartDate)
+	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
 	file, err := os.Create(outdir)
 	if err != nil {
 		log.Fatalf("error creating CSV file: %v", err)
@@ -230,6 +244,6 @@ func main() {
 	if startDate.IsZero() {
 		log.Infof("Exported %d candles to %s", len(filteredCandles), outdir)
 	} else {
-		log.Infof("Exported %d candles to %s from %s to %s", len(filteredCandles), outdir, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+		log.Infof("Exported %d candles to %s from %s to %s", len(filteredCandles), outdir, startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02"))
 	}
 }
