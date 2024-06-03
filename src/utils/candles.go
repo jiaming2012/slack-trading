@@ -1,13 +1,42 @@
 package utils
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
 	"sort"
 	"time"
 
+	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
 	"slack-trading/src/eventmodels"
 )
+
+func ImportAndSortCandles(inDir string, timeframe time.Duration) (eventmodels.TradingViewCandles, error) {
+	f, err := os.Open(inDir)
+	if err != nil {
+		return eventmodels.TradingViewCandles{}, fmt.Errorf("error opening file: %v", err)
+	}
+
+	defer f.Close()
+
+	r := csv.NewReader(f)
+
+	var candlesDTO eventmodels.TradingViewCandlesDTO
+
+	gocsv.UnmarshalCSV(r, &candlesDTO)
+
+	candles := candlesDTO.ToModel()
+
+	candlesSorted := SortCandles(candles, timeframe)
+
+	if err := candlesSorted.Validate(); err != nil {
+		return nil, fmt.Errorf("error validating candles: %v", err)
+	}
+
+	return candlesSorted, nil
+}
 
 func SortCandles(candles eventmodels.TradingViewCandles, timeFrame time.Duration) eventmodels.TradingViewCandles {
 	xValues := map[time.Time]*eventmodels.TradingViewCandle{}

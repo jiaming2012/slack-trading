@@ -1,12 +1,11 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
-	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -15,35 +14,12 @@ import (
 	"slack-trading/src/utils"
 )
 
-func importCandles(inDir string) (eventmodels.TradingViewCandles, error) {
-	f, err := os.Open(inDir)
-	if err != nil {
-		return eventmodels.TradingViewCandles{}, fmt.Errorf("error opening file: %v", err)
-	}
-
-	defer f.Close()
-
-	r := csv.NewReader(f)
-
-	var candlesDTO eventmodels.TradingViewCandlesDTO
-
-	gocsv.UnmarshalCSV(r, &candlesDTO)
-
-	candles := candlesDTO.ToModel()
-
-	candlesSorted := utils.SortCandles(candles, time.Minute*720)
-
-	if err := candlesSorted.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating candles: %v", err)
-	}
-
-	return candlesSorted, nil
-}
-
 type RunArgs struct {
-	StartsAt time.Time
-	EndsAt   time.Time
-	GoEnv    string
+	StartsAt              time.Time
+	EndsAt                time.Time
+	Ticker                eventmodels.StockSymbol
+	LookaheadCandlesCount []int
+	GoEnv                 string
 }
 
 var rootCmd = &cobra.Command{
@@ -93,10 +69,22 @@ The signal is generated when the following conditions are met:
 			log.Fatalf("error parsing ends-at flag: %v", err)
 		}
 
+		ticker, err := cmd.Flags().GetString("ticker")
+		if err != nil {
+			log.Fatalf("error getting ticker flag: %v", err)
+		}
+
+		lookaheadCandlesCount, err := cmd.Flags().GetIntSlice("lookahead-candles-count")
+		if err != nil {
+			log.Fatalf("error getting lookahead-candles-count flag: %v", err)
+		}
+
 		if err := run(RunArgs{
-			StartsAt: startsAt,
-			EndsAt:   endsAt,
-			GoEnv:    goEnv,
+			StartsAt:              startsAt,
+			EndsAt:                endsAt,
+			GoEnv:                 goEnv,
+			Ticker:                eventmodels.StockSymbol(ticker),
+			LookaheadCandlesCount: lookaheadCandlesCount,
 		}); err != nil {
 			log.Fatalf("error running command: %v", err)
 		}
@@ -104,13 +92,17 @@ The signal is generated when the following conditions are met:
 }
 
 func main() {
+	rootCmd.PersistentFlags().StringVarP(new(string), "ticker", "t", "", "Stock ticker to generate the signal for, e.g. 'SPX'. This flag is required.")
 	rootCmd.PersistentFlags().StringVarP(new(string), "starts-at", "s", "", "Start period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
 	rootCmd.PersistentFlags().StringVarP(new(string), "ends-at", "e", "", "End period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
-	rootCmd.PersistentFlags().StringVarP(new(string), "timezone", "t", "America/New_York", "Timezone for the start and end dates. This should be a golang standard timezone.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "timezone", "z", "America/New_York", "Timezone for the start and end dates. This should be a golang standard timezone.")
 	rootCmd.PersistentFlags().StringVar(new(string), "go-env", "development", "The go environment to run the command in.")
+	rootCmd.PersistentFlags().IntSliceVarP(new([]int), "lookahead-candles-count", "l", nil, "The number of 15 minute candles to look ahead to calculate the percent change. This should be a comma-separated list of integers.")
 
+	rootCmd.MarkPersistentFlagRequired("ticker")
 	rootCmd.MarkPersistentFlagRequired("starts-at")
 	rootCmd.MarkPersistentFlagRequired("ends-at")
+	rootCmd.MarkPersistentFlagRequired("lookahead-candles-count")
 
 	cobra.CheckErr(rootCmd.Execute())
 }
@@ -125,8 +117,10 @@ func run(args RunArgs) error {
 
 	// import data
 	data := make([]eventmodels.TradingViewCandles, 3)
-	streamNames := []string{"candles-SPX-15", "candles-SPX-60", "candles-SPX-240"}
-	for i, streamName := range streamNames {
+	durations := []int{15, 60, 240}
+	for i, duration := range durations {
+		streamName := fmt.Sprintf("candles-%s-%d", args.Ticker, duration)
+
 		output, err := export_data.Run(export_data.RunArgs{
 			InputStreamName: streamName,
 			StartsAt:        args.StartsAt,
@@ -138,7 +132,7 @@ func run(args RunArgs) error {
 			return fmt.Errorf("error exporting data for %v: %v", streamName, err)
 		}
 
-		data[i], err = importCandles(output.ExportedFilepath)
+		data[i], err = utils.ImportAndSortCandles(output.ExportedFilepath, time.Duration(duration)*time.Minute)
 		if err != nil {
 			return fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
 		}
@@ -171,10 +165,12 @@ func run(args RunArgs) error {
 
 	// Process the candles
 	candleDuration := 15 * time.Minute
-	lookaheadPeriods := []int{4, 8, 16, 24, 96, 192, 288, 480, 672}
 
 	// export to csv
-	utils.ExportToCsv(candles15, lookaheadPeriods, candleDuration, "candles-SPX-15")
+	streamName := fmt.Sprintf("candles-%s-15", args.Ticker)
+	fname := fmt.Sprintf("%s-from-%s-to-%s", streamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
+	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_4h_1h_stoch_rsi_15m_up", "output")
+	utils.ExportToCsv(candles15, args.LookaheadCandlesCount, candleDuration, outDir, fname)
 
 	return nil
 }

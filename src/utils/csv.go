@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -24,7 +25,7 @@ func findPercentChange(candles []*eventmodels.TradingViewCandle, index, lookahea
 	return (candles[index+lookahead].Close - candles[index].Close) / candles[index].Close * 100
 }
 
-func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string) {
+func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) {
 	data := make(map[int][]percentChangeData)
 
 	for index, c := range candles {
@@ -46,7 +47,7 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 
 		// Export the data
 		lookaheadLabel := fmt.Sprintf("%d", lookahead*int(candleDuration.Minutes()))
-		outFile := fmt.Sprintf("%s/percent_change-%s.csv", outDir, lookaheadLabel)
+		outFile := path.Join(outDir, fmt.Sprintf("percent_change-%s-lookahead-%s.csv", fname, lookaheadLabel))
 		file, err := os.Create(outFile)
 		if err != nil {
 			fmt.Println("Error creating CSV file:", err)
