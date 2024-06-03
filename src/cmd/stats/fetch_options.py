@@ -1,5 +1,6 @@
 import requests
 import json
+import uuid
 from dataclasses import dataclass
 from typing import List, Tuple
 from enum import Enum
@@ -100,8 +101,8 @@ def generate_long_vertical_spreads(options: List[Option]) -> List[Spread]:
 
     return spreads
 
-def fetch_options(symbol: str, expirationInDays: int, minDistance: int, maxStrikes: int) -> Tuple[Stock, List[Option]]:
-    url = 'http://localhost:8080/options'
+def fetch_options(url: str, symbol: str, expirationInDays: int, minDistance: int, maxStrikes: int) -> Tuple[Stock, List[Option]]:
+    url = url
     response = requests.get(url, json={
         'symbol': symbol,
         'optionTypes': ['call', 'put'],
@@ -115,5 +116,18 @@ def fetch_options(symbol: str, expirationInDays: int, minDistance: int, maxStrik
     return Stock(**response_payload['stock']), [Option(**option) for option in response_payload['options']]
 
 if __name__ == '__main__':
-    result = fetch_options()
-    print(result)
+    stock, options = fetch_options('http://localhost:8080/options', 'SPX', 0, 10, 5)
+
+    result = {
+        'stock': stock.__dict__,
+        'options': [option.__dict__ for option in options]
+    }
+
+    # write to a unique tmp file
+    outDir = f'tmp-{uuid.uuid4()}.json'
+    with open(outDir, 'w') as file:
+        json.dump(result, file)
+
+    output = {'output': {'outDir': outDir}}
+
+    print(json.dumps(output))

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
@@ -65,7 +67,12 @@ func main() {
 
 	var allCandles []*eventmodels.TradingViewCandle
 	for _, dto := range allCandlesDTO {
-		allCandles = append(allCandles, dto.ToModel())
+		c, err := dto.ToModel()
+		if err != nil {
+			log.Fatalf("error converting dto to model: %v", err)
+		}
+
+		allCandles = append(allCandles, c)
 	}
 
 	log.Infof("Fetched %d candles\n", len(allCandles))
@@ -77,5 +84,9 @@ func main() {
 	allCandles = utils.SortCandlesAndMarkSignals(allCandles, candleDuration, isUptrend)
 
 	// export to csv
-	utils.ExportToCsv(allCandles, lookaheadPeriods, candleDuration, inputStream)
+	streamName := fmt.Sprintf("candles-%s-5", "COIN")
+	// fname := fmt.Sprintf("%s-from-%s-to-%s", streamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
+	fname := streamName
+	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_up", "output")
+	utils.ExportToCsv(allCandles, lookaheadPeriods, candleDuration, outDir, fname)
 }

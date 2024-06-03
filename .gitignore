@@ -14,3 +14,4 @@ env/
 *.csv
 *.png
 best_fit_percent_change-*.json
+tmp-*

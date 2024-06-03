@@ -5,9 +5,11 @@ from datetime import date
 import pytz
 import sys
 import json
-from fetch_options import fetch_options
 from market_info import time_to_option_contract_expiration_in_minutes
+from fetch_options import Stock, Option, fetch_options
 import distributions
+import argparse
+from pprint import pprint
 
 # to run this script:
 # python expected_profit.py /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/candles-SPX-15/best_fit_percent_change-1440.json
@@ -23,14 +25,16 @@ def expiration_in_days(time_until_expiration_in_minutes: int, today: date):
 
 def parse_option_expiration_in_days(fileURL: str, today: date):
     # parse 360 from /Users/jamal/projects/slack-trading/src/cmd/stats/clean_data_pdf/candles-SPX-15/best_fit_percent_change-360.json 
+    # /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/distributions/percent_change-candles-SPX-15-from-20240102_093000-to-20240531_160000-lookahead-240.json
     parts = fileURL.split('-')
     minutes = int(parts[-1].split('.')[0])
     return expiration_in_days(minutes, today)
 
 def parse_symbol(fileURL):
-    # parse SPX from /Users/jamal/projects/slack-trading/src/cmd/stats/clean_data_pdf/candles-SPX-15/best_fit_percent_change-360.json 
+    # parse SPX from
+    # /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/distributions/percent_change-candles-SPX-15-from-20240102_093000-to-20240531_160000-lookahead-240.json
     parts = fileURL.split('/')
-    return parts[-2].split('-')[1]
+    return parts[-1].split('-')[2]
 
 # Define the profit function for a long call option based on percent change
 def profit_function_long_call(percent_change, stock_price, strike_price, premium):
@@ -74,30 +78,65 @@ def generate_short_put_integrand(stock_price, strike_price, premium):
     return put_integrand
 
 if __name__ == "__main__":
-    inDir = sys.argv[1]
-    with open(inDir, 'r') as file:
+    parser = argparse.ArgumentParser(description="This script requires an input directory to a json file containing the best fit distribution."
+                                                 "Optionally, you can pass a json file path containing the stock and option prices, as an argument."
+                                                 "It fetches the options for the given symbol and expiration date, and calculates the expected profit for each option."
+                                                 "It then prints the options and their expected profits.")
+    
+    # Add arguments
+    parser.add_argument('--distributionInDir', type=str, required=True, help="Required. The input directory to a json file containing the best fit distribution")
+    parser.add_argument('--optionPricesInDir', type=str, nargs='?', help="Optional. The input directory to a json file containing the stock and option prices")
+    parser.add_argument('--json-output', type=str, default=False, help="Optional. Default is False. Output the results in json format. Hides all other standard output.")
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    if args.json_output.lower() == 'true':
+        args.json_output = True
+    else:
+        args.json_output = False
+
+    with open(args.distributionInDir, 'r') as file:
         data = json.load(file)
 
     # Get the distribution
-    print(f"using: {data}")
+    if not args.json_output:
+        print("using data:")
+        pprint(data)
 
-    # Parameters for the distribution
-    lower_limit, upper_limit, distribution = distributions.dist(data)
+    lower_limit, upper_limit, distribution = distributions.dist(data)  # Parameters for the distribution
 
     percent_change_pdf = distribution.pdf
 
     today = date.today()
-    symbol = parse_symbol(inDir)
-    expirationInDays = parse_option_expiration_in_days(inDir, today)
+    symbol = parse_symbol(args.distributionInDir)
+    expirationInDays = parse_option_expiration_in_days(args.distributionInDir, today)
 
-    print(f"symbol: {symbol}, expirationInDays: {expirationInDays}")
+    if not args.json_output:
+        print(f"symbol: {symbol}, expirationInDays: {expirationInDays}")
 
-    stock, options = fetch_options(symbol, expirationInDays, 10, 5)
+    if args.optionPricesInDir:
+        if not args.json_output:
+            print(f"Loading options data from {args.optionPricesInDir}")
+
+        with open(args.optionPricesInDir, 'r') as file:
+            data = json.load(file)
+
+        stock = Stock(**data['stock'])
+        options = [Option(**option) for option in data['options']]
+    else:
+        url = 'http://localhost:8080/options'
+
+        if not args.json_output:
+            print(f"Fetching options data from {url} ...")
+
+        stock, options = fetch_options(url, symbol, expirationInDays, 10, 5)
 
     # Base stock price
     stock_price = (stock.bid + stock.ask) / 2
 
-    print(f"Stock Price: {stock_price:.2f}")
+    if not args.json_output:
+        print(f"Stock Price: {stock_price:.2f}")
 
     long_calls_options_and_profits = []
     long_puts_options_and_profits = []
@@ -134,22 +173,64 @@ if __name__ == "__main__":
     short_calls_options_and_profits.sort(key=lambda x: x[2], reverse=True)
     short_puts_options_and_profits.sort(key=lambda x: x[2], reverse=True)
 
+    output = []
+
     # Print the options and their expected profits
-    print("[LONG Calls]:")
+    if not args.json_output:
+        print("[LONG Calls]:")
+
     for option, premium, long_expected_profit in long_calls_options_and_profits:
-        print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+        output.append({
+            "description": option.description,
+            "premium": premium,
+            "expected_profit": long_expected_profit
+        })
 
-    print("[SHORT Calls]:")
+        if not args.json_output:
+            print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+
+    if not args.json_output:
+        print("[SHORT Calls]:")
+
     for option, premium, short_expected_profit in short_calls_options_and_profits:
-        print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
+        output.append({
+            "description": option.description,
+            "premium": premium,
+            "expected_profit": short_expected_profit
+        })
+        
+        if not args.json_output:
+            print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
 
-    print("[LONG Puts]:")
+    if not args.json_output:
+        print("[LONG Puts]:")
+
     for option, premium, long_expected_profit in long_puts_options_and_profits:
-        print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+        output.append({
+            "description": option.description,
+            "premium": premium,
+            "expected_profit": long_expected_profit
+        })
 
-    print("[SHORT Puts]:")
+        if not args.json_output:
+            print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+
+    if not args.json_output:
+        print("[SHORT Puts]:")
+
     for option, premium, short_expected_profit in short_puts_options_and_profits:
-        print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
+        output.append({
+            "description": option.description,
+            "premium": premium,
+            "expected_profit": short_expected_profit
+        })
+
+        if not args.json_output:
+            print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
+
+    if args.json_output:
+        # Output the results
+        print(json.dumps({'output': output}))
 
     # # Generate x values for plotting the percent changes PDF
     # x_values = np.linspace(loc, loc + scale, 1000)

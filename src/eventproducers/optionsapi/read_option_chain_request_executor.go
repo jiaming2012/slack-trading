@@ -46,16 +46,8 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 	}
 
 	now := time.Now()
-
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Fatalf("error getting location: %v", err)
-	}
-
-	nowInEst := now.In(loc)
-
-	startPeriodStr := nowInEst.Add(-req.EV.Lookback).Format("2006-01-02T00:00:00")
-	endPeriodStr := nowInEst.Format("2006-01-02")
+	startPeriodStr := req.EV.StartsAt.Format("2006-01-02T00:00:00")
+	endPeriodStr := req.EV.EndsAt.Format("2006-01-02T00:00:00")
 
 	log.Infof("fetching historical candles from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
@@ -80,7 +72,7 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 
 	// run cmd/stats/import_data/main.go with args
 	for _, exp := range uniqueExpirationDates {
-		if exp.Before(nowInEst) {
+		if exp.Before(req.EV.EndsAt) {
 			log.Errorf("expiration date is in the past: %v", exp)
 			continue
 		}
