@@ -40,10 +40,11 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/stats/transform_data_csv_to_signal_csv/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
+            "program": "${workspaceFolder}/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
             "env": {
                 "GO_ENV": "development"
-            }
+            },
+            "args": ["--starts-at", "2024-05-01T09:30:00", "--ends-at", "2024-05-31T16:00:00"]
         },
         {
             "name": "[DEV] cmd/tick_generator/clean_data_pdf_signals/main.go",

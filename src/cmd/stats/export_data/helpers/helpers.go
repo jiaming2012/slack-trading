@@ -60,10 +60,10 @@ func GetDurationFromStreamName(streamName string) (time.Duration, error) {
 		return time.Duration(weeks) * 7 * 24 * time.Hour, nil
 	}
 
-	hours, err := strconv.Atoi(duration)
+	mins, err := strconv.Atoi(duration)
 	if err != nil {
-		return 0, fmt.Errorf("invalid duration: expected duration to be represent number of hours, found %v", duration)
+		return 0, fmt.Errorf("invalid duration: expected duration to be represent number of minutes, found %v", duration)
 	}
 
-	return time.Duration(hours) * time.Hour, nil
+	return time.Duration(mins) * time.Minute, nil
 }

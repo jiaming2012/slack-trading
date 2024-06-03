@@ -26,6 +26,16 @@ func isUptrend(candle *eventmodels.TradingViewCandle) bool {
 }
 
 func main() {
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		panic("missing GO_ENV environment variable")
+	}
+
 	// input variables
 	inputStream := "candles-COIN-5"
 
@@ -33,7 +43,7 @@ func main() {
 
 	eventpubsub.Init()
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
+	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
 		log.Fatalf("error initializing environment variables: %v", err)
 	}
 

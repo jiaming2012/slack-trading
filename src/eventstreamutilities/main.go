@@ -62,8 +62,18 @@ func main() {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		panic("missing GO_ENV environment variable")
+	}
+
 	// Set up
-	utils.InitEnvironmentVariables()
+	utils.InitEnvironmentVariables(projectsDir, goEnv)
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
 

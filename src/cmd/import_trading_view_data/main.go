@@ -11,6 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
@@ -53,19 +54,48 @@ func isDifferent(c1, c2 map[string]interface{}) bool {
 	return false
 }
 
+type RunArgs struct {
+	GoEnv string
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "main",
+	Short: "Imports trading view exported csv candles to EventStoreDB",
+	Run: func(cmd *cobra.Command, args []string) {
+		goEnv, err := cmd.Flags().GetString("go-env")
+		if err != nil {
+			log.Fatalf("error getting go-env: %v", err)
+		}
+
+		if err := run(RunArgs{
+			GoEnv: goEnv,
+		}); err != nil {
+			log.Fatalf("error running command: %v", err)
+		}
+	},
+}
+
 func main() {
+	rootCmd.PersistentFlags().StringVar(new(string), "go-env", "development", "The go environment to run the command in.")
+
+	cobra.CheckErr(rootCmd.Execute())
+}
+
+func run(args RunArgs) error {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
-		panic("missing PROJECTS_DIR environment variable")
+		return fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	wg := sync.WaitGroup{}
 
 	eventpubsub.Init()
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
-		log.Fatal(fmt.Errorf("error initializing environment variables: %v", err))
+	if err := utils.InitEnvironmentVariables(projectsDir, args.GoEnv); err != nil {
+		return fmt.Errorf("error initializing environment variables: %v", err)
 	}
 
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
@@ -75,9 +105,10 @@ func main() {
 	esdbProducer.Start(ctx, nil)
 
 	// open files inside csv_data folder
-	files, err := os.ReadDir("./csv_data")
+	baseDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "import_trading_view_data", "csv_data")
+	files, err := os.ReadDir(baseDir)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error reading directory: %v", err)
 	}
 
 	for _, file := range files {
@@ -95,16 +126,16 @@ func main() {
 			for _, c := range allData {
 				timestamp, err := time.Parse(time.RFC3339, c["time"].(string))
 				if err != nil {
-					log.Fatalf("error parsing time: %v", err)
+					return fmt.Errorf("error parsing time: %v", err)
 				}
 
 				cache[timestamp] = c
 			}
 
-			inDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "import_data", "csv_data", file.Name())
+			inDir := filepath.Join(baseDir, file.Name())
 			f, err := os.Open(inDir)
 			if err != nil {
-				log.Fatalf("error opening file: %v", err)
+				return fmt.Errorf("error opening file: %v", err)
 			}
 
 			defer f.Close()
@@ -113,7 +144,7 @@ func main() {
 
 			records, err := r.ReadAll()
 			if err != nil {
-				log.Fatalf("error reading csv: %v", err)
+				return fmt.Errorf("error reading csv: %v", err)
 			}
 
 			log.Infof("Found %d records in %s", len(records), file.Name())
@@ -137,7 +168,7 @@ func main() {
 
 				timestamp, err := time.Parse(time.RFC3339, data["time"].(string))
 				if err != nil {
-					log.Fatalf("error parsing time: %v", err)
+					return fmt.Errorf("error parsing time: %v", err)
 				}
 
 				if cachedValue, found := cache[timestamp]; !found || isDifferent(data, cachedValue) {
@@ -145,7 +176,7 @@ func main() {
 					delete(data, "")
 
 					if err := esdbProducer.SaveData(event, data); err != nil {
-						log.Fatalf("error saving candle: %v", err)
+						return fmt.Errorf("error saving candle: %v", err)
 					}
 
 					savedCount += 1
@@ -157,5 +188,6 @@ func main() {
 	}
 
 	log.Info("Done saving candles")
-	cancel()
+
+	return nil
 }

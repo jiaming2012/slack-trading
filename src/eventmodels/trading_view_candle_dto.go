@@ -2,7 +2,6 @@ package eventmodels
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 )
@@ -10,15 +9,15 @@ import (
 // Write csvDto to CSV
 type TradingViewCandleDTO struct {
 	SavedEventParms SavedEventParameters `csv:"-" json:"-"`
-	Timestamp       string               `csv:"time" json:"time"`
-	Open            string               `csv:"open" json:"open"`
-	High            string               `csv:"high" json:"high"`
-	Low             string               `csv:"low" json:"low"`
-	Close           string               `csv:"close" json:"close"`
-	UpTrend         string               `csv:"Up Trend" json:"UpTrend"`
-	UpTrendBegins   string               `csv:"UpTrend Begins" json:"UpTrend Begins"`
-	DownTrend       string               `csv:"Down Trend" json:"Down Trend"`
-	DownTrendBegins string               `csv:"DownTrend Begins" json:"DownTrend Begins"`
+	Timestamp       string               `csv:"Timestamp" json:"time"`
+	Open            string               `csv:"Open" json:"open"`
+	High            string               `csv:"High" json:"high"`
+	Low             string               `csv:"Low" json:"low"`
+	Close           string               `csv:"Close" json:"close"`
+	UpTrend         string               `csv:"UpTrend" json:"Up Trend"`
+	UpTrendBegins   string               `csv:"UpTrendBegins" json:"UpTrend Begins"`
+	DownTrend       string               `csv:"DownTrend" json:"Down Trend"`
+	DownTrendBegins string               `csv:"DownTrendBegins" json:"DownTrend Begins"`
 	K               string               `csv:"K" json:"K"`
 	D               string               `csv:"D" json:"D"`
 }
@@ -41,33 +40,33 @@ func NewCsvCandleDTO(streamName StreamName, eventName EventName, schemaVersion i
 	}
 }
 
-func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
+func (dto *TradingViewCandleDTO) ToModel() (*TradingViewCandle, error) {
 	t, err := time.Parse(time.RFC3339, dto.Timestamp)
 	if err != nil {
 		t, err = time.Parse("2006-01-02", dto.Timestamp)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing time: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing time: %v", err)
 		}
 	}
 
 	open, err := strconv.ParseFloat(dto.Open, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error parsing Open: %v", err))
+		return nil, fmt.Errorf("TradingViewCandleDTO: error parsing Open: %v", err)
 	}
 
 	high, err := strconv.ParseFloat(dto.High, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error parsing High: %v", err))
+		return nil, fmt.Errorf("TradingViewCandleDTO: error parsing High: %v", err)
 	}
 
 	low, err := strconv.ParseFloat(dto.Low, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error parsing Low: %v", err))
+		return nil, fmt.Errorf("TradingViewCandleDTO: error parsing Low: %v", err)
 	}
 
 	close, err := strconv.ParseFloat(dto.Close, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error parsing Close: %v", err))
+		return nil, fmt.Errorf("TradingViewCandleDTO: error parsing Close: %v", err)
 	}
 
 	var upTrend float64
@@ -76,7 +75,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		upTrend, err = strconv.ParseFloat(dto.UpTrend, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing UpTrend: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing UpTrend: %v", err)
 		}
 	}
 
@@ -86,7 +85,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		downTrend, err = strconv.ParseFloat(dto.DownTrend, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing DownTrend: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing DownTrend: %v", err)
 		}
 	}
 
@@ -96,7 +95,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		upTrendBegins, err = strconv.ParseFloat(dto.UpTrendBegins, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing UpTrendBegins: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing UpTrendBegins: %v", err)
 		}
 	}
 
@@ -106,7 +105,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		downTrendBegins, err = strconv.ParseFloat(dto.DownTrendBegins, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing DownTrendBegins: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing DownTrendBegins: %v", err)
 		}
 	}
 
@@ -116,7 +115,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		k, err = strconv.ParseFloat(dto.K, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing K: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing K: %v", err)
 		}
 	}
 
@@ -126,7 +125,7 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 	} else {
 		d, err = strconv.ParseFloat(dto.D, 64)
 		if err != nil {
-			log.Fatal(fmt.Errorf("error parsing D: %v", err))
+			return nil, fmt.Errorf("TradingViewCandleDTO: error parsing D: %v", err)
 		}
 	}
 
@@ -142,5 +141,5 @@ func (dto *TradingViewCandleDTO) ToModel() *TradingViewCandle {
 		K:               k,
 		D:               d,
 		Timestamp:       t,
-	}
+	}, nil
 }

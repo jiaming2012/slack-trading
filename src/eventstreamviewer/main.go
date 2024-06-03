@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,18 @@ import (
 	"slack-trading/src/eventservices"
 	"slack-trading/src/utils"
 )
+
+func printInAlphebeticalOrder(data map[string]interface{}) {
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		fmt.Printf("%s: %v\n", k, data[k])
+	}
+}
 
 func processEvent(ev *esdb.RecordedEvent) {
 	// Doing something productive with the event
@@ -27,7 +40,7 @@ func processEvent(ev *esdb.RecordedEvent) {
 		panic(err)
 	}
 
-	fmt.Println(data)
+	printInAlphebeticalOrder(data)
 
 	if reqId, found := data["requestID"]; found {
 		id, err := uuid.Parse(reqId.(string))
@@ -44,9 +57,19 @@ func processEvent(ev *esdb.RecordedEvent) {
 }
 
 func main() {
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		panic("missing GO_ENV environment variable")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
-	utils.InitEnvironmentVariables()
+	utils.InitEnvironmentVariables(projectsDir, goEnv)
 
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 
@@ -103,26 +126,11 @@ func main() {
 	}
 
 	fmt.Println("Enter number of events to read (Hit ENTER to read all): ")
-	var numEvents string
-	if _, err := fmt.Scanln(&numEvents); err != nil {
-		panic(fmt.Errorf("failed to read number of events: %w", err))
-	}
+	var numEvents int
 
-	var numEventsInt int
-	if len(numEvents) == 0 {
-		numEventsInt = 0
-	} else {
-		numEventsInt, err = strconv.Atoi(numEvents)
-		if err != nil {
-			panic(fmt.Errorf("invalid number of events: %w", err))
-		}
-	}
+	fmt.Scanln(&numEvents)
 
 	// ---- read event ----
-	// stream, err := db.ReadStream(context.Background(), streamName, esdb.ReadStreamOptions{}, 12)
-	// if err != nil {
-	// 	panic(err)
-	// }
 	subscription, err := esdbClient.SubscribeToStream(ctx, streamName, esdb.SubscribeToStreamOptions{
 		From: esdb.Start{},
 	})
@@ -159,7 +167,7 @@ func main() {
 
 			processEvent(ev)
 
-			if numEventsInt > 0 && eventsRead >= numEventsInt-1 {
+			if numEvents > 0 && eventsRead >= numEvents-1 {
 				cancel()
 				os.Exit(0)
 			}

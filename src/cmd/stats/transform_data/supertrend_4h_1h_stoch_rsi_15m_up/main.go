@@ -10,14 +10,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	export_data "slack-trading/src/cmd/stats/export_data/run"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/utils"
 )
 
-func fetchCandles(inDir string) (eventmodels.TradingViewCandles, error) {
+func importCandles(inDir string) (eventmodels.TradingViewCandles, error) {
 	f, err := os.Open(inDir)
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		return eventmodels.TradingViewCandles{}, fmt.Errorf("error opening file: %v", err)
 	}
 
 	defer f.Close()
@@ -40,9 +41,9 @@ func fetchCandles(inDir string) (eventmodels.TradingViewCandles, error) {
 }
 
 type RunArgs struct {
-	StartsAt string
-	EndsAt   string
-	Args     []string
+	StartsAt time.Time
+	EndsAt   time.Time
+	GoEnv    string
 }
 
 var rootCmd = &cobra.Command{
@@ -57,20 +58,45 @@ The signal is generated when the following conditions are met:
 2.) The 4h and 1h supertrend indicators are in an uptrend
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		startsAt, err := cmd.Flags().GetString("starts_at")
+		goEnv, err := cmd.Flags().GetString("go-env")
 		if err != nil {
-			log.Fatalf("error getting starts_at flag: %v", err)
+			log.Fatalf("error getting go-env: %v", err)
 		}
 
-		endsAt, err := cmd.Flags().GetString("ends_at")
+		timezone, err := cmd.Flags().GetString("timezone")
 		if err != nil {
-			log.Fatalf("error getting ends_at flag: %v", err)
+			log.Fatalf("error getting timezone: %v", err)
+		}
+
+		loc, err := time.LoadLocation(timezone)
+		if err != nil {
+			log.Fatalf("error loading location: %v", err)
+		}
+
+		startsAtStr, err := cmd.Flags().GetString("starts-at")
+		if err != nil {
+			log.Fatalf("error getting starts-at flag: %v", err)
+		}
+
+		startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", startsAtStr, loc)
+		if err != nil {
+			log.Fatalf("error parsing starts-at flag: %v", err)
+		}
+
+		endsAtStr, err := cmd.Flags().GetString("ends-at")
+		if err != nil {
+			log.Fatalf("error getting ends-at flag: %v", err)
+		}
+
+		endsAt, err := time.ParseInLocation("2006-01-02T15:04:05", endsAtStr, loc)
+		if err != nil {
+			log.Fatalf("error parsing ends-at flag: %v", err)
 		}
 
 		if err := run(RunArgs{
 			StartsAt: startsAt,
 			EndsAt:   endsAt,
-			Args:     args,
+			GoEnv:    goEnv,
 		}); err != nil {
 			log.Fatalf("error running command: %v", err)
 		}
@@ -78,74 +104,77 @@ The signal is generated when the following conditions are met:
 }
 
 func main() {
-	rootCmd.PersistentFlags().StringVarP(new(string), "starts_at", "s", "", "Start period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
-	rootCmd.PersistentFlags().StringVarP(new(string), "ends_at", "e", "", "End period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
-	rootCmd.MarkPersistentFlagRequired("starts_at")
-	rootCmd.MarkPersistentFlagRequired("ends_at")
+	rootCmd.PersistentFlags().StringVarP(new(string), "starts-at", "s", "", "Start period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "ends-at", "e", "", "End period for generating signals. This should be in the format 'YYYY-MM-DDTHH:MM:SS-ZZ:ZZ', e.g. '2024-05-01T09:30:00-5:00'. This flag is required.")
+	rootCmd.PersistentFlags().StringVarP(new(string), "timezone", "t", "America/New_York", "Timezone for the start and end dates. This should be a golang standard timezone.")
+	rootCmd.PersistentFlags().StringVar(new(string), "go-env", "development", "The go environment to run the command in.")
+
+	rootCmd.MarkPersistentFlagRequired("starts-at")
+	rootCmd.MarkPersistentFlagRequired("ends-at")
+
 	cobra.CheckErr(rootCmd.Execute())
 }
 
 func run(args RunArgs) error {
-	fmt.Println("Hello, world!")
-	fmt.Println("startsAt: ", args.StartsAt)
-	fmt.Println("endsAt: ", args.EndsAt)
-	fmt.Println("args: ", args.Args)
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
+	log.Infof("running with args: %v", args)
+
+	// import data
+	data := make([]eventmodels.TradingViewCandles, 3)
+	streamNames := []string{"candles-SPX-15", "candles-SPX-60", "candles-SPX-240"}
+	for i, streamName := range streamNames {
+		output, err := export_data.Run(export_data.RunArgs{
+			InputStreamName: streamName,
+			StartsAt:        args.StartsAt,
+			EndsAt:          args.EndsAt,
+			GoEnv:           args.GoEnv,
+		})
+
+		if err != nil {
+			return fmt.Errorf("error exporting data for %v: %v", streamName, err)
+		}
+
+		data[i], err = importCandles(output.ExportedFilepath)
+		if err != nil {
+			return fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
+		}
+	}
+
+	// process data
+	var candles15 eventmodels.TradingViewCandles = data[0]
+	var candles60 eventmodels.TradingViewCandles = data[1]
+	var candles240 eventmodels.TradingViewCandles = data[2]
+
+	log.Infof("processing %d 15m candles", len(candles15))
+
+	signalCount := 0
+	for i := 0; i < len(candles15)-1; i++ {
+		c1 := candles15[i]
+		c2 := candles15[i+1]
+
+		if c1.K < c1.D && c2.K > c2.D && c1.D <= 20 {
+			candle60 := candles60.FindClosestCandleBeforeOrAt(c2.Timestamp)
+			candle240 := candles240.FindClosestCandleBeforeOrAt(c2.Timestamp)
+
+			if candle60.UpTrend > 0 && candle240.UpTrend > 0 {
+				c2.IsSignal = true
+				signalCount += 1
+			}
+		}
+	}
+
+	log.Infof("found %d signals", signalCount)
+
+	// Process the candles
+	candleDuration := 15 * time.Minute
+	lookaheadPeriods := []int{4, 8, 16, 24, 96, 192, 288, 480, 672}
+
+	// export to csv
+	utils.ExportToCsv(candles15, lookaheadPeriods, candleDuration, "candles-SPX-15")
 
 	return nil
 }
-
-// 	projectsDir := os.Getenv("PROJECTS_DIR")
-// 	if projectsDir == "" {
-// 		panic("missing PROJECTS_DIR environment variable")
-// 	}
-
-// 	// fetch 15m candles
-// 	fName := "candles-SPX-15.csv"
-// 	inDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", fName)
-// 	candles15, err := fetchCandles(inDir)
-// 	if err != nil {
-// 		log.Fatalf("error fetching candles (tf=15): %v", err)
-// 	}
-
-// 	// fetch 1h candles
-// 	fName = "candles-SPX-60.csv"
-// 	inDir = filepath.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", fName)
-// 	candles60, err := fetchCandles(inDir)
-// 	if err != nil {
-// 		log.Fatalf("error fetching candles (tf=60): %v", err)
-// 	}
-
-// 	// fetch 4h candles
-// 	fName = "candles-SPX-240.csv"
-// 	inDir = filepath.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", fName)
-// 	candles240, err := fetchCandles(inDir)
-// 	if err != nil {
-// 		log.Fatalf("error fetching candles (tf=240): %v", err)
-// 	}
-
-// 	signalCount := 0
-// 	for i := 0; i < len(candles15)-1; i++ {
-// 		c1 := candles15[i]
-// 		c2 := candles15[i+1]
-
-// 		if c1.K < c1.D && c2.K > c2.D && c1.D <= 20 {
-// 			candle60 := candles60.FindClosestCandleBeforeOrAt(c2.Timestamp)
-// 			candle240 := candles240.FindClosestCandleBeforeOrAt(c2.Timestamp)
-
-// 			if candle60.UpTrend > 0 && candle240.UpTrend > 0 {
-// 				c2.IsSignal = true
-// 				signalCount += 1
-// 			}
-// 		}
-// 	}
-
-// 	log.Infof("15m candles: %d", len(candles15))
-// 	log.Infof("found %d signals", signalCount)
-
-// 	// Process the candles
-// 	candleDuration := 15 * time.Minute
-// 	lookaheadPeriods := []int{4, 8, 16, 24, 96, 192, 288, 480, 672}
-
-// 	// export to csv
-// 	utils.ExportToCsv(candles15, lookaheadPeriods, candleDuration, "candles-SPX-15")
-// }

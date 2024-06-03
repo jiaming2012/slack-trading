@@ -1,15 +1,15 @@
 package eventmodels
 
 type CsvTradingViewCandleDTO struct {
-	Timestamp       string `csv:"time"`
-	Open            string `csv:"open"`
-	High            string `csv:"high"`
-	Low             string `csv:"low"`
-	Close           string `csv:"close"`
-	UpTrend         string `csv:"Up Trend"`
-	UpTrendBegins   string `csv:"UpTrend Begins"`
-	DownTrend       string `csv:"Down Trend"`
-	DownTrendBegins string `csv:"DownTrend Begins"`
+	Timestamp       string `csv:"Timestamp"`
+	Open            string `csv:"Open"`
+	High            string `csv:"High"`
+	Low             string `csv:"Low"`
+	Close           string `csv:"Close"`
+	UpTrend         string `csv:"UpTrend"`
+	UpTrendBegins   string `csv:"UpTrendBegins"`
+	DownTrend       string `csv:"DownTrend"`
+	DownTrendBegins string `csv:"DownTrendBegins"`
 	K               string `csv:"K"`
 	D               string `csv:"D"`
 }

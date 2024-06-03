@@ -30,8 +30,8 @@ func SortCandles(candles eventmodels.TradingViewCandles, timeFrame time.Duration
 	// check for gaps in the data
 	for i := 0; i < len(candlesNoDuplicates)-1; i++ {
 		if candlesNoDuplicates[i].Timestamp.Add(timeFrame).Before(candlesNoDuplicates[i+1].Timestamp) {
-			if !IsMarkedClosed(candlesNoDuplicates[i]) {
-				log.Warnf("Gap in data between %v and %v", candlesNoDuplicates[i].Timestamp, candlesNoDuplicates[i+1].Timestamp)
+			if !IsMarkedClosed(candlesNoDuplicates[i].Timestamp.Add(timeFrame)) {
+				log.Warnf("Gap in %v data between %v and %v", timeFrame, candlesNoDuplicates[i].Timestamp, candlesNoDuplicates[i+1].Timestamp)
 			}
 		}
 	}

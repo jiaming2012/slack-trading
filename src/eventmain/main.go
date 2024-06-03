@@ -103,10 +103,20 @@ func (r *RouterSetup) Add(item RouterSetupItem) {
 type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
 
 func run() {
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		panic("missing PROJECTS_DIR environment variable")
+	}
+
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		panic("missing GO_ENV environment variable")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
+	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
 		log.Panic(err)
 	}
 

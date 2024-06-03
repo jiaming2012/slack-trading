@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventmodels"
 )
 
@@ -44,7 +46,8 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 
 		// Export the data
 		lookaheadLabel := fmt.Sprintf("%d", lookahead*int(candleDuration.Minutes()))
-		file, err := os.Create(fmt.Sprintf("%s/percent_change-%s.csv", outDir, lookaheadLabel))
+		outFile := fmt.Sprintf("%s/percent_change-%s.csv", outDir, lookaheadLabel)
+		file, err := os.Create(outFile)
 		if err != nil {
 			fmt.Println("Error creating CSV file:", err)
 			return
@@ -61,5 +64,7 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 			timeInISO := data.Time.Format(time.RFC3339)
 			writer.Write([]string{timeInISO, fmt.Sprintf("%f", data.PercentChange)})
 		}
+
+		log.Infof("Exported %d percent change data to %s", len(percentChanges), outFile)
 	}
 }

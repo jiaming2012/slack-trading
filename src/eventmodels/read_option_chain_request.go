@@ -8,9 +8,9 @@ import (
 )
 
 type ReadOptionChainExpectedValue struct {
-	Lookback  time.Duration
-	Timeframe time.Duration
-	Signal    string
+	StartsAt time.Time
+	EndsAt   time.Time
+	Signal   string
 }
 
 type ReadOptionChainRequest struct {
@@ -50,8 +50,12 @@ func (o *ReadOptionChainRequest) Validate(r *http.Request) error {
 	}
 
 	if o.EV != nil {
-		if o.EV.Lookback == 0 {
+		if o.EV.StartsAt.IsZero() {
 			return fmt.Errorf("ReadOptionChainRequest: Validate: EV.Lookback is required")
+		}
+
+		if o.EV.EndsAt.IsZero() {
+			return fmt.Errorf("ReadOptionChainRequest: Validate: EV.EndsAt is required")
 		}
 
 		if o.EV.Signal == "" {
@@ -73,20 +77,26 @@ func (o *ReadOptionChainRequest) ParseHTTPRequest(r *http.Request) error {
 	if ev := query.Get("ev"); ev != "" {
 		expectedValue := &ReadOptionChainExpectedValue{}
 
-		if lookback := query.Get("lookback"); lookback != "" {
-			months, days, _, err := ParseDuration(lookback)
-			if err != nil {
-				return fmt.Errorf("ReadOptionChainRequest: ParseHTTPRequest: parse lookback: %w", err)
-			}
-
-			now := time.Now()
-			future := now.AddDate(0, months, days)
-			duration := future.Sub(now)
-			expectedValue.Lookback = duration
-		}
-
 		if signal := query.Get("signal"); signal != "" {
 			expectedValue.Signal = signal
+		}
+
+		if startsAt := query.Get("starts_at"); startsAt != "" {
+			t, err := time.Parse(time.RFC3339, startsAt)
+			if err != nil {
+				return fmt.Errorf("ReadOptionChainRequest: ParseHTTPRequest: parse starts_at: %w", err)
+			}
+
+			expectedValue.StartsAt = t
+		}
+
+		if endsAt := query.Get("ends_at"); endsAt != "" {
+			t, err := time.Parse(time.RFC3339, endsAt)
+			if err != nil {
+				return fmt.Errorf("ReadOptionChainRequest: ParseHTTPRequest: parse ends_at: %w", err)
+			}
+
+			expectedValue.EndsAt = t
 		}
 
 		o.EV = expectedValue

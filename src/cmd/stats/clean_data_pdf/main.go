@@ -25,6 +25,11 @@ func main() {
 		panic("missing PROJECTS_DIR environment variable")
 	}
 
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		panic("missing GO_ENV environment variable")
+	}
+
 	// input variables
 	symbol := os.Args[1]
 	timeframeStr := os.Args[2]
@@ -46,7 +51,7 @@ func main() {
 
 	eventpubsub.Init()
 
-	if err := utils.InitEnvironmentVariables(); err != nil {
+	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
 		log.Fatalf("error initializing environment variables: %v", err)
 	}
 
