@@ -24,6 +24,7 @@ python-dateutil==2.9.0.post0
 pytz==2024.1
 requests==2.31.0
 scipy==1.7.3
+seaborn==0.12.2
 six==1.16.0
 tenacity==8.2.3
 typing-extensions==4.7.1

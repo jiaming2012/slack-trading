@@ -15,7 +15,7 @@ distributions = {
     'Laplace': laplace,
     'Pareto': pareto,
     'Cauchy': cauchy,
-    'Erlang': erlang
+    # 'Erlang': erlang        # Removed because it doesn't handle negative values
 }
 
 
