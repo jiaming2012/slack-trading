@@ -36,9 +36,20 @@ func Run(args RunArgs) (RunOutput, error) {
 		panic("missing PROJECTS_DIR environment variable")
 	}
 
-	log.Infof("Exporting %s to csv", args.InputStreamName)
-
 	ctx := context.Background()
+
+	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", args.InputStreamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
+	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
+
+	// check if file exists
+	if _, err := os.Stat(outdir); err == nil {
+		log.Infof("Data file %s already exists", outdir)
+		return RunOutput{
+			ExportedFilepath: outdir,
+		}, nil
+	}
+
+	log.Infof("Exporting %s to csv", args.InputStreamName)
 
 	eventpubsub.Init()
 
@@ -113,8 +124,6 @@ func Run(args RunArgs) (RunOutput, error) {
 	}
 
 	// Export the data
-	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", args.InputStreamName, firstCandleStartDate.Format("20060102_150405"), lastCandleStartDate.Format("20060102_150405"))
-	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
 	file, err := os.Create(outdir)
 	if err != nil {
 		return RunOutput{}, fmt.Errorf("error creating CSV file: %v", err)

@@ -50,6 +50,12 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 		// Export the data
 		lookaheadLabel := fmt.Sprintf("%d", lookahead)
 		outFile := path.Join(outDir, fmt.Sprintf("percent_change-%s-lookahead-%s.csv", fname, lookaheadLabel))
+		if _, err := os.Stat(outFile); err == nil {
+			log.Infof("Data file %s already exists", outFile)
+			output = append(output, outFile)
+			continue
+		}
+
 		file, err := os.Create(outFile)
 		if err != nil {
 			return nil, fmt.Errorf("error creating CSV file: %v", err)
@@ -70,7 +76,7 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 
 		output = append(output, outFile)
 
-		log.Infof("Exported %d percent change data to %s", len(percentChanges), outFile)
+		log.Infof("Exported %d percent change rows to %s", len(percentChanges), outFile)
 	}
 
 	return output, nil

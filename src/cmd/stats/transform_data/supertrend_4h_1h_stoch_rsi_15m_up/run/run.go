@@ -32,7 +32,7 @@ func Run(args RunArgs) (RunOutput, error) {
 		return RunOutput{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
-	log.Infof("running with args: %v", args)
+	log.Debugf("running supertrend_4h_1h_stoch_rsi_15m_up with args: %v", args)
 
 	// import data
 	data := make([]eventmodels.TradingViewCandles, 3)

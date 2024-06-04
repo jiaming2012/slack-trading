@@ -1,6 +1,7 @@
 package run
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	supertrend_4h_1h_stoch_rsi_15m_up "slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
 	"slack-trading/src/eventmodels"
@@ -95,13 +98,19 @@ func ExecFitDistribution(projectsDir, percentChangeInDir string) (string, error)
 	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 	fitDistributionPath := fmt.Sprintf("%s/fit_distribution.py", path.Join(projectsDir, "slack-trading", "src", "cmd", "stats"))
 
-	cmd := exec.Command(interpreter, fitDistributionPath, "--inDir", percentChangeInDir, "--json-output", "true")
-	cmd.Stderr = os.Stderr
+	var stdout, stderr bytes.Buffer
 
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("ExecFitDistribution: error running fit_distribution.py: %v", err)
+	cmd := exec.Command(interpreter, fitDistributionPath, "--inDir", percentChangeInDir, "--json-output", "true")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("ExecFitDistribution: error running fit_distribution.py: %v, stderr: %s", err, stderr.String())
 	}
+
+	output := stdout.Bytes()
+
+	fmt.Println("stderr: ", stderr.String())
 
 	var results map[string]interface{}
 	if err := json.Unmarshal(output, &results); err != nil {
@@ -150,6 +159,8 @@ func CalculateEV(projectDir string, args RunArgs, options []eventmodels.OptionCo
 	case "supertrend_4h_1h_stoch_rsi_15m_up":
 		lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
 
+		log.Infof("Running supertrend_4h_1h_stoch_rsi_15m_up with lookaheadCandlesCount: %v", lookaheadCandlesCount)
+
 		output, err := supertrend_4h_1h_stoch_rsi_15m_up.Run(supertrend_4h_1h_stoch_rsi_15m_up.RunArgs{
 			StartsAt:              args.StartsAt,
 			EndsAt:                args.EndsAt,
@@ -163,7 +174,8 @@ func CalculateEV(projectDir string, args RunArgs, options []eventmodels.OptionCo
 		}
 
 		for _, filePath := range output.ExportedFilepaths {
-			fmt.Printf("exported file: %s\n", filePath)
+			log.Infof("fitting distribution for filepath: %s\n", filePath)
+
 			outDir, err := ExecFitDistribution(projectDir, filePath)
 			if err != nil {
 				return nil, fmt.Errorf("error running fit_distribution.py: %w", err)

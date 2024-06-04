@@ -67,7 +67,7 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 	startPeriodStr := req.EV.StartsAt.Format("2006-01-02T00:00:00")
 	endPeriodStr := req.EV.EndsAt.Format("2006-01-02T00:00:00")
 
-	log.Infof("fetching historical candles from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
+	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
 	expectedProfitMap, err := derive_expected_profit.CalculateEV(projectsDir, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,

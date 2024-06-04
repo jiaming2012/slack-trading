@@ -30,10 +30,24 @@ parser.add_argument('--json-output', type=str, default=False, help="Optional. De
 # Parse the arguments
 args = parser.parse_args()
 
-if args.json_output.lower() == 'true':
+if args.json_output and args.json_output.lower() == 'true':
     args.json_output = True
 else:
     args.json_output = False
+
+# Calculate export directory
+outPath = os.path.dirname(os.path.dirname(args.inDir)) # Go back two directories
+outPath = os.path.join(outPath, 'distributions')
+filename, _ = os.path.splitext(os.path.basename(args.inDir))
+outDir = os.path.join(outPath, filename) + '.json'
+
+# Check if the output directory exists
+if os.path.exists(outDir):
+    if not args.json_output:
+        print(f"Export directory {outDir} exists")
+    print(json.dumps({'outDir': outDir}))
+    sys.stdout.flush()
+    os._exit(0)
 
 if not args.json_output:
     # Now you can use args.inDir to get the value of the argument
@@ -111,12 +125,6 @@ output = {
     'left_tail_kurtosis': left_kurtosis,
     'right_tail_kurtosis': right_kurtosis
 }
-
-# Calculate export directory
-outPath = os.path.dirname(os.path.dirname(args.inDir)) # Go back two directories
-outPath = os.path.join(outPath, 'distributions')
-filename, _ = os.path.splitext(os.path.basename(args.inDir))
-outDir = os.path.join(outPath, filename) + '.json'
 
 with open(outDir, 'w') as f:
     json.dump(output, f)
