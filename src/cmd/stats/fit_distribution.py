@@ -25,12 +25,19 @@ parser = argparse.ArgumentParser(description="This script requires an input dire
 
 # Add an argument
 parser.add_argument('--inDir', type=str, required=True, help="The input directory to a csv file containing columns 'Time' and 'Percent_Change'")
+parser.add_argument('--json-output', type=str, default=False, help="Optional. Default is False. Output the results in json format. Hides all other standard output.")
 
 # Parse the arguments
 args = parser.parse_args()
 
-# Now you can use args.inDir to get the value of the argument
-print(f"Loading data from {args.inDir}")
+if args.json_output.lower() == 'true':
+    args.json_output = True
+else:
+    args.json_output = False
+
+if not args.json_output:
+    # Now you can use args.inDir to get the value of the argument
+    print(f"Loading data from {args.inDir}")
 
 # Load data from Excel
 df = pd.read_csv(args.inDir)
@@ -63,17 +70,20 @@ for name, distribution in dists.distributions.items():
 
     except Exception as e:
         print(f"Could not fit {name} distribution: {e}")
+        raise e
 
-# Display the results
-for name, result in results.items():
-    print(f"{name} Distribution: D={result['D']:.4f}, p-value={result['p_value']:.4f}")
+if not args.json_output:
+    # Display the results
+    for name, result in results.items():
+        print(f"{name} Distribution: D={result['D']:.4f}, p-value={result['p_value']:.4f}")
 
 # Plot the Q-Q plot for the best fitting distribution
 best_fit = min(results, key=lambda k: results[k]['D'])
 best_params = results[best_fit]['params']
 dist = dists.distributions[best_fit]
 
-print(f"The best fitting distribution is {best_fit} with parameters {best_params}")
+if not args.json_output:
+    print(f"The best fitting distribution is {best_fit} with parameters {best_params}")
 
 distribution = dists.distributions[best_fit](*best_params)
 
@@ -96,8 +106,8 @@ output = {
     'median': convert(median),
     'variance': convert(distribution.var()),
     'std_dev': convert(np.sqrt(distribution.var())),
-    'skewness': convert(distribution.stats(moments='s').tolist()),
-    'kurtosis': convert(distribution.stats(moments='k').tolist()),
+    # 'skewness': convert(distribution.stats(moments='s').tolist()),
+    # 'kurtosis': convert(distribution.stats(moments='k').tolist()),
     'left_tail_kurtosis': left_kurtosis,
     'right_tail_kurtosis': right_kurtosis
 }
@@ -108,8 +118,11 @@ outPath = os.path.join(outPath, 'distributions')
 filename, _ = os.path.splitext(os.path.basename(args.inDir))
 outDir = os.path.join(outPath, filename) + '.json'
 
-print(f"Exporting results to {outDir}")
-
 with open(outDir, 'w') as f:
     json.dump(output, f)
+
+if args.json_output:
+    print(json.dumps({'outDir': outDir}))
+else:
+    print(f"Exporting results to {outDir}")
 

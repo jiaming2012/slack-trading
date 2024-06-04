@@ -1,14 +1,15 @@
 package optionsapi
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"os"
-	"os/exec"
+	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
+	derive_expected_profit "slack-trading/src/cmd/stats/derive_expected_profit/run"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventservices"
 )
@@ -21,6 +22,12 @@ type ReadOptionChainRequestExecutor struct {
 }
 
 func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOptionChainRequest, resultCh chan interface{}, errorCh chan error) {
+	projectsDir := os.Getenv("PROJECTS_DIR")
+	if projectsDir == "" {
+		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
+		return
+	}
+
 	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV3(
 		s.OptionsByExpirationURL,
 		s.OptionChainURL,
@@ -45,40 +52,52 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 		},
 	}
 
-	now := time.Now()
+	// fetch historical candles
+	// programPath := "/Users/jamal/projects/slack-trading/src/cmd/stats/import_data/main.go"
+
+	// todo: 15 comes from the EV.Timeframe
+	// cmd := exec.Command("go", "run", programPath, "candles-SPX-15", startPeriodStr, endPeriodStr, "est")
+	// cmd.Env = append(os.Environ(), fmt.Sprintf("GO_ENV=%s", "development"))
+	// cmd.Stderr = os.Stderr
+
+	// if err := cmd.Run(); err != nil {
+	// 	log.Fatalf("cmd.Run() failed with %s", err)
+	// }
+
 	startPeriodStr := req.EV.StartsAt.Format("2006-01-02T00:00:00")
 	endPeriodStr := req.EV.EndsAt.Format("2006-01-02T00:00:00")
 
 	log.Infof("fetching historical candles from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	// fetch historical candles
-	programPath := "/Users/jamal/projects/slack-trading/src/cmd/stats/import_data/main.go"
+	expectedProfitMap, err := derive_expected_profit.CalculateEV(projectsDir, derive_expected_profit.RunArgs{
+		StartsAt:   req.EV.StartsAt,
+		EndsAt:     req.EV.EndsAt,
+		Ticker:     req.Symbol,
+		GoEnv:      "development",
+		SignalName: "supertrend_4h_1h_stoch_rsi_15m_up",
+	}, options, stockTickItemDTO)
 
-	// todo: 15 comes from the EV.Timeframe
-	cmd := exec.Command("go", "run", programPath, "candles-SPX-15", startPeriodStr, endPeriodStr, "est")
-	cmd.Env = append(os.Environ(), fmt.Sprintf("GO_ENV=%s", "development"))
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("cmd.Run() failed with %s", err)
+	if err != nil {
+		errorCh <- err
+		return
 	}
 
+	now := time.Now()
 	var optionsDTO []*eventmodels.OptionContractV3DTO
-	var uniqueExpirationDates = make(map[eventmodels.ExpirationDate]time.Time)
 	for _, option := range options {
-		optionsDTO = append(optionsDTO, option.ToDTO(now))
-		uniqueExpirationDates[option.ExpirationDate] = option.Expiration
-	}
+		dto := option.ToDTO(now)
 
-	// run cmd/stats/import_data/main.go with args
-	for _, exp := range uniqueExpirationDates {
-		if exp.Before(req.EV.EndsAt) {
-			log.Errorf("expiration date is in the past: %v", exp)
-			continue
+		if expectedProfit, found := expectedProfitMap[option.Description]; found {
+			dto.Stats.ExpectedProfit = expectedProfit.ExpectedProfit
+			dto.Stats.Premium = expectedProfit.Premium
 		}
 
-		fmt.Printf("get signal for expiration: %v\n", exp)
+		optionsDTO = append(optionsDTO, dto)
 	}
+
+	sort.Slice(optionsDTO, func(i, j int) bool {
+		return optionsDTO[i].Stats.ExpectedProfit > optionsDTO[j].Stats.ExpectedProfit
+	})
 
 	result["options"] = optionsDTO
 

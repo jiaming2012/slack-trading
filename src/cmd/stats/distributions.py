@@ -3,17 +3,17 @@ from scipy.stats import (norm, lognorm, expon, t, beta, gamma, weibull_min, unif
 
 distributions = {
     'Normal': norm,
-    'Lognormal': lognorm,
-    'Exponential': expon,
+    # 'Lognormal': lognorm,
+    # 'Exponential': expon,
     't-Distribution': t,
-    'Beta': beta,
-    'Gamma': gamma,
-    'Weibull': weibull_min,
+    # 'Beta': beta,
+    # 'Gamma': gamma,
+    # 'Weibull': weibull_min,
     'Uniform': uniform,
-    'Chi-Squared': chi2,
+    # 'Chi-Squared': chi2,
     'Logistic': logistic,
     'Laplace': laplace,
-    'Pareto': pareto,
+    # 'Pareto': pareto,
     'Cauchy': cauchy,
     # 'Erlang': erlang        # Removed because it doesn't handle negative values
 }

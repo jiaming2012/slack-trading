@@ -29,6 +29,21 @@ func (c *OptionContractV3) GetSavedEventParameters() SavedEventParameters {
 	}
 }
 
+func (c *OptionContractV3) ToDTOV1() *OptionContractV1DTO {
+	return &OptionContractV1DTO{
+		Symbol:           c.Symbol,
+		UnderlyingSymbol: c.UnderlyingSymbol,
+		Description:      c.Description,
+		Strike:           c.Strike,
+		OptionType:       c.OptionType,
+		ContractSize:     c.ContractSize,
+		Expiration:       c.Expiration,
+		ExpirationType:   c.ExpirationType,
+		Bid:              c.Bid,
+		Ask:              c.Ask,
+	}
+}
+
 func (c *OptionContractV3) ToDTO(now time.Time) *OptionContractV3DTO {
 	return &OptionContractV3DTO{
 		Symbol:              c.Symbol,

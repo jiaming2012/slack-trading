@@ -73,7 +73,12 @@ func main() {
 
 	var csvCandles []*eventmodels.TradingViewCandle
 	for _, csvCandlesDTO := range csvCandlesDTO {
-		csvCandles = append(csvCandles, csvCandlesDTO.ToModel())
+		c, err := csvCandlesDTO.ToModel()
+		if err != nil {
+			log.Fatalf("error converting to model: %v", err)
+		}
+
+		csvCandles = append(csvCandles, c)
 	}
 
 	log.Infof("Fetched %d candles\n", len(csvCandles))
@@ -86,7 +91,10 @@ func main() {
 		c.IsSignal = true
 	}
 
-	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "clean_data_pdf", inputStream)
+	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "clean_data_pdf")
+	fname := inputStream
 
-	utils.ExportToCsv(csvCandles, lookaheadPeriods, candleDuration, outDir)
+	if _, err := utils.ExportToCsv(csvCandles, lookaheadPeriods, candleDuration, outDir, fname); err != nil {
+		log.Fatalf("error exporting to csv: %v", err)
+	}
 }

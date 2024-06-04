@@ -115,7 +115,11 @@ if __name__ == "__main__":
     if not args.json_output:
         print(f"symbol: {symbol}, expirationInDays: {expirationInDays}")
 
-    if args.optionPricesInDir:
+    if not sys.stdin.isatty():
+        data = json.load(sys.stdin)
+        stock = Stock(**data['stock'])
+        options = [Option(**option) for option in data['options']]
+    elif args.optionPricesInDir:
         if not args.json_output:
             print(f"Loading options data from {args.optionPricesInDir}")
 
@@ -230,7 +234,7 @@ if __name__ == "__main__":
 
     if args.json_output:
         # Output the results
-        print(json.dumps({'output': output}))
+        print(json.dumps(output))
 
     # # Generate x values for plotting the percent changes PDF
     # x_values = np.linspace(loc, loc + scale, 1000)

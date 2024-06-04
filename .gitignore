@@ -15,3 +15,5 @@ env/
 *.png
 best_fit_percent_change-*.json
 tmp-*
+percent_change-*.json
+scratch.py

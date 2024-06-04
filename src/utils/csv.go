@@ -25,7 +25,7 @@ func findPercentChange(candles []*eventmodels.TradingViewCandle, index, lookahea
 	return (candles[index+lookahead].Close - candles[index].Close) / candles[index].Close * 100
 }
 
-func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) {
+func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) ([]string, error) {
 	data := make(map[int][]percentChangeData)
 
 	for index, c := range candles {
@@ -39,6 +39,8 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 		}
 	}
 
+	output := []string{}
+
 	for lookahead, percentChanges := range data {
 		// Create export directory
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
@@ -46,13 +48,13 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 		}
 
 		// Export the data
-		lookaheadLabel := fmt.Sprintf("%d", lookahead*int(candleDuration.Minutes()))
+		lookaheadLabel := fmt.Sprintf("%d", lookahead)
 		outFile := path.Join(outDir, fmt.Sprintf("percent_change-%s-lookahead-%s.csv", fname, lookaheadLabel))
 		file, err := os.Create(outFile)
 		if err != nil {
-			fmt.Println("Error creating CSV file:", err)
-			return
+			return nil, fmt.Errorf("error creating CSV file: %v", err)
 		}
+
 		defer file.Close()
 
 		writer := csv.NewWriter(file)
@@ -66,6 +68,10 @@ func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []in
 			writer.Write([]string{timeInISO, fmt.Sprintf("%f", data.PercentChange)})
 		}
 
+		output = append(output, outFile)
+
 		log.Infof("Exported %d percent change data to %s", len(percentChanges), outFile)
 	}
+
+	return output, nil
 }
