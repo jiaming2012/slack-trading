@@ -1,6 +1,6 @@
 package eventmodels
 
 type OptionStats struct {
-	ExpectedProfit float64 `json:"expected_profit"`
-	Premium        float64 `json:"premium"`
+	ExpectedProfitLong  *float64 `json:"expected_profit_long"`
+	ExpectedProfitShort *float64 `json:"expected_profit_short"`
 }

@@ -3,6 +3,7 @@ package optionsapi
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"sort"
@@ -70,7 +71,7 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 
 	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	expectedProfitMap, err := derive_expected_profit.CalculateEV(projectsDir, derive_expected_profit.RunArgs{
+	expectedProfitLongMap, expectedProfitShortMap, err := derive_expected_profit.FetchEV(projectsDir, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
@@ -88,16 +89,47 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 	for _, option := range options {
 		dto := option.ToDTO(now)
 
-		if expectedProfit, found := expectedProfitMap[option.Description]; found {
-			dto.Stats.ExpectedProfit = expectedProfit.ExpectedProfit
-			dto.Stats.Premium = expectedProfit.Premium
+		if profitLong, found := expectedProfitLongMap[option.Description]; found {
+			if profitLong.DebitPaid == nil {
+				continue
+			}
+
+			dto.Stats.ExpectedProfitLong = &profitLong.ExpectedProfit
+		}
+
+		if profitShort, found := expectedProfitShortMap[option.Description]; found {
+			if profitShort.CreditReceived == nil {
+				continue
+			}
+
+			dto.Stats.ExpectedProfitShort = &profitShort.ExpectedProfit
 		}
 
 		optionsDTO = append(optionsDTO, dto)
 	}
 
 	sort.Slice(optionsDTO, func(i, j int) bool {
-		return optionsDTO[i].Stats.ExpectedProfit > optionsDTO[j].Stats.ExpectedProfit
+		expectedProfitLongI := math.Inf(-1)
+		if optionsDTO[i].Stats.ExpectedProfitLong != nil {
+			expectedProfitLongI = *optionsDTO[i].Stats.ExpectedProfitLong
+		}
+
+		expectedProfitLongJ := math.Inf(-1)
+		if optionsDTO[j].Stats.ExpectedProfitLong != nil {
+			expectedProfitLongJ = *optionsDTO[j].Stats.ExpectedProfitLong
+		}
+
+		expectedProfitShortI := math.Inf(-1)
+		if optionsDTO[i].Stats.ExpectedProfitShort != nil {
+			expectedProfitShortI = *optionsDTO[i].Stats.ExpectedProfitShort
+		}
+
+		expectedProfitShortJ := math.Inf(-1)
+		if optionsDTO[j].Stats.ExpectedProfitShort != nil {
+			expectedProfitShortJ = *optionsDTO[j].Stats.ExpectedProfitShort
+		}
+
+		return math.Max(expectedProfitLongI, expectedProfitShortI) > math.Max(expectedProfitLongJ, expectedProfitShortJ)
 	})
 
 	result["options"] = optionsDTO

@@ -186,7 +186,7 @@ if __name__ == "__main__":
     for option, premium, long_expected_profit in long_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "premium": premium,
+            "debit_paid": premium,
             "expected_profit": long_expected_profit
         })
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     for option, premium, short_expected_profit in short_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "premium": premium,
+            "credit_received": premium,
             "expected_profit": short_expected_profit
         })
         
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     for option, premium, long_expected_profit in long_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "premium": premium,
+            "debit_paid": premium,
             "expected_profit": long_expected_profit
         })
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     for option, premium, short_expected_profit in short_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "premium": premium,
+            "credit_received": premium,
             "expected_profit": short_expected_profit
         })
 
