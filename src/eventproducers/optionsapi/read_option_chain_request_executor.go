@@ -21,9 +21,90 @@ type ReadOptionChainRequestExecutor struct {
 	OptionChainURL         string
 	StockURL               string
 	BearerToken            string
+	GoEnv                  string
 }
 
-func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOptionChainRequest, resultCh chan interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitLongSpreadMap map[string]eventmodels.ExpectedProfitItemSpreadDTO, expectedProfitShortSpreadMap map[string]eventmodels.ExpectedProfitItemSpreadDTO) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
+	var callOptionsDTO []*eventmodels.OptionSpreadContractDTO
+	var putOptionsDTO []*eventmodels.OptionSpreadContractDTO
+
+	for description, longSpread := range expectedProfitLongSpreadMap {
+		shortSpread, found := expectedProfitShortSpreadMap[description]
+		if !found {
+			return nil, fmt.Errorf("formatOptionContractSpreads: missing short spread for description: %s", description)
+		}
+
+		spread := eventmodels.OptionSpreadContractDTO{
+			Description:       longSpread.Description,
+			DebitPaid:         longSpread.DebitPaid,
+			CreditReceived:    shortSpread.CreditReceived,
+			LongOptionSymbol:  eventmodels.OptionSymbol(longSpread.LongOptionSymbol),
+			ShortOptionSymbol: eventmodels.OptionSymbol(longSpread.ShortOptionSymbol),
+		}
+
+		spread.Stats = eventmodels.OptionStats{
+			ExpectedProfitLong:  longSpread.ExpectedProfit,
+			ExpectedProfitShort: shortSpread.ExpectedProfit,
+		}
+
+		if longSpread.Type == eventmodels.CallSpread {
+			spread.Type = eventmodels.CallSpread
+			callOptionsDTO = append(callOptionsDTO, &spread)
+		} else if longSpread.Type == eventmodels.PutSpread {
+			spread.Type = eventmodels.PutSpread
+			putOptionsDTO = append(putOptionsDTO, &spread)
+		} else {
+			return nil, fmt.Errorf("formatOptionContractSpreads: invalid spread type: %s", longSpread.Type)
+		}
+	}
+
+	sort.Slice(callOptionsDTO, func(i, j int) bool {
+		return math.Max(callOptionsDTO[i].Stats.ExpectedProfitLong, callOptionsDTO[i].Stats.ExpectedProfitShort) > math.Max(callOptionsDTO[j].Stats.ExpectedProfitLong, callOptionsDTO[j].Stats.ExpectedProfitShort)
+	})
+
+	sort.Slice(putOptionsDTO, func(i, j int) bool {
+		return math.Max(putOptionsDTO[i].Stats.ExpectedProfitLong, putOptionsDTO[i].Stats.ExpectedProfitShort) > math.Max(putOptionsDTO[j].Stats.ExpectedProfitLong, putOptionsDTO[j].Stats.ExpectedProfitShort)
+	})
+
+	return map[string][]*eventmodels.OptionSpreadContractDTO{
+		"calls": callOptionsDTO,
+		"puts":  putOptionsDTO,
+	}, nil
+}
+
+func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmodels.OptionContractV3, expectedProfitLongMap map[string]eventmodels.ExpectedProfitItemDTO, expectedProfitShortMap map[string]eventmodels.ExpectedProfitItemDTO) []*eventmodels.OptionContractV3DTO {
+	now := time.Now()
+	var optionsDTO []*eventmodels.OptionContractV3DTO
+	for _, option := range options {
+		dto := option.ToDTO(now)
+
+		if profitLong, found := expectedProfitLongMap[option.Description]; found {
+			if profitLong.DebitPaid == nil {
+				continue
+			}
+
+			dto.Stats.ExpectedProfitLong = profitLong.ExpectedProfit
+		}
+
+		if profitShort, found := expectedProfitShortMap[option.Description]; found {
+			if profitShort.CreditReceived == nil {
+				continue
+			}
+
+			dto.Stats.ExpectedProfitShort = profitShort.ExpectedProfit
+		}
+
+		optionsDTO = append(optionsDTO, dto)
+	}
+
+	sort.Slice(optionsDTO, func(i, j int) bool {
+		return math.Max(optionsDTO[i].Stats.ExpectedProfitLong, optionsDTO[i].Stats.ExpectedProfitShort) > math.Max(optionsDTO[j].Stats.ExpectedProfitLong, optionsDTO[j].Stats.ExpectedProfitShort)
+	})
+
+	return optionsDTO
+}
+
+func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan interface{}, errorCh chan error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
@@ -54,28 +135,16 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 		},
 	}
 
-	// fetch historical candles
-	// programPath := "/Users/jamal/projects/slack-trading/src/cmd/stats/import_data/main.go"
-
-	// todo: 15 comes from the EV.Timeframe
-	// cmd := exec.Command("go", "run", programPath, "candles-SPX-15", startPeriodStr, endPeriodStr, "est")
-	// cmd.Env = append(os.Environ(), fmt.Sprintf("GO_ENV=%s", "development"))
-	// cmd.Stderr = os.Stderr
-
-	// if err := cmd.Run(); err != nil {
-	// 	log.Fatalf("cmd.Run() failed with %s", err)
-	// }
-
 	startPeriodStr := req.EV.StartsAt.Format("2006-01-02T00:00:00")
 	endPeriodStr := req.EV.EndsAt.Format("2006-01-02T00:00:00")
 
 	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	expectedProfitLongMap, expectedProfitShortMap, err := derive_expected_profit.FetchEV(projectsDir, derive_expected_profit.RunArgs{
+	expectedProfitLongMap, expectedProfitShortMap, expectedProfitLongSpreadMap, expectedProfitShortSpreadMap, err := derive_expected_profit.FetchEV(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
-		GoEnv:      "development",
+		GoEnv:      s.GoEnv,
 		SignalName: "supertrend_4h_1h_stoch_rsi_15m_up",
 	}, options, stockTickItemDTO)
 
@@ -84,55 +153,17 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 		return
 	}
 
-	now := time.Now()
-	var optionsDTO []*eventmodels.OptionContractV3DTO
-	for _, option := range options {
-		dto := option.ToDTO(now)
-
-		if profitLong, found := expectedProfitLongMap[option.Description]; found {
-			if profitLong.DebitPaid == nil {
-				continue
-			}
-
-			dto.Stats.ExpectedProfitLong = &profitLong.ExpectedProfit
+	if expectedProfitLongMap != nil && expectedProfitShortMap != nil {
+		result["options"] = s.formatOptionContracts(options, expectedProfitLongMap, expectedProfitShortMap)
+	} else if expectedProfitLongSpreadMap != nil && expectedProfitShortSpreadMap != nil {
+		output, err := s.formatOptionContractSpreads(expectedProfitLongSpreadMap, expectedProfitShortSpreadMap)
+		if err != nil {
+			errorCh <- err
+			return
 		}
 
-		if profitShort, found := expectedProfitShortMap[option.Description]; found {
-			if profitShort.CreditReceived == nil {
-				continue
-			}
-
-			dto.Stats.ExpectedProfitShort = &profitShort.ExpectedProfit
-		}
-
-		optionsDTO = append(optionsDTO, dto)
+		result["options"] = output
 	}
-
-	sort.Slice(optionsDTO, func(i, j int) bool {
-		expectedProfitLongI := math.Inf(-1)
-		if optionsDTO[i].Stats.ExpectedProfitLong != nil {
-			expectedProfitLongI = *optionsDTO[i].Stats.ExpectedProfitLong
-		}
-
-		expectedProfitLongJ := math.Inf(-1)
-		if optionsDTO[j].Stats.ExpectedProfitLong != nil {
-			expectedProfitLongJ = *optionsDTO[j].Stats.ExpectedProfitLong
-		}
-
-		expectedProfitShortI := math.Inf(-1)
-		if optionsDTO[i].Stats.ExpectedProfitShort != nil {
-			expectedProfitShortI = *optionsDTO[i].Stats.ExpectedProfitShort
-		}
-
-		expectedProfitShortJ := math.Inf(-1)
-		if optionsDTO[j].Stats.ExpectedProfitShort != nil {
-			expectedProfitShortJ = *optionsDTO[j].Stats.ExpectedProfitShort
-		}
-
-		return math.Max(expectedProfitLongI, expectedProfitShortI) > math.Max(expectedProfitLongJ, expectedProfitShortJ)
-	})
-
-	result["options"] = optionsDTO
 
 	resultCh <- result
 }
@@ -177,12 +208,13 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	resultCh := make(chan interface{})
 	errorCh := make(chan error)
 
+	bFindSpreads := false
 	if r.URL.Path == "/options/spreads" {
-		fmt.Println("spreads")
+		bFindSpreads = true
 	}
 
 	if req.EV != nil {
-		go s.serveWithParams(req, resultCh, errorCh)
+		go s.serveWithParams(req, bFindSpreads, resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

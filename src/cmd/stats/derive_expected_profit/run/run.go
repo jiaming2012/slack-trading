@@ -40,18 +40,15 @@ func getLookaheadFromFilePath(filePath string) (int, error) {
 	return lookahead, nil
 }
 
-func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
-	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
-	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit.py")
-
+func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) (string, error) {
 	lookahead, err := getLookaheadFromFilePath(distributionInDir)
 	if err != nil {
-		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error getting lookahead from file path: %v", err)
+		return "", fmt.Errorf("getOptionsStandardIn: error getting lookahead from file path: %v", err)
 	}
 
 	filteredOptions, found := lookaheadToOptionContractsMap[lookahead]
 	if !found {
-		return nil, fmt.Errorf("ExecDeriveExpectedProfit: missing options for lookahead: %d", lookahead)
+		return "", fmt.Errorf("getOptionsStandardIn: missing options for lookahead: %d", lookahead)
 	}
 
 	var filteredOptionsDTO []*eventmodels.OptionContractV1DTO
@@ -68,11 +65,49 @@ func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, options []e
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error marshalling input: %v", err)
+		return "", fmt.Errorf("getOptionsStandardIn: error marshalling input: %v", err)
+	}
+
+	return string(input), nil
+}
+
+func ExecDeriveExpectedProfitSpreads(projectsDir, distributionInDir string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit_spreads.py")
+
+	optionsInput, err := getOptionsStandardIn(distributionInDir, stockInfo, lookaheadToOptionContractsMap)
+	if err != nil {
+		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error getting options standard input: %v", err)
 	}
 
 	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true")
-	cmd.Stdin = strings.NewReader(string(input))
+	cmd.Stdin = strings.NewReader(optionsInput)
+	cmd.Stderr = os.Stderr
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error running derive_expected_profit.py: %v", err)
+	}
+
+	var results []eventmodels.ExpectedProfitItemSpreadDTO
+	if err := json.Unmarshal(output, &results); err != nil {
+		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error unmarshalling JSON output: %v", err)
+	}
+
+	return results, nil
+}
+
+func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
+	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit.py")
+
+	optionsInput, err := getOptionsStandardIn(distributionInDir, stockInfo, lookaheadToOptionContractsMap)
+	if err != nil {
+		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error getting options standard input: %v", err)
+	}
+
+	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true")
+	cmd.Stdin = strings.NewReader(optionsInput)
 	cmd.Stderr = os.Stderr
 
 	output, err := cmd.Output()
@@ -84,8 +119,6 @@ func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, options []e
 	if err := json.Unmarshal(output, &results); err != nil {
 		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error unmarshalling JSON output: %v", err)
 	}
-
-	fmt.Printf("results: %v\n", results)
 
 	return results, nil
 }
@@ -105,8 +138,6 @@ func ExecFitDistribution(projectsDir, percentChangeInDir string) (string, error)
 	}
 
 	output := stdout.Bytes()
-
-	fmt.Println("stderr: ", stderr.String())
 
 	var results map[string]interface{}
 	if err := json.Unmarshal(output, &results); err != nil {
@@ -148,9 +179,19 @@ func calculateLookaheadCandlesCount(now time.Time, options []eventmodels.OptionC
 	return lookaheadCandlesCount, lookaheadToOptionContractsMap
 }
 
-func FetchEV(projectDir string, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemDTO, map[string]eventmodels.ExpectedProfitItemDTO, error) {
-	resultMapLong := map[string]eventmodels.ExpectedProfitItemDTO{}
-	resultMapShort := map[string]eventmodels.ExpectedProfitItemDTO{}
+func FetchEV(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemDTO, map[string]eventmodels.ExpectedProfitItemDTO, map[string]eventmodels.ExpectedProfitItemSpreadDTO, map[string]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+	var resultMapLong map[string]eventmodels.ExpectedProfitItemDTO
+	var resultMapShort map[string]eventmodels.ExpectedProfitItemDTO
+	var resultMapLongSpread map[string]eventmodels.ExpectedProfitItemSpreadDTO
+	var resultMapShortSpread map[string]eventmodels.ExpectedProfitItemSpreadDTO
+
+	if bFindSpreads {
+		resultMapLongSpread = make(map[string]eventmodels.ExpectedProfitItemSpreadDTO)
+		resultMapShortSpread = make(map[string]eventmodels.ExpectedProfitItemSpreadDTO)
+	} else {
+		resultMapLong = make(map[string]eventmodels.ExpectedProfitItemDTO)
+		resultMapShort = make(map[string]eventmodels.ExpectedProfitItemDTO)
+	}
 
 	switch args.SignalName {
 	case "supertrend_4h_1h_stoch_rsi_15m_up":
@@ -167,38 +208,55 @@ func FetchEV(projectDir string, args RunArgs, options []eventmodels.OptionContra
 		})
 
 		if err != nil {
-			return nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_up: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_up: %w", err)
 		}
 
 		for _, filePath := range output.ExportedFilepaths {
-			log.Infof("fitting distribution for filepath: %s\n", filePath)
+			log.Infof("fitting distribution for filepath: %s", filePath)
 
 			outDir, err := ExecFitDistribution(projectDir, filePath)
 			if err != nil {
-				return nil, nil, fmt.Errorf("FetchEV: error running fit_distribution.py: %w", err)
+				return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running fit_distribution.py: %w", err)
 			}
 
-			results, err := ExecDeriveExpectedProfit(projectDir, outDir, options, stockInfo, lookaheadToOptionContractsMap)
-			if err != nil {
-				return nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit.py: %w", err)
-			}
+			if bFindSpreads {
+				results, err := ExecDeriveExpectedProfitSpreads(projectDir, outDir, options, stockInfo, lookaheadToOptionContractsMap)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit_spreads.py: %w", err)
+				}
 
-			for _, r := range results {
-				if r.DebitPaid != nil {
-					resultMapLong[r.Description] = r
-				} else if r.CreditReceived != nil {
-					resultMapShort[r.Description] = r
-				} else {
-					return nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
+				for _, r := range results {
+					if r.DebitPaid != nil {
+						resultMapLongSpread[r.Description] = r
+					} else if r.CreditReceived != nil {
+						resultMapShortSpread[r.Description] = r
+					} else {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
+					}
+				}
+			} else {
+				results, err := ExecDeriveExpectedProfit(projectDir, outDir, options, stockInfo, lookaheadToOptionContractsMap)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit.py: %w", err)
+				}
+
+				for _, r := range results {
+					if r.DebitPaid != nil {
+						resultMapLong[r.Description] = r
+					} else if r.CreditReceived != nil {
+						resultMapShort[r.Description] = r
+					} else {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
+					}
 				}
 			}
 		}
 
 	default:
-		return nil, nil, fmt.Errorf("FetchEV: unknown signal name: %s", args.SignalName)
+		return nil, nil, nil, nil, fmt.Errorf("FetchEV: unknown signal name: %s", args.SignalName)
 	}
 
-	return resultMapLong, resultMapShort, nil
+	return resultMapLong, resultMapShort, resultMapLongSpread, resultMapShortSpread, nil
 }
 
 func Run(args RunArgs) error {

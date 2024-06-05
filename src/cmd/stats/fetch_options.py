@@ -33,20 +33,21 @@ class SpreadDirection(Enum):
 
 @dataclass
 class Spread:
+    Underlying: str
     long_option: Option
     short_option: Option
     type: SpreadType
     direction: SpreadDirection
 
     def description(self) -> str:
+        side = 'Call' if self.type == SpreadType.VERTICAL_CALL else ('Put' if self.type == SpreadType.VERTICAL_PUT else 'Unknown')
+        
         if self.direction == SpreadDirection.LONG:
-            symbol = self.long_option.symbol
             expiration = self.long_option.expiration
-            return f'{symbol} {expiration} {self.long_option.strike}/{self.short_option.strike} Call'
+            return f'{self.Underlying.upper()} {self.long_option.strike}/{self.short_option.strike} {side} {expiration}'
         elif self.direction == SpreadDirection.SHORT:
-            symbol = self.long_option.symbol
             expiration = self.long_option.expiration
-            return f'{symbol} {expiration} {self.short_option.strike}/{self.long_option.strike} Put'
+            return f'{self.Underlying.upper()} {self.short_option.strike}/{self.long_option.strike} {side} {expiration}'
         else:
             return f'{self.long_option.description}/{self.short_option.description}'
         
@@ -59,7 +60,7 @@ def filter_puts(options: List[Option]) -> List[Option]:
 def sort_options_by_strike(options: List[Option]) -> List[Option]:
     return sorted(options, key=lambda option: option.strike)
 
-def generate_short_vertical_spreads(options: List[Option]) -> List[Spread]:
+def generate_short_vertical_spreads(options: List[Option], underlyingSymbol: str) -> List[Spread]:
     options = sort_options_by_strike(options)
     spreads = []
     for i in range(len(options)):
@@ -76,11 +77,11 @@ def generate_short_vertical_spreads(options: List[Option]) -> List[Spread]:
                 long_option = options[i]
                 spread_type = SpreadType.VERTICAL_PUT
 
-            spreads.append(Spread(long_option, short_option, spread_type, SpreadDirection.SHORT))
+            spreads.append(Spread(underlyingSymbol, long_option, short_option, spread_type, SpreadDirection.SHORT))
 
     return spreads
 
-def generate_long_vertical_spreads(options: List[Option]) -> List[Spread]:
+def generate_long_vertical_spreads(options: List[Option], underlyingSymbol: str) -> List[Spread]:
     options = sort_options_by_strike(options)
     spreads = []
     for i in range(len(options)):
@@ -97,7 +98,7 @@ def generate_long_vertical_spreads(options: List[Option]) -> List[Spread]:
                 short_option = options[i]
                 spread_type = SpreadType.VERTICAL_PUT
 
-            spreads.append(Spread(long_option, short_option, spread_type, SpreadDirection.LONG))
+            spreads.append(Spread(underlyingSymbol, long_option, short_option, spread_type, SpreadDirection.LONG))
 
     return spreads
 

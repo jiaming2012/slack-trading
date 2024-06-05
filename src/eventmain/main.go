@@ -175,6 +175,7 @@ func run() {
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
 		BearerToken:            brokerBearerToken,
+		GoEnv:                  goEnv,
 	}
 
 	r := NewRouterSetup("/options", router)

@@ -11,9 +11,6 @@ import distributions
 import argparse
 from pprint import pprint
 
-# to run this script:
-# python expected_profit.py /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/candles-SPX-15/best_fit_percent_change-1440.json
-
 def expiration_in_days(time_until_expiration_in_minutes: int, today: date):
     nearest_contract_expiration = time_to_option_contract_expiration_in_minutes(today)
 
@@ -80,8 +77,7 @@ def generate_short_put_integrand(stock_price, strike_price, premium):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This script requires an input directory to a json file containing the best fit distribution."
                                                  "Optionally, you can pass a json file path containing the stock and option prices, as an argument."
-                                                 "It fetches the options for the given symbol and expiration date, and calculates the expected profit for each option."
-                                                 "It then prints the options and their expected profits.")
+                                                 "It fetches the options for the given symbol and expiration date, and calculates the expected profit for each option.")
     
     # Add arguments
     parser.add_argument('--distributionInDir', type=str, required=True, help="Required. The input directory to a json file containing the best fit distribution")
@@ -183,57 +179,56 @@ if __name__ == "__main__":
     if not args.json_output:
         print("[LONG Calls]:")
 
-    for option, premium, long_expected_profit in long_calls_options_and_profits:
+    for option, debit_paid, long_expected_profit in long_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "debit_paid": premium,
+            "debit_paid": debit_paid,
             "expected_profit": long_expected_profit
         })
 
         if not args.json_output:
-            print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+            print(f"{option.description} - debit paid: {debit_paid:.2f} - Expected Profit: {long_expected_profit:.2f}")
 
     if not args.json_output:
         print("[SHORT Calls]:")
 
-    for option, premium, short_expected_profit in short_calls_options_and_profits:
+    for option, credit_received, short_expected_profit in short_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "credit_received": premium,
+            "credit_received": credit_received,
             "expected_profit": short_expected_profit
         })
         
         if not args.json_output:
-            print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
+            print(f"{option.description} - credit received: {credit_received:.2f} - Expected Profit: {short_expected_profit:.2f}")
 
     if not args.json_output:
         print("[LONG Puts]:")
 
-    for option, premium, long_expected_profit in long_puts_options_and_profits:
+    for option, debit_paid, long_expected_profit in long_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "debit_paid": premium,
+            "debit_paid": debit_paid,
             "expected_profit": long_expected_profit
         })
 
         if not args.json_output:
-            print(f"{option.description} - debit paid: {premium:.2f} - Expected Profit: {long_expected_profit:.2f}")
+            print(f"{option.description} - debit paid: {debit_paid:.2f} - Expected Profit: {long_expected_profit:.2f}")
 
     if not args.json_output:
         print("[SHORT Puts]:")
 
-    for option, premium, short_expected_profit in short_puts_options_and_profits:
+    for option, credit_received, short_expected_profit in short_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "credit_received": premium,
+            "credit_received": credit_received,
             "expected_profit": short_expected_profit
         })
 
         if not args.json_output:
-            print(f"{option.description} - credit received: {premium:.2f} - Expected Profit: {short_expected_profit:.2f}")
+            print(f"{option.description} - credit received: {credit_received:.2f} - Expected Profit: {short_expected_profit:.2f}")
 
     if args.json_output:
-        # Output the results
         print(json.dumps(output))
 
     # # Generate x values for plotting the percent changes PDF
