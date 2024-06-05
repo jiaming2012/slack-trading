@@ -66,14 +66,16 @@ type RouterSetupItem struct {
 
 type RouterSetup struct {
 	Router    *mux.Router
+	Prefix    string
 	Executors map[string]eventmodels.RequestExecutor
 }
 
 func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
-		executer, found := r.Executors[req.Method]
+		key := fmt.Sprintf("%v %v", req.Method, req.URL.Path)
+		executer, found := r.Executors[key]
 		if !found {
-			log.Errorf("No handler found for %v", req.Method)
+			log.Errorf("No handler found for %v", key)
 			w.WriteHeader(500)
 			return
 		}
@@ -87,17 +89,19 @@ func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
 	r := &RouterSetup{
 		Router:    router,
+		Prefix:    prefix,
 		Executors: make(map[string]eventmodels.RequestExecutor),
 	}
 
-	router.HandleFunc(prefix, r.ServeHTTP)
+	// router.HandleFunc(prefix, r.ServeHTTP)
 
 	return r
 }
 
 func (r *RouterSetup) Add(item RouterSetupItem) {
-	r.Executors[item.Method] = item.Executor
-	r.Router.HandleFunc(item.URL, r.ServeHTTP)
+	key := fmt.Sprintf("%v %v%v", item.Method, r.Prefix, item.URL)
+	r.Executors[key] = item.Executor
+	r.Router.HandleFunc(fmt.Sprintf("%s%s", r.Prefix, item.URL), r.ServeHTTP)
 }
 
 type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
@@ -175,6 +179,7 @@ func run() {
 
 	r := NewRouterSetup("/options", router)
 	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector})
+	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "/spreads", Executor: optionChainRequestExector})
 
 	// Setup web server
 	srv := &http.Server{

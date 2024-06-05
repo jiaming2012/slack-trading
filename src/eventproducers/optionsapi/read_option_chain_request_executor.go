@@ -2,6 +2,7 @@ package optionsapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"sort"
@@ -143,6 +144,10 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	req := request.(*eventmodels.ReadOptionChainRequest)
 	resultCh := make(chan interface{})
 	errorCh := make(chan error)
+
+	if r.URL.Path == "/options/spreads" {
+		fmt.Println("spreads")
+	}
 
 	if req.EV != nil {
 		go s.serveWithParams(req, resultCh, errorCh)

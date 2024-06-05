@@ -74,7 +74,7 @@ func Run(args RunArgs) (RunOutput, error) {
 		return RunOutput{}, fmt.Errorf("error fetching all candles: %v", err)
 	}
 
-	log.Infof("Fetched %d candles\n", len(dataMap))
+	log.Infof("Fetched %d candles", len(dataMap))
 
 	// Process the data
 	duration, err := helpers.GetDurationFromStreamName(args.InputStreamName)
@@ -112,15 +112,15 @@ func Run(args RunArgs) (RunOutput, error) {
 		return RunOutput{}, fmt.Errorf("no candles to export")
 	}
 
-	firstCandleStartDate := filteredCandles[0].Timestamp
-	lastCandleStartDate := filteredCandles[len(filteredCandles)-1].Timestamp
+	firstCandleTimestamp := filteredCandles[0].Timestamp
+	lastCandleTimestamp := filteredCandles[len(filteredCandles)-1].Timestamp
 
-	if firstCandleStartDate.After(args.StartsAt) {
-		return RunOutput{}, fmt.Errorf("start candle date %v is after start: %v", firstCandleStartDate, args.StartsAt)
+	if firstCandleTimestamp.After(args.StartsAt) {
+		return RunOutput{}, fmt.Errorf("start candle date %v is after start: %v", firstCandleTimestamp, args.StartsAt)
 	}
 
-	if lastCandleStartDate.Add(duration).Before(args.EndsAt) {
-		return RunOutput{}, fmt.Errorf("end candle date %v is before end: %v", lastCandleStartDate.Add(duration), args.EndsAt)
+	if lastCandleTimestamp.Add(duration).Before(args.EndsAt) {
+		return RunOutput{}, fmt.Errorf("end candle date %v is before end: %v", lastCandleTimestamp.Add(duration), args.EndsAt)
 	}
 
 	// Export the data
