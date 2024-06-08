@@ -139,7 +139,7 @@ func main() {
 		log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 
-	log.Infof("subscribed to stream %s", streamName)
+	log.Infof("main: subscribed to stream %s", streamName)
 
 	var lastEventNumber uint64 = 0
 	eventsRead := 0

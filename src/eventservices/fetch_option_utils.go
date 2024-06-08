@@ -194,13 +194,13 @@ func splitAndSortContractsByStrikeV3(contracts []eventmodels.OptionContractV3, s
 
 	for _, c := range contracts {
 		switch c.OptionType {
-		case eventmodels.Call:
+		case eventmodels.OptionTypeCall:
 			if c.Strike < strike {
 				ladder.CallsBelowStrike = append(ladder.CallsBelowStrike, c)
 			} else {
 				ladder.CallsAboveStrike = append(ladder.CallsAboveStrike, c)
 			}
-		case eventmodels.Put:
+		case eventmodels.OptionTypePut:
 			if c.Strike < strike {
 				ladder.PutsBelowStrike = append(ladder.PutsBelowStrike, c)
 			} else {
@@ -235,13 +235,13 @@ func splitAndSortContractsByStrike(contracts []eventmodels.OptionContractV1, str
 
 	for _, c := range contracts {
 		switch c.OptionType {
-		case eventmodels.Call:
+		case eventmodels.OptionTypeCall:
 			if c.Strike < strike {
 				ladder.CallsBelowStrike = append(ladder.CallsBelowStrike, c)
 			} else {
 				ladder.CallsAboveStrike = append(ladder.CallsAboveStrike, c)
 			}
-		case eventmodels.Put:
+		case eventmodels.OptionTypePut:
 			if c.Strike < strike {
 				ladder.PutsBelowStrike = append(ladder.PutsBelowStrike, c)
 			} else {
@@ -275,9 +275,9 @@ func filterOptionContractsV3(contractMap map[time.Time][]eventmodels.OptionContr
 	allResults := make([]eventmodels.OptionContractV3, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
-		if optionType == eventmodels.Call {
+		if optionType == eventmodels.OptionTypeCall {
 			includeCalls = true
-		} else if optionType == eventmodels.Put {
+		} else if optionType == eventmodels.OptionTypePut {
 			includePuts = true
 		}
 	}
@@ -370,9 +370,9 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 	allResults := make([]eventmodels.OptionContractV1, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
-		if optionType == eventmodels.Call {
+		if optionType == eventmodels.OptionTypeCall {
 			includeCalls = true
-		} else if optionType == eventmodels.Put {
+		} else if optionType == eventmodels.OptionTypePut {
 			includePuts = true
 		}
 	}

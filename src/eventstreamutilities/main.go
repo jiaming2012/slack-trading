@@ -497,7 +497,7 @@ func StartTrackingStockAndOptions(ctx context.Context, wg *sync.WaitGroup, optio
 func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbProducer *eventproducers.EsdbProducer, params eventmodels.OptionParameterComponents, optionContractsCache map[eventmodels.OptionSymbol]*eventmodels.OptionContractV1, eventStoreDBURL string, brokerCreds BrokerCredentials, requestID uuid.UUID) ([]*eventmodels.OptionContractV1, error) {
 	log.Infof("fetching options for symbol: %s, requestID: %s", params.StockSymbol, requestID.String())
 
-	optionTypes := []eventmodels.OptionType{eventmodels.Call, eventmodels.Put}
+	optionTypes := []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut}
 
 	options, err := eventservices.FetchOptionChainWithParamsV1(requestID, brokerCreds.OptionsExpirationURL, brokerCreds.OptionChainURL, brokerCreds.StockQuotesURL, brokerCreds.BearerToken, params.StockSymbol, optionTypes, params.ExpirationInDays, params.MinDistanceBetweenStrikes, params.MaxNoOfStrikes)
 	if err != nil {

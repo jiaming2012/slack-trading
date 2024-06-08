@@ -72,7 +72,7 @@ func (cli *esdbConsumer[T]) subscribeToStream(ctx context.Context, streamName ev
 		return nil, fmt.Errorf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 
-	log.Infof("subscribed to stream %s", streamName)
+	log.Infof("esdbConsumer: subscribed to stream %s", streamName)
 
 	lastEventNumber := initialEventNumber
 
@@ -176,7 +176,7 @@ func (cli *esdbConsumer[T]) Start(ctx context.Context) {
 		log.Panicf("failed to create client: %v", err)
 	}
 
-	lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, cli.streamName)
+	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
 	if err != nil {
 		log.Panicf("eventStoreDBClient: failed to find last event number: %v", err)
 	}
@@ -190,7 +190,7 @@ func (cli *esdbConsumer[T]) Start(ctx context.Context) {
 		log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
 	}
 
-	fmt.Println("running consumer...")
+	fmt.Println("esdbConsumer: running consumer...")
 
 	go cli.run(ctx, errCh)
 }

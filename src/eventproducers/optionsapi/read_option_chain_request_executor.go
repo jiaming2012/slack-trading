@@ -47,11 +47,11 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 			ExpectedProfitShort: shortSpread.ExpectedProfit,
 		}
 
-		if longSpread.Type == eventmodels.CallSpread {
-			spread.Type = eventmodels.CallSpread
+		if longSpread.Type == eventmodels.OptionTypeCallSpread {
+			spread.Type = eventmodels.OptionTypeCallSpread
 			callOptionsDTO = append(callOptionsDTO, &spread)
-		} else if longSpread.Type == eventmodels.PutSpread {
-			spread.Type = eventmodels.PutSpread
+		} else if longSpread.Type == eventmodels.OptionTypePutSpread {
+			spread.Type = eventmodels.OptionTypePutSpread
 			putOptionsDTO = append(putOptionsDTO, &spread)
 		} else {
 			return nil, fmt.Errorf("formatOptionContractSpreads: invalid spread type: %s", longSpread.Type)
@@ -104,7 +104,7 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmo
 	return optionsDTO
 }
 
-func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
@@ -168,7 +168,7 @@ func (s *ReadOptionChainRequestExecutor) serveWithParams(req *eventmodels.ReadOp
 	resultCh <- result
 }
 
-func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainRequest, resultCh chan interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainRequest, resultCh chan map[string]interface{}, errorCh chan error) {
 	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV2(
 		s.OptionsByExpirationURL,
 		s.OptionChainURL,
@@ -203,9 +203,9 @@ func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainR
 	resultCh <- result
 }
 
-func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error) {
+func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3) (chan map[string]interface{}, chan error) {
 	req := request.(*eventmodels.ReadOptionChainRequest)
-	resultCh := make(chan interface{})
+	resultCh := make(chan map[string]interface{})
 	errorCh := make(chan error)
 
 	bFindSpreads := false
@@ -214,7 +214,7 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	}
 
 	if req.EV != nil {
-		go s.serveWithParams(req, bFindSpreads, resultCh, errorCh)
+		go s.ServeWithParams(req, bFindSpreads, resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

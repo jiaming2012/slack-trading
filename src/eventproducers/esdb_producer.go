@@ -291,7 +291,7 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 	for _, param := range cli.readStreamParams {
 		mutex := param.Mutex
 
-		lastEventNumber, err := eventservices.FindStreamLastEventNumber(cli.db, param.StreamName)
+		lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, param.StreamName)
 		if err != nil {
 			log.Panicf("esdbProducer: failed to find last event number: %v", err)
 		}

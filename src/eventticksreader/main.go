@@ -212,7 +212,7 @@ func main() {
 	}
 
 	// Create Google Sheets API client
-	srv, drive, err := sheets.Init(ctx)
+	srv, drive, err := sheets.NewClientFromEnv(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize google sheets: %v", err)
 	}

@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
+	exec_trade "slack-trading/src/cmd/trade/run"
 	"slack-trading/src/eventconsumers"
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
@@ -22,6 +25,7 @@ import (
 	"slack-trading/src/eventproducers/signalapi"
 	"slack-trading/src/eventproducers/tradeapi"
 	"slack-trading/src/eventpubsub"
+	"slack-trading/src/sheets"
 	"slack-trading/src/utils"
 )
 
@@ -106,6 +110,22 @@ func (r *RouterSetup) Add(item RouterSetupItem) {
 
 type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
 
+func FindHighestEV(options []*eventmodels.OptionSpreadContractDTO) (long *eventmodels.OptionSpreadContractDTO, short *eventmodels.OptionSpreadContractDTO) {
+	var highestEVLong, highestEVShort float64
+	for _, option := range options {
+		if option.Stats.ExpectedProfitLong > highestEVLong {
+			highestEVLong = option.Stats.ExpectedProfitLong
+			long = option
+		}
+		if option.Stats.ExpectedProfitShort > highestEVShort {
+			highestEVShort = option.Stats.ExpectedProfitShort
+			short = option
+		}
+	}
+
+	return
+}
+
 func run() {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
@@ -151,9 +171,9 @@ func run() {
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 
 	// Set up google sheets
-	//if err := sheets.Init(ctx); err != nil {
-	//	panic(err)
-	//}
+	if _, _, err := sheets.NewClientFromEnv(ctx); err != nil {
+		panic(err)
+	}
 
 	// Setup router
 	port := os.Getenv("PORT")
@@ -219,6 +239,126 @@ func run() {
 	trackersClient := eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, &eventmodels.TrackerV3{})
 	trackersClient.Start(ctx)
 
+	// TrackerV3 client for generating option EV signals
+	trackersClientV3 := eventconsumers.NewESDBConsumerStream(&wg, eventStoreDbURL, &eventmodels.TrackerV3{})
+	trackerV3OptionEVConsumer := eventconsumers.NewTrackerV3Consumer(trackersClientV3)
+
+	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
+	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor) {
+		startsAt, err := time.Parse("2006-01-02T15:04:05-07:00", "2024-05-01T09:30:00-04:00")
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		endsAt, err := time.Parse("2006-01-02T15:04:05-07:00", "2024-05-31T16:00:00-04:00")
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		tradierOrderExecuter := NewTradierOrderExecuter(tradierOrdersURL, brokerBearerToken, true)
+
+		for event := range eventCh {
+			log.Infof("%v triggered for %v", event.Signal, event.Symbol)
+
+			req := &eventmodels.ReadOptionChainRequest{
+				Symbol:                    event.Symbol,
+				OptionTypes:               []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut},
+				ExpirationsInDays:         []int{0, 1},
+				MinDistanceBetweenStrikes: 10,
+				MaxNoOfStrikes:            4,
+				EV: &eventmodels.ReadOptionChainExpectedValue{
+					StartsAt: startsAt,
+					EndsAt:   endsAt,
+				},
+			}
+
+			if event.Signal == eventmodels.SuperTrend4h1hStochRsi15mUp {
+				resultCh := make(chan map[string]interface{})
+				errCh := make(chan error)
+
+				req.EV.Signal = string(eventmodels.SuperTrend4h1hStochRsi15mUp)
+
+				go optionsRequestExecutor.ServeWithParams(req, true, resultCh, errCh)
+
+				select {
+				case result := <-resultCh:
+					if result != nil {
+						options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
+						if !ok {
+							log.Errorf("options not found in result")
+							continue
+						}
+
+						if calls, ok := options["calls"]; ok {
+							highestEVLongCall, highestEVShortCall := FindHighestEV(calls)
+							if highestEVLongCall != nil {
+								log.Infof("Ignoring long call: %v", highestEVLongCall)
+							} else {
+								log.Infof("No Positive EV Long Call found")
+							}
+
+							if highestEVShortCall != nil {
+								requestedPrc := 0.0
+								if highestEVShortCall.CreditReceived != nil {
+									requestedPrc = *highestEVShortCall.CreditReceived
+								}
+
+								tag := fmt.Sprintf("%s---%.2f---%.2f", event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
+								tag = strings.Replace(tag, "_", "--", -1)
+								tag = strings.Replace(tag, ".", "-", -1)
+
+								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.ShortOptionSymbol, highestEVShortCall.LongOptionSymbol, 1, tag, goEnv); err != nil {
+									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
+								}
+							} else {
+								log.Infof("No Positive EV Short Call found")
+							}
+						} else {
+							log.Errorf("calls not found in result")
+						}
+
+						if puts, ok := options["puts"]; ok {
+							highestEVLongPut, highestEVShortPut := FindHighestEV(puts)
+							if highestEVLongPut != nil {
+								log.Infof("Ignoring long put: %v", highestEVLongPut)
+							} else {
+								log.Infof("No Positive EV Long Put found")
+							}
+
+							if highestEVShortPut != nil {
+								requestedPrc := 0.0
+								if highestEVShortPut.CreditReceived != nil {
+									requestedPrc = *highestEVShortPut.CreditReceived
+								}
+
+								tag := fmt.Sprintf("%s---%.2f---%.2f", event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
+								tag = strings.Replace(tag, "_", "--", -1)
+								tag = strings.Replace(tag, ".", "-", -1)
+
+								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.ShortOptionSymbol, highestEVShortPut.LongOptionSymbol, 1, tag, goEnv); err != nil {
+									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
+								}
+							} else {
+								log.Infof("No Positive EV Short Put found")
+							}
+						} else {
+							log.Errorf("puts not found in result")
+						}
+					}
+
+				case err := <-errCh:
+					if err != nil {
+						log.Errorf("error: %v", err)
+					}
+				}
+			}
+		}
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector)
+
+	trackerV3OptionEVConsumer.Start(ctx)
+
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
 
@@ -262,4 +402,18 @@ func run() {
 	wg.Wait()
 
 	log.Info("Main: gracefully stopped!")
+}
+
+type TradierOrderExecuter struct {
+	url         string
+	bearerToken string
+	dryRun      bool
+}
+
+func NewTradierOrderExecuter(url, bearerToken string, dryRun bool) *TradierOrderExecuter {
+	return &TradierOrderExecuter{url: url, bearerToken: bearerToken, dryRun: dryRun}
+}
+
+func (e *TradierOrderExecuter) PlaceTradeSpread(underlying eventmodels.StockSymbol, buyToOpenSymbol eventmodels.OptionSymbol, sellToOpenSymbol eventmodels.OptionSymbol, quantity int, tag string, goEnv string) error {
+	return exec_trade.PlaceTradeSpread(e.url, e.bearerToken, underlying, buyToOpenSymbol, sellToOpenSymbol, quantity, tag, e.dryRun)
 }

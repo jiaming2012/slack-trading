@@ -23,7 +23,7 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 
 	count := 0
 	fetchSize := 4096
-	lastEventNo, err := FindStreamLastEventNumber(esdbClient, streamName)
+	lastEventNo, err := FindStreamLastEventNumber(ctx, esdbClient, streamName)
 	if err != nil {
 		return 0, fmt.Errorf("failed to find last event number: %v", err)
 	}
@@ -63,7 +63,7 @@ func FetchAllData[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esd
 
 	params := instance.GetSavedEventParameters()
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
+	lastEventNumber, err := FindStreamLastEventNumber(ctx, esdbClient, params.StreamName)
 	if err != nil {
 		return nil, fmt.Errorf("FetchAllData: failed to find last event number: %w", err)
 	}
@@ -124,7 +124,7 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 
 	params := instance.GetSavedEventParameters()
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
+	lastEventNumber, err := FindStreamLastEventNumber(ctx, esdbClient, params.StreamName)
 	if err != nil {
 		return nil, fmt.Errorf("FetchAll: failed to find last event number: %w", err)
 	}
@@ -185,7 +185,7 @@ func FetchAllDeprecated[T eventmodels.SavedEvent](ctx context.Context, esdbClien
 
 	params := instance.GetSavedEventParameters()
 
-	lastEventNumber, err := FindStreamLastEventNumber(esdbClient, params.StreamName)
+	lastEventNumber, err := FindStreamLastEventNumber(ctx, esdbClient, params.StreamName)
 	if err != nil {
 		return nil, fmt.Errorf("FetchAll: failed to find last event number: %w", err)
 	}
@@ -240,8 +240,8 @@ func FetchAllDeprecated[T eventmodels.SavedEvent](ctx context.Context, esdbClien
 	return results, nil
 }
 
-func FindStreamLastEventNumber(db *esdb.Client, streamName eventmodels.StreamName) (uint64, error) {
-	stream, err := db.ReadStream(context.Background(), string(streamName), esdb.ReadStreamOptions{
+func FindStreamLastEventNumber(ctx context.Context, db *esdb.Client, streamName eventmodels.StreamName) (uint64, error) {
+	stream, err := db.ReadStream(ctx, string(streamName), esdb.ReadStreamOptions{
 		Direction: esdb.Backwards,
 		From:      esdb.End{},
 	}, 1)
