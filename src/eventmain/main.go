@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -285,6 +284,7 @@ func run() {
 				select {
 				case result := <-resultCh:
 					if result != nil {
+
 						options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
 						if !ok {
 							log.Errorf("options not found in result")
@@ -305,9 +305,7 @@ func run() {
 									requestedPrc = *highestEVShortCall.CreditReceived
 								}
 
-								tag := fmt.Sprintf("%s---%.2f---%.2f", event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
-								tag = strings.Replace(tag, "_", "--", -1)
-								tag = strings.Replace(tag, ".", "-", -1)
+								tag := utils.EncodeTag(event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
 
 								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.ShortOptionSymbol, highestEVShortCall.LongOptionSymbol, 1, tag, goEnv); err != nil {
 									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
@@ -333,9 +331,7 @@ func run() {
 									requestedPrc = *highestEVShortPut.CreditReceived
 								}
 
-								tag := fmt.Sprintf("%s---%.2f---%.2f", event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
-								tag = strings.Replace(tag, "_", "--", -1)
-								tag = strings.Replace(tag, ".", "-", -1)
+								tag := utils.EncodeTag(event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
 
 								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.ShortOptionSymbol, highestEVShortPut.LongOptionSymbol, 1, tag, goEnv); err != nil {
 									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
