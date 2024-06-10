@@ -15,11 +15,16 @@ import (
 	"slack-trading/src/eventservices"
 )
 
+type EsdbEvent[T eventmodels.SavedEvent] struct {
+	Event    T
+	IsReplay bool
+}
+
 type esdbConsumerStream[T eventmodels.SavedEvent] struct {
 	wg            *sync.WaitGroup
 	db            *esdb.Client
 	url           string
-	savedEventsCh chan T
+	savedEventsCh chan EsdbEvent[T]
 	streamName    eventmodels.StreamName
 }
 
@@ -27,13 +32,13 @@ func NewESDBConsumerStream[T eventmodels.SavedEvent](wg *sync.WaitGroup, url str
 	return &esdbConsumerStream[T]{
 		wg:            wg,
 		url:           url,
-		savedEventsCh: make(chan T),
+		savedEventsCh: make(chan EsdbEvent[T]),
 		streamName:    instance.GetSavedEventParameters().StreamName,
 	}
 }
 
 // In order to avoid race conditons and needing to make a copy of saved events on each call, we block the write operation with a mutex until the caller is done reading the data
-func (cli *esdbConsumerStream[T]) GetEventCh() <-chan T {
+func (cli *esdbConsumerStream[T]) GetEventCh() <-chan EsdbEvent[T] {
 	return cli.savedEventsCh
 }
 
@@ -89,7 +94,7 @@ func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamN
 
 				lastEventNumber = event.EventAppeared.OriginalEvent().EventNumber
 
-				if err := cli.processEvent(ctx, ev); err != nil {
+				if err := cli.processEvent(ctx, ev, false); err != nil {
 					errCh <- fmt.Errorf("esdbConsumerStream: failed to process event: %v", err)
 					return
 				}
@@ -110,7 +115,7 @@ func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamN
 	return errCh, nil
 }
 
-func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.RecordedEvent) error {
+func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.RecordedEvent, isReplay bool) error {
 	var savedEvent T
 
 	if err := json.Unmarshal(event.Data, &savedEvent); err != nil {
@@ -123,7 +128,7 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	case <-ctx.Done():
 		log.Errorf("esdbConsumerStream: processEvent: context done")
 		return fmt.Errorf("esdbConsumerStream: processEvent: context done")
-	case cli.savedEventsCh <- savedEvent:
+	case cli.savedEventsCh <- EsdbEvent[T]{Event: savedEvent, IsReplay: isReplay}:
 		log.Debugf("esdbConsumerStream: processEvent: successfully published event %d to savedEventsCh", event.EventNumber)
 	}
 
@@ -153,7 +158,7 @@ func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmo
 
 		log.Debugf("esdbConsumerStream: replaying event %d", event.Event.EventNumber)
 
-		if err := cli.processEvent(ctx, event.Event); err != nil {
+		if err := cli.processEvent(ctx, event.Event, true); err != nil {
 			return fmt.Errorf("esdbConsumerStream: failed to process event: %v", err)
 		}
 	}

@@ -92,16 +92,23 @@ func (t *TrackerV3Consumer) Start(ctx context.Context) {
 
 	go func() {
 		for event := range t.client.GetEventCh() {
-			if event.SignalTracker != nil {
-				if err := t.updateState(event); err != nil {
+			ev := event.Event
+
+			if ev.SignalTracker != nil {
+				if err := t.updateState(ev); err != nil {
 					log.Errorf("Failed to update state: %v", err)
 					continue
 				}
 
-				if isTriggered, signalName := t.checkIsSignalTriggered(event); isTriggered {
-					log.Infof("Signal triggered: %s", event.SignalTracker.Name)
+				if event.IsReplay {
+					log.Debugf("Ignore triggering replay event: %s", ev.SignalTracker.Name)
+					continue
+				}
+
+				if isTriggered, signalName := t.checkIsSignalTriggered(ev); isTriggered {
+					log.Infof("Signal triggered: %s", ev.SignalTracker.Name)
 					t.signalTriggered <- SignalTriggeredEvent{
-						Symbol: event.SignalTracker.Header.Symbol,
+						Symbol: ev.SignalTracker.Header.Symbol,
 						Signal: signalName,
 					}
 				}

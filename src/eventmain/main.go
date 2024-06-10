@@ -244,15 +244,21 @@ func run() {
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
 	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor) {
-		startsAt, err := time.Parse("2006-01-02T15:04:05-07:00", "2024-05-01T09:30:00-04:00")
+		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
-			fmt.Println("Error:", err)
+			log.Errorf("failed to load location: %v", err)
 			return
 		}
 
-		endsAt, err := time.Parse("2006-01-02T15:04:05-07:00", "2024-05-31T16:00:00-04:00")
+		startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", "2024-03-01T09:30:00", loc)
 		if err != nil {
-			fmt.Println("Error:", err)
+			log.Errorf("failed to parse startsAt: %v", err)
+			return
+		}
+
+		endsAt, err := time.ParseInLocation("2006-01-02T15:04:05", "2024-05-31T16:00:00", loc)
+		if err != nil {
+			log.Errorf("failed to parse endsAt: %v", err)
 			return
 		}
 
