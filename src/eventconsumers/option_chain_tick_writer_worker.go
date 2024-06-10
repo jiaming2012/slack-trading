@@ -54,11 +54,13 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			payload, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
 			if err != nil {
 				log.Errorf("Failed to fetch market calendar: %v", err)
+				continue
 			}
 
 			open, err := eventservices.IsMarketOpen(payload, nowEST)
 			if err != nil {
 				log.Errorf("Failed to check if market is open: %v", err)
+				continue
 			}
 
 			if !open {

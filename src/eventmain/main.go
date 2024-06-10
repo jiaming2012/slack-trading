@@ -125,6 +125,76 @@ func FindHighestEV(options []*eventmodels.OptionSpreadContractDTO) (long *eventm
 	return
 }
 
+func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *TradierOrderExecuter, goEnv string) error {
+	select {
+	case result := <-resultCh:
+		if result != nil {
+
+			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
+			if !ok {
+				return fmt.Errorf("options not found in result")
+			}
+
+			if calls, ok := options["calls"]; ok {
+				highestEVLongCall, highestEVShortCall := FindHighestEV(calls)
+				if highestEVLongCall != nil {
+					log.Infof("Ignoring long call: %v", highestEVLongCall)
+				} else {
+					log.Infof("No Positive EV Long Call found")
+				}
+
+				if highestEVShortCall != nil {
+					requestedPrc := 0.0
+					if highestEVShortCall.CreditReceived != nil {
+						requestedPrc = *highestEVShortCall.CreditReceived
+					}
+
+					tag := utils.EncodeTag(event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
+
+					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.ShortOptionSymbol, highestEVShortCall.LongOptionSymbol, 1, tag, goEnv); err != nil {
+						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
+					}
+				} else {
+					log.Infof("No Positive EV Short Call found")
+				}
+			} else {
+				return fmt.Errorf("calls not found in result")
+			}
+
+			if puts, ok := options["puts"]; ok {
+				highestEVLongPut, highestEVShortPut := FindHighestEV(puts)
+				if highestEVLongPut != nil {
+					log.Infof("Ignoring long put: %v", highestEVLongPut)
+				} else {
+					log.Infof("No Positive EV Long Put found")
+				}
+
+				if highestEVShortPut != nil {
+					requestedPrc := 0.0
+					if highestEVShortPut.CreditReceived != nil {
+						requestedPrc = *highestEVShortPut.CreditReceived
+					}
+
+					tag := utils.EncodeTag(event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
+
+					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.ShortOptionSymbol, highestEVShortPut.LongOptionSymbol, 1, tag, goEnv); err != nil {
+						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
+					}
+				} else {
+					log.Infof("No Positive EV Short Put found")
+				}
+			} else {
+				return fmt.Errorf("puts not found in result")
+			}
+		}
+
+	case err := <-errCh:
+		return fmt.Errorf("error: %v", err)
+	}
+
+	return nil
+}
+
 func run() {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
@@ -279,6 +349,19 @@ func run() {
 				},
 			}
 
+			if event.Signal == eventmodels.SuperTrend4h1hStochRsi15mDown {
+				resultCh := make(chan map[string]interface{})
+				errCh := make(chan error)
+
+				req.EV.Signal = string(eventmodels.SuperTrend4h1hStochRsi15mDown)
+
+				go optionsRequestExecutor.ServeWithParams(req, true, resultCh, errCh)
+
+				if err := SendHighestEVTradeToMarket(resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
+					log.Errorf("SuperTrend4h1hStochRsi15mDown: send to market failed: %v", err)
+				}
+			}
+
 			if event.Signal == eventmodels.SuperTrend4h1hStochRsi15mUp {
 				resultCh := make(chan map[string]interface{})
 				errCh := make(chan error)
@@ -287,73 +370,8 @@ func run() {
 
 				go optionsRequestExecutor.ServeWithParams(req, true, resultCh, errCh)
 
-				select {
-				case result := <-resultCh:
-					if result != nil {
-
-						options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
-						if !ok {
-							log.Errorf("options not found in result")
-							continue
-						}
-
-						if calls, ok := options["calls"]; ok {
-							highestEVLongCall, highestEVShortCall := FindHighestEV(calls)
-							if highestEVLongCall != nil {
-								log.Infof("Ignoring long call: %v", highestEVLongCall)
-							} else {
-								log.Infof("No Positive EV Long Call found")
-							}
-
-							if highestEVShortCall != nil {
-								requestedPrc := 0.0
-								if highestEVShortCall.CreditReceived != nil {
-									requestedPrc = *highestEVShortCall.CreditReceived
-								}
-
-								tag := utils.EncodeTag(event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
-
-								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.ShortOptionSymbol, highestEVShortCall.LongOptionSymbol, 1, tag, goEnv); err != nil {
-									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
-								}
-							} else {
-								log.Infof("No Positive EV Short Call found")
-							}
-						} else {
-							log.Errorf("calls not found in result")
-						}
-
-						if puts, ok := options["puts"]; ok {
-							highestEVLongPut, highestEVShortPut := FindHighestEV(puts)
-							if highestEVLongPut != nil {
-								log.Infof("Ignoring long put: %v", highestEVLongPut)
-							} else {
-								log.Infof("No Positive EV Long Put found")
-							}
-
-							if highestEVShortPut != nil {
-								requestedPrc := 0.0
-								if highestEVShortPut.CreditReceived != nil {
-									requestedPrc = *highestEVShortPut.CreditReceived
-								}
-
-								tag := utils.EncodeTag(event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
-
-								if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.ShortOptionSymbol, highestEVShortPut.LongOptionSymbol, 1, tag, goEnv); err != nil {
-									log.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
-								}
-							} else {
-								log.Infof("No Positive EV Short Put found")
-							}
-						} else {
-							log.Errorf("puts not found in result")
-						}
-					}
-
-				case err := <-errCh:
-					if err != nil {
-						log.Errorf("error: %v", err)
-					}
+				if err := SendHighestEVTradeToMarket(resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
+					log.Errorf("SuperTrend4h1hStochRsi15mUp: send to market failed: %v", err)
 				}
 			}
 		}

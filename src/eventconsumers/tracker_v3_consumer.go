@@ -31,6 +31,35 @@ func (t *TrackerV3Consumer) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
 	return t.signalTriggered
 }
 
+func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.StockSymbol) bool {
+	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
+	m15Signal, found := t.state[m15SignalKey]
+	if !found {
+		log.Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		return false
+	}
+
+	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
+	h1Signal, found := t.state[h1SignalKey]
+	if !found {
+		log.Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		return false
+	}
+
+	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
+	h4Signal, found := t.state[h4SignalKey]
+	if !found {
+		log.Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
+		return false
+	}
+
+	if m15Signal == "buy" && h1Signal == "sell" && h4Signal == "sell" {
+		return true
+	}
+
+	return false
+}
+
 func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.StockSymbol) bool {
 	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
 	m15Signal, found := t.state[m15SignalKey]
@@ -81,6 +110,8 @@ func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3)
 	switch event.SignalTracker.Name {
 	case "stochastic_rsi-sell":
 		return t.checkSupertrendH1H4StochRsiUp(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mUp
+	case "stochastic_rsi-buy":
+		return t.checkSupertrendH1H4StochRsiDown(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mDown
 	default:
 		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: non-triggering event received: %s", event.SignalTracker.Name)
 		return false, ""
