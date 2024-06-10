@@ -182,8 +182,8 @@ if __name__ == "__main__":
     for option, debit_paid, long_expected_profit in long_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "debit_paid": debit_paid,
-            "expected_profit": long_expected_profit
+            "debit_paid": str(debit_paid),
+            "expected_profit": str(long_expected_profit)
         })
 
         if not args.json_output:
@@ -195,8 +195,8 @@ if __name__ == "__main__":
     for option, credit_received, short_expected_profit in short_calls_options_and_profits:
         output.append({
             "description": option.description,
-            "credit_received": credit_received,
-            "expected_profit": short_expected_profit
+            "credit_received": str(credit_received),
+            "expected_profit": str(short_expected_profit)
         })
         
         if not args.json_output:
@@ -208,8 +208,8 @@ if __name__ == "__main__":
     for option, debit_paid, long_expected_profit in long_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "debit_paid": debit_paid,
-            "expected_profit": long_expected_profit
+            "debit_paid": str(debit_paid),
+            "expected_profit": str(long_expected_profit)
         })
 
         if not args.json_output:
@@ -221,8 +221,8 @@ if __name__ == "__main__":
     for option, credit_received, short_expected_profit in short_puts_options_and_profits:
         output.append({
             "description": option.description,
-            "credit_received": credit_received,
-            "expected_profit": short_expected_profit
+            "credit_received": str(credit_received),
+            "expected_profit": str(short_expected_profit)
         })
 
         if not args.json_output:

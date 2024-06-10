@@ -24,7 +24,7 @@ type ReadOptionChainRequestExecutor struct {
 	GoEnv                  string
 }
 
-func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitLongSpreadMap map[string]eventmodels.ExpectedProfitItemSpreadDTO, expectedProfitShortSpreadMap map[string]eventmodels.ExpectedProfitItemSpreadDTO) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
+func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitLongSpreadMap map[string]eventmodels.ExpectedProfitItemSpread, expectedProfitShortSpreadMap map[string]eventmodels.ExpectedProfitItemSpread) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
 	var callOptionsDTO []*eventmodels.OptionSpreadContractDTO
 	var putOptionsDTO []*eventmodels.OptionSpreadContractDTO
 
@@ -35,11 +35,13 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 		}
 
 		spread := eventmodels.OptionSpreadContractDTO{
-			Description:       longSpread.Description,
-			DebitPaid:         longSpread.DebitPaid,
-			CreditReceived:    shortSpread.CreditReceived,
-			LongOptionSymbol:  eventmodels.OptionSymbol(longSpread.LongOptionSymbol),
-			ShortOptionSymbol: eventmodels.OptionSymbol(longSpread.ShortOptionSymbol),
+			Description:           longSpread.Description,
+			DebitPaid:             longSpread.DebitPaid,
+			CreditReceived:        shortSpread.CreditReceived,
+			LongOptionSymbol:      eventmodels.OptionSymbol(longSpread.LongOptionSymbol),
+			LongOptionExpiration:  longSpread.LongOptionExpiration,
+			ShortOptionSymbol:     eventmodels.OptionSymbol(longSpread.ShortOptionSymbol),
+			ShortOptionExpiration: shortSpread.ShortOptionExpiration,
 		}
 
 		spread.Stats = eventmodels.OptionStats{
@@ -72,7 +74,7 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 	}, nil
 }
 
-func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmodels.OptionContractV3, expectedProfitLongMap map[string]eventmodels.ExpectedProfitItemDTO, expectedProfitShortMap map[string]eventmodels.ExpectedProfitItemDTO) []*eventmodels.OptionContractV3DTO {
+func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmodels.OptionContractV3, expectedProfitLongMap map[string]eventmodels.ExpectedProfitItem, expectedProfitShortMap map[string]eventmodels.ExpectedProfitItem) []*eventmodels.OptionContractV3DTO {
 	now := time.Now()
 	var optionsDTO []*eventmodels.OptionContractV3DTO
 	for _, option := range options {
@@ -104,7 +106,7 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmo
 	return optionsDTO
 }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, signalName string, resultCh chan map[string]interface{}, errorCh chan error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
@@ -145,7 +147,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
 		GoEnv:      s.GoEnv,
-		SignalName: "supertrend_4h_1h_stoch_rsi_15m_up",
+		SignalName: signalName,
 	}, options, stockTickItemDTO)
 
 	if err != nil {
@@ -214,7 +216,7 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	}
 
 	if req.EV != nil {
-		go s.ServeWithParams(req, bFindSpreads, resultCh, errorCh)
+		go s.ServeWithParams(req, bFindSpreads, "supertrend_4h_1h_stoch_rsi_15m_up", resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

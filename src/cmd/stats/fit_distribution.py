@@ -126,6 +126,9 @@ output = {
     'right_tail_kurtosis': right_kurtosis
 }
 
+# Create the output directory if it does not exist
+os.makedirs(os.path.dirname(outDir), exist_ok=True)
+
 with open(outDir, 'w') as f:
     json.dump(output, f)
 

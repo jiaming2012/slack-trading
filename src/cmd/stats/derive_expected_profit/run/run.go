@@ -13,6 +13,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	supertrend_4h_1h_stoch_rsi_15m_down "slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
 	supertrend_4h_1h_stoch_rsi_15m_up "slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
 	"slack-trading/src/eventmodels"
 )
@@ -71,7 +72,7 @@ func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.Stock
 	return string(input), nil
 }
 
-func ExecDeriveExpectedProfitSpreads(projectsDir, distributionInDir string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+func ExecDeriveExpectedProfitSpreads(projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
 	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit_spreads.py")
 
@@ -97,7 +98,7 @@ func ExecDeriveExpectedProfitSpreads(projectsDir, distributionInDir string, opti
 	return results, nil
 }
 
-func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
+func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
 	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit.py")
 
@@ -179,21 +180,94 @@ func calculateLookaheadCandlesCount(now time.Time, options []eventmodels.OptionC
 	return lookaheadCandlesCount, lookaheadToOptionContractsMap
 }
 
-func FetchEV(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemDTO, map[string]eventmodels.ExpectedProfitItemDTO, map[string]eventmodels.ExpectedProfitItemSpreadDTO, map[string]eventmodels.ExpectedProfitItemSpreadDTO, error) {
-	var resultMapLong map[string]eventmodels.ExpectedProfitItemDTO
-	var resultMapShort map[string]eventmodels.ExpectedProfitItemDTO
-	var resultMapLongSpread map[string]eventmodels.ExpectedProfitItemSpreadDTO
-	var resultMapShortSpread map[string]eventmodels.ExpectedProfitItemSpreadDTO
+func FetchEV(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItem, map[string]eventmodels.ExpectedProfitItem, map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+	var resultMapLong map[string]eventmodels.ExpectedProfitItem
+	var resultMapShort map[string]eventmodels.ExpectedProfitItem
+	var resultMapLongSpread map[string]eventmodels.ExpectedProfitItemSpread
+	var resultMapShortSpread map[string]eventmodels.ExpectedProfitItemSpread
 
 	if bFindSpreads {
-		resultMapLongSpread = make(map[string]eventmodels.ExpectedProfitItemSpreadDTO)
-		resultMapShortSpread = make(map[string]eventmodels.ExpectedProfitItemSpreadDTO)
+		resultMapLongSpread = make(map[string]eventmodels.ExpectedProfitItemSpread)
+		resultMapShortSpread = make(map[string]eventmodels.ExpectedProfitItemSpread)
 	} else {
-		resultMapLong = make(map[string]eventmodels.ExpectedProfitItemDTO)
-		resultMapShort = make(map[string]eventmodels.ExpectedProfitItemDTO)
+		resultMapLong = make(map[string]eventmodels.ExpectedProfitItem)
+		resultMapShort = make(map[string]eventmodels.ExpectedProfitItem)
 	}
 
 	switch args.SignalName {
+	case "supertrend_4h_1h_stoch_rsi_15m_down":
+		lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
+
+		log.Infof("Running supertrend_4h_1h_stoch_rsi_15m_down with lookaheadCandlesCount: %v", lookaheadCandlesCount)
+
+		output, err := supertrend_4h_1h_stoch_rsi_15m_down.Run(supertrend_4h_1h_stoch_rsi_15m_down.RunArgs{
+			StartsAt:              args.StartsAt,
+			EndsAt:                args.EndsAt,
+			Ticker:                args.Ticker,
+			LookaheadCandlesCount: lookaheadCandlesCount,
+			GoEnv:                 args.GoEnv,
+		})
+
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_down: %w", err)
+		}
+
+		for _, filePath := range output.ExportedFilepaths {
+			log.Infof("fitting distribution for filepath: %s", filePath)
+
+			outDir, err := ExecFitDistribution(projectDir, filePath)
+			if err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running fit_distribution.py: %w", err)
+			}
+
+			if bFindSpreads {
+				resultsDTO, err := ExecDeriveExpectedProfitSpreads(projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit_spreads.py: %w", err)
+				}
+
+				var results []eventmodels.ExpectedProfitItemSpread
+				for _, dto := range resultsDTO {
+					r, err := dto.ToModel()
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: error converting results to model: %w", err)
+					}
+
+					results = append(results, *r)
+				}
+
+				for _, r := range results {
+					if r.DebitPaid != nil {
+						resultMapLongSpread[r.Description] = r
+					} else if r.CreditReceived != nil {
+						resultMapShortSpread[r.Description] = r
+					} else {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
+					}
+				}
+			} else {
+				resultsDTO, err := ExecDeriveExpectedProfit(projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit.py: %w", err)
+				}
+
+				for _, dto := range resultsDTO {
+					r, err := dto.ToModel()
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: ExecDeriveExpectedProfit: error converting results to model: %w", err)
+					}
+
+					if r.DebitPaid != nil {
+						resultMapLong[r.Description] = *r
+					} else if r.CreditReceived != nil {
+						resultMapShort[r.Description] = *r
+					} else {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
+					}
+				}
+			}
+		}
+
 	case "supertrend_4h_1h_stoch_rsi_15m_up":
 		lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
 
@@ -220,31 +294,41 @@ func FetchEV(projectDir string, bFindSpreads bool, args RunArgs, options []event
 			}
 
 			if bFindSpreads {
-				results, err := ExecDeriveExpectedProfitSpreads(projectDir, outDir, options, stockInfo, lookaheadToOptionContractsMap)
+				resultsDTO, err := ExecDeriveExpectedProfitSpreads(projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit_spreads.py: %w", err)
 				}
 
-				for _, r := range results {
+				for _, dto := range resultsDTO {
+					r, err := dto.ToModel()
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: error converting results to model: %w", err)
+					}
+
 					if r.DebitPaid != nil {
-						resultMapLongSpread[r.Description] = r
+						resultMapLongSpread[r.Description] = *r
 					} else if r.CreditReceived != nil {
-						resultMapShortSpread[r.Description] = r
+						resultMapShortSpread[r.Description] = *r
 					} else {
 						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
 					}
 				}
 			} else {
-				results, err := ExecDeriveExpectedProfit(projectDir, outDir, options, stockInfo, lookaheadToOptionContractsMap)
+				resultsDTO, err := ExecDeriveExpectedProfit(projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit.py: %w", err)
 				}
 
-				for _, r := range results {
+				for _, dto := range resultsDTO {
+					r, err := dto.ToModel()
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("FetchEV: error converting results to model: %w", err)
+					}
+
 					if r.DebitPaid != nil {
-						resultMapLong[r.Description] = r
+						resultMapLong[r.Description] = *r
 					} else if r.CreditReceived != nil {
-						resultMapShort[r.Description] = r
+						resultMapShort[r.Description] = *r
 					} else {
 						return nil, nil, nil, nil, fmt.Errorf("FetchEV: invalid result: %v", r)
 					}

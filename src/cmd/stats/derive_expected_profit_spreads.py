@@ -228,9 +228,11 @@ if __name__ == "__main__":
             "description": spread.description(),
             "type": spread.type,
             "long_option_symbol": spread.long_option.symbol,
+            "long_option_expiration": spread.long_option.expiration,
             "short_option_symbol": spread.short_option.symbol,
-            "debit_paid": debit_paid,
-            "expected_profit": long_expected_profit
+            "short_option_expiration": spread.short_option.expiration,
+            "debit_paid": str(debit_paid),
+            "expected_profit": str(long_expected_profit)
         })
 
         if not args.json_output:
@@ -245,9 +247,11 @@ if __name__ == "__main__":
             "description": spread.description(),
             "type": spread.type,
             "long_option_symbol": spread.long_option.symbol,
+            "long_option_expiration": spread.long_option.expiration,
             "short_option_symbol": spread.short_option.symbol,
-            "credit_received": credit_received,
-            "expected_profit": short_expected_profit
+            "short_option_expiration": spread.short_option.expiration,
+            "credit_received": str(credit_received),
+            "expected_profit": str(short_expected_profit)
         })
 
         if not args.json_output:
@@ -262,9 +266,11 @@ if __name__ == "__main__":
             "description": spread.description(),
             "type": spread.type,
             "long_option_symbol": spread.long_option.symbol,
+            "long_option_expiration": spread.long_option.expiration,
             "short_option_symbol": spread.short_option.symbol,
-            "debit_paid": debit_paid,
-            "expected_profit": long_expected_profit
+            "short_option_expiration": spread.short_option.expiration,
+            "debit_paid": str(debit_paid),
+            "expected_profit": str(long_expected_profit)
         })
 
         if not args.json_output:
@@ -279,9 +285,11 @@ if __name__ == "__main__":
             "description": spread.description(),
             "type": spread.type,
             "long_option_symbol": spread.long_option.symbol,
+            "long_option_expiration": spread.long_option.expiration,
             "short_option_symbol": spread.short_option.symbol,
-            "credit_received": credit_received,
-            "expected_profit": short_expected_profit
+            "short_option_expiration": spread.short_option.expiration,
+            "credit_received": str(credit_received),
+            "expected_profit": str(short_expected_profit)
         })
 
         if not args.json_output:

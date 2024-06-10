@@ -1,6 +1,7 @@
 import requests
 import json
 import uuid
+import os
 from dataclasses import dataclass
 from typing import List, Tuple
 from enum import Enum
@@ -126,6 +127,11 @@ if __name__ == '__main__':
 
     # write to a unique tmp file
     outDir = f'tmp-{uuid.uuid4()}.json'
+
+
+    # Create the output directory if it does not exist
+    os.makedirs(os.path.dirname(outDir), exist_ok=True)
+
     with open(outDir, 'w') as file:
         json.dump(result, file)
 

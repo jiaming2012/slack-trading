@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"sync"
 	"syscall"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 
 	exec_trade "slack-trading/src/cmd/trade/run"
 	"slack-trading/src/eventconsumers"
@@ -110,20 +112,52 @@ func (r *RouterSetup) Add(item RouterSetupItem) {
 
 type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
 
-func FindHighestEV(options []*eventmodels.OptionSpreadContractDTO) (long *eventmodels.OptionSpreadContractDTO, short *eventmodels.OptionSpreadContractDTO) {
-	var highestEVLong, highestEVShort float64
+func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO) {
+	highestEVLongMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
+	highestEVShortMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
+
 	for _, option := range options {
-		if option.Stats.ExpectedProfitLong > highestEVLong {
-			highestEVLong = option.Stats.ExpectedProfitLong
-			long = option
+		expiration, err := option.GetExpiration()
+		if err != nil {
+			log.Errorf("FindHighestEV: failed to get expiration: %v", err)
+			continue
 		}
-		if option.Stats.ExpectedProfitShort > highestEVShort {
-			highestEVShort = option.Stats.ExpectedProfitShort
-			short = option
+
+		highestLongEV, found := highestEVLongMap[expiration]
+		if found {
+			if option.Stats.ExpectedProfitLong > highestLongEV.Stats.ExpectedProfitLong {
+				highestEVLongMap[expiration] = option
+			}
+		} else {
+			highestEVLongMap[expiration] = option
+		}
+
+		highestShortEV, found := highestEVShortMap[expiration]
+		if found {
+			if option.Stats.ExpectedProfitShort > highestShortEV.Stats.ExpectedProfitShort {
+				highestEVShortMap[expiration] = option
+			}
+		} else {
+			highestEVShortMap[expiration] = option
 		}
 	}
 
-	return
+	var highestEVLong []*eventmodels.OptionSpreadContractDTO
+	var highestEVShort []*eventmodels.OptionSpreadContractDTO
+
+	for _, option := range highestEVLongMap {
+		if option.Stats.ExpectedProfitLong > 0 {
+			highestEVLong = append(highestEVLong, option)
+		}
+	}
+
+	for _, option := range highestEVShortMap {
+		if option.Stats.ExpectedProfitShort > 0 {
+			highestEVShort = append(highestEVShort, option)
+		}
+	}
+
+	return highestEVLong, highestEVShort
 }
 
 func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *TradierOrderExecuter, goEnv string) error {
@@ -137,52 +171,60 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 			}
 
 			if calls, ok := options["calls"]; ok {
-				highestEVLongCall, highestEVShortCall := FindHighestEV(calls)
-				if highestEVLongCall != nil {
-					log.Infof("Ignoring long call: %v", highestEVLongCall)
-				} else {
-					log.Infof("No Positive EV Long Call found")
+				highestEVLongCallSpreads, highestEVShortCallSpreads := FindHighestEVPerExpiration(calls)
+				for _, spread := range highestEVLongCallSpreads {
+					if spread != nil {
+						log.Infof("Ignoring long call: %v", spread)
+					} else {
+						log.Infof("No Positive EV Long Call found")
+					}
 				}
 
-				if highestEVShortCall != nil {
-					requestedPrc := 0.0
-					if highestEVShortCall.CreditReceived != nil {
-						requestedPrc = *highestEVShortCall.CreditReceived
-					}
+				for _, spread := range highestEVShortCallSpreads {
+					if spread != nil {
+						requestedPrc := 0.0
+						if spread.CreditReceived != nil {
+							requestedPrc = *spread.CreditReceived
+						}
 
-					tag := utils.EncodeTag(event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
+						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
-					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.LongOptionSymbol, highestEVShortCall.ShortOptionSymbol, 1, tag, goEnv); err != nil {
-						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
+						if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, goEnv); err != nil {
+							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
+						}
+					} else {
+						log.Infof("No Positive EV Short Call found")
 					}
-				} else {
-					log.Infof("No Positive EV Short Call found")
 				}
 			} else {
 				return fmt.Errorf("calls not found in result")
 			}
 
 			if puts, ok := options["puts"]; ok {
-				highestEVLongPut, highestEVShortPut := FindHighestEV(puts)
-				if highestEVLongPut != nil {
-					log.Infof("Ignoring long put: %v", highestEVLongPut)
-				} else {
-					log.Infof("No Positive EV Long Put found")
+				highestEVLongPutSpreads, highestEVShortPutSpreads := FindHighestEVPerExpiration(puts)
+				for _, spread := range highestEVLongPutSpreads {
+					if spread != nil {
+						log.Infof("Ignoring long put: %v", spread)
+					} else {
+						log.Infof("No Positive EV Long Put found")
+					}
 				}
 
-				if highestEVShortPut != nil {
-					requestedPrc := 0.0
-					if highestEVShortPut.CreditReceived != nil {
-						requestedPrc = *highestEVShortPut.CreditReceived
-					}
+				for _, spread := range highestEVShortPutSpreads {
+					if spread != nil {
+						requestedPrc := 0.0
+						if spread.CreditReceived != nil {
+							requestedPrc = *spread.CreditReceived
+						}
 
-					tag := utils.EncodeTag(event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
+						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
-					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.LongOptionSymbol, highestEVShortPut.ShortOptionSymbol, 1, tag, goEnv); err != nil {
-						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
+						if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, goEnv); err != nil {
+							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
+						}
+					} else {
+						log.Infof("No Positive EV Short Put found")
 					}
-				} else {
-					log.Infof("No Positive EV Short Put found")
 				}
 			} else {
 				return fmt.Errorf("puts not found in result")
@@ -196,15 +238,40 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 	return nil
 }
 
+type OptionYAML struct {
+	Symbol                    string  `yaml:"symbol"`
+	StartsAt                  string  `yaml:"startsAt"`
+	EndsAt                    string  `yaml:"endsAt"`
+	ExpirationsInDays         []int   `yaml:"expirationsInDays"`
+	MinDistanceBetweenStrikes float64 `yaml:"minDistanceBetweenStrikes"`
+	MaxNoOfStrikes            int     `yaml:"maxNoOfStrikes"`
+}
+
+type OptionsConfigYAML struct {
+	Options []OptionYAML `yaml:"options"`
+}
+
+func (o *OptionsConfigYAML) GetOption(symbol eventmodels.StockSymbol) (*OptionYAML, error) {
+	sym1 := strings.ToLower(string(symbol))
+	for _, option := range o.Options {
+		sym2 := strings.ToLower(option.Symbol)
+		if sym1 == sym2 {
+			return &option, nil
+		}
+	}
+
+	return nil, fmt.Errorf("OptionsConfigYAML: option not found")
+}
+
 func run() {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
-		panic("missing PROJECTS_DIR environment variable")
+		log.Fatalf("missing PROJECTS_DIR environment variable")
 	}
 
 	goEnv := os.Getenv("GO_ENV")
 	if goEnv == "" {
-		panic("missing GO_ENV environment variable")
+		log.Fatalf("missing GO_ENV environment variable")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -243,9 +310,21 @@ func run() {
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
+	// Load config
+	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
+	data, err := os.ReadFile(optionsConfigInDir)
+	if err != nil {
+		log.Fatalf("failed to read options config: %v", err)
+	}
+
+	var optionsConfig OptionsConfigYAML
+	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
+		log.Fatalf("failed to unmarshal options config: %v", err)
+	}
+
 	// Set up google sheets
 	if _, _, err := sheets.NewClientFromEnv(ctx); err != nil {
-		panic(err)
+		log.Fatalf("failed to create google sheets client: %v", err)
 	}
 
 	// Setup router
@@ -286,7 +365,7 @@ func run() {
 		log.Infof("listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil {
 			if err.Error() != "http: Server closed" {
-				panic(err)
+				log.Fatalf("failed to start server: %v", err)
 			}
 		}
 	}()
@@ -317,23 +396,10 @@ func run() {
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerV3Consumer(trackersClientV3)
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
-	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, isDryRun bool) {
+	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config OptionsConfigYAML, isDryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
-			log.Errorf("failed to load location: %v", err)
-			return
-		}
-
-		startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", "2024-03-01T09:30:00", loc)
-		if err != nil {
-			log.Errorf("failed to parse startsAt: %v", err)
-			return
-		}
-
-		endsAt, err := time.ParseInLocation("2006-01-02T15:04:05", "2024-05-31T16:00:00", loc)
-		if err != nil {
-			log.Errorf("failed to parse endsAt: %v", err)
-			return
+			log.Panicf("failed to load location: %v", err)
 		}
 
 		tradierOrderExecuter := NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
@@ -341,12 +407,30 @@ func run() {
 		for event := range eventCh {
 			log.Infof("%v triggered for %v", event.Signal, event.Symbol)
 
+			optionConfig, err := config.GetOption(event.Symbol)
+			if err != nil {
+				log.Errorf("failed to get option config: %v", err)
+				continue
+			}
+
+			startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", optionConfig.StartsAt, loc)
+			if err != nil {
+				log.Errorf("failed to parse startsAt: %v", err)
+				return
+			}
+
+			endsAt, err := time.ParseInLocation("2006-01-02T15:04:05", optionConfig.EndsAt, loc)
+			if err != nil {
+				log.Errorf("failed to parse endsAt: %v", err)
+				return
+			}
+
 			req := &eventmodels.ReadOptionChainRequest{
 				Symbol:                    event.Symbol,
 				OptionTypes:               []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut},
-				ExpirationsInDays:         []int{0, 1},
-				MinDistanceBetweenStrikes: 10,
-				MaxNoOfStrikes:            4,
+				ExpirationsInDays:         optionConfig.ExpirationsInDays,
+				MinDistanceBetweenStrikes: optionConfig.MinDistanceBetweenStrikes,
+				MaxNoOfStrikes:            optionConfig.MaxNoOfStrikes,
 				EV: &eventmodels.ReadOptionChainExpectedValue{
 					StartsAt: startsAt,
 					EndsAt:   endsAt,
@@ -359,7 +443,7 @@ func run() {
 
 				req.EV.Signal = string(eventmodels.SuperTrend4h1hStochRsi15mDown)
 
-				go optionsRequestExecutor.ServeWithParams(req, true, resultCh, errCh)
+				go optionsRequestExecutor.ServeWithParams(req, true, "supertrend_4h_1h_stoch_rsi_15m_down", resultCh, errCh)
 
 				if err := SendHighestEVTradeToMarket(resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
 					log.Errorf("SuperTrend4h1hStochRsi15mDown: send to market failed: %v", err)
@@ -372,14 +456,14 @@ func run() {
 
 				req.EV.Signal = string(eventmodels.SuperTrend4h1hStochRsi15mUp)
 
-				go optionsRequestExecutor.ServeWithParams(req, true, resultCh, errCh)
+				go optionsRequestExecutor.ServeWithParams(req, true, "supertrend_4h_1h_stoch_rsi_15m_up", resultCh, errCh)
 
 				if err := SendHighestEVTradeToMarket(resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
 					log.Errorf("SuperTrend4h1hStochRsi15mUp: send to market failed: %v", err)
 				}
 			}
 		}
-	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, isDryRun)
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
 
 	trackerV3OptionEVConsumer.Start(ctx)
 

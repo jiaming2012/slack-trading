@@ -81,6 +81,11 @@ func (cli *esdbConsumer[T]) subscribeToStream(ctx context.Context, streamName ev
 	go func() {
 		for {
 			for {
+				if subscription == nil {
+					log.Debugf("subscription is nil")
+					break
+				}
+
 				event := subscription.Recv()
 
 				if event.SubscriptionDropped != nil {
