@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -151,7 +152,7 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 
 					tag := utils.EncodeTag(event.Signal, highestEVShortCall.Stats.ExpectedProfitShort, requestedPrc)
 
-					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.ShortOptionSymbol, highestEVShortCall.LongOptionSymbol, 1, tag, goEnv); err != nil {
+					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortCall.LongOptionSymbol, highestEVShortCall.ShortOptionSymbol, 1, tag, goEnv); err != nil {
 						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
 					}
 				} else {
@@ -177,7 +178,7 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 
 					tag := utils.EncodeTag(event.Signal, highestEVShortPut.Stats.ExpectedProfitShort, requestedPrc)
 
-					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.ShortOptionSymbol, highestEVShortPut.LongOptionSymbol, 1, tag, goEnv); err != nil {
+					if err := tradierOrderExecuter.PlaceTradeSpread(event.Symbol, highestEVShortPut.LongOptionSymbol, highestEVShortPut.ShortOptionSymbol, 1, tag, goEnv); err != nil {
 						return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 					}
 				} else {
@@ -231,13 +232,16 @@ func run() {
 
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
-	accountID := os.Getenv("TRADIER_ACCOUNT_ID")
-	tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), accountID)
-	tradierQuotesURL := os.Getenv("TRADIER_QUOTES_URL")
+	// quotesAccountID := os.Getenv("TRADIER_ACCOUNT_ID")
+	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
+	// tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), quotesAccountID)
+	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
+	tradierTradesBearerToken := os.Getenv("TRADIER_TRADES_BEARER_TOKEN")
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 	oandaFxQuotesURLBase := os.Getenv("OANDA_FX_QUOTES_URL_BASE")
 	oandaBearerToken := os.Getenv("OANDA_BEARER_TOKEN")
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
+	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
 	// Set up google sheets
 	if _, _, err := sheets.NewClientFromEnv(ctx); err != nil {
@@ -313,7 +317,7 @@ func run() {
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerV3Consumer(trackersClientV3)
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
-	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor) {
+	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, isDryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			log.Errorf("failed to load location: %v", err)
@@ -332,7 +336,7 @@ func run() {
 			return
 		}
 
-		tradierOrderExecuter := NewTradierOrderExecuter(tradierOrdersURL, brokerBearerToken, true)
+		tradierOrderExecuter := NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
 
 		for event := range eventCh {
 			log.Infof("%v triggered for %v", event.Signal, event.Symbol)
@@ -375,12 +379,12 @@ func run() {
 				}
 			}
 		}
-	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector)
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, isDryRun)
 
 	trackerV3OptionEVConsumer.Start(ctx)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
-	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierOrdersURL, brokerBearerToken).Start(ctx)
+	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
@@ -408,7 +412,7 @@ func run() {
 	// 	eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, []eventmodels.StreamParameter{streamParam}).Start(ctx)
 	// }
 
-	eventconsumers.NewOptionAlertWorker(&wg, tradierQuotesURL, brokerBearerToken).Start(ctx)
+	eventconsumers.NewOptionAlertWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
 
 	log.Info("Main: init complete")
 

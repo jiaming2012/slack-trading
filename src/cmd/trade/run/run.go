@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -28,11 +29,13 @@ func PlaceTradeSpread(url string, bearerToken string, underlying eventmodels.Sto
 		return fmt.Errorf("PlaceTradeSpread: failed to create request: %w", err)
 	}
 
+	underlyingStr := strings.ToUpper(string(underlying))
+
 	q := req.URL.Query()
 	q.Add("class", "multileg")
 	q.Add("duration", "GTC")
 	q.Add("type", "market")
-	q.Add("symbol", string(underlying))
+	q.Add("symbol", underlyingStr)
 	q.Add("option_symbol[0]", string(buyToOpenSymbol))
 	q.Add("quantity[0]", quantityStr)
 	q.Add("side[0]", "buy_to_open")
