@@ -464,7 +464,7 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 	return openTradeRequests, nil
 }
 
-func (w *AccountWorker) handleExitConditions(event *eventmodels.CreateSignalRequestEventV1) error {
+func (w *AccountWorker) handleExitConditions(event *eventmodels.CreateSignalRequestEventV1DTO) error {
 	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr != nil {
 		return fmt.Errorf("AccountWorker.handleExitConditions: failed to update exit conditions: %w", updateErr)
@@ -486,7 +486,7 @@ func (w *AccountWorker) handleExitConditions(event *eventmodels.CreateSignalRequ
 	return nil
 }
 
-func (w *AccountWorker) handleOpenConditions(event *eventmodels.CreateSignalRequestEventV1) error {
+func (w *AccountWorker) handleOpenConditions(event *eventmodels.CreateSignalRequestEventV1DTO) error {
 	entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event)
 	openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
 	if err != nil {
@@ -504,7 +504,7 @@ func (w *AccountWorker) handleOpenConditions(event *eventmodels.CreateSignalRequ
 	return nil
 }
 
-func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSignalRequestEventV1) error {
+func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSignalRequestEventV1DTO) error {
 	log.Infof("received %v", event)
 
 	if err := w.handleExitConditions(event); err != nil {
@@ -520,7 +520,7 @@ func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSign
 	return nil
 }
 
-func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequestEventV1) {
+func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequestEventV1DTO) {
 	log.Infof("received %v", event)
 
 	if err := w.handleCreateSignalResponse(event); err != nil {

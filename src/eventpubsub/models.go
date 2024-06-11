@@ -20,7 +20,7 @@ func NewSagaFlow() map[eventmodels.EventName]SagaFlow {
 			Generate: func() RequestEvent { return &eventmodels.CreateAccountStrategyRequestEvent{} },
 		},
 		eventmodels.CreateSignalRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateSignalRequestEventV1{} },
+			Generate: func() RequestEvent { return &eventmodels.CreateSignalRequestEventV1DTO{} },
 		},
 		eventmodels.CreateOptionAlertRequestEventName: {
 			Generate: func() RequestEvent { return &eventmodels.CreateOptionAlertRequestEvent{} },

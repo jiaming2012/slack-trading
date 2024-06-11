@@ -42,7 +42,7 @@ func (s *Strategy) Validate() error {
 }
 
 // UpdateExitConditions todo: test this
-func (s *Strategy) UpdateExitConditions(newSignal *CreateSignalRequestEventV1) int {
+func (s *Strategy) UpdateExitConditions(newSignal *CreateSignalRequestEventV1DTO) int {
 	conditionsAffected := 0
 	// now := time.Now().UTC()
 
@@ -64,7 +64,7 @@ func (s *Strategy) UpdateExitConditions(newSignal *CreateSignalRequestEventV1) i
 	return conditionsAffected
 }
 
-func (s *Strategy) UpdateEntryConditions(newSignal *CreateSignalRequestEventV1) int {
+func (s *Strategy) UpdateEntryConditions(newSignal *CreateSignalRequestEventV1DTO) int {
 	conditionsAffected := 0
 
 	for _, condition := range s.EntryConditions {

@@ -101,28 +101,33 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 	return nil
 }
 
-func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1) {
+func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
 	log.Debug("<- esdbProducer.handleSaveCreateSignalRequestEvent")
 
-	if err := cli.insert(request); err != nil {
-		meta := request.GetMetaData()
-		pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
-		return
-	}
+	if err := request.ValidateV2(); err == nil {
+		// save the signal
+		if err := cli.insert(request); err != nil {
+			meta := request.GetMetaData()
+			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
+			return
+		}
 
-	now := time.Now().UTC()
+		now := time.Now().UTC()
 
-	tracker, err := request.ConvertToTracker(now)
-	if err != nil {
-		meta := request.GetMetaData()
-		pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
-		return
-	}
+		tracker, err := request.ConvertToTracker(now)
+		if err != nil {
+			meta := request.GetMetaData()
+			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
+			return
+		}
 
-	if err := cli.insert(tracker); err != nil {
-		meta := request.GetMetaData()
-		pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
-		return
+		if err := cli.insert(tracker); err != nil {
+			meta := request.GetMetaData()
+			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
+			return
+		}
+	} else {
+		log.Debugf("signal conversion failed: %v. Not necessarily an error.", err)
 	}
 
 	pubsub.PublishCompletedResponse("esdbProducer:cli.handleSaveCreateSignalRequest", &eventmodels.CreateSignalResponseEvent{
