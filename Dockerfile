@@ -5,7 +5,7 @@ FROM golang:1.20
 LABEL maintainer="Jamal Cole <jac475@cornell.edu>"
 
 # Set the Current Working Directory inside the container
-WORKDIR /app
+WORKDIR /app/slack-trading
 
 # Copy go mod and sum files
 COPY go.mod go.sum ./
