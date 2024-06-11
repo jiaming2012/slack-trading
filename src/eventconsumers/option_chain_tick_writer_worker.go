@@ -116,7 +116,8 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			for _, optionContract := range optionContracts {
 				dto, found := cache[string(optionContract.Symbol)]
 				if !found {
-					log.Errorf("Option contract %s not found in cache", optionContract.Symbol)
+					// log.Errorf("Option contract %s not found in cache", optionContract.Symbol)
+					// todo: remove the tracker when not found in cache
 					continue
 				}
 
