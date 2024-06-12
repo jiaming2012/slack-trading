@@ -2,18 +2,19 @@ package eventservices
 
 import (
 	"fmt"
+
 	"github.com/google/uuid"
+
 	"slack-trading/src/eventmodels"
-	"slack-trading/src/models"
 )
 
-func UpdateExitConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) ([]*models.ExitConditionsSatisfied, error) {
-	var aggregatedExitConditionsSatisfied []*models.ExitConditionsSatisfied
+func UpdateExitConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequestEventV1DTO) ([]*eventmodels.ExitConditionsSatisfied, error) {
+	var aggregatedExitConditionsSatisfied []*eventmodels.ExitConditionsSatisfied
 
 	for _, account := range accounts {
 		tick := account.Datafeed.Tick()
 		for _, strategy := range account.Strategies {
-			conditionsAffected := strategy.UpdateExitConditions(newSignalRequest.Name)
+			conditionsAffected := strategy.UpdateExitConditions(newSignalRequest)
 
 			if conditionsAffected > 0 {
 				exitConditionsSatisfied, err := strategy.ExitConditionsSatisfied(*tick)
@@ -32,16 +33,16 @@ func UpdateExitConditions(accounts []models.Account, newSignalRequest *models.Si
 // UpdateEntryConditions todo: ideal topology would return (*UpdateConditionsRequest, []*EntryConditionsSatisfied)
 // the handler would emit both events if not nil
 // this allows updates to not mix with other operations
-func UpdateEntryConditions(accounts []models.Account, newSignalRequest *models.SignalRequest) []*models.EntryConditionsSatisfied {
-	var entryConditionsSatisfied []*models.EntryConditionsSatisfied
+func UpdateEntryConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequestEventV1DTO) []*eventmodels.EntryConditionsSatisfied {
+	var entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied
 
 	for _, account := range accounts {
 		for _, strategy := range account.Strategies {
-			conditionsAffected := strategy.UpdateEntryConditions(newSignalRequest.Name)
+			conditionsAffected := strategy.UpdateEntryConditions(newSignalRequest)
 
 			if conditionsAffected > 0 {
 				if strategy.EntryConditionsSatisfied() {
-					entryConditionsSatisfied = append(entryConditionsSatisfied, models.NewEntryConditionsSatisfied(&account, &strategy))
+					entryConditionsSatisfied = append(entryConditionsSatisfied, eventmodels.NewEntryConditionsSatisfied(account, strategy))
 				}
 			}
 		}
@@ -50,15 +51,13 @@ func UpdateEntryConditions(accounts []models.Account, newSignalRequest *models.S
 	return entryConditionsSatisfied
 }
 
-func FetchTrades(requestID uuid.UUID, account *models.Account) *eventmodels.FetchTradesResult {
+func FetchTrades(requestID uuid.UUID, account *eventmodels.Account) *eventmodels.FetchTradesResult {
 	priceLevelTrades := account.GetPriceLevelTrades(false)
 	return eventmodels.NewFetchTradesResult(requestID, priceLevelTrades)
 }
 
-func GetStats(requestID uuid.UUID, account *models.Account, currentTick *models.Tick) (*eventmodels.GetStatsResult, error) {
-	statsResult := &eventmodels.GetStatsResult{
-		RequestID: requestID,
-	}
+func GetStats(requestID uuid.UUID, account *eventmodels.Account, currentTick *eventmodels.Tick) (*eventmodels.GetStatsResult, error) {
+	statsResult := &eventmodels.GetStatsResult{}
 
 	for _, strategy := range account.Strategies {
 		stats, statsErr := strategy.GetTrades().GetTradeStats(*currentTick)
@@ -68,12 +67,12 @@ func GetStats(requestID uuid.UUID, account *models.Account, currentTick *models.
 
 		openTradesByPriceLevel := strategy.GetTradesByPriceLevel(true)
 
-		var entryConditions []*models.EntryConditionDTO
+		var entryConditions []*eventmodels.EntryConditionDTO
 		for _, c := range strategy.EntryConditions {
 			entryConditions = append(entryConditions, c.ConvertToDTO())
 		}
 
-		var exitConditions []*models.ExitConditionDTO
+		var exitConditions []*eventmodels.ExitConditionDTO
 		for _, c := range strategy.ExitConditions {
 			exitConditions = append(exitConditions, c.ConvertToDTO())
 		}

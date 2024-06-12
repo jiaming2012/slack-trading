@@ -1,38 +1,39 @@
 package eventmodels
 
 import (
-	"encoding/json"
-	"github.com/google/uuid"
-	"net/http"
-	"slack-trading/src/models"
+	"sync"
 	"time"
 )
 
-type ManualDatafeedUpdateRequest struct {
-	RequestID uuid.UUID `json:"requestID"`
-	Symbol    string    `json:"symbol"`
-	Bid       float64   `json:"bid"`
-	Ask       float64   `json:"ask"`
+type Datafeed struct {
+	Name       DatafeedName `json:"name"`
+	LastUpdate time.Time    `json:"lastUpdate"`
+	LastTick   float64      `json:"lastTick"`
+	mu         sync.RWMutex
 }
 
-func (r *ManualDatafeedUpdateRequest) ParseHTTPRequest(req *http.Request) error {
-	return json.NewDecoder(req.Body).Decode(r)
+func (t *Datafeed) Update(tick Tick) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.LastUpdate = tick.Timestamp
+	t.LastTick = tick.Price
 }
 
-func (r *ManualDatafeedUpdateRequest) SetRequestID(id uuid.UUID) {
-	r.RequestID = id
+func (t *Datafeed) Tick() *Tick {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	return &Tick{
+		Timestamp: t.LastUpdate,
+		Price:     t.LastTick,
+	}
 }
 
-type ManualDatafeedUpdateResult struct {
-	RequestID uuid.UUID   `json:"requestID"`
-	UpdatedAt time.Time   `json:"updatedAt"`
-	Tick      models.Tick `json:"tick"`
-}
-
-func (r *ManualDatafeedUpdateResult) GetRequestID() uuid.UUID {
-	return r.RequestID
-}
-
-func NewManualDatafeedUpdateResult(requestID uuid.UUID, updatedAt time.Time, tick models.Tick) *ManualDatafeedUpdateResult {
-	return &ManualDatafeedUpdateResult{RequestID: requestID, UpdatedAt: updatedAt, Tick: tick}
+func NewDatafeed(name DatafeedName) *Datafeed {
+	return &Datafeed{
+		Name:       name,
+		LastUpdate: time.Time{},
+		LastTick:   0,
+	}
 }

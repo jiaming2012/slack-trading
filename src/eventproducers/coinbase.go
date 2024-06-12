@@ -2,11 +2,13 @@ package eventproducers
 
 import (
 	"context"
-	"fmt"
+	"sync"
+	"time"
+
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/worker"
-	"sync"
 )
 
 type coinbaseClient struct {
@@ -20,7 +22,16 @@ func (r *coinbaseClient) Start(ctx context.Context) {
 	// setup coinbase worker
 	ch := make(chan worker.CoinbaseDTO)
 	workerContext := context.Background()
-	go worker.Run(workerContext, ch)
+
+	// connect to coinbase
+	c, ConnErr := worker.Connect()
+	if ConnErr != nil {
+		log.Fatal("coinbase: initial connect failed:", ConnErr)
+	}
+
+	defer c.Close()
+
+	go worker.Run(workerContext, ch, c)
 
 	go func() {
 		defer r.wg.Done()
@@ -30,9 +41,19 @@ func (r *coinbaseClient) Start(ctx context.Context) {
 				// todo: reduce log level
 				log.Errorf("Coinbase worker stopped. Resetting worker context ...")
 				workerContext = context.Background()
-				go worker.Run(workerContext, ch)
+
+				// reconnect to coinbase
+				c, ConnErr = worker.Connect()
+				if ConnErr != nil {
+					log.Error("coinbase: initial connect failed:", ConnErr)
+					log.Info("retrying in 5 seconds ...")
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				go worker.Run(workerContext, ch, c)
 			case <-ctx.Done():
-				fmt.Printf("\nstopping Coinbase producer\n")
+				log.Infof("stopping Coinbase producer")
 				return
 			}
 		}

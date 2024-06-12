@@ -2,8 +2,9 @@ package eventmodels
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 var dispatcher *GlobalResponseDispatcher
@@ -20,6 +21,14 @@ type GlobalResponseDispatcher struct {
 
 func (d *GlobalResponseDispatcher) unregister(uuid uuid.UUID) {
 	delete(d.Channels, uuid)
+}
+
+func DispatchedRequestExists(uuid uuid.UUID) bool {
+	dispatcher.mutex.Lock()
+	defer dispatcher.mutex.Unlock()
+
+	_, found := dispatcher.Channels[uuid]
+	return found
 }
 
 // GetChannelAndRemove fetches and channel and removes it

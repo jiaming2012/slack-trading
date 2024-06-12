@@ -2,11 +2,12 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 )
 
 type Strategy struct {
@@ -41,44 +42,21 @@ func (s *Strategy) Validate() error {
 }
 
 // UpdateExitConditions todo: test this
-func (s *Strategy) UpdateExitConditions(signalName string) int {
+func (s *Strategy) UpdateExitConditions(newSignal *NewSignalRequestEvent) int {
 	conditionsAffected := 0
-	now := time.Now().UTC()
+	// now := time.Now().UTC()
 
 	for _, condition := range s.ExitConditions {
 		for _, exitSignal := range condition.ExitSignals {
 			//--- update exit signal
-			if signalName == exitSignal.Signal.Name {
+			if newSignal.Name == exitSignal.Signal.Name {
 				exitSignal.Update(SignalTypeExit)
 				conditionsAffected += 1
-				log.Infof("setting exit condition %v to true", signalName)
-			} else if signalName == exitSignal.ResetSignal.Name {
+				log.Infof("setting exit condition %v to true", newSignal)
+			} else if newSignal.Name == exitSignal.ResetSignal.Name {
 				exitSignal.Update(SignalTypeReset)
 				conditionsAffected += 1
-				log.Infof("setting exit reset condition %v to true", signalName)
-			}
-
-			//--- update reentry signals
-			for _, reentrySignal := range condition.ReentrySignals {
-				if signalName == reentrySignal.Name {
-					reentrySignal.Update(true, now)
-					conditionsAffected += 1
-
-					// update AwaitingReentrySignals
-					if condition.AwaitingReentrySignals {
-						resetSignalsAllSatisfied := true
-						for _, signal := range condition.ReentrySignals {
-							if !signal.IsSatisfied() {
-								resetSignalsAllSatisfied = false
-								break
-							}
-						}
-
-						if resetSignalsAllSatisfied {
-							condition.ResetReentrySignals()
-						}
-					}
-				}
+				log.Infof("setting exit reset condition %v to true", newSignal)
 			}
 		}
 	}
@@ -86,18 +64,18 @@ func (s *Strategy) UpdateExitConditions(signalName string) int {
 	return conditionsAffected
 }
 
-func (s *Strategy) UpdateEntryConditions(signalName string) int {
+func (s *Strategy) UpdateEntryConditions(newSignal *NewSignalRequestEvent) int {
 	conditionsAffected := 0
 
 	for _, condition := range s.EntryConditions {
-		if signalName == condition.EntrySignal.Name {
-			condition.UpdateState(true)
+		if newSignal.Name == condition.EntrySignal.Name {
+			condition.UpdateState(true, newSignal.LastUpdated)
 			conditionsAffected += 1
-			log.Infof("setting entry condition %v to true", signalName)
-		} else if signalName == condition.ResetSignal.Name {
-			condition.UpdateState(false)
+			log.Infof("setting entry condition %v to true", newSignal.Name)
+		} else if newSignal.Name == condition.ResetSignal.Name {
+			condition.UpdateState(false, newSignal.LastUpdated)
 			conditionsAffected += 1
-			log.Infof("setting exit condition %v to true", signalName)
+			log.Infof("setting exit condition %v to true", newSignal.Name)
 		}
 	}
 
@@ -492,7 +470,7 @@ func (s *Strategy) CanPlaceTrade(trade *Trade, isClose bool) error {
 	return nil
 }
 
-func NewStrategyRaw(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account, createdOn time.Time) (*Strategy, error) {
+func NewStrategyRaw(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account, entryConditions []*EntryCondition, exitConditions []*ExitCondition, createdOn time.Time) (*Strategy, error) {
 	if balance <= 0 {
 		return nil, BalanceGreaterThanZeroErr
 	}
@@ -501,7 +479,8 @@ func NewStrategyRaw(name string, symbol string, direction Direction, balance flo
 		Name:            name,
 		Symbol:          symbol,
 		Direction:       direction,
-		EntryConditions: make([]*EntryCondition, 0),
+		EntryConditions: entryConditions,
+		ExitConditions:  exitConditions,
 		Balance:         balance,
 		Account:         account,
 		CreatedOn:       createdOn,
@@ -521,7 +500,28 @@ func NewStrategyRaw(name string, symbol string, direction Direction, balance flo
 	return strategy, nil
 }
 
-func NewStrategy(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+func NewStrategy(name string, symbol string, direction Direction, balance float64, entryConditionInput []EntryConditionDTO, exitConditionInput []ExitConditionDTO, priceLevelInput []PriceLevelDTO, account *Account) (*Strategy, error) {
 	createdOn := time.Now().UTC()
-	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, createdOn)
+
+	priceLevels := make([]*PriceLevel, 0)
+	for _, pl := range priceLevelInput {
+		priceLevels = append(priceLevels, pl.ToPriceLevel())
+	}
+
+	entryConditions := make([]*EntryCondition, 0)
+	for _, ec := range entryConditionInput {
+		entryConditions = append(entryConditions, ec.ToEntryCondition())
+	}
+
+	exitConditions := make([]*ExitCondition, 0)
+	for _, ec := range exitConditionInput {
+		exitConditions = append(exitConditions, ec.ToExitCondition())
+	}
+
+	return NewStrategyRaw(name, symbol, direction, balance, priceLevels, account, entryConditions, exitConditions, createdOn)
+}
+
+func NewStrategyDeprecated(name string, symbol string, direction Direction, balance float64, priceLevelInput []*PriceLevel, account *Account) (*Strategy, error) {
+	createdOn := time.Now().UTC()
+	return NewStrategyRaw(name, symbol, direction, balance, priceLevelInput, account, nil, nil, createdOn)
 }

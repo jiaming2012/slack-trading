@@ -3,33 +3,37 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventpubsub"
 	"slack-trading/src/handler"
 	"slack-trading/src/sheets"
 	"slack-trading/src/worker"
-	"syscall"
-	"time"
 )
 
 func main() {
 	ctx := context.Background()
 
 	// setup google sheets
-	if err := sheets.Init(ctx); err != nil {
+	if _, _, err := sheets.NewClientFromEnv(ctx); err != nil {
 		log.Fatalf("failed to initialize google sheets: %v", err)
 	}
 
 	// setup pubsub
 	eventpubsub.Init()
 
+	// setup websocket
+
 	// setup worker
 	ch := make(chan worker.CoinbaseDTO)
-	go worker.Run(ctx, ch)
+	go worker.Run(ctx, ch, nil)
 
 	// setup router
 	router := mux.NewRouter()

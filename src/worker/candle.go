@@ -2,13 +2,16 @@ package worker
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"math"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
+
+	"slack-trading/src/eventmodels"
+	"slack-trading/src/eventpubsub"
 )
 
 const (
@@ -61,9 +64,8 @@ func MinuteTimer(minuteInterval int) *time.Timer {
 	return time.NewTimer(diff)
 }
 
-func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
-
-	go WsTick(ctx, tickerCh)
+func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
+	go WsTick(ctx, tickerCh, c)
 
 	for {
 		select {
@@ -78,10 +80,11 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO) {
 					panic(err)
 				}
 
-				eventpubsub.PublishWithFlags("Coinbase.worker", eventpubsub.NewTickEvent, eventmodels.Tick{
-					Timestamp: time.Now().UTC(),
-					Price:     price,
-				}, false)
+				eventpubsub.PublishEvent("Coinbase.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
+					time.Now().UTC(),
+					price,
+					eventmodels.CoinbaseDatafeed,
+				))
 
 				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers
 				mu.Lock()

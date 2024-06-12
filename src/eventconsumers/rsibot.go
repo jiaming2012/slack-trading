@@ -2,12 +2,14 @@ package eventconsumers
 
 import (
 	"context"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/indicators"
 	models2 "slack-trading/src/models"
-	"sync"
 )
 
 type RsiBot struct {
@@ -30,7 +32,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 
 	if rsi > 0 {
 		if rsi <= 30 && r.prevRsi > 30 {
-			pubsub.Publish("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
+			pubsub.PublishEvent("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          true,
 				RequestedPrice: candle.Close,
@@ -38,7 +40,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 		}
 
 		if rsi >= 70 && r.prevRsi < 70 {
-			pubsub.Publish("RsiBot.update", pubsub.RsiTradeSignal, eventmodels.RsiTradeSignal{
+			pubsub.PublishEvent("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          false,
 				RequestedPrice: candle.Close,
@@ -52,7 +54,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 func (r *RsiBot) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("RsiBot", pubsub.NewCandleEvent, r.update)
+	pubsub.Subscribe("RsiBot", eventmodels.NewCandleEventName, r.update)
 
 	go func() {
 		defer r.wg.Done()

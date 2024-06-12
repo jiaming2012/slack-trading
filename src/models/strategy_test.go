@@ -1,10 +1,11 @@
 package models
 
 import (
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func newDownPriceLevels() []*PriceLevel {
@@ -31,40 +32,45 @@ func TestEntryConditionsSatisfied(t *testing.T) {
 	name := "test"
 	symbol := "symbol"
 	balance := 1000.0
+	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 
-	entrySignal := NewSignalV2("entrySignal")
-	exitSignal := NewSignalV2("exitSignal")
+	entrySignal := NewSignalV2("entrySignal", ts)
+	resetSignal := NewResetSignal("resetSignal", entrySignal, ts)
 
 	t.Run("entry conditions not satisfied if strategy has no entry conditions", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 		assert.False(t, s.EntryConditionsSatisfied())
 	})
 
 	t.Run("entry conditions are not satisfied", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
-		err = s.AddEntryCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, resetSignal)
 		assert.NoError(t, err)
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)
-		assert.Equal(t, exitSignal.Name, s.EntryConditions[0].ResetSignal.Name)
+		assert.Equal(t, resetSignal.Name, s.EntryConditions[0].ResetSignal.Name)
 		assert.False(t, s.EntryConditionsSatisfied())
 	})
 
 	t.Run("entry conditions are satisfied", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
-		err = s.AddEntryCondition(entrySignal, exitSignal)
+		err = s.AddEntryCondition(entrySignal, resetSignal)
 		assert.NoError(t, err)
 
 		assert.Len(t, s.EntryConditions, 1)
 		assert.Equal(t, entrySignal.Name, s.EntryConditions[0].EntrySignal.Name)
-		assert.Equal(t, exitSignal.Name, s.EntryConditions[0].ResetSignal.Name)
+		assert.Equal(t, resetSignal.Name, s.EntryConditions[0].ResetSignal.Name)
 		assert.False(t, s.EntryConditionsSatisfied())
 
-		s.UpdateEntryConditions(entrySignal.Name)
+		req := NewSignalRequestEvent{
+			Name: entrySignal.Name,
+		}
+
+		s.UpdateEntryConditions(&req)
 		assert.True(t, s.EntryConditionsSatisfied())
 	})
 }
@@ -81,7 +87,7 @@ func TestNewCloseTrade(t *testing.T) {
 	balance := 1000.0
 
 	t.Run("test close trade buy", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -101,7 +107,7 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("test close trade sell", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Down, balance, newDownPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -121,7 +127,7 @@ func TestNewCloseTrade(t *testing.T) {
 	})
 
 	t.Run("test partial close trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -201,7 +207,7 @@ func TestNewCloseTrades(t *testing.T) {
 	//}
 
 	t.Run("close the entire buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -227,7 +233,7 @@ func TestNewCloseTrades(t *testing.T) {
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Up, balance, newUpPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Up, balance, newUpPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -264,7 +270,7 @@ func TestNewCloseTrades(t *testing.T) {
 	})
 
 	t.Run("close the entire sell trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Down, balance, newDownPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 2.5)
@@ -293,7 +299,7 @@ func TestNewCloseTrades(t *testing.T) {
 	})
 
 	t.Run("close partial buy trade", func(t *testing.T) {
-		s, err := NewStrategy(name, symbol, Down, balance, newDownPriceLevels(), nil)
+		s, err := NewStrategyDeprecated(name, symbol, Down, balance, newDownPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		tr1, _, err := s.NewOpenTrade(id, tf, ts, 1.5)
@@ -366,7 +372,7 @@ func TestUpStrategy(t *testing.T) {
 	}
 
 	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels(), nil)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		t1, _, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
@@ -381,7 +387,7 @@ func TestUpStrategy(t *testing.T) {
 	})
 
 	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newPriceLevels(), nil)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		t1, _, err := strategy.NewOpenTrade(id, tf, ts, 2.0)
@@ -439,7 +445,7 @@ func TestDownStrategy(t *testing.T) {
 	}
 
 	t.Run("second trade is with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newDownPriceLevels(), nil)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newDownPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		t1, _, err := strategy.NewOpenTrade(id, tf, ts, 1.0)
@@ -454,7 +460,7 @@ func TestDownStrategy(t *testing.T) {
 	})
 
 	t.Run("second trade is not with minimum trade distance", func(t *testing.T) {
-		strategy, err := NewStrategy(name, symbol, direction, balance, newDownPriceLevels(), nil)
+		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newDownPriceLevels(), nil)
 		assert.NoError(t, err)
 
 		t1, _, err := strategy.NewOpenTrade(id, tf, ts, 9.0)
@@ -507,7 +513,7 @@ func TestStrategy(t *testing.T) {
 	}
 
 	t.Run("strategy balance must be greater than zero", func(t *testing.T) {
-		_, err := NewStrategy(name, symbol, direction, 0.0, newPriceLevels(), nil)
+		_, err := NewStrategyDeprecated(name, symbol, direction, 0.0, newPriceLevels(), nil)
 		assert.ErrorIs(t, err, BalanceGreaterThanZeroErr)
 	})
 
@@ -527,7 +533,7 @@ func TestStrategy(t *testing.T) {
 			},
 		}
 
-		_, err := NewStrategy(name, symbol, direction, balance, priceLevels, nil)
+		_, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, nil)
 
 		assert.ErrorIs(t, err, PriceLevelsLastAllocationErr)
 
@@ -537,18 +543,18 @@ func TestStrategy(t *testing.T) {
 			AllocationPercent: 0,
 		})
 
-		_, err = NewStrategy(name, symbol, direction, balance, priceLevels, nil)
+		_, err = NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, nil)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("fails if no levels are set", func(t *testing.T) {
-		_, err := NewStrategy(name, symbol, direction, balance, []*PriceLevel{}, nil)
+		_, err := NewStrategyDeprecated(name, symbol, direction, balance, []*PriceLevel{}, nil)
 		assert.ErrorIs(t, err, MinimumNumberOfPriceLevelsNotMetErr)
 	})
 
 	t.Run("errors if price levels are not sorted", func(t *testing.T) {
-		_, err := NewStrategy(name, symbol, direction, balance, []*PriceLevel{
+		_, err := NewStrategyDeprecated(name, symbol, direction, balance, []*PriceLevel{
 			{Price: 1.0, StopLoss: 0.5, AllocationPercent: 1, MaxNoOfTrades: 1},
 			{Price: 3.0, StopLoss: 2.5},
 			{Price: 2.0, StopLoss: 1.8},
@@ -575,7 +581,7 @@ func TestStrategy(t *testing.T) {
 			},
 		}
 
-		_, err := NewStrategy(name, symbol, direction, balance, _priceLevels, nil)
+		_, err := NewStrategyDeprecated(name, symbol, direction, balance, _priceLevels, nil)
 		assert.ErrorIs(t, err, NoOfTradeMustBeNonzeroErr)
 	})
 
@@ -605,7 +611,7 @@ func TestStrategy(t *testing.T) {
 			},
 		}
 
-		_, err := NewStrategy(name, symbol, direction, balance, _priceLevels1, nil)
+		_, err := NewStrategyDeprecated(name, symbol, direction, balance, _priceLevels1, nil)
 		assert.NoError(t, err)
 
 		_priceLevels2 := []*PriceLevel{
@@ -634,7 +640,7 @@ func TestStrategy(t *testing.T) {
 			},
 		}
 
-		_, err = NewStrategy(name, symbol, direction, balance, _priceLevels2, nil)
+		_, err = NewStrategyDeprecated(name, symbol, direction, balance, _priceLevels2, nil)
 		assert.ErrorIs(t, err, NoOfTradesMustBeZeroErr)
 	})
 }

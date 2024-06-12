@@ -2,9 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/gorilla/schema"
 	log "github.com/sirupsen/logrus"
-	"net/http"
+
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventpubsub"
 	models "slack-trading/src/models"
@@ -25,7 +27,7 @@ func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
 
 		req := new(eventmodels.IncomingSlackRequest)
 		schema.NewDecoder().Decode(req, r.Form)
-		eventpubsub.Publish("SlackApiEventHandler", eventpubsub.GetAccountsRequestEvent, *req)
+		eventpubsub.PublishEvent("SlackApiEventHandler", eventmodels.GetAccountsRequestEventName, *req)
 	case "application/json":
 		decoder := json.NewDecoder(r.Body)
 

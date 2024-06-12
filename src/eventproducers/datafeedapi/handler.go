@@ -2,12 +2,13 @@ package datafeedapi
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"net/http"
+
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	pubsub "slack-trading/src/eventpubsub"
 )
 
 func datafeedHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +17,7 @@ func datafeedHandler(w http.ResponseWriter, r *http.Request) {
 		if feedName, found := vars["feedName"]; found {
 			switch feedName {
 			case "manual":
-				eventproducers.ApiRequestHandler(pubsub.ManualDatafeedUpdateRequest, &eventmodels.ManualDatafeedUpdateRequest{}, &eventmodels.ManualDatafeedUpdateResult{}, w, r)
+				eventproducers.ApiRequestHandler2(eventmodels.ManualDatafeedUpdateRequestEventName, &eventmodels.ManualDatafeedUpdateRequest{}, &eventmodels.ManualDatafeedUpdateResult{}, w, r)
 			default:
 				err := fmt.Errorf("unknown feedName, found %v", feedName)
 				if respErr := eventproducers.SetErrorResponse("request", 400, err, w); respErr != nil {

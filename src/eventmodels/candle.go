@@ -1,6 +1,8 @@
 package eventmodels
 
-import "time"
+import (
+	"time"
+)
 
 type Candle struct {
 	Timestamp   time.Time

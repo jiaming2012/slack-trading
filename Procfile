@@ -1,1 +1,1 @@
-web: eventmain
+web: slack-trading/src/eventmain

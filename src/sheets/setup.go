@@ -4,24 +4,25 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
-	"os"
 )
 
 var service *sheets.Service
 
-func setup(ctx context.Context) (*sheets.Service, *drive.Service, error) {
+func setup(ctx context.Context, googleSecurityKeyJsonBase64 string) (*sheets.Service, *drive.Service, error) {
 	// get bytes from base64 encoded google service accounts key
-	credBytes, err := base64.StdEncoding.DecodeString(os.Getenv("KEY_JSON_BASE64"))
+	credBytes, err := base64.StdEncoding.DecodeString(googleSecurityKeyJsonBase64)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to base64 decode KEY_JSON_BASE64: %w", err)
+		return nil, nil, fmt.Errorf("failed to base64 decode googleSecurityKeyJsonBase64: %w", err)
 	}
 
 	// authenticate and get configuration
-	config, err := google.JWTConfigFromJSON(credBytes, "https://www.googleapis.com/auth/spreadsheets")
+	config, err := google.JWTConfigFromJSON(credBytes, "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config from json: %w", err)
 	}
@@ -44,8 +45,16 @@ func setup(ctx context.Context) (*sheets.Service, *drive.Service, error) {
 	return srv, driveService, nil
 }
 
-func Init(ctx context.Context) error {
-	var err error
-	service, _, err = setup(ctx)
-	return err
+func NewClient(ctx context.Context, googleSecurityKeyJsonBase64 string) (*sheets.Service, *drive.Service, error) {
+	sheets, drive, err := setup(ctx, googleSecurityKeyJsonBase64)
+	return sheets, drive, err
+}
+
+func NewClientFromEnv(ctx context.Context) (*sheets.Service, *drive.Service, error) {
+	googleSecurityKeyJsonBase64 := os.Getenv("KEY_JSON_BASE64")
+	if googleSecurityKeyJsonBase64 == "" {
+		return nil, nil, fmt.Errorf("KEY_JSON_BASE64 environment variable is not set")
+	}
+
+	return NewClient(ctx, googleSecurityKeyJsonBase64)
 }

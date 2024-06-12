@@ -8,6 +8,31 @@ import (
 
 const SmallRoundingError = 0.000001
 
+type PriceLevelDTO struct {
+	Price                float64 `json:"price"`
+	MinimumTradeDistance float64 `json:"minimumTradeDistance"`
+	MaxNoOfTrades        int     `json:"maxNoOfTrades"`
+	AllocationPercent    float64 `json:"allocationPercent"`
+	StopLoss             float64 `json:"stopLoss"`
+}
+
+func (dto *PriceLevelDTO) ToPriceLevel() *PriceLevel {
+	return NewPriceLevel(dto.Price, dto.MinimumTradeDistance, dto.MaxNoOfTrades, dto.AllocationPercent, dto.StopLoss)
+}
+
+func NewPriceLevel(price float64, minimumTradeDistance float64, maxNoOfTrades int, allocationPercent float64, stopLoss float64) *PriceLevel {
+	return &PriceLevel{
+		Strategy:             nil,
+		Trades:               &Trades{},
+		mutex:                sync.Mutex{},
+		Price:                price,
+		MinimumTradeDistance: minimumTradeDistance,
+		MaxNoOfTrades:        maxNoOfTrades,
+		AllocationPercent:    allocationPercent,
+		StopLoss:             stopLoss,
+	}
+}
+
 type PriceLevel struct {
 	Strategy *Strategy `json:"-"`
 	// todo: add Index

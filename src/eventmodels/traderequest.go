@@ -6,6 +6,7 @@ import (
 )
 
 type TradeRequestEvent struct {
+	BaseRequestEvent
 	Timestamp   time.Time
 	Symbol      string
 	Price       float64

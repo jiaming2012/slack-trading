@@ -2,13 +2,15 @@ package eventconsumers
 
 import (
 	"context"
+	"sync"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	models "slack-trading/src/eventmodels"
+
+	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	modelsV1 "slack-trading/src/models"
 	"slack-trading/src/sheets"
-	"sync"
 )
 
 type GoogleSheetsClient struct {
@@ -16,7 +18,7 @@ type GoogleSheetsClient struct {
 	wg  *sync.WaitGroup
 }
 
-func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFulfilledEvent) {
+func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent eventmodels.TradeFulfilledEvent) {
 	log.Debugf("GoogleSheetsClient.writeToCSV <- %v", tradeFulfilledEvent)
 
 	err := sheets.AppendTrade(c.ctx, &modelsV1.Trade{
@@ -34,7 +36,7 @@ func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFul
 	}
 }
 
-func (c *GoogleSheetsClient) writeCandleToCSV(candle models.Candle) {
+func (c *GoogleSheetsClient) writeCandleToCSV(candle eventmodels.Candle) {
 	log.Debugf("GoogleSheetsClient.writeCandleToCSV <- %v", candle)
 
 	// todo: no need to go from Candle -> eventmodels.Candle -> Candle
@@ -55,8 +57,8 @@ func (c *GoogleSheetsClient) writeCandleToCSV(candle models.Candle) {
 func (c *GoogleSheetsClient) Start() {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("GoogleSheetsClient", pubsub.TradeFulfilledEvent, c.writeTradeToCSV)
-	pubsub.Subscribe("GoogleSheetsClient", pubsub.NewCandleEvent, c.writeCandleToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", eventmodels.TradeFulfilledEventName, c.writeTradeToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", eventmodels.NewCandleEventName, c.writeCandleToCSV)
 
 	go func() {
 		defer c.wg.Done()

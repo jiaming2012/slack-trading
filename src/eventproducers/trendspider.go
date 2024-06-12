@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	"net/http"
-	"slack-trading/src/eventdto"
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+
+	"slack-trading/src/eventdto"
+	"slack-trading/src/eventmodels"
+	pubsub "slack-trading/src/eventpubsub"
 )
 
 type trendSpiderClient struct {
@@ -80,7 +82,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.Publish("trendSpiderClient.handleWebhook", pubsub.SupportBreakSignal, eventmodels.SupportBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.SupportBreakSignalEventName, eventmodels.SupportBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -93,7 +95,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.Publish("trendSpiderClient.handleWebhook", pubsub.ResistanceBreakSignal, eventmodels.ResistanceBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.ResistanceBreakSignalEventName, eventmodels.ResistanceBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -106,14 +108,14 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.Publish("trendSpiderClient.handleWebhook", pubsub.TrendlineBreakSignal, eventmodels.TrendlineBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.TrendlineBreakSignalEventName, eventmodels.TrendlineBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
 				PriceActionEvent: payload.Header.PriceActionEvent,
 			})
 		default:
-			pubsub.PublishError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %Request", signal))
+			pubsub.PublishError("trendSpiderClient.handleWebhook", fmt.Errorf("unknown signal type %T", signal))
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)

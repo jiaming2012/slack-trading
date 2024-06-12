@@ -2,7 +2,9 @@ package sheets
 
 import (
 	"context"
+
 	"google.golang.org/api/sheets/v4"
+
 	"slack-trading/src/models"
 )
 
@@ -12,7 +14,7 @@ func appendCandle(ctx context.Context, srv *sheets.Service, candle *models.Candl
 	candles := models.Candles{}
 	candles.Add(candle)
 	values := candles.ToRows()
-	return appendRows(ctx, srv, spreadsheetId, btcUsdSheetName, values)
+	return AppendRows(ctx, srv, spreadsheetId, btcUsdSheetName, values)
 }
 
 func AppendCandle(ctx context.Context, candle *models.Candle) error {

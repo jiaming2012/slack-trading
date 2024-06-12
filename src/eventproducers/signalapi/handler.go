@@ -1,17 +1,17 @@
 package signalapi
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
+
+	"github.com/gorilla/mux"
+
 	"slack-trading/src/eventmodels"
 	"slack-trading/src/eventproducers"
-	pubsub "slack-trading/src/eventpubsub"
-	"slack-trading/src/models"
 )
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.SignalRequestHandler(pubsub.NewSignalsRequest, &models.SignalRequest{}, &eventmodels.NewSignalResult{}, w, r)
+		eventproducers.ApiRequestHandler2(eventmodels.CreateSignalRequestEventName, &eventmodels.CreateSignalRequestEventV1DTO{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

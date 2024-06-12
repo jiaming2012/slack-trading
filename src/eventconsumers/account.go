@@ -4,52 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"os"
+
 	"slack-trading/src/eventmodels"
 	pubsub "slack-trading/src/eventpubsub"
 	"slack-trading/src/eventservices"
-	"slack-trading/src/models"
-	"sync"
-	"time"
 )
 
 type AccountWorker struct {
 	wg               *sync.WaitGroup
-	accounts         []*models.Account
-	coinbaseDatafeed *models.Datafeed
-	manualDatafeed   *models.Datafeed
+	accounts         []*eventmodels.Account
+	coinbaseDatafeed *eventmodels.Datafeed
+	ibDatafeed       *eventmodels.Datafeed
+	manualDatafeed   *eventmodels.Datafeed
 }
 
-func (w *AccountWorker) monitorTrades() {
+func (w *AccountWorker) getAccounts() []*eventmodels.Account {
+	accounts := []*eventmodels.Account{}
 
-}
-
-func (w *AccountWorker) getAccounts() []models.Account {
-	var accounts []models.Account
-
-	for _, acc := range w.accounts {
-		accounts = append(accounts, *acc)
-	}
+	accounts = append(accounts, w.accounts...)
 
 	return accounts
 }
 
-func (w *AccountWorker) addAccount(account *models.Account, balance float64, priceLevels []*models.PriceLevel) error {
-	strategy, err := models.NewStrategy("trendline-break", "BTC-USD", "down", balance, priceLevels, account)
-	if err != nil {
-		return err
-	}
+// todo: add a mutex
+func (w *AccountWorker) addAccountWithoutStrategy(account *eventmodels.Account) error {
 
-	account.AddStrategy(*strategy)
+	for _, acc := range w.accounts {
+		if acc.Name == account.Name {
+			return fmt.Errorf("AccountWorker.addAccountWithoutStrategy: account with name %v already exists", account.Name)
+		}
+	}
 
 	w.accounts = append(w.accounts, account)
 
 	return nil
 }
 
-func (w *AccountWorker) findAccount(name string) (*models.Account, error) {
+func (w *AccountWorker) findAccount(name string) (*eventmodels.Account, error) {
 	for _, a := range w.accounts {
 		if name == a.Name {
 			return a, nil
@@ -59,57 +55,62 @@ func (w *AccountWorker) findAccount(name string) (*models.Account, error) {
 	return nil, fmt.Errorf("AccountWorker.findAccount: could not find account with name %v", name)
 }
 
-func (w *AccountWorker) addAccountRequestHandler(request eventmodels.AddAccountRequestEvent) {
-	log.Debug("<- AccountWorker.addAccountRequestHandler")
+func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateAccountRequestEventV1) {
+	log.Debug("<- AccountWorker.createAccountRequestHandler")
 
-	var priceLevels []*models.PriceLevel
-
-	for _, input := range request.PriceLevelsInput {
-		priceLevels = append(priceLevels, &models.PriceLevel{
-			Price:             input[0],
-			MaxNoOfTrades:     int(input[1]),
-			AllocationPercent: input[2],
-		})
-	}
-
-	account, err := models.NewAccount(request.Name, request.Balance, nil)
-	if err != nil {
-		pubsub.PublishError("AccountWorker.addAccountHandler", err)
+	var datafeed *eventmodels.Datafeed
+	switch request.DatafeedName {
+	case eventmodels.CoinbaseDatafeed:
+		datafeed = w.coinbaseDatafeed
+	case eventmodels.IBDatafeed:
+		datafeed = w.ibDatafeed
+	case eventmodels.ManualDatafeed:
+		datafeed = w.manualDatafeed
+	default:
+		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", fmt.Errorf("datafeed source: %v", request.DatafeedName), &request.Meta)
 		return
 	}
 
-	err = w.addAccount(account, request.Balance, priceLevels)
+	account, err := eventmodels.NewAccount(request.Name, request.Balance, datafeed)
 	if err != nil {
-		pubsub.PublishError("AccountWorker.NewStrategy", err)
+		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", err, &request.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.addAccountHandler", pubsub.AddAccountResponseEvent, eventmodels.AddAccountResponseEvent{
-		Account: *account,
-	})
+	err = w.addAccountWithoutStrategy(account)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.addAccountWithoutStrategy", err, &request.Meta)
+		return
+	}
+
+	pubsub.PublishCompletedResponse("AccountWorker.createAccountRequestHandler", &eventmodels.CreateAccountResponseEvent{
+		Account: account,
+	}, &request.Meta)
 }
 
-func (w *AccountWorker) getAccountsRequestHandler(request *eventmodels.GetAccountsRequestEvent) {
+func (w *AccountWorker) handleGetAccountsRequestEvent(request *eventmodels.GetAccountsRequestEvent) {
 	log.Debugf("<- AccountWorker.getAccountsRequestHandler")
 
-	pubsub.Publish("AccountWorker", pubsub.GetAccountsResponseEvent, &eventmodels.GetAccountsResponseEvent{
-		RequestID: request.RequestID,
-		Accounts:  w.getAccounts(),
-	})
+	pubsub.PublishCompletedResponse("AccountWorker", &eventmodels.GetAccountsResponseEvent{
+		Accounts: w.getAccounts(),
+	}, &request.Meta)
 }
 
 // todo: test this
-func (w *AccountWorker) checkTradeCloseParameters() ([]*models.CloseTradesRequest, []*models.CloseTradeRequestV2, error) {
-	var closeTradesRequests []*models.CloseTradesRequest
-	var closeTradeRequests []*models.CloseTradeRequestV2
+func (w *AccountWorker) checkTradeCloseParameters() ([]*eventmodels.CloseTradesRequest, []*eventmodels.CloseTradeRequestV2, error) {
+	var closeTradesRequests []*eventmodels.CloseTradesRequest
+	var closeTradeRequests []*eventmodels.CloseTradeRequestV2
 
 	for _, account := range w.accounts {
 		tick := account.Datafeed.Tick()
 		stopOutRequests, err := account.CheckStopOut(*tick)
-		stopLossRequests, err := account.CheckStopLoss(*tick)
-
 		if err != nil {
 			return nil, nil, fmt.Errorf("checkStopOut failed: %w", err)
+		}
+
+		stopLossRequests, err := account.CheckStopLoss(*tick)
+		if err != nil {
+			return nil, nil, fmt.Errorf("CheckStopLoss failed: %w", err)
 		}
 
 		closeTradesRequests = append(closeTradesRequests, stopOutRequests...)
@@ -119,13 +120,24 @@ func (w *AccountWorker) checkTradeCloseParameters() ([]*models.CloseTradesReques
 	return closeTradesRequests, closeTradeRequests, nil
 }
 
-func (w *AccountWorker) updateTickMachine(tick eventmodels.Tick) {
+func (w *AccountWorker) updateTickMachine(tick *eventmodels.Tick) {
 	// todo: eventually update based off level 2 quotes to get bid and ask
-	w.coinbaseDatafeed.Update(models.Tick{
+	t := eventmodels.Tick{
 		Timestamp: tick.Timestamp,
-		Bid:       tick.Price,
-		Ask:       tick.Price,
-	})
+		Price:     tick.Price,
+	}
+
+	switch tick.Source {
+	case eventmodels.CoinbaseDatafeed:
+		w.coinbaseDatafeed.Update(t)
+	case eventmodels.IBDatafeed:
+		w.ibDatafeed.Update(t)
+	// todo: current updates in different section of code. Should be refactored to update in the same place
+	// case eventmodels.ManualDatafeed:
+	// 	w.manualDatafeed.Update(t)
+	default:
+		log.Fatalf("unknown datafeed source: %v", tick.Source)
+	}
 }
 
 func (w *AccountWorker) update() {
@@ -143,10 +155,9 @@ func (w *AccountWorker) update() {
 		// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
 		eventmodels.RegisterResultCallback(requestID)
 
-		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
-			RequestID:          uuid.New(),
+		pubsub.PublishResponse("AccountWorker.update", eventmodels.ExecuteCloseTradesRequestEventName, &eventmodels.ExecuteCloseTradesRequest{
 			CloseTradesRequest: req,
-		})
+		}, &req.Meta)
 	}
 
 	for _, req := range closeTradeRequests {
@@ -155,12 +166,11 @@ func (w *AccountWorker) update() {
 		// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
 		eventmodels.RegisterResultCallback(requestID)
 
-		pubsub.Publish("AccountWorker.update", pubsub.ExecuteCloseTradeRequest, &eventmodels.ExecuteCloseTradeRequest{
-			RequestID: requestID,
+		pubsub.PublishResponse("AccountWorker.update", eventmodels.ExecuteCloseTradeRequestEventName, &eventmodels.ExecuteCloseTradeRequest{
 			Timeframe: req.Timeframe,
 			Trade:     req.Trade,
 			Percent:   req.Percent,
-		})
+		}, &req.Meta)
 	}
 }
 
@@ -170,64 +180,79 @@ func (w *AccountWorker) handleCloseTradesRequest(event *eventmodels.CloseTradeRe
 
 	account, err := w.findAccount(event.AccountName)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find account: %w", err))
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleNewCloseTradeRequest", err, &event.Meta)
 		return
 	}
 
 	strategy, err := account.FindStrategy(event.StrategyName)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleNewCloseTradeRequest", err, &event.Meta)
 		return
 	}
 
-	closeTradesRequest, err := models.NewCloseTradesRequest(strategy, event.Timeframe, event.PriceLevelIndex, event.Percent, strategy.Name)
+	closeTradesRequest, err := eventmodels.NewCloseTradesRequest(strategy, event.Timeframe, event.PriceLevelIndex, event.Percent, strategy.Name)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("new close trades request failed: %w", err))
-		pubsub.PublishError("AccountWorker.handleNewCloseTradeRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleNewCloseTradeRequest", err, &event.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.handleCloseTradeRequest", pubsub.ExecuteCloseTradesRequest, eventmodels.ExecuteCloseTradesRequest{
-		RequestID:          event.RequestID,
+	pubsub.PublishCompletedResponse("AccountWorker.handleCloseTradeRequest", &eventmodels.ExecuteCloseTradesRequest{
 		CloseTradesRequest: closeTradesRequest,
-	})
+	}, &event.Meta)
 }
 
-func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) {
+func (w *AccountWorker) executeCloseTradesRequest(req *eventmodels.CloseTradeRequest) (*eventmodels.AutoExecuteTrade, error) {
 	tradeID := uuid.New()
 	now := time.Now().UTC()
 
-	strategy := event.Trade.PriceLevel.Strategy
-	datafeed := strategy.Account.Datafeed
-
-	var requestPrc float64
-	if strategy.Direction == models.Up {
-		requestPrc = datafeed.LastBid
-	} else if strategy.Direction == models.Down {
-		requestPrc = datafeed.LastOffer
+	account, err := w.findAccount(req.AccountName)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
 	}
 
-	trade, _, err := strategy.NewCloseTrade(tradeID, event.Timeframe, now, requestPrc, event.Percent, event.Trade)
+	strategy, err := account.FindStrategy(req.StrategyName)
 	if err != nil {
-		if errors.Is(err, models.DuplicateCloseTradeErr) {
-			log.Debugf("duplicate close: skip closing %v", event.Trade.ID)
-			return
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
+	}
+
+	datafeed := strategy.Account.Datafeed
+
+	requestPrc := datafeed.LastTick
+
+	trade, _, err := strategy.NewCloseTrades(tradeID, req.Timeframe, now, requestPrc, req.PriceLevelIndex, req.Percent)
+	if err != nil {
+		if errors.Is(err, eventmodels.DuplicateCloseTradeErr) {
+			log.Debugf("duplicate close: skipping")
+			return nil, nil
 		}
 
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new close trade: %w", err))
-		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		return nil, fmt.Errorf("executeCloseTradesRequest: unable to create new close trade: %w", err)
+	}
+
+	if _, err = strategy.AutoExecuteTrade(trade); err != nil {
+		return nil, fmt.Errorf("AccountWorker.executeCloseTradesRequest: %w", err)
+	}
+
+	return &eventmodels.AutoExecuteTrade{
+		Trade: trade,
+	}, nil
+}
+
+func (w *AccountWorker) executeCloseTradeRequest(req *eventmodels.ExecuteCloseTradeRequest) (*eventmodels.AutoExecuteTrade, error) {
+	return nil, fmt.Errorf("AccountWorker.executeCloseTradeRequest: not implemented")
+}
+
+func (w *AccountWorker) handleExecuteCloseTradeRequest(event *eventmodels.ExecuteCloseTradeRequest) {
+	trade, err := w.executeCloseTradeRequest(event)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleExecuteCloseTradeRequest", err, &event.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.AutoExecuteTrade, &eventmodels.AutoExecuteTrade{
-		RequestID: event.RequestID,
-		Trade:     trade,
-	})
+	pubsub.PublishCompletedResponse("AccountWorker.handleExecuteCloseTradeRequest", trade, &event.Meta)
 }
 
-func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.ExecuteCloseTradesRequest) {
+func (w *AccountWorker) handleExecuteCloseTradesRequest(event *eventmodels.ExecuteCloseTradesRequest) {
 	log.Debug("<- AccountWorker.handleExecuteCloseTradesRequest")
 
 	clsTradeReq := event.CloseTradesRequest
@@ -235,133 +260,124 @@ func (w *AccountWorker) handleExecuteCloseTradesRequest(event eventmodels.Execut
 	now := time.Now().UTC()
 	datafeed := event.CloseTradesRequest.Strategy.Account.Datafeed
 
-	var requestPrc float64
-	if event.CloseTradesRequest.Strategy.Direction == models.Up {
-		requestPrc = datafeed.LastBid
-	} else if event.CloseTradesRequest.Strategy.Direction == models.Down {
-		requestPrc = datafeed.LastOffer
-	}
+	requestPrc := datafeed.LastTick
 
 	// todo: unify models: partialCloseRequestItems. Strategy.AutoExecuteTrade handles differently than trade.AutoExecuteTrade
 	trade, _, err := clsTradeReq.Strategy.NewCloseTrades(tradeID, clsTradeReq.Timeframe, now, requestPrc, clsTradeReq.PriceLevelIndex, clsTradeReq.Percent)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new close trade: %w", err))
-		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleExecuteCloseTradesRequest", fmt.Errorf("unable to create new close trade: %w", err), &event.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.AutoExecuteTrade, &eventmodels.AutoExecuteTrade{
-		RequestID: event.RequestID,
-		Trade:     trade,
-	})
+	pubsub.PublishCompletedResponse("AccountWorker.handleExecuteCloseTradesRequest", &eventmodels.AutoExecuteTrade{
+		Trade: trade,
+	}, &event.Meta)
 }
 
 func (w *AccountWorker) handleAutoExecuteTrade(event *eventmodels.AutoExecuteTrade) {
 	strategy := event.Trade.PriceLevel.Strategy
-	result, err := strategy.AutoExecuteTrade(event.Trade)
+	_, err := strategy.AutoExecuteTrade(event.Trade)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to place execute trade: %w", err))
-		pubsub.PublishError("AccountWorker.handleExecuteCloseTradesRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleExecuteCloseTradesRequest", err, &event.Meta)
 		return
 	}
 
 	executeCloseTradesResult := &eventmodels.ExecuteCloseTradesResult{
-		RequestID: event.RequestID,
-		Side:      strategy.GetTradeType(true).String(),
-		Result:    result,
+		Trade: event.Trade,
 	}
 
-	pubsub.Publish("AccountWorker.handleExecuteCloseTradesRequest", pubsub.ExecuteCloseTradesResult, executeCloseTradesResult)
+	pubsub.PublishResponse("AccountWorker.handleExecuteCloseTradesRequest", eventmodels.ExecuteCloseTradesResultEventName, executeCloseTradesResult, &event.Meta)
 }
 
-func (w *AccountWorker) getMarketPrice(strategy *models.Strategy, isClose bool) float64 {
-	tick := w.coinbaseDatafeed.Tick()
-	var requestPrc float64
-	if strategy.Direction == models.Up {
-		if isClose {
-			requestPrc = tick.Bid
-		} else {
-			requestPrc = tick.Ask
-		}
-	} else if strategy.Direction == models.Down {
-		if isClose {
-			requestPrc = tick.Ask
-		} else {
-			requestPrc = tick.Bid
-		}
-	}
-
-	return requestPrc
-}
-
-func (w *AccountWorker) handleExecuteNewOpenTradeRequest(event eventmodels.ExecuteOpenTradeRequest) {
-	log.Debug("<- AccountWorker.handleExecuteNewOpenTradeRequest")
-
-	req := event.OpenTradeRequest
+func (w *AccountWorker) executeOpenTradeRequest(req *eventmodels.CreateTradeRequest) (*eventmodels.ExecuteOpenTradeResult, error) {
 	tradeID := uuid.New()
 	now := time.Now().UTC()
-	datafeed := event.OpenTradeRequest.Strategy.Account.Datafeed
 
-	var requestPrc float64
-	if event.OpenTradeRequest.Strategy.Direction == models.Up {
-		requestPrc = datafeed.LastOffer
-	} else if event.OpenTradeRequest.Strategy.Direction == models.Down {
-		requestPrc = datafeed.LastBid
-	}
-
-	trade, _, err := req.Strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
+	account, err := w.findAccount(req.AccountName)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to create new trade: %w", err))
-		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", requestErr)
-		return
+		return nil, fmt.Errorf("AccountWorker.handleNewOpenTradeRequest: %w", err)
 	}
 
-	result, err := req.Strategy.AutoExecuteTrade(trade)
+	strategy, err := account.FindStrategy(req.StrategyName)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("unable to place execute trade: %w", err))
-		pubsub.PublishError("AccountWorker.handleExecuteNewOpenTradeRequest", requestErr)
-		return
+		return nil, fmt.Errorf("AccountWorker.handleNewOpenTradeRequest: %w", err)
 	}
 
-	executeOpenTradeResult := &eventmodels.ExecuteOpenTradeResult{
-		RequestID: event.RequestID,
-		Side:      req.Strategy.GetTradeType(false).String(),
-		Result:    result,
+	datafeed := strategy.Account.Datafeed
+
+	requestPrc := datafeed.LastTick
+
+	trade, _, err := strategy.NewOpenTrade(tradeID, req.Timeframe, now, requestPrc)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.handleNewOpenTradeRequest: %w", err)
 	}
 
-	pubsub.Publish("AccountWorker.handleExecuteNewOpenTradeRequest", pubsub.ExecuteOpenTradeResult, executeOpenTradeResult)
+	result, err := strategy.AutoExecuteTrade(trade)
+	if err != nil {
+		return nil, fmt.Errorf("AccountWorker.handleNewOpenTradeRequest: %w", err)
+	}
+
+	return &eventmodels.ExecuteOpenTradeResult{
+		PriceLevelIndex: result.PriceLevelIndex,
+		Trade:           trade,
+	}, nil
 }
 
-func (w *AccountWorker) handleNewOpenTradeRequest(event eventmodels.OpenTradeRequest) {
-	log.Debug("<- AccountWorker.handleNewOpenTradeRequest")
+func (w *AccountWorker) handleExecuteOpenTradeRequest(event *eventmodels.ExecuteOpenTradeRequest) {
+	log.Debug("<- AccountWorker.handleExecuteNewOpenTradeRequest")
 
-	account, err := w.findAccount(event.AccountName)
+	executeOpenTradeResult, err := w.executeOpenTradeRequest(event.OpenTradeRequest)
 	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
-		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", requestErr)
+		pubsub.PublishRequestError("AccountWorker.handleExecuteNewOpenTradeRequest", fmt.Errorf("failed to execute open trade request: %w", err), &event.Meta)
 		return
 	}
 
-	strategy, err := account.FindStrategy(event.StrategyName)
-	if err != nil {
-		requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
-		pubsub.PublishError("AccountWorker.handleNewOpenTradeRequest", requestErr)
-		return
+	// terminates process
+	pubsub.PublishCompletedResponse("AccountWorker.handleExecuteNewOpenTradeRequest", executeOpenTradeResult, &event.Meta)
+}
+
+// todo: remove isOpen
+func (w *AccountWorker) processCreateTradeRequest(event *eventmodels.CreateTradeRequest, isOpen bool) {
+	// perform a lookup to find the trade, or create an execute trade request
+
+	if isOpen {
+		w.executeOpenTradeRequest(event)
+	} else {
+		// w.executeCloseTradeRequest()
 	}
+}
+
+func (w *AccountWorker) handleCreateTradeRequest(event eventmodels.CreateTradeRequest) {
+	log.Debug("<- AccountWorker.handleCreateTradeRequest")
+
+	// todo: refactor - can i remove this??
+
+	// account, err := w.findAccount(event.AccountName)
+	// if err != nil {
+	// 	requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find findAccount: %w", err))
+	// 	pubsub.PublishRequestError("AccountWorker.handleCreateTradeRequest", &event, requestErr)
+	// 	return
+	// }
+
+	// strategy, err := account.FindStrategy(event.StrategyName)
+	// if err != nil {
+	// 	requestErr := eventmodels.NewRequestError(event.RequestID, fmt.Errorf("failed to find strategy: %w", err))
+	// 	pubsub.PublishRequestError("AccountWorker.handleCreateTradeRequest", &event, requestErr)
+	// 	return
+	// }
 
 	// todo: refactor - if another method already has the strategy, e.g. - eventservices.UpdateConditions, could
 	// it just invoke execute open trade request directly?
 	// Furthermore, is there a difference between a request originating from outside of the system - e.g. NewOpenTradeRequest
 	// and inside of the system - e.g. ExecuteOpenTradeRequest
-	openTradeReq, err := models.NewOpenTradeRequest(
-		event.Timeframe,
-		strategy,
-	)
+	// openTradeReq, err := eventmodels.NewOpenTradeRequest(
+	// 	event.Timeframe,
+	// 	strategy,
+	// )
 
-	pubsub.Publish("AccountWorker.handleNewOpenTradeRequest", pubsub.ExecuteOpenTradeRequest, eventmodels.ExecuteOpenTradeRequest{
-		RequestID:        event.RequestID,
-		OpenTradeRequest: openTradeReq,
-	})
+	pubsub.PublishResponse("AccountWorker.handleCreateTradeRequest", eventmodels.ExecuteOpenTradeRequestEventName, &eventmodels.ExecuteOpenTradeRequest{
+		OpenTradeRequest: &event,
+	}, &event.Meta)
 }
 
 // todo:: this is the model! Refactor services to be standardized. Ideally in its own directory of sorts
@@ -372,7 +388,11 @@ func (w *AccountWorker) fetchTrades(event *eventmodels.FetchTradesRequest) (*eve
 		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: failed to find findAccount: %w", err)
 	}
 
-	fetchTradesResult := eventservices.FetchTrades(event.RequestID, account)
+	if &event.Meta == nil {
+		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: meta is nil")
+	}
+
+	fetchTradesResult := eventservices.FetchTrades(event.Meta.RequestID, account)
 
 	return fetchTradesResult, nil
 }
@@ -382,34 +402,34 @@ func (w *AccountWorker) handleFetchTradesRequest(event *eventmodels.FetchTradesR
 
 	fetchTradesResult, err := w.fetchTrades(event)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleFetchTradesRequest", event, err)
+		pubsub.PublishRequestError("AccountWorker.handleFetchTradesRequest", err, &event.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.handleFetchTradesRequest", pubsub.FetchTradesResult, fetchTradesResult)
+	pubsub.PublishResponse("AccountWorker.handleFetchTradesRequest", eventmodels.FetchTradesResultEventName, fetchTradesResult, &event.Meta)
 }
 
-func (w *AccountWorker) handleGetStatsRequest(event *eventmodels.GetStatsRequest) {
-	log.Debug("<- AccountWorker.handleGetStatsRequest")
+func (w *AccountWorker) handleGetAccountStatsRequest(event *eventmodels.GetStatsRequest) {
+	log.Debug("<- AccountWorker.handleGetAccountStatsRequest")
 
 	account, err := w.findAccount(event.AccountName)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, fmt.Errorf("failed to find findAccount: %w", err))
+		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", fmt.Errorf("failed to find findAccount: %w", err), &event.Meta)
 		return
 	}
 
 	currentTick := account.Datafeed.Tick()
 
-	statsResult, err := eventservices.GetStats(event.RequestID, account, currentTick)
+	statsResult, err := eventservices.GetStats(event.GetMetaData().RequestID, account, currentTick)
 	if err != nil {
-		pubsub.PublishRequestError("AccountWorker.handleGetStatsRequest", event, err)
+		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", err, &event.Meta)
 		return
 	}
 
-	pubsub.Publish("AccountWorker.handleGetStatsRequest", pubsub.GetStatsResult, statsResult)
+	pubsub.PublishCompletedResponse("AccountWorker.handleGetAccountStatsRequest", statsResult, &event.Meta)
 }
 
-func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []*models.ExitConditionsSatisfied) ([]*eventmodels.CloseTradeRequest, error) {
+func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []*eventmodels.ExitConditionsSatisfied) ([]*eventmodels.CloseTradeRequest, error) {
 	var clsTradeRequests []*eventmodels.CloseTradeRequest
 
 	for _, exitCondition := range exitConditionsSatisfied {
@@ -429,8 +449,8 @@ func (w *AccountWorker) handleExitConditionsSatisfied(exitConditionsSatisfied []
 	return clsTradeRequests, nil
 }
 
-func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied []*models.EntryConditionsSatisfied) ([]*eventmodels.OpenTradeRequest, error) {
-	var openTradeRequests []*eventmodels.OpenTradeRequest
+func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied []*eventmodels.EntryConditionsSatisfied) ([]*eventmodels.CreateTradeRequest, error) {
+	var openTradeRequests []*eventmodels.CreateTradeRequest
 
 	for _, entryConditions := range entryConditionsSatisfied {
 		req, openTradeReqErr := eventmodels.NewOpenTradeRequest(uuid.New(), entryConditions.Account.Name, entryConditions.Strategy.Name, nil) // todo: timeframe should come from signal
@@ -444,85 +464,134 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 	return openTradeRequests, nil
 }
 
-func (w *AccountWorker) handleNewSignalRequest(event *models.SignalRequest) {
+func (w *AccountWorker) handleExitConditions(event *eventmodels.CreateSignalRequestEventV1DTO) error {
+	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
+	if updateErr != nil {
+		return fmt.Errorf("AccountWorker.handleExitConditions: failed to update exit conditions: %w", updateErr)
+	}
+
+	clsTradeRequests, err := w.handleExitConditionsSatisfied(exitConditionsSatisfied)
+	if err != nil {
+		return fmt.Errorf("AccountWorker.handleExitConditions: failed to handle exit conditions: %w", err)
+	}
+
+	for _, req := range clsTradeRequests {
+		// todo: return the close trade requests
+		_, err := w.executeCloseTradesRequest(req)
+		if err != nil {
+			return fmt.Errorf("AccountWorker.handleExitConditions: failed to execute close trade request: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (w *AccountWorker) handleOpenConditions(event *eventmodels.CreateSignalRequestEventV1DTO) error {
+	entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event)
+	openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
+	if err != nil {
+		return fmt.Errorf("AccountWorker.handleOpenConditions: failed to handle entry conditions: %w", err)
+	}
+
+	for _, req := range openTradeRequests {
+		// todo: return the open trade requests
+		_, err := w.executeOpenTradeRequest(req)
+		if err != nil {
+			return fmt.Errorf("AccountWorker.handleOpenConditions: failed to execute open trade request: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (w *AccountWorker) handleCreateSignalResponse(event *eventmodels.CreateSignalRequestEventV1DTO) error {
 	log.Infof("received %v", event)
 
-	// handle exit conditions
-	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
-	if updateErr == nil {
-		if exitConditionsSatisfied != nil {
-			clsTradeRequests, err := w.handleExitConditionsSatisfied(exitConditionsSatisfied)
-			if err == nil {
-				for _, req := range clsTradeRequests {
-					// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove, as the request didn't originate from an api call but is still picked up by the lister
-					eventmodels.RegisterResultCallback(req.RequestID)
-
-					pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.CloseTradesRequest, req)
-				}
-			} else {
-				pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
-			}
-		}
-	} else {
-		pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, updateErr)
+	if err := w.handleExitConditions(event); err != nil {
+		return fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle exit conditions: %w", err)
 	}
 
-	if entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event); entryConditionsSatisfied != nil {
-		openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
-		if err == nil {
-			for _, req := range openTradeRequests {
-				// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
-				// as the request didn't originate from an api call but is still picked up by the lister
-				eventmodels.RegisterResultCallback(req.RequestID)
-
-				pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewOpenTradeRequest, *req)
-			}
-		} else {
-			pubsub.PublishRequestError("AccountWorker.handleNewSignalRequest", event, err)
-		}
+	if err := w.handleOpenConditions(event); err != nil {
+		return fmt.Errorf("AccountWorker.handleCreateSignalResponse: failed to handle open conditions: %w", err)
 	}
 
-	// todo: there must be a more elegant way to handle this: stops error message from GlobalDispatcher.GetChannelAndRemove
-	// as the request didn't originate from an api call but is still picked up by the lister
-	eventmodels.RegisterResultCallback(event.RequestID)
+	// todo: publish any newly created trades
 
-	pubsub.Publish("AccountWorker.handleNewSignalRequest", pubsub.NewSignalsResult, &eventmodels.NewSignalResult{
-		Name:      event.Name,
-		RequestID: event.RequestID,
-	})
+	return nil
+}
+
+func (w *AccountWorker) handleCreateSignalRequest(event *eventmodels.CreateSignalRequestEventV1DTO) {
+	log.Infof("received %v", event)
+
+	if err := w.handleCreateSignalResponse(event); err != nil {
+		pubsub.PublishRequestError("AccountWorker.handleCreateSignalRequest", fmt.Errorf("failed to handle signal request: %w", err), &event.Meta)
+		return
+	}
+
+	pubsub.PublishEvent("AccountWorker.handleCreateSignalRequest", eventmodels.CreateSignalRequestProcessedByAccount, nil)
 }
 
 func (w *AccountWorker) handleManualDatafeedUpdateRequest(ev *eventmodels.ManualDatafeedUpdateRequest) {
 	ts := time.Now().UTC()
-	tick := models.Tick{
+	tick := eventmodels.Tick{
 		Timestamp: ts,
-		Bid:       ev.Bid,
-		Ask:       ev.Ask,
+		Price:     ev.Bid,
 	}
 
 	w.manualDatafeed.Update(tick)
 
-	result := eventmodels.NewManualDatafeedUpdateResult(ev.RequestID, ts, tick)
+	result := eventmodels.NewManualDatafeedUpdateResult(ev.Meta.RequestID, ts, tick)
 
-	pubsub.Publish("AccountWorker.handleManualDatafeedUpdateRequest", pubsub.ManualDatafeedUpdateResult, result)
+	pubsub.PublishResponse("AccountWorker.handleManualDatafeedUpdateRequest", eventmodels.ManualDatafeedUpdateResultEventName, result, &ev.Meta)
+}
+
+func (w *AccountWorker) createAccountStrategyRequestHandler(ev *eventmodels.CreateAccountStrategyRequestEvent) {
+	account, err := w.findAccount(ev.AccountName)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to find account: %w", err), &ev.Meta)
+		return
+	}
+
+	strategy, err := eventmodels.NewStrategy(ev.Strategy.Name, ev.Strategy.Symbol, ev.Strategy.Direction, ev.Strategy.Balance, ev.Strategy.EntryConditions, ev.Strategy.ExitConditions, ev.Strategy.PriceLevels, account)
+	if err != nil {
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to create strategy: %w", err), &ev.Meta)
+		return
+	}
+
+	if err := account.AddStrategy(strategy); err != nil {
+		pubsub.PublishRequestError("AccountWorker.createAccountStrategyRequestHandler", fmt.Errorf("failed to add strategy: %w", err), &ev.Meta)
+		return
+	}
+
+	// todo: add the requestID as a parameter when dispatching to the event bus, instead of in the event itself
+	pubsub.PublishCompletedResponse("AccountWorker.createAccountStrategyRequestHandler", &eventmodels.CreateAccountStrategyResponseEvent{
+		AccountsRequestHeader: eventmodels.AccountsRequestHeader{
+			AccountName: ev.AccountName,
+		},
+		Strategy: strategy,
+	}, &ev.Meta)
 }
 
 func (w *AccountWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, w.addAccountRequestHandler)
-	pubsub.Subscribe("AccountWorker", pubsub.GetAccountsRequestEvent, w.getAccountsRequestHandler)
-	pubsub.Subscribe("AccountWorker", pubsub.NewTickEvent, w.updateTickMachine)
-	pubsub.Subscribe("AccountWorker", pubsub.NewOpenTradeRequest, w.handleNewOpenTradeRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.ExecuteOpenTradeRequest, w.handleExecuteNewOpenTradeRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.CloseTradesRequest, w.handleCloseTradesRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradesRequest, w.handleExecuteCloseTradesRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.ExecuteCloseTradeRequest, w.handleExecuteCloseTradeRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.FetchTradesRequest, w.handleFetchTradesRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewGetStatsRequest, w.handleGetStatsRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.NewSignalsRequest, w.handleNewSignalRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.ManualDatafeedUpdateRequest, w.handleManualDatafeedUpdateRequest)
-	pubsub.Subscribe("AccountWorker", pubsub.AutoExecuteTrade, w.handleAutoExecuteTrade)
+	// task: *** create an AccountManager to hold each account worker and subscribe to events
+
+	// pubsub.Subscribe("AccountWorker", pubsub.AddAccountRequestEvent, w.addAccountRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.GetAccountsRequestEventName, w.handleGetAccountsRequestEvent)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewTickEventName, w.updateTickMachine)
+	pubsub.Subscribe("AccountWorker", eventmodels.CreateTradeRequestEventName, w.handleCreateTradeRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.ExecuteOpenTradeRequestEventName, w.handleExecuteOpenTradeRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.CloseTradesRequestEventName, w.handleCloseTradesRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.ExecuteCloseTradesRequestEventName, w.handleExecuteCloseTradesRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.ExecuteCloseTradeRequestEventName, w.handleExecuteCloseTradeRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.FetchTradesRequestEventName, w.handleFetchTradesRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewGetStatsRequestEventName, w.handleGetAccountStatsRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateSignalRequestEventName), w.handleCreateSignalRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.ManualDatafeedUpdateRequestEventName, w.handleManualDatafeedUpdateRequest)
+	pubsub.Subscribe("AccountWorker", eventmodels.AutoExecuteTradeEventName, w.handleAutoExecuteTrade)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateAccountStrategyRequestEventName), w.createAccountStrategyRequestHandler)
+	pubsub.Subscribe("AccountWorker", eventmodels.NewSavedEvent(eventmodels.CreateAccountRequestEventName), w.createAccountRequestHandler)
 
 	go func() {
 		defer w.wg.Done()
@@ -541,40 +610,12 @@ func (w *AccountWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewAccountWorkerClientFromFixtures(wg *sync.WaitGroup, accounts []*models.Account, datafeedName models.DatafeedName) *AccountWorker {
-	coinbaseDatafeed := models.NewDatafeed(models.CoinbaseDatafeed)
-	manualDatafeed := models.NewDatafeed(models.ManualDatafeed)
-
-	switch datafeedName {
-	case models.CoinbaseDatafeed:
-		for _, acc := range accounts {
-			acc.Datafeed = coinbaseDatafeed
-		}
-	case models.ManualDatafeed:
-		if os.Getenv("ENV") == "PRODUCTION" {
-			log.Fatalf("cannot use manual datafeed in production")
-		}
-
-		for _, acc := range accounts {
-			acc.Datafeed = manualDatafeed
-		}
-	default:
-		log.Fatalf("unknown datafeedName: %v", datafeedName)
-	}
-
-	return &AccountWorker{
-		wg:               wg,
-		accounts:         accounts,
-		coinbaseDatafeed: coinbaseDatafeed,
-		manualDatafeed:   manualDatafeed,
-	}
-}
-
 func NewAccountWorkerClient(wg *sync.WaitGroup) *AccountWorker {
 	return &AccountWorker{
 		wg:               wg,
-		accounts:         make([]*models.Account, 0),
-		coinbaseDatafeed: models.NewDatafeed(models.CoinbaseDatafeed),
-		manualDatafeed:   models.NewDatafeed(models.ManualDatafeed),
+		accounts:         make([]*eventmodels.Account, 0),
+		coinbaseDatafeed: eventmodels.NewDatafeed(eventmodels.CoinbaseDatafeed),
+		ibDatafeed:       eventmodels.NewDatafeed(eventmodels.IBDatafeed),
+		manualDatafeed:   eventmodels.NewDatafeed(eventmodels.ManualDatafeed),
 	}
 }

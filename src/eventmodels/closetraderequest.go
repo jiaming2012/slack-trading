@@ -1,30 +1,37 @@
 package eventmodels
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 )
 
 type CloseTradeRequest struct {
-	RequestID       uuid.UUID
-	AccountName     string  `json:"AccountName"`
-	StrategyName    string  `json:"strategyName"`
-	PriceLevelIndex int     `json:"priceLevelIndex"`
-	Timeframe       *int    `json:"timeframe"`
-	Percent         float64 `json:"percent"`
-	Reason          string  `json:"reason"`
+	BaseRequestEvent
+	AccountName     string     `json:"AccountName"`
+	StrategyName    string     `json:"strategyName"`
+	PriceLevelIndex int        `json:"priceLevelIndex"`
+	Timeframe       *int       `json:"timeframe"`
+	Percent         float64    `json:"percent"`
+	Reason          string     `json:"reason"`
+	Error           chan error `json:"-"`
 }
 
-func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
-	req := &CloseTradeRequest{RequestID: requestID, AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
-	if err := req.Validate(); err != nil {
-		return nil, err
+func (r *CloseTradeRequest) Wait() chan error {
+	return r.Error
+}
+
+func (r *CloseTradeRequest) ParseHTTPRequest(req *http.Request) error {
+	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
+		return fmt.Errorf("CloseTradeRequest.ParseHTTPRequest: failed to decode json: %w", err)
 	}
 
-	return req, nil
+	return nil
 }
 
-func (r *CloseTradeRequest) Validate() error {
+func (r *CloseTradeRequest) Validate(request *http.Request) error {
 	if len(r.AccountName) == 0 {
 		return fmt.Errorf("validate: AccountName not set")
 	}
@@ -50,4 +57,16 @@ func (r *CloseTradeRequest) Validate() error {
 	}
 
 	return nil
+}
+
+func NewCloseTradeRequest(requestID uuid.UUID, accountName string, strategyName string, priceLevelIndex int, timeframe *int, percent float64, reason string) (*CloseTradeRequest, error) {
+	req := &CloseTradeRequest{AccountName: accountName, StrategyName: strategyName, PriceLevelIndex: priceLevelIndex, Timeframe: timeframe, Percent: percent, Reason: reason}
+
+	req.SetMetaData(&MetaData{RequestID: requestID})
+
+	if err := req.Validate(nil); err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
