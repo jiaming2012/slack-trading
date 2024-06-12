@@ -17,11 +17,12 @@ import (
 )
 
 type ReadOptionChainRequestExecutor struct {
-	OptionsByExpirationURL string
-	OptionChainURL         string
-	StockURL               string
-	BearerToken            string
-	GoEnv                  string
+	StockHistoricalPricesURL string
+	OptionsByExpirationURL   string
+	OptionChainURL           string
+	StockURL                 string
+	BearerToken              string
+	GoEnv                    string
 }
 
 func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitLongSpreadMap map[string]eventmodels.ExpectedProfitItemSpread, expectedProfitShortSpreadMap map[string]eventmodels.ExpectedProfitItemSpread) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
@@ -106,10 +107,30 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []eventmo
 	return optionsDTO
 }
 
+func (s *ReadOptionChainRequestExecutor) getMinDistanceBetweenStrikes(req *eventmodels.ReadOptionChainRequest) (float64, error) {
+	if req.MinStandardDeviationBetweenStrikes != nil {
+		now := time.Now().UTC()
+		standardDeviation, err := eventservices.FetchStandardDeviation(s.StockHistoricalPricesURL, s.BearerToken, req.Symbol, now)
+		if err != nil {
+			return 0, fmt.Errorf("failed to fetch standard deviation: %w", err)
+		}
+
+		log.Infof("Standard deviation for %s: %f\n", req.Symbol, standardDeviation)
+	}
+
+	return 0, nil
+}
+
 func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, signalName string, resultCh chan map[string]interface{}, errorCh chan error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
+		return
+	}
+
+	minDistanceBetweenStrikes, err := s.getMinDistanceBetweenStrikes(req)
+	if err != nil {
+		errorCh <- fmt.Errorf("failed to get min distance between strikes: %w", err)
 		return
 	}
 
@@ -121,7 +142,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 		req.Symbol,
 		req.OptionTypes,
 		req.ExpirationsInDays,
-		req.MinDistanceBetweenStrikes,
+		minDistanceBetweenStrikes,
 		req.MaxNoOfStrikes,
 	)
 
@@ -171,6 +192,12 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 }
 
 func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainRequest, resultCh chan map[string]interface{}, errorCh chan error) {
+	minDistanceBetweenStrikes, err := s.getMinDistanceBetweenStrikes(req)
+	if err != nil {
+		errorCh <- fmt.Errorf("failed to get min distance between strikes: %w", err)
+		return
+	}
+
 	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV2(
 		s.OptionsByExpirationURL,
 		s.OptionChainURL,
@@ -179,7 +206,7 @@ func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainR
 		req.Symbol,
 		req.OptionTypes,
 		req.ExpirationsInDays,
-		req.MinDistanceBetweenStrikes,
+		minDistanceBetweenStrikes,
 		req.MaxNoOfStrikes,
 	)
 

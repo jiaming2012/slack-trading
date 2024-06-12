@@ -14,12 +14,13 @@ type ReadOptionChainExpectedValue struct {
 }
 
 type ReadOptionChainRequest struct {
-	Symbol                    StockSymbol  `json:"symbol"`
-	OptionTypes               []OptionType `json:"optionTypes"`
-	ExpirationsInDays         []int        `json:"expirationsInDays"`
-	MinDistanceBetweenStrikes float64      `json:"minDistanceBetweenStrikes"`
-	MaxNoOfStrikes            int          `json:"maxNoOfStrikes"`
-	EV                        *ReadOptionChainExpectedValue
+	Symbol                             StockSymbol  `json:"symbol"`
+	OptionTypes                        []OptionType `json:"optionTypes"`
+	ExpirationsInDays                  []int        `json:"expirationsInDays"`
+	MinDistanceBetweenStrikes          *float64     `json:"minDistanceBetweenStrikes"`
+	MinStandardDeviationBetweenStrikes *float64     `json:"minStandardDeviationBetweenStrikes"`
+	MaxNoOfStrikes                     int          `json:"maxNoOfStrikes"`
+	EV                                 *ReadOptionChainExpectedValue
 }
 
 func (o *ReadOptionChainRequest) Validate(r *http.Request) error {
@@ -31,8 +32,12 @@ func (o *ReadOptionChainRequest) Validate(r *http.Request) error {
 		return fmt.Errorf("ReadOptionChainRequest: Validate: expirationsInDays is required")
 	}
 
-	if o.MinDistanceBetweenStrikes == 0 {
-		return fmt.Errorf("ReadOptionChainRequest: Validate: minDistanceBetweenStrikes is required")
+	if o.MinDistanceBetweenStrikes == nil && o.MinStandardDeviationBetweenStrikes == nil {
+		return fmt.Errorf("ReadOptionChainRequest: Validate: minDistanceBetweenStrikes or minStandardDeviationBetweenStrikes is required")
+	}
+
+	if o.MinDistanceBetweenStrikes != nil && o.MinStandardDeviationBetweenStrikes != nil {
+		return fmt.Errorf("ReadOptionChainRequest: Validate: minDistanceBetweenStrikes and minStandardDeviationBetweenStrikes cannot be used together")
 	}
 
 	if o.MaxNoOfStrikes == 0 {

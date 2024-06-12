@@ -9,6 +9,20 @@ import (
 	"slack-trading/src/eventmodels"
 )
 
+func FetchStandardDeviation(url string, bearerToken string, symbol eventmodels.StockSymbol, now time.Time) (float64, error) {
+	endDate := now.Add(-24 * time.Hour)
+	startDate := endDate.Add(-1 * (time.Hour * 24 * 365))
+
+	candles, err := fetchTradierHistoricalPrices(url, bearerToken, symbol, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch historical prices: %v", err)
+	}
+
+	fmt.Printf("fetched candles: %v\n", len(candles))
+
+	return 0, nil
+}
+
 func FetchOptionChainWithParamsV3(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV3, *eventmodels.StockTickItemDTO, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
