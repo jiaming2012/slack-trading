@@ -53,7 +53,7 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.S
 		return false
 	}
 
-	if m15Signal == "buy" && h1Signal == "sell" && h4Signal == "sell" {
+	if m15Signal == "sell" && h1Signal == "sell" && h4Signal == "sell" {
 		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
 		return true
 	}
@@ -84,7 +84,7 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.Sto
 		return false
 	}
 
-	if m15Signal == "sell" && h1Signal == "buy" && h4Signal == "buy" {
+	if m15Signal == "buy" && h1Signal == "buy" && h4Signal == "buy" {
 		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
 		return true
 	}
