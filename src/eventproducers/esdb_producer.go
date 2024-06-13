@@ -102,7 +102,7 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 }
 
 func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
-	log.Debug("<- esdbProducer.handleSaveCreateSignalRequestEvent")
+	log.Debugf("<- esdbProducer.handleSaveCreateSignalRequestEvent, request: %v", request)
 
 	if err := request.ValidateV2(); err == nil {
 		// save the signal
