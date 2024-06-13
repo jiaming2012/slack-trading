@@ -81,6 +81,16 @@ func main() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
+func moveFileToProcessed(currentFilePath, processedDir string) error {
+	_, fileName := filepath.Split(currentFilePath)
+	newFilePath := filepath.Join(processedDir, fileName)
+	if err := os.Rename(currentFilePath, newFilePath); err != nil {
+		return fmt.Errorf("error moving file to processed: %v", err)
+	}
+
+	return nil
+}
+
 func run(args RunArgs) error {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
@@ -106,6 +116,7 @@ func run(args RunArgs) error {
 
 	// open files inside csv_data folder
 	baseDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "import_trading_view_data", "csv_data")
+	processedFilesBaseDir := filepath.Join(projectsDir, "slack-trading", "src", "cmd", "import_trading_view_data", "processed")
 	files, err := os.ReadDir(baseDir)
 	if err != nil {
 		return fmt.Errorf("error reading directory: %v", err)
@@ -184,6 +195,10 @@ func run(args RunArgs) error {
 			}
 
 			log.Infof("Saved %d candles to %s", savedCount, streamNameSuffix)
+
+			if err := moveFileToProcessed(inDir, processedFilesBaseDir); err != nil {
+				return fmt.Errorf("error moving file to processed: %v", err)
+			}
 		}
 	}
 
