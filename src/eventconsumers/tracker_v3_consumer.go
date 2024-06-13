@@ -54,11 +54,11 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.S
 	}
 
 	if m15Signal == "sell" && h1Signal == "sell" && h4Signal == "sell" {
-		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
+		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
 		return true
 	}
 
-	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiUp NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
+	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiDown NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
 	return false
 }
 
@@ -85,11 +85,11 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.Sto
 	}
 
 	if m15Signal == "buy" && h1Signal == "buy" && h4Signal == "buy" {
-		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
+		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
 		return true
 	}
 
-	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiDown NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
+	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiUp NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
 	return false
 }
 
