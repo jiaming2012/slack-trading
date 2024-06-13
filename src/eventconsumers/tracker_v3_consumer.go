@@ -35,30 +35,30 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.S
 	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
 	m15Signal, found := t.state[m15SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
 		return false
 	}
 
 	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
 	h1Signal, found := t.state[h1SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
 		return false
 	}
 
 	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
 	h4Signal, found := t.state[h4SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
 		return false
 	}
 
 	if m15Signal == "buy" && h1Signal == "sell" && h4Signal == "sell" {
-		log.Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
+		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
 		return true
 	}
 
-	log.Debugf("checkSupertrendH1H4StochRsiUp NOT triggered for %v", symbol)
+	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiUp NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
 	return false
 }
 
@@ -66,30 +66,30 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.Sto
 	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
 	m15Signal, found := t.state[m15SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
 		return false
 	}
 
 	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
 	h1Signal, found := t.state[h1SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
 		return false
 	}
 
 	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
 	h4Signal, found := t.state[h4SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
+		log.WithField("event", "signal").Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
 		return false
 	}
 
 	if m15Signal == "sell" && h1Signal == "buy" && h4Signal == "buy" {
-		log.Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
+		log.WithField("event", "signal").Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
 		return true
 	}
 
-	log.Debugf("checkSupertrendH1H4StochRsiDown NOT triggered for %v", symbol)
+	log.WithField("event", "signal").Debugf("checkSupertrendH1H4StochRsiDown NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
 	return false
 }
 
