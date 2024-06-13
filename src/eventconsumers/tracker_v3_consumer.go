@@ -54,9 +54,11 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.S
 	}
 
 	if m15Signal == "buy" && h1Signal == "sell" && h4Signal == "sell" {
+		log.Infof("checkSupertrendH1H4StochRsiUp triggered for %v", symbol)
 		return true
 	}
 
+	log.Debugf("checkSupertrendH1H4StochRsiUp NOT triggered for %v", symbol)
 	return false
 }
 
@@ -83,9 +85,11 @@ func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.Sto
 	}
 
 	if m15Signal == "sell" && h1Signal == "buy" && h4Signal == "buy" {
+		log.Infof("checkSupertrendH1H4StochRsiDown triggered for %v", symbol)
 		return true
 	}
 
+	log.Debugf("checkSupertrendH1H4StochRsiDown NOT triggered for %v", symbol)
 	return false
 }
 
@@ -113,7 +117,7 @@ func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3)
 	case "stochastic_rsi-buy":
 		return t.checkSupertrendH1H4StochRsiDown(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mDown
 	default:
-		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: non-triggering event received: %s", event.SignalTracker.Name)
+		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received non-triggering event: %v", event.SignalTracker)
 		return false, ""
 	}
 }
