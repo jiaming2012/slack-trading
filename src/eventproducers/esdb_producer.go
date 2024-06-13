@@ -102,9 +102,18 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 }
 
 func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
-	log.Debugf("<- esdbProducer.handleSaveCreateSignalRequestEvent, request: %v", request)
+	log.WithFields(log.Fields{
+		"event": "signal",
+	}).Debugf("<- esdbProducer.handleSaveCreateSignalRequestEvent, request: %v", request)
 
-	if err := request.ValidateV2(); err == nil {
+	if isValid, err := request.ValidateV2(); isValid {
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "signal",
+			}).Debugf("vaild signal, but avoid processing due to error: %v", err)
+			return
+		}
+
 		// save the signal
 		if err := cli.insert(request); err != nil {
 			meta := request.GetMetaData()
@@ -127,7 +136,9 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 			return
 		}
 	} else {
-		log.Debugf("signal conversion failed: %v. Not necessarily an error.", err)
+		meta := request.GetMetaData()
+		pubsub.PublishRequestError("signal conversion failed: %v. Not necessarily an error.", err, meta)
+		return
 	}
 
 	pubsub.PublishCompletedResponse("esdbProducer:cli.handleSaveCreateSignalRequest", &eventmodels.CreateSignalResponseEvent{

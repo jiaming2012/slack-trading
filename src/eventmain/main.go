@@ -164,7 +164,6 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 	select {
 	case result := <-resultCh:
 		if result != nil {
-
 			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
 			if !ok {
 				return fmt.Errorf("options not found in result")
@@ -174,9 +173,9 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 				highestEVLongCallSpreads, highestEVShortCallSpreads := FindHighestEVPerExpiration(calls)
 				for _, spread := range highestEVLongCallSpreads {
 					if spread != nil {
-						log.Infof("Ignoring long call: %v", spread)
+						log.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
 					} else {
-						log.Infof("No Positive EV Long Call found")
+						log.WithField("event", "signal").Infof("No Positive EV Long Call found")
 					}
 				}
 
@@ -193,7 +192,7 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
 						}
 					} else {
-						log.Infof("No Positive EV Short Call found")
+						log.WithField("event", "signal").Infof("No Positive EV Short Call found")
 					}
 				}
 			} else {
@@ -204,9 +203,9 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 				highestEVLongPutSpreads, highestEVShortPutSpreads := FindHighestEVPerExpiration(puts)
 				for _, spread := range highestEVLongPutSpreads {
 					if spread != nil {
-						log.Infof("Ignoring long put: %v", spread)
+						log.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
 					} else {
-						log.Infof("No Positive EV Long Put found")
+						log.WithField("event", "signal").Infof("No Positive EV Long Put found")
 					}
 				}
 
@@ -223,7 +222,7 @@ func SendHighestEVTradeToMarket(resultCh chan map[string]interface{}, errCh chan
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 						}
 					} else {
-						log.Infof("No Positive EV Short Put found")
+						log.WithField("event", "signal").Infof("No Positive EV Short Put found")
 					}
 				}
 			} else {
@@ -283,6 +282,10 @@ func run() {
 	}
 
 	eventpubsub.Init()
+
+	// set up logger
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{})
 
 	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
@@ -406,7 +409,7 @@ func run() {
 		tradierOrderExecuter := NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
 
 		for event := range eventCh {
-			log.Infof("%v triggered for %v", event.Signal, event.Symbol)
+			log.WithField("event", "signal").Infof("%v triggered for %v", event.Signal, event.Symbol)
 
 			optionConfig, err := config.GetOption(event.Symbol)
 			if err != nil {
@@ -524,5 +527,6 @@ func NewTradierOrderExecuter(url, bearerToken string, dryRun bool) *TradierOrder
 }
 
 func (e *TradierOrderExecuter) PlaceTradeSpread(underlying eventmodels.StockSymbol, buyToOpenSymbol eventmodels.OptionSymbol, sellToOpenSymbol eventmodels.OptionSymbol, quantity int, tag string, goEnv string) error {
+	log.WithField("event", "signal").Infof("placing trade spread for %v", underlying)
 	return exec_trade.PlaceTradeSpread(e.url, e.bearerToken, underlying, buyToOpenSymbol, sellToOpenSymbol, quantity, tag, e.dryRun)
 }
