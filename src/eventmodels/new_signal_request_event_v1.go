@@ -76,8 +76,8 @@ func (dto *CreateSignalRequestEventV1DTO) ValidateV2() (bool, error) {
 			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-buy")
 		}
 
-		if K, _ := *signal.Plot0, *signal.Plot1; K > 20 {
-			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: K was greater than 20 for stochastic_rsi-buy")
+		if _, D := *signal.Plot0, *signal.Plot1; D > 20 {
+			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was greater than 20 for stochastic_rsi-buy, D=%v", D)
 		}
 
 	case "stochastic_rsi-sell":
@@ -89,8 +89,8 @@ func (dto *CreateSignalRequestEventV1DTO) ValidateV2() (bool, error) {
 			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-sell")
 		}
 
-		if K, _ := *signal.Plot0, *signal.Plot1; K < 80 {
-			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: K was less than 80 for stochastic_rsi-sell")
+		if _, D := *signal.Plot0, *signal.Plot1; D < 80 {
+			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was less than 80 for stochastic_rsi-sell, D=%v", D)
 		}
 	}
 
