@@ -22,14 +22,10 @@ type RunArgs struct {
 	GoEnv                 string
 }
 
-type RunOutput struct {
-	ExportedFilepaths []string
-}
-
-func Run(args RunArgs) (RunOutput, error) {
+func Run(args RunArgs) (eventmodels.SignalRunOutput, error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
-		return RunOutput{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
+		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
 	log.Debugf("running supertrend_4h_1h_stoch_rsi_15m_down with args: %v", args)
@@ -48,12 +44,12 @@ func Run(args RunArgs) (RunOutput, error) {
 		})
 
 		if err != nil {
-			return RunOutput{}, fmt.Errorf("error exporting data for %v: %v", streamName, err)
+			return eventmodels.SignalRunOutput{}, fmt.Errorf("error exporting data for %v: %v", streamName, err)
 		}
 
 		data[i], err = utils.ImportAndSortCandles(output.ExportedFilepath, time.Duration(duration)*time.Minute)
 		if err != nil {
-			return RunOutput{}, fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
+			return eventmodels.SignalRunOutput{}, fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
 		}
 	}
 
@@ -92,10 +88,10 @@ func Run(args RunArgs) (RunOutput, error) {
 	outDirs, err := utils.ExportToCsv(candles15, args.LookaheadCandlesCount, candleDuration, outDir, fname)
 
 	if err != nil {
-		return RunOutput{}, fmt.Errorf("error exporting to csv: %v", err)
+		return eventmodels.SignalRunOutput{}, fmt.Errorf("error exporting to csv: %v", err)
 	}
 
-	return RunOutput{
+	return eventmodels.SignalRunOutput{
 		ExportedFilepaths: outDirs,
 	}, nil
 }

@@ -6,13 +6,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
+	"slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
 	"slack-trading/src/eventmodels"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "main",
-	Short: "Generates the supertrend_4h_1h_stoch_rsi_15m_up signal",
+	Short: "Generates the supertrend_1h_stoch_rsi_15m_up signal",
 	Long: `This program creates a multi-timeframe signal using the following indicators:
 1.) The 4h and 1h supertrend indicators
 2.) The 15m stochastic RSI indicator
