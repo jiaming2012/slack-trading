@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y python3 python3-venv
 # Create a virtual environment
 RUN python3 -m venv /app/slack-trading/src/cmd/stats/env
 
+# Activate the virtual environment and install the Python dependencies
+RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
+
 # Build the Go app
 RUN go build -o main ./src/eventmain/main.go
 
