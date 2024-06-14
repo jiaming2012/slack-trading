@@ -64,35 +64,3 @@ COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirement
 
 # Activate the virtual environment and install the Python dependencies
 RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
-
-# Download and install Go 1.20
-RUN wget https://golang.org/dl/go1.20.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.20.linux-amd64.tar.gz && \
-    rm go1.20.linux-amd64.tar.gz
-
-# Set up Go environment variables
-ENV PATH="/usr/local/go/bin:${PATH}"
-
-# Verify installation
-RUN go version
-
-# Set the Current Working Directory inside the container
-WORKDIR /app/slack-trading
-
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
-RUN go mod download
-
-# Set the Current Working Directory inside the container
-WORKDIR /app/slack-trading
-
-# Copy the source from the current directory to the Working Directory inside the container
-COPY . .
-
-# Build the Go app
-RUN go build -o main ./src/eventmain/main.go
-
-# Command to run the executable
-CMD ["./main"]
