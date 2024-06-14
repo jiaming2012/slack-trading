@@ -34,6 +34,7 @@ We are currently using heroku for prod. In order to upload new base images:
 heroku container:login
 docker tag <image> registry.heroku.com/<app>/<process-type>
 docker push registry.heroku.com/<app>/<process-type>
+heroku container:release web -a <app>
 ```
 
 For example, *app* is `grodt` and *process-type* is `web`

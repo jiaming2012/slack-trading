@@ -1,5 +1,5 @@
 # Start from the latest Debian base image
-FROM registry.heroku.com/grodt/web
+FROM docker.io/jiamingnj/grodt-base-image
 
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading
