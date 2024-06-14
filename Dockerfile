@@ -16,6 +16,12 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
+# Install Python and venv
+RUN apt-get update && apt-get install -y python3 python3-venv
+
+# Create a virtual environment
+RUN python3 -m venv /app/slack-trading/src/cmd/stats/env
+
 # Build the Go app
 RUN go build -o main ./src/eventmain/main.go
 
