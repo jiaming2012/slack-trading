@@ -16,8 +16,8 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
-# Install software-properties-common, and a specific version of Python
-RUN apt-get update && apt-get install -y software-properties-common && \
+# Install python-software-properties, and a specific version of Python
+RUN apt-get update && apt-get install -y python-software-properties && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y python3.7=3.7.9-1+bionic1
 
