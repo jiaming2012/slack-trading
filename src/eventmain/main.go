@@ -296,6 +296,8 @@ func run() {
 
 	log.Infof("Log level set to %v", log.GetLevel())
 
+	log.Infof("Main: you da boss...")
+
 	// Get env
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
 	calendarURL := os.Getenv("MARKET_CALENDAR_URL")

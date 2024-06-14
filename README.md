@@ -28,6 +28,16 @@ docker build -f Dockerfile.base2 -t grodt-base-image-2 .
 docker build -f Dockerfile.dev -t grodt-main .
 ```
 
+## Prod
+We are currently using heroku for prod. In order to upload new base images:
+``` bash
+heroku container:login
+docker tag <image> registry.heroku.com/<app>/<process-type>
+docker push registry.heroku.com/<app>/<process-type>
+```
+
+For example, *app* is `grodt` and *process-type* is `web`
+
 # Installation
 1. Make sure docker is running
 2. Install eventstoredb
