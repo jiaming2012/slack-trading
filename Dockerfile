@@ -16,13 +16,16 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
-# Install python-software-properties, and a specific version of Python
-RUN apt-get update && apt-get install -y python-software-properties && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y python3.7=3.7.9-1+bionic1
+# Install necessary packages and Python 3.9 from the official repositories
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    python3.9 \
+    python3.9-venv \
+    python3.9-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a virtual environment with the specific version of Python
-RUN python3.7 -m venv /app/slack-trading/src/cmd/stats/env
+# Create a virtual environment with Python 3.9
+RUN python3.9 -m venv /app/slack-trading/src/cmd/stats/env
 
 # Activate the virtual environment and install the Python dependencies
 RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
