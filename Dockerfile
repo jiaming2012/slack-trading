@@ -16,9 +16,12 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
-# Install necessary packages and Python 3.9 from the official repositories
+# Install necessary packages and Python 3.9 from the bullseye repositories
 RUN apt-get update && apt-get install -y \
     software-properties-common \
+    && echo 'deb http://deb.debian.org/debian bullseye main' > /etc/apt/sources.list.d/bullseye.list \
+    && apt-get update \
+    && apt-get install -y \
     python3.9 \
     python3.9-venv \
     python3.9-dev \
