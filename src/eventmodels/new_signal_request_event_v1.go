@@ -60,41 +60,41 @@ type CreateSignalRequestEventV1DTO struct {
 	CreateSignalV1DTO
 }
 
-func (dto *CreateSignalRequestEventV1DTO) ValidateV2() error {
+func (dto *CreateSignalRequestEventV1DTO) ValidateV2() (bool, error) {
 	signal, err := dto.CreateSignalV1DTO.ToModel()
 	if err != nil {
-		return fmt.Errorf("CreateSignalRequestEventV1DTO.Convert: failed to convert CreateSignalV1DTO to model: %w", err)
+		return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Convert: failed to convert CreateSignalV1DTO to model: %w", err)
 	}
 
 	switch signal.Name {
 	case "stochastic_rsi-buy":
 		if signal.Plot0 == nil {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot0 was not set for stochastic_rsi-buy")
+			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot0 was not set for stochastic_rsi-buy")
 		}
 
 		if signal.Plot1 == nil {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-buy")
+			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-buy")
 		}
 
 		if _, D := *signal.Plot0, *signal.Plot1; D > 20 {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was greater than 20 for stochastic_rsi-buy")
+			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was greater than 20 for stochastic_rsi-buy, D=%v", D)
 		}
 
 	case "stochastic_rsi-sell":
 		if signal.Plot0 == nil {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot0 was not set for stochastic_rsi-sell")
+			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot0 was not set for stochastic_rsi-sell")
 		}
 
 		if signal.Plot1 == nil {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-sell")
+			return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: plot1 was not set for stochastic_rsi-sell")
 		}
 
 		if _, D := *signal.Plot0, *signal.Plot1; D < 80 {
-			return fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was less than 80 for stochastic_rsi-sell")
+			return true, fmt.Errorf("CreateSignalRequestEventV1DTO.Validate: D was less than 80 for stochastic_rsi-sell, D=%v", D)
 		}
 	}
 
-	return nil
+	return true, nil
 }
 
 type CreateSignalRequestEventV1 struct {

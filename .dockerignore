@@ -1,0 +1,11 @@
+# Ignore everything
+**
+
+# Whitelist (un-ignore) the Dockerfile and the necessary directories
+!Dockerfile
+!src/
+!requirements.txt
+!go.mod
+!go.sum
+
+src/cmd/stats/env

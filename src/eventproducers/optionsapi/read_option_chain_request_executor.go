@@ -121,7 +121,7 @@ func (s *ReadOptionChainRequestExecutor) getMinDistanceBetweenStrikes(req *event
 	return 0, nil
 }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, signalName string, resultCh chan map[string]interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
@@ -168,7 +168,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
 		GoEnv:      s.GoEnv,
-		SignalName: signalName,
+		SignalName: req.EV.Signal,
 	}, options, stockTickItemDTO)
 
 	if err != nil {
@@ -239,7 +239,7 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	}
 
 	if req.EV != nil {
-		go s.ServeWithParams(req, bFindSpreads, req.EV.Signal, resultCh, errorCh)
+		go s.ServeWithParams(req, bFindSpreads, resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

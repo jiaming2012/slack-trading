@@ -25,7 +25,7 @@ type RunArgs struct {
 	EndsAt            time.Time
 	Ticker            eventmodels.StockSymbol
 	GoEnv             string
-	SignalName        string
+	SignalName        eventmodels.SignalName
 	OptionPricesInDir string
 }
 
@@ -260,12 +260,10 @@ func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionCon
 func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
 	lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
 
-	log.Infof("FetchEVSpreads: fetching EV for signal: %s", args.SignalName)
+	log.Infof("Running %v with lookaheadCandlesCount: %v", args.SignalName, lookaheadCandlesCount)
 
 	switch args.SignalName {
-	case "supertrend_1h_stoch_rsi_15m_up":
-		log.Infof("Running supertrend_1h_stoch_rsi_15m_up with lookaheadCandlesCount: %v", lookaheadCandlesCount)
-
+	case eventmodels.SuperTrend1hStochRsi15mUp:
 		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_1h_stoch_rsi_15m_up.Run(supertrend_1h_stoch_rsi_15m_up.RunArgs{
 				StartsAt:              args.StartsAt,
@@ -276,9 +274,7 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 			})
 		})
 
-	case "supertrend_1h_stoch_rsi_15m_down":
-		log.Infof("Running supertrend_1h_stoch_rsi_15m_down with lookaheadCandlesCount: %v", lookaheadCandlesCount)
-
+	case eventmodels.SuperTrend1hStochRsi15mDown:
 		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_1h_stoch_rsi_15m_down.Run(supertrend_1h_stoch_rsi_15m_down.RunArgs{
 				StartsAt:              args.StartsAt,
@@ -289,9 +285,7 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 			})
 		})
 
-	case "supertrend_4h_1h_stoch_rsi_15m_down":
-		log.Infof("Running supertrend_4h_1h_stoch_rsi_15m_down with lookaheadCandlesCount: %v", lookaheadCandlesCount)
-
+	case eventmodels.SuperTrend4h1hStochRsi15mDown:
 		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_4h_1h_stoch_rsi_15m_down.Run(supertrend_4h_1h_stoch_rsi_15m_down.RunArgs{
 				StartsAt:              args.StartsAt,
@@ -302,9 +296,7 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 			})
 		})
 
-	case "supertrend_4h_1h_stoch_rsi_15m_up":
-		log.Infof("Running supertrend_4h_1h_stoch_rsi_15m_up with lookaheadCandlesCount: %v", lookaheadCandlesCount)
-
+	case eventmodels.SuperTrend4h1hStochRsi15mUp:
 		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_4h_1h_stoch_rsi_15m_up.Run(supertrend_4h_1h_stoch_rsi_15m_up.RunArgs{
 				StartsAt:              args.StartsAt,

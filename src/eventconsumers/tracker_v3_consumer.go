@@ -31,61 +31,113 @@ func (t *TrackerV3Consumer) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
 	return t.signalTriggered
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiDown(symbol eventmodels.StockSymbol) bool {
+func (t *TrackerV3Consumer) checkSupertrendH1StochRsiDown(symbol eventmodels.StockSymbol) bool {
 	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
 	m15Signal, found := t.state[m15SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		log.WithField("event", "signal").Warnf("checkSupertrendH1StochRsiDown: Signal not found: %s. Expected if signal was never received.", m15SignalKey)
 		return false
 	}
 
 	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
 	h1Signal, found := t.state[h1SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		log.WithField("event", "signal").Warnf("checkSupertrendH1StochRsiDown: Signal not found: %s. Expected if signal was never received.", h1SignalKey)
 		return false
 	}
 
-	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
-	h4Signal, found := t.state[h4SignalKey]
-	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
-		return false
-	}
-
-	if m15Signal == "buy" && h1Signal == "sell" && h4Signal == "sell" {
+	if m15Signal == "sell" && h1Signal == "sell" {
+		log.WithField("event", "signal").Infof("checkSupertrendH1StochRsiDown: triggered for %v", symbol)
 		return true
 	}
 
+	log.WithField("event", "signal").Debugf("checkSupertrendH1StochRsiDown NOT triggered for %v, m15Signal=%v, h1Signal=%v", symbol, m15Signal, h1Signal)
 	return false
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH1H4StochRsiUp(symbol eventmodels.StockSymbol) bool {
+func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiDown(symbol eventmodels.StockSymbol) bool {
 	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
 	m15Signal, found := t.state[m15SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiDown: Signal not found: %s. Expected if signal was never received.", m15SignalKey)
 		return false
 	}
 
 	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
 	h1Signal, found := t.state[h1SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiDown: Signal not found: %s. Expected if signal was never received.", h1SignalKey)
 		return false
 	}
 
 	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
 	h4Signal, found := t.state[h4SignalKey]
 	if !found {
-		log.Warnf("Signal not found: %s. Expected if signal was never received.", h4SignalKey)
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiDown: Signal not found: %s. Expected if signal was never received.", h4SignalKey)
 		return false
 	}
 
-	if m15Signal == "sell" && h1Signal == "buy" && h4Signal == "buy" {
+	if m15Signal == "sell" && h1Signal == "sell" && h4Signal == "sell" {
+		log.WithField("event", "signal").Infof("checkSupertrendH4H1StochRsiDown: triggered for %v", symbol)
 		return true
 	}
 
+	log.WithField("event", "signal").Debugf("checkSupertrendH4H1StochRsiDown NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
+	return false
+}
+
+func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiUp(symbol eventmodels.StockSymbol) bool {
+	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
+	m15Signal, found := t.state[m15SignalKey]
+	if !found {
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiUp: Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		return false
+	}
+
+	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
+	h1Signal, found := t.state[h1SignalKey]
+	if !found {
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiUp: Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		return false
+	}
+
+	h4SignalKey := fmt.Sprintf("%s-240-supertrend", symbol)
+	h4Signal, found := t.state[h4SignalKey]
+	if !found {
+		log.WithField("event", "signal").Warnf("checkSupertrendH4H1StochRsiUp: Signal not found: %s. Expected if signal was never received.", h4SignalKey)
+		return false
+	}
+
+	if m15Signal == "buy" && h1Signal == "buy" && h4Signal == "buy" {
+		log.WithField("event", "signal").Infof("checkSupertrendH4H1StochRsiUp triggered for %v", symbol)
+		return true
+	}
+
+	log.WithField("event", "signal").Debugf("checkSupertrendH4H1StochRsiUp NOT triggered for %v, m15Signal=%v, h1Signal=%v, h4Signal=%v", symbol, m15Signal, h1Signal, h4Signal)
+	return false
+}
+
+func (t *TrackerV3Consumer) checkSupertrendH1StochRsiUp(symbol eventmodels.StockSymbol) bool {
+	m15SignalKey := fmt.Sprintf("%s-15-stochastic_rsi", symbol)
+	m15Signal, found := t.state[m15SignalKey]
+	if !found {
+		log.WithField("event", "signal").Warnf("checkSupertrendH1StochRsiUp: Signal not found: %s. Expected if signal was never received.", m15SignalKey)
+		return false
+	}
+
+	h1SignalKey := fmt.Sprintf("%s-60-supertrend", symbol)
+	h1Signal, found := t.state[h1SignalKey]
+	if !found {
+		log.WithField("event", "signal").Warnf("checkSupertrendH1StochRsiUp: Signal not found: %s. Expected if signal was never received.", h1SignalKey)
+		return false
+	}
+
+	if m15Signal == "buy" && h1Signal == "buy" {
+		log.WithField("event", "signal").Infof("checkSupertrendH1StochRsiUp triggered for %v", symbol)
+		return true
+	}
+
+	log.WithField("event", "signal").Debugf("checkSupertrendH1StochRsiUp NOT triggered for %v, m15Signal=%v, h1Signal=%v", symbol, m15Signal, h1Signal)
 	return false
 }
 
@@ -106,18 +158,47 @@ func (t *TrackerV3Consumer) updateState(event *eventmodels.TrackerV3) error {
 	return nil
 }
 
-func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3) (bool, eventmodels.SignalName) {
-	log.Infof("TrackerV3Consumer:checkIsSignalTriggered: %s", event.SignalTracker.Name)
+func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3) []SignalTriggeredEvent {
+	log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received terminal signal %s", event.SignalTracker.Name)
+
+	triggeredEvents := make([]SignalTriggeredEvent, 0)
 
 	switch event.SignalTracker.Name {
-	case "stochastic_rsi-sell":
-		return t.checkSupertrendH1H4StochRsiUp(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mUp
 	case "stochastic_rsi-buy":
-		return t.checkSupertrendH1H4StochRsiDown(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mDown
+		if t.checkSupertrendH4H1StochRsiUp(event.SignalTracker.Header.Symbol) {
+			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+				Symbol: event.SignalTracker.Header.Symbol,
+				Signal: eventmodels.SuperTrend4h1hStochRsi15mUp,
+			})
+		}
+		
+		if t.checkSupertrendH1StochRsiUp(event.SignalTracker.Header.Symbol) {
+			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+				Symbol: event.SignalTracker.Header.Symbol,
+				Signal: eventmodels.SuperTrend1hStochRsi15mUp,
+			})
+		}
+		
+	case "stochastic_rsi-sell":
+		if t.checkSupertrendH4H1StochRsiDown(event.SignalTracker.Header.Symbol) {
+			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+				Symbol: event.SignalTracker.Header.Symbol,
+				Signal: eventmodels.SuperTrend4h1hStochRsi15mDown,
+			})
+		}
+
+		if t.checkSupertrendH1StochRsiDown(event.SignalTracker.Header.Symbol) {
+			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+				Symbol: event.SignalTracker.Header.Symbol,
+				Signal: eventmodels.SuperTrend1hStochRsi15mDown,
+			})
+		}
+
 	default:
-		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: non-triggering event received: %s", event.SignalTracker.Name)
-		return false, ""
+		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received non-triggering event: %v", event.SignalTracker)
 	}
+
+	return triggeredEvents
 }
 
 func (t *TrackerV3Consumer) Start(ctx context.Context) {
@@ -138,11 +219,12 @@ func (t *TrackerV3Consumer) Start(ctx context.Context) {
 					continue
 				}
 
-				if isTriggered, signalName := t.checkIsSignalTriggered(ev); isTriggered {
-					log.Infof("Signal triggered: %s", ev.SignalTracker.Name)
+				triggeredEvents := t.checkIsSignalTriggered(ev)
+				for _, ev := range triggeredEvents {
+					log.Infof("Signal triggered: %s", ev.Symbol)
 					t.signalTriggered <- SignalTriggeredEvent{
-						Symbol: ev.SignalTracker.Header.Symbol,
-						Signal: signalName,
+						Symbol: ev.Symbol,
+						Signal: ev.Signal,
 					}
 				}
 			}

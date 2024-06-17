@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"time"
 
@@ -124,6 +125,11 @@ func Run(args RunArgs) (RunOutput, error) {
 	}
 
 	// Export the data
+	dir := filepath.Dir(outdir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+
 	file, err := os.Create(outdir)
 	if err != nil {
 		return RunOutput{}, fmt.Errorf("error creating CSV file: %v", err)

@@ -1,5 +1,5 @@
 # Start from the latest Debian base image
-FROM docker.io/jiamingnj/grodt-base-image
+FROM grodt-base-image-2
 
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading

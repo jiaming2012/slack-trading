@@ -1,6 +1,44 @@
 # slack-trading
 A mock trading platform.
 
+# Running locally
+## Install golang and python
+Both golang:1.20 and python:3.7.9 are required.
+
+## Initiate your python env
+``` bash
+cd path/to/slack-trading/src/cmd/stats
+pip install -r requirements.txt
+```
+
+# Dockerfile
+## Prod
+We currently host the base 1 and base 2 images at vultr. In order to access them, log in with:
+``` bash
+docker login https://ewr.vultrcr.com/base1 -u $VULTR_USER -p $VULTR_PASS
+```
+
+`$VULTR_USER` and `VULTR_PASS` can both be foound in the vultr dashboard, under Container Registry.
+
+## Dev
+As such the main program can be built with commands:
+``` bash
+docker build -f Dockerfile.base -t grodt-base-image .
+docker build -f Dockerfile.base2 -t grodt-base-image-2 .
+docker build -f Dockerfile.dev -t grodt-main .
+```
+
+## Prod
+We are currently using heroku for prod. In order to upload new base images:
+``` bash
+heroku container:login
+docker tag <image> registry.heroku.com/<app>/<process-type>
+docker push registry.heroku.com/<app>/<process-type>
+heroku container:release web -a <app>
+```
+
+For example, *app* is `grodt` and *process-type* is `web`
+
 # Installation
 1. Make sure docker is running
 2. Install eventstoredb

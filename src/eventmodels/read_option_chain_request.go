@@ -10,7 +10,7 @@ import (
 type ReadOptionChainExpectedValue struct {
 	StartsAt time.Time
 	EndsAt   time.Time
-	Signal   string
+	Signal   SignalName
 }
 
 type ReadOptionChainRequest struct {
@@ -83,7 +83,7 @@ func (o *ReadOptionChainRequest) ParseHTTPRequest(r *http.Request) error {
 		expectedValue := &ReadOptionChainExpectedValue{}
 
 		if signal := query.Get("signal"); signal != "" {
-			expectedValue.Signal = signal
+			expectedValue.Signal = SignalName(signal)
 		}
 
 		if startsAt := query.Get("starts_at"); startsAt != "" {
