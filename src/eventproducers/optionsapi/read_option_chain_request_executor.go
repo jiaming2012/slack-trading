@@ -163,7 +163,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 
 	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	expectedProfitLongMap, expectedProfitShortMap, expectedProfitLongSpreadMap, expectedProfitShortSpreadMap, err := derive_expected_profit.FetchEVSpreads(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
+	expectedProfitLongSpreads, expectedProfitShortSpreads, err := derive_expected_profit.FetchEVSpreads(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
@@ -176,17 +176,13 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 		return
 	}
 
-	if expectedProfitLongMap != nil && expectedProfitShortMap != nil {
-		result["options"] = s.formatOptionContracts(options, expectedProfitLongMap, expectedProfitShortMap)
-	} else if expectedProfitLongSpreadMap != nil && expectedProfitShortSpreadMap != nil {
-		output, err := s.formatOptionContractSpreads(expectedProfitLongSpreadMap, expectedProfitShortSpreadMap)
-		if err != nil {
-			errorCh <- err
-			return
-		}
-
-		result["options"] = output
+	output, err := s.formatOptionContractSpreads(expectedProfitLongSpreads, expectedProfitShortSpreads)
+	if err != nil {
+		errorCh <- err
+		return
 	}
+
+	result["options"] = output
 
 	resultCh <- result
 }

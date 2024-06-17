@@ -105,6 +105,8 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 	log.Debug("<- esdbProducer.handleSaveCreateSignalRequestEvent")
 
 	if err := request.ValidateV2(); err == nil {
+		log.Infof("saving signal %s", request.Name)
+
 		// save the signal
 		if err := cli.insert(request); err != nil {
 			meta := request.GetMetaData()

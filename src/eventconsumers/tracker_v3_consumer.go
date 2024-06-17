@@ -107,6 +107,8 @@ func (t *TrackerV3Consumer) updateState(event *eventmodels.TrackerV3) error {
 }
 
 func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3) (bool, eventmodels.SignalName) {
+	log.Infof("TrackerV3Consumer:checkIsSignalTriggered: %s", event.SignalTracker.Name)
+
 	switch event.SignalTracker.Name {
 	case "stochastic_rsi-sell":
 		return t.checkSupertrendH1H4StochRsiUp(event.SignalTracker.Header.Symbol), eventmodels.SuperTrend4h1hStochRsi15mUp

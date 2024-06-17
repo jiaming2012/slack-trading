@@ -210,7 +210,7 @@ type CreateSignalStats interface {
 	Run() (eventmodels.SignalRunOutput, error)
 }
 
-func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, createSignalStatsfunc CreateSignalStatsFunc) ([]eventmodels.ExpectedProfitItemSpread, []eventmodels.ExpectedProfitItemSpread, error) {
+func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, createSignalStatsfunc CreateSignalStatsFunc) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
 	output, err := createSignalStatsfunc()
 
 	if err != nil {
@@ -254,21 +254,13 @@ func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionCon
 		}
 	}
 
-	var resultsLongSpread, resultsShortSpread []eventmodels.ExpectedProfitItemSpread
-
-	for _, r := range resultMapLongSpread {
-		resultsLongSpread = append(resultsLongSpread, r)
-	}
-
-	for _, r := range resultMapShortSpread {
-		resultsShortSpread = append(resultsShortSpread, r)
-	}
-
-	return resultsLongSpread, resultsShortSpread, nil
+	return resultMapLongSpread, resultMapShortSpread, nil
 }
 
-func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) ([]eventmodels.ExpectedProfitItemSpread, []eventmodels.ExpectedProfitItemSpread, error) {
+func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
 	lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
+
+	log.Infof("FetchEVSpreads: fetching EV for signal: %s", args.SignalName)
 
 	switch args.SignalName {
 	case "supertrend_1h_stoch_rsi_15m_up":
