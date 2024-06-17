@@ -28,7 +28,7 @@ func Run(args RunArgs) (eventmodels.SignalRunOutput, error) {
 		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
-	log.Debugf("running supertrend_1h_stoch_rsi_15m_up with args: %v", args)
+	log.Debugf("running supertrend_1h_stoch_rsi_15m_down with args: %v", args)
 
 	// import data
 	data := make([]eventmodels.TradingViewCandles, 3)
@@ -64,7 +64,7 @@ func Run(args RunArgs) (eventmodels.SignalRunOutput, error) {
 		c1 := candles15[i]
 		c2 := candles15[i+1]
 
-		if c1.K < c1.D && c2.K > c2.D && c1.D <= 20 {
+		if c1.K > c1.D && c2.K < c2.D && c1.D >= 80 {
 			candle60 := candles60.FindClosestCandleBeforeOrAt(c2.Timestamp)
 
 			if candle60.UpTrend > 0 {
@@ -82,7 +82,7 @@ func Run(args RunArgs) (eventmodels.SignalRunOutput, error) {
 	// export to csv
 	streamName := fmt.Sprintf("candles-%s-15", args.Ticker)
 	fname := fmt.Sprintf("%s-from-%s-to-%s", streamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
-	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_1h_stoch_rsi_15m_up", "output")
+	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_1h_stoch_rsi_15m_down", "output")
 	outDirs, err := utils.ExportToCsv(candles15, args.LookaheadCandlesCount, candleDuration, outDir, fname)
 
 	if err != nil {

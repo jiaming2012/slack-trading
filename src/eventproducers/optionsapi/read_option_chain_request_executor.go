@@ -163,7 +163,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 
 	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	expectedProfitLongMap, expectedProfitShortMap, expectedProfitLongSpreadMap, expectedProfitShortSpreadMap, err := derive_expected_profit.FetchEV(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
+	expectedProfitLongMap, expectedProfitShortMap, expectedProfitLongSpreadMap, expectedProfitShortSpreadMap, err := derive_expected_profit.FetchEVSpreads(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
