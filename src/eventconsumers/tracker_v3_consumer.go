@@ -159,7 +159,7 @@ func (t *TrackerV3Consumer) updateState(event *eventmodels.TrackerV3) error {
 }
 
 func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3) []SignalTriggeredEvent {
-	log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received terminal signal %s", event.SignalTracker.Name)
+	log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received terminal signal %s for %v", event.SignalTracker.Name, event.SignalTracker.Header.Symbol)
 
 	triggeredEvents := make([]SignalTriggeredEvent, 0)
 
@@ -171,14 +171,14 @@ func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3)
 				Signal: eventmodels.SuperTrend4h1hStochRsi15mUp,
 			})
 		}
-		
+
 		if t.checkSupertrendH1StochRsiUp(event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
 				Symbol: event.SignalTracker.Header.Symbol,
 				Signal: eventmodels.SuperTrend1hStochRsi15mUp,
 			})
 		}
-		
+
 	case "stochastic_rsi-sell":
 		if t.checkSupertrendH4H1StochRsiDown(event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
@@ -195,7 +195,7 @@ func (t *TrackerV3Consumer) checkIsSignalTriggered(event *eventmodels.TrackerV3)
 		}
 
 	default:
-		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received non-triggering event: %v", event.SignalTracker)
+		log.Infof("TrackerV3Consumer:checkIsSignalTriggered: received non-triggering event: %v for %v", event.SignalTracker, event.SignalTracker.Header.Symbol)
 	}
 
 	return triggeredEvents
@@ -220,6 +220,9 @@ func (t *TrackerV3Consumer) Start(ctx context.Context) {
 				}
 
 				triggeredEvents := t.checkIsSignalTriggered(ev)
+
+				log.Infof("Processing %v triggered events", len(triggeredEvents))
+
 				for _, ev := range triggeredEvents {
 					log.Infof("Signal triggered: %s", ev.Symbol)
 					t.signalTriggered <- SignalTriggeredEvent{

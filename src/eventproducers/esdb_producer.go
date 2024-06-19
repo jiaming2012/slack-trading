@@ -149,8 +149,6 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 }
 
 func (cli *EsdbProducer) saveRequest(request interface{}) error {
-	log.Debug("<- esdbProducer.handleSaveRequest")
-
 	event, ok := request.(eventmodels.SavedEvent)
 	if !ok {
 		log.Fatalf("%T does not implement the SavedEvent interface", request)
@@ -171,7 +169,7 @@ func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
 }
 
 func (cli *EsdbProducer) saveEvent(event eventmodels.SavedEvent) error {
-	log.Debug("<- esdbProducer.saveEvent")
+	log.WithField("event", event.GetSavedEventParameters().EventName).Debug("EsdbProducer.saveEvent")
 
 	if err := cli.insert(event); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
