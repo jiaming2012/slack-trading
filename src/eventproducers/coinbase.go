@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/worker"
+	"github.com/jiaming2012/slack-trading/src/worker"
 )
 
 type coinbaseClient struct {

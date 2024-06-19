@@ -13,11 +13,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	supertrend_1h_stoch_rsi_15m_down "slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_down/run"
-	supertrend_1h_stoch_rsi_15m_up "slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
-	supertrend_4h_1h_stoch_rsi_15m_down "slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
-	supertrend_4h_1h_stoch_rsi_15m_up "slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+
+	supertrend_4h_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
+
+	supertrend_4h_1h_stoch_rsi_15m_down "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
+
+	supertrend_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
+
+	supertrend_1h_stoch_rsi_15m_down "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_down/run"
 )
 
 type RunArgs struct {
@@ -30,7 +34,7 @@ type RunArgs struct {
 }
 
 func getLookaheadFromFilePath(filePath string) (int, error) {
-	// example: /Users/jamal/projects/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/distributions/percent_change-candles-spx-15-from-20240501_093000-to-20240531_160000-lookahead-1215.json
+	// example: /Users/jamal/projects/github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/distributions/percent_change-candles-spx-15-from-20240501_093000-to-20240531_160000-lookahead-1215.json
 	// lookahead-1215.json
 	lookaheadStr := strings.Split(filePath, "-lookahead-")[1]
 	lookaheadStr = strings.Split(lookaheadStr, ".")[0]

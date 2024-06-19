@@ -10,10 +10,13 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
-	"slack-trading/src/eventservices"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/utils"
+
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func isUptrend(candle *eventmodels.TradingViewCandle) bool {

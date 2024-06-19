@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel, datafeed *models.Datafeed) ([]*models.Account, error) {

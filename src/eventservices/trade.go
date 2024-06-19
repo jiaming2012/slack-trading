@@ -1,6 +1,6 @@
 package eventservices
 
-import "slack-trading/src/models"
+import "github.com/jiaming2012/slack-trading/src/models"
 
 func RealizedDrawdown(trade *models.Trade, candles []*models.Candle, state map[string]interface{}) float64 {
 	maxDrawdownPrice := 0.0

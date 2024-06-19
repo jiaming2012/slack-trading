@@ -10,7 +10,7 @@ import (
 	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func ImportAndSortCandles(inDir string, timeframe time.Duration) (eventmodels.TradingViewCandles, error) {

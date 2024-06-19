@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 func TestRealizedDrawdown(t *testing.T) {

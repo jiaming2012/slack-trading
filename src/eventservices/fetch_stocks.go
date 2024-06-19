@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func FetchStockTicks(symbol eventmodels.StockSymbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {

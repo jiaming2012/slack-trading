@@ -12,10 +12,13 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventpubsub"
-	"slack-trading/src/handler"
-	"slack-trading/src/sheets"
-	"slack-trading/src/worker"
+	"github.com/jiaming2012/slack-trading/src/worker"
+
+	"github.com/jiaming2012/slack-trading/src/handler"
+
+	"github.com/jiaming2012/slack-trading/src/sheets"
+
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 )
 
 func main() {

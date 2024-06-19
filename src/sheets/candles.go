@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/api/sheets/v4"
 
-	"slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 const btcUsdSheetName = "BTCUSD"

@@ -6,8 +6,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+
+	"github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
 )
 
 var rootCmd = &cobra.Command{

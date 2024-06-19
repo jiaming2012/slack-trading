@@ -13,11 +13,11 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventproducers"
-	"slack-trading/src/eventpubsub"
-	"slack-trading/src/eventservices"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func getStreamSize(ctx context.Context, esdbClient *esdb.Client) {

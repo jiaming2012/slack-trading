@@ -7,9 +7,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
-	"slack-trading/src/worker"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/worker"
 )
 
 type TradeExecutor struct {

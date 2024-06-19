@@ -1,6 +1,6 @@
 package eventpubsub
 
-import "slack-trading/src/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/eventmodels"
 
 type RequestEvent interface {
 	GetMetaData() *eventmodels.MetaData

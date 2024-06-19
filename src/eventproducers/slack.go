@@ -3,9 +3,10 @@ package eventproducers
 import (
 	"context"
 	"fmt"
-	"github.com/gorilla/mux"
-	"slack-trading/src/eventproducers/slack"
 	"sync"
+
+	"github.com/gorilla/mux"
+	"github.com/jiaming2012/slack-trading/src/eventproducers/slack"
 )
 
 type client struct {

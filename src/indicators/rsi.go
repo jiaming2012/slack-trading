@@ -2,7 +2,8 @@ package indicators
 
 import (
 	"math"
-	"slack-trading/src/models"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 type Rsi struct {

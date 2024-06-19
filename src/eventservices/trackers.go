@@ -1,7 +1,7 @@
 package eventservices
 
 import (
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func GetActiveFxTrackers(trackers []*eventmodels.TrackerV3) map[eventmodels.EventStreamID]*eventmodels.TrackerV3 {

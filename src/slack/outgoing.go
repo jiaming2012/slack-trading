@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"slack-trading/src/models"
 	"time"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 func SendResponse(msg string, url string, isEphemeral bool) {

@@ -2,8 +2,9 @@ package indicators
 
 import (
 	"fmt"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 	"github.com/montanaflynn/stats"
-	"slack-trading/src/models"
 )
 
 type BollingerBands struct {

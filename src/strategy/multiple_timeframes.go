@@ -3,11 +3,12 @@ package strategy
 import (
 	"context"
 	"fmt"
+
+	"github.com/jiaming2012/slack-trading/src/indicators"
+	"github.com/jiaming2012/slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/sheets"
 	"github.com/kataras/go-events"
 	log "github.com/sirupsen/logrus"
-	"slack-trading/src/indicators"
-	"slack-trading/src/models"
-	"slack-trading/src/sheets"
 )
 
 var rsiM5 *indicators.Rsi

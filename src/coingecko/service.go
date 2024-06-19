@@ -3,9 +3,11 @@ package coingecko
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/jiaming2012/slack-trading/src/utils"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 	log "github.com/sirupsen/logrus"
-	"slack-trading/src/models"
-	"slack-trading/src/utils"
 )
 
 func FetchCoinbaseBTCPrice() (float64, error) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func EncodeTag(signal eventmodels.SignalName, expectedProfit float64, requestedPrc float64) string {

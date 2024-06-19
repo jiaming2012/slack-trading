@@ -6,8 +6,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type GlobalDispatchWorker struct {

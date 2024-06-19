@@ -2,7 +2,8 @@ package eventproducers
 
 import (
 	"net/http"
-	"slack-trading/src/eventmodels"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type ApiRequest2 interface {

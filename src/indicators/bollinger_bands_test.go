@@ -1,10 +1,11 @@
 package indicators
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
-	"slack-trading/src/models"
 	"testing"
+
+	"github.com/jiaming2012/slack-trading/src/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBollingerBands(t *testing.T) {

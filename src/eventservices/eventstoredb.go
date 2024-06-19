@@ -11,7 +11,7 @@ import (
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName eventmodels.StreamName) (int64, error) {

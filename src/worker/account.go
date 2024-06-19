@@ -1,6 +1,6 @@
 package worker
 
-import "slack-trading/src/models"
+import "github.com/jiaming2012/slack-trading/src/models"
 
 // move to models
 type AccountWorker struct {

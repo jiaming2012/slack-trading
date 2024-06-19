@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
-	modelsV1 "slack-trading/src/models"
-	"slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+	modelsV1 "github.com/jiaming2012/slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/sheets"
 )
 
 type GoogleSheetsClient struct {

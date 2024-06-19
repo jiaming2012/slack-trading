@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func UpdateExitConditions(accounts []*eventmodels.Account, newSignalRequest *eventmodels.CreateSignalRequestEventV1DTO) ([]*eventmodels.ExitConditionsSatisfied, error) {

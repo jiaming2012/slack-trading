@@ -6,8 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/cmd/stats/derive_expected_profit/run"
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+
+	"github.com/jiaming2012/slack-trading/src/cmd/stats/derive_expected_profit/run"
 )
 
 var rootCmd = &cobra.Command{

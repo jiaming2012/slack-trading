@@ -13,11 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventproducers"
-	"slack-trading/src/eventpubsub"
-	"slack-trading/src/eventservices"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func parseMeta(fileName string) eventmodels.CsvMeta {

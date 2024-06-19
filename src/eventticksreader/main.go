@@ -13,9 +13,9 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
-	"slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/sheets"
 )
 
 func findFirstEventNumber(db *esdb.Client, streamName eventmodels.StreamName) uint64 {

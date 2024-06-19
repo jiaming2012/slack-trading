@@ -3,10 +3,11 @@ package sheets
 import (
 	"context"
 	"fmt"
-	"slack-trading/src/models"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 
 	"google.golang.org/api/sheets/v4"
 )

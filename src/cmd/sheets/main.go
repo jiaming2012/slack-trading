@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/sheets"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type RunArgs struct {

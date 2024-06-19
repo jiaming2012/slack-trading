@@ -10,9 +10,11 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
-	"slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type AccountWorker struct {

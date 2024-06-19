@@ -1,8 +1,8 @@
 package eventmodels
 
 import (
-	"slack-trading/src/eventdto"
-	"slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/eventdto"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 type AddStrategyRequest struct {

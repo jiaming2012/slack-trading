@@ -2,8 +2,9 @@ package eventmodels
 
 import (
 	"fmt"
-	"slack-trading/src/models"
 	"time"
+
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 type SupportBreakSignal struct {

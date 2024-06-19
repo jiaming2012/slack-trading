@@ -3,7 +3,7 @@ package eventservices
 import (
 	"context"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func GetCurrentStockAndOptionContracts(ctx context.Context, allOptionContracts []*eventmodels.OptionContractV1, allTrackers []*eventmodels.TrackerV3) ([]eventmodels.StockSymbol, eventmodels.OptionContracts, error) {

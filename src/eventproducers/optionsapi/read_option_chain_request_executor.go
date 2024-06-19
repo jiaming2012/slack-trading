@@ -11,9 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	derive_expected_profit "slack-trading/src/cmd/stats/derive_expected_profit/run"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventservices"
+	derive_expected_profit "github.com/jiaming2012/slack-trading/src/cmd/stats/derive_expected_profit/run"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
 
 type ReadOptionChainRequestExecutor struct {

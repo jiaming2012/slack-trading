@@ -7,9 +7,9 @@ import (
 	"github.com/gorilla/schema"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventpubsub"
-	models "slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	models "github.com/jiaming2012/slack-trading/src/models"
 )
 
 func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {

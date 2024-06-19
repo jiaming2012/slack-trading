@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/text/message"
 	"math"
 	"net/http"
 	"net/url"
-	"slack-trading/src/coingecko"
-	"slack-trading/src/models"
-	"slack-trading/src/sheets"
-	"slack-trading/src/slack"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jiaming2012/slack-trading/src/coingecko"
+	"github.com/jiaming2012/slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/slack"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/text/message"
 )
 
 func parsePrice(input string) (float64, error) {

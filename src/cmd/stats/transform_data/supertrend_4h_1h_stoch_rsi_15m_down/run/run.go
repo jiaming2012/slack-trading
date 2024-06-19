@@ -9,9 +9,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	export_data "slack-trading/src/cmd/stats/export_data/run"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/utils"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+
+	export_data "github.com/jiaming2012/slack-trading/src/cmd/stats/export_data/run"
 )
 
 type RunArgs struct {

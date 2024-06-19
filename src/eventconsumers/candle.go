@@ -8,12 +8,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	models "slack-trading/src/eventmodels"
-	pubsub "slack-trading/src/eventpubsub"
-	models2 "slack-trading/src/models"
-	"slack-trading/src/sheets"
-	"slack-trading/src/worker"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	models "github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+	models2 "github.com/jiaming2012/slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/worker"
 )
 
 const (

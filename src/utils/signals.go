@@ -5,7 +5,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func SortCandlesAndMarkSignals(candles eventmodels.TradingViewCandles, candleDuration time.Duration, signalCondition func(candle *eventmodels.TradingViewCandle) bool) []*eventmodels.TradingViewCandle {

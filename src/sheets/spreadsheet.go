@@ -8,7 +8,7 @@ import (
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/sheets/v4"
 
-	"slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 func CreateSpreadsheet(ctx context.Context, srv *sheets.Service, title string) (*sheets.Spreadsheet, error) {

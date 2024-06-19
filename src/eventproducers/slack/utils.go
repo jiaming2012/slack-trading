@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/schema"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 var NoRequestParamsErr = fmt.Errorf("no request params found")

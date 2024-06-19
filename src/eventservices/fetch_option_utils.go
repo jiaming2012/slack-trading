@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func findOptionContractsGroupedByExpirationV3(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContractV3) (time.Time, []eventmodels.OptionContractV3, error) {

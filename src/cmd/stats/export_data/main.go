@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/cmd/stats/export_data/run"
+	"github.com/jiaming2012/slack-trading/src/cmd/stats/export_data/run"
 )
 
 var rootCmd = &cobra.Command{

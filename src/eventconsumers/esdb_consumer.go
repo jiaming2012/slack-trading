@@ -11,8 +11,8 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
 
 type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContractV1]

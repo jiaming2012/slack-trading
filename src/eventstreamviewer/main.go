@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"slack-trading/src/eventservices"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func printInAlphebeticalOrder(data map[string]interface{}) {

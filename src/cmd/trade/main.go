@@ -7,9 +7,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"slack-trading/src/cmd/trade/run"
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/utils"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+
+	"github.com/jiaming2012/slack-trading/src/cmd/trade/run"
 )
 
 type RunArgs struct {

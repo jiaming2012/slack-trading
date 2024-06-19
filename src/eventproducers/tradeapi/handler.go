@@ -7,8 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"slack-trading/src/eventmodels"
-	"slack-trading/src/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventproducers"
 )
 
 func signalHandler(w http.ResponseWriter, r *http.Request) {
