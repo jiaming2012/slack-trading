@@ -1,6 +1,15 @@
 # slack-trading
 A mock trading platform.
 
+# Telemetry
+Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475
+
+## See Telemetry Data
+1. Launch Grafana
+2. Click "Data Sources" in the side menu
+3. Click grafanacloud-jac475-traces -> "Explore"
+4. Select: Query type -> "Search"
+
 # Running locally
 ## Install golang and python
 Both golang:1.20 and python:3.7.9 are required.
