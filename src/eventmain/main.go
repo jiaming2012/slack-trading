@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +16,18 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 
 	exec_trade "github.com/jiaming2012/slack-trading/src/cmd/trade/run"
@@ -68,25 +82,26 @@ type RouterSetupItem struct {
 	Method   string
 	URL      string
 	Executor eventmodels.RequestExecutor
+	Request  eventmodels.ApiRequest3
 }
 
 type RouterSetup struct {
-	Router    *mux.Router
-	Prefix    string
-	Executors map[string]eventmodels.RequestExecutor
+	Router *mux.Router
+	Prefix string
+	Items  map[string]RouterSetupItem
 }
 
 func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
 		key := fmt.Sprintf("%v %v", req.Method, req.URL.Path)
-		executer, found := r.Executors[key]
+		routerSetup, found := r.Items[key]
 		if !found {
 			log.Errorf("No handler found for %v", key)
 			w.WriteHeader(500)
 			return
 		}
 
-		eventproducers.ApiRequestHandler3(eventmodels.ReadOptionChainEvent, &eventmodels.ReadOptionChainRequest{}, &eventmodels.ReadOptionChainResponse{}, executer, w, req)
+		eventproducers.ApiRequestHandler3(routerSetup.Request, routerSetup.Executor, w, req)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -94,9 +109,9 @@ func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
 	r := &RouterSetup{
-		Router:    router,
-		Prefix:    prefix,
-		Executors: make(map[string]eventmodels.RequestExecutor),
+		Router: router,
+		Prefix: prefix,
+		Items:  make(map[string]RouterSetupItem),
 	}
 
 	// router.HandleFunc(prefix, r.ServeHTTP)
@@ -104,9 +119,21 @@ func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
 	return r
 }
 
+func (r *RouterSetup) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) {
+	// handleFunc is a replacement for mux.HandleFunc
+	// which enriches the handler's HTTP instrumentation with the pattern as the http.route.
+	handleFunc := func(pattern string, handlerFunc func(http.ResponseWriter, *http.Request)) {
+		// Configure the "http.route" for the HTTP instrumentation.
+		handler := otelhttp.WithRouteTag(pattern, http.HandlerFunc(handlerFunc))
+		r.Router.Handle(fmt.Sprintf("%s%s", r.Prefix, path), handler)
+	}
+
+	handleFunc(path, f)
+}
+
 func (r *RouterSetup) Add(item RouterSetupItem) {
 	key := fmt.Sprintf("%v %v%v", item.Method, r.Prefix, item.URL)
-	r.Executors[key] = item.Executor
+	r.Items[key] = item
 	r.Router.HandleFunc(fmt.Sprintf("%s%s", r.Prefix, item.URL), r.ServeHTTP)
 }
 
@@ -263,6 +290,84 @@ func (o *OptionsConfigYAML) GetOption(symbol eventmodels.StockSymbol) (*OptionYA
 	return nil, fmt.Errorf("OptionsConfigYAML: option not found")
 }
 
+// setupOTelSDK bootstraps the OpenTelemetry pipeline.
+// If it does not return an error, make sure to call shutdown for proper cleanup.
+func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+	var shutdownFuncs []func(context.Context) error
+
+	// shutdown calls cleanup functions registered via shutdownFuncs.
+	// The errors from the calls are joined.
+	// Each registered cleanup will be invoked once.
+	shutdown = func(ctx context.Context) error {
+		var err error
+		for _, fn := range shutdownFuncs {
+			err = errors.Join(err, fn(ctx))
+		}
+		shutdownFuncs = nil
+		return err
+	}
+
+	// handleErr calls shutdown for cleanup and makes sure that all errors are returned.
+	handleErr := func(inErr error) {
+		err = errors.Join(inErr, shutdown(ctx))
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	)
+	otel.SetTextMapPropagator(prop)
+
+	traceExporter, err := otlptrace.New(ctx, otlptracehttp.NewClient())
+	if err != nil {
+		return nil, err
+	}
+
+	res, _ := resource.New(ctx, resource.WithAttributes(attribute.String("service.name", "grodt")))
+
+	tracerProvider := sdk_trace.NewTracerProvider(
+		sdk_trace.WithBatcher(traceExporter),
+		sdk_trace.WithResource(res),
+	)
+
+	if err != nil {
+		handleErr(err)
+		return
+	}
+	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
+	otel.SetTracerProvider(tracerProvider)
+
+	metricExporter, err := otlpmetrichttp.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	meterProvider := metric.NewMeterProvider(metric.WithReader(metric.NewPeriodicReader(metricExporter)))
+	if err != nil {
+		handleErr(err)
+		return
+	}
+	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
+	otel.SetMeterProvider(meterProvider)
+
+	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return
+}
+
+type EmptyRequest struct {}
+
+func (req *EmptyRequest) ParseHTTPRequest(r *http.Request) error {
+	return nil
+}
+
+func (req *EmptyRequest) Validate(r *http.Request) error {
+	return nil
+}
+
 func run() {
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
@@ -316,6 +421,26 @@ func run() {
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
+	// Set up Telemetry
+	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+	)))
+
+	// Set up OpenTelemetry.
+	otelShutdown, err := setupOTelSDK(ctx)
+	if err != nil {
+		log.Fatalf("failed to setup otel sdk: %v", err)
+	}
+
+	// Handle shutdown properly so nothing leaks.
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
 	data, err := os.ReadFile(optionsConfigInDir)
@@ -344,7 +469,7 @@ func run() {
 	router := mux.NewRouter()
 	tradeapi.SetupHandler(router.PathPrefix("/trades").Subrouter())
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
-	signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
+	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
@@ -355,31 +480,6 @@ func run() {
 		BearerToken:            brokerBearerToken,
 		GoEnv:                  goEnv,
 	}
-
-	r := NewRouterSetup("/options", router)
-	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector})
-	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "/spreads", Executor: optionChainRequestExector})
-
-	// Setup web server
-	srv := &http.Server{
-		Handler: router,
-		Addr:    fmt.Sprintf(":%s", port),
-	}
-
-	// Start web server
-	go func() {
-		log.Infof("listening on :%s", port)
-		if err := srv.ListenAndServe(); err != nil {
-			if err.Error() != "http: Server closed" {
-				log.Fatalf("failed to start server: %v", err)
-			}
-		}
-	}()
-
-	// Create channel for shutdown signals.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	signal.Notify(stop, syscall.SIGTERM)
 
 	streamParams := []eventmodels.StreamParameter{
 		{StreamName: eventmodels.AccountsStream, Mutex: &sync.Mutex{}},
@@ -400,6 +500,40 @@ func run() {
 	// TrackerV3 client for generating option EV signals
 	trackersClientV3 := eventconsumers.NewESDBConsumerStream(&wg, eventStoreDbURL, &eventmodels.TrackerV3{})
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerV3Consumer(trackersClientV3)
+
+	// signals router
+	signalsGetStateExecutor := signalapi.NewGetStateExecutor(trackerV3OptionEVConsumer)
+	s := NewRouterSetup("/signals", router)
+	s.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: signalsGetStateExecutor, Request: &EmptyRequest{}})
+
+	// options router
+	r := NewRouterSetup("/options", router)
+	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
+	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "/spreads", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
+
+	// Setup web server
+	srv := &http.Server{
+		Handler: router,
+		Addr:    fmt.Sprintf(":%s", port),
+		BaseContext: func(_ net.Listener) context.Context {
+			return ctx
+		},
+	}
+
+	// Start web server
+	go func() {
+		log.Infof("listening on :%s", port)
+		if err := srv.ListenAndServe(); err != nil {
+			if err.Error() != "http: Server closed" {
+				log.Fatalf("failed to start server: %v", err)
+			}
+		}
+	}()
+
+	// Create channel for shutdown signals.
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, syscall.SIGTERM)
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
 	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config OptionsConfigYAML, isDryRun bool) {

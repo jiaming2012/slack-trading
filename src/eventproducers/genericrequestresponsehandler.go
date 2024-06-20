@@ -16,7 +16,7 @@ type SignalRequest interface {
 	GetSource() models.RequestSource
 }
 
-func ApiRequestHandler3(eventName eventmodels.EventName, req eventmodels.ApiRequest3, resp any, requestExector eventmodels.RequestExecutor, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler3(req eventmodels.ApiRequest3, requestExector eventmodels.RequestExecutor, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
@@ -42,8 +42,10 @@ func ApiRequestHandler3(eventName eventmodels.EventName, req eventmodels.ApiRequ
 	// 	IsExternalRequest: true,
 	// }
 
-	// resultCh, errCh := eventmodels.RegisterResultCallback(id)
-	resultCh, errCh := requestExector.Serve(r, req)
+	resultCh := make(chan map[string]interface{})
+	errCh := make(chan error)
+	
+	go requestExector.Serve(r, req, resultCh, errCh)
 
 	// pubsub.PublishEvent("ApiRequestHandler3", eventName, req)
 

@@ -3,22 +3,26 @@ package telemetry
 import (
 	"context"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // setupOTelSDK bootstraps the OpenTelemetry pipeline.
@@ -54,7 +58,13 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 		return nil, err
 	}
 
-	tracerProvider := trace.NewTracerProvider(trace.WithBatcher(traceExporter))
+	res, _ := resource.New(ctx, resource.WithAttributes(attribute.String("service.name", "grodt")))
+
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(traceExporter),
+		sdktrace.WithResource(res),
+	)
+
 	if err != nil {
 		handleErr(err)
 		return
@@ -87,6 +97,18 @@ func RunQuickstart() (err error) {
 	// Handle SIGINT (CTRL+C) gracefully.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	// set up logger
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{})
+
+	// Instrument logrus.
+	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+	)))
 
 	// Set up OpenTelemetry.
 	otelShutdown, err := setupOTelSDK(ctx)
@@ -146,6 +168,59 @@ func newHTTPHandler() http.Handler {
 	return handler
 }
 
+func anotherFunc(ctx context.Context) {
+	tracer := otel.Tracer("anotherFunc")
+	ctx, span := tracer.Start(ctx, "anotherFunc")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("work", "getting it"))
+
+	log.WithContext(ctx).
+		WithError(errors.New("hello world")).
+		WithField("foo", "bar").
+		Error("something failed")
+
+	time.Sleep(1 * time.Second)
+	span.AddEvent("Work is done", trace.WithAttributes(
+		attribute.String("result", "success"),
+	))
+
+}
+
+func parallelFunc(ctx context.Context) {
+	tracer := otel.Tracer("parallelFunc")
+	ctx, span := tracer.Start(ctx, "parallelFunc")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("work", "getting it"))
+
+	span.AddEvent("Doing some work")
+	time.Sleep(1 * time.Second)
+	span.AddEvent("Work is done", trace.WithAttributes(
+		attribute.String("result", "success"),
+	))
+
+	// Call another function.
+	anotherFunc(ctx)
+}
+
 func rolldice(w http.ResponseWriter, r *http.Request) {
+	tracer := otel.Tracer("rolldice")
+	ctx, span := tracer.Start(r.Context(), "roll that dice")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("work", "getting it"))
+
+	span.AddEvent("Doing some work")
+	time.Sleep(2 * time.Second)
+	span.AddEvent("Work is done", trace.WithAttributes(
+		attribute.String("result", "success"),
+	))
+
+	// Call another function.
+	anotherFunc(ctx)
+
+	parallelFunc(ctx)
+
 	w.Write([]byte("Rolling the dice..."))
 }

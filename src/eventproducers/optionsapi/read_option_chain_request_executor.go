@@ -228,11 +228,9 @@ func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainR
 	resultCh <- result
 }
 
-func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3) (chan map[string]interface{}, chan error) {
+func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan map[string]interface{}, errorCh chan error) {
 	req := request.(*eventmodels.ReadOptionChainRequest)
-	resultCh := make(chan map[string]interface{})
-	errorCh := make(chan error)
-
+	
 	bFindSpreads := false
 	if r.URL.Path == "/options/spreads" {
 		bFindSpreads = true
@@ -243,6 +241,4 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}
-
-	return resultCh, errorCh
 }

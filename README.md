@@ -2,7 +2,7 @@
 A mock trading platform.
 
 # Telemetry
-Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475
+Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475. Used the following guide to set up: https://grafana.com/docs/grafana-cloud/monitor-applications/application-observability/setup/quickstart/go/
 
 ## See Telemetry Data
 1. Launch Grafana
