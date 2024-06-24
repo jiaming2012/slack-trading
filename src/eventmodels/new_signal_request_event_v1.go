@@ -1,6 +1,7 @@
 package eventmodels
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 )
 
 type CreateSignalV1DTO struct {
@@ -60,7 +62,11 @@ type CreateSignalRequestEventV1DTO struct {
 	CreateSignalV1DTO
 }
 
-func (dto *CreateSignalRequestEventV1DTO) ValidateV2() (bool, error) {
+func (dto *CreateSignalRequestEventV1DTO) ValidateV2(ctx context.Context) (bool, error) {
+	tracer := otel.Tracer("CreateSignalRequestEventV1DTO.ValidateV2")
+	_, span := tracer.Start(ctx, "CreateSignalRequestEventV1DTO.ValidateV2")
+	defer span.End()
+
 	signal, err := dto.CreateSignalV1DTO.ToModel()
 	if err != nil {
 		return false, fmt.Errorf("CreateSignalRequestEventV1DTO.Convert: failed to convert CreateSignalV1DTO to model: %w", err)

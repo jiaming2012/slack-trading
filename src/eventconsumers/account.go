@@ -223,7 +223,7 @@ func (w *AccountWorker) executeCloseTradesRequest(req *eventmodels.CloseTradeReq
 
 	trade, _, err := strategy.NewCloseTrades(tradeID, req.Timeframe, now, requestPrc, req.PriceLevelIndex, req.Percent)
 	if err != nil {
-		if errors.Is(err, eventmodels.DuplicateCloseTradeErr) {
+		if errors.Is(err, eventmodels.ErrDuplicateCloseTrade) {
 			log.Debugf("duplicate close: skipping")
 			return nil, nil
 		}

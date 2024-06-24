@@ -1,6 +1,7 @@
 package optionsapi
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 
 	derive_expected_profit "github.com/jiaming2012/slack-trading/src/cmd/stats/derive_expected_profit/run"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -121,7 +123,11 @@ func (s *ReadOptionChainRequestExecutor) getMinDistanceBetweenStrikes(req *event
 	return 0, nil
 }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
+	tracer := otel.Tracer("ReadOptionChainRequestExecutor")
+	ctx, span := tracer.Start(ctx, "ReadOptionChainRequestExecutor.ServeWithParams")
+	defer span.End()
+
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
@@ -135,6 +141,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 	}
 
 	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV3(
+		ctx,
 		s.OptionsByExpirationURL,
 		s.OptionChainURL,
 		s.StockURL,
@@ -163,7 +170,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(req *eventmodels.ReadOp
 
 	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
 
-	expectedProfitLongSpreads, expectedProfitShortSpreads, err := derive_expected_profit.FetchEVSpreads(projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
+	expectedProfitLongSpreads, expectedProfitShortSpreads, err := derive_expected_profit.FetchEVSpreads(ctx, projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
@@ -230,14 +237,14 @@ func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainR
 
 func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan map[string]interface{}, errorCh chan error) {
 	req := request.(*eventmodels.ReadOptionChainRequest)
-	
+
 	bFindSpreads := false
 	if r.URL.Path == "/options/spreads" {
 		bFindSpreads = true
 	}
 
 	if req.EV != nil {
-		go s.ServeWithParams(req, bFindSpreads, resultCh, errorCh)
+		go s.ServeWithParams(r.Context(), req, bFindSpreads, resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

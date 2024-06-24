@@ -1,10 +1,12 @@
 package eventservices
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -23,7 +25,11 @@ func FetchStandardDeviation(url string, bearerToken string, symbol eventmodels.S
 	return 0, nil
 }
 
-func FetchOptionChainWithParamsV3(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV3, *eventmodels.StockTickItemDTO, error) {
+func FetchOptionChainWithParamsV3(ctx context.Context, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV3, *eventmodels.StockTickItemDTO, error) {
+	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
+	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
+	defer span.End()
+
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Tradier options: %v", err)

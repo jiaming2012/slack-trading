@@ -1,6 +1,7 @@
 package eventproducers
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -16,7 +17,7 @@ type SignalRequest interface {
 	GetSource() models.RequestSource
 }
 
-func ApiRequestHandler3(req eventmodels.ApiRequest3, requestExector eventmodels.RequestExecutor, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler3(ctx context.Context, req eventmodels.ApiRequest3, requestExector eventmodels.RequestExecutor, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)

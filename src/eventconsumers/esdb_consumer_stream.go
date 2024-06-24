@@ -10,14 +10,17 @@ import (
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type EsdbEvent[T eventmodels.SavedEvent] struct {
-	Event    T
-	IsReplay bool
+	Event       T
+	IsReplay    bool
+	SpanContext trace.SpanContext
 }
 
 type esdbConsumerStream[T eventmodels.SavedEvent] struct {
@@ -117,6 +120,19 @@ func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamN
 
 func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.RecordedEvent, isReplay bool) error {
 	var savedEvent T
+	var spanCtx trace.SpanContext
+
+	if !isReplay {
+		var meta eventmodels.EsdbMetadata
+		if err := json.Unmarshal(event.UserMetadata, &meta); err != nil {
+			log.Warnf("esdbConsumerStream: processEvent: failed to unmarshal user metadata: %v", err)
+		} else {
+			spanCtx, err = utils.DeserializeTraceContext(meta.SpanContext)
+			if err != nil {
+				log.Warnf("esdbConsumerStream: processEvent: failed to deserialize trace context: %v", err)
+			}
+		}
+	}
 
 	if err := json.Unmarshal(event.Data, &savedEvent); err != nil {
 		return fmt.Errorf("esdbConsumerStream.processEvent: failed to unmarshal event data: %v", err)
@@ -128,7 +144,7 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	case <-ctx.Done():
 		log.Errorf("esdbConsumerStream: processEvent: context done")
 		return fmt.Errorf("esdbConsumerStream: processEvent: context done")
-	case cli.savedEventsCh <- EsdbEvent[T]{Event: savedEvent, IsReplay: isReplay}:
+	case cli.savedEventsCh <- EsdbEvent[T]{Event: savedEvent, IsReplay: isReplay, SpanContext: spanCtx}:
 		log.Debugf("esdbConsumerStream: processEvent: successfully published event %d to savedEventsCh", event.EventNumber)
 	}
 

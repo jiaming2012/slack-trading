@@ -312,7 +312,7 @@ func (tr *Trade) Validate(partialCloseItems []*PartialCloseItemRequest) error {
 		}
 
 		if math.Abs(tr.RequestedVolume) > math.Abs(totalOffsetVolume)+SmallRoundingError {
-			return DuplicateCloseTradeErr
+			return ErrDuplicateCloseTrade
 		}
 	}
 
@@ -491,7 +491,7 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, 
 		}
 
 		if absVol != 0 {
-			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, DuplicateCloseTradeErr)
+			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, ErrDuplicateCloseTrade)
 		}
 	}
 

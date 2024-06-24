@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,16 +13,15 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
-
-	supertrend_4h_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
-
-	supertrend_4h_1h_stoch_rsi_15m_down "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
-
-	supertrend_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	supertrend_1h_stoch_rsi_15m_down "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_down/run"
+	supertrend_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
+	supertrend_4h_1h_stoch_rsi_15m_down "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_down/run"
+	supertrend_4h_1h_stoch_rsi_15m_up "github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/run"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type RunArgs struct {
@@ -78,7 +78,18 @@ func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.Stock
 	return string(input), nil
 }
 
-func ExecDeriveExpectedProfitSpreads(projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+	tracer := otel.Tracer("ExecDeriveExpectedProfitSpreads")
+	_, span := tracer.Start(ctx, "ExecDeriveExpectedProfitSpreads")
+	defer span.End()
+
+	var keys []int64
+	for k := range lookaheadToOptionContractsMap {
+		keys = append(keys, int64(k))
+	}
+
+	span.SetAttributes(attribute.String("distributionInDir", distributionInDir), attribute.Int64Slice("lookaheadToOptionContractsMapKeys", keys))
+
 	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit_spreads.py")
 
@@ -130,7 +141,11 @@ func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, stockInfo *
 	return results, nil
 }
 
-func ExecFitDistribution(projectsDir, percentChangeInDir string) (string, error) {
+func ExecFitDistribution(ctx context.Context, projectsDir, percentChangeInDir string) (string, error) {
+	tracer := otel.Tracer("ExecFitDistribution")
+	_, span := tracer.Start(ctx, "ExecFitDistribution", trace.WithAttributes(attribute.String("percentChangeInDir", percentChangeInDir)))
+	defer span.End()
+
 	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 	fitDistributionPath := fmt.Sprintf("%s/fit_distribution.py", path.Join(projectsDir, "slack-trading", "src", "cmd", "stats"))
 
@@ -214,8 +229,16 @@ type CreateSignalStats interface {
 	Run() (eventmodels.SignalRunOutput, error)
 }
 
-func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, createSignalStatsfunc CreateSignalStatsFunc) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, createSignalStatsfunc CreateSignalStatsFunc) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+	tracer := otel.Tracer("ExecSignalStatisicalPipelineSpreads")
+	_, span := tracer.Start(ctx, "ExecSignalStatisicalPipelineSpreads", trace.WithAttributes(attribute.String("symbol", string(stockInfo.Symbol))))
+	defer span.End()
+
+	logger := log.WithContext(ctx)
+
+	span.AddEvent("Executing signal stats ...")
 	output, err := createSignalStatsfunc()
+	span.AddEvent("Executed signal stats")
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_down: %w", err)
@@ -224,15 +247,17 @@ func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionCon
 	resultMapLongSpread := make(map[string]eventmodels.ExpectedProfitItemSpread)
 	resultMapShortSpread := make(map[string]eventmodels.ExpectedProfitItemSpread)
 
-	for _, filePath := range output.ExportedFilepaths {
-		log.Infof("fitting distribution for filepath: %s", filePath)
+	logger.Infof("exported %v files", len(output.ExportedFilepaths))
 
-		outDir, err := ExecFitDistribution(projectDir, filePath)
+	for _, filePath := range output.ExportedFilepaths {
+		logger.Infof("fitting distribution for filepath: %s", filePath)
+
+		outDir, err := ExecFitDistribution(ctx, projectDir, filePath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("FetchEV: error running fit_distribution.py: %w", err)
 		}
 
-		resultsDTO, err := ExecDeriveExpectedProfitSpreads(projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
+		resultsDTO, err := ExecDeriveExpectedProfitSpreads(ctx, projectDir, outDir, stockInfo, lookaheadToOptionContractsMap)
 		if err != nil {
 			return nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit_spreads.py: %w", err)
 		}
@@ -261,14 +286,21 @@ func ExecSignalStatisicalPipelineSpreads(projectDir string, lookaheadToOptionCon
 	return resultMapLongSpread, resultMapShortSpread, nil
 }
 
-func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+func FetchEVSpreads(ctx context.Context, projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+	tracer := otel.Tracer("FetchEVSpreads")
+	_, span := tracer.Start(ctx, "FetchEVSpreads")
+	defer span.End()
+
+	logger := log.WithContext(ctx)
+
 	lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
 
-	log.Infof("Running %v with lookaheadCandlesCount: %v", args.SignalName, lookaheadCandlesCount)
+	logger.Infof("Running %v with lookaheadCandlesCount: %v", args.SignalName, lookaheadCandlesCount)
 
 	switch args.SignalName {
 	case eventmodels.SuperTrend1hStochRsi15mUp:
-		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
+		span.AddEvent("Executing SuperTrend1hStochRsi15mUp")
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_1h_stoch_rsi_15m_up.Run(supertrend_1h_stoch_rsi_15m_up.RunArgs{
 				StartsAt:              args.StartsAt,
 				EndsAt:                args.EndsAt,
@@ -279,7 +311,8 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 		})
 
 	case eventmodels.SuperTrend1hStochRsi15mDown:
-		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
+		span.AddEvent("Executing SuperTrend1hStochRsi15mDown")
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_1h_stoch_rsi_15m_down.Run(supertrend_1h_stoch_rsi_15m_down.RunArgs{
 				StartsAt:              args.StartsAt,
 				EndsAt:                args.EndsAt,
@@ -290,7 +323,8 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 		})
 
 	case eventmodels.SuperTrend4h1hStochRsi15mDown:
-		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
+		span.AddEvent("Executing SuperTrend4h1hStochRsi15mDown")
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_4h_1h_stoch_rsi_15m_down.Run(supertrend_4h_1h_stoch_rsi_15m_down.RunArgs{
 				StartsAt:              args.StartsAt,
 				EndsAt:                args.EndsAt,
@@ -301,7 +335,8 @@ func FetchEVSpreads(projectDir string, bFindSpreads bool, args RunArgs, options 
 		})
 
 	case eventmodels.SuperTrend4h1hStochRsi15mUp:
-		return ExecSignalStatisicalPipelineSpreads(projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
+		span.AddEvent("Executing SuperTrend4h1hStochRsi15mUp")
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
 			return supertrend_4h_1h_stoch_rsi_15m_up.Run(supertrend_4h_1h_stoch_rsi_15m_up.RunArgs{
 				StartsAt:              args.StartsAt,
 				EndsAt:                args.EndsAt,

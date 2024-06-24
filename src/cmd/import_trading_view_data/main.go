@@ -186,7 +186,7 @@ func run(args RunArgs) error {
 					// delete any column that does not have a header
 					delete(data, "")
 
-					if err := esdbProducer.SaveData(event, data); err != nil {
+					if err := esdbProducer.SaveData(ctx, event, data); err != nil {
 						return fmt.Errorf("error saving candle: %v", err)
 					}
 

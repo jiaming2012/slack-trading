@@ -1,6 +1,7 @@
 package run
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,11 +10,26 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func PlaceTradeSpread(url string, bearerToken string, underlying eventmodels.StockSymbol, sellToOpenSymbol eventmodels.OptionSymbol, buyToOpenSymbol eventmodels.OptionSymbol, quantity int, tag string, dryRun bool) error {
+func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, underlying eventmodels.StockSymbol, sellToOpenSymbol eventmodels.OptionSymbol, buyToOpenSymbol eventmodels.OptionSymbol, quantity int, tag string, dryRun bool) error {
+	tracer := otel.Tracer("PlaceTradeSpread")
+	ctx, span := tracer.Start(ctx, "PlaceTradeSpread", trace.WithAttributes(
+		attribute.String("underlying", string(underlying)),
+		attribute.String("sellToOpenSymbol", string(sellToOpenSymbol)),
+		attribute.String("buyToOpenSymbol", string(buyToOpenSymbol)),
+		attribute.Int("quantity", quantity),
+		attribute.String("tag", tag),
+	))
+	defer span.End()
+
+	logger := log.WithContext(ctx)
+
 	if quantity <= 0 {
 		return fmt.Errorf("placeTradeSpread: quantity must be positive")
 	}
@@ -75,7 +91,7 @@ func PlaceTradeSpread(url string, bearerToken string, underlying eventmodels.Sto
 		return fmt.Errorf("PlaceTradeSpread: failed to place trade: %v", e)
 	}
 
-	log.Infof("PlaceTradeSpread: placed trade: %v", response)
+	logger.Infof("PlaceTradeSpread: placed trade: %v", response)
 
 	return nil
 }

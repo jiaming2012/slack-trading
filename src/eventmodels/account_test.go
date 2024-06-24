@@ -344,7 +344,7 @@ func TestPlacingTrades(t *testing.T) {
 
 		tr1ClosePrc := 10.5
 		_, _, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume-0.001, nil)
-		assert.ErrorIs(t, err, DuplicateCloseTradeErr)
+		assert.ErrorIs(t, err, ErrDuplicateCloseTrade)
 	})
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {

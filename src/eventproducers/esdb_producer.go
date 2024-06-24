@@ -3,6 +3,7 @@ package eventproducers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,10 +11,13 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type EsdbProducer struct {
@@ -27,11 +31,19 @@ type EsdbProducer struct {
 	saga                   map[eventmodels.EventName]pubsub.SagaFlow
 }
 
-func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, data []byte) error {
+func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, meta []byte, data []byte) error {
 	eventData := esdb.EventData{
 		ContentType: esdb.ContentTypeJson,
 		EventType:   string(eventName),
 		Data:        data,
+	}
+
+	if meta != nil {
+		eventData.Metadata = meta
+	}
+
+	if cli.db == nil {
+		return errors.New("db is nil")
 	}
 
 	// todo: verify that the stream is thread safe
@@ -43,7 +55,7 @@ func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 	return nil
 }
 
-func (cli *EsdbProducer) insertData(event eventmodels.SavedEvent, data map[string]interface{}) error {
+func (cli *EsdbProducer) insertData(ctx context.Context, event eventmodels.SavedEvent, data map[string]interface{}) error {
 	// set the event streamID
 	eventID := eventmodels.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
@@ -65,14 +77,38 @@ func (cli *EsdbProducer) insertData(event eventmodels.SavedEvent, data map[strin
 
 	log.Debugf("%s saving to stream %s ...", eventName, streamName)
 
-	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
+	if err := cli.insertEvent(ctx, eventName, string(streamName), nil, bytes); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
 	}
 
 	return nil
 }
 
-func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) insert(ctx context.Context, event eventmodels.SavedEvent) error {
+	// todo: unify metadata with the structs metadata field
+	// set the metadata
+	var metaBytes []byte
+
+	span := trace.SpanFromContext(ctx)
+
+	if span.SpanContext().IsValid() {
+		serializedSpanCtx, err := utils.SerializeTraceContext(span.SpanContext())
+		if err != nil {
+			return fmt.Errorf("failed to serialize trace context: %w", err)
+		}
+
+		meta := eventmodels.EsdbMetadata{
+			SpanContext: serializedSpanCtx,
+		}
+
+		bytes, err := json.Marshal(meta)
+		if err != nil {
+			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
+
+		metaBytes = bytes
+	}
+
 	// set the event streamID
 	eventID := eventmodels.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
@@ -94,53 +130,68 @@ func (cli *EsdbProducer) insert(event eventmodels.SavedEvent) error {
 
 	log.Debugf("%s saving to stream %s ...", eventName, streamName)
 
-	if err := cli.insertEvent(context.Background(), eventName, string(streamName), bytes); err != nil {
+	if err := cli.insertEvent(ctx, eventName, string(streamName), metaBytes, bytes); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
 	}
 
 	return nil
 }
 
-func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
-	log.WithFields(log.Fields{
-		"event": "signal",
-	}).Debugf("<- esdbProducer.handleSaveCreateSignalRequestEvent, request: %v", request)
+func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context, request *eventmodels.CreateSignalRequestEventV1DTO) (bool, error) {
+	tracer := otel.Tracer("ProcessSaveCreateSignalRequestEvent")
+	ctx, span := tracer.Start(ctx, "ProcessSaveCreateSignalRequestEvent")
+	defer span.End()
 
-	if isValid, err := request.ValidateV2(); isValid {
+	logger := log.WithContext(ctx)
+
+	logger.WithFields(log.Fields{
+		"event": "signal",
+	}).Infof("<- esdbProducer.handleSaveCreateSignalRequestEvent, request: %v", request)
+
+	if isValid, err := request.ValidateV2(ctx); isValid {
 		if err != nil {
-			log.WithFields(log.Fields{
-				"event": "signal",
-			}).Debugf("vaild signal, but avoid processing due to error: %v", err)
-			return
+			return true, fmt.Errorf("ProcessSaveCreateSignalRequestEvent: valid signal, but avoid processing due to error: %v", err)
 		}
 
-		log.Infof("saving signal %s", request.Name)
+		logger.Infof("saving signal %s", request.Name)
 
 		// save the signal
-		if err := cli.insert(request); err != nil {
-			meta := request.GetMetaData()
-			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
-			return
+		if err := cli.insert(ctx, request); err != nil {
+			return false, fmt.Errorf("failed to save signal: %w", err)
 		}
+
+		span.AddEvent("Signal saved")
 
 		now := time.Now().UTC()
 
 		tracker, err := request.ConvertToTracker(now)
 		if err != nil {
-			meta := request.GetMetaData()
-			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
-			return
+			return false, fmt.Errorf("failed to convert signal to tracker: %w", err)
 		}
 
-		if err := cli.insert(tracker); err != nil {
+		if err := cli.insert(ctx, tracker); err != nil {
+			return false, fmt.Errorf("failed to save tracker: %w", err)
+		}
+
+		span.AddEvent("Tracker saved")
+	} else {
+		return true, fmt.Errorf("ProcessSaveCreateSignalRequestEvent: invalid signal: %v", err)
+	}
+
+	return true, nil
+}
+
+func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
+	if ok, err := cli.ProcessSaveCreateSignalRequestEvent(context.Background(), request); err != nil {
+		if ok {
+			log.WithFields(log.Fields{
+				"event": "signal",
+			}).Debugf("handleSaveCreateSignalRequestEvent: %v", err)
+		} else {
 			meta := request.GetMetaData()
 			pubsub.PublishRequestError("esdbProducer:cli.handleSaveCreateSignalRequestEvent", err, meta)
 			return
 		}
-	} else {
-		meta := request.GetMetaData()
-		pubsub.PublishRequestError("signal conversion failed: %v. Not necessarily an error.", err, meta)
-		return
 	}
 
 	pubsub.PublishCompletedResponse("esdbProducer:cli.handleSaveCreateSignalRequest", &eventmodels.CreateSignalResponseEvent{
@@ -148,13 +199,13 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 	}, request.GetMetaData())
 }
 
-func (cli *EsdbProducer) saveRequest(request interface{}) error {
+func (cli *EsdbProducer) saveRequest(ctx context.Context, request interface{}) error {
 	event, ok := request.(eventmodels.SavedEvent)
 	if !ok {
 		log.Fatalf("%T does not implement the SavedEvent interface", request)
 	}
 
-	if err := cli.saveEvent(event); err != nil {
+	if err := cli.saveEvent(ctx, event); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to save event: %w", err)
 	}
 
@@ -162,16 +213,16 @@ func (cli *EsdbProducer) saveRequest(request interface{}) error {
 }
 
 func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
-	if err := cli.saveRequest(request); err != nil {
+	if err := cli.saveRequest(context.Background(), request); err != nil {
 		meta := request.(eventmodels.SavedEvent).GetMetaData()
 		pubsub.PublishRequestError("esdbProducer:cli.saveEvent", err, meta)
 	}
 }
 
-func (cli *EsdbProducer) saveEvent(event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) saveEvent(ctx context.Context, event eventmodels.SavedEvent) error {
 	log.WithField("event", event.GetSavedEventParameters().EventName).Debug("EsdbProducer.saveEvent")
 
-	if err := cli.insert(event); err != nil {
+	if err := cli.insert(ctx, event); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to insert event: %w", err)
 	}
 
@@ -284,7 +335,7 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 		for {
 			select {
 			case fxTick := <-fxTicksCh:
-				if err := cli.saveRequest(fxTick); err != nil {
+				if err := cli.saveRequest(ctx, fxTick); err != nil {
 					pubsub.PublishError("esdbProducer: failed to save candle: ", err)
 				}
 			case <-ctx.Done():
@@ -357,12 +408,12 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 	}()
 }
 
-func (cli *EsdbProducer) SaveData(event eventmodels.SavedEvent, data map[string]interface{}) error {
-	return cli.insertData(event, data)
+func (cli *EsdbProducer) SaveData(ctx context.Context, event eventmodels.SavedEvent, data map[string]interface{}) error {
+	return cli.insertData(ctx, event, data)
 }
 
-func (cli *EsdbProducer) Save(event eventmodels.SavedEvent) error {
-	return cli.insert(event)
+func (cli *EsdbProducer) Save(ctx context.Context, event eventmodels.SavedEvent) error {
+	return cli.insert(ctx, event)
 }
 
 func (cli *EsdbProducer) StartRead(name eventmodels.StreamName) {

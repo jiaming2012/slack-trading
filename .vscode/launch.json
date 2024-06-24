@@ -11,6 +11,9 @@
             "mode": "debug",
             "program": "${workspaceFolder}/src/eventmain/main.go",
             "env": {
+                "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp-gateway-prod-us-east-0.grafana.net/otlp",
+                "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic OTYxOTAwOmdsY19leUp2SWpvaU1URTFNall5TkNJc0ltNGlPaUp6ZEdGamF5MDVOakU1TURBdGIzUnNjQzEzY21sMFpTMW5jbTlrZEMxelpYSjJhV05sSWl3aWF5STZJbEZ4ZWpRMWFYSTBRVFJXV0hOTU5EVXlaVVV6TmtVMVlTSXNJbTBpT25zaWNpSTZJbkJ5YjJRdGRYTXRaV0Z6ZEMwd0luMTk=",
                 "GO_ENV": "development"
             }
         },

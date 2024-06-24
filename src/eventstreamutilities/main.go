@@ -302,7 +302,7 @@ func StopTracking(ctx context.Context, wg *sync.WaitGroup, optionContractsCache 
 		tracker := eventmodels.NewStopTracker(startTracker.Meta.GetEventStreamID(), now, reason, requestID)
 
 		// Save the tracker
-		if err := esdbProducer.Save(tracker); err != nil {
+		if err := esdbProducer.Save(ctx, tracker); err != nil {
 			return fmt.Errorf("failed to save tracker: %v", err)
 		}
 	}
@@ -396,7 +396,7 @@ func CreateSignal(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL strin
 	signalTracker := eventmodels.NewSignalTrackerV2(signalName, header, ts, requestID)
 
 	// Save the signal tracker
-	if err := esdbProducer.Save(signalTracker); err != nil {
+	if err := esdbProducer.Save(ctx, signalTracker); err != nil {
 		return fmt.Errorf("failed to save signal tracker: %v", err)
 	}
 
@@ -439,7 +439,7 @@ func StartTrackingFx(ctx context.Context, wg *sync.WaitGroup, eventStoreDBURL st
 	tracker := eventmodels.NewStartFxTracker(symbol, now, params.Reason, requestID)
 
 	// Save the tracker
-	if err := esdbProducer.Save(tracker); err != nil {
+	if err := esdbProducer.Save(ctx, tracker); err != nil {
 		return fmt.Errorf("failed to save tracker: %v", err)
 	}
 
@@ -487,7 +487,7 @@ func StartTrackingStockAndOptions(ctx context.Context, wg *sync.WaitGroup, optio
 	tracker := eventmodels.NewStartTracker(underlyingSymbol, optionContractSymbols, now, params.Reason, requestID)
 
 	// Save the tracker
-	if err := esdbProducer.Save(tracker); err != nil {
+	if err := esdbProducer.Save(ctx, tracker); err != nil {
 		return fmt.Errorf("failed to save tracker: %v", err)
 	}
 
@@ -516,7 +516,7 @@ func FetchAndStoreTradierOptions(ctx context.Context, wg *sync.WaitGroup, esdbPr
 			continue
 		}
 
-		esdbProducer.Save(&option)
+		esdbProducer.Save(ctx, &option)
 		created = append(created, &option)
 
 		log.Infof("Created contract -> Expiration: %s, Type: %s, Strike: %.2f\n", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
