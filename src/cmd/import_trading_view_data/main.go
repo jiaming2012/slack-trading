@@ -23,16 +23,32 @@ import (
 func parseMeta(fileName string) eventmodels.CsvMeta {
 	// strip the symbol [ex. BATS_COIN, 5 (1).csv] from the filename
 	// and use it as the symbol
-	symbol := strings.Split(fileName, "_")[1]
-	symbol = strings.Split(symbol, ".")[0]
-	if idx := strings.Index(symbol, "("); idx > 0 {
-		symbol = symbol[:idx]
+	components := strings.Split(fileName, ",")
+	if len(components) > 2 {
+		log.Fatalf("parseMeta: error parsing filename: %s", fileName)
 	}
-	symbol = strings.TrimSpace(symbol)
-	components := strings.Split(symbol, ",")
+
+	symbolComponents := strings.Split(components[0], "_")
+	if len(symbolComponents) < 2 {
+		log.Fatalf("parseMeta: error parsing symbol: %s", components[0])
+	}
+
+	symbolStr := symbolComponents[len(symbolComponents)-1]
+
+	timeframeComponents := strings.Split(components[1], ".")
+	if len(timeframeComponents) < 2 {
+		log.Fatalf("parseMeta: error parsing timeframe: %s", components[1])
+	}
+
+	timeframeStr := timeframeComponents[0]
+	if idx := strings.Index(timeframeStr, "("); idx > 0 {
+		timeframeStr = timeframeStr[:idx]
+	}
+	timeframeStr = strings.TrimSpace(timeframeStr)
+
 	return eventmodels.CsvMeta{
-		Symbol:    strings.TrimSpace(components[0]),
-		Timeframe: strings.TrimSpace(components[1]),
+		Symbol:    symbolStr,
+		Timeframe: timeframeStr,
 	}
 }
 
