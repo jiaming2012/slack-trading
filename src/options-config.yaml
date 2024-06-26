@@ -1,54 +1,54 @@
 options:
   - symbol: SPX
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 10
     maxNoOfStrikes: 6
   - symbol: VIX
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 1
     maxNoOfStrikes: 6
   - symbol: IWM
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 1
     maxNoOfStrikes: 6
   - symbol: NDX
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 10
     maxNoOfStrikes: 6
   - symbol: QQQ
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 1
     maxNoOfStrikes: 6
   - symbol: COIN
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 10
     maxNoOfStrikes: 6
   - symbol: CVX
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 10
     maxNoOfStrikes: 6
   - symbol: NVDA
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 10
     maxNoOfStrikes: 6
   - symbol: TSLA
-    startsAt: 2024-01-02T09:30:00
+    startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [0, 1, 7]
     minDistanceBetweenStrikes: 15
