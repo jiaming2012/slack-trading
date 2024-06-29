@@ -50,6 +50,14 @@
             "args": ["--starts-at", "2024-05-01T09:30:00", "--ends-at", "2024-05-31T16:00:00"]
         },
         {
+            "name": "[DEV] cmd/fetch_order/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/fetch_order/main.go",
+            "args": ["--orderID", "12911774", "--go-env", "development"]
+        },
+        {
             "name": "[DEV] cmd/tick_generator/clean_data_pdf_signals/main.go",
             "type": "go",
             "request": "launch",

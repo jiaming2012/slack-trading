@@ -2,7 +2,7 @@ package eventmodels
 
 import log "github.com/sirupsen/logrus"
 
-type TradierOrderDataStore map[uint64]*TradierOrder
+type TradierOrderDataStore map[uint]*TradierOrder
 
 func (o TradierOrderDataStore) Update(order *TradierOrder) []*TradierOrderUpdateEvent {
 	var updates []*TradierOrderUpdateEvent
@@ -30,11 +30,11 @@ func (o TradierOrderDataStore) Add(order *TradierOrder) {
 	log.Debugf("TradierOrdersMonitoringWorker.Add: added order with ID: %d", order.ID)
 }
 
-func (o TradierOrderDataStore) Delete(orderID uint64) {
+func (o TradierOrderDataStore) Delete(orderID uint) {
 	delete(o, orderID)
 	log.Debugf("TradierOrdersMonitoringWorker.Delete: removed order with ID: %d", orderID)
 }
 
 func NewTradierOrderDataStore() TradierOrderDataStore {
-	return make(map[uint64]*TradierOrder)
+	return make(map[uint]*TradierOrder)
 }

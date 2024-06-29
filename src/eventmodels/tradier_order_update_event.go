@@ -1,7 +1,7 @@
 package eventmodels
 
 type TradierOrderUpdateEvent struct {
-	OrderID uint64
+	OrderID uint
 	Field   string
 	Old     interface{}
 	New     interface{}

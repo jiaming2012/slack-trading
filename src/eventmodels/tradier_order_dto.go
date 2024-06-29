@@ -6,23 +6,26 @@ import (
 )
 
 type TradierOrderDTO struct {
-	ID                uint64  `json:"id"`
-	Type              string  `json:"type"`
-	Symbol            string  `json:"symbol"`
-	Side              string  `json:"side"`
-	Quantity          float64 `json:"quantity"`
-	Status            string  `json:"status"`
-	Duration          string  `json:"duration"`
-	Price             float64 `json:"price"`
-	AvgFillPrice      float64 `json:"avg_fill_price"`
-	ExecQuantity      float64 `json:"exec_quantity"`
-	LastFillPrice     float64 `json:"last_fill_price"`
-	LastFillQuantity  float64 `json:"last_fill_quantity"`
-	RemainingQuantity float64 `json:"remaining_quantity"`
-	CreateDate        string  `json:"create_date"`
-	TransactionDate   string  `json:"transaction_date"`
-	Class             string  `json:"class"`
-	OptionSymbol      *string `json:"option_symbol"`
+	ID                uint                 `json:"id"`
+	Type              string               `json:"type"`
+	Symbol            string               `json:"symbol"`
+	Side              string               `json:"side"`
+	Quantity          float64              `json:"quantity"`
+	Status            string               `json:"status"`
+	Duration          string               `json:"duration"`
+	Price             float64              `json:"price"`
+	AvgFillPrice      float64              `json:"avg_fill_price"`
+	ExecQuantity      float64              `json:"exec_quantity"`
+	LastFillPrice     float64              `json:"last_fill_price"`
+	LastFillQuantity  float64              `json:"last_fill_quantity"`
+	RemainingQuantity float64              `json:"remaining_quantity"`
+	CreateDate        string               `json:"create_date"`
+	TransactionDate   string               `json:"transaction_date"`
+	Class             string               `json:"class"`
+	Strategy          string               `json:"strategy"`
+	OptionSymbol      *string              `json:"option_symbol"`
+	Leg               []TradierOrderLegDTO `json:"leg"`
+	Tag               string               `json:"tag"`
 }
 
 func (dto *TradierOrderDTO) ToTradierOrder() (*TradierOrder, error) {
@@ -54,5 +57,8 @@ func (dto *TradierOrderDTO) ToTradierOrder() (*TradierOrder, error) {
 		TransactionDate:   transactionDate,
 		Class:             dto.Class,
 		OptionSymbol:      dto.OptionSymbol,
+		Leg:               dto.Leg,
+		Strategy:          dto.Strategy,
+		Tag:               dto.Tag,
 	}, nil
 }
