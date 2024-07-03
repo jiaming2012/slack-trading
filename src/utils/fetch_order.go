@@ -18,6 +18,11 @@ type Option struct {
 	StrikePrice float64
 }
 
+type OptionProfit struct {
+	Profit    float64
+	IsInMoney bool
+}
+
 // ParseOptionTicker function to parse the option ticker
 func ParseOptionTicker(ticker string) (*Option, error) {
 	// Regular expression to match the option ticker format
@@ -89,13 +94,13 @@ func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
 func calculateOptionProfitAtExpiry(option Option, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
 	if option.OptionType == "C" {
 		if underlyingPriceAtExpiry > option.StrikePrice {
-			return (underlyingPriceAtExpiry - option.StrikePrice) * 100, nil
+			return (underlyingPriceAtExpiry - option.StrikePrice) * optionMultiplier, nil
 		} else {
 			return 0, nil
 		}
 	} else if option.OptionType == "P" {
 		if underlyingPriceAtExpiry < option.StrikePrice {
-			return (option.StrikePrice - underlyingPriceAtExpiry) * 100, nil
+			return (option.StrikePrice - underlyingPriceAtExpiry) * optionMultiplier, nil
 		} else {
 			return 0, nil
 		}
@@ -104,126 +109,184 @@ func calculateOptionProfitAtExpiry(option Option, underlyingPriceAtExpiry float6
 	}
 }
 
-func calculateSpreadProfitAtExpiry(option1 Option, side1 string, option2 Option, side2 string, underlyingClosePrcAtExpiry float64) (float64, error) {
-	profit := 0.0
-
-	profit1, err := calculateOptionProfitAtExpiry(option1, underlyingClosePrcAtExpiry, 100)
+func calculateSpreadProfitAtExpiry(option1 Option, side1 string, option2 Option, side2 string, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
+	profit1, err := calculateOptionProfitAtExpiry(option1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
-		return 0, fmt.Errorf("failed to calculate option1 profit: %w", err)
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option1 profit: %w", err)
+	}
+
+	var optionProfit1 OptionProfit
+	if profit1 > 0 {
+		optionProfit1.IsInMoney = true
 	}
 
 	if side1 == "sell_to_open" {
-		profit -= profit1
+		profit1 *= -1
 	} else if side1 == "buy_to_open" {
-		profit += profit1
 	} else {
-		return 0, errors.New("invalid side for option1")
+		return OptionProfit{}, OptionProfit{}, errors.New("invalid side for option1")
 	}
 
-	profit2, err := calculateOptionProfitAtExpiry(option2, underlyingClosePrcAtExpiry, 100)
+	optionProfit1.Profit = profit1
+
+	profit2, err := calculateOptionProfitAtExpiry(option2, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
-		return 0, fmt.Errorf("failed to calculate option2 profit: %w", err)
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option2 profit: %w", err)
+	}
+
+	var optionProfit2 OptionProfit
+	if profit2 > 0 {
+		optionProfit2.IsInMoney = true
 	}
 
 	if side2 == "sell_to_open" {
-		profit -= profit2
+		profit2 *= -1
 	} else if side2 == "buy_to_open" {
-		profit += profit2
 	} else {
-		return 0, errors.New("invalid side for option2")
+		return OptionProfit{}, OptionProfit{}, errors.New("invalid side for option2")
 	}
 
-	return profit, nil
+	optionProfit2.Profit = profit2
+
+	return optionProfit1, optionProfit2, nil
 }
 
-func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyingDailyCandles []eventmodels.TradierCandleDTO, symbol1Data []eventmodels.OratsOptionData, symbol2Data []eventmodels.OratsOptionData) (eventmodels.OptionOrderSpreadResult, error) {
+func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyingDailyCandles []eventmodels.TradierCandleDTO, symbol1Data []eventmodels.OratsOptionData, symbol2Data []eventmodels.OratsOptionData) (*eventmodels.OptionOrderSpreadResult, error) {
+	optionMultiplier := 100.0
+
 	if order == nil {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("order cannot be nil")
+		return nil, errors.New("order cannot be nil")
 	}
 
 	if len(underlyingDailyCandles) == 0 {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("underlyingCandles cannot be empty")
+		return nil, errors.New("underlyingCandles cannot be empty")
 	}
 
 	if len(symbol1Data) == 0 {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("symbol1Data cannot be empty")
+		return nil, errors.New("symbol1Data cannot be empty")
 	}
 
 	if len(symbol2Data) == 0 {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("symbol2Data cannot be empty")
+		return nil, errors.New("symbol2Data cannot be empty")
 	}
 
 	if order.Strategy != "spread" {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("order strategy must be spread")
+		return nil, errors.New("order strategy must be spread")
 	}
 
 	if len(order.Leg) != 2 {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("order must have exactly 2 legs")
+		return nil, errors.New("order must have exactly 2 legs")
 	}
 
 	signalName, expectedProfit, requestedPrice, err := DecodeTag(order.Tag)
 	if err != nil {
-		return eventmodels.OptionOrderSpreadResult{}, fmt.Errorf("failed to decode tag: %w", err)
+		return nil, fmt.Errorf("failed to decode tag: %w", err)
 	}
+
+	requestedPrice *= -1
+	slippage := requestedPrice - order.AvgFillPrice
 
 	option1, err := ParseOptionTicker(order.Leg[0].OptionSymbol)
 	side1 := order.Leg[0].Side
 	if err != nil {
-		return eventmodels.OptionOrderSpreadResult{}, fmt.Errorf("failed to parse option1 ticker: %w", err)
+		return nil, fmt.Errorf("failed to parse option1 ticker: %w", err)
+	}
+
+	var option1Type eventmodels.OptionType
+	if option1.OptionType == "C" {
+		option1Type = eventmodels.OptionTypeCall
+	} else if option1.OptionType == "P" {
+		option1Type = eventmodels.OptionTypePut
+	} else {
+		return nil, errors.New("invalid option1 type")
 	}
 
 	option2, err := ParseOptionTicker(order.Leg[1].OptionSymbol)
 	side2 := order.Leg[1].Side
 	if err != nil {
-		return eventmodels.OptionOrderSpreadResult{}, fmt.Errorf("failed to parse option2 ticker: %w", err)
+		return nil, fmt.Errorf("failed to parse option2 ticker: %w", err)
+	}
+
+	var option2Type eventmodels.OptionType
+	if option2.OptionType == "C" {
+		option2Type = eventmodels.OptionTypeCall
+	} else if option2.OptionType == "P" {
+		option2Type = eventmodels.OptionTypePut
+	} else {
+		return nil, errors.New("invalid option2 type")
 	}
 
 	now := time.Now()
 
 	isOption1Expired := isOptionExpired(*option1, now)
 	if isOption1Expired != isOptionExpired(*option2, now) {
-		return eventmodels.OptionOrderSpreadResult{}, errors.New("both options must have the same expiration status")
+		return nil, errors.New("both options must have the same expiration status")
+	}
+
+	expirationDate, err := eventmodels.ConvertToMarketClose(option1.Expiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert expiration to market close: %w", err)
+	}
+
+	var debitPaid, creditReceived float64
+	if order.AvgFillPrice > 0 {
+		debitPaid = order.AvgFillPrice * optionMultiplier
+	} else {
+		creditReceived = -order.AvgFillPrice * optionMultiplier
 	}
 
 	result := eventmodels.OptionOrderSpreadResult{
+		OrderID:          order.ID,
 		Underlying:       order.Symbol,
 		ExecutionType:    order.Type,
 		Strategy:         order.Strategy,
 		CreatedTimestamp: order.CreateDate,
-		OrderID1:         order.Leg[0].ID,
-		Symbol1:          order.Leg[0].Symbol,
-		Type1:            order.Leg[0].Type,
-		Quantity1:        order.Leg[0].Quantity,
-		AvgFillPrice1:    order.Leg[0].AvgFillPrice,
-		OrderID2:         order.Leg[1].ID,
-		Symbol2:          order.Leg[1].Symbol,
-		Type2:            order.Leg[1].Type,
-		Quantity2:        order.Leg[1].Quantity,
-		AvgFillPrice2:    order.Leg[1].AvgFillPrice,
+		DebitPaid:        debitPaid,
+		CreditReceived:   creditReceived,
+		OrderID1:         order.Leg[1].ID,
+		Side1:            order.Leg[1].Side,
+		OptionType1:      option2Type,
+		Symbol1:          order.Leg[1].OptionSymbol,
+		StrikePrice1:     option2.StrikePrice,
+		Quantity1:        order.Leg[1].Quantity,
+		AvgFillPrice1:    order.Leg[1].AvgFillPrice,
+		OrderID2:         order.Leg[0].ID,
+		Side2:            order.Leg[0].Side,
+		OptionType2:      option1Type,
+		Symbol2:          order.Leg[0].OptionSymbol,
+		Quantity2:        order.Leg[0].Quantity,
+		StrikePrice2:     option1.StrikePrice,
+		AvgFillPrice2:    order.Leg[0].AvgFillPrice,
 		SignalName:       string(signalName),
-		ExpectedProfit:   expectedProfit,
+		ExpectedProfit:   expectedProfit * optionMultiplier,
 		RequestedPrice:   requestedPrice,
 		IsClosed:         isOption1Expired,
-		ExpirationDate:   option1.Expiration,
+		ExpirationDate:   expirationDate,
 		ExecutedPrice:    order.AvgFillPrice,
+		Slippage:         slippage,
 	}
 
 	if isOption1Expired {
 		symbol1DataAtExpiry, err := findTradierCandleDTOAt(option1.Expiration, underlyingDailyCandles)
 		if err != nil {
-			return eventmodels.OptionOrderSpreadResult{}, fmt.Errorf("failed to find symbol1 data at expiry: %w", err)
+			return nil, fmt.Errorf("failed to find symbol1 data at expiry: %w", err)
 		}
 
-		profit, err := calculateSpreadProfitAtExpiry(*option1, side1, *option2, side2, symbol1DataAtExpiry.Close)
+		optionMultiplier := 100.0
+		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(*option2, side2, *option1, side1, symbol1DataAtExpiry.Close, optionMultiplier)
 		if err != nil {
-			return eventmodels.OptionOrderSpreadResult{}, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
+			return nil, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
 		}
 
 		creditReceivedAtOpen := -order.AvgFillPrice * 100
-		
+
 		result.PriceAtExpiry = symbol1DataAtExpiry.Close
-		result.Profit = creditReceivedAtOpen + profit
+		result.InTheMoney1 = optionProfit1.IsInMoney
+		result.Profit1 = optionProfit1.Profit
+		result.InTheMoney2 = optionProfit2.IsInMoney
+		result.Profit2 = optionProfit2.Profit
+		result.Profit = creditReceivedAtOpen + optionProfit1.Profit + optionProfit2.Profit
 	}
 
-	return result, nil
+	return &result, nil
 }

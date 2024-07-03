@@ -4,50 +4,66 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/jiaming2012/slack-trading/src/cmd/fetch_order/run"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type RunArgs struct {
-	OrderID int
-	GoEnv   string
+	OrderIDs []int
+	GoEnv    string
+	OutDir   *string
 }
 
 type RunResult struct {
-	Order *eventmodels.OptionOrderSpreadResult
+	Orders []*eventmodels.OptionOrderSpreadResult
 }
 
 var runCmd = &cobra.Command{
-	Use:   "go run src/cmd/fetch_order/main.go --orderID 12890162",
-	Short: "Fetch the results of a trade by order ID",
+	Use:   "go run src/cmd/fetch_order/main.go --orderIDs 12890162,12848807",
+	Short: "Fetch results of multiple trades by order ID",
 	Run: func(cmd *cobra.Command, args []string) {
 		goEnv, err := cmd.Flags().GetString("go-env")
 		if err != nil {
 			log.Fatalf("error getting go-env: %v", err)
 		}
 
-		orderID, err := cmd.Flags().GetInt("orderID")
+		outDir, err := cmd.Flags().GetString("outDir")
+		if err != nil {
+			log.Fatalf("error getting outDir: %v", err)
+		}
+
+		orderIDs, err := cmd.Flags().GetIntSlice("orderIDs")
 		if err != nil {
 			log.Fatalf("error getting orderID: %v", err)
 		}
 
 		if result, err := Run(RunArgs{
-			OrderID: orderID,
-			GoEnv:   goEnv,
+			OrderIDs: orderIDs,
+			GoEnv:    goEnv,
 		}); err != nil {
 			log.Errorf("Error: %v", err)
 		} else {
-			// Assuming `result.Order` is the struct you want to pretty print
-			orderJSON, err := json.MarshalIndent(result.Order, "", "  ")
-			if err != nil {
-				log.Errorf("Failed to marshal order: %v", err)
+			if outDir == "" {
+				orderJSON, err := json.MarshalIndent(result.Orders, "", "  ")
+				if err != nil {
+					log.Errorf("Failed to marshal order: %v", err)
+				} else {
+					fmt.Println(string(orderJSON))
+				}
 			} else {
-				fmt.Println(string(orderJSON))
+				csvPath, err := run.ExportToCsv(outDir, result.Orders)
+				if err != nil {
+					log.Errorf("Failed to export to CSV: %v", err)
+				} else {
+					fmt.Println("CSV file written to: ", csvPath)
+				}
 			}
 		}
 	},
@@ -90,35 +106,66 @@ func Run(args RunArgs) (RunResult, error) {
 
 	ordersUrl := fmt.Sprintf(tradierTradesURLTemplate, accountID)
 
-	// move to run
-	order, err := eventservices.FetchTradierOrder(ordersUrl, tradesBearerToken, args.OrderID)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error fetching tradier order: %v", err)
+	var resultOrders []*eventmodels.OptionOrderSpreadResult
+	now := time.Now()
+	for _, orderID := range args.OrderIDs {
+
+		// move to run
+		orderDTO, err := eventservices.FetchTradierOrder(ordersUrl, tradesBearerToken, orderID)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error fetching tradier order: %v", err)
+		}
+
+		order, err := orderDTO.Order.ToTradierOrder()
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error converting tradier order: %v", err)
+		}
+
+		if order.Status != "filled" {
+			continue
+		}
+
+		option, err := utils.ParseOptionTicker(order.Leg[0].OptionSymbol)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error parsing option ticker: %v", err)
+		}
+
+		if option.Expiration.After(now) {
+			continue
+		}
+
+		quote, err := eventservices.FetchTradierQuotes(quotesHistoryURL, bearerToken, eventmodels.StockSymbol(order.Symbol), option.Expiration)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error fetching tradier quotes: %v", err)
+		}
+
+		symbolData1 := []eventmodels.OratsOptionData{
+			{
+				Ticker: order.Leg[0].OptionSymbol,
+			},
+		}
+		symbolData2 := []eventmodels.OratsOptionData{
+			{
+				Ticker: order.Leg[1].OptionSymbol,
+			},
+		}
+		candles := []eventmodels.TradierCandleDTO{quote.History.Day}
+
+		resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, candles, symbolData1, symbolData2)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)
+		}
+
+		resultOrders = append(resultOrders, resultOrder)
 	}
 
-	option, err := utils.ParseOptionTicker(order.Order.Leg[0].OptionSymbol)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error parsing option ticker: %v", err)
-	}
-
-	quote, err := eventservices.FetchTradierQuotes(quotesHistoryURL, bearerToken, eventmodels.StockSymbol(order.Order.Symbol), option.Expiration)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error fetching tradier quotes: %v", err)
-	}
-
-	fmt.Printf("quote: %v\n", quote)
-
-	// resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, )
-	// if err != nil {
-	// 	return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)
-	// }
-
-	return RunResult{Order: nil}, nil
+	return RunResult{Orders: resultOrders}, nil
 }
 
 func main() {
 	runCmd.PersistentFlags().String("go-env", "development", "The go environment to run the command in.")
-	runCmd.PersistentFlags().Int("orderID", 0, "The tradier order id.")
+	runCmd.PersistentFlags().IntSlice("orderIDs", []int{}, "The tradier order id.")
+	runCmd.PersistentFlags().String("outDir", "", "The directory to write the output to.")
 
 	runCmd.MarkPersistentFlagRequired("orderID")
 
