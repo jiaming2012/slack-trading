@@ -40,5 +40,5 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 
 		_, err := CalculateOptionOrderSpreadResult(&order, data)
 		assert.NotNil(t, err)
-	}
+	})
 }

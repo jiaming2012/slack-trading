@@ -26,7 +26,8 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
     df_option['Low'] = df_option[['Open', 'Close']].min(axis=1)
 
     # Define the strike price
-    strike_price = df_orders['StrikePriceA']
+    strike_price_a = order_data['StrikePriceA']
+    strike_price_b = order_data['StrikePriceB']
 
     # Create subplots
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
@@ -42,7 +43,7 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
         close=df['Close'],
         increasing_line_color='green',
         decreasing_line_color='red',
-        name='Candle'
+        name='Underlying Candle'
     ), row=1, col=1)
 
     # Add buy orders to candlestick chart
@@ -74,9 +75,17 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
         name='Buy-Sell Line'
     ), row=1, col=1)
 
-    print('Off: ', df_option)
-
     # Add option close prices
+    # fig.add_trace(go.Candlestick(
+    #     x=df_option['Date'],
+    #     open=df_option['Open'],
+    #     high=df_option['High'],
+    #     low=df_option['Low'],
+    #     close=df_option['Close'],
+    #     increasing_line_color='green',
+    #     decreasing_line_color='red',
+    #     name='Option Candle'
+    # ), row=2, col=1)
     fig.add_trace(go.Scatter(
         x=df_option['Date'],
         y=df_option['Close'],
@@ -85,37 +94,46 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
         name='Option Close Price'
     ), row=2, col=1)
 
-    # Add buy orders to option chart
-    fig.add_trace(go.Scatter(
-        x=buy_orders['Date'],
-        y=[df_option[df_option['Date'] == date]['Close'].values[0] for date in buy_orders['Date'] if not df_option[df_option['Date'] == date].empty],
-        mode='markers',
-        marker=dict(symbol='triangle-up', size=10, color='blue'),
-        name='Buy Orders (Option)'
-    ), row=2, col=1)
+    # # Add buy orders to option chart
+    # fig.add_trace(go.Scatter(
+    #     x=buy_orders['Date'],
+    #     y=[df_option[df_option['Date'] == date]['Close'].values[0] for date in buy_orders['Date'] if not df_option[df_option['Date'] == date].empty],
+    #     mode='markers',
+    #     marker=dict(symbol='triangle-up', size=10, color='blue'),
+    #     name='Buy Orders (Option)'
+    # ), row=2, col=1)
 
-    # Add sell orders to option chart
-    fig.add_trace(go.Scatter(
-        x=sell_orders['Date'],
-        y=[df_option[df_option['Date'] == date]['Close'].values[0] for date in sell_orders['Date'] if not df_option[df_option['Date'] == date].empty],
-        mode='markers',
-        marker=dict(symbol='triangle-down', size=10, color='red'),
-        name='Sell Orders (Option)'
-    ), row=2, col=1)
+    # # Add sell orders to option chart
+    # fig.add_trace(go.Scatter(
+    #     x=sell_orders['Date'],
+    #     y=[df_option[df_option['Date'] == date]['Close'].values[0] for date in sell_orders['Date'] if not df_option[df_option['Date'] == date].empty],
+    #     mode='markers',
+    #     marker=dict(symbol='triangle-down', size=10, color='red'),
+    #     name='Sell Orders (Option)'
+    # ), row=2, col=1)
 
-    # Add solid red strike price line to legend
+    # Add solid orange strike A price line to legend
     fig.add_trace(go.Scatter(
         x=[df['Date'].min(), df['Date'].max()],
-        y=[strike_price, strike_price],
+        y=[strike_price_a, strike_price_a],
+        mode='lines',
+        line=dict(color="orange", width=2),
+        name='Strike A'
+    ), row=1, col=1)
+
+    # Add solid red strike B price line to legend
+    fig.add_trace(go.Scatter(
+        x=[df['Date'].min(), df['Date'].max()],
+        y=[strike_price_b, strike_price_b],
         mode='lines',
         line=dict(color="red", width=2),
-        name='Strike Price'
+        name='Strike B'
     ), row=1, col=1)
 
     # Update layout for better visuals
     fig.update_layout(
         title=chart_title,
-        yaxis_title='Price',
+        yaxis_title='Underlying Price',
         xaxis2_title='Date',
         yaxis2_title='Option Price',
         xaxis_rangeslider_visible=False
@@ -136,8 +154,7 @@ def order_to_np(data: Dict[str, Any]) -> pd.DataFrame:
     df['Date'] = pd.to_datetime(data['Date'])
     df['Price'] = np.array(data['Price'])
     df['Type'] = np.array(data['Type'])
-    df['StrikePriceA'] = data['StrikePriceA']
-    df['StrikePriceB'] = data['StrikePriceB']
+
     return df
 
 def candle_to_np(data: Dict[str, Any], timeframeInMinutes: int) -> pd.DataFrame:    
@@ -171,11 +188,11 @@ def main() -> None:
     candle_data = input_data['candle_data']
     order_data = input_data['order_data']
     option_data = input_data['option_data']
-    timeframe = 15
 
     chart_title = chart_data['title']
     subplot_1_title = chart_data['subplot_1_title']
     subplot_2_title = chart_data['subplot_2_title']
+    timeframe = chart_data['timeframe']
 
     plot_candlestick(chart_title, subplot_1_title, subplot_2_title, candle_data, order_data, option_data, timeframe)
 

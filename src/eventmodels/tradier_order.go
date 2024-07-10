@@ -28,6 +28,26 @@ type TradierOrder struct {
 	Tag               string               `json:"tag"`
 }
 
+func (o TradierOrder) GetLegs(option1 *OptionSymbolComponents, option2 *OptionSymbolComponents) (*TradierOrderLegDTO, *TradierOrderLegDTO, error) {
+	if len(o.Leg) != 2 {
+		return nil, nil, fmt.Errorf("TradierOrder.GetLeg: invalid leg count: %d", len(o.Leg))
+	}
+
+	if option1.OptionType != option2.OptionType {
+		return nil, nil, fmt.Errorf("TradierOrder.GetLeg: option types do not match: %s, %s", option1.OptionType, option2.OptionType)
+	}
+
+	if o.Leg[0].Side == "sell_to_open" && o.Leg[1].Side == "buy_to_open" {
+		return &o.Leg[0], &o.Leg[1], nil
+	}
+
+	if o.Leg[0].Side == "buy_to_open" && o.Leg[1].Side == "sell_to_open" {
+		return &o.Leg[1], &o.Leg[0], nil
+	}
+
+	return nil, nil, fmt.Errorf("TradierOrder.GetLeg: invalid sides: %s, %s", o.Leg[0].Side, o.Leg[1].Side)
+}
+
 func (o TradierOrder) String() string {
 	var symbol string
 	if o.OptionSymbol != nil {

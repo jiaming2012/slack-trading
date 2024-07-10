@@ -20,6 +20,7 @@ type ChartData struct {
 	Title          string `json:"title"`
 	Sublplot1Title string `json:"subplot_1_title"`
 	Sublplot2Title string `json:"subplot_2_title"`
+	Timeframe      int    `json:"timeframe"`
 }
 
 type PlotOrderInputData struct {

@@ -10,21 +10,13 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-// Option struct to hold parsed option details
-type Option struct {
-	Underlying  string
-	Expiration  time.Time
-	OptionType  string
-	StrikePrice float64
-}
-
 type OptionProfit struct {
 	Profit    float64
 	IsInMoney bool
 }
 
 // ParseOptionTicker function to parse the option ticker
-func ParseOptionTicker(ticker string) (*Option, error) {
+func ParseOptionTicker(ticker string) (*eventmodels.OptionSymbolComponents, error) {
 	// Regular expression to match the option ticker format
 	re := regexp.MustCompile(`^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$`)
 	matches := re.FindStringSubmatch(ticker)
@@ -44,11 +36,12 @@ func ParseOptionTicker(ticker string) (*Option, error) {
 	expiration := time.Date(2000+year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 
 	// Create and return the Option struct
-	option := &Option{
+	option := &eventmodels.OptionSymbolComponents{
 		Underlying:  underlying,
 		Expiration:  expiration,
 		OptionType:  optionType,
 		StrikePrice: strikePrice / 1000,
+		Symbol:      eventmodels.OptionSymbol(ticker),
 	}
 	return option, nil
 }
@@ -73,7 +66,7 @@ func findTradierCandleDTOAt(timestamp time.Time, data []eventmodels.TradierCandl
 	return eventmodels.TradierCandleDTO{}, errors.New("no matching data found")
 }
 
-func isOptionExpired(option Option, now time.Time) bool {
+func isOptionExpired(option eventmodels.OptionSymbolComponents, now time.Time) bool {
 	return option.Expiration.Before(now)
 }
 
@@ -91,7 +84,7 @@ func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
 	return option1Cost + option2Cost
 }
 
-func calculateOptionProfitAtExpiry(option Option, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
+func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
 	if option.OptionType == "C" {
 		if underlyingPriceAtExpiry > option.StrikePrice {
 			return (underlyingPriceAtExpiry - option.StrikePrice) * optionMultiplier, nil
@@ -109,7 +102,7 @@ func calculateOptionProfitAtExpiry(option Option, underlyingPriceAtExpiry float6
 	}
 }
 
-func calculateSpreadProfitAtExpiry(option1 Option, side1 string, option2 Option, side2 string, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
+func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, option2 eventmodels.OptionSymbolComponents, side2 string, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
 	profit1, err := calculateOptionProfitAtExpiry(option1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option1 profit: %w", err)

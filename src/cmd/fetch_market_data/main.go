@@ -25,16 +25,8 @@ type RunResult struct {
 	ResultURL string
 }
 
-func getStrikePrices(o1 *utils.Option, o2 *utils.Option) (float64, float64, error) {
-	if o1.OptionType == "C" {
-		return o1.StrikePrice, o2.StrikePrice, nil
-	}
-
-	if o1.OptionType == "P" {
-		return o2.StrikePrice, o1.StrikePrice, nil
-	}
-
-	return 0, 0, fmt.Errorf("invalid option type, %v", o1.OptionType)
+func getStrikePrices(o1 *eventmodels.OptionSymbolComponents, o2 *eventmodels.OptionSymbolComponents) (float64, float64) {
+	return o1.StrikePrice, o2.StrikePrice
 }
 
 var runCmd = &cobra.Command{
@@ -129,12 +121,21 @@ func Run(args RunArgs) (RunResult, error) {
 
 		option1, err := utils.ParseOptionTicker(order.Leg[0].OptionSymbol)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error parsing option leg 1 ticker: %v", err)
+			return RunResult{}, fmt.Errorf("TradierOrder.GetLeg: failed to parse option ticker: %w", err)
 		}
 
 		option2, err := utils.ParseOptionTicker(order.Leg[1].OptionSymbol)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error parsing option leg 2 ticker: %v", err)
+			return RunResult{}, fmt.Errorf("TradierOrder.GetLeg: failed to parse option ticker: %w", err)
+		}
+
+		orderLeg1, orderLeg2, err := order.GetLegs(option1, option2)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error parsing option leg 1 ticker: %v", err)
+		}
+
+		if orderLeg2.OptionSymbol == string(option1.Symbol) {
+			option1, option2 = option2, option1
 		}
 
 		underlyingSymbol1 := strings.TrimSpace(option1.Underlying)
@@ -156,11 +157,11 @@ func Run(args RunArgs) (RunResult, error) {
 		}
 
 		if optionLegSymbol1 == "" {
-			optionLegSymbol1 = order.Leg[0].OptionSymbol
+			optionLegSymbol1 = orderLeg1.OptionSymbol
 		}
 
 		if optionLegSymbol2 == "" {
-			optionLegSymbol2 = order.Leg[1].OptionSymbol
+			optionLegSymbol2 = orderLeg2.OptionSymbol
 		}
 
 		if optionType1 == "" {
@@ -183,14 +184,11 @@ func Run(args RunArgs) (RunResult, error) {
 			}
 		}
 
-		strikePriceA, strikePriceB, err = getStrikePrices(option1, option2)
-		if err != nil {
-			return RunResult{}, fmt.Errorf("failed to get strike prices: %v", err)
-		}
+		strikePriceA, strikePriceB = getStrikePrices(option1, option2)
 
 		orderCreateDateEST := order.CreateDate.In(estLocation)
 
-		chartTitle = fmt.Sprintf("ID #%d, Strikes: %.2f / %.2f, Expiration: %s, Placed At: %s EST", order.ID, strikePriceA, strikePriceB, option1.Expiration.Format("2006-01-02"), orderCreateDateEST.Format("2006-01-02 3:04 PM"))
+		chartTitle = fmt.Sprintf("ID #%d, Short %s Strikes: %.2f / %.2f, Expiration: %s, Placed At: %s EST", order.ID, strings.ToUpper(string(optionType1)), strikePriceA, strikePriceB, option1.Expiration.Format("2006-01-02"), orderCreateDateEST.Format("2006-01-02 3:04 PM"))
 		subplot1 = fmt.Sprintf("15-Minute %s Candles", underlyingSymbol)
 		subplot2 = fmt.Sprintf("%s / %s", optionLegSymbol1, optionLegSymbol2)
 
@@ -206,15 +204,12 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("error getting underlying price at open: %v", err)
 		}
 
-		// orderCreateDateEST := order.CreateDate.In(time.FixedZone("EST", -18000)
 		orderData.Date = append(orderData.Date, orderCreateDateEST.Format("2006-01-02 15:04"))
 		// Todo: add support for multiple orders
 
 		// Open
 		orderData.Type = append(orderData.Type, "Sell")
 		orderData.Price = append(orderData.Price, underlyingPriceAtOpen.Close)
-		orderData.StrikePriceA = strikePriceA
-		orderData.StrikePriceB = strikePriceB
 
 		// Close
 		underlyingPriceNearClose, err := run.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
@@ -230,8 +225,8 @@ func Run(args RunArgs) (RunResult, error) {
 		orderData.Date = append(orderData.Date, orderExpirationDateEST.Format("2006-01-02 15:04"))
 		orderData.Type = append(orderData.Type, "Buy")
 		orderData.Price = append(orderData.Price, underlyingPriceNearClose[0].Close)
-		orderData.StrikePriceA = 0
-		orderData.StrikePriceB = 0
+		orderData.StrikePriceA = strikePriceA
+		orderData.StrikePriceB = strikePriceB
 
 		fromDate, toDate = order.CreateDate, option1.Expiration
 
@@ -266,10 +261,6 @@ func Run(args RunArgs) (RunResult, error) {
 
 	log.Infof("Fetched %d option leg 1 ticks", len(optionsData1))
 
-	// optionCandles1, err := eventservices.ConvertOratsOptionDataToCandlesDTO(optionsData1, 15*time.Minute, optionType1)
-	// if err != nil {
-	// 	return RunResult{}, fmt.Errorf("error converting option leg 1 data to candles: %v", err)
-	// }
 	var optionCandles1, optionCandles2 []eventmodels.CandleDTO
 
 	thetaDataBaseURL := "http://192.168.1.160:25510"
@@ -350,6 +341,7 @@ func Run(args RunArgs) (RunResult, error) {
 			Title:          chartTitle,
 			Sublplot1Title: subplot1,
 			Sublplot2Title: subplot2,
+			Timeframe:      15,
 		},
 		CandleData: eventmodels.CandleDTOs(underlyingCandles).ConvertToCandleData(),
 		OrderData:  orderData,
