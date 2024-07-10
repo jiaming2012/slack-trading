@@ -4,26 +4,96 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gocarina/gocsv"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func FetchOratsDataMock(ticker, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
-	csvData := `ticker,tradeDate,expirDate,dte,strike,stockPrice,callVolume,callOpenInterest,callBidSize,callAskSize,putVolume,putOpenInterest,putBidSize,putAskSize,callBidPrice,callValue,callAskPrice,putBidPrice,putValue,putAskPrice,callBidIv,callMidIv,callAskIv,smvVol,putBidIv,putMidIv,putAskIv,residualRate,delta,gamma,theta,vega,rho,phi,driftlessTheta,callSmvVol,putSmvVol,extSmvVol,extCallValue,extPutValue,spotPrice,quoteDate,updatedAt,snapShotEstTime,snapShotDate,expiryTod,tickerId,monthId
-	AAPL,2022-06-08,2022-09-16,101,160,149.67,150,28206,253,510,7,18438,124,104,5.8,5.860204002795059,5.9,15.55,15.641054396787531,15.7,0.3063158772183223,0.30801686256479954,0.3097178479112768,0.308,0.3038649107227709,0.3064286008767878,0.3089922910308047,-0.008209120374803128,0.38161255239927655,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.3083639997493957,0.3069773808630928,0.3215480409289392,6.247634998832532,16.067895502105014,149.67,2022-06-08T13:59:50Z,2022-06-08T13:59:51Z,2022-06-08T14:00:01Z,2022-06-08T14:00:01Z,pm,101594,9
-	AAPL,2022-06-08,2022-09-16,101,160,149.45,158,28206,1,215,7,18438,229,102,5.75,5.78583812885739,5.8,15.7,15.782968253643883,15.85,0.30745849466065145,0.3083088916342891,0.3091592886079268,0.308,0.30432705746682837,0.30689074762084534,0.3094544377748623,-0.008209120374803128,0.37823425664342863,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.3086775601134979,0.3071631227329991,0.3215480409289392,6.1640518498378345,16.204312353110314,149.45,2022-06-08T14:00:55Z,2022-06-08T14:00:56Z,2022-06-08T14:01:01Z,2022-06-08T14:01:01Z,pm,101594,9
-	AAPL,2022-06-08,2022-09-16,101,160,149.12,159,28206,152,1299,13,18438,234,132,5.6,5.66120101953646,5.7,15.9,15.991901944264272,16.05,0.3065732423106423,0.30827422765711954,0.3099752130035968,0.308,0.3041222758150914,0.30668596596910835,0.3092496561231253,-0.008209120374803128,0.37316681300965693,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.30865528305906204,0.3072637172770291,0.3215480409289392,6.040070673345081,16.410331176617547,149.12,2022-06-08T14:02:00Z,2022-06-08T14:02:01Z,2022-06-08T14:02:02Z,2022-06-08T14:02:02Z,pm,101594,9`
+func deriveCandleEndTime(data *eventmodels.OratsOptionData, period time.Duration) time.Time {
+	return data.SnapShotEstTime.Truncate(period).Add(period)
+}
 
-	options, err := ParseCSV(csvData)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing CSV: %v", err)
+func ConvertOratsOptionDataToCandlesDTO(data []eventmodels.OratsOptionData, period time.Duration, optionType eventmodels.OptionType) ([]eventmodels.CandleDTO, error) {
+	candlesDTO := make([]eventmodels.CandleDTO, 0)
+
+	if optionType != eventmodels.OptionTypeCall && optionType != eventmodels.OptionTypePut {
+		return nil, fmt.Errorf("unknown option type: %v", optionType)
 	}
 
-	return options, nil
+	// loc, err := time.LoadLocation("America/New_York")
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error loading location: %v", err)
+	// }
+
+	var candleEndTime time.Time
+	for _, d := range data {
+		var price float64
+		if optionType == eventmodels.OptionTypeCall {
+			price = d.CallBidPrice
+		} else {
+			price = d.PutBidPrice
+		}
+
+		if !d.SnapShotEstTime.Before(candleEndTime) {
+			// date, err := time.ParseInLocation(time.RFC3339, d.SnapShotEstTime)
+			// if err != nil {
+			// 	return nil, fmt.Errorf("error parsing date: %v", err)
+			// }
+
+			candlesDTO = append(candlesDTO, eventmodels.CandleDTO{
+				Open:  price,
+				High:  price,
+				Low:   price,
+				Close: price,
+				Date:  d.SnapShotEstTime.Format("2006-01-02 15:04"),
+			})
+
+			candleEndTime = deriveCandleEndTime(&d, period)
+		} else {
+			// Update candle price
+
+			if price > candlesDTO[len(candlesDTO)-1].High {
+				candlesDTO[len(candlesDTO)-1].High = price
+			}
+
+			if price < candlesDTO[len(candlesDTO)-1].Low {
+				candlesDTO[len(candlesDTO)-1].Low = price
+			}
+
+			candlesDTO[len(candlesDTO)-1].Close = price
+		}
+	}
+
+	return candlesDTO, nil
+}
+
+func GenerateFetchOratsDataMock(url string) func(ticker eventmodels.StockSymbol, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
+	f, err := os.Open(url)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		log.Fatalf("error reading file: %v", err)
+	}
+
+	return func(ticker eventmodels.StockSymbol, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
+		options, err := ParseCSV(string(data))
+
+		if err != nil {
+			return nil, fmt.Errorf("error parsing CSV: %v", err)
+		}
+
+		return options, nil
+	}
 }
 
 // FetchData fetches the data from the URL and parses it into OptionData.
@@ -55,8 +125,17 @@ func FetchOratsData(ticker, token string, fromDate, toDate time.Time) ([]eventmo
 	return options, nil
 }
 
-// ParseCSV parses CSV data into a slice of OratsOptionData.
 func ParseCSV(data string) ([]eventmodels.OratsOptionData, error) {
+	var out []eventmodels.OratsOptionData
+	if err := gocsv.UnmarshalBytes([]byte(data), &out); err != nil {
+		return nil, fmt.Errorf("error unmarshalling CSV: %v", err)
+	}
+
+	return out, nil
+}
+
+// ParseCSV parses CSV data into a slice of OratsOptionData.
+func ParseCSVOld(data string) ([]eventmodels.OratsOptionData, error) {
 	r := csv.NewReader(strings.NewReader(data))
 	r.TrimLeadingSpace = true
 	r.FieldsPerRecord = -1 // Allow variable fields per record
@@ -91,37 +170,37 @@ func ParseCSV(data string) ([]eventmodels.OratsOptionData, error) {
 func parseRecord(record []string) (eventmodels.OratsOptionData, error) {
 	dte, err := strconv.Atoi(record[3])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing DTE: %v", err)
 	}
 
 	strike, err := strconv.ParseFloat(record[4], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing strike: %v", err)
 	}
 
 	stockPrice, err := strconv.ParseFloat(record[5], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing stock price: %v", err)
 	}
 
 	callVolume, err := strconv.Atoi(record[6])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call volume: %v", err)
 	}
 
 	callOpenInterest, err := strconv.Atoi(record[7])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call open interest: %v", err)
 	}
 
 	callBidSize, err := strconv.Atoi(record[8])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call bid size: %v", err)
 	}
 
 	callAskSize, err := strconv.Atoi(record[9])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call ask size: %v", err)
 	}
 
 	putVolume, err := strconv.Atoi(record[10])

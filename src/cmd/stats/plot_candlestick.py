@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from typing import Dict, Any
 
-def plot_candlestick(candle_data: Dict[str, Any], order_data: Dict[str, Any], option_data: Dict[str, Any], strike_price: float, timeframe: int) -> None:
+def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str, candle_data: Dict[str, Any], order_data: Dict[str, Any], option_data: Dict[str, Any], timeframe: int) -> None:
     # Sample minute-level data
     df = candle_to_np(candle_data, timeframe)
 
@@ -26,12 +26,12 @@ def plot_candlestick(candle_data: Dict[str, Any], order_data: Dict[str, Any], op
     df_option['Low'] = df_option[['Open', 'Close']].min(axis=1)
 
     # Define the strike price
-    strike_price = 107
+    strike_price = df_orders['StrikePriceA']
 
     # Create subplots
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                         vertical_spacing=0.2,
-                        subplot_titles=(f'{timeframe}-Minute Candlestick Chart', 'Option Prices'))
+                        subplot_titles=(subplot1_title, subplot2_title))
 
     # Add candlestick chart
     fig.add_trace(go.Candlestick(
@@ -74,6 +74,8 @@ def plot_candlestick(candle_data: Dict[str, Any], order_data: Dict[str, Any], op
         name='Buy-Sell Line'
     ), row=1, col=1)
 
+    print('Off: ', df_option)
+
     # Add option close prices
     fig.add_trace(go.Scatter(
         x=df_option['Date'],
@@ -112,7 +114,7 @@ def plot_candlestick(candle_data: Dict[str, Any], order_data: Dict[str, Any], op
 
     # Update layout for better visuals
     fig.update_layout(
-        title=f'{timeframe}-Minute Candlestick Chart with Buy and Sell Orders, Option Prices, and Strike Price',
+        title=chart_title,
         yaxis_title='Price',
         xaxis2_title='Date',
         yaxis2_title='Option Price',
@@ -134,6 +136,8 @@ def order_to_np(data: Dict[str, Any]) -> pd.DataFrame:
     df['Date'] = pd.to_datetime(data['Date'])
     df['Price'] = np.array(data['Price'])
     df['Type'] = np.array(data['Type'])
+    df['StrikePriceA'] = data['StrikePriceA']
+    df['StrikePriceB'] = data['StrikePriceB']
     return df
 
 def candle_to_np(data: Dict[str, Any], timeframeInMinutes: int) -> pd.DataFrame:    
@@ -141,11 +145,14 @@ def candle_to_np(data: Dict[str, Any], timeframeInMinutes: int) -> pd.DataFrame:
     dates = pd.to_datetime(data['Date'])
     
     # Ensure the frequency is set to 'T'
-    dates = pd.date_range(start=dates.min(), end=dates.max(), freq=f'{timeframeInMinutes}T')
+    # dates = pd.date_range(start=dates.min(), end=dates.max(), freq=f'{timeframeInMinutes}T')
+
+    print(len(data['Open']), len(dates))
 
     # Convert to numpy objects
     df = pd.DataFrame()
-    df['Date'] = dates
+    # df['Date'] = dates
+    df['Date'] = pd.to_datetime(data['Date'])
     df['Open'] = np.array(data['Open'])
     df['High'] = np.array(data['High'])
     df['Low'] = np.array(data['Low'])
@@ -160,12 +167,17 @@ def main() -> None:
     # Read input data from standard input
     input_data = json.loads(args.input)
     
+    chart_data = input_data['chart_data']
     candle_data = input_data['candle_data']
     order_data = input_data['order_data']
     option_data = input_data['option_data']
-    strike_price = input_data['strike_price']
+    timeframe = 15
 
-    plot_candlestick(candle_data, order_data, option_data, strike_price, 15)
+    chart_title = chart_data['title']
+    subplot_1_title = chart_data['subplot_1_title']
+    subplot_2_title = chart_data['subplot_2_title']
+
+    plot_candlestick(chart_title, subplot_1_title, subplot_2_title, candle_data, order_data, option_data, timeframe)
 
 if __name__ == "__main__":
     main()

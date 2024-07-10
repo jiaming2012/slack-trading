@@ -1,16 +1,9 @@
-package main
+package eventmodels
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strconv"
 	"time"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type ThetaDataResponseHeaderDTO struct {
@@ -25,7 +18,7 @@ type ThetaDataResponseDTO struct {
 	Response [][]interface{}            `json:"response"`
 }
 
-func (dto *ThetaDataResponseDTO) ConvertToCandles() ([]*ThetaDataCandleDTO, error) {
+func (dto *ThetaDataResponseDTO) ConvertToCandles() ([]*ThetaDataCandle, error) {
 	if len(dto.Header.Format) != 8 {
 		return nil, fmt.Errorf("ThetaDataResponseDTO.ConvertToCandles: invalid format length, expected 8, got %d", len(dto.Header.Format))
 	}
@@ -62,7 +55,7 @@ func (dto *ThetaDataResponseDTO) ConvertToCandles() ([]*ThetaDataCandleDTO, erro
 		return nil, fmt.Errorf("ThetaDataResponseDTO.ConvertToCandles: invalid format for date, expected 'date', got '%s'", dto.Header.Format[7])
 	}
 
-	candles := make([]*ThetaDataCandleDTO, 0)
+	candles := make([]*ThetaDataCandle, 0)
 
 	for _, data := range dto.Response {
 		msOfDay, ok := data[0].(float64)
@@ -95,17 +88,19 @@ func (dto *ThetaDataResponseDTO) ConvertToCandles() ([]*ThetaDataCandleDTO, erro
 			return nil, fmt.Errorf("ThetaDataResponseDTO.ConvertToCandles: missing format for volume, data: %v", data[5])
 		}
 
-		count, ok := data[6].(float64)
+		countFloat, ok := data[6].(float64)
 		if !ok {
 			return nil, fmt.Errorf("ThetaDataResponseDTO.ConvertToCandles: missing format for count, data: %v", data[6])
 		}
+
+		count := int(countFloat)
 
 		date, ok := data[7].(float64)
 		if !ok {
 			return nil, fmt.Errorf("ThetaDataResponseDTO.ConvertToCandles: missing format for date, data: %v", data[7])
 		}
 
-		candle := &ThetaDataCandleDTO{
+		candle := &ThetaDataCandle{
 			MillisecondOfDay: msOfDay,
 			Open:             open,
 			High:             high,
@@ -122,34 +117,18 @@ func (dto *ThetaDataResponseDTO) ConvertToCandles() ([]*ThetaDataCandleDTO, erro
 	return candles, nil
 }
 
-type ThetaDataCandleDTO struct {
+type ThetaDataCandle struct {
 	MillisecondOfDay float64
 	Open             float64
 	High             float64
 	Low              float64
 	Close            float64
 	Volume           float64
-	Count            float64
+	Count            int
 	Date             float64
 }
 
-func (c *ThetaDataCandleDTO) ToCandleDTO() (eventmodels.CandleDTO, error) {
-	date, err := convertDateAndMsToTime(c.Date, c.MillisecondOfDay)
-	if err != nil {
-		return eventmodels.CandleDTO{}, fmt.Errorf("ThetaDataCandleDTO:  %w", err)
-	}
-
-	return eventmodels.CandleDTO{
-		Date:   date.Format("2006-01-02 15:04"),
-		Open:   c.Open,
-		High:   c.High,
-		Low:    c.Low,
-		Close:  c.Close,
-		Volume: int(c.Volume),
-	}, nil
-}
-
-func convertDateAndMsToTime(date float64, msOfDay float64) (time.Time, error) {
+func (c *ThetaDataCandle) convertDateAndMsToTime(date float64, msOfDay float64) (time.Time, error) {
 	// Parse the date
 	dateStr := fmt.Sprintf("%.0f", date)
 	year, err := strconv.Atoi(dateStr[:4])
@@ -176,104 +155,18 @@ func convertDateAndMsToTime(date float64, msOfDay float64) (time.Time, error) {
 	return time.Date(year, time.Month(month), day, hours, minutes, secs, msRemaining*1e6, time.UTC), nil
 }
 
-func FetchThetaDataHistOptionOHLC(baseURL string, root eventmodels.StockSymbol, optionType eventmodels.OptionType, expiration time.Time, startDate time.Time, endDate time.Time, interval time.Duration, strike float64) (ThetaDataResponseDTO, error) {
-	var result ThetaDataResponseDTO
-
-	var right string
-	switch optionType {
-	case eventmodels.OptionTypeCall:
-		right = "C"
-	case eventmodels.OptionTypePut:
-		right = "P"
-	default:
-		return result, fmt.Errorf("FetchThetaDataOHLC: invalid option type: %v", optionType)
-	}
-
-	expirationStr := expiration.Format("20060102")
-	startDateStr := startDate.Format("20060102")
-	endDateStr := endDate.Format("20060102")
-
-	intervalM := interval / time.Millisecond
-
-	// Validate interval value
-	if intervalM < 100 || intervalM > 3600000 {
-		return result, fmt.Errorf("FetchThetaDataOHLC: invalid interval value: %d. Must be between 100 and 3600000 milliseconds", intervalM)
-	}
-
-	// Convert ivl (time.Duration) to milliseconds
-	intervalStr := fmt.Sprintf("%d", intervalM)
-
-	// Convert strike price to 1/10ths of a cent and to integer
-	strikeInt := int(strike * 1000)
-
-	// Define the request URL
-	url := fmt.Sprintf("%s/v2/hist/option/ohlc?right=%s&exp=%s&start_date=%s&end_date=%s&root=%s&ivl=%s&strike=%d", baseURL, right, expirationStr, startDateStr, endDateStr, root, intervalStr, strikeInt)
-
-	log.Infof("FetchThetaDataOHLC: fetching data from %s", url)
-
-	// Create a new HTTP GET request
-	req, err := http.NewRequest("GET", url, nil)
+func (c *ThetaDataCandle) ToCandleDTO() (CandleDTO, error) {
+	date, err := c.convertDateAndMsToTime(c.Date, c.MillisecondOfDay)
 	if err != nil {
-		return result, fmt.Errorf("FetchThetaDataOHLC: %w", err)
+		return CandleDTO{}, fmt.Errorf("ThetaDataCandleDTO:  %w", err)
 	}
 
-	// Execute the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return result, fmt.Errorf("FetchThetaDataOHLC.Do: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return result, fmt.Errorf("FetchThetaDataOHLC.ReadAll: %w", err)
-	}
-
-	// Unmarshal the JSON response into the result struct
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return result, fmt.Errorf("FetchThetaDataOHLC.Unmarshal: %w", err)
-	}
-
-	return result, nil
-}
-
-func main() {
-	baseURL := "http://192.168.1.160:25510"
-	symbol := eventmodels.StockSymbol("IWM")
-	expiration := time.Date(2024, 7, 10, 0, 0, 0, 0, time.UTC)
-	startDate := time.Date(2024, 7, 9, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(2024, 7, 10, 0, 0, 0, 0, time.UTC)
-	interval := 1 * time.Minute
-	strike := 201.00
-
-	response, err := FetchThetaDataHistOptionOHLC(baseURL, symbol, eventmodels.OptionTypeCall, expiration, startDate, endDate, interval, strike)
-	if err != nil {
-		log.Fatalf("FetchThetaDataOHLC: %v", err)
-	}
-
-	candlesDTO, err := response.ConvertToCandles()
-	if err != nil {
-		log.Fatalf("ConvertToCandles: %v", err)
-	}
-
-	log.Infof("Fetched %d candles\n", len(candlesDTO))
-
-	var candles []eventmodels.CandleDTO
-	for _, candleDTO := range candlesDTO {
-		candle, err := candleDTO.ToCandleDTO()
-		if err != nil {
-			log.Fatalf("ToCandleDTO: %v", err)
-		}
-
-		candles = append(candles, candle)
-	}
-
-	for _, candle := range candles {
-		log.Infof("Candle: %+v\n", candle)
-	}
-
-	log.Infof("Converted %d candles\n", len(candlesDTO))
+	return CandleDTO{
+		Date:   date.Format("2006-01-02 15:04"),
+		Open:   c.Open,
+		High:   c.High,
+		Low:    c.Low,
+		Close:  c.Close,
+		Volume: int(c.Volume),
+	}, nil
 }
