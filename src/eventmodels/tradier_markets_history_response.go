@@ -1,7 +1,7 @@
 package eventmodels
 
 type tradierMarketsHistory struct {
-	Day TradierCandleDTO `json:"day"`
+	Day CandleDTO `json:"day"`
 }
 
 type TradierMarketsHistoryResponseDTO struct {

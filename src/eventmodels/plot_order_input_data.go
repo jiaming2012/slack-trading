@@ -16,6 +16,12 @@ type OrderData struct {
 	StrikePriceB float64   `json:"StrikePriceB"`
 }
 
+type OptionOrderData struct {
+	Date  []string  `json:"Date"`
+	Type  []string  `json:"Type"`
+	Price []float64 `json:"Price"`
+}
+
 type ChartData struct {
 	Title          string `json:"title"`
 	Sublplot1Title string `json:"subplot_1_title"`
@@ -24,8 +30,9 @@ type ChartData struct {
 }
 
 type PlotOrderInputData struct {
-	ChartData  ChartData  `json:"chart_data"`
-	CandleData CandleData `json:"candle_data"`
-	OrderData  OrderData  `json:"order_data"`
-	OptionData CandleData `json:"option_data"`
+	ChartData       ChartData       `json:"chart_data"`
+	CandleData      CandleData      `json:"candle_data"`
+	OrderData       OrderData       `json:"order_data"`
+	OptionData      CandleData      `json:"option_data"`
+	OptionOrderData OptionOrderData `json:"option_order_data"`
 }

@@ -70,8 +70,8 @@ func (w *TradierOrdersMonitoringWorker) fetchOrders() ([]*eventmodels.TradierOrd
 	return orders, nil
 }
 
-func (w *TradierOrdersMonitoringWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint64 {
-	result := []uint64{}
+func (w *TradierOrdersMonitoringWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
+	result := []uint{}
 
 	for orderID := range w.orders {
 		found := false
@@ -160,7 +160,7 @@ func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 func NewTradierOrdersMonitoringWorker(wg *sync.WaitGroup, brokerURL, brokerBearerToken string) *TradierOrdersMonitoringWorker {
 	return &TradierOrdersMonitoringWorker{
 		wg:                wg,
-		orders:            make(map[uint64]*eventmodels.TradierOrder),
+		orders:            make(map[uint]*eventmodels.TradierOrder),
 		brokerURL:         brokerURL,
 		brokerBearerToken: brokerBearerToken,
 	}

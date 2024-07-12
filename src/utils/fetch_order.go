@@ -34,6 +34,10 @@ func ParseOptionTicker(ticker string) (*eventmodels.OptionSymbolComponents, erro
 
 	// Construct the expiration date
 	expiration := time.Date(2000+year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	expiration, err := eventmodels.ConvertToMarketClose(expiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert expiration to market close: %w", err)
+	}
 
 	// Create and return the Option struct
 	option := &eventmodels.OptionSymbolComponents{
@@ -56,14 +60,14 @@ func findOratsOptionDataAt(timestamp time.Time, data []eventmodels.OratsOptionDa
 	return eventmodels.OratsOptionData{}, errors.New("no matching data found")
 }
 
-func findTradierCandleDTOAt(timestamp time.Time, data []eventmodels.TradierCandleDTO) (eventmodels.TradierCandleDTO, error) {
+func findCandleDTOAt(timestamp time.Time, data []*eventmodels.CandleDTO) (*eventmodels.CandleDTO, error) {
 	for _, d := range data {
-		if d.Date == timestamp.Format("2006-01-02") {
+		if d.Date == timestamp.Format("2006-01-02 15:04:00") {
 			return d, nil
 		}
 	}
 
-	return eventmodels.TradierCandleDTO{}, errors.New("no matching data found")
+	return nil, errors.New("findCandleDTOAt: no matching data found")
 }
 
 func isOptionExpired(option eventmodels.OptionSymbolComponents, now time.Time) bool {
@@ -144,9 +148,7 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	return optionProfit1, optionProfit2, nil
 }
 
-func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyingDailyCandles []eventmodels.TradierCandleDTO, symbol1Data []eventmodels.OratsOptionData, symbol2Data []eventmodels.OratsOptionData) (*eventmodels.OptionOrderSpreadResult, error) {
-	optionMultiplier := 100.0
-
+func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
 	if order == nil {
 		return nil, errors.New("order cannot be nil")
 	}
@@ -155,13 +157,13 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 		return nil, errors.New("underlyingCandles cannot be empty")
 	}
 
-	if len(symbol1Data) == 0 {
-		return nil, errors.New("symbol1Data cannot be empty")
-	}
+	// if len(symbol1Data) == 0 {
+	// 	return nil, errors.New("symbol1Data cannot be empty")
+	// }
 
-	if len(symbol2Data) == 0 {
-		return nil, errors.New("symbol2Data cannot be empty")
-	}
+	// if len(symbol2Data) == 0 {
+	// 	return nil, errors.New("symbol2Data cannot be empty")
+	// }
 
 	if order.Strategy != "spread" {
 		return nil, errors.New("order strategy must be spread")
@@ -259,8 +261,9 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 		Slippage:         slippage,
 	}
 
+	buffer := 15 * time.Minute
 	if isOption1Expired {
-		symbol1DataAtExpiry, err := findTradierCandleDTOAt(option1.Expiration, underlyingDailyCandles)
+		symbol1DataAtExpiry, err := findCandleDTOAt(option1.Expiration.Add(-buffer), underlyingDailyCandles)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find symbol1 data at expiry: %w", err)
 		}

@@ -97,6 +97,7 @@ func Run(args RunArgs) (RunResult, error) {
 	var optionLegSymbol1, optionLegSymbol2 string
 	var optionType1, optionType2 eventmodels.OptionType
 	var orderData eventmodels.OrderData
+	var optionOrderData eventmodels.OptionOrderData
 	var strikePriceA, strikePriceB float64
 	var fromDate, toDate time.Time
 	var underlyingCandles []*eventmodels.CandleDTO
@@ -148,7 +149,7 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("underlying symbol mismatch: '%s' != '%s'", underlyingSymbol1, underlyingSymbol2)
 		}
 
-		if option1.Expiration != option2.Expiration {
+		if !option1.Expiration.Equal(option2.Expiration) {
 			return RunResult{}, fmt.Errorf("option 1 expiration '%s' != '%s' option 2 expiration", option1.Expiration, option2.Expiration)
 		}
 
@@ -204,12 +205,23 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("error getting underlying price at open: %v", err)
 		}
 
-		orderData.Date = append(orderData.Date, orderCreateDateEST.Format("2006-01-02 15:04"))
 		// Todo: add support for multiple orders
-
 		// Open
+
+		// Append Order Data
+		orderData.Date = append(orderData.Date, orderCreateDateEST.Format("2006-01-02 15:04"))
 		orderData.Type = append(orderData.Type, "Sell")
 		orderData.Price = append(orderData.Price, underlyingPriceAtOpen.Close)
+
+		// Append Option Order Data
+		optionOpenPrice := orderLeg1.AvgFillPrice - orderLeg2.AvgFillPrice
+		optionOrderData.Date = append(optionOrderData.Date, orderCreateDateEST.Format("2006-01-02 15:04"))
+		if optionOpenPrice > 0 {
+			optionOrderData.Type = append(optionOrderData.Type, "Sell")
+		} else {
+			optionOrderData.Type = append(optionOrderData.Type, "Buy")
+		}
+		optionOrderData.Price = append(optionOrderData.Price, optionOpenPrice)
 
 		// Close
 		underlyingPriceNearClose, err := run.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
@@ -217,18 +229,41 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("error fetching underlying prices near close: %v", err)
 		}
 
-		orderExpirationDateEST, err := eventmodels.ConvertToMarketClose(option1.Expiration)
-		if err != nil {
-			return RunResult{}, fmt.Errorf("error converting expiration to market close: %v", err)
-		}
+		orderExpirationDateEST := option1.Expiration
 
+		// Append Order Data
 		orderData.Date = append(orderData.Date, orderExpirationDateEST.Format("2006-01-02 15:04"))
 		orderData.Type = append(orderData.Type, "Buy")
 		orderData.Price = append(orderData.Price, underlyingPriceNearClose[0].Close)
 		orderData.StrikePriceA = strikePriceA
 		orderData.StrikePriceB = strikePriceB
 
+		// Append Option Order Data
+
 		fromDate, toDate = order.CreateDate, option1.Expiration
+
+		underlyingCandles, err = run.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("error fetching underlying candles: %v", err)
+		}
+
+		underlyingCandles = run.ReverseCandles(underlyingCandles)
+
+		// optionMultiplier := 100.0
+
+		// resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, underlyingCandles, optionMultiplier)
+		// if err != nil {
+		// 	return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)
+		// }
+
+		// optionClosePrice := resultOrder.Profit / optionMultiplier
+		// optionOrderData.Date = append(optionOrderData.Date, orderExpirationDateEST.Format("2006-01-02 15:04"))
+		// if optionClosePrice > 0 {
+		// 	optionOrderData.Type = append(optionOrderData.Type, "Buy")
+		// } else {
+		// 	optionOrderData.Type = append(optionOrderData.Type, "Sell")
+		// }
+		// optionOrderData.Price = append(optionOrderData.Price, optionClosePrice)
 
 		// Currently only support one order at a time: to support multiple orders, we
 		// would have to figure out how to chart multiple strike prices
@@ -245,21 +280,14 @@ func Run(args RunArgs) (RunResult, error) {
 
 	log.Infof("Fetching data for option leg 1 symbol %s", optionLegSymbol1)
 
-	oratsToken := "ORATS_TOKEN"
-	mock1 := eventservices.GenerateFetchOratsDataMock("/Users/jamal/projects/slack-trading/src/cmd/fetch_market_data/mock/sample_option_data_extended_1.csv")
-	optionsData1, err := mock1(underlyingSymbol, oratsToken, fromDate, toDate)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error fetching option leg 1 data: %v", err)
-	}
+	// oratsToken := "ORATS_TOKEN"
+	// mock1 := eventservices.GenerateFetchOratsDataMock("/Users/jamal/projects/slack-trading/src/cmd/fetch_market_data/mock/sample_option_data_extended_1.csv")
+	// optionsData1, err := mock1(underlyingSymbol, oratsToken, fromDate, toDate)
+	// if err != nil {
+	// 	return RunResult{}, fmt.Errorf("error fetching option leg 1 data: %v", err)
+	// }
 
-	underlyingCandles, err = run.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error fetching underlying candles: %v", err)
-	}
-
-	underlyingCandles = run.ReverseCandles(underlyingCandles)
-
-	log.Infof("Fetched %d option leg 1 ticks", len(optionsData1))
+	// log.Infof("Fetched %d option leg 1 ticks", len(optionsData1))
 
 	var optionCandles1, optionCandles2 []eventmodels.CandleDTO
 
@@ -322,13 +350,13 @@ func Run(args RunArgs) (RunResult, error) {
 
 	log.Infof("Fetching data for option leg 2 symbol %s", optionLegSymbol2)
 
-	mock2 := eventservices.GenerateFetchOratsDataMock("/Users/jamal/projects/slack-trading/src/cmd/fetch_market_data/mock/sample_option_data_extended_2.csv")
-	optionsData2, err := mock2(underlyingSymbol, oratsToken, fromDate, toDate)
-	if err != nil {
-		return RunResult{}, fmt.Errorf("error fetching option leg 2 data: %v", err)
-	}
+	// mock2 := eventservices.GenerateFetchOratsDataMock("/Users/jamal/projects/slack-trading/src/cmd/fetch_market_data/mock/sample_option_data_extended_2.csv")
+	// optionsData2, err := mock2(underlyingSymbol, oratsToken, fromDate, toDate)
+	// if err != nil {
+	// 	return RunResult{}, fmt.Errorf("error fetching option leg 2 data: %v", err)
+	// }
 
-	log.Infof("Fetched %d option leg 2 ticks", len(optionsData2))
+	// log.Infof("Fetched %d option leg 2 ticks", len(optionsData2))
 
 	log.Infof("Derived %d option leg 2 candles", len(optionCandles2))
 
@@ -343,9 +371,10 @@ func Run(args RunArgs) (RunResult, error) {
 			Sublplot2Title: subplot2,
 			Timeframe:      15,
 		},
-		CandleData: eventmodels.CandleDTOs(underlyingCandles).ConvertToCandleData(),
-		OrderData:  orderData,
-		OptionData: eventmodels.CandleDTOs(spreadCandles).ConvertToCandleData(),
+		CandleData:      eventmodels.CandleDTOs(underlyingCandles).ConvertToCandleData(),
+		OrderData:       orderData,
+		OptionData:      eventmodels.CandleDTOs(spreadCandles).ConvertToCandleData(),
+		OptionOrderData: optionOrderData,
 	})
 
 	if err != nil {

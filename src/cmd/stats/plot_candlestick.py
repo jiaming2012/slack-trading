@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from typing import Dict, Any
 
-def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str, candle_data: Dict[str, Any], order_data: Dict[str, Any], option_data: Dict[str, Any], timeframe: int) -> None:
+def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str, candle_data: Dict[str, Any], order_data: Dict[str, Any], option_data: Dict[str, Any], option_order_data: Dict[str, Any], timeframe: int) -> None:
     # Sample minute-level data
     df = candle_to_np(candle_data, timeframe)
 
@@ -17,6 +17,9 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
 
     # Sample order data (should match the time range of your candlestick data)
     df_orders = order_to_np(order_data)
+
+    # Sample option order data (should match the time range of your candlestick data)
+    df_option_orders = order_to_np(option_order_data)
 
     # Sample option data for XYZ (at 15-minute intervals)
     df_option = option_to_np(option_data)
@@ -94,6 +97,35 @@ def plot_candlestick(chart_title: str, subplot1_title: str, subplot2_title: str,
         name='Option Close Price'
     ), row=2, col=1)
 
+    # Add OPTION buy orders to candlestick chart
+    buy_option_orders = df_option_orders[df_option_orders['Type'] == 'Buy']
+    fig.add_trace(go.Scatter(
+        x=buy_option_orders['Date'],
+        y=buy_option_orders['Price'],
+        mode='markers',
+        marker=dict(symbol='triangle-up', size=10, color='blue'),
+        name='Buy OPTION Orders'
+    ), row=2, col=1)
+
+    # Add OPTION sell orders to candlestick chart
+    sell_option_orders = df_option_orders[df_option_orders['Type'] == 'Sell']
+    fig.add_trace(go.Scatter(
+        x=sell_option_orders['Date'],
+        y=sell_option_orders['Price'],
+        mode='markers',
+        marker=dict(symbol='triangle-down', size=10, color='red'),
+        name='Sell OPTION Orders'
+    ), row=2, col=1)
+
+    # Add dotted line connecting the buy and sell OPTION orders
+    fig.add_trace(go.Scatter(
+        x=df_option_orders['Date'],
+        y=df_option_orders['Price'],
+        mode='lines',
+        line=dict(dash='dot', color='black'),
+        name='Buy-Sell Line'
+    ), row=2, col=1)
+
     # # Add buy orders to option chart
     # fig.add_trace(go.Scatter(
     #     x=buy_orders['Date'],
@@ -164,8 +196,6 @@ def candle_to_np(data: Dict[str, Any], timeframeInMinutes: int) -> pd.DataFrame:
     # Ensure the frequency is set to 'T'
     # dates = pd.date_range(start=dates.min(), end=dates.max(), freq=f'{timeframeInMinutes}T')
 
-    print(len(data['Open']), len(dates))
-
     # Convert to numpy objects
     df = pd.DataFrame()
     # df['Date'] = dates
@@ -188,13 +218,14 @@ def main() -> None:
     candle_data = input_data['candle_data']
     order_data = input_data['order_data']
     option_data = input_data['option_data']
+    option_order_data = input_data['option_order_data']
 
     chart_title = chart_data['title']
     subplot_1_title = chart_data['subplot_1_title']
     subplot_2_title = chart_data['subplot_2_title']
     timeframe = chart_data['timeframe']
 
-    plot_candlestick(chart_title, subplot_1_title, subplot_2_title, candle_data, order_data, option_data, timeframe)
+    plot_candlestick(chart_title, subplot_1_title, subplot_2_title, candle_data, order_data, option_data, option_order_data, timeframe)
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
 package eventmodels
 
 type TradierOrderDeleteEvent struct {
-	OrderID uint64
+	OrderID uint
 }
