@@ -17,3 +17,4 @@ best_fit_percent_change-*.json
 tmp-*
 percent_change-*.json
 scratch.py
+src/cmd/backtest-sandbox/

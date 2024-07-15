@@ -139,19 +139,11 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("error fetching tradier quotes: %v", err)
 		}
 
-		// symbolData1 := []eventmodels.OratsOptionData{
-		// 	{
-		// 		Ticker: order.Leg[0].OptionSymbol,
-		// 	},
-		// }
-		// symbolData2 := []eventmodels.OratsOptionData{
-		// 	{
-		// 		Ticker: order.Leg[1].OptionSymbol,
-		// 	},
-		// }
 		candles := []*eventmodels.CandleDTO{&quote.History.Day}
 
-		resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, candles)
+		optionMultiplier := 100.0
+
+		resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, candles, optionMultiplier)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)
 		}
