@@ -10,7 +10,9 @@ func GetActiveFxTrackers(trackers []*eventmodels.TrackerV3) map[eventmodels.Even
 	for _, tracker := range trackers {
 		if tracker.Type == eventmodels.TrackerTypeStartFx {
 			id := tracker.GetMetaData().GetEventStreamID()
-			activeTrackersMap[id] = tracker
+			if tracker.StartFxTracker != nil && tracker.StartFxTracker.Symbol != "" {
+				activeTrackersMap[id] = tracker
+			}
 		}
 	}
 

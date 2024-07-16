@@ -25,9 +25,9 @@ func FetchStandardDeviation(url string, bearerToken string, symbol eventmodels.S
 	return 0, nil
 }
 
-func FetchOptionChainWithParamsV3(ctx context.Context, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV3, *eventmodels.StockTickItemDTO, error) {
-	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
-	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
+func FetchTradierMarketData(ctx context.Context, optionsByExpirationURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType) (*eventmodels.OptionContractDTO, *eventmodels.StockTickItemDTO, error) {
+	tracer := otel.Tracer("FetchTradierMarketData")
+	_, span := tracer.Start(ctx, "FetchTradierMarketData")
 	defer span.End()
 
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
@@ -35,30 +35,32 @@ func FetchOptionChainWithParamsV3(ctx context.Context, optionsByExpirationURL, o
 		return nil, nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
 	}
 
-	options, err := optionsDTO.ConvertToOptionContractsV3(symbol, optionTypes)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
-	}
-
 	stockTickDTO, err := FetchStockTicks(symbol, stockURL, bearerToken)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch stock tick: %v", err)
 	}
 
+	return optionsDTO, stockTickDTO, nil
+}
+
+func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3, stockTickDTO *eventmodels.StockTickItemDTO, expirationInDays []int, optionTypes []eventmodels.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
 	stockPrice := (stockTickDTO.Bid + stockTickDTO.Ask) / 2
 
-	expirationDates, filteredOptions := filterOptionContractsV3(options, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, stockPrice, time.Now())
+	expirationDates, filteredOptions := filterOptionContractsV3(optionContracts, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, stockPrice, now)
 
-	optionChainMap, err := fetchOptionChainsV3(optionChainURL, bearerToken, symbol, expirationDates)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch option chains: %v", err)
+	return expirationDates, filteredOptions
+}
+
+func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, filteredOptions []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO) ([]eventmodels.OptionContractV3, error) {
+	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
+	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
+	defer span.End()
+
+	if err := addAdditionInfoToOptionsV3(filteredOptions, optionChainTicksByExpirationMap); err != nil {
+		return nil, fmt.Errorf("failed to add symbol name to options: %v", err)
 	}
 
-	if err := addAdditionInfoToOptionsV3(filteredOptions, optionChainMap); err != nil {
-		return nil, nil, fmt.Errorf("failed to add symbol name to options: %v", err)
-	}
-
-	return filteredOptions, stockTickDTO, nil
+	return filteredOptions, nil
 }
 
 func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, *eventmodels.StockTickItemDTO, error) {

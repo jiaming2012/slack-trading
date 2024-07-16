@@ -15,16 +15,14 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-type TrackerV3Client = esdbConsumerStream[*eventmodels.TrackerV3]
-
-type TrackerV3Consumer struct {
+type TrackerConsumerV3 struct {
 	client          *TrackerV3Client
 	state           map[string]string
 	signalTriggered chan SignalTriggeredEvent
 	mutex           sync.Mutex
 }
 
-func (t *TrackerV3Consumer) GetState() (state map[string]string, unlock func()) {
+func (t *TrackerConsumerV3) GetState() (state map[string]string, unlock func()) {
 	t.mutex.Lock()
 	state = t.state
 	return state, t.mutex.Unlock
@@ -36,11 +34,11 @@ type SignalTriggeredEvent struct {
 	Ctx    context.Context
 }
 
-func (t *TrackerV3Consumer) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
+func (t *TrackerConsumerV3) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
 	return t.signalTriggered
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH1StochRsiDown(ctx context.Context, symbol eventmodels.StockSymbol) bool {
+func (t *TrackerConsumerV3) checkSupertrendH1StochRsiDown(ctx context.Context, symbol eventmodels.StockSymbol) bool {
 	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH1StochRsiDown")
 	defer span.End()
 
@@ -72,7 +70,7 @@ func (t *TrackerV3Consumer) checkSupertrendH1StochRsiDown(ctx context.Context, s
 	return false
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiDown(ctx context.Context, symbol eventmodels.StockSymbol) bool {
+func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiDown(ctx context.Context, symbol eventmodels.StockSymbol) bool {
 	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH4H1StochRsiDown")
 	defer span.End()
 
@@ -111,7 +109,7 @@ func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiDown(ctx context.Context,
 	return false
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiUp(ctx context.Context, symbol eventmodels.StockSymbol) bool {
+func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiUp(ctx context.Context, symbol eventmodels.StockSymbol) bool {
 	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH4H1StochRsiUp")
 	defer span.End()
 
@@ -150,7 +148,7 @@ func (t *TrackerV3Consumer) checkSupertrendH4H1StochRsiUp(ctx context.Context, s
 	return false
 }
 
-func (t *TrackerV3Consumer) checkSupertrendH1StochRsiUp(ctx context.Context, symbol eventmodels.StockSymbol) bool {
+func (t *TrackerConsumerV3) checkSupertrendH1StochRsiUp(ctx context.Context, symbol eventmodels.StockSymbol) bool {
 	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH1StochRsiUp")
 	defer span.End()
 
@@ -182,7 +180,7 @@ func (t *TrackerV3Consumer) checkSupertrendH1StochRsiUp(ctx context.Context, sym
 	return false
 }
 
-func (t *TrackerV3Consumer) updateState(ctx context.Context, event *eventmodels.TrackerV3) error {
+func (t *TrackerConsumerV3) updateState(ctx context.Context, event *eventmodels.TrackerV3) error {
 	ctx, span := otel.Tracer("TrackerV3Consumer").Start(ctx, "updateState")
 	defer span.End()
 
@@ -213,7 +211,7 @@ func (t *TrackerV3Consumer) updateState(ctx context.Context, event *eventmodels.
 	return nil
 }
 
-func (t *TrackerV3Consumer) checkIsSignalTriggered(ctx context.Context, event *eventmodels.TrackerV3) []SignalTriggeredEvent {
+func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *eventmodels.TrackerV3) []SignalTriggeredEvent {
 	tracer := otel.Tracer("checkIsSignalTriggered")
 	ctx, span := tracer.Start(ctx, "checkIsSignalTriggered")
 	defer span.End()
@@ -285,7 +283,7 @@ func NeverSample() sdk_trace.Sampler {
 	return neverSampleSampler{}
 }
 
-func (t *TrackerV3Consumer) processEvent(ctx context.Context, event EsdbEvent[*eventmodels.TrackerV3]) error {
+func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*eventmodels.TrackerV3], processReplayEvents bool) error {
 	var tracer trace.Tracer
 	if event.IsReplay {
 		tracerProvider := sdk_trace.NewTracerProvider(
@@ -303,7 +301,6 @@ func (t *TrackerV3Consumer) processEvent(ctx context.Context, event EsdbEvent[*e
 	// to make a link:
 	// ctx, span = tracer.Start(ctx, "<- t.client.GetEventCh()", trace.WithLinks(trace.LinkFromContext(trace.ContextWithSpanContext(ctx, event.SpanContext))))
 
-
 	ctx, span := tracer.Start(ctx, "<- t.client.GetEventCh()")
 	defer span.End()
 
@@ -320,7 +317,7 @@ func (t *TrackerV3Consumer) processEvent(ctx context.Context, event EsdbEvent[*e
 		return fmt.Errorf("failed to update state: %v", err)
 	}
 
-	if event.IsReplay {
+	if event.IsReplay && !processReplayEvents {
 		logger.Debugf("Ignore triggering replay event: %s", ev.SignalTracker.Name)
 		return nil
 	}
@@ -341,14 +338,14 @@ func (t *TrackerV3Consumer) processEvent(ctx context.Context, event EsdbEvent[*e
 	return nil
 }
 
-func (t *TrackerV3Consumer) Start(ctx context.Context) {
+func (t *TrackerConsumerV3) Start(ctx context.Context, processReplayEvents bool) {
 	logger := log.WithContext(ctx)
 	logger.Infof("Starting TrackerV3Consumer")
 
 	go func() {
 		for event := range t.client.GetEventCh() {
 			ctx := context.Background()
-			if err := t.processEvent(ctx, event); err != nil {
+			if err := t.processEvent(ctx, event, processReplayEvents); err != nil {
 				logger.Errorf("TrackerV3Consumer: failed to process event: %v", err)
 			}
 		}
@@ -359,8 +356,8 @@ func (t *TrackerV3Consumer) Start(ctx context.Context) {
 	logger.Infof("TrackerV3Consumer started!!!")
 }
 
-func NewTrackerV3Consumer(client *TrackerV3Client) *TrackerV3Consumer {
-	return &TrackerV3Consumer{
+func NewTrackerConsumerV3(client *TrackerV3Client) *TrackerConsumerV3 {
+	return &TrackerConsumerV3{
 		client:          client,
 		state:           make(map[string]string),
 		signalTriggered: make(chan SignalTriggeredEvent),

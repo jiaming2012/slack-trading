@@ -28,12 +28,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
-
 	// lokiclient "github.com/grafana/loki-client-go"
 
-	exec_trade "github.com/jiaming2012/slack-trading/src/cmd/trade/run"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventproducers"
@@ -138,165 +135,6 @@ func (r *RouterSetup) Add(item RouterSetupItem) {
 
 type RouterSetupHandler func(r *http.Request, request eventmodels.ApiRequest3) (chan interface{}, chan error)
 
-func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO) {
-	highestEVLongMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
-	highestEVShortMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
-
-	for _, option := range options {
-		expiration, err := option.GetExpiration()
-		if err != nil {
-			log.Errorf("FindHighestEV: failed to get expiration: %v", err)
-			continue
-		}
-
-		highestLongEV, found := highestEVLongMap[expiration]
-		if found {
-			if option.Stats.ExpectedProfitLong > highestLongEV.Stats.ExpectedProfitLong {
-				highestEVLongMap[expiration] = option
-			}
-		} else {
-			highestEVLongMap[expiration] = option
-		}
-
-		highestShortEV, found := highestEVShortMap[expiration]
-		if found {
-			if option.Stats.ExpectedProfitShort > highestShortEV.Stats.ExpectedProfitShort {
-				highestEVShortMap[expiration] = option
-			}
-		} else {
-			highestEVShortMap[expiration] = option
-		}
-	}
-
-	var highestEVLong []*eventmodels.OptionSpreadContractDTO
-	var highestEVShort []*eventmodels.OptionSpreadContractDTO
-
-	for _, option := range highestEVLongMap {
-		if option.Stats.ExpectedProfitLong > 0 {
-			highestEVLong = append(highestEVLong, option)
-		}
-	}
-
-	for _, option := range highestEVShortMap {
-		if option.Stats.ExpectedProfitShort > 0 {
-			highestEVShort = append(highestEVShort, option)
-		}
-	}
-
-	return highestEVLong, highestEVShort
-}
-
-func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *TradierOrderExecuter, goEnv string) error {
-	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
-	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
-	defer span.End()
-
-	logger := log.WithContext(ctx)
-
-	select {
-	case result := <-resultCh:
-		if result != nil {
-			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
-			if !ok {
-				return fmt.Errorf("options not found in result")
-			}
-
-			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads := FindHighestEVPerExpiration(calls)
-				for _, spread := range highestEVLongCallSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Call found")
-					}
-				}
-
-				for _, spread := range highestEVShortCallSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Call", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := tradierOrderExecuter.PlaceTradeSpread(ctx, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, goEnv); err != nil {
-							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
-						}
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
-					}
-				}
-			} else {
-				return fmt.Errorf("calls not found in result")
-			}
-
-			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads := FindHighestEVPerExpiration(puts)
-				for _, spread := range highestEVLongPutSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Put found")
-					}
-				}
-
-				for _, spread := range highestEVShortPutSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := tradierOrderExecuter.PlaceTradeSpread(ctx, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, goEnv); err != nil {
-							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
-						}
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Put found")
-					}
-				}
-			} else {
-				return fmt.Errorf("puts not found in result")
-			}
-		}
-
-	case err := <-errCh:
-		return fmt.Errorf("error: %v", err)
-	}
-
-	return nil
-}
-
-type OptionYAML struct {
-	Symbol                             string   `yaml:"symbol"`
-	StartsAt                           string   `yaml:"startsAt"`
-	EndsAt                             string   `yaml:"endsAt"`
-	ExpirationsInDays                  []int    `yaml:"expirationsInDays"`
-	MinDistanceBetweenStrikes          *float64 `yaml:"minDistanceBetweenStrikes,omitempty"`
-	MinStandardDeviationBetweenStrikes *float64 `yaml:"minStandardDeviationBetweenStrikes,omitempty"`
-	MaxNoOfStrikes                     int      `yaml:"maxNoOfStrikes"`
-}
-
-type OptionsConfigYAML struct {
-	Options []OptionYAML `yaml:"options"`
-}
-
-func (o *OptionsConfigYAML) GetOption(symbol eventmodels.StockSymbol) (*OptionYAML, error) {
-	sym1 := strings.ToLower(string(symbol))
-	for _, option := range o.Options {
-		sym2 := strings.ToLower(option.Symbol)
-		if sym1 == sym2 {
-			return &option, nil
-		}
-	}
-
-	return nil, fmt.Errorf("OptionsConfigYAML: option not found")
-}
-
 // setupOTelSDK bootstraps the OpenTelemetry pipeline.
 // If it does not return an error, make sure to call shutdown for proper cleanup.
 func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
@@ -375,7 +213,7 @@ func (req *EmptyRequest) Validate(r *http.Request) error {
 	return nil
 }
 
-func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *TradierOrderExecuter, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config OptionsConfigYAML, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -418,9 +256,14 @@ func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, trad
 
 	req.EV.Signal = event.Signal
 
-	go optionsRequestExecutor.ServeWithParams(ctx, req, true, resultCh, errCh)
+	data, err := optionsRequestExecutor.CollectData(ctx, req)
+	if err != nil {
+		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
+	}
 
-	if err := SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
+	go optionsRequestExecutor.ServeWithParams(ctx, req, data, true, resultCh, errCh)
+
+	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
 	}
 
@@ -509,7 +352,7 @@ func run() {
 		log.Fatalf("failed to read options config: %v", err)
 	}
 
-	var optionsConfig OptionsConfigYAML
+	var optionsConfig eventmodels.OptionsConfigYAML
 	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
 		log.Fatalf("failed to unmarshal options config: %v", err)
 	}
@@ -560,7 +403,7 @@ func run() {
 
 	// TrackerV3 client for generating option EV signals
 	trackersClientV3 := eventconsumers.NewESDBConsumerStream(&wg, eventStoreDbURL, &eventmodels.TrackerV3{})
-	trackerV3OptionEVConsumer := eventconsumers.NewTrackerV3Consumer(trackersClientV3)
+	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
 
 	// Setup ESDB producer
 	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
@@ -602,20 +445,20 @@ func run() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
-	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config OptionsConfigYAML, isDryRun bool) {
+	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			log.Panicf("failed to load location: %v", err)
 		}
 
-		tradierOrderExecuter := NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
+		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
 
 		for event := range eventCh {
 			processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)
 		}
 	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
 
-	trackerV3OptionEVConsumer.Start(ctx)
+	trackerV3OptionEVConsumer.Start(ctx, false)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
@@ -660,19 +503,4 @@ func run() {
 	wg.Wait()
 
 	log.Info("Main: gracefully stopped!")
-}
-
-type TradierOrderExecuter struct {
-	url         string
-	bearerToken string
-	dryRun      bool
-}
-
-func NewTradierOrderExecuter(url, bearerToken string, dryRun bool) *TradierOrderExecuter {
-	return &TradierOrderExecuter{url: url, bearerToken: bearerToken, dryRun: dryRun}
-}
-
-func (e *TradierOrderExecuter) PlaceTradeSpread(ctx context.Context, underlying eventmodels.StockSymbol, buyToOpenSymbol eventmodels.OptionSymbol, sellToOpenSymbol eventmodels.OptionSymbol, quantity int, tag string, goEnv string) error {
-	log.WithContext(ctx).WithField("event", "signal").Infof("placing trade spread for %v", underlying)
-	return exec_trade.PlaceTradeSpread(ctx, e.url, e.bearerToken, underlying, buyToOpenSymbol, sellToOpenSymbol, quantity, tag, e.dryRun)
 }

@@ -154,7 +154,7 @@ func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.Optio
 	return nil
 }
 
-func fetchOptionChainsV3(url, bearerToken string, symbol eventmodels.StockSymbol, expirations []time.Time) (map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, error) {
+func FetchOptionChainsV3(url, bearerToken string, symbol eventmodels.StockSymbol, expirations []time.Time) (map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, error) {
 	optionChainMapCh := make(map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO)
 
 	for _, expiration := range expirations {

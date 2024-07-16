@@ -123,7 +123,67 @@ func (s *ReadOptionChainRequestExecutor) getMinDistanceBetweenStrikes(req *event
 	return 0, nil
 }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *eventmodels.ReadOptionChainRequest, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
+type FetchOptionChainDataInput struct {
+	OptionChainTickByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO
+	OptionContractDTO              *eventmodels.OptionContractDTO
+	StockTickItemDTO               *eventmodels.StockTickItemDTO
+	FilteredOptions                []eventmodels.OptionContractV3
+}
+
+func (s *ReadOptionChainRequestExecutor) CollectData(ctx context.Context, req *eventmodels.ReadOptionChainRequest) (FetchOptionChainDataInput, error) {
+	tracer := otel.Tracer("ReadOptionChainRequestExecutor")
+	ctx, span := tracer.Start(ctx, "ReadOptionChainRequestExecutor.CollectData")
+	defer span.End()
+
+	minDistanceBetweenStrikes, err := s.getMinDistanceBetweenStrikes(req)
+	if err != nil {
+		return FetchOptionChainDataInput{}, fmt.Errorf("failed to get min distance between strikes: %w", err)
+	}
+
+	optionsDTO, stockTickDTO, err := eventservices.FetchTradierMarketData(
+		ctx,
+		s.OptionsByExpirationURL,
+		s.StockURL,
+		s.BearerToken,
+		req.Symbol,
+		req.OptionTypes,
+	)
+
+	if err != nil {
+		return FetchOptionChainDataInput{}, fmt.Errorf("failed to fetch Tradier market data: %w", err)
+	}
+
+	optionsContractByExpirationMap, err := optionsDTO.ConvertToOptionContractsV3(req.Symbol, req.OptionTypes)
+	if err != nil {
+		return FetchOptionChainDataInput{}, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
+	}
+
+	now := time.Now()
+
+	expirationDates, filteredOptions := eventservices.FilterOptions(
+		optionsContractByExpirationMap,
+		stockTickDTO,
+		req.ExpirationsInDays,
+		req.OptionTypes,
+		minDistanceBetweenStrikes,
+		req.MaxNoOfStrikes,
+		now,
+	)
+
+	optionChainTickByExpirationMap, err := eventservices.FetchOptionChainsV3(s.OptionChainURL, s.BearerToken, req.Symbol, expirationDates)
+	if err != nil {
+		return FetchOptionChainDataInput{}, fmt.Errorf("failed to fetch option chains: %v", err)
+	}
+
+	return FetchOptionChainDataInput{
+		OptionChainTickByExpirationMap: optionChainTickByExpirationMap,
+		OptionContractDTO:              optionsDTO,
+		StockTickItemDTO:               stockTickDTO,
+		FilteredOptions:                filteredOptions,
+	}, nil
+}
+
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *eventmodels.ReadOptionChainRequest, inputData FetchOptionChainDataInput, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
 	tracer := otel.Tracer("ReadOptionChainRequestExecutor")
 	ctx, span := tracer.Start(ctx, "ReadOptionChainRequestExecutor.ServeWithParams")
 	defer span.End()
@@ -134,23 +194,11 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 		return
 	}
 
-	minDistanceBetweenStrikes, err := s.getMinDistanceBetweenStrikes(req)
-	if err != nil {
-		errorCh <- fmt.Errorf("failed to get min distance between strikes: %w", err)
-		return
-	}
-
-	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV3(
+	options, err := eventservices.ConvertOptionsChain(
 		ctx,
-		s.OptionsByExpirationURL,
-		s.OptionChainURL,
-		s.StockURL,
-		s.BearerToken,
 		req.Symbol,
-		req.OptionTypes,
-		req.ExpirationsInDays,
-		minDistanceBetweenStrikes,
-		req.MaxNoOfStrikes,
+		inputData.FilteredOptions,
+		inputData.OptionChainTickByExpirationMap,
 	)
 
 	if err != nil {
@@ -160,8 +208,8 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 
 	result := map[string]interface{}{
 		"stock": map[string]interface{}{
-			"bid": stockTickItemDTO.Bid,
-			"ask": stockTickItemDTO.Ask,
+			"bid": inputData.StockTickItemDTO.Bid,
+			"ask": inputData.StockTickItemDTO.Ask,
 		},
 	}
 
@@ -176,7 +224,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 		Ticker:     req.Symbol,
 		GoEnv:      s.GoEnv,
 		SignalName: req.EV.Signal,
-	}, options, stockTickItemDTO)
+	}, options, inputData.StockTickItemDTO)
 
 	if err != nil {
 		errorCh <- err
@@ -244,7 +292,12 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 	}
 
 	if req.EV != nil {
-		go s.ServeWithParams(r.Context(), req, bFindSpreads, resultCh, errorCh)
+		data, err := s.CollectData(r.Context(), req)
+		if err != nil {
+			errorCh <- fmt.Errorf("tradier executer: %v: failed to collect data: %v", req.Symbol, err)
+			return
+		}
+		go s.ServeWithParams(r.Context(), req, data, bFindSpreads, resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

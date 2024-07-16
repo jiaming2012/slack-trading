@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/jiaming2012/slack-trading/src/cmd/trade/run"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
@@ -116,7 +116,7 @@ func Run(args RunArgs) (RunResult, error) {
 
 	url := fmt.Sprintf(tradierTradesURLTemplate, accountID)
 
-	if err := run.PlaceTradeSpread(context.Background(), url, bearerToken, args.UnderlyingSymbol, args.BuyToOpenSymbol, args.SellToOpenSymbol, args.Quantity, args.Tag, args.DryRun); err != nil {
+	if err := eventservices.PlaceTradeSpread(context.Background(), url, bearerToken, args.UnderlyingSymbol, args.BuyToOpenSymbol, args.SellToOpenSymbol, args.Quantity, args.Tag, args.DryRun); err != nil {
 		return RunResult{}, fmt.Errorf("error placing long spread trade: %v", err)
 	}
 

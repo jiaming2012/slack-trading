@@ -10,7 +10,7 @@ import (
 )
 
 type GetStateExecutor struct {
-	tracker *eventconsumers.TrackerV3Consumer
+	tracker *eventconsumers.TrackerConsumerV3
 }
 
 func (s *GetStateExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan map[string]interface{}, errCh chan error) {
@@ -37,7 +37,7 @@ func (s *GetStateExecutor) Serve(r *http.Request, request eventmodels.ApiRequest
 	resultCh <- stateCopy
 }
 
-func NewGetStateExecutor(tracker *eventconsumers.TrackerV3Consumer) *GetStateExecutor {
+func NewGetStateExecutor(tracker *eventconsumers.TrackerConsumerV3) *GetStateExecutor {
 	return &GetStateExecutor{
 		tracker: tracker,
 	}
