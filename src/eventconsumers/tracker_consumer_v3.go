@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -29,9 +30,10 @@ func (t *TrackerConsumerV3) GetState() (state map[string]string, unlock func()) 
 }
 
 type SignalTriggeredEvent struct {
-	Symbol eventmodels.StockSymbol
-	Signal eventmodels.SignalName
-	Ctx    context.Context
+	Timestamp time.Time
+	Symbol    eventmodels.StockSymbol
+	Signal    eventmodels.SignalName
+	Ctx       context.Context
 }
 
 func (t *TrackerConsumerV3) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
@@ -226,8 +228,9 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 	case "stochastic_rsi-buy":
 		if t.checkSupertrendH4H1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
-				Symbol: event.SignalTracker.Header.Symbol,
-				Signal: eventmodels.SuperTrend4h1hStochRsi15mUp,
+				Timestamp: event.SignalTracker.Timestamp,
+				Symbol:    event.SignalTracker.Header.Symbol,
+				Signal:    eventmodels.SuperTrend4h1hStochRsi15mUp,
 			})
 
 			logger.Info("SuperTrend4h1hStochRsi15mUp triggered")
@@ -235,8 +238,9 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 
 		if t.checkSupertrendH1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
-				Symbol: event.SignalTracker.Header.Symbol,
-				Signal: eventmodels.SuperTrend1hStochRsi15mUp,
+				Timestamp: event.SignalTracker.Timestamp,
+				Symbol:    event.SignalTracker.Header.Symbol,
+				Signal:    eventmodels.SuperTrend1hStochRsi15mUp,
 			})
 
 			logger.Info("SuperTrend1hStochRsi15mUp triggered")
@@ -245,8 +249,9 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 	case "stochastic_rsi-sell":
 		if t.checkSupertrendH4H1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
-				Symbol: event.SignalTracker.Header.Symbol,
-				Signal: eventmodels.SuperTrend4h1hStochRsi15mDown,
+				Timestamp: event.SignalTracker.Timestamp,
+				Symbol:    event.SignalTracker.Header.Symbol,
+				Signal:    eventmodels.SuperTrend4h1hStochRsi15mDown,
 			})
 
 			logger.Info("SuperTrend4h1hStochRsi15mDown triggered")
@@ -254,8 +259,9 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 
 		if t.checkSupertrendH1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
-				Symbol: event.SignalTracker.Header.Symbol,
-				Signal: eventmodels.SuperTrend1hStochRsi15mDown,
+				Timestamp: event.SignalTracker.Timestamp,
+				Symbol:    event.SignalTracker.Header.Symbol,
+				Signal:    eventmodels.SuperTrend1hStochRsi15mDown,
 			})
 
 			logger.Info("SuperTrend1hStochRsi15mDown triggered")
@@ -329,9 +335,10 @@ func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*e
 	for _, ev := range triggeredEvents {
 		logger.Infof("Signal triggered: %s", ev.Symbol)
 		t.signalTriggered <- SignalTriggeredEvent{
-			Symbol: ev.Symbol,
-			Signal: ev.Signal,
-			Ctx:    ctx,
+			Timestamp: ev.Timestamp,
+			Symbol:    ev.Symbol,
+			Signal:    ev.Signal,
+			Ctx:       ctx,
 		}
 	}
 

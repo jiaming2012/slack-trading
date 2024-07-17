@@ -125,9 +125,9 @@ func (s *ReadOptionChainRequestExecutor) getMinDistanceBetweenStrikes(req *event
 
 type FetchOptionChainDataInput struct {
 	OptionChainTickByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO
-	OptionContractDTO              *eventmodels.OptionContractDTO
-	StockTickItemDTO               *eventmodels.StockTickItemDTO
-	FilteredOptions                []eventmodels.OptionContractV3
+	// OptionContractDTO              *eventmodels.OptionContractDTO
+	StockTickItemDTO *eventmodels.StockTickItemDTO
+	FilteredOptions  []eventmodels.OptionContractV3
 }
 
 func (s *ReadOptionChainRequestExecutor) CollectData(ctx context.Context, req *eventmodels.ReadOptionChainRequest) (FetchOptionChainDataInput, error) {
@@ -177,13 +177,12 @@ func (s *ReadOptionChainRequestExecutor) CollectData(ctx context.Context, req *e
 
 	return FetchOptionChainDataInput{
 		OptionChainTickByExpirationMap: optionChainTickByExpirationMap,
-		OptionContractDTO:              optionsDTO,
 		StockTickItemDTO:               stockTickDTO,
 		FilteredOptions:                filteredOptions,
 	}, nil
 }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *eventmodels.ReadOptionChainRequest, inputData FetchOptionChainDataInput, bFindSpreads bool, resultCh chan map[string]interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *eventmodels.ReadOptionChainRequest, inputData FetchOptionChainDataInput, bFindSpreads bool, now time.Time, resultCh chan map[string]interface{}, errorCh chan error) {
 	tracer := otel.Tracer("ReadOptionChainRequestExecutor")
 	ctx, span := tracer.Start(ctx, "ReadOptionChainRequestExecutor.ServeWithParams")
 	defer span.End()
@@ -224,7 +223,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 		Ticker:     req.Symbol,
 		GoEnv:      s.GoEnv,
 		SignalName: req.EV.Signal,
-	}, options, inputData.StockTickItemDTO)
+	}, options, inputData.StockTickItemDTO, now)
 
 	if err != nil {
 		errorCh <- err
@@ -297,7 +296,7 @@ func (s *ReadOptionChainRequestExecutor) Serve(r *http.Request, request eventmod
 			errorCh <- fmt.Errorf("tradier executer: %v: failed to collect data: %v", req.Symbol, err)
 			return
 		}
-		go s.ServeWithParams(r.Context(), req, data, bFindSpreads, resultCh, errorCh)
+		go s.ServeWithParams(r.Context(), req, data, bFindSpreads, time.Now(), resultCh, errorCh)
 	} else {
 		go s.serve(req, resultCh, errorCh)
 	}

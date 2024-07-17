@@ -261,7 +261,7 @@ func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, trad
 		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
 	}
 
-	go optionsRequestExecutor.ServeWithParams(ctx, req, data, true, resultCh, errCh)
+	go optionsRequestExecutor.ServeWithParams(ctx, req, data, true, time.Now(), resultCh, errCh)
 
 	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)

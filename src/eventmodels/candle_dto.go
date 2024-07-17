@@ -1,8 +1,10 @@
 package eventmodels
 
 import (
+	"fmt"
 	"math"
 	"sort"
+	"time"
 )
 
 type CandleDTO struct {
@@ -12,6 +14,23 @@ type CandleDTO struct {
 	Low    float64 `json:"low"`
 	Close  float64 `json:"close"`
 	Volume int     `json:"volume"`
+}
+
+func (c *CandleDTO) ToCandle(loc *time.Location) (Candle, error) {
+	layout := "2006-01-02 15:04:05" // Go's reference time format
+	date, err := time.ParseInLocation(layout, c.Date, loc)
+	if err != nil {
+		return Candle{}, fmt.Errorf("ToCandle: error parsing date: %v", err)
+	}
+
+	return Candle{
+		Timestamp:   date,
+		LastUpdated: date,
+		Open:        c.Open,
+		High:        c.High,
+		Low:         c.Low,
+		Close:       c.Close,
+	}, nil
 }
 
 type CandleDTOs []*CandleDTO

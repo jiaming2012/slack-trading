@@ -13,6 +13,13 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func ReverseCandlesDTO(candles []*eventmodels.CandleDTO) []*eventmodels.CandleDTO {
+	for i, j := 0, len(candles)-1; i < j; i, j = i+1, j-1 {
+		candles[i], candles[j] = candles[j], candles[i]
+	}
+	return candles
+}
+
 func ImportAndSortCandles(inDir string, timeframe time.Duration) (eventmodels.TradingViewCandles, error) {
 	f, err := os.Open(inDir)
 	if err != nil {

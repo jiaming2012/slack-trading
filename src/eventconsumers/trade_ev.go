@@ -15,15 +15,15 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO) {
+func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO, err error) {
 	highestEVLongMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
 	highestEVShortMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
 
 	for _, option := range options {
 		expiration, err := option.GetExpiration()
 		if err != nil {
-			log.Errorf("FindHighestEV: failed to get expiration: %v", err)
-			continue
+			err = fmt.Errorf("FindHighestEV: failed to get expiration: %w", err)
+			return nil, nil, err
 		}
 
 		highestLongEV, found := highestEVLongMap[expiration]
@@ -60,7 +60,7 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 		}
 	}
 
-	return highestEVLong, highestEVShort
+	return highestEVLong, highestEVShort, nil
 }
 
 func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) error {
@@ -79,7 +79,11 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			}
 
 			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads := FindHighestEVPerExpiration(calls)
+				highestEVLongCallSpreads, highestEVShortCallSpreads, err := FindHighestEVPerExpiration(calls)
+				if err != nil {
+					return fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+				}
+
 				for _, spread := range highestEVLongCallSpreads {
 					if spread != nil {
 						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
@@ -110,7 +114,11 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			}
 
 			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads := FindHighestEVPerExpiration(puts)
+				highestEVLongPutSpreads, highestEVShortPutSpreads, err := FindHighestEVPerExpiration(puts)
+				if err != nil {
+					return fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+				}
+
 				for _, spread := range highestEVLongPutSpreads {
 					if spread != nil {
 						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)

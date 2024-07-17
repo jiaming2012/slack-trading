@@ -18,12 +18,12 @@ type OptionSpreadContractDTO struct {
 }
 
 func (dto *OptionSpreadContractDTO) GetExpiration() (time.Time, error) {
-	longExpiration, err := time.Parse("2006-01-02T15:04:05-07:00", dto.LongOptionExpiration)
+	longExpiration, err := time.Parse("2006-01-02T15:04:05Z", dto.LongOptionExpiration)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("GetExpiration: failed to parse longExpiration %w", err)
 	}
 	
-	shortExpiration, err := time.Parse("2006-01-02T15:04:05-07:00", dto.ShortOptionExpiration)
+	shortExpiration, err := time.Parse("2006-01-02T15:04:05Z", dto.ShortOptionExpiration)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("GetExpiration: failed to parse shortExpiration %w", err)
 	}

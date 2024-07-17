@@ -3,8 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -13,41 +11,6 @@ import (
 type OptionProfit struct {
 	Profit    float64
 	IsInMoney bool
-}
-
-// ParseOptionTicker function to parse the option ticker
-func ParseOptionTicker(ticker string) (*eventmodels.OptionSymbolComponents, error) {
-	// Regular expression to match the option ticker format
-	re := regexp.MustCompile(`^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$`)
-	matches := re.FindStringSubmatch(ticker)
-	if matches == nil {
-		return nil, fmt.Errorf("invalid option ticker format")
-	}
-
-	// Extract and parse the details
-	underlying := matches[1]
-	year, _ := strconv.Atoi(matches[2])
-	month, _ := strconv.Atoi(matches[3])
-	day, _ := strconv.Atoi(matches[4])
-	optionType := matches[5]
-	strikePrice, _ := strconv.ParseFloat(matches[6], 64)
-
-	// Construct the expiration date
-	expiration := time.Date(2000+year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-	expiration, err := eventmodels.ConvertToMarketClose(expiration)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert expiration to market close: %w", err)
-	}
-
-	// Create and return the Option struct
-	option := &eventmodels.OptionSymbolComponents{
-		Underlying:  underlying,
-		Expiration:  expiration,
-		OptionType:  optionType,
-		StrikePrice: strikePrice / 1000,
-		Symbol:      eventmodels.OptionSymbol(ticker),
-	}
-	return option, nil
 }
 
 func findOratsOptionDataAt(timestamp time.Time, data []eventmodels.OratsOptionData) (eventmodels.OratsOptionData, error) {
@@ -181,7 +144,7 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 	requestedPrice *= -1
 	slippage := requestedPrice - order.AvgFillPrice
 
-	option1, err := ParseOptionTicker(order.Leg[0].OptionSymbol)
+	option1, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
 	side1 := order.Leg[0].Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option1 ticker: %w", err)
@@ -196,7 +159,7 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 		return nil, errors.New("invalid option1 type")
 	}
 
-	option2, err := ParseOptionTicker(order.Leg[1].OptionSymbol)
+	option2, err := eventmodels.NewOptionSymbolComponents(order.Leg[1].OptionSymbol)
 	side2 := order.Leg[1].Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option2 ticker: %w", err)

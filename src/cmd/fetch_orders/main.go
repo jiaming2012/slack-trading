@@ -125,7 +125,7 @@ func Run(args RunArgs) (RunResult, error) {
 			continue
 		}
 
-		option, err := utils.ParseOptionTicker(order.Leg[0].OptionSymbol)
+		option, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error parsing option ticker: %v", err)
 		}

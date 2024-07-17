@@ -4,90 +4,99 @@ import (
 	"fmt"
 )
 
-type ThetaDataHistOptionOHLCResponse struct {
-	Header   ThetaDataResponseHeader `json:"header"`
-	Response [][]interface{}         `json:"response"`
+type ThetaDataResponse struct {
+	Header       ThetaDataResponseHeader `json:"header"`
+	OhlcResponse [][]interface{}         `json:"response"`
 }
 
-func (r *ThetaDataHistOptionOHLCResponse) GetHeaderIndex(headerName string) (int, error) {
+func (r *ThetaDataResponse) StoreHeaderIndex(headerName string, headerIndexMap map[string]int) error {
 	for i, v := range r.Header.Format {
 		if v == headerName {
-			return i, nil
+			headerIndexMap[v] = i
+			return nil
 		}
 	}
 
-	return -1, fmt.Errorf("ThetaDataHistOptionOHLCResponse: unable to find header %v", headerName)
+	return fmt.Errorf("ThetaDataResponse: StoreHeaderIndex: unable to find header %v", headerName)
 }
 
-func (r *ThetaDataHistOptionOHLCResponse) ToHistOptionOhlcDTO() ([]*HistOptionOhlcDTO, error) {
-	out := make([]*HistOptionOhlcDTO, 0)
+func (r *ThetaDataResponse) ToHistOptionOhlcDTO() ([]HistOptionOhlcDTO, error) {
+	headers := make(map[string]int)
 
-	msOfDayIndex, err := r.GetHeaderIndex("ms_of_day")
-	if err != nil {
+	if err := r.StoreHeaderIndex("ms_of_day", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	openIndex, err := r.GetHeaderIndex("open")
-	if err != nil {
+	if err := r.StoreHeaderIndex("open", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	highIndex, err := r.GetHeaderIndex("high")
-	if err != nil {
+	if err := r.StoreHeaderIndex("high", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	lowIndex, err := r.GetHeaderIndex("low")
-	if err != nil {
+	if err := r.StoreHeaderIndex("low", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	closeIndex, err := r.GetHeaderIndex("close")
-	if err != nil {
+	if err := r.StoreHeaderIndex("close", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	volumeIndex, err := r.GetHeaderIndex("volume")
-	if err != nil {
+	if err := r.StoreHeaderIndex("volume", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	dateIndex, err := r.GetHeaderIndex("date")
-	if err != nil {
+	if err := r.StoreHeaderIndex("date", headers); err != nil {
 		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: %w", err)
 	}
 
-	for _, row := range r.Response {
-		msOfDay, ok := row[msOfDayIndex].(float64)
+	ticks, err := getTicks(headers, r.OhlcResponse)
+	if err != nil {
+		return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: failed to convert ticks: %w", err)
+	}
+
+	return ticks, nil
+}
+
+func getTicks(headers map[string]int, ticks [][]interface{}) ([]HistOptionOhlcDTO, error) {
+	out := make([]HistOptionOhlcDTO, 0)
+
+	for _, row := range ticks {
+		msOfDay, ok := row[headers["msOfDay"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: msOfDay, unable to convert ms_of_day to float64, %v", row[0])
+			return nil, fmt.Errorf("getTicks: msOfDay, unable to convert ms_of_day to float64, %v", row[0])
 		}
-		open, ok := row[openIndex].(float64)
+		open, ok := row[headers["open"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: open, unable to convert open to float64, %v", row[2])
+			return nil, fmt.Errorf("getTicks: open, unable to convert open to float64, %v", row[2])
 		}
-		high, ok := row[highIndex].(float64)
+		high, ok := row[headers["high"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: high, unable to convert high to float64, %v", row[3])
+			return nil, fmt.Errorf("getTicks: high, unable to convert high to float64, %v", row[3])
 		}
-		low, ok := row[lowIndex].(float64)
+		low, ok := row[headers["low"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: low, unable to convert low to float64, %v", row[4])
+			return nil, fmt.Errorf("getTicks: low, unable to convert low to float64, %v", row[4])
 		}
-		close, ok := row[closeIndex].(float64)
+		close, ok := row[headers["close"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: close, unable to convert close to float64, %v", row[5])
+			return nil, fmt.Errorf("getTicks: close, unable to convert close to float64, %v", row[5])
 		}
-		volume, ok := row[volumeIndex].(float64)
+		volume, ok := row[headers["volume"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: volume, unable to convert volume to float64, %v", row[6])
+			return nil, fmt.Errorf("getTicks: volume, unable to convert volume to float64, %v", row[6])
 		}
-		date, ok := row[dateIndex].(float64)
+		date, ok := row[headers["date"]].(float64)
 		if !ok {
-			return nil, fmt.Errorf("ThetaDataHistOptionOHLCResponse: date, unable to convert date to string, %v", row[7])
+			return nil, fmt.Errorf("getTicks: date, unable to convert date to string, %v", row[7])
 		}
 
-		out = append(out, &HistOptionOhlcDTO{
+		if volume <= 0 {
+			continue
+		}
+
+		out = append(out, HistOptionOhlcDTO{
 			MsOfDay: int(msOfDay),
 			Open:    open,
 			High:    high,

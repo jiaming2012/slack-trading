@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRequest) (*eventmodels.ThetaDataHistOptionOHLCResponse, error) {
+func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRequest) (*eventmodels.ThetaDataResponse, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -49,7 +49,7 @@ func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRe
 		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to fetch option ohlc, http code %v", res.Status)
 	}
 
-	var dto eventmodels.ThetaDataHistOptionOHLCResponse
+	var dto eventmodels.ThetaDataResponse
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to decode json: %w", err)
 	}

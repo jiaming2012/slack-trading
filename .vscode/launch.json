@@ -18,6 +18,13 @@
             }
         },
         {
+            "name": "[DEV] cmd/backtester/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/backtester/src/main.go",
+        },
+        {
             "name": "[PROD] eventmain/main.go",
             "type": "go",
             "request": "launch",

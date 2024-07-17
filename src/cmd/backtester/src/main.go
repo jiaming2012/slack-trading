@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -25,7 +27,7 @@ import (
 func runTicks() {
 	req := eventmodels.ThetaDataHistOptionOHLCRequest{
 		Root:       "AAPL",
-		Right:      eventmodels.OptionTypeCall,
+		Right:      eventmodels.ThetaDataOptionTypeCall,
 		Expiration: time.Date(2023, time.November, 3, 0, 0, 0, 0, time.UTC),
 		Strike:     170.0,
 		StartDate:  time.Date(2023, time.November, 3, 0, 0, 0, 0, time.UTC),
@@ -75,7 +77,11 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			}
 
 			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads := eventconsumers.FindHighestEVPerExpiration(calls)
+				highestEVLongCallSpreads, highestEVShortCallSpreads, err := eventconsumers.FindHighestEVPerExpiration(calls)
+				if err != nil {
+					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+				}
+
 				for _, spread := range highestEVLongCallSpreads {
 					if spread != nil {
 						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
@@ -110,7 +116,11 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			}
 
 			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads := eventconsumers.FindHighestEVPerExpiration(puts)
+				highestEVLongPutSpreads, highestEVShortPutSpreads, err := eventconsumers.FindHighestEVPerExpiration(puts)
+				if err != nil {
+					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+				}
+				
 				for _, spread := range highestEVLongPutSpreads {
 					if spread != nil {
 						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
@@ -153,6 +163,19 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 	return nil, nil
 }
 
+func deriveNextOptionExpirationDate(now time.Time) time.Time {
+	// find the next friday
+	for {
+		if now.Weekday() == time.Friday {
+			break
+		}
+
+		now = now.AddDate(0, 0, 1)
+	}
+
+	return now
+}
+
 func run(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.OptionsConfigYAML, goEnv string) {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
@@ -192,6 +215,11 @@ func run(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opti
 
 		fmt.Printf("waiting for signal triggered events\n")
 		for event := range eventCh {
+			if event.Symbol == eventmodels.StockSymbol("spx") || event.Symbol == eventmodels.StockSymbol("ndx") {
+				log.Infof("ignoring %v event", event.Symbol)
+				continue
+			}
+
 			fmt.Printf("received signal triggered event: %v\n", event.Signal)
 			readOptionChainReq, err := eventconsumers.ProcessSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)
 			if err != nil {
@@ -205,9 +233,12 @@ func run(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opti
 			readOptionChainReq.EV.Signal = event.Signal
 
 			// TODO: fill in!!
-			data := optionsapi.FetchOptionChainDataInput{}
+			data, err := FetchOptionChainDataInput(event.Symbol, event.Timestamp, deriveNextOptionExpirationDate(event.Timestamp))
+			if err != nil {
+				log.Fatalf("failed to fetch option chain data: %v", err)
+			}
 
-			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, data, true, resultCh, errCh)
+			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, event.Timestamp, resultCh, errCh)
 
 			tradierTradeReq, err := SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv)
 			if err != nil {
@@ -217,6 +248,8 @@ func run(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opti
 			if err := BacktestTradeRequest(tradierTradeReq); err != nil {
 				log.Errorf("tradier executer: %v: process trade request failed: %v", event.Signal, err)
 			}
+
+			fmt.Printf("Place trade spread: %+v\n", tradierTradeReq)
 			// if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
 			// 	return nil, fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 			// }
@@ -256,19 +289,200 @@ func main() {
 
 	_ = ctx
 	_ = wg
-	// run(ctx, &wg, optionsConfig, goEnv)
 
-	root := eventmodels.StockSymbol("SPY")
-	at := time.Date(2024, 7, 12, 0, 0, 0, 0, time.UTC)
-	exp := time.Date(2024, 7, 19, 0, 0, 0, 0, time.UTC)
-	res := FetchOptionThetaBulkHistOptionOhlc(root, exp, at)
+	run(ctx, &wg, optionsConfig, goEnv)
 
-	fmt.Printf("res: %+v\n", res)
+	// root := eventmodels.StockSymbol("SPY")
+	// at := time.Date(2024, 7, 12, 0, 0, 0, 0, time.UTC)
+	// exp := time.Date(2024, 7, 19, 0, 0, 0, 0, time.UTC)
+
 }
 
-func FetchOptionThetaBulkHistOptionOhlc(root eventmodels.StockSymbol, contractExpiration time.Time, at time.Time) optionsapi.FetchOptionChainDataInput {
+func convertToTime(contracts []eventmodels.OptionContractV3) (map[time.Time][]eventmodels.OptionContractV3, error) {
+	result := make(map[time.Time][]eventmodels.OptionContractV3)
+	for _, c := range contracts {
+		ts, err := time.Parse("2006-01-02", string(c.ExpirationDate))
+		if err != nil {
+			log.Fatalf("failed to parse expiration date: %v", err)
+		}
 
-	return optionsapi.FetchOptionChainDataInput{}
+		if _, ok := result[ts]; !ok {
+			result[ts] = make([]eventmodels.OptionContractV3, 0)
+		}
+
+		result[ts] = append(result[ts], c)
+	}
+
+	return result, nil
+}
+
+func FetchOptionChainDataInput(root eventmodels.StockSymbol, at, exp time.Time) (*optionsapi.FetchOptionChainDataInput, error) {
+	request := eventmodels.ThetaDataBulkHistOptionOHLCRequest{
+		Root:       root,
+		Expiration: exp,
+		StartDate:  at,
+		EndDate:    at,
+		Interval:   1 * time.Minute,
+	}
+
+	baseURL := "http://localhost:25510"
+	resp, err := fetchOptionThetaBulkHistOptionOhlc(baseURL, request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch option ohlc: %w", err)
+	}
+
+	// dtos, err := resp.ToBulkHistOptionOhlcDTO()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to convert response to dto: %w", err)
+	// }
+
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load location: %w", err)
+	}
+
+	// for i, dto := range dtos {
+	// 	candles, err := eventmodels.HistOptionOhlcDTOs(dto.Candles).ConvertToHistOptionOhlc(loc)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to convert dto to candle: %w", err)
+	// 	}
+
+	// 	for j, candle := range candles {
+	// 		fmt.Printf("Candle %d: %+v\n", j, candle)
+	// 	}
+	// }
+
+	optionSpreadPerc := 0.005
+	contracts, optionTickByExpirationMap, err := resp.GetOptionContractsV3(loc, optionSpreadPerc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get option contracts: %w", err)
+	}
+
+	optionTypes := []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut}
+	// optionsContractByExpirationMap, err := contracts.ConvertToOptionContractsV3(root, optionTypes)
+	// if err != nil {
+	// 	return FetchOptionChainDataInput{}, fmt.Errorf("failed to convert Tradier options to contracts: %v", err)
+	// }
+
+	optionTickByExpirationTimeMap, err := convertToTime(contracts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert expiration date to time: %w", err)
+	}
+
+	stockSpreadPerc := 0.001
+	now := time.Date(2024, 7, 12, 13, 0, 0, 0, loc)
+	closestStockTickDTO, err := findClosestStockTickItemDTO(request, now, loc, stockSpreadPerc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find closest stock tick: %w", err)
+	}
+
+	maxNoOfStrikes := 4
+	minDistanceBetweenStrikes := 10.0
+	expirationInDays := []int{7}
+	_, filteredOptions := eventservices.FilterOptions(
+		optionTickByExpirationTimeMap,
+		closestStockTickDTO,
+		expirationInDays,
+		optionTypes,
+		minDistanceBetweenStrikes,
+		maxNoOfStrikes,
+		at,
+	)
+
+	return &optionsapi.FetchOptionChainDataInput{
+		StockTickItemDTO:               closestStockTickDTO,
+		OptionChainTickByExpirationMap: optionTickByExpirationMap,
+		FilteredOptions:                filteredOptions,
+	}, nil
+}
+
+func findClosestStockTickItemDTO(req eventmodels.ThetaDataBulkHistOptionOHLCRequest, now time.Time, loc *time.Location, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
+	candlesNearPriceReversedDTO, err := eventservices.FetchFinancialModelingPrepChart(req.Root, "1min", now, now.AddDate(0, 0, 1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
+	}
+
+	candlesNearPriceDTO := utils.ReverseCandlesDTO(candlesNearPriceReversedDTO)
+
+	var candles []*eventmodels.Candle
+	for _, dto := range candlesNearPriceDTO {
+		c, err := dto.ToCandle(loc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert dto to candle: %w", err)
+		}
+
+		candles = append(candles, &c)
+	}
+
+	closestPrice, err := findClosestPriceBeforeOrAt(candles, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find closest candle: %w", err)
+	}
+
+	// Find the closest candle before or at the current time
+	fmt.Printf("candlesNearPrice: %+v\n", closestPrice)
+
+	return &eventmodels.StockTickItemDTO{
+		Symbol: string(req.Root),
+		Bid:    closestPrice,
+		Ask:    closestPrice * (1 + spreadPerc),
+	}, nil
+}
+
+func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (float64, error) {
+	var closestCandle *eventmodels.Candle
+	for _, candle := range candles {
+		if candle.Timestamp.After(at) {
+			break
+		}
+
+		closestCandle = candle
+	}
+
+	return closestCandle.Open, nil
+}
+
+func fetchOptionThetaBulkHistOptionOhlc(baseURL string, r eventmodels.ThetaDataBulkHistOptionOHLCRequest) (*eventmodels.ThetaDataBulkResponse, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/v2/bulk_hist/option/ohlc", baseURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to create request: %w", err)
+	}
+
+	q := req.URL.Query()
+	q.Add("root", string(r.Root))
+	q.Add("exp", r.Expiration.Format("20060102"))
+	q.Add("start_date", r.StartDate.Format("20060102"))
+	q.Add("end_date", r.EndDate.Format("20060102"))
+	q.Add("ivl", fmt.Sprintf("%d", (int(r.Interval/time.Minute)*60000)))
+
+	req.URL.RawQuery = q.Encode()
+	req.Header.Add("Accept", "application/json")
+
+	log.Printf("FetchHistOptionOHLC: fetching option ohlc from %v", req.URL.String())
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to fetch option ohlc: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to fetch option ohlc, http code %v", res.Status)
+	}
+
+	var dto eventmodels.ThetaDataBulkResponse
+	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
+		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to decode json: %w", err)
+	}
+
+	return &dto, nil
 }
 
 func BacktestTradeRequest(req *eventmodels.TradierTradeRequest) error {

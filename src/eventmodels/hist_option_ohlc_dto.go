@@ -44,13 +44,13 @@ func convertDateAndMsToTime(date int, msOfDay int, loc *time.Location) (time.Tim
 	return time.Date(year, time.Month(month), day, hours, minutes, secs, msRemaining*1e6, loc), nil
 }
 
-func (dto *HistOptionOhlcDTO) ToHistOptionOhlc(loc *time.Location) (*HistOptionOhlc, error) {
+func (dto *HistOptionOhlcDTO) ToHistOptionOhlc(loc *time.Location) (HistOptionOhlc, error) {
 	timestamp, err := convertDateAndMsToTime(dto.Date, dto.MsOfDay, loc)
 	if err != nil {
-		return nil, fmt.Errorf("HistOptionOhlcDTO.ToHistOptionOhlc: failed to convert date and ms to time: %w", err)
+		return HistOptionOhlc{}, fmt.Errorf("HistOptionOhlcDTO.ToHistOptionOhlc: failed to convert date and ms to time: %w", err)
 	}
 
-	return &HistOptionOhlc{
+	return HistOptionOhlc{
 		Timestamp: timestamp,
 		Open:      dto.Open,
 		High:      dto.High,
@@ -58,13 +58,4 @@ func (dto *HistOptionOhlcDTO) ToHistOptionOhlc(loc *time.Location) (*HistOptionO
 		Close:     dto.Close,
 		Volume:    dto.Volume,
 	}, nil
-}
-
-type HistOptionOhlc struct {
-	Timestamp time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    int
 }

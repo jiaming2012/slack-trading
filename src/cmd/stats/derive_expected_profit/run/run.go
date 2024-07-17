@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -97,6 +98,12 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distribut
 	if err != nil {
 		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error getting options standard input: %v", err)
 	}
+
+	// write optionsInput to file
+	// optionsInputPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "options_input.json")
+	// if err := ioutil.WriteFile(optionsInputPath, []byte(optionsInput), 0644); err != nil {
+	// 	return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error writing options input to file: %v", err)
+	// }
 
 	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true")
 	cmd.Stdin = strings.NewReader(optionsInput)
@@ -286,14 +293,14 @@ func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string,
 	return resultMapLongSpread, resultMapShortSpread, nil
 }
 
-func FetchEVSpreads(ctx context.Context, projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+func FetchEVSpreads(ctx context.Context, projectDir string, bFindSpreads bool, args RunArgs, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, now time.Time) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
 	tracer := otel.Tracer("FetchEVSpreads")
 	_, span := tracer.Start(ctx, "FetchEVSpreads")
 	defer span.End()
 
 	logger := log.WithContext(ctx)
 
-	lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(time.Now(), options, 15*time.Minute)
+	lookaheadCandlesCount, lookaheadToOptionContractsMap := calculateLookaheadCandlesCount(now, options, 15*time.Minute)
 
 	logger.Infof("Running %v with lookaheadCandlesCount: %v", args.SignalName, lookaheadCandlesCount)
 

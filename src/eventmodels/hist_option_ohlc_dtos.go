@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-type HistOptionOhlcDTOs []*HistOptionOhlcDTO
+type HistOptionOhlcDTOs []HistOptionOhlcDTO
 
-func (dtos HistOptionOhlcDTOs) ConvertToHistOptionOhlc(loc *time.Location) ([]*HistOptionOhlc, error) {
-	result := make([]*HistOptionOhlc, len(dtos))
+func (dtos HistOptionOhlcDTOs) ConvertToHistOptionOhlc(loc *time.Location) ([]HistOptionOhlc, error) {
+	result := make([]HistOptionOhlc, len(dtos))
 	for i, dto := range dtos {
 		candle, err := dto.ToHistOptionOhlc(loc)
 		if err != nil {

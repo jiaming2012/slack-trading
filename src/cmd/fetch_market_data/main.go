@@ -195,7 +195,7 @@ func Run(args RunArgs) (RunResult, error) {
 
 		dayOfOpen := order.CreateDate
 		dayAfterOpen := order.CreateDate.AddDate(0, 0, 1)
-		underlyingPricesNearOpen, err := run.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", dayOfOpen, dayAfterOpen)
+		underlyingPricesNearOpen, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", dayOfOpen, dayAfterOpen)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error fetching underlying prices near open: %v", err)
 		}
@@ -224,7 +224,7 @@ func Run(args RunArgs) (RunResult, error) {
 		optionOrderData.Price = append(optionOrderData.Price, optionOpenPrice)
 
 		// Close
-		underlyingPriceNearClose, err := run.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
+		underlyingPriceNearClose, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error fetching underlying prices near close: %v", err)
 		}
@@ -242,12 +242,12 @@ func Run(args RunArgs) (RunResult, error) {
 
 		fromDate, toDate = order.CreateDate, option1.Expiration
 
-		underlyingCandles, err = run.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
+		underlyingCandles, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error fetching underlying candles: %v", err)
 		}
 
-		underlyingCandles = run.ReverseCandles(underlyingCandles)
+		underlyingCandles = utils.ReverseCandlesDTO(underlyingCandles)
 
 		// optionMultiplier := 100.0
 
