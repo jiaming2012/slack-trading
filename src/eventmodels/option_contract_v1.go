@@ -4,6 +4,7 @@ import "time"
 
 type OptionContractV1 struct {
 	BaseRequestEvent
+	Timestamp        time.Time    `json:"timestamp"`
 	Symbol           OptionSymbol `json:"symbol"`
 	UnderlyingSymbol StockSymbol  `json:"underlying_symbol"`
 	Description      string       `json:"description"`
@@ -26,6 +27,7 @@ func (c *OptionContractV1) GetSavedEventParameters() SavedEventParameters {
 
 func (c *OptionContractV1) ToDTO() *OptionContractV1DTO {
 	return &OptionContractV1DTO{
+		Timestamp:        c.Timestamp,
 		Symbol:           c.Symbol,
 		UnderlyingSymbol: c.UnderlyingSymbol,
 		Description:      c.Description,

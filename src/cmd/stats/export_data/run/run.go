@@ -7,21 +7,17 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"time"
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
+	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/utils"
-
-	"github.com/jiaming2012/slack-trading/src/eventservices"
-
-	"github.com/jiaming2012/slack-trading/src/eventpubsub"
-
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
-
 	"github.com/jiaming2012/slack-trading/src/cmd/stats/export_data/helpers"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type RunArgs struct {
@@ -144,19 +140,10 @@ func Run(args RunArgs) (RunOutput, error) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	candlesOUT := filteredCandles.ToCsvDTO()
+	candlesOUT := filteredCandles.ToDTO()
 
-	headers := helpers.GetHeadersFromStruct(*candlesOUT[0])
-
-	writer.Write(headers)
-
-	for _, c := range candlesOUT {
-		payload := []string{}
-		for _, header := range headers {
-			payload = append(payload, fmt.Sprintf("%v", reflect.ValueOf(*c).FieldByName(header).Interface()))
-		}
-
-		writer.Write(payload)
+	if err := gocsv.MarshalFile(&candlesOUT, file); err != nil {
+		return RunOutput{}, fmt.Errorf("error marshalling file: %v", err)
 	}
 
 	if args.StartsAt.IsZero() {

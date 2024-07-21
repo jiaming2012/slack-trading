@@ -27,39 +27,41 @@ type ReadOptionChainRequestExecutor struct {
 	GoEnv                    string
 }
 
-func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitLongSpreadMap map[string]eventmodels.ExpectedProfitItemSpread, expectedProfitShortSpreadMap map[string]eventmodels.ExpectedProfitItemSpread) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
+func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedProfitSpreadMap map[string]eventmodels.ExpectedProfitItemSpread) (map[string][]*eventmodels.OptionSpreadContractDTO, error) {
 	var callOptionsDTO []*eventmodels.OptionSpreadContractDTO
 	var putOptionsDTO []*eventmodels.OptionSpreadContractDTO
 
-	for description, longSpread := range expectedProfitLongSpreadMap {
-		shortSpread, found := expectedProfitShortSpreadMap[description]
-		if !found {
-			return nil, fmt.Errorf("formatOptionContractSpreads: missing short spread for description: %s", description)
-		}
+	for _, spreadMapItem := range expectedProfitSpreadMap {
+		// shortSpread, found := expectedProfitShortSpreadMap[description]
+		// if !found {
+		// 	return nil, fmt.Errorf("formatOptionContractSpreads: missing short spread for description: %s", description)
+		// }
 
 		spread := eventmodels.OptionSpreadContractDTO{
-			Description:           longSpread.Description,
-			DebitPaid:             longSpread.DebitPaid,
-			CreditReceived:        shortSpread.CreditReceived,
-			LongOptionSymbol:      eventmodels.OptionSymbol(longSpread.LongOptionSymbol),
-			LongOptionExpiration:  longSpread.LongOptionExpiration,
-			ShortOptionSymbol:     eventmodels.OptionSymbol(longSpread.ShortOptionSymbol),
-			ShortOptionExpiration: shortSpread.ShortOptionExpiration,
+			Description:             spreadMapItem.Description,
+			DebitPaid:               spreadMapItem.DebitPaid,
+			CreditReceived:          spreadMapItem.CreditReceived,
+			LongOptionSymbol:        eventmodels.OptionSymbol(spreadMapItem.LongOptionSymbol),
+			LongOptionAvgFillPrice:  spreadMapItem.LongOptionAvgFillPrice,
+			LongOptionExpiration:    spreadMapItem.LongOptionExpiration,
+			ShortOptionSymbol:       eventmodels.OptionSymbol(spreadMapItem.ShortOptionSymbol),
+			ShortOptionExpiration:   spreadMapItem.ShortOptionExpiration,
+			ShortOptionAvgFillPrice: spreadMapItem.ShortOptionAvgFillPrice,
 		}
 
 		spread.Stats = eventmodels.OptionStats{
-			ExpectedProfitLong:  longSpread.ExpectedProfit,
-			ExpectedProfitShort: shortSpread.ExpectedProfit,
+			ExpectedProfitLong:  0,
+			ExpectedProfitShort: spreadMapItem.ExpectedProfit,
 		}
 
-		if longSpread.Type == eventmodels.OptionTypeCallSpread {
+		if spreadMapItem.Type == eventmodels.OptionTypeCallSpread {
 			spread.Type = eventmodels.OptionTypeCallSpread
 			callOptionsDTO = append(callOptionsDTO, &spread)
-		} else if longSpread.Type == eventmodels.OptionTypePutSpread {
+		} else if spreadMapItem.Type == eventmodels.OptionTypePutSpread {
 			spread.Type = eventmodels.OptionTypePutSpread
 			putOptionsDTO = append(putOptionsDTO, &spread)
 		} else {
-			return nil, fmt.Errorf("formatOptionContractSpreads: invalid spread type: %s", longSpread.Type)
+			return nil, fmt.Errorf("formatOptionContractSpreads: invalid spread type: %s", spreadMapItem.Type)
 		}
 	}
 
@@ -215,9 +217,9 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 	startPeriodStr := req.EV.StartsAt.Format("2006-01-02T00:00:00")
 	endPeriodStr := req.EV.EndsAt.Format("2006-01-02T00:00:00")
 
-	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v\n", startPeriodStr, endPeriodStr)
+	log.Infof("Calculating EV from startPeriod: %v to endPeriod: %v", startPeriodStr, endPeriodStr)
 
-	expectedProfitLongSpreads, expectedProfitShortSpreads, err := derive_expected_profit.FetchEVSpreads(ctx, projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
+	_, expectedProfitShortSpreads, err := derive_expected_profit.FetchEVSpreads(ctx, projectsDir, bFindSpreads, derive_expected_profit.RunArgs{
 		StartsAt:   req.EV.StartsAt,
 		EndsAt:     req.EV.EndsAt,
 		Ticker:     req.Symbol,
@@ -230,7 +232,7 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 		return
 	}
 
-	output, err := s.formatOptionContractSpreads(expectedProfitLongSpreads, expectedProfitShortSpreads)
+	output, err := s.formatOptionContractSpreads(expectedProfitShortSpreads)
 	if err != nil {
 		errorCh <- err
 		return

@@ -8,11 +8,13 @@ from enum import Enum
 
 @dataclass
 class Stock:
+    timestamp: str
     bid: float
     ask: float
 
 @dataclass
 class Option:
+    timestamp: str
     symbol: str
     underlying_symbol: str
     description: str
@@ -21,6 +23,7 @@ class Option:
     contract_size: int
     expiration: str
     expiration_type: str
+    avg_fill_price: float
     bid: float
     ask: float
 

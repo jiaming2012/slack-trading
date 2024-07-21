@@ -120,12 +120,12 @@ func Run(args RunArgs) (RunResult, error) {
 			continue
 		}
 
-		option1, err := utils.ParseOptionTicker(order.Leg[0].OptionSymbol)
+		option1, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("TradierOrder.GetLeg: failed to parse option ticker: %w", err)
 		}
 
-		option2, err := utils.ParseOptionTicker(order.Leg[1].OptionSymbol)
+		option2, err := eventmodels.NewOptionSymbolComponents(order.Leg[1].OptionSymbol)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("TradierOrder.GetLeg: failed to parse option ticker: %w", err)
 		}
@@ -135,7 +135,7 @@ func Run(args RunArgs) (RunResult, error) {
 			return RunResult{}, fmt.Errorf("error parsing option leg 1 ticker: %v", err)
 		}
 
-		if orderLeg2.OptionSymbol == string(option1.Symbol) {
+		if orderLeg2.OptionSymbol == option1.Symbol {
 			option1, option2 = option2, option1
 		}
 
@@ -158,11 +158,11 @@ func Run(args RunArgs) (RunResult, error) {
 		}
 
 		if optionLegSymbol1 == "" {
-			optionLegSymbol1 = orderLeg1.OptionSymbol
+			optionLegSymbol1 = string(orderLeg1.OptionSymbol)
 		}
 
 		if optionLegSymbol2 == "" {
-			optionLegSymbol2 = orderLeg2.OptionSymbol
+			optionLegSymbol2 = string(orderLeg2.OptionSymbol)
 		}
 
 		if optionType1 == "" {

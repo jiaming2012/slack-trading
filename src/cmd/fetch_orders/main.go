@@ -143,7 +143,28 @@ func Run(args RunArgs) (RunResult, error) {
 
 		optionMultiplier := 100.0
 
-		resultOrder, err := utils.CalculateOptionOrderSpreadResult(order, candles, optionMultiplier)
+		resultOrder, err := utils.CalculateOptionOrderSpreadResult(eventmodels.OptionSpreadAnalysisRequest{
+			ID:  order.ID,
+			Tag: order.Tag,
+			Leg1: eventmodels.OptionSpreadLeg{
+				ID:           order.Leg[0].ID,
+				Symbol:       order.Leg[0].OptionSymbol,
+				Side:         order.Leg[0].Side,
+				Quantity:     order.Leg[0].Quantity,
+				AvgFillPrice: order.Leg[0].AvgFillPrice,
+			},
+			Leg2: eventmodels.OptionSpreadLeg{
+				ID:           order.Leg[1].ID,
+				Symbol:       order.Leg[1].OptionSymbol,
+				Side:         order.Leg[1].Side,
+				Quantity:     order.Leg[1].Quantity,
+				AvgFillPrice: order.Leg[1].AvgFillPrice,
+			},
+			CreateDate:    order.CreateDate,
+			AvgFillPrice:  order.AvgFillPrice,
+			ExecutionType: "market",
+		}, candles, optionMultiplier)
+
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)
 		}

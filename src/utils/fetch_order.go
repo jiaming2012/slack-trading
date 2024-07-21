@@ -111,41 +111,21 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	return optionProfit1, optionProfit2, nil
 }
 
-func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
-	if order == nil {
-		return nil, errors.New("order cannot be nil")
-	}
-
+func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisRequest, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
 	if len(underlyingDailyCandles) == 0 {
 		return nil, errors.New("underlyingCandles cannot be empty")
 	}
 
-	// if len(symbol1Data) == 0 {
-	// 	return nil, errors.New("symbol1Data cannot be empty")
-	// }
-
-	// if len(symbol2Data) == 0 {
-	// 	return nil, errors.New("symbol2Data cannot be empty")
-	// }
-
-	if order.Strategy != "spread" {
-		return nil, errors.New("order strategy must be spread")
-	}
-
-	if len(order.Leg) != 2 {
-		return nil, errors.New("order must have exactly 2 legs")
-	}
-
-	signalName, expectedProfit, requestedPrice, err := DecodeTag(order.Tag)
+	signalName, expectedProfit, requestedPrice, err := DecodeTag(req.Tag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode tag: %w", err)
 	}
 
 	requestedPrice *= -1
-	slippage := requestedPrice - order.AvgFillPrice
+	slippage := requestedPrice - req.AvgFillPrice
 
-	option1, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
-	side1 := order.Leg[0].Side
+	option1, err := eventmodels.NewOptionSymbolComponents(req.Leg1.Symbol)
+	side1 := req.Leg1.Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option1 ticker: %w", err)
 	}
@@ -159,8 +139,8 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 		return nil, errors.New("invalid option1 type")
 	}
 
-	option2, err := eventmodels.NewOptionSymbolComponents(order.Leg[1].OptionSymbol)
-	side2 := order.Leg[1].Side
+	option2, err := eventmodels.NewOptionSymbolComponents(req.Leg2.Symbol)
+	side2 := req.Leg2.Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option2 ticker: %w", err)
 	}
@@ -187,40 +167,42 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 	}
 
 	var debitPaid, creditReceived float64
-	if order.AvgFillPrice > 0 {
-		debitPaid = order.AvgFillPrice * optionMultiplier
+	if req.AvgFillPrice > 0 {
+		debitPaid = req.AvgFillPrice * optionMultiplier
 	} else {
-		creditReceived = -order.AvgFillPrice * optionMultiplier
+		creditReceived = -req.AvgFillPrice * optionMultiplier
 	}
 
 	result := eventmodels.OptionOrderSpreadResult{
-		OrderID:          order.ID,
-		Underlying:       order.Symbol,
-		ExecutionType:    order.Type,
-		Strategy:         order.Strategy,
-		CreatedTimestamp: order.CreateDate,
+		OrderID:          req.ID,
+		Underlying:       req.Underlying,
+		ExecutionType:    req.ExecutionType,
+		Strategy:         "spread",
+		CreatedTimestamp: req.CreateDate,
 		DebitPaid:        debitPaid,
 		CreditReceived:   creditReceived,
-		OrderID1:         order.Leg[1].ID,
-		Side1:            order.Leg[1].Side,
+		OrderID1:         req.Leg2.ID,
+		Side1:            req.Leg2.Side,
 		OptionType1:      option2Type,
-		Symbol1:          order.Leg[1].OptionSymbol,
+		Timestamp1:       req.Leg2.Timestamp,
+		Symbol1:          req.Leg2.Symbol,
 		StrikePrice1:     option2.StrikePrice,
-		Quantity1:        order.Leg[1].Quantity,
-		AvgFillPrice1:    order.Leg[1].AvgFillPrice,
-		OrderID2:         order.Leg[0].ID,
-		Side2:            order.Leg[0].Side,
+		Quantity1:        req.Leg2.Quantity,
+		AvgFillPrice1:    req.Leg2.AvgFillPrice,
+		OrderID2:         req.Leg1.ID,
+		Side2:            req.Leg1.Side,
 		OptionType2:      option1Type,
-		Symbol2:          order.Leg[0].OptionSymbol,
-		Quantity2:        order.Leg[0].Quantity,
+		Timestamp2:       req.Leg1.Timestamp,
+		Symbol2:          req.Leg1.Symbol,
+		Quantity2:        req.Leg1.Quantity,
 		StrikePrice2:     option1.StrikePrice,
-		AvgFillPrice2:    order.Leg[0].AvgFillPrice,
+		AvgFillPrice2:    req.Leg1.AvgFillPrice,
 		SignalName:       string(signalName),
 		ExpectedProfit:   expectedProfit * optionMultiplier,
 		RequestedPrice:   requestedPrice,
 		IsClosed:         isOption1Expired,
 		ExpirationDate:   expirationDate,
-		ExecutedPrice:    order.AvgFillPrice,
+		ExecutedPrice:    req.AvgFillPrice,
 		Slippage:         slippage,
 	}
 
@@ -237,7 +219,7 @@ func CalculateOptionOrderSpreadResult(order *eventmodels.TradierOrder, underlyin
 			return nil, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
 		}
 
-		creditReceivedAtOpen := -order.AvgFillPrice * 100
+		creditReceivedAtOpen := -req.AvgFillPrice * 100
 
 		result.PriceAtExpiry = symbol1DataAtExpiry.Close
 		result.InTheMoney1 = optionProfit1.IsInMoney

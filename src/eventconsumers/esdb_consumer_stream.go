@@ -40,9 +40,21 @@ func NewESDBConsumerStream[T eventmodels.SavedEvent](wg *sync.WaitGroup, url str
 	}
 }
 
-// In order to avoid race conditons and needing to make a copy of saved events on each call, we block the write operation with a mutex until the caller is done reading the data
+func NewESDBConsumerStreamV2[T eventmodels.SavedEvent](wg *sync.WaitGroup, url string, instance T, streamName eventmodels.StreamName) *esdbConsumerStream[T] {
+	return &esdbConsumerStream[T]{
+		wg:            wg,
+		url:           url,
+		savedEventsCh: make(chan EsdbEvent[T]),
+		streamName:    streamName,
+	}
+}
+
 func (cli *esdbConsumerStream[T]) GetEventCh() <-chan EsdbEvent[T] {
 	return cli.savedEventsCh
+}
+
+func (cli *esdbConsumerStream[T]) CloseEventCh() {
+	close(cli.savedEventsCh)
 }
 
 func (cli *esdbConsumerStream[T]) run(ctx context.Context, errCh chan error) {
@@ -182,38 +194,66 @@ func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmo
 	return nil
 }
 
-func (cli *esdbConsumerStream[T]) Start(ctx context.Context) {
+func (cli *esdbConsumerStream[T]) Replay(ctx context.Context) {
 	settings, err := esdb.ParseConnectionString(cli.url)
 	if err != nil {
-		log.Panicf("esdbConsumerStream: failed to parse connection string: %v", err)
+		log.Panicf("esdbConsumerStream.Replay: failed to parse connection string: %v", err)
 	}
 
 	cli.db, err = esdb.NewClient(settings)
 	if err != nil {
-		log.Panicf("esdbConsumerStream: failed to create client: %v", err)
+		log.Panicf("esdbConsumerStream.Replay: failed to create client: %v", err)
 	}
 
-	log.Debugf("esdbConsumerStream: fetching last event number for stream %s", cli.streamName)
+	log.Debugf("esdbConsumerStream.Replay: fetching last event number for stream %s", cli.streamName)
 
 	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
 	if err != nil {
-		log.Panicf("esdbConsumerStream: eventStoreDBClient: failed to find last event number: %v", err)
+		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to find last event number: %v", err)
 	}
 
-	log.Debugf("esdbConsumerStream: replaying events for stream %s", cli.streamName)
+	log.Debugf("esdbConsumerStream.Replay: replaying events for stream %s", cli.streamName)
+
+	lastEventNumber = 8 //REMOVE THIS LINE
+	if err := cli.replayEvents(ctx, cli.streamName, lastEventNumber); err != nil {
+		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to replay events: %v", err)
+	}
+
+	close(cli.savedEventsCh)
+}
+
+func (cli *esdbConsumerStream[T]) Start(ctx context.Context) {
+	settings, err := esdb.ParseConnectionString(cli.url)
+	if err != nil {
+		log.Panicf("esdbConsumerStream.Start: failed to parse connection string: %v", err)
+	}
+
+	cli.db, err = esdb.NewClient(settings)
+	if err != nil {
+		log.Panicf("esdbConsumerStream.Start: failed to create client: %v", err)
+	}
+
+	log.Debugf("esdbConsumerStream.Start: fetching last event number for stream %s", cli.streamName)
+
+	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
+	if err != nil {
+		log.Panicf("esdbConsumerStream.Start: eventStoreDBClient: failed to find last event number: %v", err)
+	}
+
+	log.Debugf("esdbConsumerStream.Start: replaying events for stream %s", cli.streamName)
 
 	if err := cli.replayEvents(ctx, cli.streamName, lastEventNumber); err != nil {
-		log.Panicf("esdbConsumerStream: eventStoreDBClient: failed to replay events: %v", err)
+		log.Panicf("esdbConsumerStream.Start: eventStoreDBClient: failed to replay events: %v", err)
 	}
 
-	log.Debugf("esdbConsumerStream: subscribing to stream %s", cli.streamName)
+	log.Debugf("esdbConsumerStream.Start: subscribing to stream %s", cli.streamName)
 
 	var errCh chan error
 	if errCh, err = cli.subscribeToStream(ctx, cli.streamName, lastEventNumber); err != nil {
-		log.Panicf("eventStoreDBClient: failed to subscribe to stream: %v", err)
+		log.Panicf("eventStoreDBClient.Start: failed to subscribe to stream: %v", err)
 	}
 
-	log.Info("esdbConsumerStream: running consumer...")
+	log.Info("esdbConsumerStream.Start: running consumer...")
 
 	go cli.run(ctx, errCh)
 }

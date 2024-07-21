@@ -4,7 +4,7 @@ import "time"
 
 type OptionOrderSpreadResult struct {
 	OrderID            uint         `json:"order_id" csv:"order_id"`
-	Underlying         string       `json:"underlying" csv:"underlying"`
+	Underlying         StockSymbol  `json:"underlying" csv:"underlying"`
 	ExecutionType      string       `json:"execution_type" csv:"execution_type"`
 	Strategy           string       `json:"strategy" csv:"strategy"`
 	CreatedTimestamp   time.Time    `json:"created_timestamp" csv:"created_timestamp"`
@@ -14,6 +14,7 @@ type OptionOrderSpreadResult struct {
 	DebitPaid          float64      `json:"debit_paid" csv:"debit_paid"`
 	CreditReceived     float64      `json:"credit_received" csv:"credit_received"`
 	OrderID1           uint         `json:"order_id_1" csv:"order_id_1"`
+	Timestamp1         time.Time    `json:"timestamp_1" csv:"timestamp_1"`
 	Side1              string       `json:"side_1" csv:"side_1"`
 	OptionType1        OptionType   `json:"option_type_1" csv:"option_type_1"`
 	Symbol1            OptionSymbol `json:"symbol_1" csv:"symbol_1"`
@@ -23,6 +24,7 @@ type OptionOrderSpreadResult struct {
 	InTheMoney1        bool         `json:"in_the_money_1" csv:"in_the_money_1"`
 	Profit1            float64      `json:"profit_1" csv:"profit_1"`
 	OrderID2           uint         `json:"order_id_2" csv:"order_id_2"`
+	Timestamp2         time.Time    `json:"timestamp_2" csv:"timestamp_2"`
 	Side2              string       `json:"side_2" csv:"side_2"`
 	OptionType2        OptionType   `json:"option_type_2" csv:"option_type_2"`
 	Symbol2            OptionSymbol `json:"symbol_2" csv:"symbol_2"`

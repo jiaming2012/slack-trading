@@ -23,6 +23,10 @@ type TrackerConsumerV3 struct {
 	mutex           sync.Mutex
 }
 
+func (t *TrackerConsumerV3) CloseSignalTriggeredCh() {
+	close(t.signalTriggered)
+}
+
 func (t *TrackerConsumerV3) GetState() (state map[string]string, unlock func()) {
 	t.mutex.Lock()
 	state = t.state
@@ -343,6 +347,26 @@ func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*e
 	}
 
 	return nil
+}
+
+func (t *TrackerConsumerV3) Replay(ctx context.Context) {
+	logger := log.WithContext(ctx)
+	logger.Infof("Starting TrackerV3Consumer in replay mode")
+
+	go func() {
+		for event := range t.client.GetEventCh() {
+			if err := t.processEvent(ctx, event, true); err != nil {
+				logger.Errorf("TrackerV3Consumer.Replay: failed to process event: %v", err)
+			}
+		}
+
+		fmt.Println("TrackerV3Consumer: replay done")
+		t.CloseSignalTriggeredCh()
+	}()
+
+	t.client.Replay(ctx)
+
+	logger.Infof("TrackerV3Consumer started in replay mode!!!")
 }
 
 func (t *TrackerConsumerV3) Start(ctx context.Context, processReplayEvents bool) {

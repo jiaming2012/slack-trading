@@ -78,12 +78,25 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 		found := false
 
 		for _, tick := range chain {
+			var avgFillPrice float64
+
+			if option.OptionType == eventmodels.OptionTypeCall {
+				avgFillPrice = tick.Ask
+			} else if option.OptionType == eventmodels.OptionTypePut {
+				avgFillPrice = tick.Bid
+			} else {
+				return fmt.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
+			}
+
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
+				options[i].Timestamp = tick.Timestamp
 				options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
 				options[i].Description = tick.Description
 				options[i].ExpirationType = tick.ExpirationType
 				options[i].Bid = tick.Bid
 				options[i].Ask = tick.Ask
+				options[i].AverageFillPrice = avgFillPrice
+
 				found = true
 				break
 			}

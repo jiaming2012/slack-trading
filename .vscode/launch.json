@@ -73,6 +73,13 @@
             "args": ["--orderIDs", "12886586", "--go-env", "development"]
         },
         {
+            "name": "[DEV] cmd/import_signals/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/import_signals/main.go",
+        },
+        {
             "name": "[DEV] cmd/backtester/main.go",
             "type": "go",
             "request": "launch",

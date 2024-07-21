@@ -205,7 +205,7 @@ func (cli *EsdbProducer) saveRequest(ctx context.Context, request interface{}) e
 		log.Fatalf("%T does not implement the SavedEvent interface", request)
 	}
 
-	if err := cli.saveEvent(ctx, event); err != nil {
+	if err := cli.SaveEvent(ctx, event); err != nil {
 		return fmt.Errorf("EsdbProducer: failed to save event: %w", err)
 	}
 
@@ -219,7 +219,7 @@ func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
 	}
 }
 
-func (cli *EsdbProducer) saveEvent(ctx context.Context, event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) SaveEvent(ctx context.Context, event eventmodels.SavedEvent) error {
 	log.WithField("event", event.GetSavedEventParameters().EventName).Debug("EsdbProducer.saveEvent")
 
 	if err := cli.insert(ctx, event); err != nil {

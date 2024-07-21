@@ -66,16 +66,18 @@ def profit_function_short_put(percent_change, stock_price, strike_price, premium
     new_stock_price = stock_price * (1 + percent_change / 100)
     return premium - max(strike_price - new_stock_price, 0)
 
-def approximate_expected_profit(stock_price, spread, lower_limit, upper_limit, steps=200):
+def approximate_expected_profit(stock_price, spread, lower_limit, upper_limit, steps=1000):
     percent_changes = np.linspace(lower_limit, upper_limit, steps)
     profits = np.array([profit_function_call_spread(p, stock_price, spread) for p in percent_changes])
     pdf_values = np.array([percent_change_pdf(p) for p in percent_changes])
 
     # Check for nan or inf values and handle them
     profits = np.nan_to_num(profits, nan=0.0, posinf=0.0, neginf=0.0)
+
     pdf_values = np.nan_to_num(pdf_values, nan=0.0, posinf=0.0, neginf=0.0)
 
     expected_profit = np.sum(profits * pdf_values) * (upper_limit - lower_limit) / steps
+
     return expected_profit
 
 if __name__ == "__main__":
@@ -190,7 +192,6 @@ if __name__ == "__main__":
         short_expected_profit = approximate_expected_profit(stock_price, spread, lower_limit, upper_limit)
         credit_received = spread.short_option.bid - spread.long_option.ask
         short_put_spreads_and_profits.append((spread, credit_received, short_expected_profit))
-
 
     long_call_spreads_and_profits.sort(key=lambda x: x[2], reverse=True)
     long_put_spreads_and_profits.sort(key=lambda x: x[2], reverse=True)

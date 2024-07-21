@@ -16,15 +16,6 @@ func (candles TradingViewCandles) ToDTO() []*TradingViewCandleDTO {
 	return dtos
 }
 
-func (candles TradingViewCandles) ToCsvDTO() []*CsvTradingViewCandleDTO {
-	var dtos []*CsvTradingViewCandleDTO
-	for _, candle := range candles {
-		dtos = append(dtos, candle.ToCsvDTO())
-	}
-
-	return dtos
-}
-
 func (candles TradingViewCandles) FindClosestCandleBeforeOrAt(timestamp time.Time) *TradingViewCandle {
 	var closestCandle *TradingViewCandle
 	for _, candle := range candles {

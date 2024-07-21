@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AtoiSlice converts a comma-separated string to an int slice
@@ -20,4 +21,9 @@ func AtoiSlice(s string) ([]int, error) {
 	}
 
 	return intVals, nil
+}
+
+func UnixMillisToTime(timestampMs int64) time.Time {
+	// Convert milliseconds to nanoseconds and create a time.Time object
+	return time.Unix(0, timestampMs*int64(time.Millisecond)).UTC()
 }

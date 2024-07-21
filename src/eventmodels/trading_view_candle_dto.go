@@ -9,15 +9,16 @@ import (
 // Write csvDto to CSV
 type TradingViewCandleDTO struct {
 	SavedEventParms SavedEventParameters `csv:"-" json:"-"`
-	Timestamp       string               `csv:"Timestamp" json:"time"`
-	Open            string               `csv:"Open" json:"open"`
-	High            string               `csv:"High" json:"high"`
-	Low             string               `csv:"Low" json:"low"`
-	Close           string               `csv:"Close" json:"close"`
-	UpTrend         string               `csv:"UpTrend" json:"Up Trend"`
-	UpTrendBegins   string               `csv:"UpTrendBegins" json:"UpTrend Begins"`
-	DownTrend       string               `csv:"DownTrend" json:"Down Trend"`
-	DownTrendBegins string               `csv:"DownTrendBegins" json:"DownTrend Begins"`
+	DoNotInclude    string               `csv:"-" json:"-"`
+	Timestamp       string               `csv:"time" json:"time"`
+	Open            string               `csv:"open" json:"open"`
+	High            string               `csv:"high" json:"high"`
+	Low             string               `csv:"low" json:"low"`
+	Close           string               `csv:"close" json:"close"`
+	UpTrend         string               `csv:"Up Trend" json:"Up Trend"`
+	UpTrendBegins   string               `csv:"UpTrend Begins" json:"UpTrend Begins"`
+	DownTrend       string               `csv:"Down Trend" json:"Down Trend"`
+	DownTrendBegins string               `csv:"DownTrend Begins" json:"DownTrend Begins"`
 	K               string               `csv:"K" json:"K"`
 	D               string               `csv:"D" json:"D"`
 }

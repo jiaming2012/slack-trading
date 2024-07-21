@@ -14,7 +14,7 @@ import (
 
 func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRequest) (*eventmodels.ThetaDataResponse, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 15 * time.Second,
 	}
 
 	url := fmt.Sprintf("%s/v2/hist/option/ohlc", baseURL)

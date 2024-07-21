@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -67,8 +66,9 @@ func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.Stock
 	input, err := json.Marshal(map[string]interface{}{
 		"options": filteredOptionsDTO,
 		"stock": map[string]interface{}{
-			"bid": stockInfo.Bid,
-			"ask": stockInfo.Ask,
+			"timestamp": stockInfo.Timestamp,
+			"bid":       stockInfo.Bid,
+			"ask":       stockInfo.Ask,
 		},
 	})
 
@@ -108,6 +108,8 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distribut
 	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true")
 	cmd.Stdin = strings.NewReader(optionsInput)
 	cmd.Stderr = os.Stderr
+
+	log.Debugf("running command: %v", cmd.String())
 
 	output, err := cmd.Output()
 	if err != nil {

@@ -52,10 +52,12 @@ func (r *ThetaDataBulkResponse) GetOptionContractsV3(loc *time.Location, spread 
 			return nil, nil, fmt.Errorf("ThetaDataBulkResponse: GetOptionContractsV3: failed to parse expiration: %w, using %v", err, expirationStr)
 		}
 
+		strike := dto.Contract.Strike / 1000.0
+
 		components := OptionSymbolComponents{
 			Underlying:  string(dto.Contract.Root),
 			Expiration:  expiration,
-			StrikePrice: dto.Contract.Strike,
+			StrikePrice: strike,
 			OptionType:  dto.Contract.Right,
 		}
 
@@ -68,7 +70,7 @@ func (r *ThetaDataBulkResponse) GetOptionContractsV3(loc *time.Location, spread 
 		contracts = append(contracts, OptionContractV3{
 			Symbol:           ticker,
 			UnderlyingSymbol: StockSymbol(dto.Contract.Root),
-			Strike:           dto.Contract.Strike,
+			Strike:           strike,
 			OptionType:       optionType,
 			Expiration:       expiration,
 			ExpirationDate:   ExpirationDate(expiration.Format("2006-01-02")),
@@ -93,12 +95,13 @@ func (r *ThetaDataBulkResponse) GetOptionContractsV3(loc *time.Location, spread 
 			}
 
 			optionChainTickMap[ExpirationDate(expStr)] = append(optionChainTickMap[ExpirationDate(expStr)], &OptionChainTickDTO{
+				Timestamp:    candle.Timestamp,
 				Symbol:       string(ticker),
 				Description:  optionDescription,
 				Bid:          candle.Open,
 				Ask:          candle.Open * (1 + spread),
 				OptionType:   string(optionType),
-				Strike:       dto.Contract.Strike,
+				Strike:       dto.Contract.Strike / 1000.0,
 				ContractSize: contractSize,
 			})
 		}

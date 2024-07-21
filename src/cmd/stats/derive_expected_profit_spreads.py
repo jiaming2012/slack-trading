@@ -160,17 +160,17 @@ if __name__ == "__main__":
 
     calls = filter_calls(options)
     
-    long_call_spreads = generate_long_vertical_spreads(calls, symbol)
+    # long_call_spreads = generate_long_vertical_spreads(calls, symbol)
 
-    for spread in long_call_spreads:
-        if spread.type != SpreadType.VERTICAL_CALL:
-            raise ValueError(f"Invalid option type: {spread.type}")
+    # for spread in long_call_spreads:
+    #     if spread.type != SpreadType.VERTICAL_CALL:
+    #         raise ValueError(f"Invalid option type: {spread.type}")
 
-        # Integrate the expected profit over the range of percent changes
-        long_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
-        long_expected_profit, _ = integrate.quad(long_call_spread_integrand, lower_limit, upper_limit)
-        debit_paid = spread.long_option.ask - spread.short_option.bid
-        long_call_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
+    #     # Integrate the expected profit over the range of percent changes
+    #     long_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
+    #     long_expected_profit, _ = integrate.quad(long_call_spread_integrand, lower_limit, upper_limit)
+    #     debit_paid = spread.long_option.ask - spread.short_option.bid
+    #     long_call_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
 
     short_call_spreads = generate_short_vertical_spreads(calls, symbol)
 
@@ -186,17 +186,17 @@ if __name__ == "__main__":
 
     puts = filter_puts(options)
 
-    long_put_spreads = generate_long_vertical_spreads(puts, symbol)
+    # long_put_spreads = generate_long_vertical_spreads(puts, symbol)
 
-    for spread in long_put_spreads:
-        if spread.type != SpreadType.VERTICAL_PUT:
-            raise ValueError(f"Invalid option type: {spread.type}")
+    # for spread in long_put_spreads:
+    #     if spread.type != SpreadType.VERTICAL_PUT:
+    #         raise ValueError(f"Invalid option type: {spread.type}")
 
-        # Integrate the expected profit over the range of percent changes
-        long_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
-        long_expected_profit, _ = integrate.quad(long_put_spread_integrand, lower_limit, upper_limit)
-        debit_paid = spread.long_option.ask - spread.short_option.bid
-        long_put_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
+    #     # Integrate the expected profit over the range of percent changes
+    #     long_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
+    #     long_expected_profit, _ = integrate.quad(long_put_spread_integrand, lower_limit, upper_limit)
+    #     debit_paid = spread.long_option.ask - spread.short_option.bid
+    #     long_put_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
 
     short_put_spreads = generate_short_vertical_spreads(puts, symbol)
 
@@ -227,10 +227,14 @@ if __name__ == "__main__":
         output.append({
             "description": spread.description(),
             "type": spread.type,
+            "long_option_timestamp": spread.long_option.timestamp,
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
+            "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
+            "short_option_avg_fill_price": spread.short_option.avg_fill_price,
             "debit_paid": str(debit_paid),
             "expected_profit": str(long_expected_profit)
         })
@@ -246,10 +250,14 @@ if __name__ == "__main__":
         output.append({
             "description": spread.description(),
             "type": spread.type,
+            "long_option_timestamp": spread.long_option.timestamp,
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
+            "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
+            "short_option_avg_fill_price": spread.short_option.avg_fill_price,
             "credit_received": str(credit_received),
             "expected_profit": str(short_expected_profit)
         })

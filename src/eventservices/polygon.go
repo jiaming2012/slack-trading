@@ -14,20 +14,20 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func FetchFinancialModelingPrepChart(symbol eventmodels.StockSymbol, timeframeStr string, fromDate time.Time, toDate time.Time) ([]*eventmodels.CandleDTO, error) {
-	apiKey := os.Getenv("FINANCIAL_MODELING_PREP_API_KEY")
+func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (*eventmodels.PolygonCandleResponse, error) {
+	apiKey := os.Getenv("POLYGON_API_KEY")
 	if apiKey == "" {
-		return nil, fmt.Errorf("missing FINANCIAL_MODELING_PREP_API_KEY environment variable")
+		return nil, fmt.Errorf("missing POLYGON_API_KEY environment")
 	}
 
 	// Parse the base URL
-	parsedURL, err := url.Parse("https://financialmodelingprep.com/api/v3/historical-chart")
+	parsedURL, err := url.Parse("https://api.polygon.io/v2/aggs/ticker")
 	if err != nil {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to parse base URL: %w", err)
+		return nil, fmt.Errorf("FetchPolygonStockChart: failed to parse base URL: %w", err)
 	}
 
 	// Join the additional path
-	joinedPath := path.Join(parsedURL.Path, timeframeStr, string(symbol))
+	joinedPath := path.Join(parsedURL.Path, string(symbol), "range", fmt.Sprintf("%d", timeframeValue), timeframeUnit, fromDate.Format("2006-01-02"), toDate.Format("2006-01-02"))
 	parsedURL.Path = joinedPath
 
 	client := http.Client{
@@ -40,9 +40,9 @@ func FetchFinancialModelingPrepChart(symbol eventmodels.StockSymbol, timeframeSt
 	}
 
 	q := req.URL.Query()
-	q.Add("from", fromDate.Format("2006-01-02"))
-	q.Add("to", toDate.Format("2006-01-02"))
-	q.Add("apikey", apiKey)
+	q.Add("sort", "asc")
+	q.Add("adjusted", "false")
+	q.Add("apiKey", apiKey)
 
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")
@@ -60,14 +60,18 @@ func FetchFinancialModelingPrepChart(symbol eventmodels.StockSymbol, timeframeSt
 		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to fetch stock tick, http code %v", res.Status)
 	}
 
-	var dto []*eventmodels.CandleDTO
+	var dto eventmodels.PolygonCandleResponse
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to decode json: %w", err)
 	}
 
-	if len(dto) == 0 {
+	if dto.Status != "OK" {
+		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: status not OK: %v", dto.Status)
+	}
+
+	if dto.ResultsCount == 0 {
 		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: no data returned")
 	}
 
-	return dto, nil
+	return &dto, nil
 }
