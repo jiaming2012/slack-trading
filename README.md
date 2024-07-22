@@ -14,10 +14,16 @@ Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac47
 ## Install golang and python
 Both golang:1.20 and python:3.7.9 are required.
 
+If installing on ubuntu:
+``` bash
+sudo apt-get install python3.8-venv
+```
+
 ## Initiate your python env
 ``` bash
 cd path/to/slack-trading/src/cmd/stats
-pip install -r requirements.txt
+python3 -m venv $PROJECTS_DIR/slack-trading/src/cmd/stats/env
+$PROJECTS_DIR/slack-trading/src/cmd/stats/env/bin/pip install -r src/cmd/stats/requirements.txt
 ```
 
 # Dockerfile
