@@ -3,6 +3,7 @@ package eventmodels
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type ExpectedProfitItemSpreadDTO struct {
@@ -65,15 +66,29 @@ func (dto *ExpectedProfitItemSpreadDTO) ToModel() (*ExpectedProfitItemSpread, er
 		expectedProfit = expectedProfitValue
 	}
 
+	longOptionTimestamp, err := time.Parse(time.RFC3339, dto.LongOptionTimestamp)
+	if err != nil {
+		return nil, fmt.Errorf("ExpectedProfitItemSpreadDTO: ToModel: failed to parse LongOptionTimestamp %w", err)
+	}
+
+	shortOptionTimestamp, err := time.Parse(time.RFC3339, dto.ShortOptionTimestamp)
+	if err != nil {
+		return nil, fmt.Errorf("ExpectedProfitItemSpreadDTO: ToModel: failed to parse ShortOptionTimestamp %w", err)
+	}
+
 	return &ExpectedProfitItemSpread{
-		Description:           dto.Description,
-		Type:                  dto.Type,
-		LongOptionSymbol:      dto.LongOptionSymbol,
-		LongOptionExpiration:  dto.LongOptionExpiration,
-		ShortOptionSymbol:     dto.ShortOptionSymbol,
-		ShortOptionExpiration: dto.ShortOptionExpiration,
-		DebitPaid:             debitPaid,
-		CreditReceived:        creditReceived,
-		ExpectedProfit:        expectedProfit,
+		Description:             dto.Description,
+		Type:                    dto.Type,
+		LongOptionTimestamp:     longOptionTimestamp,
+		LongOptionSymbol:        dto.LongOptionSymbol,
+		LongOptionExpiration:    dto.LongOptionExpiration,
+		LongOptionAvgFillPrice:  dto.LongOptionAvgFillPrice,
+		ShortOptionTimestamp:    shortOptionTimestamp,
+		ShortOptionSymbol:       dto.ShortOptionSymbol,
+		ShortOptionExpiration:   dto.ShortOptionExpiration,
+		ShortOptionAvgFillPrice: dto.ShortOptionAvgFillPrice,
+		DebitPaid:               debitPaid,
+		CreditReceived:          creditReceived,
+		ExpectedProfit:          expectedProfit,
 	}, nil
 }

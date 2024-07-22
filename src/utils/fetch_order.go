@@ -51,26 +51,26 @@ func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
 	return option1Cost + option2Cost
 }
 
-func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
+func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, premium float64, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
 	if option.OptionType == "C" {
 		if underlyingPriceAtExpiry > option.StrikePrice {
-			return (underlyingPriceAtExpiry - option.StrikePrice) * optionMultiplier, nil
+			return (underlyingPriceAtExpiry - option.StrikePrice - premium) * optionMultiplier, nil
 		} else {
-			return 0, nil
+			return -premium * optionMultiplier, nil
 		}
 	} else if option.OptionType == "P" {
 		if underlyingPriceAtExpiry < option.StrikePrice {
-			return (option.StrikePrice - underlyingPriceAtExpiry) * optionMultiplier, nil
+			return (option.StrikePrice - underlyingPriceAtExpiry - premium) * optionMultiplier, nil
 		} else {
-			return 0, nil
+			return -premium * optionMultiplier, nil
 		}
 	} else {
 		return 0, errors.New("invalid option type")
 	}
 }
 
-func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, option2 eventmodels.OptionSymbolComponents, side2 string, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
-	profit1, err := calculateOptionProfitAtExpiry(option1, underlyingClosePrcAtExpiry, optionMultiplier)
+func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, premiumPaid1 float64, option2 eventmodels.OptionSymbolComponents, side2 string, premiumPaid2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
+	profit1, err := calculateOptionProfitAtExpiry(option1, premiumPaid1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option1 profit: %w", err)
 	}
@@ -89,7 +89,7 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 
 	optionProfit1.Profit = profit1
 
-	profit2, err := calculateOptionProfitAtExpiry(option2, underlyingClosePrcAtExpiry, optionMultiplier)
+	profit2, err := calculateOptionProfitAtExpiry(option2, premiumPaid2, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option2 profit: %w", err)
 	}
@@ -214,19 +214,17 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		}
 
 		optionMultiplier := 100.0
-		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(*option2, side2, *option1, side1, symbol1DataAtExpiry.Close, optionMultiplier)
+		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(*option2, side2, req.Leg2.AvgFillPrice, *option1, side1, req.Leg1.AvgFillPrice, symbol1DataAtExpiry.Close, optionMultiplier)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
 		}
-
-		creditReceivedAtOpen := -req.AvgFillPrice * 100
 
 		result.PriceAtExpiry = symbol1DataAtExpiry.Close
 		result.InTheMoney1 = optionProfit1.IsInMoney
 		result.Profit1 = optionProfit1.Profit
 		result.InTheMoney2 = optionProfit2.IsInMoney
 		result.Profit2 = optionProfit2.Profit
-		result.Profit = creditReceivedAtOpen + optionProfit1.Profit + optionProfit2.Profit
+		result.Profit = optionProfit1.Profit + optionProfit2.Profit
 	}
 
 	return &result, nil

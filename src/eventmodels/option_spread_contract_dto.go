@@ -12,10 +12,10 @@ type OptionSpreadContractDTO struct {
 	DebitPaid               *float64     `json:"debit_paid"`
 	CreditReceived          *float64     `json:"credit_received"`
 	LongOptionSymbol        OptionSymbol `json:"longOptionSymbol"`
-	LongOptionTimestamp     string       `json:"longOptionTimestamp"`
+	LongOptionTimestamp     time.Time    `json:"longOptionTimestamp"`
 	LongOptionExpiration    string       `json:"longOptionExpiration"`
 	LongOptionAvgFillPrice  float64      `json:"longOptionAvgFillPrice"`
-	ShortOptionTimestamp    string       `json:"shortOptionTimestamp"`
+	ShortOptionTimestamp    time.Time    `json:"shortOptionTimestamp"`
 	ShortOptionSymbol       OptionSymbol `json:"shortOptionSymbol"`
 	ShortOptionExpiration   string       `json:"shortOptionExpiration"`
 	ShortOptionAvgFillPrice float64      `json:"shortOptionAvgFillPrice"`

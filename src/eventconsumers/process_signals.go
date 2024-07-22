@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
 )
 
-func ProcessSignalTriggeredEvent(event SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) (*eventmodels.ReadOptionChainRequest ,error) {
+func ProcessSignalTriggeredEvent(event SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) (*eventmodels.ReadOptionChainRequest, error) {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -47,6 +47,7 @@ func ProcessSignalTriggeredEvent(event SignalTriggeredEvent, tradierOrderExecute
 		EV: &eventmodels.ReadOptionChainExpectedValue{
 			StartsAt: startsAt,
 			EndsAt:   endsAt,
+			Signal:   event.Signal,
 		},
 	}, nil
 }
