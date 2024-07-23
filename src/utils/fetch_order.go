@@ -173,6 +173,11 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		creditReceived = -req.AvgFillPrice * optionMultiplier
 	}
 
+	underlyingPriceAtOpen, err := findCandleDTOAt(req.CreateDate, underlyingDailyCandles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find underlying price at open: %w", err)
+	}
+
 	result := eventmodels.OptionOrderSpreadResult{
 		OrderID:          req.ID,
 		Underlying:       req.Underlying,
@@ -204,6 +209,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		ExpirationDate:   expirationDate,
 		ExecutedPrice:    req.AvgFillPrice,
 		Slippage:         slippage,
+		UnderlyingPriceAtOpen: underlyingPriceAtOpen.Close,
 	}
 
 	buffer := 15 * time.Minute
@@ -219,7 +225,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 			return nil, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
 		}
 
-		result.PriceAtExpiry = symbol1DataAtExpiry.Close
+		result.UnderlyingPriceAtExpiry = symbol1DataAtExpiry.Close
 		result.InTheMoney1 = optionProfit1.IsInMoney
 		result.Profit1 = optionProfit1.Profit
 		result.InTheMoney2 = optionProfit2.IsInMoney

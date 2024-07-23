@@ -16,7 +16,7 @@ func FetchTradierQuotes(baseUrl, bearerToken string, symbol eventmodels.StockSym
 
 	req, err := http.NewRequest(http.MethodGet, baseUrl, nil)
 	if err != nil {
-		return nil, fmt.Errorf("FetchTradierOrder: failed to create request: %w", err)
+		return nil, fmt.Errorf("FetchTradierQuotes: failed to create request: %w", err)
 	}
 
 	dateString := date.Format("2006-01-02")
@@ -32,38 +32,38 @@ func FetchTradierQuotes(baseUrl, bearerToken string, symbol eventmodels.StockSym
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain: %w", err)
+		return nil, fmt.Errorf("FetchTradierQuotes: failed to fetch option chain: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain, http code %v", res.Status)
+		return nil, fmt.Errorf("FetchTradierQuotes: failed to fetch option chain, http code %v", res.Status)
 	}
 
 	var dto eventmodels.TradierMarketsHistoryResponseDTO
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
-		return nil, fmt.Errorf("FetchTradierOrder: failed to decode json: %w", err)
+		return nil, fmt.Errorf("FetchTradierQuotes: failed to decode json: %w", err)
 	}
 
 	if dto.History.Day.Date != dateString {
-		return nil, fmt.Errorf("FetchTradierOrder: expected date %s, got %s", dateString, dto.History.Day.Date)
+		return nil, fmt.Errorf("FetchTradierQuotes: expected date %s, got %s", dateString, dto.History.Day.Date)
 	}
 
 	if dto.History.Day.Open == 0 {
-		return nil, fmt.Errorf("FetchTradierOrder: open price is 0")
+		return nil, fmt.Errorf("FetchTradierQuotes: open price is 0")
 	}
 
 	if dto.History.Day.High == 0 {
-		return nil, fmt.Errorf("FetchTradierOrder: high price is 0")
+		return nil, fmt.Errorf("FetchTradierQuotes: high price is 0")
 	}
 
 	if dto.History.Day.Low == 0 {
-		return nil, fmt.Errorf("FetchTradierOrder: low price is 0")
+		return nil, fmt.Errorf("FetchTradierQuotes: low price is 0")
 	}
 
 	if dto.History.Day.Close == 0 {
-		return nil, fmt.Errorf("FetchTradierOrder: close price is 0")
+		return nil, fmt.Errorf("FetchTradierQuotes: close price is 0")
 	}
 
 	return &dto, nil

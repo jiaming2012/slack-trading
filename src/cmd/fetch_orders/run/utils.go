@@ -1,37 +1,21 @@
 package run
 
 import (
-	"crypto/sha256"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"time"
 
 	"github.com/gocarina/gocsv"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-// hashOptionOrderSpreadResult takes each OrderID and returns its SHA-256 hash as a hex string.
-func hashOptionOrderSpreadResult(results []*eventmodels.OptionOrderSpreadResult) string {
-	var orderIDBytes []byte
-	for _, result := range results {
-		// Convert OrderID to byte slice. Since OrderID is a uint, it needs to be converted to a string first.
-		orderIDBytes = append(orderIDBytes, []byte(fmt.Sprintf("%d", result.OrderID))...)
-	}
-
-	// Compute SHA-256 hash
-	hash := sha256.Sum256(orderIDBytes)
-
-	// Convert hash to hex string
-	hashHex := fmt.Sprintf("%x", hash)
-
-	return hashHex
-}
-
 func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult) (string, error) {
-	outFilePath := path.Join(inDir, fmt.Sprintf("%s.csv", hashOptionOrderSpreadResult(results)))
+	now := time.Now()
+	outFilePath := path.Join(inDir, fmt.Sprintf("backtest_%s.csv", now.Format("2006-01-02_15-04-05")))
 
 	// Create directory if it doesn't exist
 	if _, err := os.Stat(inDir); os.IsNotExist(err) {

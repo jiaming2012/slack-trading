@@ -30,9 +30,16 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	}
 
 	// Load the specified .env file
-	err := godotenv.Load(envFile)
-	if err != nil {
+	if err := godotenv.Load(envFile); err != nil {
 		return fmt.Errorf("failed to load %s file: %v", envFile, err)
+	}
+
+	// Set logger
+	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(level)
 	}
 
 	return nil

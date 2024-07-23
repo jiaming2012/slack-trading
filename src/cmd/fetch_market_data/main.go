@@ -291,7 +291,7 @@ func Run(args RunArgs) (RunResult, error) {
 
 	var optionCandles1, optionCandles2 []eventmodels.CandleDTO
 
-	thetaDataBaseURL := "http://192.168.1.160:25510"
+	thetaDataBaseURL := "http://127.0.0.1:25510"
 
 	optionsDataDTO1, err := eventservices.FetchThetaDataHistOptionOHLC(thetaDataBaseURL, underlyingSymbol, optionType1, toDate, fromDate, toDate, 15*time.Minute, strikePriceA)
 	if err != nil {

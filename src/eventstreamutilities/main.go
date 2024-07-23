@@ -77,14 +77,6 @@ func main() {
 	eventmodels.InitializeGlobalDispatcher()
 	eventpubsub.Init()
 
-	// Environment variables
-	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
-	if err != nil {
-		log.SetLevel(log.InfoLevel)
-	} else {
-		log.SetLevel(level)
-	}
-
 	// Set the connection details
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
 	brokerCreds := BrokerCredentials{

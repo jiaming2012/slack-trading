@@ -296,13 +296,6 @@ func run() {
 	log.SetOutput(os.Stdout)
 	log.SetFormatter(&log.JSONFormatter{})
 
-	level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
-	if err != nil {
-		log.SetLevel(log.InfoLevel)
-	} else {
-		log.SetLevel(level)
-	}
-
 	log.Infof("Log level set to %v", log.GetLevel())
 
 	log.Infof("Main: you da boss...")

@@ -16,6 +16,7 @@ import (
 	derive_expected_profit "github.com/jiaming2012/slack-trading/src/cmd/stats/derive_expected_profit/run"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type ReadOptionChainRequestExecutor struct {
@@ -38,6 +39,7 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 		// }
 
 		spread := eventmodels.OptionSpreadContractDTO{
+			Timestamp: utils.GetMinTime(spreadMapItem.LongOptionTimestamp, spreadMapItem.ShortOptionTimestamp),
 			Description:             spreadMapItem.Description,
 			DebitPaid:               spreadMapItem.DebitPaid,
 			CreditReceived:          spreadMapItem.CreditReceived,

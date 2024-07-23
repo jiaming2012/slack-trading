@@ -26,7 +26,7 @@ type RunResult struct {
 }
 
 var runCmd = &cobra.Command{
-	Use:   "go run src/cmd/fetch_order/main.go --orderIDs 12890162,12848807",
+	Use:   "go run src/cmd/fetch_orders/main.go --orderIDs 12890162,12848807",
 	Short: "Fetch results of multiple trades by order ID",
 	Run: func(cmd *cobra.Command, args []string) {
 		goEnv, err := cmd.Flags().GetString("go-env")
@@ -134,12 +134,35 @@ func Run(args RunArgs) (RunResult, error) {
 			continue
 		}
 
-		quote, err := eventservices.FetchTradierQuotes(quotesHistoryURL, bearerToken, eventmodels.StockSymbol(order.Symbol), option.Expiration)
+		var candlesDTO []*eventmodels.CandleDTO
+
+		resp, err := eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", order.CreateDate.Add(-5 * time.Minute), order.CreateDate)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error fetching tradier quotes: %v", err)
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch order.CreatedAt on stock chart: %v", err)
 		}
 
-		candles := []*eventmodels.CandleDTO{&quote.History.Day}
+		for _, c := range resp.Results {
+			candle, err := c.ToCandleDTO()
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+			}
+
+			candlesDTO = append(candlesDTO, candle)
+		}
+
+		resp, err = eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", option.Expiration.Add(-5 * time.Minute), option.Expiration)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch option expiration on stock chart: %v", err)
+		}
+
+		for _, c := range resp.Results {
+			candle, err := c.ToCandleDTO()
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+			}
+
+			candlesDTO = append(candlesDTO, candle)
+		}
 
 		optionMultiplier := 100.0
 
@@ -163,7 +186,7 @@ func Run(args RunArgs) (RunResult, error) {
 			CreateDate:    order.CreateDate,
 			AvgFillPrice:  order.AvgFillPrice,
 			ExecutionType: "market",
-		}, candles, optionMultiplier)
+		}, candlesDTO, optionMultiplier)
 
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error calculating option order spread result: %v", err)

@@ -17,24 +17,8 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder) ([]*eventmodels.CandleDTO, error) {
-	var firstExpiration, finalExpiration time.Time
-	for _, o := range orders {
-		exp, err := o.Spread.GetExpiration()
-		if err != nil {
-			return nil, fmt.Errorf("fetchCandles: failed to get expiration: %v", err)
-		}
-
-		if firstExpiration.IsZero() || exp.Before(firstExpiration) {
-			firstExpiration = exp
-		}
-
-		if finalExpiration.IsZero() || exp.After(finalExpiration) {
-			finalExpiration = exp
-		}
-	}
-
-	resp, err := eventservices.FetchPolygonStockChart(symbol, 1, "minute", firstExpiration, finalExpiration)
+func fetchCandles(symbol eventmodels.StockSymbol, from, to time.Time) ([]*eventmodels.CandleDTO, error) {
+	resp, err := eventservices.FetchPolygonStockChart(symbol, 1, "minute", from, to)
 	if err != nil {
 		return nil, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 	}
@@ -52,6 +36,50 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 	return candles, nil
 }
 
+func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder) ([]*eventmodels.CandleDTO, error) {
+	var firstOpenTime, finalOpenTime time.Time
+	var firstExpiration, finalExpiration time.Time
+	var results []*eventmodels.CandleDTO
+
+	for _, o := range orders {
+		exp, err := o.Spread.GetExpiration()
+		if err != nil {
+			return nil, fmt.Errorf("fetchCandles: failed to get expiration: %v", err)
+		}
+
+		if firstOpenTime.IsZero() || o.Spread.Timestamp.Before(firstOpenTime) {
+			firstOpenTime = o.Spread.Timestamp
+		}
+
+		if finalOpenTime.IsZero() || o.Spread.Timestamp.After(finalOpenTime) {
+			finalOpenTime = o.Spread.Timestamp
+		}
+
+		if firstExpiration.IsZero() || exp.Before(firstExpiration) {
+			firstExpiration = exp
+		}
+
+		if finalExpiration.IsZero() || exp.After(finalExpiration) {
+			finalExpiration = exp
+		}
+	}
+
+	openCandles, err := fetchCandles(symbol, firstOpenTime, finalOpenTime)
+	if err != nil {
+		return nil, fmt.Errorf("fetchCandles: failed to fetch open candles: %v", err)
+	}
+
+	expirationCandles, err := fetchCandles(symbol, firstExpiration, finalExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("fetchCandles: failed to fetch expiration candles: %v", err)
+	}
+
+	results = append(results, openCandles...)
+	results = append(results, expirationCandles...)
+
+	return results, nil
+}
+
 func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, outDir string) error {
 	var spreadResults []*eventmodels.OptionOrderSpreadResult
 	optionMultiplier := 100.0
@@ -61,6 +89,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 			ID:            uint(i),
 			Underlying:    symbol,
 			ExecutionType: "market",
+			CreateDate:    utils.GetMinTime(order.Spread.LongOptionTimestamp, order.Spread.ShortOptionTimestamp),
 			Leg1: eventmodels.OptionSpreadLeg{
 				ID:           0,
 				Timestamp:    order.Spread.ShortOptionTimestamp,

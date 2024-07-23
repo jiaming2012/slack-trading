@@ -50,12 +50,12 @@
             "args": ["--starts-at", "2024-05-01T09:30:00", "--ends-at", "2024-05-31T16:00:00"]
         },
         {
-            "name": "[DEV] cmd/fetch_order/main.go",
+            "name": "[DEV] cmd/fetch_orders/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/fetch_order/main.go",
-            "args": ["--orderID", "12911774", "--go-env", "development"]
+            "program": "${workspaceFolder}/src/cmd/fetch_orders/main.go",
+            "args": ["--orderIDs", "12848708", "--go-env", "development"]
         },
         {
             "name": "[DEV] cmd/fetch_market_data/main.go",
@@ -63,7 +63,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/cmd/fetch_market_data/main.go",
-            "args": ["--orderIDs", "12886586", "--go-env", "development"]
+            "args": ["--orderIDs", "55185379", "--go-env", "production"]
         },
         {
             "name": "[DEV] cmd/import_signals/main.go",

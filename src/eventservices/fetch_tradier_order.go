@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -39,6 +41,8 @@ func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.T
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 
+	log.Debugf("fetching from %v", req.URL.String())
+
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain: %w", err)
@@ -47,7 +51,7 @@ func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.T
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain, http code %v", res.Status)
+		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain, http code %v, fetching from %v", res.Status, req.URL.String())
 	}
 
 	var dto eventmodels.TradierOrderSpreadDTO
