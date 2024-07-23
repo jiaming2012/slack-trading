@@ -34,4 +34,5 @@ type PolygonCandleResponse struct {
 	Adjusted     bool               `json:"adjusted"`
 	Results      []PolygonCandleDTO `json:"results"`
 	Status       string             `json:"status"`
+	NextURL      *string            `json:"next_url"`
 }

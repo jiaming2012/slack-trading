@@ -33,6 +33,13 @@ func hashOptionOrderSpreadResult(results []*eventmodels.OptionOrderSpreadResult)
 func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult) (string, error) {
 	outFilePath := path.Join(inDir, fmt.Sprintf("%s.csv", hashOptionOrderSpreadResult(results)))
 
+	// Create directory if it doesn't exist
+	if _, err := os.Stat(inDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(inDir, os.ModePerm); err != nil {
+			return "", err
+		}
+	}
+
 	// Open a file for writing
 	file, err := os.Create(outFilePath)
 	if err != nil {

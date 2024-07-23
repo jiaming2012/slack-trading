@@ -9,6 +9,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/jiaming2012/slack-trading/src/cmd/backtester/src/run"
@@ -54,33 +55,66 @@ func runTicks() {
 	}
 }
 
-func main() {
+type RunArgs struct {
+	OutDir string
+}
+
+var runCmd = &cobra.Command{
+	Use:   "go run src/cmd/backtester/src/main.go --outDir results",
+	Short: "Backtest option signals",
+	Run: func(cmd *cobra.Command, args []string) {
+		outDir, err := cmd.Flags().GetString("outDir")
+		if err != nil {
+			log.Fatalf("error getting outDir: %v", err)
+		}
+
+		err = Run(RunArgs{
+			OutDir: outDir,
+		})
+
+		if err != nil {
+			log.Errorf("Error: %v", err)
+		}
+
+		log.Infof("Wrote results to %s", outDir)
+	},
+}
+
+func Run(args RunArgs) error {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	goEnv := "development"
 
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
-		log.Fatalf("missing PROJECTS_DIR environment variable")
+		return fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
 	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
-		log.Panic(err)
+		return fmt.Errorf("failed to init environment variables: %w", err)
 	}
 
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
 	data, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
-		log.Fatalf("failed to read options config: %v", err)
+		return fmt.Errorf("failed to read options config: %v", err)
 	}
 
 	var optionsConfig eventmodels.OptionsConfigYAML
 	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
-		log.Fatalf("failed to unmarshal options config: %v", err)
+		return fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
-	run.Exec(ctx, &wg, optionsConfig, goEnv)
+	run.Exec(ctx, &wg, optionsConfig, args.OutDir, goEnv)
 
 	wg.Wait()
+
+	return nil
+}
+
+func main() {
+	runCmd.PersistentFlags().String("outDir", "", "The directory to write the output to.")
+	runCmd.MarkPersistentFlagRequired("outDir")
+	runCmd.Execute()
 }

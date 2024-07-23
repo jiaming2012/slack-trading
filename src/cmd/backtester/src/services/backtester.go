@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/jiaming2012/slack-trading/src/cmd/fetch_orders/run"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
@@ -52,7 +52,7 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 	return candles, nil
 }
 
-func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO) (string, error) {
+func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, outDir string) error {
 	var spreadResults []*eventmodels.OptionOrderSpreadResult
 	optionMultiplier := 100.0
 
@@ -83,27 +83,20 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 
 		result, err := utils.CalculateOptionOrderSpreadResult(req, candles, optionMultiplier)
 		if err != nil {
-			return "", fmt.Errorf("failed to calculate option order spread result: %v", err)
+			return fmt.Errorf("failed to calculate option order spread result: %v", err)
 		}
 
 		spreadResults = append(spreadResults, result)
 	}
 
-	orderJSON, err := json.MarshalIndent(spreadResults, "", "  ")
+	csvPath, err := run.ExportToCsv(outDir, spreadResults)
 	if err != nil {
-		log.Errorf("Failed to marshal order: %v", err)
+		log.Errorf("Failed to export to CSV: %v", err)
 	} else {
-		fmt.Println(string(orderJSON))
+		log.Infof("CSV file written to: %v", csvPath)
 	}
 
-	// csvPath, err := run.ExportToCsv(outDir, result.Orders)
-	// if err != nil {
-	// 	log.Errorf("Failed to export to CSV: %v", err)
-	// } else {
-	// 	fmt.Println("CSV file written to: ", csvPath)
-	// }
-
-	return "", nil
+	return nil
 }
 
 func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {

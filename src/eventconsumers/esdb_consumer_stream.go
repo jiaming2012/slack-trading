@@ -163,12 +163,12 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	return nil
 }
 
-func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmodels.StreamName, lastEventNumber uint64) error {
+func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmodels.StreamName, startEventNumber, lastEventNumber uint64) error {
 	if lastEventNumber == 0 {
 		return nil
 	}
 
-	event, err := cli.db.ReadStream(ctx, string(name), esdb.ReadStreamOptions{}, lastEventNumber)
+	event, err := cli.db.ReadStream(ctx, string(name), esdb.ReadStreamOptions{From: esdb.Revision(startEventNumber)}, lastEventNumber)
 	if err != nil {
 		return fmt.Errorf("esdbConsumerStream: failed to read stream %s: %v", name, err)
 	}
@@ -214,7 +214,7 @@ func (cli *esdbConsumerStream[T]) Replay(ctx context.Context) {
 
 	log.Debugf("esdbConsumerStream.Replay: replaying events for stream %s", cli.streamName)
 
-	if err := cli.replayEvents(ctx, cli.streamName, lastEventNumber); err != nil {
+	if err := cli.replayEvents(ctx, cli.streamName, 0, lastEventNumber); err != nil {
 		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to replay events: %v", err)
 	}
 
@@ -241,7 +241,7 @@ func (cli *esdbConsumerStream[T]) Start(ctx context.Context) {
 
 	log.Debugf("esdbConsumerStream.Start: replaying events for stream %s", cli.streamName)
 
-	if err := cli.replayEvents(ctx, cli.streamName, lastEventNumber); err != nil {
+	if err := cli.replayEvents(ctx, cli.streamName, 0, lastEventNumber); err != nil {
 		log.Panicf("esdbConsumerStream.Start: eventStoreDBClient: failed to replay events: %v", err)
 	}
 

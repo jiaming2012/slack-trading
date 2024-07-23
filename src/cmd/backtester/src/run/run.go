@@ -16,7 +16,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
 )
 
-func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.OptionsConfigYAML, goEnv string) {
+func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
@@ -75,7 +75,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 
 			var data *optionsapi.FetchOptionChainDataInput
 			nextOptionExpDate := deriveNextOptionExpirationDate(event.Timestamp)
-			for {
+			for i := 3; i > 0; i-- {
 				data, err = services.FetchHistoricalOptionChainDataInput(&event, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 				if err == nil {
 					break
@@ -118,8 +118,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 			log.Fatalf("failed to fetch candles: %v", err)
 		}
 
-		outDir, err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO)
-		if err != nil {
+		if err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, outDir); err != nil {
 			log.Errorf("ProcessBacktestTrades failed: %v", err)
 		}
 
