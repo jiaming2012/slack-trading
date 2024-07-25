@@ -13,9 +13,9 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult) (string, error) {
+func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, outFilePrefix string) (string, error) {
 	now := time.Now()
-	outFilePath := path.Join(inDir, fmt.Sprintf("backtest_%s.csv", now.Format("2006-01-02_15-04-05")))
+	outFilePath := path.Join(inDir, fmt.Sprintf("%s_%s.csv", outFilePrefix, now.Format("2006-01-02_15-04-05")))
 
 	// Create directory if it doesn't exist
 	if _, err := os.Stat(inDir); os.IsNotExist(err) {

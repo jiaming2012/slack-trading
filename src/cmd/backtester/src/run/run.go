@@ -104,6 +104,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 			}
 
 			if highestEVBacktestOrder != nil {
+				log.Infof("adding highest EV backtest order: %v", *highestEVBacktestOrder)
 				allTrades = append(allTrades, highestEVBacktestOrder)
 			}
 		}

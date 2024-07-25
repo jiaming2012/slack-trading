@@ -28,6 +28,17 @@
             }
         },
         {
+            "name": "[DEV] cmd/parse_tradier_orders_csv/main.go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/parse_tradier_orders_csv/main.go",
+            "env": {
+                "GO_ENV": "development"
+            },
+            "args": ["--inDir", "/Users/jamal/Downloads/orders_2024-06-01_2024-07-23.csv", "--ignoreSymbols", "VIX"]
+        },
+        {
             "name": "[DEV] cmd/stats/clean_data_pdf/main.go",
             "type": "go",
             "request": "launch",
@@ -55,7 +66,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/cmd/fetch_orders/main.go",
-            "args": ["--orderIDs", "12848708", "--go-env", "development"]
+            "args": ["--orderIDs", "12194526,12194663,12194667,12216758,12216761,12216764,12848708,12848754,12857574,12857578,12857638,12857641,12860120,12860124,12860191,12860194,12874129,12874133,12875828,12875831,12890143,12890146,12890150,12913961,12913964,12926649,12946152,12946155,12982632,12982635,12982972,12982976,12994450,12994453,12994671,12994674,13001489,13001519,13001522,13007047,13007148,13036485,13036583,13047946,13048008,13065805,13065808,13065857,13065860,13086384,13086387,13086390,13099021,13099024,13099027,13147657,13156779,13156782,13158850,13158853,13158856,13170961,13170964,13174448,13174451,13174470,13179634,13281066,13281069,13281191,13287779,13287782,13287887", "--go-env", "development"]
         },
         {
             "name": "[DEV] cmd/fetch_market_data/main.go",
@@ -63,7 +74,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/cmd/fetch_market_data/main.go",
-            "args": ["--orderIDs", "55185379", "--go-env", "production"]
+            "args": ["--orderIDs", "13168704", "--go-env", "dev"]
         },
         {
             "name": "[DEV] cmd/import_signals/main.go",

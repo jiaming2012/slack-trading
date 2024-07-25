@@ -195,9 +195,20 @@ func Run(args RunArgs) (RunResult, error) {
 
 		dayOfOpen := order.CreateDate
 		dayAfterOpen := order.CreateDate.AddDate(0, 0, 1)
-		underlyingPricesNearOpen, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", dayOfOpen, dayAfterOpen)
+
+		resp, err := eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", dayOfOpen, dayAfterOpen)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error fetching underlying prices near open: %v", err)
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
+		}
+
+		var underlyingPricesNearOpen []*eventmodels.CandleDTO
+		for _, c := range resp.Results {
+			dto, err := c.ToCandleDTO()
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert to candle dto: %v", err)
+			}
+
+			underlyingPricesNearOpen = append(underlyingPricesNearOpen, dto)
 		}
 
 		underlyingPriceAtOpen, err := run.GetCandleAtDate(order.CreateDate, underlyingPricesNearOpen)
@@ -224,10 +235,25 @@ func Run(args RunArgs) (RunResult, error) {
 		optionOrderData.Price = append(optionOrderData.Price, optionOpenPrice)
 
 		// Close
-		underlyingPriceNearClose, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
+		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error fetching underlying prices near close: %v", err)
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 		}
+
+		var underlyingPriceNearClose []*eventmodels.CandleDTO
+		for _, c := range resp.Results {
+			dto, err := c.ToCandleDTO()
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert to candle dto: %v", err)
+			}
+
+			underlyingPriceNearClose = append(underlyingPriceNearClose, dto)
+		}
+
+		// underlyingPriceNearClose, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "1min", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
+		// if err != nil {
+		// 	return RunResult{}, fmt.Errorf("error fetching underlying prices near close: %v", err)
+		// }
 
 		orderExpirationDateEST := option1.Expiration
 
@@ -242,12 +268,25 @@ func Run(args RunArgs) (RunResult, error) {
 
 		fromDate, toDate = order.CreateDate, option1.Expiration
 
-		underlyingCandles, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
+		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 15, "minute", fromDate, toDate)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error fetching underlying candles: %v", err)
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 		}
 
-		underlyingCandles = utils.ReverseCandlesDTO(underlyingCandles)
+		for _, c := range resp.Results {
+			dto, err := c.ToCandleDTO()
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert to candle dto: %v", err)
+			}
+
+			underlyingCandles = append(underlyingCandles, dto)
+		}
+		// underlyingCandles, err := eventservices.FetchFinancialModelingPrepChart(underlyingSymbol, "15min", fromDate, toDate)
+		// if err != nil {
+		// 	return RunResult{}, fmt.Errorf("error fetching underlying candles: %v", err)
+		// }
+
+		// underlyingCandles = utils.ReverseCandlesDTO(underlyingCandles)
 
 		// optionMultiplier := 100.0
 

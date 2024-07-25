@@ -208,7 +208,7 @@ func run(args RunArgs) error {
 	}
 
 	// export data as signals
-	var prevCandle15 *eventmodels.TradingViewCandle
+	var prevCandle15, prevCandle60, prevCandle240 *eventmodels.TradingViewCandle
 	for _, timestamp := range timestamps {
 		candles240DTO, ok := data[timestamp]["240"]
 		if ok {
@@ -217,21 +217,25 @@ func run(args RunArgs) error {
 				log.Panicf("Error converting 240 minute candles to model: %v", err)
 			}
 
-			if candles240.UpTrendBegins > 0 {
-				if err := createSignal(ctx, "supertrend-buy", symbol, candles240.Timestamp, 240, requestID, esdbProducer); err != nil {
-					log.Fatalf("Error creating signal: %v", err)
+			if prevCandle240 != nil {
+				if candles240.UpTrend > 0 && prevCandle240.UpTrend == 0 {
+					if err := createSignal(ctx, "supertrend-buy", symbol, timestampClose(candles240.Timestamp, 240*time.Minute), 240, requestID, esdbProducer); err != nil {
+						log.Fatalf("Error creating signal: %v", err)
+					}
+
+					log.Infof("[240] Up trend at %s", timestamp)
 				}
 
-				log.Infof("[240] Up trend begins at %s", timestamp)
-			}
+				if candles240.DownTrend > 0 && prevCandle240.DownTrend == 0 {
+					if err := createSignal(ctx, "supertrend-sell", symbol, timestampClose(candles240.Timestamp, 240*time.Minute), 240, requestID, esdbProducer); err != nil {
+						log.Fatalf("Error creating signal: %v", err)
+					}
 
-			if candles240.DownTrendBegins > 0 {
-				if err := createSignal(ctx, "supertrend-sell", symbol, candles240.Timestamp, 240, requestID, esdbProducer); err != nil {
-					log.Fatalf("Error creating signal: %v", err)
+					log.Infof("[240] Down trend at %s", timestamp)
 				}
-
-				log.Infof("[240] Down trend begins at %s", timestamp)
 			}
+
+			prevCandle240 = candles240
 		}
 
 		candle60DTO, ok := data[timestamp]["60"]
@@ -241,21 +245,25 @@ func run(args RunArgs) error {
 				log.Panicf("Error converting 60 minute candle to model: %v", err)
 			}
 
-			if candle60.UpTrendBegins > 0 {
-				if err := createSignal(ctx, "supertrend-buy", symbol, candle60.Timestamp, 60, requestID, esdbProducer); err != nil {
-					log.Fatalf("Error creating signal: %v", err)
+			if prevCandle60 != nil {
+				if candle60.UpTrend > 0 && prevCandle60.UpTrend == 0 {
+					if err := createSignal(ctx, "supertrend-buy", symbol, timestampClose(candle60.Timestamp, 60*time.Minute), 60, requestID, esdbProducer); err != nil {
+						log.Fatalf("Error creating signal: %v", err)
+					}
+
+					log.Infof("[60] Up trend at %s", timestamp)
 				}
 
-				log.Infof("[60] Up trend begins at %s", timestamp)
-			}
+				if candle60.DownTrend > 0 && prevCandle60.DownTrend == 0 {
+					if err := createSignal(ctx, "supertrend-sell", symbol, timestampClose(candle60.Timestamp, 60*time.Minute), 60, requestID, esdbProducer); err != nil {
+						log.Fatalf("Error creating signal: %v", err)
+					}
 
-			if candle60.DownTrendBegins > 0 {
-				if err := createSignal(ctx, "supertrend-sell", symbol, candle60.Timestamp, 60, requestID, esdbProducer); err != nil {
-					log.Fatalf("Error creating signal: %v", err)
+					log.Infof("[60] Down trend at %s", timestamp)
 				}
-
-				log.Infof("[60] Down trend begins at %s", timestamp)
 			}
+
+			prevCandle60 = candle60
 		}
 
 		candle15DTO, ok := data[timestamp]["15"]
@@ -272,16 +280,16 @@ func run(args RunArgs) error {
 			c1 := candle15
 			c2 := prevCandle15
 
-			if c1.K > c1.D && c2.K < c2.D && c1.D >= 80 {
-				if err := createSignal(ctx, "stochastic_rsi-sell", symbol, c1.Timestamp, 15, requestID, esdbProducer); err != nil {
+			if c1.K < c1.D && c2.K > c2.D && c1.D >= 80 {
+				if err := createSignal(ctx, "stochastic_rsi-sell", symbol, timestampClose(c1.Timestamp, 15*time.Minute), 15, requestID, esdbProducer); err != nil {
 					log.Fatalf("Error creating signal: %v", err)
 				}
 
 				log.Infof("Bearish divergence at %s", timestamp)
 			}
 
-			if c1.K < c1.D && c2.K > c2.D && c1.D <= 20 {
-				if err := createSignal(ctx, "stochastic_rsi-buy", symbol, c1.Timestamp, 15, requestID, esdbProducer); err != nil {
+			if c1.K > c1.D && c2.K < c2.D && c1.D <= 20 {
+				if err := createSignal(ctx, "stochastic_rsi-buy", symbol, timestampClose(c1.Timestamp, 15*time.Minute), 15, requestID, esdbProducer); err != nil {
 					log.Fatalf("Error creating signal: %v", err)
 				}
 
@@ -310,4 +318,18 @@ func run(args RunArgs) error {
 	cancel()
 
 	return nil
+}
+
+func timestampClose(t1 time.Time, period time.Duration) time.Time {
+	t2 := t1.Add(period)
+	tClose, err := eventmodels.ConvertToMarketClose(t1)
+	if err != nil {
+		log.Fatalf("error converting to market close: %v", err)
+	}
+
+	if t2.After(tClose) {
+		t2 = tClose.UTC()
+	}
+
+	return t2
 }

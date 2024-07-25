@@ -13,31 +13,32 @@ import (
 )
 
 type TradierOrderCsvRowDTO struct {
-	ID                string  `csv:"ID"`
-	ParentID          string  `csv:"Parent ID"`
-	Symbol            string  `csv:"Symbol"`
-	Side              string  `csv:"Side"`
-	QTY               int     `csv:"QTY"`
-	Type              string  `csv:"Type"`
-	Dur               string  `csv:"Dur"`
-	FilledQty         int     `csv:"Filled/Qty."`
-	Status            string  `csv:"Status"`
-	Class             string  `csv:"Class"`
-	Price             float64 `csv:"Price"`
-	RemainingQuantity int     `csv:"Remaining Quantity"`
-	ReasonDescription string  `csv:"Reason Description"`
-	LastFillPrice     float64 `csv:"Last Fill Price"`
-	LastFillQuantity  int     `csv:"Last Fill Quantity"`
-	CreateDate        string  `csv:"Create Date"`
-	TransactionDate   string  `csv:"Transaction Date"`
-	ExpirationDate    string  `csv:"Expiration Date"`
-	Strike            float64 `csv:"Strike"`
-	OptionType        string  `csv:"Option Type"`
-	Tag               string  `csv:"Tag"`
+	ID                string `csv:"ID"`
+	ParentID          string `csv:"Parent ID"`
+	Symbol            string `csv:"Symbol"`
+	Side              string `csv:"Side"`
+	QTY               int    `csv:"QTY"`
+	Type              string `csv:"Type"`
+	Dur               string `csv:"Dur"`
+	FilledQty         int    `csv:"Filled/Qty."`
+	Status            string `csv:"Status"`
+	Class             string `csv:"Class"`
+	Price             string `csv:"Price"`
+	RemainingQuantity int    `csv:"Remaining Quantity"`
+	ReasonDescription string `csv:"Reason Description"`
+	LastFillPrice     string `csv:"Last Fill Price"`
+	LastFillQuantity  int    `csv:"Last Fill Quantity"`
+	CreateDate        string `csv:"Create Date"`
+	TransactionDate   string `csv:"Transaction Date"`
+	ExpirationDate    string `csv:"Expiration Date"`
+	Strike            string `csv:"Strike"`
+	OptionType        string `csv:"Option Type"`
+	Tag               string `csv:"Tag"`
 }
 
 type RunArgs struct {
-	InDir string
+	InDir         string
+	IgnoreSymbols []string
 }
 
 type RunResults struct {
@@ -53,8 +54,14 @@ var runCmd = &cobra.Command{
 			log.Fatalf("error getting inDir: %v", err)
 		}
 
+		ignoreSymbols, err := cmd.Flags().GetStringSlice("ignoreSymbols")
+		if err != nil {
+			log.Fatalf("error getting ignoreSymbols: %v", err)
+		}
+
 		if result, err := Run(RunArgs{
-			InDir: inDir,
+			InDir:         inDir,
+			IgnoreSymbols: ignoreSymbols,
 		}); err != nil {
 			log.Errorf("Error: %v", err)
 		} else {
@@ -80,7 +87,7 @@ func Run(args RunArgs) (RunResults, error) {
 	if err != nil {
 		return RunResults{}, fmt.Errorf("failed to open file: %v", err)
 	}
-	
+
 	var csvRows []TradierOrderCsvRowDTO
 	err = gocsv.UnmarshalFile(f, &csvRows)
 	if err != nil {
@@ -92,6 +99,18 @@ func Run(args RunArgs) (RunResults, error) {
 		orderId, err := strconv.Atoi(row.ParentID)
 		if err != nil {
 			return RunResults{}, fmt.Errorf("failed to convert ParentID %v to int: %v", row.ParentID, err)
+		}
+
+		bIgnoreSymbol := false
+		for _, ignoreSymbol := range args.IgnoreSymbols {
+			if strings.EqualFold(row.Symbol, ignoreSymbol) {
+				bIgnoreSymbol = true
+				break
+			}
+		}
+
+		if bIgnoreSymbol {
+			continue
 		}
 
 		if strings.ToLower(row.Status) == "filled" {
@@ -113,6 +132,7 @@ func Run(args RunArgs) (RunResults, error) {
 
 func main() {
 	runCmd.PersistentFlags().String("inDir", "", "The directory to read the input from.")
+	runCmd.PersistentFlags().StringSlice("ignoreSymbols", []string{}, "A comma-separated list of symbols to ignore.")
 	runCmd.MarkPersistentFlagRequired("inDir")
 	runCmd.Execute()
 }

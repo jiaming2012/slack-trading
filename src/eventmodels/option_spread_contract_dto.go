@@ -22,6 +22,10 @@ type OptionSpreadContractDTO struct {
 	Stats                   OptionStats  `json:"stats"`
 }
 
+func (dto OptionSpreadContractDTO) String() string {
+	return fmt.Sprintf("LongOptionSymbol: %v / ShortOptionSymbol: %v", dto.LongOptionSymbol, dto.ShortOptionSymbol)
+}
+
 func (dto *OptionSpreadContractDTO) GetExpiration() (time.Time, error) {
 	longExpiration, err := time.Parse("2006-01-02T15:04:05Z", dto.LongOptionExpiration)
 	if err != nil {

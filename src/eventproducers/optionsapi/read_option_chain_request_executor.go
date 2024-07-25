@@ -39,7 +39,7 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 		// }
 
 		spread := eventmodels.OptionSpreadContractDTO{
-			Timestamp: utils.GetMinTime(spreadMapItem.LongOptionTimestamp, spreadMapItem.ShortOptionTimestamp),
+			Timestamp:               utils.GetMinTime(spreadMapItem.LongOptionTimestamp, spreadMapItem.ShortOptionTimestamp),
 			Description:             spreadMapItem.Description,
 			DebitPaid:               spreadMapItem.DebitPaid,
 			CreditReceived:          spreadMapItem.CreditReceived,
@@ -209,8 +209,9 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 
 	result := map[string]interface{}{
 		"stock": map[string]interface{}{
-			"bid": inputData.StockTickItemDTO.Bid,
-			"ask": inputData.StockTickItemDTO.Ask,
+			"timestamp": inputData.StockTickItemDTO.Timestamp,
+			"bid":       inputData.StockTickItemDTO.Bid,
+			"ask":       inputData.StockTickItemDTO.Ask,
 		},
 	}
 
@@ -269,8 +270,9 @@ func (s *ReadOptionChainRequestExecutor) serve(req *eventmodels.ReadOptionChainR
 
 	result := map[string]interface{}{
 		"stock": map[string]interface{}{
-			"bid": stockTickItemDTO.Bid,
-			"ask": stockTickItemDTO.Ask,
+			"timestamp": stockTickItemDTO.Timestamp,
+			"bid":       stockTickItemDTO.Bid,
+			"ask":       stockTickItemDTO.Ask,
 		},
 	}
 

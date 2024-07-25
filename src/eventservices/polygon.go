@@ -31,7 +31,7 @@ func makeRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timefram
 func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleResponse, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to create request: %w", err)
+		return nil, fmt.Errorf("fetchPolygonStockChart: failed to create request: %w", err)
 	}
 
 	q := req.URL.Query()
@@ -50,33 +50,30 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to fetch stock tick: %w", err)
+		return nil, fmt.Errorf("fetchPolygonStockChart: failed to fetch stock tick: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to fetch stock tick, http code %v", res.Status)
+		return nil, fmt.Errorf("fetchPolygonStockChart: failed to fetch stock tick, http code %v", res.Status)
 	}
 
 	var dto eventmodels.PolygonCandleResponse
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: failed to decode json: %w", err)
-	}
-
-	if dto.Status != "OK" {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: status not OK: %v", dto.Status)
-	}
-
-	if dto.ResultsCount == 0 {
-		return nil, fmt.Errorf("FetchFinancialModelingPrepChart: no data returned")
+		return nil, fmt.Errorf("fetchPolygonStockChart: failed to decode json: %w", err)
 	}
 
 	if dto.NextURL != nil {
-		log.Warnf("FetchFinancialModelingPrepChart: next url: %v", *dto.NextURL)
+		log.Warnf("fetchPolygonStockChart: next url: %v", *dto.NextURL)
 	}
 
 	return &dto, nil
+}
+
+func FetchPolygonIndexChart(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (*eventmodels.PolygonCandleResponse, error) {
+	symbol = eventmodels.StockSymbol(fmt.Sprintf("I:%v", symbol))
+	return FetchPolygonStockChart(symbol, timeframeValue, timeframeUnit, fromDate, toDate)
 }
 
 func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (*eventmodels.PolygonCandleResponse, error) {
@@ -110,6 +107,10 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 		}
 
 		url = *resp.NextURL
+	}
+
+	if len(aggregateResult.Results) == 0 {
+		return nil, fmt.Errorf("FetchPolygonStockChart: no results found")
 	}
 
 	return &aggregateResult, nil

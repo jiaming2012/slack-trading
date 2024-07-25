@@ -58,7 +58,7 @@ var runCmd = &cobra.Command{
 					fmt.Println(string(orderJSON))
 				}
 			} else {
-				csvPath, err := run.ExportToCsv(outDir, result.Orders)
+				csvPath, err := run.ExportToCsv(outDir, result.Orders, "fetch_orders")
 				if err != nil {
 					log.Errorf("Failed to export to CSV: %v", err)
 				} else {
@@ -108,9 +108,13 @@ func Run(args RunArgs) (RunResult, error) {
 
 	var resultOrders []*eventmodels.OptionOrderSpreadResult
 	now := time.Now()
-	for _, orderID := range args.OrderIDs {
 
-		// move to run
+	var tradierOrders []*eventmodels.TradierOrder
+	indexOrders := make(map[uint]*eventmodels.TradierOrder)
+	indexSymbols := make(map[eventmodels.StockSymbol]struct{})
+	var minExpiration, maxExpiration time.Time
+	var minCreateDate, maxCreateDate time.Time
+	for _, orderID := range args.OrderIDs {
 		orderDTO, err := eventservices.FetchTradierOrder(ordersUrl, tradesBearerToken, orderID)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("error fetching tradier order: %v", err)
@@ -125,9 +129,54 @@ func Run(args RunArgs) (RunResult, error) {
 			continue
 		}
 
+		if order.Symbol == "NDX" {
+			indexOrders[uint(orderID)] = order
+			indexSymbols[eventmodels.StockSymbol(order.Symbol)] = struct{}{}
+		}
+
 		option, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
 		if err != nil {
-			return RunResult{}, fmt.Errorf("error parsing option ticker: %v", err)
+			return RunResult{}, fmt.Errorf("1: error parsing option ticker: %v", err)
+		}
+
+		if minExpiration.IsZero() || option.Expiration.Before(minExpiration) {
+			minExpiration = option.Expiration
+		}
+
+		if maxExpiration.IsZero() || option.Expiration.After(maxExpiration) {
+			maxExpiration = option.Expiration
+		}
+
+		if minCreateDate.IsZero() || order.CreateDate.Before(minCreateDate) {
+			minCreateDate = order.CreateDate
+		}
+
+		if maxCreateDate.IsZero() || order.CreateDate.After(maxCreateDate) {
+			maxCreateDate = order.CreateDate
+		}
+
+		tradierOrders = append(tradierOrders, order)
+	}
+
+	indexStartDate := utils.GetMinTime(minCreateDate, minExpiration)
+	indexEndDate := utils.GetMaxTime(maxCreateDate, maxExpiration)
+
+	indexTicksMap := make(map[eventmodels.StockSymbol][]eventmodels.PolygonCandleDTO)
+	for symbol := range indexSymbols {
+		log.Infof("Fetching index ticks for symbol: %v", symbol)
+
+		resp, err := eventservices.FetchPolygonIndexChart(symbol, 15, "minute", indexStartDate, indexEndDate)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch index ticks for expiration: %v", err)
+		}
+
+		indexTicksMap[symbol] = resp.Results
+	}
+
+	for _, order := range tradierOrders {
+		option, err := eventmodels.NewOptionSymbolComponents(order.Leg[0].OptionSymbol)
+		if err != nil {
+			return RunResult{}, fmt.Errorf("2: error parsing option ticker: %v", err)
 		}
 
 		if option.Expiration.After(now) {
@@ -136,39 +185,51 @@ func Run(args RunArgs) (RunResult, error) {
 
 		var candlesDTO []*eventmodels.CandleDTO
 
-		resp, err := eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", order.CreateDate.Add(-5 * time.Minute), order.CreateDate)
-		if err != nil {
-			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch order.CreatedAt on stock chart: %v", err)
-		}
+		if _, found := indexOrders[order.ID]; found {
+			for _, c := range indexTicksMap[eventmodels.StockSymbol(order.Symbol)] {
+				candle, err := c.ToCandleDTO()
+				if err != nil {
+					return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+				}
 
-		for _, c := range resp.Results {
-			candle, err := c.ToCandleDTO()
+				candlesDTO = append(candlesDTO, candle)
+			}
+		} else {
+			resp, err := eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", order.CreateDate.Add(-5*time.Minute), order.CreateDate)
 			if err != nil {
-				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch order.CreatedAt on stock chart: %v", err)
 			}
 
-			candlesDTO = append(candlesDTO, candle)
-		}
+			for _, c := range resp.Results {
+				candle, err := c.ToCandleDTO()
+				if err != nil {
+					return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+				}
 
-		resp, err = eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", option.Expiration.Add(-5 * time.Minute), option.Expiration)
-		if err != nil {
-			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch option expiration on stock chart: %v", err)
-		}
-
-		for _, c := range resp.Results {
-			candle, err := c.ToCandleDTO()
-			if err != nil {
-				return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+				candlesDTO = append(candlesDTO, candle)
 			}
 
-			candlesDTO = append(candlesDTO, candle)
+			resp, err = eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", option.Expiration.Add(-5*time.Minute), option.Expiration)
+			if err != nil {
+				return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch option expiration on stock chart: %v", err)
+			}
+
+			for _, c := range resp.Results {
+				candle, err := c.ToCandleDTO()
+				if err != nil {
+					return RunResult{}, fmt.Errorf("fetchCandles: failed to convert candle: %v", err)
+				}
+
+				candlesDTO = append(candlesDTO, candle)
+			}
 		}
 
 		optionMultiplier := 100.0
 
 		resultOrder, err := utils.CalculateOptionOrderSpreadResult(eventmodels.OptionSpreadAnalysisRequest{
-			ID:  order.ID,
-			Tag: order.Tag,
+			ID:         order.ID,
+			Underlying: eventmodels.StockSymbol(option.Underlying),
+			Tag:        order.Tag,
 			Leg1: eventmodels.OptionSpreadLeg{
 				ID:           order.Leg[0].ID,
 				Symbol:       order.Leg[0].OptionSymbol,

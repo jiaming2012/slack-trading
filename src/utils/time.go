@@ -9,3 +9,11 @@ func GetMinTime(a, b time.Time) time.Time {
 
 	return b
 }
+
+func GetMaxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+
+	return b
+}

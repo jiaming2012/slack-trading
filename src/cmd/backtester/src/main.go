@@ -73,7 +73,7 @@ var runCmd = &cobra.Command{
 		})
 
 		if err != nil {
-			log.Errorf("Error: %v", err)
+			log.Fatalf("Error: %v", err)
 		}
 
 		log.Infof("Wrote results to %s", outDir)
