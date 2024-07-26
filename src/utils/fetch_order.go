@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -113,6 +114,15 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	return optionProfit1, optionProfit2, nil
 }
 
+func FormatOptionSymbol(s eventmodels.OptionSymbol) eventmodels.OptionSymbol {
+	upper := strings.ToUpper(string(s))
+	if upper[:2] == "O:" {
+		return s[2:]
+	}
+
+	return s
+}
+
 func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisRequest, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
 	log.Infof("processing option spread analysis request %v", req)
 	log.Infof("leg 1: %v", req.Leg1)
@@ -129,11 +139,13 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 
 	requestedPrice *= -1
 	slippage := requestedPrice - req.AvgFillPrice
+	symbolLeg1 := FormatOptionSymbol(req.Leg1.Symbol)
+	symbolLeg2 := FormatOptionSymbol(req.Leg2.Symbol)
 
-	option1, err := eventmodels.NewOptionSymbolComponents(req.Leg1.Symbol)
+	option1, err := eventmodels.NewOptionSymbolComponents(symbolLeg1)
 	side1 := req.Leg1.Side
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse option1 ticker %v: %w", req.Leg1.Symbol, err)
+		return nil, fmt.Errorf("failed to parse option1 ticker %v: %w", symbolLeg1, err)
 	}
 
 	var option1Type eventmodels.OptionType
@@ -145,10 +157,10 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		return nil, fmt.Errorf("invalid option1 type %v", option1.OptionType)
 	}
 
-	option2, err := eventmodels.NewOptionSymbolComponents(req.Leg2.Symbol)
+	option2, err := eventmodels.NewOptionSymbolComponents(symbolLeg2)
 	side2 := req.Leg2.Side
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse option2 ticker %v: %w", req.Leg2.Symbol, err)
+		return nil, fmt.Errorf("failed to parse option2 ticker %v: %w", symbolLeg2, err)
 	}
 
 	var option2Type eventmodels.OptionType
@@ -196,7 +208,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		Side1:                 req.Leg2.Side,
 		OptionType1:           option2Type,
 		Timestamp1:            req.Leg2.Timestamp,
-		Symbol1:               req.Leg2.Symbol,
+		Symbol1:               symbolLeg1,
 		StrikePrice1:          option2.StrikePrice,
 		Quantity1:             req.Leg2.Quantity,
 		AvgFillPrice1:         req.Leg2.AvgFillPrice,
@@ -204,7 +216,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		Side2:                 req.Leg1.Side,
 		OptionType2:           option1Type,
 		Timestamp2:            req.Leg1.Timestamp,
-		Symbol2:               req.Leg1.Symbol,
+		Symbol2:               symbolLeg2,
 		Quantity2:             req.Leg1.Quantity,
 		StrikePrice2:          option1.StrikePrice,
 		AvgFillPrice2:         req.Leg1.AvgFillPrice,
