@@ -105,10 +105,10 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 		}
 
 		if err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, outDir); err != nil {
-			log.Errorf("ProcessBacktestTrades failed: %v", err)
+			log.Fatalf("ProcessBacktestTrades failed: %v", err)
 		}
 
-		log.Infof("analysis output: %v", outDir)
+		log.Infof("processed %v backtest trades at %v", len(allTrades), outDir)
 	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
 
 	trackerV3OptionEVConsumer.Replay(ctx)

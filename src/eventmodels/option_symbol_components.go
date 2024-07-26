@@ -22,7 +22,7 @@ func NewOptionSymbolComponents(ticker OptionSymbol) (*OptionSymbolComponents, er
 	re := regexp.MustCompile(`^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d+)$`)
 	matches := re.FindStringSubmatch(string(ticker))
 	if matches == nil {
-		return nil, fmt.Errorf("invalid option ticker format")
+		return nil, fmt.Errorf("invalid option ticker format, matching %s", ticker)
 	}
 
 	// Extract and parse the details

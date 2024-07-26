@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -112,13 +114,17 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 }
 
 func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisRequest, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
+	log.Infof("processing option spread analysis request %v", req)
+	log.Infof("leg 1: %v", req.Leg1)
+	log.Infof("leg 2: %v", req.Leg2)
+
 	if len(underlyingDailyCandles) == 0 {
 		return nil, errors.New("underlyingCandles cannot be empty")
 	}
 
 	signalName, expectedProfit, requestedPrice, err := DecodeTag(req.Tag)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode tag: %w", err)
+		return nil, fmt.Errorf("failed to decode tag %v: %w", req.Tag, err)
 	}
 
 	requestedPrice *= -1
@@ -127,7 +133,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 	option1, err := eventmodels.NewOptionSymbolComponents(req.Leg1.Symbol)
 	side1 := req.Leg1.Side
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse option1 ticker: %w", err)
+		return nil, fmt.Errorf("failed to parse option1 ticker %v: %w", req.Leg1.Symbol, err)
 	}
 
 	var option1Type eventmodels.OptionType
@@ -136,13 +142,13 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 	} else if option1.OptionType == "P" {
 		option1Type = eventmodels.OptionTypePut
 	} else {
-		return nil, errors.New("invalid option1 type")
+		return nil, fmt.Errorf("invalid option1 type %v", option1.OptionType)
 	}
 
 	option2, err := eventmodels.NewOptionSymbolComponents(req.Leg2.Symbol)
 	side2 := req.Leg2.Side
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse option2 ticker: %w", err)
+		return nil, fmt.Errorf("failed to parse option2 ticker %v: %w", req.Leg2.Symbol, err)
 	}
 
 	var option2Type eventmodels.OptionType
@@ -151,7 +157,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 	} else if option2.OptionType == "P" {
 		option2Type = eventmodels.OptionTypePut
 	} else {
-		return nil, errors.New("invalid option2 type")
+		return nil, fmt.Errorf("invalid option2 type %v", option2.OptionType)
 	}
 
 	now := time.Now()
@@ -163,7 +169,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 
 	expirationDate, err := eventmodels.ConvertToMarketClose(option1.Expiration)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert expiration to market close: %w", err)
+		return nil, fmt.Errorf("failed to convert expiration to market close %v: %w", option1.Expiration, err)
 	}
 
 	var debitPaid, creditReceived float64

@@ -56,8 +56,10 @@ func runTicks() {
 }
 
 type RunArgs struct {
-	OutDir string
+	OutDir     string
 }
+
+type RunResults struct {}
 
 var runCmd = &cobra.Command{
 	Use:   "go run src/cmd/backtester/src/main.go --outDir results",
@@ -68,7 +70,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("error getting outDir: %v", err)
 		}
 
-		err = Run(RunArgs{
+		_, err = Run(RunArgs{
 			OutDir: outDir,
 		})
 
@@ -76,41 +78,41 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Error: %v", err)
 		}
 
-		log.Infof("Wrote results to %s", outDir)
+		log.Info("Done")
 	},
 }
 
-func Run(args RunArgs) error {
+func Run(args RunArgs) (RunResults, error) {
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	goEnv := "development"
 
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
-		return fmt.Errorf("missing PROJECTS_DIR environment variable")
+		return RunResults{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
 	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
-		return fmt.Errorf("failed to init environment variables: %w", err)
+		return RunResults{}, fmt.Errorf("failed to init environment variables: %w", err)
 	}
 
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
 	data, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
-		return fmt.Errorf("failed to read options config: %v", err)
+		return RunResults{}, fmt.Errorf("failed to read options config: %v", err)
 	}
 
 	var optionsConfig eventmodels.OptionsConfigYAML
 	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
-		return fmt.Errorf("failed to unmarshal options config: %v", err)
+		return RunResults{}, fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
 	run.Exec(ctx, &wg, optionsConfig, args.OutDir, goEnv)
 
 	wg.Wait()
 
-	return nil
+	return RunResults{}, nil
 }
 
 func main() {
