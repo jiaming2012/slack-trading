@@ -33,14 +33,14 @@ func (c *OptionContractV3) GetSavedEventParameters() SavedEventParameters {
 
 func (c *OptionContractV3) ToDTOV1() *OptionContractV1DTO {
 	return &OptionContractV1DTO{
-		Timestamp:        c.Timestamp,
+		Timestamp:        c.Timestamp.Format(time.RFC3339),
 		Symbol:           c.Symbol,
 		UnderlyingSymbol: c.UnderlyingSymbol,
 		Description:      c.Description,
 		Strike:           c.Strike,
 		OptionType:       c.OptionType,
 		ContractSize:     c.ContractSize,
-		Expiration:       c.Expiration,
+		Expiration:       c.Expiration.Format(time.RFC3339),
 		ExpirationType:   c.ExpirationType,
 		Bid:              c.Bid,
 		Ask:              c.Ask,
