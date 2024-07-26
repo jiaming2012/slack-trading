@@ -73,23 +73,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 			resultCh := make(chan map[string]interface{})
 			errCh := make(chan error)
 
-			var data *optionsapi.FetchOptionChainDataInput
-			nextOptionExpDate := deriveNextOptionExpirationDate(event.Timestamp)
-			for i := 3; i > 0; i-- {
-				data, err = services.FetchHistoricalOptionChainDataInput(&event, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
-				if err == nil {
-					break
-				} else {
-					log.Warnf("failed to fetch option chain data for: %v, with error %v", nextOptionExpDate, err)
-
-					nextOptionExpDate = derivePreviousDate(nextOptionExpDate)
-					if nextOptionExpDate.Equal(event.Timestamp) {
-						log.Warnf("no option expiration date found for event %v", event)
-						data = nil
-						break
-					}
-				}
-			}
+			nextOptionExpDate := deriveNextFriday(event.Timestamp)
+			data, err := services.FetchHistoricalOptionChainDataInput(&event, event.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 
 			if data == nil {
 				log.Warnf("skipping event %v: failed to fetch option chain data", event)
@@ -129,7 +114,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 	trackerV3OptionEVConsumer.Replay(ctx)
 }
 
-func deriveNextOptionExpirationDate(now time.Time) time.Time {
+func deriveNextFriday(now time.Time) time.Time {
 	// find the next friday
 	for {
 		if now.Weekday() == time.Friday {
@@ -140,8 +125,4 @@ func deriveNextOptionExpirationDate(now time.Time) time.Time {
 	}
 
 	return now
-}
-
-func derivePreviousDate(now time.Time) time.Time {
-	return now.AddDate(0, 0, -1)
 }

@@ -68,48 +68,6 @@ func findOptionContractsGroupedByExpiration(targetExpirationDate string, contrac
 	return closestContractExpDate, contractMap[closestContractExpDate], nil
 }
 
-func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO) error {
-	for i, option := range options {
-		chain, ok := optionChainMap[option.ExpirationDate]
-		if !ok {
-			return fmt.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
-		}
-
-		found := false
-
-		for _, tick := range chain {
-			var avgFillPrice float64
-
-			if option.OptionType == eventmodels.OptionTypeCall {
-				avgFillPrice = tick.Ask
-			} else if option.OptionType == eventmodels.OptionTypePut {
-				avgFillPrice = tick.Bid
-			} else {
-				return fmt.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
-			}
-
-			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
-				options[i].Timestamp = tick.Timestamp
-				options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
-				options[i].Description = tick.Description
-				options[i].ExpirationType = tick.ExpirationType
-				options[i].Bid = tick.Bid
-				options[i].Ask = tick.Ask
-				options[i].AverageFillPrice = avgFillPrice
-
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
-		}
-	}
-
-	return nil
-}
-
 func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]

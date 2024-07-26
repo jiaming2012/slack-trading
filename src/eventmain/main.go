@@ -294,7 +294,6 @@ func run() {
 	// lokiClient, err := lokiclient.NewClientFromEnv()
 
 	log.SetOutput(os.Stdout)
-	log.SetFormatter(&log.JSONFormatter{})
 
 	log.Infof("Log level set to %v", log.GetLevel())
 

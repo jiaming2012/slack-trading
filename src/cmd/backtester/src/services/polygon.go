@@ -21,7 +21,7 @@ func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (fl
 	return closestCandle.Open, nil
 }
 
-func FindClosestStockTickItemDTO(req eventmodels.ThetaDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
+func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
 	resp, err := eventservices.FetchPolygonStockChart(req.Root, 1, "minute", at, at.AddDate(0, 0, 1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)

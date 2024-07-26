@@ -115,3 +115,51 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 
 	return &aggregateResult, nil
 }
+
+func FetchPolygonAggregateBars() eventmodels.FetchDataFunc[eventmodels.PolygonAggregateBar] {
+	return func(url, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+		client := http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to create request: %w", err)
+		}
+
+		req.Header.Add("Accept", "application/json")
+
+		q := req.URL.Query()
+		q.Add("adjusted", "false")
+		q.Add("limit", "50000")
+		q.Add("sort", "asc")
+		q.Add("apiKey", apiKey)
+
+		req.URL.RawQuery = q.Encode()
+
+		log.Infof("FetchPolygonAggregateBars: fetching option contracts from %v", req.URL.String())
+
+		res, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to fetch option contracts: %w", err)
+		}
+
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to fetch option contracts, http code %v", res.Status)
+		}
+
+		var dto eventmodels.PolygonGetV3ReferenceOptionsContractsResponse[eventmodels.PolygonAggregateBar]
+		if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
+			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to decode json: %w", err)
+		}
+
+		return &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+			QueryCount:   1,
+			ResultsCount: len(dto.Results),
+			Results:      dto.Results,
+			GetNextURL:   func() *string { return dto.NextURL },
+		}, nil
+	}
+}

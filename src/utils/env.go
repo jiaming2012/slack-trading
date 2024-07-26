@@ -12,6 +12,16 @@ import (
 const DEV_ENV_FILENAME = ".env.development"
 const PROD_ENV_FILENAME = ".env.production"
 
+// CustomFormatter is a custom log formatter for Logrus
+type LogFormatter struct{}
+
+// Format formats the log entry to include a custom timestamp format
+func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
+	timestamp := entry.Time.Format("01-02-2006 15:04:05")
+	log := fmt.Sprintf("[%s] %s %s\n", timestamp, entry.Level, entry.Message)
+	return []byte(log), nil
+}
+
 func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	// Currently, we use heroku for production which doesn't support .env files
 	if os.Getenv("ENV") == "production" {
@@ -40,6 +50,12 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 		log.SetLevel(log.InfoLevel)
 	} else {
 		log.SetLevel(level)
+	}
+
+	if goEnvironment == "production" {
+		log.SetFormatter(&log.JSONFormatter{})
+	} else {
+		log.SetFormatter(&LogFormatter{})
 	}
 
 	return nil
