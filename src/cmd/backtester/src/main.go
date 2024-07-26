@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/jiaming2012/slack-trading/src/cmd/backtester/src/run"
+	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
@@ -56,10 +57,10 @@ func runTicks() {
 }
 
 type RunArgs struct {
-	OutDir     string
+	OutDir string
 }
 
-type RunResults struct {}
+type RunResults struct{}
 
 var runCmd = &cobra.Command{
 	Use:   "go run src/cmd/backtester/src/main.go --outDir results",
@@ -96,6 +97,14 @@ func Run(args RunArgs) (RunResults, error) {
 		return RunResults{}, fmt.Errorf("failed to init environment variables: %w", err)
 	}
 
+	slackWebhookURL := os.Getenv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
+	if slackWebhookURL == "" {
+		return RunResults{}, fmt.Errorf("missing SLACK_OPTION_ALERTS_WEBHOOK_URL environment variable")
+	}
+
+	// Start slack client
+	slackClient := eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL)
+
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
 	data, err := os.ReadFile(optionsConfigInDir)
@@ -111,6 +120,10 @@ func Run(args RunArgs) (RunResults, error) {
 	run.Exec(ctx, &wg, optionsConfig, args.OutDir, goEnv)
 
 	wg.Wait()
+
+	if err := slackClient.SendMessage("Backtest complete"); err != nil {
+		log.Errorf("failed to send slack message: %v", err)
+	}
 
 	return RunResults{}, nil
 }

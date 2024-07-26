@@ -305,7 +305,7 @@ func run() {
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
 
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
+	slackWebhookURL := os.Getenv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
 	// quotesAccountID := os.Getenv("TRADIER_ACCOUNT_ID")
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	// tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), quotesAccountID)

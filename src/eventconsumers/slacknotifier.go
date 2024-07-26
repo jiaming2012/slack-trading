@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -73,6 +73,14 @@ func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *eventmodels.Tra
 	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
 		log.Errorf("SlackNotifierClient.tradierOrderDeleteEventHandler: %v", err)
 	}
+}
+
+func (c *SlackNotifierClient) SendMessage(msg string) error {
+	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
+		return fmt.Errorf("SlackNotifierClient.SendMessage: %w", err)
+	}
+
+	return nil
 }
 
 func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *eventmodels.TradierOrderUpdateEvent) {
@@ -251,7 +259,7 @@ func postJSON(url string, body map[string]interface{}) ([]byte, error) {
 		defer res.Body.Close()
 	}
 
-	bodyBytes, readErr := ioutil.ReadAll(res.Body)
+	bodyBytes, readErr := io.ReadAll(res.Body)
 	if readErr != nil {
 		return nil, fmt.Errorf("PostJSON (ReadAll): %w", readErr)
 	}

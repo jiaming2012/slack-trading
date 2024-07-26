@@ -29,7 +29,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 	minDistanceBetweenStrikes := 10.0
 	expirationInDays := []int{7}
 
-	fmt.Println("esdb url: ", eventStoreDbURL)
+	log.Infof("esdb url: ", eventStoreDbURL)
 
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
@@ -75,6 +75,10 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 
 			nextOptionExpDate := deriveNextFriday(event.Timestamp)
 			data, err := services.FetchHistoricalOptionChainDataInput(&event, event.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+
+			if err != nil {
+				log.Errorf("failed to fetch option chain data: %v", err)
+			}
 
 			if data == nil {
 				log.Warnf("skipping event %v: failed to fetch option chain data", event)
