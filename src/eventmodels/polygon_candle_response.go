@@ -28,10 +28,8 @@ func (d *PolygonCandleDTO) ToCandleDTO() (*CandleDTO, error) {
 }
 
 type PolygonCandleResponse struct {
-	Ticker       string             `json:"ticker"`
 	QueryCount   int                `json:"queryCount"`
 	ResultsCount int                `json:"resultsCount"`
-	Adjusted     bool               `json:"adjusted"`
 	Results      []PolygonCandleDTO `json:"results"`
 	Status       string             `json:"status"`
 	NextURL      *string            `json:"next_url"`

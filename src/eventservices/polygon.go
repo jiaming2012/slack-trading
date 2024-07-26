@@ -82,35 +82,55 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 		return nil, fmt.Errorf("missing POLYGON_API_KEY environment")
 	}
 
-	url, err := makeRequestURL(symbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
-	if err != nil {
-		return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
-	}
-
+	backOff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second, 32 * time.Second, 64 * time.Second, 128 * time.Second}
 	var aggregateResult eventmodels.PolygonCandleResponse
 
+	counter := 0
+	isDone := false
 	for {
-		resp, err := fetchPolygonStockChart(url, apiKey)
+		url, err := makeRequestURL(symbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
 		if err != nil {
-			return nil, fmt.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %w", err)
+			return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
 		}
 
-		aggregateResult.Ticker = resp.Ticker
-		aggregateResult.QueryCount += resp.QueryCount
-		aggregateResult.ResultsCount += resp.ResultsCount
-		aggregateResult.Adjusted = resp.Adjusted
+		aggregateResult = eventmodels.PolygonCandleResponse{}
 
-		aggregateResult.Results = append(aggregateResult.Results, resp.Results...)
+		if counter > 0 {
+			log.Warnf("FetchPolygonStockChart: backoff %v", backOff[counter])
+			time.Sleep(backOff[counter])
+		}
 
-		if resp.NextURL == nil {
+		if counter < len(backOff)-1 {
+			counter++
+		}
+
+		for {
+			resp, err := fetchPolygonStockChart(url, apiKey)
+			if err != nil {
+				log.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %v", err)
+				break
+			}
+
+			aggregateResult.QueryCount += resp.QueryCount
+			aggregateResult.ResultsCount += resp.ResultsCount
+			aggregateResult.Results = append(aggregateResult.Results, resp.Results...)
+
+			if resp.NextURL == nil {
+				isDone = true
+				break
+			}
+
+			url = *resp.NextURL
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		if len(aggregateResult.Results) == 0 {
+			return nil, fmt.Errorf("FetchPolygonStockChart: no results found")
+		}
+
+		if isDone {
 			break
 		}
-
-		url = *resp.NextURL
-	}
-
-	if len(aggregateResult.Results) == 0 {
-		return nil, fmt.Errorf("FetchPolygonStockChart: no results found")
 	}
 
 	return &aggregateResult, nil
