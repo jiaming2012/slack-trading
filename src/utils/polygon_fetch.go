@@ -25,7 +25,7 @@ func FetchRecursively[T any](url string, fetchDataFn eventmodels.FetchDataFunc[T
 		aggregateResult = eventmodels.AggregateResult[T]{}
 
 		if counter > 0 {
-			log.Warnf("FetchPolygonStockChart: backoff %v", backOff[counter])
+			log.Warnf("FetchRecursively: backoff %v", backOff[counter])
 			time.Sleep(backOff[counter])
 		}
 
@@ -36,7 +36,7 @@ func FetchRecursively[T any](url string, fetchDataFn eventmodels.FetchDataFunc[T
 		for {
 			resp, err := fetchDataFn(url, apiKey)
 			if err != nil {
-				return nil, fmt.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %w", err)
+				return nil, fmt.Errorf("FetchRecursively: failed to fetch stock chart: %w", err)
 			}
 
 			aggregateResult.QueryCount += resp.QueryCount
@@ -54,7 +54,7 @@ func FetchRecursively[T any](url string, fetchDataFn eventmodels.FetchDataFunc[T
 		}
 
 		if len(aggregateResult.Results) == 0 {
-			return nil, fmt.Errorf("FetchPolygonStockChart: no results found")
+			return nil, fmt.Errorf("FetchRecursively: no results found")
 		}
 
 		if isDone {

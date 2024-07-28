@@ -53,15 +53,19 @@ func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3,
 	return expirationDates, filteredOptions
 }
 
-func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, now time.Time) error {
+func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, now time.Time) ([]eventmodels.OptionContractV3, error) {
+	var resultContracts []eventmodels.OptionContractV3
+
 	for i, option := range options {
 		chain, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
-			return fmt.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			continue
 		}
 
 		if len(chain) < 2 {
-			return fmt.Errorf("addAdditionInfoToOptionsV3: not enough option chain ticks for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsV3: not enough option chain ticks for expiration %s", option.Expiration.Format("2006-01-02"))
+			continue
 		}
 
 		found := false
@@ -80,12 +84,14 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
 				exp, err := time.Parse("2006-01-02", string(option.ExpirationDate))
 				if err != nil {
-					return fmt.Errorf("addAdditionInfoToOptionsV3: failed to parse expiration date %s: %v", option.ExpirationDate, err)
+					log.Errorf("addAdditionInfoToOptionsV3: failed to parse expiration date %s: %v", option.ExpirationDate, err)
+					continue
 				}
 
 				exp, err = eventmodels.ConvertToMarketClose(exp)
 				if err != nil {
-					return fmt.Errorf("addAdditionInfoToOptionsV3: failed to convert expiration date to market close: %v", err)
+					log.Errorf("addAdditionInfoToOptionsV3: failed to convert expiration date to market close: %v", err)
+					continue
 				}
 
 				var avgFillPrice float64
@@ -95,7 +101,8 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 				} else if option.OptionType == eventmodels.OptionTypePut {
 					avgFillPrice = tick.Bid
 				} else {
-					return fmt.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
+					log.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
+					continue
 				}
 
 				options[i].Timestamp = tick.Timestamp
@@ -113,16 +120,18 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 					log.Warnf("addAdditionInfoToOptionsV3: %s datestamp %v that is more than 2 hours after the requested timestamp %v", options[i].Symbol, tick.Timestamp, now)
 				}
 
+				resultContracts = append(resultContracts, options[i])
+
 				break
 			}
 		}
 
 		if !found {
-			return fmt.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
 		}
 	}
 
-	return nil
+	return resultContracts, nil
 }
 
 func addTickDataToOptionChainTicksByExpirationMap(contracts []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest) error {
@@ -162,16 +171,17 @@ func addTickDataToOptionChainTicksByExpirationMap(contracts []eventmodels.Option
 	return nil
 }
 
-func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, filteredOptions []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
+func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
 	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
 	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
 	defer span.End()
 
-	if err := addTickDataToOptionChainTicksByExpirationMap(filteredOptions, optionChainTicksByExpirationMap, polygonTickDataReq); err != nil {
+	if err := addTickDataToOptionChainTicksByExpirationMap(options, optionChainTicksByExpirationMap, polygonTickDataReq); err != nil {
 		return nil, fmt.Errorf("failed to add tick data to options: %v", err)
 	}
 
-	if err := addAdditionInfoToOptionsV3(filteredOptions, optionChainTicksByExpirationMap, now); err != nil {
+	filteredOptions, err := addAdditionInfoToOptionsV3(options, optionChainTicksByExpirationMap, now)
+	if err != nil {
 		return nil, fmt.Errorf("failed to add symbol name to options: %v", err)
 	}
 

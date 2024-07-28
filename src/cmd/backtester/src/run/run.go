@@ -29,7 +29,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 	minDistanceBetweenStrikes := 10.0
 	expirationInDays := []int{7}
 
-	log.Infof("esdb url: ", eventStoreDbURL)
+	log.Infof("esdb url: %v", eventStoreDbURL)
 
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
@@ -48,7 +48,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 
 	wg.Add(1)
 
-	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
+	go func(signalCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
 		defer wg.Done()
 
 		loc, err := time.LoadLocation("America/New_York")
@@ -61,10 +61,10 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 		fmt.Printf("waiting for signal triggered events\n")
 
 		var allTrades []*eventmodels.BacktesterOrder
-		for event := range eventCh {
-			log.Infof("received signal triggered event: %v", event.Signal)
+		for signal := range signalCh {
+			log.Infof("received signal triggered event: %v", signal.Signal)
 
-			readOptionChainReq, err := eventconsumers.ProcessSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)
+			readOptionChainReq, err := eventconsumers.ProcessSignalTriggeredEvent(signal, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)
 			if err != nil {
 				log.Errorf("failed to process signal triggered event: %v", err)
 				continue
@@ -73,23 +73,23 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 			resultCh := make(chan map[string]interface{})
 			errCh := make(chan error)
 
-			nextOptionExpDate := deriveNextFriday(event.Timestamp)
-			data, err := services.FetchHistoricalOptionChainDataInput(&event, event.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+			nextOptionExpDate := deriveNextFriday(signal.Timestamp)
+			data, err := services.FetchHistoricalOptionChainDataInput(&signal, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 
 			if err != nil {
 				log.Errorf("failed to fetch option chain data: %v", err)
 			}
 
 			if data == nil {
-				log.Warnf("skipping event %v: failed to fetch option chain data", event)
+				log.Warnf("skipping event %v: failed to fetch option chain data", signal)
 				continue
 			}
 
-			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, event.Timestamp, resultCh, errCh)
+			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, signal.Timestamp, resultCh, errCh)
 
-			highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv)
+			highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, goEnv)
 			if err != nil {
-				log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
+				log.Errorf("tradier executer: %v: send to market failed: %v", signal.Signal, err)
 			}
 
 			if highestEVBacktestOrder != nil {
