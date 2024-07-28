@@ -58,6 +58,7 @@ func runTicks() {
 
 type RunArgs struct {
 	OutDir string
+	Symbol eventmodels.StockSymbol
 }
 
 type RunResults struct{}
@@ -71,8 +72,14 @@ var runCmd = &cobra.Command{
 			log.Fatalf("error getting outDir: %v", err)
 		}
 
+		symbol, err := cmd.Flags().GetString("symbol")
+		if err != nil {
+			log.Fatalf("error getting symbol: %v", err)
+		}
+
 		_, err = Run(RunArgs{
 			OutDir: outDir,
+			Symbol: eventmodels.StockSymbol(symbol),
 		})
 
 		if err != nil {
@@ -130,6 +137,10 @@ func Run(args RunArgs) (RunResults, error) {
 
 func main() {
 	runCmd.PersistentFlags().String("outDir", "", "The directory to write the output to.")
+	runCmd.PersistentFlags().String("symbol", "", "The stock symbol to backtest.")
+
 	runCmd.MarkPersistentFlagRequired("outDir")
+	runCmd.MarkPersistentFlagRequired("symbol")
+
 	runCmd.Execute()
 }
