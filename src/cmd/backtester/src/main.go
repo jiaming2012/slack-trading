@@ -79,7 +79,7 @@ var runCmd = &cobra.Command{
 
 		_, err = Run(RunArgs{
 			OutDir: outDir,
-			Symbol: eventmodels.StockSymbol(symbol),
+			Symbol: eventmodels.NewStockSymbol(symbol),
 		})
 
 		if err != nil {
@@ -124,7 +124,7 @@ func Run(args RunArgs) (RunResults, error) {
 		return RunResults{}, fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
-	run.Exec(ctx, &wg, optionsConfig, args.OutDir, goEnv)
+	run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.OutDir, goEnv)
 
 	wg.Wait()
 
