@@ -16,7 +16,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
 )
 
-func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) {
+func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
@@ -33,7 +33,6 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, optionsConfig eventmodels.Opt
 
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
-	symbol := eventmodels.StockSymbol("NVDA")
 	streamName := eventmodels.StreamName(fmt.Sprintf("backtest-signals-%s", symbol))
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
