@@ -112,7 +112,7 @@ func fetchPolygonReferenceOptionsContracts(symbol eventmodels.StockSymbol, expir
 
 		req.URL.RawQuery = q.Encode()
 
-		log.Infof("fetchPolygonReferenceOptionsContracts: fetching option contracts from %v", req.URL.String())
+		log.Debugf("fetchPolygonReferenceOptionsContracts: fetching option contracts from %v", req.URL.String())
 
 		res, err := client.Do(req)
 		if err != nil {

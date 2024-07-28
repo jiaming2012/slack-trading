@@ -157,7 +157,7 @@ func FetchPolygonAggregateBars() eventmodels.FetchDataFunc[eventmodels.PolygonAg
 
 		req.URL.RawQuery = q.Encode()
 
-		log.Infof("FetchPolygonAggregateBars: fetching option contracts from %v", req.URL.String())
+		log.Debugf("FetchPolygonAggregateBars: fetching option contracts from %v", req.URL.String())
 
 		res, err := client.Do(req)
 		if err != nil {
