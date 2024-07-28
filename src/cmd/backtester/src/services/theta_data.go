@@ -220,7 +220,7 @@ func FetchHistoricalOptionChainDataInput(event *eventconsumers.SignalTriggeredEv
 		event.Timestamp,
 	)
 
-	polygonTickDataReq := &eventmodels.PolygonTickDataRequest{
+	polygonOptionTickDataReq := &eventmodels.PolygonOptionTickDataRequest{
 		BaseURL:   baseURL,
 		StartDate: event.Timestamp,
 		EndDate:   event.Timestamp,
@@ -232,7 +232,8 @@ func FetchHistoricalOptionChainDataInput(event *eventconsumers.SignalTriggeredEv
 		event.Symbol,
 		filteredOptions,
 		optionTickByExpirationMap,
-		polygonTickDataReq,
+		polygonOptionTickDataReq,
+		event.Timestamp,
 	)
 
 	if err != nil {

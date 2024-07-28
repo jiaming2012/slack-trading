@@ -53,7 +53,7 @@ func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3,
 	return expirationDates, filteredOptions
 }
 
-func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO) error {
+func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, now time.Time) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
@@ -63,6 +63,14 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 		found := false
 
 		for _, tick := range chain {
+			if tick.Timestamp.Before(now) {
+				continue
+			}
+
+			if tick.Timestamp.Sub(now) > 5 * time.Minute {
+				log.Warnf("addAdditionInfoToOptionsV3: found a datestamp %v that is more than 5 minutes after the requested timestamp %v", tick.Timestamp, now)
+			}
+
 			var avgFillPrice float64
 
 			if option.OptionType == eventmodels.OptionTypeCall {
@@ -106,7 +114,7 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 	return nil
 }
 
-func addTickDataToOptionsV3(contracts []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonTickDataRequest) error {
+func addTickDataToOptionChainTicksByExpirationMap(contracts []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest) error {
 	for _, c := range contracts {
 		url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), polygonTickDataReq.EndDate.Format("2006-01-02"))
 		dtos, err := utils.FetchRecursively(url, FetchPolygonAggregateBars())
@@ -143,16 +151,16 @@ func addTickDataToOptionsV3(contracts []eventmodels.OptionContractV3, optionChai
 	return nil
 }
 
-func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, filteredOptions []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonTickDataRequest) ([]eventmodels.OptionContractV3, error) {
+func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, filteredOptions []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
 	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
 	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
 	defer span.End()
 
-	if err := addTickDataToOptionsV3(filteredOptions, optionChainTicksByExpirationMap, polygonTickDataReq); err != nil {
+	if err := addTickDataToOptionChainTicksByExpirationMap(filteredOptions, optionChainTicksByExpirationMap, polygonTickDataReq); err != nil {
 		return nil, fmt.Errorf("failed to add tick data to options: %v", err)
 	}
 
-	if err := addAdditionInfoToOptionsV3(filteredOptions, optionChainTicksByExpirationMap); err != nil {
+	if err := addAdditionInfoToOptionsV3(filteredOptions, optionChainTicksByExpirationMap, now); err != nil {
 		return nil, fmt.Errorf("failed to add symbol name to options: %v", err)
 	}
 

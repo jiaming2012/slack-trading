@@ -27,10 +27,26 @@ func findOratsOptionDataAt(timestamp time.Time, data []eventmodels.OratsOptionDa
 }
 
 func findCandleDTOAt(timestamp time.Time, data []*eventmodels.CandleDTO) (*eventmodels.CandleDTO, error) {
+	var previousData *eventmodels.CandleDTO
 	for _, d := range data {
-		if d.Date == timestamp.Format("2006-01-02 15:04:00") {
+		dateStamp, err := time.Parse("2006-01-02 15:04:00", d.Date)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse timestamp %v: %w", d.Date, err)
+		}
+
+		if dateStamp.Equal(timestamp) {
 			return d, nil
 		}
+
+		if dateStamp.After(timestamp) {
+			if dateStamp.Sub(timestamp) > 5 * time.Minute {
+				log.Warnf("findCandleDTOAt: found a datestamp %v that is more than 5 minutes after the requested timestamp %v", dateStamp, timestamp)
+			}
+
+			return previousData, nil
+		}
+
+		previousData = d
 	}
 
 	return nil, errors.New("findCandleDTOAt: no matching data found")
@@ -192,6 +208,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 	}
 
 	underlyingPriceAtOpen, err := findCandleDTOAt(req.CreateDate, underlyingDailyCandles)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to find underlying price at open for %v: %w, req.ID=%v", req.CreateDate, err, req.ID)
 	}

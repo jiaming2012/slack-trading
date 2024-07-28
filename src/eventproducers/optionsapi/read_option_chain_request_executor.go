@@ -185,6 +185,7 @@ func (s *ReadOptionChainRequestExecutor) CollectData(ctx context.Context, req *e
 		filteredOptions,
 		optionChainTickByExpirationMap,
 		nil,
+		now,
 	)
 
 	if err != nil {

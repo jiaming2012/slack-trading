@@ -177,11 +177,15 @@ func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmo
 		event, err := event.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				fmt.Println("EOF")
+				log.Info("EOF")
 				break
 			}
 
 			return fmt.Errorf("esdbConsumerStream: failed to read event from stream: %v", err)
+		}
+
+		if event.Event.EventNumber > lastEventNumber {
+			break
 		}
 
 		log.Infof("esdbConsumerStream: replaying event %d / %d", event.Event.EventNumber, lastEventNumber)
