@@ -127,7 +127,7 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 		}
 
 		if !found {
-			log.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.ExpirationDate)
 		}
 	}
 
