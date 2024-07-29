@@ -39,7 +39,7 @@ func findCandleDTOAt(timestamp time.Time, data []*eventmodels.CandleDTO) (*event
 		}
 
 		if dateStamp.After(timestamp) {
-			if dateStamp.Sub(timestamp) > 5 * time.Minute {
+			if dateStamp.Sub(timestamp) > 5*time.Minute {
 				log.Warnf("findCandleDTOAt: found a datestamp %v that is more than 5 minutes after the requested timestamp %v", dateStamp, timestamp)
 			}
 
@@ -104,13 +104,19 @@ func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, si
 	}
 }
 
-func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, premiumPaid1 float64, option2 eventmodels.OptionSymbolComponents, side2 string, premiumPaid2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
+func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, optionPremium float64, option2 eventmodels.OptionSymbolComponents, side2 string, optionPremium2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
 	profit1, err := calculateOptionProfitAtExpiry(option1, side1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: failed to calculate option1 profit: %w", err)
 	}
 
-	profit1 -= premiumPaid1 * optionMultiplier
+	if side1 == "sell_to_open" {
+		profit1 += optionPremium * optionMultiplier
+	} else if side1 == "buy_to_open" {
+		profit1 -= optionPremium * optionMultiplier
+	} else {
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: invalid side1 %v", side1)
+	}
 
 	var optionProfit1 OptionProfit
 	if option1.OptionType == eventmodels.ThetaDataOptionTypeCall {
@@ -136,7 +142,13 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: failed to calculate option2 profit: %w", err)
 	}
 
-	profit2 -= premiumPaid2 * optionMultiplier
+	if side2 == "sell_to_open" {
+		profit2 += optionPremium2 * optionMultiplier
+	} else if side2 == "buy_to_open" {
+		profit2 -= optionPremium2 * optionMultiplier
+	} else {
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: invalid side2 %v", side2)
+	}
 
 	var optionProfit2 OptionProfit
 	if option2.OptionType == eventmodels.ThetaDataOptionTypeCall {
@@ -251,22 +263,22 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		CreatedTimestamp:      req.CreateDate,
 		DebitPaid:             debitPaid,
 		CreditReceived:        creditReceived,
-		OrderID1:              req.Leg2.ID,
-		Side1:                 req.Leg2.Side,
-		OptionType1:           option2Type,
-		Timestamp1:            req.Leg2.Timestamp,
+		OrderID1:              req.Leg1.ID,
+		Side1:                 req.Leg1.Side,
+		OptionType1:           option1Type,
+		Timestamp1:            req.Leg1.Timestamp,
 		Symbol1:               symbolLeg1,
-		StrikePrice1:          option2.StrikePrice,
-		Quantity1:             req.Leg2.Quantity,
-		AvgFillPrice1:         req.Leg2.AvgFillPrice,
-		OrderID2:              req.Leg1.ID,
-		Side2:                 req.Leg1.Side,
-		OptionType2:           option1Type,
-		Timestamp2:            req.Leg1.Timestamp,
+		StrikePrice1:          option1.StrikePrice,
+		Quantity1:             req.Leg1.Quantity,
+		AvgFillPrice1:         req.Leg1.AvgFillPrice,
+		OrderID2:              req.Leg2.ID,
+		Side2:                 req.Leg2.Side,
+		OptionType2:           option2Type,
+		Timestamp2:            req.Leg2.Timestamp,
 		Symbol2:               symbolLeg2,
-		Quantity2:             req.Leg1.Quantity,
-		StrikePrice2:          option1.StrikePrice,
-		AvgFillPrice2:         req.Leg1.AvgFillPrice,
+		Quantity2:             req.Leg2.Quantity,
+		StrikePrice2:          option2.StrikePrice,
+		AvgFillPrice2:         req.Leg2.AvgFillPrice,
 		SignalName:            string(signalName),
 		ExpectedProfit:        expectedProfit * optionMultiplier,
 		RequestedPrice:        requestedPrice,
@@ -285,7 +297,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		}
 
 		optionMultiplier := 100.0
-		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(*option2, side2, req.Leg2.AvgFillPrice, *option1, side1, req.Leg1.AvgFillPrice, symbol1DataAtExpiry.Close, optionMultiplier)
+		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(*option1, side1, req.Leg1.AvgFillPrice, *option2, side2, req.Leg2.AvgFillPrice, symbol1DataAtExpiry.Close, optionMultiplier)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate spread profit at expiry: %w", err)
 		}
