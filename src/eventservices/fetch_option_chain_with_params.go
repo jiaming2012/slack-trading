@@ -79,7 +79,12 @@ func addAdditionInfoToOptionsV3(options []eventmodels.OptionContractV3, optionCh
 				continue
 			}
 
-			tick := chain[j-1]
+			var tick *eventmodels.OptionChainTickDTO
+			if j == 0 {
+				tick = chain[j]
+			} else {
+				tick = chain[j-1]
+			}
 
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
 				exp, err := time.Parse("2006-01-02", string(option.ExpirationDate))

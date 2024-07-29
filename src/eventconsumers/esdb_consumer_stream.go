@@ -216,9 +216,11 @@ func (cli *esdbConsumerStream[T]) Replay(ctx context.Context) {
 		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to find last event number: %v", err)
 	}
 
+	_ = lastEventNumber
+
 	log.Debugf("esdbConsumerStream.Replay: replaying events for stream %s", cli.streamName)
 
-	if err := cli.replayEvents(ctx, cli.streamName, 0, lastEventNumber); err != nil {
+	if err := cli.replayEvents(ctx, cli.streamName, 1150, lastEventNumber); err != nil {
 		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to replay events: %v", err)
 	}
 
