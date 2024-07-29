@@ -118,7 +118,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 		spreadResults = append(spreadResults, result)
 	}
 
-	csvPath, err := run.ExportToCsv(outDir, spreadResults, "backtester")
+	csvPath, err := run.ExportToCsv(outDir, spreadResults, fmt.Sprintf("backtester_%s", symbol))
 	if err != nil {
 		log.Errorf("Failed to export to CSV: %v", err)
 	} else {
