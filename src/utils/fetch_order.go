@@ -70,18 +70,34 @@ func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
 	return option1Cost + option2Cost
 }
 
-func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, premium float64, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
+func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, side string, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
 	if option.OptionType == "C" {
 		if underlyingPriceAtExpiry > option.StrikePrice {
-			return (underlyingPriceAtExpiry - option.StrikePrice - premium) * optionMultiplier, nil
+			profit := (underlyingPriceAtExpiry - option.StrikePrice) * optionMultiplier
+			if side == "buy_to_open" {
+				return profit, nil
+			} else if side == "sell_to_open" {
+				return -profit, nil
+			} else {
+				return 0, fmt.Errorf("calculateOptionProfitAtExpiry: invalid side %v", side)
+			}
+
 		} else {
-			return -premium * optionMultiplier, nil
+			return 0, nil
 		}
 	} else if option.OptionType == "P" {
 		if underlyingPriceAtExpiry < option.StrikePrice {
-			return (option.StrikePrice - underlyingPriceAtExpiry - premium) * optionMultiplier, nil
+			profit := (option.StrikePrice - underlyingPriceAtExpiry) * optionMultiplier
+			if side == "buy_to_open" {
+				return profit, nil
+			} else if side == "sell_to_open" {
+				return -profit, nil
+			} else {
+				return 0, fmt.Errorf("calculateOptionProfitAtExpiry: invalid side %v", side)
+			}
+
 		} else {
-			return -premium * optionMultiplier, nil
+			return 0, nil
 		}
 	} else {
 		return 0, errors.New("invalid option type")
@@ -89,40 +105,54 @@ func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, pr
 }
 
 func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, premiumPaid1 float64, option2 eventmodels.OptionSymbolComponents, side2 string, premiumPaid2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
-	profit1, err := calculateOptionProfitAtExpiry(option1, premiumPaid1, underlyingClosePrcAtExpiry, optionMultiplier)
+	profit1, err := calculateOptionProfitAtExpiry(option1, side1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
-		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option1 profit: %w", err)
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: failed to calculate option1 profit: %w", err)
 	}
+
+	profit1 -= premiumPaid1 * optionMultiplier
 
 	var optionProfit1 OptionProfit
-	if profit1 > 0 {
-		optionProfit1.IsInMoney = true
-	}
-
-	if side1 == "sell_to_open" {
-		profit1 *= -1
-	} else if side1 == "buy_to_open" {
+	if option1.OptionType == eventmodels.ThetaDataOptionTypeCall {
+		if underlyingClosePrcAtExpiry > option1.StrikePrice {
+			optionProfit1.IsInMoney = true
+		} else {
+			optionProfit1.IsInMoney = false
+		}
+	} else if option1.OptionType == eventmodels.ThetaDataOptionTypePut {
+		if underlyingClosePrcAtExpiry < option1.StrikePrice {
+			optionProfit1.IsInMoney = true
+		} else {
+			optionProfit1.IsInMoney = false
+		}
 	} else {
-		return OptionProfit{}, OptionProfit{}, errors.New("invalid side for option1")
+		return OptionProfit{}, OptionProfit{}, errors.New("calculateSpreadProfitAtExpiry: invalid option1 type")
 	}
 
 	optionProfit1.Profit = profit1
 
-	profit2, err := calculateOptionProfitAtExpiry(option2, premiumPaid2, underlyingClosePrcAtExpiry, optionMultiplier)
+	profit2, err := calculateOptionProfitAtExpiry(option2, side2, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
-		return OptionProfit{}, OptionProfit{}, fmt.Errorf("failed to calculate option2 profit: %w", err)
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: failed to calculate option2 profit: %w", err)
 	}
+
+	profit2 -= premiumPaid2 * optionMultiplier
 
 	var optionProfit2 OptionProfit
-	if profit2 > 0 {
-		optionProfit2.IsInMoney = true
-	}
-
-	if side2 == "sell_to_open" {
-		profit2 *= -1
-	} else if side2 == "buy_to_open" {
+	if option2.OptionType == eventmodels.ThetaDataOptionTypeCall {
+		if underlyingClosePrcAtExpiry > option2.StrikePrice {
+			optionProfit2.IsInMoney = true
+		} else {
+			optionProfit2.IsInMoney = false
+		}
+	} else if option2.OptionType == eventmodels.ThetaDataOptionTypePut {
+		if underlyingClosePrcAtExpiry < option2.StrikePrice {
+			optionProfit2.IsInMoney = true
+		} else {
+			optionProfit2.IsInMoney = false
+		}
 	} else {
-		return OptionProfit{}, OptionProfit{}, errors.New("invalid side for option2")
+		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: invalid option2 type %v", option2.OptionType)
 	}
 
 	optionProfit2.Profit = profit2
