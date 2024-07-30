@@ -24,6 +24,12 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+
+	optionConfig, err := optionsConfig.GetOption(symbol)
+	if err != nil {
+		log.Fatalf("failed to get option config: %v", err)
+	}
+	
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
 	maxNoOfStrikes := 4
 	minDistanceBetweenStrikes := 10.0
