@@ -61,7 +61,9 @@ type RunArgs struct {
 	Symbol eventmodels.StockSymbol
 }
 
-type RunResults struct{}
+type RunResults struct{
+	SuccessMsg string
+}
 
 var runCmd = &cobra.Command{
 	Use:   "go run src/cmd/backtester/src/main.go --outDir results",
@@ -77,7 +79,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("error getting symbol: %v", err)
 		}
 
-		_, err = Run(RunArgs{
+		results, err := Run(RunArgs{
 			OutDir: outDir,
 			Symbol: eventmodels.NewStockSymbol(symbol),
 		})
@@ -86,7 +88,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Error: %v", err)
 		}
 
-		log.Info("Done")
+		log.Info(results.SuccessMsg)
 	},
 }
 
@@ -124,15 +126,22 @@ func Run(args RunArgs) (RunResults, error) {
 		return RunResults{}, fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
-	run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.OutDir, goEnv)
+	execResult := run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.OutDir, goEnv)
+	if execResult.Err != nil {
+		if err := slackClient.SendMessage(fmt.Sprintf("[ERROR] Backtest failed: %v", execResult.Err)); err != nil {
+			log.Errorf("failed to send slack error message: %v", err)
+		}
 
-	wg.Wait()
-
-	if err := slackClient.SendMessage("Backtest complete"); err != nil {
-		log.Errorf("failed to send slack message: %v", err)
+		return RunResults{}, fmt.Errorf("failed to run backtest: %w", execResult.Err)
 	}
 
-	return RunResults{}, nil
+	if err := slackClient.SendMessage(fmt.Sprintf("[SUCCESS] Backtest complete: %v", execResult.SuccessMsg)); err != nil {
+		log.Errorf("failed to send slack success message: %v", err)
+	}
+
+	return RunResults{
+		SuccessMsg: execResult.SuccessMsg,
+	}, nil
 }
 
 func main() {

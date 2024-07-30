@@ -80,7 +80,7 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 	return results, nil
 }
 
-func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, outDir string) error {
+func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, config eventmodels.OptionsConfigYAML, outDir string) (string, error) {
 	var spreadResults []*eventmodels.OptionOrderSpreadResult
 	optionMultiplier := 100.0
 
@@ -112,20 +112,18 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 
 		result, err := utils.CalculateOptionOrderSpreadResult(req, candles, optionMultiplier)
 		if err != nil {
-			return fmt.Errorf("failed to calculate option order spread result: %v", err)
+			return "", fmt.Errorf("failed to calculate option order spread result: %w", err)
 		}
 
 		spreadResults = append(spreadResults, result)
 	}
 
-	csvPath, err := run.ExportToCsv(outDir, spreadResults, fmt.Sprintf("backtester_%s", symbol))
+	csvPath, err := run.ExportToCsv(outDir, spreadResults, fmt.Sprintf("backtester_%s", symbol), config)
 	if err != nil {
-		log.Errorf("Failed to export to CSV: %v", err)
-	} else {
-		log.Infof("CSV file written to: %v", csvPath)
+		return "", fmt.Errorf("failed to export to CSV: %w", err)
 	}
 
-	return nil
+	return csvPath, nil
 }
 
 func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {

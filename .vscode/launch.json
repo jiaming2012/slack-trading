@@ -89,7 +89,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/cmd/backtester/src/main.go",
-            "args": ["--outDir", "results", "--symbol", "TSLA"]
+            "args": ["--outDir", "results", "--symbol", "NVDA"]
         },
         {
             "name": "[DEV] cmd/tick_generator/clean_data_pdf_signals/main.go",

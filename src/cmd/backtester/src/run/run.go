@@ -16,7 +16,12 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
 )
 
-func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) {
+type ExecResult struct {
+	SuccessMsg string
+	Err 	  error
+}
+
+func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) ExecResult {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
@@ -27,13 +32,22 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 	optionConfig, err := optionsConfig.GetOption(symbol)
 	if err != nil {
-		log.Fatalf("failed to get option config: %v", err)
+		return ExecResult{
+			Err: fmt.Errorf("failed to get option config: %w", err),
+		}
 	}
 	
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
-	maxNoOfStrikes := 4
-	minDistanceBetweenStrikes := 10.0
-	expirationInDays := []int{7}
+	maxNoOfStrikes := optionConfig.MaxNoOfStrikes
+
+	if optionConfig.MinDistanceBetweenStrikes == nil {
+		return ExecResult{
+			Err: fmt.Errorf("minDistanceBetweenStrikes is not set in config"),
+		}
+	}
+
+	minDistanceBetweenStrikes := *optionConfig.MinDistanceBetweenStrikes
+	expirationsInDays := optionConfig.ExpirationsInDays
 
 	log.Infof("esdb url: %v", eventStoreDbURL)
 
@@ -51,19 +65,20 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		GoEnv:                  goEnv,
 	}
 
-	wg.Add(1)
+	resultCh := make(chan ExecResult)
 
-	go func(signalCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
-		defer wg.Done()
-
+	go func(signalCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, errCh chan ExecResult, DryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
-			log.Panicf("failed to load location: %v", err)
+			resultCh <- ExecResult{
+				Err: fmt.Errorf("failed to load location: %w", err),
+			}
+			return
 		}
 
 		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
 
-		fmt.Printf("waiting for signal triggered events\n")
+		log.Infof("waiting for signal triggered events\n")
 
 		var allTrades []*eventmodels.BacktesterOrder
 		for signal := range signalCh {
@@ -79,7 +94,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			errCh := make(chan error)
 
 			nextOptionExpDate := deriveNextFriday(signal.Timestamp)
-			data, err := services.FetchHistoricalOptionChainDataInput(&signal, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+			data, err := services.FetchHistoricalOptionChainDataInput(&signal, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 			if err != nil {
 				log.Errorf("failed to fetch option chain data: %v", err)
@@ -104,23 +119,40 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		}
 
 		if len(allTrades) == 0 {
-			log.Infof("no trades to process")
+			resultCh <- ExecResult{
+				SuccessMsg: "no trades to process",
+				Err:        nil,
+			}
 			return
 		}
 
 		candlesDTO, err := services.FetchCandlesFromBacktesterOrders(symbol, allTrades)
 		if err != nil {
-			log.Fatalf("failed to fetch candles: %v", err)
+			resultCh <- ExecResult{
+				Err: fmt.Errorf("failed to fetch candles: %w", err),
+			}
+			return
 		}
 
-		if err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, outDir); err != nil {
-			log.Fatalf("ProcessBacktestTrades failed: %v", err)
+		csvPath, err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, optionsConfig, outDir)
+		if err != nil {
+			resultCh <- ExecResult{
+				Err: fmt.Errorf("ProcessBacktestTrades failed: %w", err),
+			}
+			return
 		}
 
-		log.Infof("processed %v backtest trades at %v", len(allTrades), outDir)
-	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
+		resultCh <- ExecResult{
+			SuccessMsg: fmt.Sprintf("processed %v backtest trades to %v", len(allTrades), csvPath),
+			Err:        nil,
+		}
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, resultCh, isDryRun)
 
 	trackerV3OptionEVConsumer.Replay(ctx)
+
+	result := <-resultCh
+
+	return result
 }
 
 func deriveNextFriday(now time.Time) time.Time {

@@ -13,21 +13,21 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, outFilePrefix string) (string, error) {
+func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, outFilePrefix string, config eventmodels.OptionsConfigYAML) (string, error) {
 	now := time.Now()
 	outFilePath := path.Join(inDir, fmt.Sprintf("%s_%s.csv", outFilePrefix, now.Format("2006-01-02_15-04-05")))
 
 	// Create directory if it doesn't exist
 	if _, err := os.Stat(inDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(inDir, os.ModePerm); err != nil {
-			return "", err
+			return "", fmt.Errorf("ExportToCsv: failed to create directory: %w", err)
 		}
 	}
 
 	// Open a file for writing
 	file, err := os.Create(outFilePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("ExportToCsv: failed to create file: %w", err)
 	}
 	defer file.Close()
 
@@ -38,9 +38,20 @@ func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, o
 		return gocsv.NewSafeCSVWriter(writer)
 	})
 
+	if err := gocsv.MarshalFile(config.Options, file); err != nil {
+		return "", fmt.Errorf("ExportToCsv: failed to write metadata to file: %w", err)
+	}
+
+	// Add a blank line between metadata and results
+	csvWriter := csv.NewWriter(file)
+	if err := csvWriter.Write([]string{""}); err != nil {
+		return "", fmt.Errorf("ExportToCsv: failed to write blank line to file: %w", err)
+	}
+	csvWriter.Flush()
+
 	// Marshal and write the data to the file
 	if err := gocsv.MarshalFile(&results, file); err != nil { // Note: &results is a pointer to the slice
-		return "", err
+		return "", fmt.Errorf("ExportToCsv: failed to write to file: %w", err)
 	}
 
 	return outFilePath, nil
