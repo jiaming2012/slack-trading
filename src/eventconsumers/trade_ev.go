@@ -15,9 +15,9 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO, err error) {
-	highestEVLongMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
-	highestEVShortMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
+func FindHighestEVPerExpiration(options []eventmodels.OptionContract) (long []eventmodels.OptionContract, short []eventmodels.OptionContract, err error) {
+	highestEVLongMap := make(map[time.Time]eventmodels.OptionContract)
+	highestEVShortMap := make(map[time.Time]eventmodels.OptionContract)
 
 	for _, option := range options {
 		expiration, err := option.GetExpiration()
@@ -28,7 +28,7 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 
 		highestLongEV, found := highestEVLongMap[expiration]
 		if found {
-			if option.Stats.ExpectedProfitLong > highestLongEV.Stats.ExpectedProfitLong {
+			if option.GetLongExpectedProfit() > highestLongEV.GetLongExpectedProfit() {
 				highestEVLongMap[expiration] = option
 			}
 		} else {
@@ -37,7 +37,7 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 
 		highestShortEV, found := highestEVShortMap[expiration]
 		if found {
-			if option.Stats.ExpectedProfitShort > highestShortEV.Stats.ExpectedProfitShort {
+			if option.GetShortExpectedProfit() > highestShortEV.GetShortExpectedProfit() {
 				highestEVShortMap[expiration] = option
 			}
 		} else {
@@ -45,17 +45,17 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 		}
 	}
 
-	var highestEVLong []*eventmodels.OptionSpreadContractDTO
-	var highestEVShort []*eventmodels.OptionSpreadContractDTO
+	var highestEVLong []eventmodels.OptionContract
+	var highestEVShort []eventmodels.OptionContract
 
 	for _, option := range highestEVLongMap {
-		if option.Stats.ExpectedProfitLong > 0 {
+		if option.GetLongExpectedProfit() > 0 {
 			highestEVLong = append(highestEVLong, option)
 		}
 	}
 
 	for _, option := range highestEVShortMap {
-		if option.Stats.ExpectedProfitShort > 0 {
+		if option.GetShortExpectedProfit() > 0 {
 			highestEVShort = append(highestEVShort, option)
 		}
 	}
@@ -73,36 +73,36 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 	select {
 	case result := <-resultCh:
 		if result != nil {
-			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
+			options, ok := result["options"].(map[string][]eventmodels.OptionContract)
 			if !ok {
-				return fmt.Errorf("options not found in result")
+				return fmt.Errorf("failed to unmarshal options from result: %v", result)
 			}
 
 			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads, err := FindHighestEVPerExpiration(calls)
+				highestEVLongCalls, highestEVShortCalls, err := FindHighestEVPerExpiration(calls)
 				if err != nil {
 					return fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
 				}
 
-				for _, spread := range highestEVLongCallSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
+				for _, call := range highestEVLongCalls {
+					if call != nil {
+						logger.WithField("event", "signal").Infof("Ignoring long call: %v", call)
 					} else {
 						logger.WithField("event", "signal").Infof("No Positive EV Long Call found")
 					}
 				}
 
-				for _, spread := range highestEVShortCallSpreads {
-					if spread != nil {
+				for _, call := range highestEVShortCalls {
+					if call != nil {
 						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
+						if call.GetCreditReceived() != nil {
+							requestedPrc = *call.GetCreditReceived()
 						}
 
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
+						tag := utils.EncodeTag(event.Signal, call.GetShortExpectedProfit(), requestedPrc)
 
 						span.AddEvent("PlaceTradeSpread:Call", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
+						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, call.LongOptionSymbol, call.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
 						}
 					} else {
@@ -114,30 +114,30 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			}
 
 			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads, err := FindHighestEVPerExpiration(puts)
+				highestEVLongPuts, highestEVShortPuts, err := FindHighestEVPerExpiration(puts)
 				if err != nil {
 					return fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
 				}
 
-				for _, spread := range highestEVLongPutSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
+				for _, put := range highestEVLongPuts {
+					if put != nil {
+						logger.WithField("event", "signal").Infof("Ignoring long put: %v", put)
 					} else {
 						logger.WithField("event", "signal").Infof("No Positive EV Long Put found")
 					}
 				}
 
-				for _, spread := range highestEVShortPutSpreads {
-					if spread != nil {
+				for _, put := range highestEVShortPuts {
+					if put != nil {
 						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
+						if put.GetCreditReceived() != nil {
+							requestedPrc = *put.GetCreditReceived()
 						}
 
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
+						tag := utils.EncodeTag(event.Signal, put.GetShortExpectedProfit(), requestedPrc)
 
 						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
+						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, put.LongOptionSymbol, put.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 						}
 					} else {

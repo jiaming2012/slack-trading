@@ -126,6 +126,96 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 	return csvPath, nil
 }
 
+func deriveHighestEVCondor(ctx context.Context, options []*eventmodels.OptionCondorContractDTO, event eventconsumers.SignalTriggeredEvent) (*eventmodels.BacktesterOrder, error) {
+	tracer := otel.GetTracerProvider().Tracer("deriveHighestEVCondor")
+	ctx, span := tracer.Start(ctx, "deriveHighestEVCondor")
+	defer span.End()
+
+	logger := log.WithContext(ctx)
+
+	highestEVLongSpreads, highestEVShortSpreads, err := eventconsumers.FindHighestEVPerExpiration(options)
+	if err != nil {
+		return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+	}
+
+	for _, spread := range highestEVLongSpreads {
+		if spread != nil {
+			logger.WithField("event", "signal").Infof("Ignoring long option: %v", spread)
+		} else {
+			logger.WithField("event", "signal").Infof("No Positive EV Long option found")
+		}
+	}
+
+	for _, spread := range highestEVShortSpreads {
+		if spread != nil {
+			requestedPrc := 0.0
+			if spread.CreditReceived != nil {
+				requestedPrc = *spread.CreditReceived
+			}
+
+			tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
+
+			span.AddEvent("create tag", trace.WithAttributes(attribute.String("tag", tag)))
+
+			return &eventmodels.BacktesterOrder{
+				Underlying: event.Symbol,
+				Spread:     spread,
+				Quantity:   1,
+				Tag:        tag,
+			}, nil
+		} else {
+			logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
+		}
+	}
+
+	return nil, nil
+}
+
+func deriveHighestEV(ctx context.Context, options []eventmodels.OptionContract, event eventconsumers.SignalTriggeredEvent) (*eventmodels.BacktesterOrder, error) {
+	tracer := otel.GetTracerProvider().Tracer("deriveHighestEVSpread")
+	ctx, span := tracer.Start(ctx, "deriveHighestEVSpread")
+	defer span.End()
+
+	logger := log.WithContext(ctx)
+
+	highestEVLongSpreads, highestEVShortSpreads, err := eventconsumers.FindHighestEVPerExpiration(options)
+	if err != nil {
+		return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
+	}
+
+	for _, spread := range highestEVLongSpreads {
+		if spread != nil {
+			logger.WithField("event", "signal").Infof("Ignoring long option: %v", spread)
+		} else {
+			logger.WithField("event", "signal").Infof("No Positive EV Long option found")
+		}
+	}
+
+	for _, spread := range highestEVShortSpreads {
+		if spread != nil {
+			requestedPrc := 0.0
+			if spread.CreditReceived != nil {
+				requestedPrc = *spread.CreditReceived
+			}
+
+			tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
+
+			span.AddEvent("create tag", trace.WithAttributes(attribute.String("tag", tag)))
+
+			return &eventmodels.BacktesterOrder{
+				Underlying: event.Symbol,
+				Spread:     spread,
+				Quantity:   1,
+				Tag:        tag,
+			}, nil
+		} else {
+			logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
+		}
+	}
+
+	return nil, nil
+}
+
 func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
@@ -142,80 +232,15 @@ func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[strin
 			}
 
 			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads, err := eventconsumers.FindHighestEVPerExpiration(calls)
-				if err != nil {
-					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
-				}
-
-				for _, spread := range highestEVLongCallSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Call found")
-					}
-				}
-
-				for _, spread := range highestEVShortCallSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Call", trace.WithAttributes(attribute.String("tag", tag)))
-						return &eventmodels.BacktesterOrder{
-							Underlying: event.Symbol,
-							Spread:     spread,
-							Quantity:   1,
-							Tag:        tag,
-						}, nil
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
-					}
-				}
+				return deriveHighestEV(ctx, calls, event)
 			} else {
-				return nil, fmt.Errorf("calls not found in result")
+				logger.Info("calls not found in result")
 			}
 
 			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads, err := eventconsumers.FindHighestEVPerExpiration(puts)
-				if err != nil {
-					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
-				}
-
-				for _, spread := range highestEVLongPutSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Put found")
-					}
-				}
-
-				for _, spread := range highestEVShortPutSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
-
-						return &eventmodels.BacktesterOrder{
-							Underlying: event.Symbol,
-							Spread:     spread,
-							Quantity:   1,
-							Tag:        tag,
-						}, nil
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Put found")
-					}
-				}
+				return deriveHighestEV(ctx, puts, event)
 			} else {
-				return nil, fmt.Errorf("puts not found in result")
+				logger.Info("puts not found in result")
 			}
 		}
 
