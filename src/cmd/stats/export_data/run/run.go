@@ -42,13 +42,24 @@ func Run(args RunArgs) (RunOutput, error) {
 	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", args.InputStreamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
 	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
 
-	// check if file exists
+	// check if file exists on file system
 	if _, err := os.Stat(outdir); err == nil {
 		log.Infof("Data file %s already exists", outdir)
 		return RunOutput{
 			ExportedFilepath: outdir,
 		}, nil
 	}
+
+	// compare candles from polygon vs tradingview for SPY 1/4/22 to 5/31/24
+
+	// check if data exists in DB
+	// create a function that return either the data or an error
+
+	// fetch data from polygon
+	// allow fetching missing periods of data
+	// save to DB
+	// fetch data from DB
+	// return error if second fetch fails
 
 	log.Infof("Exporting %s to csv", args.InputStreamName)
 
@@ -110,7 +121,7 @@ func Run(args RunArgs) (RunOutput, error) {
 
 	// Checks
 	if len(filteredCandles) == 0 {
-		return RunOutput{}, fmt.Errorf("no candles to export")
+		return RunOutput{}, fmt.Errorf("no candles found in DB to export")
 	}
 
 	firstCandleTimestamp := filteredCandles[0].Timestamp

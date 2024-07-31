@@ -235,13 +235,13 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 		return
 	}
 
-	output, err := s.formatOptionContractSpreads(expectedProfitShortSpreads)
+	options, err := s.formatOptionContractSpreads(expectedProfitShortSpreads)
 	if err != nil {
 		errorCh <- err
 		return
 	}
 
-	result["options"] = output
+	result["options"] = options
 
 	resultCh <- result
 }
