@@ -96,6 +96,8 @@ if __name__ == "__main__":
     # Add arguments
     parser.add_argument('--distributionInDir', type=str, required=True, help="Required. The input directory to a json file containing the best fit distribution")
     parser.add_argument('--optionPricesInDir', type=str, nargs='?', help="Optional. The input directory to a json file containing the stock and option prices")
+    parser.add_argument('--longOnly', type=bool, default=False, help="Optional. Default is False. Only calculate long spreads.")
+    parser.add_argument('--shortOnly', type=bool, default=False, help="Optional. Default is False. Only calculate short spreads.")
     parser.add_argument('--json-output', type=str, default=False, help="Optional. Default is False. Output the results in json format. Hides all other standard output.")
 
     # Parse the arguments
@@ -160,56 +162,60 @@ if __name__ == "__main__":
 
     calls = filter_calls(options)
     
-    # long_call_spreads = generate_long_vertical_spreads(calls, symbol)
+    if not args.shortOnly:
+        long_call_spreads = generate_long_vertical_spreads(calls, symbol)
 
-    # for spread in long_call_spreads:
-    #     if spread.type != SpreadType.VERTICAL_CALL:
-    #         raise ValueError(f"Invalid option type: {spread.type}")
+        for spread in long_call_spreads:
+            if spread.type != SpreadType.VERTICAL_CALL:
+                raise ValueError(f"Invalid option type: {spread.type}")
 
-    #     # Integrate the expected profit over the range of percent changes
-    #     long_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
-    #     long_expected_profit, _ = integrate.quad(long_call_spread_integrand, lower_limit, upper_limit)
-    #     debit_paid = spread.long_option.ask - spread.short_option.bid
-    #     long_call_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
+            # Integrate the expected profit over the range of percent changes
+            long_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
+            long_expected_profit, _ = integrate.quad(long_call_spread_integrand, lower_limit, upper_limit)
+            debit_paid = spread.long_option.ask - spread.short_option.bid
+            long_call_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
 
-    short_call_spreads = generate_short_vertical_spreads(calls, symbol)
+    
+    if not args.longOnly:
+        short_call_spreads = generate_short_vertical_spreads(calls, symbol)
 
-    for spread in short_call_spreads:
-        if spread.type != SpreadType.VERTICAL_CALL:
-            raise ValueError(f"Invalid option type: {spread.type}")
+        for spread in short_call_spreads:
+            if spread.type != SpreadType.VERTICAL_CALL:
+                raise ValueError(f"Invalid option type: {spread.type}")
 
-        # Integrate the expected profit over the range of percent changes
-        short_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
-        short_expected_profit, _ = integrate.quad(short_call_spread_integrand, lower_limit, upper_limit)
-        credit_received = spread.short_option.bid - spread.long_option.ask
-        short_call_spreads_and_profits.append((spread, credit_received, short_expected_profit))
+            # Integrate the expected profit over the range of percent changes
+            short_call_spread_integrand = generate_call_spread_integrand(stock_price, spread)
+            short_expected_profit, _ = integrate.quad(short_call_spread_integrand, lower_limit, upper_limit)
+            credit_received = spread.short_option.bid - spread.long_option.ask
+            short_call_spreads_and_profits.append((spread, credit_received, short_expected_profit))
 
     puts = filter_puts(options)
 
-    # long_put_spreads = generate_long_vertical_spreads(puts, symbol)
+    if not args.shortOnly:
+        long_put_spreads = generate_long_vertical_spreads(puts, symbol)
 
-    # for spread in long_put_spreads:
-    #     if spread.type != SpreadType.VERTICAL_PUT:
-    #         raise ValueError(f"Invalid option type: {spread.type}")
+        for spread in long_put_spreads:
+            if spread.type != SpreadType.VERTICAL_PUT:
+                raise ValueError(f"Invalid option type: {spread.type}")
 
-    #     # Integrate the expected profit over the range of percent changes
-    #     long_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
-    #     long_expected_profit, _ = integrate.quad(long_put_spread_integrand, lower_limit, upper_limit)
-    #     debit_paid = spread.long_option.ask - spread.short_option.bid
-    #     long_put_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
+            # Integrate the expected profit over the range of percent changes
+            long_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
+            long_expected_profit, _ = integrate.quad(long_put_spread_integrand, lower_limit, upper_limit)
+            debit_paid = spread.long_option.ask - spread.short_option.bid
+            long_put_spreads_and_profits.append((spread, debit_paid, long_expected_profit))
 
-    short_put_spreads = generate_short_vertical_spreads(puts, symbol)
+    if not args.longOnly:
+        short_put_spreads = generate_short_vertical_spreads(puts, symbol)
 
-    for spread in short_put_spreads:
-        if spread.type != SpreadType.VERTICAL_PUT:
-            raise ValueError(f"Invalid option type: {spread.type}")
+        for spread in short_put_spreads:
+            if spread.type != SpreadType.VERTICAL_PUT:
+                raise ValueError(f"Invalid option type: {spread.type}")
 
-        # Integrate the expected profit over the range of percent changes
-        short_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
-        short_expected_profit, _ = integrate.quad(short_put_spread_integrand, lower_limit, upper_limit)
-        credit_received = spread.short_option.bid - spread.long_option.ask
-        short_put_spreads_and_profits.append((spread, credit_received, short_expected_profit))
-
+            # Integrate the expected profit over the range of percent changes
+            short_put_spread_integrand = generate_put_spread_integrand(stock_price, spread)
+            short_expected_profit, _ = integrate.quad(short_put_spread_integrand, lower_limit, upper_limit)
+            credit_received = spread.short_option.bid - spread.long_option.ask
+            short_put_spreads_and_profits.append((spread, credit_received, short_expected_profit))
 
     # Sort the list by expected profit
     long_call_spreads_and_profits.sort(key=lambda x: x[2], reverse=True)

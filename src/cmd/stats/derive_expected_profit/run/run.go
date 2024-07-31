@@ -105,7 +105,7 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distribut
 	// 	return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error writing options input to file: %v", err)
 	// }
 
-	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true")
+	cmd := exec.Command(interpreter, deriveExpectedProfitPath, "--distributionInDir", distributionInDir, "--json-output", "true", "--shortOnly", "true")
 	cmd.Stdin = strings.NewReader(optionsInput)
 	cmd.Stderr = os.Stderr
 
