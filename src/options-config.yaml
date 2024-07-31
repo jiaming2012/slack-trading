@@ -6,8 +6,8 @@ options:
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4
   - symbol: SPY
-    startsAt: 2022-01-04T09:30:00
-    endsAt: 2024-05-31T16:00:00
+    startsAt: 2023-01-04T09:30:00
+    endsAt: 2023-12-31T23:59:59
     expirationsInDays: [7]
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4

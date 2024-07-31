@@ -93,6 +93,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			resultCh := make(chan map[string]interface{})
 			errCh := make(chan error)
 
+			// todo: separate this into a function
+			// instead of finding the next friday, we can just use the expiration date from the config yaml
 			nextOptionExpDate := deriveNextFriday(signal.Timestamp)
 			data, err := services.FetchHistoricalOptionChainDataInput(&signal, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
@@ -107,6 +109,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, signal.Timestamp, resultCh, errCh)
 
+			// todo: metadata should be attached to each order
+			// todo: this should be refactored to mostly use the same as eventmain
 			highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, goEnv)
 			if err != nil {
 				log.Errorf("tradier executer: %v: send to market failed: %v", signal.Signal, err)
