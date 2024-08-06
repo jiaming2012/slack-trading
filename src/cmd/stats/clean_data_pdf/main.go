@@ -11,13 +11,10 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/utils"
-
-	"github.com/jiaming2012/slack-trading/src/eventservices"
-
-	"github.com/jiaming2012/slack-trading/src/eventpubsub"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 // go run main.go SPX 15 "4,8,16,24,96,192,288,480,672"
@@ -89,7 +86,7 @@ func main() {
 	// Process the candles
 	candleDuration := time.Duration(timeframe) * time.Minute
 
-	csvCandles = utils.SortCandles(csvCandles, candleDuration)
+	csvCandles = eventmodels.SortCandles(csvCandles, candleDuration)
 	for _, c := range csvCandles {
 		c.IsSignal = true
 	}

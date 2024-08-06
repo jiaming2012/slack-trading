@@ -6,7 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/jiaming2012/slack-trading/src/cmd/stats/export_data/run"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
 
 var rootCmd = &cobra.Command{
@@ -54,14 +55,14 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("error getting stream_name: %v", err)
 		}
 
-		runArgs := run.RunArgs{
+		runArgs := eventmodels.ExportDataRunArgs{
 			StartsAt:        startsAt,
 			EndsAt:          endsAt,
 			InputStreamName: inputStreamName,
 			GoEnv:           goEnv,
 		}
 
-		if _, err := run.Run(runArgs); err != nil {
+		if _, err := eventservices.ExportData(runArgs); err != nil {
 			log.Fatalf("error running command: %v", err)
 		}
 	},

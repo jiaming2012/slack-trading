@@ -37,10 +37,10 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/accountapi"
 	"github.com/jiaming2012/slack-trading/src/eventproducers/alertapi"
 	"github.com/jiaming2012/slack-trading/src/eventproducers/datafeedapi"
-	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
 	"github.com/jiaming2012/slack-trading/src/eventproducers/signalapi"
 	"github.com/jiaming2012/slack-trading/src/eventproducers/tradeapi"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/sheets"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -213,7 +213,7 @@ func (req *EmptyRequest) Validate(r *http.Request) error {
 	return nil
 }
 
-func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -248,7 +248,9 @@ func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, trad
 		EV: &eventmodels.ReadOptionChainExpectedValue{
 			StartsAt: startsAt,
 			EndsAt:   endsAt,
+			Signal:   event.Signal,
 		},
+		IsHistorical: false,
 	}
 
 	resultCh := make(chan map[string]interface{})
@@ -256,12 +258,15 @@ func processSignalTriggeredEvent(event eventconsumers.SignalTriggeredEvent, trad
 
 	req.EV.Signal = event.Signal
 
-	data, err := optionsRequestExecutor.CollectData(ctx, req)
+	// instead of finding the next friday, we can just use the expiration date from the config yaml
+	nextOptionExpDate := utils.DeriveNextFriday(event.Timestamp)
+
+	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, req.IsHistorical, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
 	if err != nil {
 		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
 	}
 
-	go optionsRequestExecutor.ServeWithParams(ctx, req, data, true, time.Now(), resultCh, errCh)
+	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, time.Now(), resultCh, errCh)
 
 	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
@@ -369,12 +374,15 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	optionChainRequestExector := &optionsapi.ReadOptionChainRequestExecutor{
+	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
+
+	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
 		BearerToken:            brokerBearerToken,
 		GoEnv:                  goEnv,
+		OptionsDataFetcher:     optionsDataFetcher,
 	}
 
 	streamParams := []eventmodels.StreamParameter{
@@ -408,9 +416,9 @@ func run() {
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
 
 	// options router
-	r := NewRouterSetup("/options", router)
-	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
-	r.Add(RouterSetupItem{Method: http.MethodGet, URL: "/spreads", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
+	// r := NewRouterSetup("/options", router)
+	// r.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
+	// r.Add(RouterSetupItem{Method: http.MethodGet, URL: "/spreads", Executor: optionChainRequestExector, Request: &eventmodels.ReadOptionChainRequest{}})
 
 	// Setup web server
 	srv := &http.Server{
@@ -437,7 +445,7 @@ func run() {
 	signal.Notify(stop, syscall.SIGTERM)
 
 	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
-	go func(eventCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
+	go func(eventCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			log.Panicf("failed to load location: %v", err)

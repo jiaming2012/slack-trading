@@ -89,7 +89,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 			ID:            uint(i),
 			Underlying:    symbol,
 			ExecutionType: "market",
-			CreateDate:    utils.GetMinTime(order.Spread.LongOptionTimestamp, order.Spread.ShortOptionTimestamp),
+			CreateDate:    eventmodels.GetMinTime(order.Spread.LongOptionTimestamp, order.Spread.ShortOptionTimestamp),
 			Leg1: eventmodels.OptionSpreadLeg{
 				ID:           0,
 				Timestamp:    order.Spread.ShortOptionTimestamp,
@@ -126,7 +126,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 	return csvPath, nil
 }
 
-func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventconsumers.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {
+func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()

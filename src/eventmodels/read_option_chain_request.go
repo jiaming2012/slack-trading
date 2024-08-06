@@ -20,6 +20,7 @@ type ReadOptionChainRequest struct {
 	MinDistanceBetweenStrikes          *float64     `json:"minDistanceBetweenStrikes"`
 	MinStandardDeviationBetweenStrikes *float64     `json:"minStandardDeviationBetweenStrikes"`
 	MaxNoOfStrikes                     int          `json:"maxNoOfStrikes"`
+	IsHistorical                       bool         `json:"isHistorical"`
 	EV                                 *ReadOptionChainExpectedValue
 }
 

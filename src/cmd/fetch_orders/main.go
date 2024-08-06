@@ -58,7 +58,7 @@ var runCmd = &cobra.Command{
 					fmt.Println(string(orderJSON))
 				}
 			} else {
-				csvPath, err := run.ExportToCsv(outDir, result.Orders, "fetch_orders")
+				csvPath, err := run.ExportToCsv(outDir, result.Orders, "fetch_orders", eventmodels.OptionsConfigYAML{})
 				if err != nil {
 					log.Errorf("Failed to export to CSV: %v", err)
 				} else {
@@ -158,8 +158,8 @@ func Run(args RunArgs) (RunResult, error) {
 		tradierOrders = append(tradierOrders, order)
 	}
 
-	indexStartDate := utils.GetMinTime(minCreateDate, minExpiration)
-	indexEndDate := utils.GetMaxTime(maxCreateDate, maxExpiration)
+	indexStartDate := eventmodels.GetMinTime(minCreateDate, minExpiration)
+	indexEndDate := eventmodels.GetMaxTime(maxCreateDate, maxExpiration)
 
 	indexTicksMap := make(map[eventmodels.StockSymbol][]eventmodels.PolygonCandleDTO)
 	for symbol := range indexSymbols {

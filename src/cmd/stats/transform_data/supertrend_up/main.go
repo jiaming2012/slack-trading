@@ -10,13 +10,10 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/utils"
-
-	"github.com/jiaming2012/slack-trading/src/eventservices"
-
-	"github.com/jiaming2012/slack-trading/src/eventpubsub"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func isUptrend(candle *eventmodels.TradingViewCandle) bool {
@@ -84,7 +81,7 @@ func main() {
 	candleDuration := 5 * time.Minute
 	lookaheadPeriods := []int{3, 10, 20, 40, 60, 120, 240, 1440, 2880}
 
-	allCandles = utils.SortCandlesAndMarkSignals(allCandles, candleDuration, isUptrend)
+	allCandles = SortCandlesAndMarkSignals(allCandles, candleDuration, isUptrend)
 
 	// export to csv
 	streamName := fmt.Sprintf("candles-%s-5", "COIN")
@@ -92,4 +89,23 @@ func main() {
 	fname := streamName
 	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_up", "output")
 	utils.ExportToCsv(allCandles, lookaheadPeriods, candleDuration, outDir, fname)
+}
+
+func SortCandlesAndMarkSignals(candles eventmodels.TradingViewCandles, candleDuration time.Duration, signalCondition func(candle *eventmodels.TradingViewCandle) bool) []*eventmodels.TradingViewCandle {
+	candles = eventmodels.SortCandles(candles, candleDuration)
+
+	signalCount := 0
+
+	for _, candle := range candles {
+		if signalCondition(candle) {
+			candle.IsSignal = true
+			signalCount += 1
+		} else {
+			candle.IsSignal = false
+		}
+	}
+
+	log.Infof("found %d signals", signalCount)
+
+	return candles
 }

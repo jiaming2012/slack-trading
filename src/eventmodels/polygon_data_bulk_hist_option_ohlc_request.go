@@ -11,4 +11,5 @@ type PolygonDataBulkHistOptionOHLCRequest struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Spread    float64
+	IsExpired bool
 }

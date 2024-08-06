@@ -13,12 +13,13 @@ import (
 	"github.com/jiaming2012/slack-trading/src/cmd/backtester/src/services"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
-	"github.com/jiaming2012/slack-trading/src/eventproducers/optionsapi"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type ExecResult struct {
 	SuccessMsg string
-	Err 	  error
+	Err        error
 }
 
 func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) ExecResult {
@@ -36,7 +37,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			Err: fmt.Errorf("failed to get option config: %w", err),
 		}
 	}
-	
+
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
 	maxNoOfStrikes := optionConfig.MaxNoOfStrikes
 
@@ -57,7 +58,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
 
-	optionChainRequestExector := &optionsapi.ReadOptionChainRequestExecutor{
+	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
@@ -67,7 +68,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 	resultCh := make(chan ExecResult)
 
-	go func(signalCh <-chan eventconsumers.SignalTriggeredEvent, optionsRequestExecutor *optionsapi.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, errCh chan ExecResult, DryRun bool) {
+	go func(signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, optionsDataFetcher eventmodels.OptionsDataFetcher config eventmodels.OptionsConfigYAML, errCh chan ExecResult, DryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			resultCh <- ExecResult{
@@ -95,8 +96,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 			// todo: separate this into a function
 			// instead of finding the next friday, we can just use the expiration date from the config yaml
-			nextOptionExpDate := deriveNextFriday(signal.Timestamp)
-			data, err := services.FetchHistoricalOptionChainDataInput(&signal, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
+			nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
+			data, err := optionsDataFetcher.FetchHistoricalOptionChainDataInput(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 			if err != nil {
 				log.Errorf("failed to fetch option chain data: %v", err)
@@ -157,17 +158,4 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	result := <-resultCh
 
 	return result
-}
-
-func deriveNextFriday(now time.Time) time.Time {
-	// find the next friday
-	for {
-		if now.Weekday() == time.Friday {
-			break
-		}
-
-		now = now.AddDate(0, 0, 1)
-	}
-
-	return now
 }

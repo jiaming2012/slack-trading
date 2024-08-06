@@ -7,4 +7,5 @@ type PolygonOptionTickDataRequest struct {
 	StartDate time.Time
 	EndDate   time.Time
 	Spread    float64
+	IsHistorical bool
 }

@@ -7,8 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
-
-	"github.com/jiaming2012/slack-trading/src/cmd/stats/transform_data/supertrend_1h_stoch_rsi_15m_up/run"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
 
 var rootCmd = &cobra.Command{
@@ -68,7 +67,7 @@ The signal is generated when the following conditions are met:
 			log.Fatalf("error getting lookahead-candles-count flag: %v", err)
 		}
 
-		if _, err := run.Run(run.RunArgs{
+		if _, err := eventservices.Run_Supertrend1hStochRsi15mUp(eventmodels.SupertrendRunArgs{
 			StartsAt:              startsAt,
 			EndsAt:                endsAt,
 			GoEnv:                 goEnv,

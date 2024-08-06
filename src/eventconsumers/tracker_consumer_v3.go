@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -19,7 +18,7 @@ import (
 type TrackerConsumerV3 struct {
 	client          *TrackerV3Client
 	state           map[string]string
-	signalTriggered chan SignalTriggeredEvent
+	signalTriggered chan eventmodels.SignalTriggeredEvent
 	mutex           sync.Mutex
 }
 
@@ -33,14 +32,7 @@ func (t *TrackerConsumerV3) GetState() (state map[string]string, unlock func()) 
 	return state, t.mutex.Unlock
 }
 
-type SignalTriggeredEvent struct {
-	Timestamp time.Time
-	Symbol    eventmodels.StockSymbol
-	Signal    eventmodels.SignalName
-	Ctx       context.Context
-}
-
-func (t *TrackerConsumerV3) GetSignalTriggeredCh() <-chan SignalTriggeredEvent {
+func (t *TrackerConsumerV3) GetSignalTriggeredCh() <-chan eventmodels.SignalTriggeredEvent {
 	return t.signalTriggered
 }
 
@@ -217,7 +209,7 @@ func (t *TrackerConsumerV3) updateState(ctx context.Context, event *eventmodels.
 	return nil
 }
 
-func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *eventmodels.TrackerV3) []SignalTriggeredEvent {
+func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *eventmodels.TrackerV3) []eventmodels.SignalTriggeredEvent {
 	tracer := otel.Tracer("checkIsSignalTriggered")
 	ctx, span := tracer.Start(ctx, "checkIsSignalTriggered")
 	defer span.End()
@@ -226,12 +218,12 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 
 	logger.Infof("TrackerV3Consumer:checkIsSignalTriggered: received terminal signal %s for %v", event.SignalTracker.Name, event.SignalTracker.Header.Symbol)
 
-	triggeredEvents := make([]SignalTriggeredEvent, 0)
+	triggeredEvents := make([]eventmodels.SignalTriggeredEvent, 0)
 
 	switch event.SignalTracker.Name {
 	case "stochastic_rsi-buy":
 		if t.checkSupertrendH4H1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
 				Timestamp: event.SignalTracker.Timestamp,
 				Symbol:    event.SignalTracker.Header.Symbol,
 				Signal:    eventmodels.SuperTrend4h1hStochRsi15mUp,
@@ -241,7 +233,7 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 		}
 
 		if t.checkSupertrendH1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
 				Timestamp: event.SignalTracker.Timestamp,
 				Symbol:    event.SignalTracker.Header.Symbol,
 				Signal:    eventmodels.SuperTrend1hStochRsi15mUp,
@@ -252,7 +244,7 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 
 	case "stochastic_rsi-sell":
 		if t.checkSupertrendH4H1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
 				Timestamp: event.SignalTracker.Timestamp,
 				Symbol:    event.SignalTracker.Header.Symbol,
 				Signal:    eventmodels.SuperTrend4h1hStochRsi15mDown,
@@ -262,7 +254,7 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 		}
 
 		if t.checkSupertrendH1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, SignalTriggeredEvent{
+			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
 				Timestamp: event.SignalTracker.Timestamp,
 				Symbol:    event.SignalTracker.Header.Symbol,
 				Signal:    eventmodels.SuperTrend1hStochRsi15mDown,
@@ -338,7 +330,7 @@ func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*e
 
 	for _, ev := range triggeredEvents {
 		logger.Infof("Signal triggered: %s", ev.Symbol)
-		t.signalTriggered <- SignalTriggeredEvent{
+		t.signalTriggered <- eventmodels.SignalTriggeredEvent{
 			Timestamp: ev.Timestamp,
 			Symbol:    ev.Symbol,
 			Signal:    ev.Signal,
@@ -391,6 +383,6 @@ func NewTrackerConsumerV3(client *TrackerV3Client) *TrackerConsumerV3 {
 	return &TrackerConsumerV3{
 		client:          client,
 		state:           make(map[string]string),
-		signalTriggered: make(chan SignalTriggeredEvent),
+		signalTriggered: make(chan eventmodels.SignalTriggeredEvent),
 	}
 }

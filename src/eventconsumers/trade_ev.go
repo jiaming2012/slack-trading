@@ -63,7 +63,7 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 	return highestEVLong, highestEVShort, nil
 }
 
-func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) error {
+func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()
