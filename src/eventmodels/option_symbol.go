@@ -1,8 +1,19 @@
 package eventmodels
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type OptionSymbol string
+
+func (s OptionSymbol) NoPrefix() string {
+	if strings.HasPrefix(string(s), "O:") {
+		return string(s)[2:]
+	}
+
+	return string(s)
+}
 
 func (s OptionSymbol) Description() (string, error) {
 	components, err := NewOptionSymbolComponents(s)

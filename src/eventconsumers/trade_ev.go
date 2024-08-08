@@ -99,10 +99,28 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 							requestedPrc = *spread.CreditReceived
 						}
 
+						if requestedPrc <= 0 {
+							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: requested price must be positive")
+						}
+
 						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
 						span.AddEvent("PlaceTradeSpread:Call", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
+
+						if err := eventservices.PlaceTradeSpread(
+							ctx,
+							tradierOrderExecuter.Url,
+							tradierOrderExecuter.BearerToken,
+							event.Symbol,
+							spread.LongOptionSymbol,
+							spread.ShortOptionSymbol,
+							1,
+							eventmodels.TradierTradeTypeCredit,
+							&requestedPrc,
+							eventmodels.TradeDurationDay,
+							tag,
+							tradierOrderExecuter.DryRun,
+						); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
 						}
 					} else {
@@ -134,10 +152,29 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 							requestedPrc = *spread.CreditReceived
 						}
 
+						if requestedPrc <= 0 {
+							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: requested price must be positive")
+						}
+
 						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
 						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
-						if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter.Url, tradierOrderExecuter.BearerToken, event.Symbol, spread.LongOptionSymbol, spread.ShortOptionSymbol, 1, tag, tradierOrderExecuter.DryRun); err != nil {
+
+
+						if err := eventservices.PlaceTradeSpread(
+							ctx,
+							tradierOrderExecuter.Url,
+							tradierOrderExecuter.BearerToken,
+							event.Symbol,
+							spread.LongOptionSymbol,
+							spread.ShortOptionSymbol,
+							1,
+							eventmodels.TradierTradeTypeCredit,
+							&requestedPrc,
+							eventmodels.TradeDurationDay,
+							tag,
+							tradierOrderExecuter.DryRun,
+						); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 						}
 					} else {
