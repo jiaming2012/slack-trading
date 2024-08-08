@@ -324,6 +324,12 @@ func (fetcher *PolygonOptionsDataFetcher) FetchOptionChainDataInput(symbol event
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market close: %w", err)
 	}
 
+	// todo: separate bid/ask and exec req price: kindle 0122
+	// nextDayMarketClose, err := eventmodels.ConvertToMarketClose(timestamp.Add(24 * time.Hour))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market close: %w", err)
+	// }
+
 	polygonOptionTickDataReq := &eventmodels.PolygonOptionTickDataRequest{
 		BaseURL:      baseURL,
 		StartDate:    marketOpen,

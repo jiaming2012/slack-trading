@@ -266,6 +266,14 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
 	}
 
+	if data == nil {
+		return fmt.Errorf("tradier executer: %v: failed to collect data", event.Signal)
+	}
+
+	if len(data.OptionContracts) == 0 {
+		return fmt.Errorf("tradier executer: %v: no option chain data", event.Signal)
+	}
+
 	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, time.Now(), resultCh, errCh)
 
 	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
