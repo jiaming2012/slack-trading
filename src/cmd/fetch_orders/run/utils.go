@@ -13,7 +13,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, outFilePrefix string, config eventmodels.OptionsConfigYAML) (string, error) {
+func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, outFilePrefix string) (string, error) {
 	now := time.Now()
 	outFilePath := path.Join(inDir, fmt.Sprintf("%s_%s.csv", outFilePrefix, now.Format("2006-01-02_15-04-05")))
 
@@ -37,17 +37,6 @@ func ExportToCsv(inDir string, results []*eventmodels.OptionOrderSpreadResult, o
 		writer.Comma = ',' // Customize comma if needed, default is ','
 		return gocsv.NewSafeCSVWriter(writer)
 	})
-
-	if err := gocsv.MarshalFile(config.Options, file); err != nil {
-		return "", fmt.Errorf("ExportToCsv: failed to write metadata to file: %w", err)
-	}
-
-	// Add a blank line between metadata and results
-	csvWriter := csv.NewWriter(file)
-	if err := csvWriter.Write([]string{""}); err != nil {
-		return "", fmt.Errorf("ExportToCsv: failed to write blank line to file: %w", err)
-	}
-	csvWriter.Flush()
 
 	// Marshal and write the data to the file
 	if err := gocsv.MarshalFile(&results, file); err != nil { // Note: &results is a pointer to the slice

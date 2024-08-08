@@ -5,4 +5,5 @@ type BacktesterOrder struct {
 	Spread     *OptionSpreadContractDTO
 	Quantity   int
 	Tag        string
+	Config     *OptionYAML
 }

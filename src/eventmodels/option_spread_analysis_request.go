@@ -11,4 +11,5 @@ type OptionSpreadAnalysisRequest struct {
 	CreateDate    time.Time
 	Tag           string
 	AvgFillPrice  float64
+	Config        *OptionYAML
 }

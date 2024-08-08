@@ -100,7 +100,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			data, err := optionsDataFetcher.FetchHistoricalOptionChainDataInput(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 			if err != nil {
-				log.Errorf("failed to fetch option chain data: %v", err)
+				log.Errorf("skipping event %v: failed to fetch option chain data: %v", signal, err)
+				continue
 			}
 
 			if data == nil {
@@ -108,11 +109,16 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 				continue
 			}
 
+			if len(data.OptionContracts) == 0 {
+				log.Warnf("skipping event %v: no option chain data", signal)
+				continue
+			}
+
 			go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, signal.Timestamp, resultCh, errCh)
 
 			// todo: metadata should be attached to each order
 			// todo: this should be refactored to mostly use the same as eventmain
-			highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, goEnv)
+			highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, optionConfig, goEnv)
 			if err != nil {
 				log.Errorf("tradier executer: %v: send to market failed: %v", signal.Signal, err)
 			}
@@ -139,7 +145,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			return
 		}
 
-		csvPath, err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, optionsConfig, outDir)
+		csvPath, err := services.ProcessBacktestTrades(symbol, allTrades, candlesDTO, outDir)
 		if err != nil {
 			resultCh <- ExecResult{
 				Err: fmt.Errorf("ProcessBacktestTrades failed: %w", err),

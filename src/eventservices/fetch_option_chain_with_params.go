@@ -45,6 +45,7 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 	var resultContracts []eventmodels.OptionContractV3
 
 	for i, option := range options {
+		// todo: option map should perform look up by map with no iteration
 		chain, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
 			log.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))

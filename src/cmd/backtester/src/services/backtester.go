@@ -80,7 +80,7 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 	return results, nil
 }
 
-func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, config eventmodels.OptionsConfigYAML, outDir string) (string, error) {
+func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, outDir string) (string, error) {
 	var spreadResults []*eventmodels.OptionOrderSpreadResult
 	optionMultiplier := 100.0
 
@@ -108,6 +108,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 			},
 			Tag:          order.Tag,
 			AvgFillPrice: *order.Spread.CreditReceived * -1,
+			Config: 	 order.Config,
 		}
 
 		result, err := utils.CalculateOptionOrderSpreadResult(req, candles, optionMultiplier)
@@ -118,7 +119,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 		spreadResults = append(spreadResults, result)
 	}
 
-	csvPath, err := run.ExportToCsv(outDir, spreadResults, fmt.Sprintf("backtester_%s", symbol), config)
+	csvPath, err := run.ExportToCsv(outDir, spreadResults, fmt.Sprintf("backtester_%s", symbol))
 	if err != nil {
 		return "", fmt.Errorf("failed to export to CSV: %w", err)
 	}
@@ -126,7 +127,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 	return csvPath, nil
 }
 
-func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) (*eventmodels.BacktesterOrder, error) {
+func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, config *eventmodels.OptionYAML, goEnv string) (*eventmodels.BacktesterOrder, error) {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()
@@ -170,6 +171,7 @@ func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[strin
 							Spread:     spread,
 							Quantity:   1,
 							Tag:        tag,
+							Config:    config,
 						}, nil
 					} else {
 						logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
@@ -209,6 +211,7 @@ func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[strin
 							Spread:     spread,
 							Quantity:   1,
 							Tag:        tag,
+							Config:    config,
 						}, nil
 					} else {
 						logger.WithField("event", "signal").Infof("No Positive EV Short Put found")
