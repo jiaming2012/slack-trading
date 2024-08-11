@@ -49,12 +49,12 @@ class Spread:
         
         if self.direction == SpreadDirection.LONG:
             expiration = self.long_option.expiration
-            return f'{self.Underlying.upper()} {self.long_option.strike}/{self.short_option.strike} {side} {expiration}'
+            return f'{self.Underlying.upper()} L {self.long_option.strike} / S {self.short_option.strike} {side} {expiration}'
         elif self.direction == SpreadDirection.SHORT:
             expiration = self.long_option.expiration
-            return f'{self.Underlying.upper()} {self.short_option.strike}/{self.long_option.strike} {side} {expiration}'
+            return f'{self.Underlying.upper()} S {self.short_option.strike} / L {self.long_option.strike} {side} {expiration}'
         else:
-            return f'{self.long_option.description}/{self.short_option.description}'
+            return f'{self.long_option.description} / {self.short_option.description}'
         
 @dataclass
 class IronCondor:
@@ -91,10 +91,18 @@ def generate_long_vertical_spreads(options: List[Option], underlyingSymbol: str)
             if options[i].option_type == 'call':
                 long_option = options[i]
                 short_option = options[j]
+
+                if long_option.strike >= short_option.strike:
+                    continue
+
                 spread_type = SpreadType.VERTICAL_CALL
             else:
                 long_option = options[j]
                 short_option = options[i]
+
+                if long_option.strike <= short_option.strike:
+                    continue
+
                 spread_type = SpreadType.VERTICAL_PUT
 
             spreads.append(Spread(underlyingSymbol, long_option, short_option, spread_type, SpreadDirection.LONG))
@@ -112,10 +120,18 @@ def generate_short_vertical_spreads(options: List[Option], underlyingSymbol: str
             if options[i].option_type == 'call':
                 short_option = options[i]
                 long_option = options[j]
+
+                if short_option.strike >= long_option.strike:
+                    continue
+
                 spread_type = SpreadType.VERTICAL_CALL
             else:
                 short_option = options[j]
                 long_option = options[i]
+
+                if short_option.strike <= long_option.strike:
+                    continue
+
                 spread_type = SpreadType.VERTICAL_PUT
 
             spreads.append(Spread(underlyingSymbol, long_option, short_option, spread_type, SpreadDirection.SHORT))

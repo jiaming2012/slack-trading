@@ -19,3 +19,4 @@ percent_change-*.json
 scratch.py
 src/cmd/backtest-sandbox/
 results/
+options_input.json

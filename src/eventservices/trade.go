@@ -18,12 +18,12 @@ import (
 	"github.com/jiaming2012/slack-trading/src/models"
 )
 
-func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, underlying eventmodels.StockSymbol, sellToOpenSymbol eventmodels.OptionSymbol, buyToOpenSymbol eventmodels.OptionSymbol, quantity int, tradeType eventmodels.TradierTradeType, price *float64, tradeDuration eventmodels.TradeDuration, tag string, dryRun bool) error {
+func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, underlying eventmodels.StockSymbol, spread *eventmodels.OptionSpreadContractDTO, quantity int, tradeType eventmodels.TradierTradeType, price *float64, tradeDuration eventmodels.TradeDuration, tag string, dryRun bool) error {
 	tracer := otel.Tracer("PlaceTradeSpread")
 	ctx, span := tracer.Start(ctx, "PlaceTradeSpread", trace.WithAttributes(
 		attribute.String("underlying", string(underlying)),
-		attribute.String("sellToOpenSymbol", string(sellToOpenSymbol)),
-		attribute.String("buyToOpenSymbol", string(buyToOpenSymbol)),
+		attribute.String("sellToOpenSymbol", string(spread.ShortOptionSymbol)),
+		attribute.String("buyToOpenSymbol", string(spread.LongOptionSymbol)),
 		attribute.Int("quantity", quantity),
 		attribute.String("tag", tag),
 		attribute.String("tradeType", string(tradeType)),
@@ -57,10 +57,10 @@ func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, under
 	q.Add("type", string(tradeType))
 	q.Add("duration", string(tradeDuration))
 	q.Add("symbol", underlyingStr)
-	q.Add("option_symbol[0]", buyToOpenSymbol.NoPrefix())
+	q.Add("option_symbol[0]", spread.LongOptionSymbol.NoPrefix())
 	q.Add("quantity[0]", quantityStr)
 	q.Add("side[0]", "buy_to_open")
-	q.Add("option_symbol[1]", sellToOpenSymbol.NoPrefix())
+	q.Add("option_symbol[1]", spread.ShortOptionSymbol.NoPrefix())
 	q.Add("quantity[1]", quantityStr)
 	q.Add("side[1]", "sell_to_open")
 

@@ -48,12 +48,12 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 		// todo: option map should perform look up by map with no iteration
 		chain, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
-			log.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsLive: no option chain found for expiration %s", option.ExpirationDate)
 			continue
 		}
 
 		if len(chain) < 2 {
-			log.Errorf("addAdditionInfoToOptionsV3: not enough option chain ticks for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsLive: not enough option chain ticks for expiration %s", option.ExpirationDate)
 			continue
 		}
 
@@ -76,13 +76,13 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
 				exp, err := time.Parse("2006-01-02", string(option.ExpirationDate))
 				if err != nil {
-					log.Errorf("addAdditionInfoToOptionsV3: failed to parse expiration date %s: %v", option.ExpirationDate, err)
+					log.Errorf("addAdditionInfoToOptionsLive: failed to parse expiration date %s: %v", option.ExpirationDate, err)
 					continue
 				}
 
 				exp, err = eventmodels.ConvertToMarketClose(exp)
 				if err != nil {
-					log.Errorf("addAdditionInfoToOptionsV3: failed to convert expiration date to market close: %v", err)
+					log.Errorf("addAdditionInfoToOptionsLive: failed to convert expiration date to market close: %v", err)
 					continue
 				}
 
@@ -93,7 +93,7 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 				} else if option.OptionType == eventmodels.OptionTypePut {
 					avgFillPrice = tick.Bid
 				} else {
-					log.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
+					log.Errorf("addAdditionInfoToOptionsLive: invalid option type %s", option.OptionType)
 					continue
 				}
 
@@ -109,7 +109,7 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 				found = true
 
 				if tick.Timestamp.Sub(now) > 2*time.Hour {
-					log.Warnf("addAdditionInfoToOptionsV3: %s datestamp %v that is more than 2 hours after the requested timestamp %v", options[i].Symbol, tick.Timestamp, now)
+					log.Warnf("addAdditionInfoToOptionsLive: %s datestamp %v that is more than 2 hours after the requested timestamp %v", options[i].Symbol, tick.Timestamp, now)
 				}
 
 				resultContracts = append(resultContracts, options[i])
@@ -119,7 +119,7 @@ func addAdditionInfoToOptionsLive(options []eventmodels.OptionContractV3, option
 		}
 
 		if !found {
-			log.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.ExpirationDate)
+			log.Errorf("addAdditionInfoToOptionsLive: no option chain tick found for expiration %s", option.ExpirationDate)
 		}
 	}
 
@@ -133,12 +133,12 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 	for i, option := range options {
 		chain, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
-			log.Errorf("addAdditionInfoToOptionsV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
 			continue
 		}
 
 		if len(chain) < 2 {
-			log.Errorf("addAdditionInfoToOptionsV3: not enough option chain ticks for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Errorf("addAdditionInfoToOptionsHistoricalV3: not enough option chain ticks for expiration %s", option.Expiration.Format("2006-01-02"))
 			continue
 		}
 
@@ -165,13 +165,13 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
 				exp, err := time.Parse("2006-01-02", string(option.ExpirationDate))
 				if err != nil {
-					log.Errorf("addAdditionInfoToOptionsV3: failed to parse expiration date %s: %v", option.ExpirationDate, err)
+					log.Errorf("addAdditionInfoToOptionsHistoricalV3: failed to parse expiration date %s: %v", option.ExpirationDate, err)
 					continue
 				}
 
 				exp, err = eventmodels.ConvertToMarketClose(exp)
 				if err != nil {
-					log.Errorf("addAdditionInfoToOptionsV3: failed to convert expiration date to market close: %v", err)
+					log.Errorf("addAdditionInfoToOptionsHistoricalV3: failed to convert expiration date to market close: %v", err)
 					continue
 				}
 
@@ -182,7 +182,7 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 				} else if option.OptionType == eventmodels.OptionTypePut {
 					avgFillPrice = tick.Bid
 				} else {
-					log.Errorf("addAdditionInfoToOptionsV3: invalid option type %s", option.OptionType)
+					log.Errorf("addAdditionInfoToOptionsHistoricalV3: invalid option type %s", option.OptionType)
 					continue
 				}
 
@@ -198,7 +198,7 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 				found = true
 
 				if tick.Timestamp.Sub(now) > 2*time.Hour {
-					log.Warnf("addAdditionInfoToOptionsV3: %s datestamp %v that is more than 2 hours after the requested timestamp %v", options[i].Symbol, tick.Timestamp, now)
+					log.Warnf("addAdditionInfoToOptionsHistoricalV3: %s datestamp %v that is more than 2 hours after the requested timestamp %v", options[i].Symbol, tick.Timestamp, now)
 				}
 
 				resultContracts = append(resultContracts, options[i])
@@ -208,7 +208,7 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 		}
 
 		if !found {
-			log.Errorf("addAdditionInfoToOptionsV3: no option chain tick found for expiration %s", option.ExpirationDate)
+			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain tick found for expiration %s", option.ExpirationDate)
 		}
 	}
 
