@@ -8,8 +8,8 @@ options:
   - symbol: SPY
     startsAt: 2023-01-04T09:30:00
     endsAt: 2023-12-29T16:00:00
-    expirationsInDays: [7]
-    minDistanceBetweenStrikes: 10.0
+    expirationsInDays: [1,3,7]
+    minDistanceBetweenStrikes: 5.0
     maxNoOfStrikes: 4
   - symbol: VIX
     startsAt: 2022-01-04T09:30:00
@@ -20,8 +20,8 @@ options:
   - symbol: IWM
     startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
-    expirationsInDays: [7]
-    minDistanceBetweenStrikes: 1.0
+    expirationsInDays: [1,3,7]
+    minDistanceBetweenStrikes: 5.0
     maxNoOfStrikes: 4
   - symbol: NDX
     startsAt: 2022-01-04T09:30:00
