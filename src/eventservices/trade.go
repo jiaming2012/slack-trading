@@ -53,7 +53,6 @@ func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, under
 
 	q := req.URL.Query()
 	q.Add("class", "multileg")
-	q.Add("duration", "GTC")
 	q.Add("type", string(tradeType))
 	q.Add("duration", string(tradeDuration))
 	q.Add("symbol", underlyingStr)
