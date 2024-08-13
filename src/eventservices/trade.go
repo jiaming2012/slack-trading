@@ -110,7 +110,7 @@ func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *eventmodels.Tra
 	q.Add("side[1]", "sell_to_open")
 
 	if price != nil {
-		q.Add("price", fmt.Sprintf("%f", *price))
+		q.Add("price", fmt.Sprintf("%.2f", *price))
 	}
 
 	if tag != "" {
