@@ -46,6 +46,8 @@ func (w *TradierOrdersMonitoringWorker) fetchOrders() ([]*eventmodels.TradierOrd
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.brokerBearerToken))
 
+	log.Infof("fetching orders from %s", req.URL.String())
+
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch option prices: %w", err)
