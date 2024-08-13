@@ -2,8 +2,8 @@ package eventconsumers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type TradierOrdersMonitoringWorker struct {
@@ -59,14 +60,14 @@ func (w *TradierOrdersMonitoringWorker) fetchOrders() ([]*eventmodels.TradierOrd
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch option prices: %s", res.Status)
 	}
 
-	var ordersDTO eventmodels.TradierOrdersDTO
-	if err := json.NewDecoder(res.Body).Decode(&ordersDTO); err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to decode json: %w", err)
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to read response body: %w", err)
 	}
 
-	orders, err := ordersDTO.Parse()
+	orders, err := utils.ParseTradierResponse[*eventmodels.TradierOrderDTO](bytes)
 	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to parse orders: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to parse response body: %w", err)
 	}
 
 	return orders, nil
