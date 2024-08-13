@@ -5,27 +5,32 @@ options:
     expirationsInDays: [1,3,7]
     minDistanceBetweenStrikes: 5.0
     maxNoOfStrikes: 4
+    maxNoOfPositions: 6
   - symbol: IWM
     startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [1,3,7]
     minDistanceBetweenStrikes: 5.0
     maxNoOfStrikes: 4
+    maxNoOfPositions: 6
   - symbol: COIN
     startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [7]
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4
+    maxNoOfPositions: 3
   - symbol: NVDA
     startsAt: 2022-01-04T09:30:00
     endsAt: 2024-05-31T16:00:00
     expirationsInDays: [7]
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4
+    maxNoOfPositions: 3
   - symbol: TSLA
     startsAt: 2022-01-04T09:30:00
     endsAt: 2023-05-31T16:00:00
     expirationsInDays: [7]
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4
+    maxNoOfPositions: 3

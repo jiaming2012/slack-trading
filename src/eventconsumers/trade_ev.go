@@ -63,7 +63,7 @@ func FindHighestEVPerExpiration(options []*eventmodels.OptionSpreadContractDTO) 
 	return highestEVLong, highestEVShort, nil
 }
 
-func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, goEnv string) error {
+func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, maxNoOfPositions int, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()
@@ -109,8 +109,7 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 
 						if err := eventservices.PlaceTradeSpread(
 							ctx,
-							tradierOrderExecuter.Url,
-							tradierOrderExecuter.BearerToken,
+							tradierOrderExecuter,
 							event.Symbol,
 							spread,
 							1,
@@ -118,7 +117,7 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 							&requestedPrc,
 							eventmodels.TradeDurationDay,
 							tag,
-							tradierOrderExecuter.DryRun,
+							maxNoOfPositions,
 						); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Call:: error placing trade: %v", err)
 						}
@@ -159,11 +158,9 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 
 						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
 
-
 						if err := eventservices.PlaceTradeSpread(
 							ctx,
-							tradierOrderExecuter.Url,
-							tradierOrderExecuter.BearerToken,
+							tradierOrderExecuter,
 							event.Symbol,
 							spread,
 							1,
@@ -171,7 +168,7 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 							&requestedPrc,
 							eventmodels.TradeDurationDay,
 							tag,
-							tradierOrderExecuter.DryRun,
+							maxNoOfPositions,
 						); err != nil {
 							return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread Put:: error placing trade: %v", err)
 						}

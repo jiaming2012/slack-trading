@@ -116,7 +116,16 @@ func Run(args RunArgs) (RunResult, error) {
 
 	url := fmt.Sprintf(tradierTradesURLTemplate, accountID)
 
-	if err := eventservices.PlaceTradeSpread(context.Background(), url, bearerToken, args.UnderlyingSymbol, args.BuyToOpenSymbol, args.SellToOpenSymbol, args.Quantity, args.Tag, args.DryRun); err != nil {
+	tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(url, bearerToken, args.DryRun, func() ([]eventmodels.TradierPositionDTO, error) {
+		return nil, nil
+	})
+
+	spread := eventmodels.OptionSpreadContractDTO{
+		ShortOptionSymbol: args.SellToOpenSymbol,
+		LongOptionSymbol:  args.BuyToOpenSymbol,
+	}
+
+	if err := eventservices.PlaceTradeSpread(context.Background(), tradierOrderExecuter, args.UnderlyingSymbol, &spread, args.Quantity, eventmodels.TradierTradeTypeCredit, nil, eventmodels.TradeDurationDay, args.Tag, 1000); err != nil {
 		return RunResult{}, fmt.Errorf("error placing long spread trade: %v", err)
 	}
 

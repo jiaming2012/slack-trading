@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,7 +19,48 @@ import (
 	"github.com/jiaming2012/slack-trading/src/models"
 )
 
-func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, underlying eventmodels.StockSymbol, spread *eventmodels.OptionSpreadContractDTO, quantity int, tradeType eventmodels.TradierTradeType, price *float64, tradeDuration eventmodels.TradeDuration, tag string, dryRun bool) error {
+func checkMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecuter, symbol eventmodels.StockSymbol, requestedQty, maxNoOfPositions int) error {
+	positionsDTO, err := tradierOrderExecuter.PositionFetcher()
+	if err != nil {
+		return fmt.Errorf("checkMaxNoOfPositions: failed to fetch positions: %w", err)
+	}
+
+	longPositions, shortPositions := 0.0, 0.0
+	if requestedQty > 0 {
+		longPositions = float64(requestedQty)
+	} else if requestedQty < 0 {
+		shortPositions = float64(requestedQty)
+	}
+
+	for _, dto := range positionsDTO {
+		p, err := dto.ToModel()
+		if err != nil {
+			return fmt.Errorf("checkMaxNoOfPositions: failed to convert dto to model: %w", err)
+		}
+
+		option, err := p.Symbol.Components()
+		if err != nil {
+			return fmt.Errorf("checkMaxNoOfPositions: failed to get underlying: %w", err)
+		}
+
+		if eventmodels.NewStockSymbol(option.Underlying) == symbol {
+			if p.Quantity > 0 {
+				longPositions++
+			} else if p.Quantity < 0 {
+				shortPositions++
+			}
+		}
+	}
+
+	maxPosition := math.Max(longPositions, shortPositions)
+	if maxPosition >= float64(maxNoOfPositions) {
+		return fmt.Errorf("checkMaxNoOfPositions: max no of positions reached: %v", maxNoOfPositions)
+	}
+
+	return nil
+}
+
+func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *eventmodels.TradierOrderExecuter, underlying eventmodels.StockSymbol, spread *eventmodels.OptionSpreadContractDTO, quantity int, tradeType eventmodels.TradierTradeType, price *float64, tradeDuration eventmodels.TradeDuration, tag string, maxNoOfPositions int) error {
 	tracer := otel.Tracer("PlaceTradeSpread")
 	ctx, span := tracer.Start(ctx, "PlaceTradeSpread", trace.WithAttributes(
 		attribute.String("underlying", string(underlying)),
@@ -38,13 +80,17 @@ func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, under
 		return fmt.Errorf("placeTradeSpread: quantity must be positive")
 	}
 
+	if err := checkMaxNoOfPositions(tradierOrderExecuter, underlying, quantity, maxNoOfPositions); err != nil {
+		return fmt.Errorf("placeTradeSpread: failed to check max no of positions: %w", err)
+	}
+
 	quantityStr := strconv.Itoa(quantity)
 
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	req, err := http.NewRequest(http.MethodPost, tradierOrderExecuter.Url, nil)
 	if err != nil {
 		return fmt.Errorf("PlaceTradeSpread: failed to create request: %w", err)
 	}
@@ -71,13 +117,13 @@ func PlaceTradeSpread(ctx context.Context, url string, bearerToken string, under
 		q.Add("tag", tag)
 	}
 
-	if dryRun {
+	if tradierOrderExecuter.DryRun {
 		q.Add("preview", "true")
 	}
 
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tradierOrderExecuter.BearerToken))
 
 	log.Infof("PlaceTradeSpread: placing trade: %v", req.URL.String())
 

@@ -8,4 +8,5 @@ type OptionYAML struct {
 	MinDistanceBetweenStrikes          *float64 `yaml:"minDistanceBetweenStrikes,omitempty"`
 	MinStandardDeviationBetweenStrikes *float64 `yaml:"minStandardDeviationBetweenStrikes,omitempty"`
 	MaxNoOfStrikes                     int      `yaml:"maxNoOfStrikes"`
+	MaxNoOfPositions                   int      `yaml:"maxNoOfPositions"`
 }

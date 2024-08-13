@@ -58,7 +58,7 @@ var runCmd = &cobra.Command{
 					fmt.Println(string(orderJSON))
 				}
 			} else {
-				csvPath, err := run.ExportToCsv(outDir, result.Orders, "fetch_orders", eventmodels.OptionsConfigYAML{})
+				csvPath, err := run.ExportToCsv(outDir, result.Orders, "fetch_orders")
 				if err != nil {
 					log.Errorf("Failed to export to CSV: %v", err)
 				} else {

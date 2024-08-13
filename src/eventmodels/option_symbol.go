@@ -15,10 +15,19 @@ func (s OptionSymbol) NoPrefix() string {
 	return string(s)
 }
 
-func (s OptionSymbol) Description() (string, error) {
+func (s OptionSymbol) Components() (*OptionSymbolComponents, error) {
 	components, err := NewOptionSymbolComponents(s)
 	if err != nil {
-		return "", fmt.Errorf("OptionSymbol.Description: failed to parse option symbol: %w", err)
+		return nil, fmt.Errorf("OptionSymbol.Components: failed to parse option symbol: %w", err)
+	}
+
+	return components, nil
+}
+
+func (s OptionSymbol) Description() (string, error) {
+	components, err := s.Components()
+	if err != nil {
+		return "", fmt.Errorf("OptionSymbol.Description: failed to get option symbol components: %w", err)
 	}
 
 	// Format the expiration date

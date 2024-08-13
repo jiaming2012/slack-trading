@@ -276,7 +276,7 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 
 	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, time.Now(), resultCh, errCh)
 
-	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, goEnv); err != nil {
+	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, optionConfig.MaxNoOfPositions, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
 	}
 
@@ -350,6 +350,11 @@ func run() {
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
 	if len(tradierTradesOrderURL) == 0 {
 		log.Fatal("$TRADIER_TRADES_URL_TEMPLATE must be set")
+	}
+
+	tradierPositionsURL := fmt.Sprintf(os.Getenv("TRADIER_POSITIONS_URL_TEMPLATE"), tradesAccountID)
+	if len(tradierPositionsURL) == 0 {
+		log.Fatal("$TRADIER_POSITIONS_URL_TEMPLATE must be set")
 	}
 
 	tradierTradesBearerToken := os.Getenv("TRADIER_TRADES_BEARER_TOKEN")
@@ -513,7 +518,9 @@ func run() {
 			log.Panicf("failed to load location: %v", err)
 		}
 
-		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun)
+		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun, func() ([]eventmodels.TradierPositionDTO, error) {
+			return eventservices.FetchTradierPositions(tradierPositionsURL, tradierTradesBearerToken)
+		})
 
 		for event := range eventCh {
 			processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)

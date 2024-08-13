@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -43,4 +44,56 @@ func DecodeTag(tag string) (eventmodels.SignalName, float64, float64, error) {
 	}
 
 	return signal, expectedProfit, requestedPrc, nil
+}
+
+func ParseTradierResponse[T any](response []byte) ([]T, error) {
+	header := make(map[string]json.RawMessage)
+
+	if err := json.Unmarshal(response, &header); err != nil {
+		return nil, fmt.Errorf("ParseTradierResponse(): failed to unmarshal header in response: %w", err)
+	}
+
+	var dtos []T
+
+	if len(header) == 1 {
+		var key string
+		for k := range header {
+			key = k
+		}
+
+		v := header[key]
+
+		if string(v) == "\"null\"" {
+			return []T{}, nil
+		}
+
+		data := make(map[string]json.RawMessage)
+		if err := json.Unmarshal(v, &data); err != nil {
+			return nil, fmt.Errorf("ParseTradierResponse(): failed to unmarshal data in response: %w", err)
+		}
+
+		if len(data) == 1 {
+			var key string
+			for k := range data {
+				key = k
+			}
+
+			v := data[key]
+
+			var singleDTO T
+			if err := json.Unmarshal(v, &singleDTO); err == nil {
+				dtos = append(dtos, singleDTO)
+			} else {
+				if err := json.Unmarshal(v, &dtos); err != nil {
+					return nil, fmt.Errorf("ParseTradierResponse(): failed to unmarshal dtos in response: %w", err)
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("ParseTradierResponse(): expected 1 key in data, got %v: %v", len(data), data)
+		}
+	} else {
+		return nil, fmt.Errorf("ParseTradierResponse(): expected 1 key in header, got %v: %v", len(header), header)
+	}
+
+	return dtos, nil
 }
