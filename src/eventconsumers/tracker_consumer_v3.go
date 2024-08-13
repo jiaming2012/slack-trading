@@ -222,15 +222,17 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 
 	switch event.SignalTracker.Name {
 	case "stochastic_rsi-buy":
-		if t.checkSupertrendH4H1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
-				Timestamp: event.SignalTracker.Timestamp,
-				Symbol:    event.SignalTracker.Header.Symbol,
-				Signal:    eventmodels.SuperTrend4h1hStochRsi15mUp,
-			})
+		// todo: implement a switch to check for different signals
 
-			logger.Info("SuperTrend4h1hStochRsi15mUp triggered")
-		}
+		// if t.checkSupertrendH4H1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
+		// 	triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
+		// 		Timestamp: event.SignalTracker.Timestamp,
+		// 		Symbol:    event.SignalTracker.Header.Symbol,
+		// 		Signal:    eventmodels.SuperTrend4h1hStochRsi15mUp,
+		// 	})
+
+		// 	logger.Info("SuperTrend4h1hStochRsi15mUp triggered")
+		// }
 
 		if t.checkSupertrendH1StochRsiUp(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
@@ -243,15 +245,17 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *e
 		}
 
 	case "stochastic_rsi-sell":
-		if t.checkSupertrendH4H1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
-			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
-				Timestamp: event.SignalTracker.Timestamp,
-				Symbol:    event.SignalTracker.Header.Symbol,
-				Signal:    eventmodels.SuperTrend4h1hStochRsi15mDown,
-			})
+		// todo: implement a switch to check for different signals
 
-			logger.Info("SuperTrend4h1hStochRsi15mDown triggered")
-		}
+		// if t.checkSupertrendH4H1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
+		// 	triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
+		// 		Timestamp: event.SignalTracker.Timestamp,
+		// 		Symbol:    event.SignalTracker.Header.Symbol,
+		// 		Signal:    eventmodels.SuperTrend4h1hStochRsi15mDown,
+		// 	})
+
+		// 	logger.Info("SuperTrend4h1hStochRsi15mDown triggered")
+		// }
 
 		if t.checkSupertrendH1StochRsiDown(ctx, event.SignalTracker.Header.Symbol) {
 			triggeredEvents = append(triggeredEvents, eventmodels.SignalTriggeredEvent{
