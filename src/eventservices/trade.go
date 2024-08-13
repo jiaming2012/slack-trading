@@ -53,7 +53,7 @@ func checkMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecute
 	}
 
 	maxPosition := math.Max(longPositions, shortPositions)
-	if maxPosition >= float64(maxNoOfPositions) {
+	if maxPosition > float64(maxNoOfPositions) {
 		return fmt.Errorf("checkMaxNoOfPositions: max no of positions reached: %v", maxNoOfPositions)
 	}
 
