@@ -314,20 +314,74 @@ func run() {
 
 	// Get env
 	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
+	if len(stockQuotesURL) == 0 {
+		log.Fatal("$STOCK_QUOTES_URL must be set")
+	}
+
 	calendarURL := os.Getenv("MARKET_CALENDAR_URL")
+	if len(calendarURL) == 0 {
+		log.Fatal("$MARKET_CALENDAR_URL must be set")
+	}
+
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+	if len(optionChainURL) == 0 {
+		log.Fatal("$OPTION_CHAIN_URL must be set")
+	}
 
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
+	if len(brokerBearerToken) == 0 {
+		log.Fatal("$TRADIER_BEARER_TOKEN must be set")
+	}
+
 	slackWebhookURL := os.Getenv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
+	if len(slackWebhookURL) == 0 {
+		log.Fatal("$SLACK_OPTION_ALERTS_WEBHOOK_URL must be set")
+	}
+
 	// quotesAccountID := os.Getenv("TRADIER_ACCOUNT_ID")
+
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
+	if len(tradesAccountID) == 0 {
+		log.Fatal("$TRADIER_TRADES_ACCOUNT_ID must be set")
+	}
+
 	// tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), quotesAccountID)
+
 	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
+	if len(tradierTradesOrderURL) == 0 {
+		log.Fatal("$TRADIER_TRADES_URL_TEMPLATE must be set")
+	}
+
 	tradierTradesBearerToken := os.Getenv("TRADIER_TRADES_BEARER_TOKEN")
+	if len(tradierTradesBearerToken) == 0 {
+		log.Fatal("$TRADIER_TRADES_BEARER_TOKEN must be set")
+	}
+
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
+	if len(eventStoreDbURL) == 0 {
+		log.Fatal("$EVENTSTOREDB_URL must be set")
+	}
+
 	oandaFxQuotesURLBase := os.Getenv("OANDA_FX_QUOTES_URL_BASE")
+	if len(oandaFxQuotesURLBase) == 0 {
+		log.Fatal("$OANDA_FX_QUOTES_URL_BASE must be set")
+	}
+
 	oandaBearerToken := os.Getenv("OANDA_BEARER_TOKEN")
+	if len(oandaBearerToken) == 0 {
+		log.Fatal("$OANDA_BEARER_TOKEN must be set")
+	}
+
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
+	if len(optionsExpirationURL) == 0 {
+		log.Fatal("$OPTION_EXPIRATIONS_URL must be set")
+	}
+
+	optionsConfigFile := os.Getenv("OPTIONS_CONFIG_FILE")
+	if len(optionsConfigFile) == 0 {
+		log.Fatal("$OPTIONS_CONFIG_FILE must be set")
+	}
+
 	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
 
 	// Set up Telemetry
@@ -351,7 +405,7 @@ func run() {
 	}()
 
 	// Load config
-	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "options-config.yaml")
+	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", optionsConfigFile)
 	data, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
 		log.Fatalf("failed to read options config: %v", err)
