@@ -2,24 +2,171 @@ package main
 
 import (
 	"fmt"
-	"log"
-
-	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"sync"
+	"time"
 )
 
+// Define the types of instruments
+type InstrumentType int
+
+const (
+	Stock InstrumentType = iota
+	Option
+)
+
+// Define a Trade struct
+type Trade struct {
+	Instrument     string
+	InstrumentType InstrumentType
+	Price          float64
+	Quantity       int
+	Buy            bool
+}
+
+// Define a Position struct
+type Position struct {
+	Instrument     string
+	InstrumentType InstrumentType
+	Quantity       int
+	AvgPrice       float64
+}
+
+// Define an Account struct
+type Account struct {
+	Balance   float64
+	Equity    float64
+	Positions map[string]*Position
+	Margin    float64
+	mu        sync.Mutex
+}
+
+// NewAccount creates a new trading account
+func NewAccount(initialBalance float64) *Account {
+	return &Account{
+		Balance:   initialBalance,
+		Equity:    initialBalance,
+		Positions: make(map[string]*Position),
+		Margin:    0.0,
+	}
+}
+
+// PlaceTrade processes a trade and updates the account
+func (a *Account) PlaceTrade(t Trade) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	position, exists := a.Positions[t.Instrument]
+	if !exists {
+		position = &Position{
+			Instrument:     t.Instrument,
+			InstrumentType: t.InstrumentType,
+			Quantity:       0,
+			AvgPrice:       0.0,
+		}
+		a.Positions[t.Instrument] = position
+	}
+
+	if t.Buy {
+		totalCost := t.Price * float64(t.Quantity)
+		a.Balance -= totalCost
+		newQty := position.Quantity + t.Quantity
+		position.AvgPrice = (position.AvgPrice*float64(position.Quantity) + totalCost) / float64(newQty)
+		position.Quantity = newQty
+	} else {
+		totalProceeds := t.Price * float64(t.Quantity)
+		a.Balance += totalProceeds
+		position.Quantity -= t.Quantity
+		if position.Quantity == 0 {
+			delete(a.Positions, t.Instrument)
+		}
+	}
+
+	a.updateEquity()
+	a.updateMargin()
+}
+
+// updateEquity updates the account's equity based on the positions
+func (a *Account) updateEquity() {
+	equity := a.Balance
+	for _, pos := range a.Positions {
+		equity += pos.AvgPrice * float64(pos.Quantity)
+	}
+	a.Equity = equity
+}
+
+// updateMargin updates the account's margin based on the positions
+func (a *Account) updateMargin() {
+	// Implement margin calculations here
+	a.Margin = 0.0
+}
+
+// QueryBalance returns the current balance
+func (a *Account) QueryBalance() float64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.Balance
+}
+
+// QueryEquity returns the current equity
+func (a *Account) QueryEquity() float64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.Equity
+}
+
+// QueryPositions returns the current positions
+func (a *Account) QueryPositions() map[string]*Position {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	positionsCopy := make(map[string]*Position)
+	for k, v := range a.Positions {
+		positionsCopy[k] = &Position{
+			Instrument:     v.Instrument,
+			InstrumentType: v.InstrumentType,
+			Quantity:       v.Quantity,
+			AvgPrice:       v.AvgPrice,
+		}
+	}
+	return positionsCopy
+}
+
+// QueryMargin returns the current margin
+func (a *Account) QueryMargin() float64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.Margin
+}
+
+type Tick struct {
+	Time       time.Time
+	Instrument string
+	Price      float64
+}
+
+// Example of feeding prices and placing trades
 func main() {
-	// Example CSV response
-	csvData := `ticker,tradeDate,expirDate,dte,strike,stockPrice,callVolume,callOpenInterest,callBidSize,callAskSize,putVolume,putOpenInterest,putBidSize,putAskSize,callBidPrice,callValue,callAskPrice,putBidPrice,putValue,putAskPrice,callBidIv,callMidIv,callAskIv,smvVol,putBidIv,putMidIv,putAskIv,residualRate,delta,gamma,theta,vega,rho,phi,driftlessTheta,callSmvVol,putSmvVol,extSmvVol,extCallValue,extPutValue,spotPrice,quoteDate,updatedAt,snapShotEstTime,snapShotDate,expiryTod,tickerId,monthId
-AAPL,2022-06-08,2022-09-16,101,160,149.67,150,28206,253,510,7,18438,124,104,5.8,5.860204002795059,5.9,15.55,15.641054396787531,15.7,0.3063158772183223,0.30801686256479954,0.3097178479112768,0.308,0.3038649107227709,0.3064286008767878,0.3089922910308047,-0.008209120374803128,0.38161255239927655,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.3083639997493957,0.3069773808630928,0.3215480409289392,6.247634998832532,16.067895502105014,149.67,2022-06-08T13:59:50Z,2022-06-08T13:59:51Z,2022-06-08T14:00:01Z,2022-06-08T14:00:01Z,pm,101594,9
-AAPL,2022-06-08,2022-09-16,101,160,149.45,158,28206,1,215,7,18438,229,102,5.75,5.78583812885739,5.8,15.7,15.782968253643883,15.85,0.30745849466065145,0.3083088916342891,0.3091592886079268,0.308,0.30432705746682837,0.30689074762084534,0.3094544377748623,-0.008209120374803128,0.37823425664342863,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.3086775601134979,0.3071631227329991,0.3215480409289392,6.1640518498378345,16.204312353110314,149.45,2022-06-08T14:00:55Z,2022-06-08T14:00:56Z,2022-06-08T14:01:01Z,2022-06-08T14:01:01Z,pm,101594,9
-AAPL,2022-06-08,2022-09-16,101,160,149.12,159,28206,152,1299,13,18438,234,132,5.6,5.66120101953646,5.7,15.9,15.991901944264272,16.05,0.3065732423106423,0.30827422765711954,0.3099752130035968,0.308,0.3041222758150914,0.30668596596910835,0.3092496561231253,-0.008209120374803128,0.37316681300965693,0.015355889799308844,-0.047622767388992515,0.2939141986686304,0.13545210863618393,-0.15118639086979158,-0.0459052133276907,0.30865528305906204,0.3072637172770291,0.3215480409289392,6.040070673345081,16.410331176617547,149.12,2022-06-08T14:02:00Z,2022-06-08T14:02:01Z,2022-06-08T14:02:02Z,2022-06-08T14:02:02Z,pm,101594,9`
+	account := NewAccount(100000) // Start with $100,000
 
-	options, err := eventservices.ParseCSV(csvData)
-	if err != nil {
-		log.Fatalf("Error parsing CSV: %v", err)
-	}
+	// Example trade: Buying 10 shares of a stock at $100 each
+	account.PlaceTrade(Trade{
+		Instrument:     "AAPL",
+		InstrumentType: Stock,
+		Price:          100.0,
+		Quantity:       10,
+		Buy:            true,
+	})
 
-	for _, option := range options {
-		fmt.Printf("Parsed Option Data: %+v\n", option)
-	}
+	// Example trade: Selling 5 shares of a stock at $110 each
+	account.PlaceTrade(Trade{
+		Instrument:     "AAPL",
+		InstrumentType: Stock,
+		Price:          110.0,
+		Quantity:       5,
+		Buy:            false,
+	})
+
+	fmt.Printf("Balance: $%.2f\n", account.QueryBalance())
+	fmt.Printf("Equity: $%.2f\n", account.QueryEquity())
+	fmt.Printf("Positions: %+v\n", account.QueryPositions())
+	fmt.Printf("Margin: $%.2f\n", account.QueryMargin())
 }
