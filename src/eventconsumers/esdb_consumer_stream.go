@@ -53,9 +53,9 @@ func (cli *esdbConsumerStream[T]) GetEventCh() <-chan EsdbEvent[T] {
 	return cli.savedEventsCh
 }
 
-func (cli *esdbConsumerStream[T]) CloseEventCh() {
-	close(cli.savedEventsCh)
-}
+// func (cli *esdbConsumerStream[T]) CloseEventCh() {
+// 	close(cli.savedEventsCh)
+// }
 
 func (cli *esdbConsumerStream[T]) run(ctx context.Context, errCh chan error) {
 	cli.wg.Add(1)

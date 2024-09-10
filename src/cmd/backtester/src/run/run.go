@@ -62,19 +62,20 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
 
+	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
+
 	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
+		OptionsDataFetcher:     polygonOptionsDataFetcher,
 		BearerToken:            brokerBearerToken,
 		GoEnv:                  goEnv,
 	}
 
 	resultCh := make(chan ExecResult)
 
-	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
-
-	go func(signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, optionsDataFetcher eventmodels.OptionsDataFetcher, config eventmodels.OptionsConfigYAML, errCh chan ExecResult, DryRun bool) {
+	go func(signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, errCh chan ExecResult, DryRun bool) {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			resultCh <- ExecResult{
@@ -104,7 +105,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			// instead of finding the next friday, we can just use the expiration date from the config yaml
 			nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
 			isHistorical := true
-			data, err := optionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, isHistorical, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
+			data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, isHistorical, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 			if err != nil {
 				log.Errorf("skipping event %v: failed to fetch option chain data: %v", signal, err)
@@ -164,7 +165,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 			SuccessMsg: fmt.Sprintf("processed %v backtest trades to %v", len(allTrades), csvPath),
 			Err:        nil,
 		}
-	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, polygonOptionsDataFetcher, optionsConfig, resultCh, isDryRun)
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, resultCh, isDryRun)
 
 	trackerV3OptionEVConsumer.Replay(ctx)
 
