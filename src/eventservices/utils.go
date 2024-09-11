@@ -20,7 +20,29 @@ func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (fl
 	return closestCandle.Open, nil
 }
 
+func transformSPYtoSPX(result *eventmodels.StockTickItemDTO) {
+	if result.Symbol == "SPY" {
+		result.Symbol = "SPX"
+		result.Bid *=  10
+		result.Ask *= 10
+	}
+}
+
 func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
+	if req.Root == "SPX" {
+		req.Root = "SPY"
+	}
+
+	result, err := findClosestStockTickItemDTO(req, at, spreadPerc)
+
+	if req.Root == "SPY" {
+		transformSPYtoSPX(result)
+	}
+
+	return result, err
+}
+
+func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
 	resp, err := FetchPolygonStockChart(req.Root, 1, "minute", at, at.AddDate(0, 0, 1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
