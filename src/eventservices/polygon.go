@@ -90,8 +90,17 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 
 	counter := 0
 	isDone := false
+
+	var inputSymbol eventmodels.StockSymbol
+
+	if symbol == "SPX" {
+		inputSymbol = "SPY"
+	} else {
+		inputSymbol = symbol
+	}
+
 	for {
-		url, err := makeRequestURL(symbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
+		url, err := makeRequestURL(inputSymbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
 		if err != nil {
 			return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
 		}
@@ -133,6 +142,16 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 
 		if isDone {
 			break
+		}
+	}
+
+	if symbol == "SPX" {
+		for i := range aggregateResult.Results {
+			aggregateResult.Results[i].Open *= 10
+			aggregateResult.Results[i].Close *= 10
+			aggregateResult.Results[i].High *= 10
+			aggregateResult.Results[i].Low *= 10
+			aggregateResult.Results[i].Vwap *= 10
 		}
 	}
 
