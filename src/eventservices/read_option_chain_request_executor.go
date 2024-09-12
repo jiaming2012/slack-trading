@@ -21,7 +21,8 @@ func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestE
 		// data, err := s.CollectData(r.Context(), req)
 		now := time.Now()
 		expirationGTE := now
-		nextOptionsExpirationDate := utils.DeriveNextFriday(expirationGTE)
+		// nextOptionsExpirationDate := utils.DeriveNextFriday(expirationGTE)
+		nextOptionsExpirationDate := utils.DeriveNextExpiration(expirationGTE, req.ExpirationsInDays)
 
 		data, err := s.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, req.IsHistorical, now, expirationGTE, nextOptionsExpirationDate, 0, 0, []int{})
 

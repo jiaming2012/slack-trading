@@ -57,6 +57,7 @@ import (
 type RunArgs struct {
 	OutDir string
 	Symbol eventmodels.StockSymbol
+	StartAtEventNumber uint64
 }
 
 type RunResults struct {
@@ -77,9 +78,15 @@ var runCmd = &cobra.Command{
 			log.Fatalf("error getting symbol: %v", err)
 		}
 
+		startAtEventNumber, err := cmd.Flags().GetUint64("start-at")
+		if err != nil {
+			log.Fatalf("error getting start-at: %v", err)
+		}
+
 		results, err := Run(RunArgs{
 			OutDir: outDir,
 			Symbol: eventmodels.NewStockSymbol(symbol),
+			StartAtEventNumber: startAtEventNumber,
 		})
 
 		if err != nil {
@@ -124,7 +131,7 @@ func Run(args RunArgs) (RunResults, error) {
 		return RunResults{}, fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
-	execResult := run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.OutDir, goEnv)
+	execResult := run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.StartAtEventNumber, args.OutDir, goEnv)
 	if execResult.Err != nil {
 		if err := slackClient.SendMessage(fmt.Sprintf("[ERROR] Backtest failed: %v", execResult.Err)); err != nil {
 			log.Errorf("failed to send slack error message: %v", err)
@@ -145,6 +152,7 @@ func Run(args RunArgs) (RunResults, error) {
 func main() {
 	runCmd.PersistentFlags().String("outDir", "", "The directory to write the output to.")
 	runCmd.PersistentFlags().String("symbol", "", "The stock symbol to backtest.")
+	runCmd.PersistentFlags().Uint64("start-at", 0, "The event number to start at.")
 
 	runCmd.MarkPersistentFlagRequired("outDir")
 	runCmd.MarkPersistentFlagRequired("symbol")

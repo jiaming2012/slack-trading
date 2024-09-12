@@ -26,6 +26,8 @@ func positionFetcher() ([]eventmodels.TradierPositionDTO, error) {
 	panic("not implemented")
 }
 
+
+
 func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config BacktesterConfig, execResultCh chan ExecResult, isDryRun bool) {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -64,7 +66,9 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		// todo: separate this into a function
 		// instead of finding the next friday, we can just use the expiration date from the config yaml
-		nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
+		// nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
+		nextOptionExpDate := utils.DeriveNextExpiration(signal.Timestamp, config.OptionsYAML.ExpirationsInDays)
+
 		isHistorical := true
 		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, isHistorical, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
@@ -142,7 +146,7 @@ type BacktesterConfig struct {
 	GoEnv                     string
 }
 
-func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, outDir, goEnv string) ExecResult {
+func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, startAtEventNumber uint64, outDir, goEnv string) ExecResult {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
@@ -199,7 +203,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 	go Exec_Backtesterfunc(ctx, trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, backtesterConfig, resultCh, isDryRun)
 
-	trackerV3OptionEVConsumer.Replay(ctx)
+	trackerV3OptionEVConsumer.Replay(ctx, startAtEventNumber)
 
 	result := <-resultCh
 

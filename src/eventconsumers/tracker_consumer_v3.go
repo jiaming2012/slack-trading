@@ -345,7 +345,7 @@ func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*e
 	return nil
 }
 
-func (t *TrackerConsumerV3) Replay(ctx context.Context) {
+func (t *TrackerConsumerV3) Replay(ctx context.Context, startAtEventNumber uint64) {
 	logger := log.WithContext(ctx)
 	logger.Infof("Starting TrackerV3Consumer in replay mode")
 
@@ -356,11 +356,11 @@ func (t *TrackerConsumerV3) Replay(ctx context.Context) {
 			}
 		}
 
-		fmt.Println("TrackerV3Consumer: replay done")
+		logger.Info("TrackerV3Consumer: replay done")
 		t.CloseSignalTriggeredCh()
 	}()
 
-	t.client.Replay(ctx)
+	t.client.Replay(ctx, startAtEventNumber)
 
 	logger.Infof("TrackerV3Consumer started in replay mode!!!")
 }
