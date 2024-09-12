@@ -91,14 +91,14 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		// todo: metadata should be attached to each order
 		// todo: this should be refactored to mostly use the same as eventmain
-		highestEVBacktestOrder, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, config.OptionsYAML, goEnv)
+		highestEVBacktestOrders, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, config.OptionsYAML, config.RiskProfileConstraint, goEnv)
 		if err != nil {
 			log.Errorf("tradier executer: %v: send to market failed: %v", signal.Signal, err)
 		}
 
-		if highestEVBacktestOrder != nil {
-			log.Infof("new trade: adding highest EV backtest order: %v", *highestEVBacktestOrder)
-			allTrades = append(allTrades, highestEVBacktestOrder)
+		for _, order := range highestEVBacktestOrders {
+			log.Infof("new trade: adding highest EV backtest order: %v", *order)
+			allTrades = append(allTrades, order)
 		}
 	}
 
@@ -140,6 +140,7 @@ type BacktesterConfig struct {
 	ExpirationsInDays         []int
 	OptionsYAML               *eventmodels.OptionYAML
 	Symbol                    eventmodels.StockSymbol
+	RiskProfileConstraint     *eventmodels.RiskProfileConstraint
 	OutDir                    string
 	GoEnv                     string
 }
@@ -166,6 +167,10 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		}
 	}
 
+	riskProfileConstraint := eventmodels.NewRiskProfileConstraint()
+	riskProfileConstraint.AddItem(0.2, 1000)
+	riskProfileConstraint.AddItem(0.8, 1800)
+
 	backtesterConfig := BacktesterConfig{
 		TradierTradesOrderURL:     fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID),
 		TradierTradesBearerToken:  os.Getenv("TRADIER_TRADES_BEARER_TOKEN"),
@@ -174,6 +179,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		ExpirationsInDays:         optionConfig.ExpirationsInDays,
 		OptionsYAML:               optionConfig,
 		Symbol:                    symbol,
+		RiskProfileConstraint:    riskProfileConstraint,
 		OutDir:                    outDir,
 		GoEnv:                     goEnv,
 	}

@@ -213,7 +213,7 @@ func (req *EmptyRequest) Validate(r *http.Request) error {
 	return nil
 }
 
-func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -277,7 +277,7 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 
 	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, time.Now(), resultCh, errCh)
 
-	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, optionConfig.MaxNoOfPositions, goEnv); err != nil {
+	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, riskProfileConstraint, optionConfig.MaxNoOfPositions, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
 	}
 
@@ -422,6 +422,11 @@ func run() {
 		log.Fatalf("failed to unmarshal options config: %v", err)
 	}
 
+	// todo: move to config
+	riskProfileConstraint := eventmodels.NewRiskProfileConstraint()
+	riskProfileConstraint.AddItem(0.2, 1000)
+	riskProfileConstraint.AddItem(0.8, 1800)
+
 	// Set up google sheets
 	if _, _, err := sheets.NewClientFromEnv(ctx); err != nil {
 		log.Fatalf("failed to create google sheets client: %v", err)
@@ -524,7 +529,7 @@ func run() {
 		})
 
 		for event := range eventCh {
-			processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, loc, goEnv)
+			processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, riskProfileConstraint, loc, goEnv)
 		}
 	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
 

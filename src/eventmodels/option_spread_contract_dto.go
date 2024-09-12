@@ -15,10 +15,12 @@ type OptionSpreadContractDTO struct {
 	LongOptionTimestamp     time.Time    `json:"longOptionTimestamp"`
 	LongOptionExpiration    string       `json:"longOptionExpiration"`
 	LongOptionAvgFillPrice  float64      `json:"longOptionAvgFillPrice"`
+	LongOptionStrikePrice   float64      `json:"longOptionStrikePrice"`
 	ShortOptionTimestamp    time.Time    `json:"shortOptionTimestamp"`
 	ShortOptionSymbol       OptionSymbol `json:"shortOptionSymbol"`
 	ShortOptionExpiration   string       `json:"shortOptionExpiration"`
 	ShortOptionAvgFillPrice float64      `json:"shortOptionAvgFillPrice"`
+	ShortOptionStrikePrice  float64      `json:"shortOptionStrikePrice"`
 	Stats                   OptionStats  `json:"stats"`
 }
 

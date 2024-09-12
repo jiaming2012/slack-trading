@@ -237,10 +237,12 @@ if __name__ == "__main__":
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
             "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "long_option_strike_price": spread.long_option.strike,
             "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
             "short_option_avg_fill_price": spread.short_option.avg_fill_price,
+            "short_option_strike_price": spread.short_option.strike,
             "debit_paid": str(debit_paid),
             "expected_profit": str(long_expected_profit)
         })
@@ -260,10 +262,12 @@ if __name__ == "__main__":
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
             "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "long_option_strike_price": spread.long_option.strike,
             "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
             "short_option_avg_fill_price": spread.short_option.avg_fill_price,
+            "short_option_strike_price": spread.short_option.strike,
             "credit_received": str(credit_received),
             "expected_profit": str(short_expected_profit)
         })
@@ -283,10 +287,12 @@ if __name__ == "__main__":
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
             "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "long_option_strike_price": spread.long_option.strike,
             "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
             "short_option_avg_fill_price": spread.short_option.avg_fill_price,
+            "short_option_strike_price": spread.short_option.strike,
             "debit_paid": str(debit_paid),
             "expected_profit": str(long_expected_profit)
         })
@@ -306,10 +312,12 @@ if __name__ == "__main__":
             "long_option_symbol": spread.long_option.symbol,
             "long_option_expiration": spread.long_option.expiration,
             "long_option_avg_fill_price": spread.long_option.avg_fill_price,
+            "long_option_strike_price": spread.long_option.strike,
             "short_option_timestamp": spread.short_option.timestamp,
             "short_option_symbol": spread.short_option.symbol,
             "short_option_expiration": spread.short_option.expiration,
             "short_option_avg_fill_price": spread.short_option.avg_fill_price,
+            "short_option_strike_price": spread.short_option.strike,
             "credit_received": str(credit_received),
             "expected_profit": str(short_expected_profit)
         })

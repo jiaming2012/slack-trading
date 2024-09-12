@@ -42,10 +42,12 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContractSpreads(expectedPro
 			LongOptionSymbol:        OptionSymbol(spreadMapItem.LongOptionSymbol),
 			LongOptionAvgFillPrice:  spreadMapItem.LongOptionAvgFillPrice,
 			LongOptionExpiration:    spreadMapItem.LongOptionExpiration,
+			LongOptionStrikePrice:   spreadMapItem.LongOptionStrikePrice,
 			ShortOptionTimestamp:    spreadMapItem.ShortOptionTimestamp,
 			ShortOptionSymbol:       OptionSymbol(spreadMapItem.ShortOptionSymbol),
 			ShortOptionExpiration:   spreadMapItem.ShortOptionExpiration,
 			ShortOptionAvgFillPrice: spreadMapItem.ShortOptionAvgFillPrice,
+			ShortOptionStrikePrice:  spreadMapItem.ShortOptionStrikePrice,
 		}
 
 		spread.Stats = OptionStats{
@@ -240,45 +242,3 @@ func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, re
 
 	resultCh <- result
 }
-
-// func (s *ReadOptionChainRequestExecutor) serve(req *ReadOptionChainRequest, resultCh chan map[string]interface{}, errorCh chan error) {
-// 	minDistanceBetweenStrikes, err := s.getMinDistanceBetweenStrikes(req)
-// 	if err != nil {
-// 		errorCh <- fmt.Errorf("failed to get min distance between strikes: %w", err)
-// 		return
-// 	}
-
-// 	options, stockTickItemDTO, err := eventservices.FetchOptionChainWithParamsV2(
-// 		s.OptionsByExpirationURL,
-// 		s.OptionChainURL,
-// 		s.StockURL,
-// 		s.BearerToken,
-// 		req.Symbol,
-// 		req.OptionTypes,
-// 		req.ExpirationsInDays,
-// 		minDistanceBetweenStrikes,
-// 		req.MaxNoOfStrikes,
-// 	)
-
-// 	if err != nil {
-// 		errorCh <- err
-// 		return
-// 	}
-
-// 	result := map[string]interface{}{
-// 		"stock": map[string]interface{}{
-// 			"timestamp": stockTickItemDTO.Timestamp,
-// 			"bid":       stockTickItemDTO.Bid,
-// 			"ask":       stockTickItemDTO.Ask,
-// 		},
-// 	}
-
-// 	var optionsDTO []*OptionContractV1DTO
-// 	for _, option := range options {
-// 		optionsDTO = append(optionsDTO, option.ToDTO())
-// 	}
-
-// 	result["options"] = optionsDTO
-
-// 	resultCh <- result
-// }

@@ -120,12 +120,21 @@ func Run(args RunArgs) (RunResult, error) {
 		return nil, nil
 	})
 
-	spread := eventmodels.OptionSpreadContractDTO{
+	spread := &eventmodels.OptionSpreadContractDTO{
 		ShortOptionSymbol: args.SellToOpenSymbol,
 		LongOptionSymbol:  args.BuyToOpenSymbol,
 	}
 
-	if err := eventservices.PlaceTradeSpread(context.Background(), tradierOrderExecuter, args.UnderlyingSymbol, &spread, args.Quantity, eventmodels.TradierTradeTypeCredit, nil, eventmodels.TradeDurationDay, args.Tag, 1000); err != nil {
+	tradeRequest := eventmodels.PlaceTradeSpreadRequest{
+		Underlying:       args.UnderlyingSymbol,
+		Spread:           spread,
+		Quantity:         args.Quantity,
+		TradeType:        eventmodels.TradierTradeTypeCredit,
+		Tag:              args.Tag,
+		MaxNoOfPositions: 1000,
+	}
+
+	if err := eventservices.PlaceTradeSpread(context.Background(), tradierOrderExecuter, tradeRequest); err != nil {
 		return RunResult{}, fmt.Errorf("error placing long spread trade: %v", err)
 	}
 

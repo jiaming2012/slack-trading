@@ -5,13 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/cmd/fetch_orders/run"
-	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
@@ -108,7 +104,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 			},
 			Tag:          order.Tag,
 			AvgFillPrice: *order.Spread.CreditReceived * -1,
-			Config: 	 order.Config,
+			Config:       order.Config,
 		}
 
 		result, err := utils.CalculateOptionOrderSpreadResult(req, candles, optionMultiplier)
@@ -127,104 +123,26 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 	return csvPath, nil
 }
 
-func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, config *eventmodels.OptionYAML, goEnv string) (*eventmodels.BacktesterOrder, error) {
+func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, config *eventmodels.OptionYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, goEnv string) ([]*eventmodels.BacktesterOrder, error) {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()
 
-	logger := log.WithContext(ctx)
-
-	select {
-	case result := <-resultCh:
-		if result != nil {
-			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
-			if !ok {
-				return nil, fmt.Errorf("options not found in result")
-			}
-
-			if calls, ok := options["calls"]; ok {
-				highestEVLongCallSpreads, highestEVShortCallSpreads, err := eventconsumers.FindHighestEVPerExpiration(calls)
-				if err != nil {
-					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
-				}
-
-				for _, spread := range highestEVLongCallSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long call: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Call found")
-					}
-				}
-
-				for _, spread := range highestEVShortCallSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Call", trace.WithAttributes(attribute.String("tag", tag)))
-						return &eventmodels.BacktesterOrder{
-							Underlying: event.Symbol,
-							Spread:     spread,
-							Quantity:   1,
-							Tag:        tag,
-							Config:    config,
-						}, nil
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Call found")
-					}
-				}
-			} else {
-				return nil, fmt.Errorf("calls not found in result")
-			}
-
-			if puts, ok := options["puts"]; ok {
-				highestEVLongPutSpreads, highestEVShortPutSpreads, err := eventconsumers.FindHighestEVPerExpiration(puts)
-				if err != nil {
-					return nil, fmt.Errorf("FindHighestEVPerExpiration: failed to find highest EV per expiration: %w", err)
-				}
-
-				for _, spread := range highestEVLongPutSpreads {
-					if spread != nil {
-						logger.WithField("event", "signal").Infof("Ignoring long put: %v", spread)
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Long Put found")
-					}
-				}
-
-				for _, spread := range highestEVShortPutSpreads {
-					if spread != nil {
-						requestedPrc := 0.0
-						if spread.CreditReceived != nil {
-							requestedPrc = *spread.CreditReceived
-						}
-
-						tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
-
-						span.AddEvent("PlaceTradeSpread:Put", trace.WithAttributes(attribute.String("tag", tag)))
-
-						return &eventmodels.BacktesterOrder{
-							Underlying: event.Symbol,
-							Spread:     spread,
-							Quantity:   1,
-							Tag:        tag,
-							Config:    config,
-						}, nil
-					} else {
-						logger.WithField("event", "signal").Infof("No Positive EV Short Put found")
-					}
-				}
-			} else {
-				return nil, fmt.Errorf("puts not found in result")
-			}
-		}
-
-	case err := <-errCh:
-		return nil, fmt.Errorf("error: %v", err)
+	highestEVOrderComponents, err := eventservices.DeriveHighestEVOrders(ctx, resultCh, errCh, event, tradierOrderExecuter, riskProfileConstraint)
+	if err != nil {
+		return nil, fmt.Errorf("DeriveHighestEVOrders: failed to derive highest EV orders: %w", err)
 	}
 
-	return nil, nil
+	var results []*eventmodels.BacktesterOrder
+	for _, order := range highestEVOrderComponents {
+		results = append(results, &eventmodels.BacktesterOrder{
+			Underlying: event.Symbol,
+			Spread:     order.Spread,
+			Quantity:   1,
+			Tag:        order.Tag,
+			Config:     config,
+		})
+	}
+
+	return results, nil
 }
