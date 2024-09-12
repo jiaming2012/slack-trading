@@ -66,23 +66,23 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 			}
 
 			risk := *option.DebitPaid * 100.0
-			if risk == 0 {
-				return nil, nil, fmt.Errorf("FindHighestEV (long): risk must be non-zero")
-			}
-
-			riskAdjustedExpectedProfit := option.Stats.ExpectedProfitLong / risk
-			maxRisk, err := riskProfile.GetMaxRisk(riskAdjustedExpectedProfit)
-			if err != nil {
-				return nil, nil, fmt.Errorf("FindHighestEV (long): failed to get max risk: %w", err)
-			}
 
 			logger.Infof("expected profit long: %f", option.Stats.ExpectedProfitLong)
 			logger.Infof("risk: %f", risk)
-			logger.Infof("max risk: %f", maxRisk)
 
-			if risk > maxRisk {
-				log.Warnf("FindHighestEV (long): risk %f is greater than maxRisk %f", risk, maxRisk)
-				continue
+			if risk > 0 {
+				riskAdjustedExpectedProfit := option.Stats.ExpectedProfitLong / risk
+				maxRisk, err := riskProfile.GetMaxRisk(riskAdjustedExpectedProfit)
+				if err != nil {
+					return nil, nil, fmt.Errorf("FindHighestEV (long): failed to get max risk: %w", err)
+				}
+
+				logger.Infof("max risk: %f", maxRisk)
+
+				if risk > maxRisk {
+					log.Warnf("FindHighestEV (long): risk %f is greater than maxRisk %f", risk, maxRisk)
+					continue
+				}
 			}
 
 			highestEVLong = append(highestEVLong, option)
@@ -96,23 +96,23 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 			}
 
 			risk := (math.Abs(option.LongOptionStrikePrice-option.ShortOptionStrikePrice) - *option.CreditReceived) * 100.0
-			if risk == 0 {
-				return nil, nil, fmt.Errorf("FindHighestEV (short): risk must be non-zero")
-			}
-
-			riskAdjustedExpectedProfit := option.Stats.ExpectedProfitShort / risk
-			maxRisk, err := riskProfile.GetMaxRisk(riskAdjustedExpectedProfit)
-			if err != nil {
-				return nil, nil, fmt.Errorf("FindHighestEV (short): failed to get max risk: %w", err)
-			}
 
 			logger.Infof("expected profit short: %f", option.Stats.ExpectedProfitShort)
 			logger.Infof("risk: %f", risk)
-			logger.Infof("max risk: %f", maxRisk)
 
-			if risk > maxRisk {
-				log.Warnf("FindHighestEV (short): risk %f is greater than maxRisk %f", risk, maxRisk)
-				continue
+			if risk > 0 {
+				riskAdjustedExpectedProfit := option.Stats.ExpectedProfitShort / risk
+				maxRisk, err := riskProfile.GetMaxRisk(riskAdjustedExpectedProfit)
+				if err != nil {
+					return nil, nil, fmt.Errorf("FindHighestEV (short): failed to get max risk: %w", err)
+				}
+
+				logger.Infof("max risk: %f", maxRisk)
+
+				if risk > maxRisk {
+					log.Warnf("FindHighestEV (short): risk %f is greater than maxRisk %f", risk, maxRisk)
+					continue
+				}
 			}
 
 			highestEVShort = append(highestEVShort, option)
