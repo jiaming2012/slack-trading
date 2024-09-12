@@ -31,7 +31,7 @@ func (profile *RiskProfileConstraint) GetMaxRisk(riskAdjustedExpectedProfit floa
 	}
 
 	if riskAdjustedExpectedProfit < profile.items[0].RiskAdjustedExpectedProfit {
-		return 0, fmt.Errorf("GetMaxRisk: riskAdjustedExpectedProfit is below minimum")
+		return 0, fmt.Errorf("GetMaxRisk: riskAdjustedExpectedProfit (%v) is below minimum (%v)", riskAdjustedExpectedProfit, profile.items[0].RiskAdjustedExpectedProfit)
 	}
 
 	for _, item := range profile.items {
