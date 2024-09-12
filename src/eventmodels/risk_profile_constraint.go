@@ -14,7 +14,7 @@ type RiskProfileConstraint struct {
 	items []RiskProfileConstraintItem
 }
 
-func (profile *RiskProfileConstraint) AddItem(maxRisk float64, riskAdjustedExpectedProfit float64) {
+func (profile *RiskProfileConstraint) AddItem(riskAdjustedExpectedProfit float64, maxRisk float64) {
 	profile.items = append(profile.items, RiskProfileConstraintItem{
 		MaxRisk:                    maxRisk,
 		RiskAdjustedExpectedProfit: riskAdjustedExpectedProfit,
