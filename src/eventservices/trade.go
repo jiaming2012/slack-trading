@@ -66,8 +66,8 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 			}
 
 			risk := *option.DebitPaid * 100.0
-			if risk <= 0 {
-				return nil, nil, fmt.Errorf("FindHighestEV (long): risk must be positive, found %f", risk)
+			if risk == 0 {
+				return nil, nil, fmt.Errorf("FindHighestEV (long): risk must be non-zero")
 			}
 
 			riskAdjustedExpectedProfit := option.Stats.ExpectedProfitLong / risk
@@ -96,8 +96,8 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 			}
 
 			risk := (math.Abs(option.LongOptionStrikePrice-option.ShortOptionStrikePrice) - *option.CreditReceived) * 100.0
-			if risk <= 0 {
-				return nil, nil, fmt.Errorf("FindHighestEV (short): risk must be positive, found %f", risk)
+			if risk == 0 {
+				return nil, nil, fmt.Errorf("FindHighestEV (short): risk must be non-zero")
 			}
 
 			riskAdjustedExpectedProfit := option.Stats.ExpectedProfitShort / risk
