@@ -259,8 +259,8 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	req.EV.Signal = event.Signal
 
 	// instead of finding the next friday, we can just use the expiration date from the config yaml
-	// nextOptionExpDate := utils.DeriveNextFriday(event.Timestamp)
-	nextOptionExpDate := utils.DeriveNextExpiration(event.Timestamp, optionConfig.ExpirationsInDays)
+	nextOptionExpDate := utils.DeriveNextFriday(event.Timestamp)
+	// nextOptionExpDate := utils.DeriveNextExpiration(event.Timestamp, optionConfig.ExpirationsInDays)
 
 	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, req.IsHistorical, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
 	if err != nil {

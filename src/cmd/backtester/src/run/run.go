@@ -26,8 +26,6 @@ func positionFetcher() ([]eventmodels.TradierPositionDTO, error) {
 	panic("not implemented")
 }
 
-
-
 func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config BacktesterConfig, execResultCh chan ExecResult, isDryRun bool) {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -66,8 +64,8 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		// todo: separate this into a function
 		// instead of finding the next friday, we can just use the expiration date from the config yaml
-		// nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
-		nextOptionExpDate := utils.DeriveNextExpiration(signal.Timestamp, config.OptionsYAML.ExpirationsInDays)
+		nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
+		// nextOptionExpDate := utils.DeriveNextExpiration(signal.Timestamp, config.OptionsYAML.ExpirationsInDays)
 
 		isHistorical := true
 		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, isHistorical, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
