@@ -22,7 +22,7 @@ python3 -m pip install --user bump2version
 2. Each Dockerfile also has a `.bumpversion.cfg` file, since we want to manage each version number separately.
 
 ### Deploying a new version
-The following script takes care of updating the version of the Dockerfile and deploying it to the container registry and pushing any code to Github.
+The following script takes care of updating the version of the Dockerfile and deploying it to the container registry, updating the Kubernetes deployment file, and pushing the code to Github.
 ``` bash
 ./deploy-app.sh <version>
 ```

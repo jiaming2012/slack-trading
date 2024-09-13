@@ -39,7 +39,7 @@ docker push ewr.vultrcr.com/grodt/app:$VERSION
 sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
 
 # Remove backup file created by sed
-rm deployment.yaml.bak
+rm ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml.bak
 
 # Commit the updated deployment.yaml file and the version bump
 git add deployment.yaml Dockerfile
