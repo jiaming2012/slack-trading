@@ -11,6 +11,7 @@ main
 src/.env.development
 src/.env.production
 src/.env.production-secrets
+src/cmd/backtester-sandbox 
 env/
 *.csv
 *.png
