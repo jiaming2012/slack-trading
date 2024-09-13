@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventstoredb
+  namespace: eventstoredb
+spec:
+  selector:
+    app: eventstoredb
+  ports:
+  - name: http
+    protocol: TCP
+    port: 2113
+    targetPort: 2113
+  - name: tcp
+    protocol: TCP
+    port: 1113
+    targetPort: 1113
+  type: ClusterIP

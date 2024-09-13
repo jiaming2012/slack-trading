@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventstoredb-config
+  namespace: eventstoredb
+data:
+  eventstoredb.conf: |
+    RunProjections: All
+    StartStandardProjections: true
+    IntTcpPort: 1113
+    HttpPort: 2113
+    Insecure: true
+    EnableAtomPubOverHTTP: true
+    ExtIp: 0.0.0.0

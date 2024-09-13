@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventstoredb
+  namespace: eventstoredb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventstoredb
+  template:
+    metadata:
+      labels:
+        app: eventstoredb
+    spec:
+      containers:
+      - name: eventstoredb
+        image: eventstore/eventstore:24.2.0-jammy
+        env:
+        - name: EVENTSTORE_INSECURE
+          value: "true"
+        - name: EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP
+          value: "true"
+        ports:
+        - containerPort: 2113
+        - containerPort: 1113
+        volumeMounts:
+        - name: eventstoredb-data
+          mountPath: /var/lib/eventstore
+        - name: eventstoredb-config
+          mountPath: /etc/eventstore
+        args: ["--config=/etc/eventstore/eventstoredb.conf"]
+      volumes:
+      - name: eventstoredb-data
+        persistentVolumeClaim:
+          claimName: eventstoredb-data
+      - name: eventstoredb-config
+        configMap:
+          name: eventstoredb-config

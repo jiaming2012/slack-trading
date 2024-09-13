@@ -51,9 +51,10 @@ helm install sealed-secrets bitnami/sealed-secrets --namespace sealed-secrets
 ### Add a Deploy Key to the Cluster (this can be skipped if the sealedsecret has already been created)
 Flux needs a deploy key in order to pull from GitHub. Create one and then apply it to the cluster as a sealed secret.
 
-First, create a namespace for the app
+First, create a namespace for the app and the database
 ``` bash
 kubectl create namespace grodt
+kubectl create namespace eventstoredb
 ```
 
 Second, create a normal secret from the private key file
@@ -72,6 +73,41 @@ kubeseal  --controller-name=sealed-secrets --controller-namespace=sealed-secrets
 Fourth, apply the sealed secret to the cluster
 ``` bash
 kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+```
+
+### Bootstrap the Cluster
+You will need a personal access token in order to bootstrap the cluster.
+
+#### Getting a GitHub personal access token
+1. Go to GitHub:
+
+2. Navigate to GitHub and sign in to your account.
+Go to Settings:
+
+3. In the top-right corner of any GitHub page, click on your profile picture, then click on Settings.
+Access Developer Settings:
+
+4. In the left sidebar, scroll down and click on Developer settings.
+Generate a New Personal Access Token:
+
+In the Developer settings page, click on Personal access tokens.
+Then, click on Tokens (classic), and click on Generate new token or Generate new token (classic).
+Select Scopes:
+
+Give the token a descriptive name (e.g., "Flux GitOps token").
+
+Set an expiration date for the token (or leave it with no expiration if necessary, though it's recommended to have an expiration).
+
+For Flux, you typically need the following scopes:
+
+- repo: Full control of private repositories (if you need to deploy from private repositories).
+- workflow: Update GitHub Actions workflows (optional, if you use GitHub Actions).
+- write:packages: Push packages to GitHub packages (optional, if you are working with GitHub packages).
+- admin:repo_hook: Manage webhooks (optional, needed if Flux will create webhooks).
+
+#### Run the command
+``` bash
+flux bootstrap github --owner=jiaming2012 --repository=slack-trading --branch=main --path=.clusters/production --personal
 ```
 
 ## Connect to an Existing Cluster
