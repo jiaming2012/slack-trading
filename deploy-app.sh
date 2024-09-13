@@ -26,3 +26,5 @@ docker build -t grodt:$VERSION -f Dockerfile .
 # Push the images to the Docker registry
 docker push grodt:$VERSION
 
+# Push to Github
+git push
