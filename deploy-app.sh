@@ -18,7 +18,7 @@ fi
 bump2version patch --config-file $CONFIG_FILE
 
 # Get the current version from the Dockerfile
-VERSION=$(grep "Version:" Dockerfile | cut -d' ' -f2)
+VERSION=$(grep "version=" Dockerfile | cut -d'=' -f2)
 
 # Build the images with the version tag
 docker build -t grodt:$VERSION -f Dockerfile .
