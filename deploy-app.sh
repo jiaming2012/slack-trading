@@ -42,7 +42,7 @@ sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grod
 rm ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml.bak
 
 # Commit the updated deployment.yaml file and the version bump
-git add deployment.yaml Dockerfile
+git add ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml Dockerfile
 git commit -m "Bump app version to $VERSION in Dockerfile and deployment.yaml"
 
 # Push the changes to GitHub
