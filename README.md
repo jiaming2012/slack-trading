@@ -22,7 +22,17 @@ python3 -m pip install --user bump2version
 2. Each Dockerfile also has a `.bumpversion.cfg` file, since we want to manage each version number separately.
 
 ### Deploying a new version
-The following script takes care of updating the version of the Dockerfile and deploying it to the container registry.
+The following script takes care of updating the version of the Dockerfile and deploying it to the container registry and pushing any code to Github.
+``` bash
+./deploy-app.sh <version>
+```
+Version can be: patch, minor, major
+---
+Similarly, the base images can be deploy (if necessary) with the following commands:
+``` bash
+./deploy-base-image.sh <version>
+./deploy-base-image-2.sh <version>
+```
 
 # Deployment
 Our production environment is hosted on vultr and managed with fluxcd. Manifests are stored in `.clusters/production`

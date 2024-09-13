@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# Stop the script on any command failure
+set -e
+
 # Check if the path is provided as an argument
 if [ -z "$1" ]; then
-  echo "Usage: ./bump_version.sh <major/minor/patch>"
+  echo "Usage: ./deploy-app.sh <major/minor/patch>"
   exit 1
 fi
 
