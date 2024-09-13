@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grodt
+  labels:
+    app: grodt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grodt
+  template:
+    metadata:
+      labels:
+        app: grodt
+    spec:
+      containers:
+      - name: grodt
+        image: ewr.vultrcr.com/grodt/app:1.0.12
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: grodt-configmap
+        - secretRef:
+            name: app-secrets
