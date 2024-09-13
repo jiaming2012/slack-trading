@@ -1,3 +1,5 @@
+# Version: 1.0.0
+
 # Start from the latest Ubuntu base image
 FROM ubuntu:20.04
 

@@ -10,6 +10,7 @@ run*.sh
 main
 src/.env.development
 src/.env.production
+src/.env.production-secrets
 env/
 *.csv
 *.png
@@ -20,3 +21,4 @@ scratch.py
 src/cmd/backtest-sandbox/
 results/
 options_input.json
+secret.yaml

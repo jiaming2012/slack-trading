@@ -1,0 +1,18 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+  name: production
+  namespace: flux-system
+spec:
+  interval: 15s
+  path: "./clusters/production"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  targetNamespace: default
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: grodt-app
+  timeout: 3m

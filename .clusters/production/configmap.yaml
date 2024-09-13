@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grodt-configmap
+  namespace: grodt
+data:
+  STOCK_QUOTES_URL: "https://api.tradier.com/v1/markets/quotes"
+  MARKET_CALENDAR_URL: "https://api.tradier.com/v1/markets/calendar"
+  OPTION_CHAIN_URL: "https://api.tradier.com/v1/markets/options/chains"
+  OPTION_EXPIRATIONS_URL: "https://api.tradier.com/v1/markets/options/expirations"
+  TRADIER_ACCOUNT_ID: "6YA49543"
+  TRADIER_TRADES_ACCOUNT_ID: "6YA49543"
+  TRADIER_ORDERS_URL_TEMPLATE: "https://api.tradier.com/v1/accounts/%s/orders"
+  TRADIER_TRADES_URL_TEMPLATE: "https://api.tradier.com/v1/accounts/%s/orders"
+  TRADIER_POSITIONS_URL_TEMPLATE: "https://api.tradier.com/v1/accounts/%s/positions"
+  TRAIER_QUOTES_HISTORY_URL: "https://api.tradier.com/v1/markets/history"
+  EVENTSTOREDB_URL: "esdb+discover://eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
+  OANDA_FX_QUOTES_URL_BASE: "https://api-fxtrade.oanda.com/v3/instruments/%s/candles"
+  LOG_LEVEL: "info"
+  DRY_RUN: "true"
+  OPTIONS_CONFIG_FILE: "options-config-prod.yaml"
+  PORT: 8080

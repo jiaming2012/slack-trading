@@ -1,6 +1,99 @@
 # slack-trading
 A mock trading platform.
 
+# Development
+We use python's bump2version for managing the app version.
+
+## Installing bump2version
+``` bash
+python3 -m ensurepip --upgrade
+python3 -m pip install --user bump2version
+```
+
+### Managing
+1. Each Dockerfile has a `# Version: 1.x.x` at the top.
+2. Each Dockerfile also has a `.bumpversion.cfg` file, since we want to manage each version number separately.
+
+
+# Deployment
+Our production environment is hosted on vultr and managed with fluxcd. Manifests are stored in `.clusters/production`
+
+## Spin up a New Cluster
+To start a new cluster, navigate to the Vultr dashboard, click "Kubernetes" and "+ Add Cluster."
+
+### Install the SealedSecrets controller
+``` bash
+brew install helm
+helm repo add bitnami https://charts.bitnami.com/bitnami
+kubectl create namespace sealed-secrets
+helm install sealed-secrets bitnami/sealed-secrets --namespace sealed-secrets
+```
+
+### Add a Deploy Key to the Cluster (this can be skipped if the sealedsecret has already been created)
+Flux needs a deploy key in order to pull from GitHub. Create one and then apply it to the cluster as a sealed secret.
+
+First, create a namespace for the app
+``` bash
+kubectl create namespace grodt
+```
+
+Second, create a normal secret from the private key file
+``` bash
+kubectl create secret generic flux-git-deploy \
+  --namespace grodt \
+  --from-file=identity=<absolute-path-to-your-private-key> \
+  --dry-run=client -o yaml > secret.yaml
+```
+
+Third, convert the secret into a sealed secret:
+``` bash
+kubeseal  --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+```
+
+Fourth, apply the sealed secret to the cluster
+``` bash
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+```
+
+## Connect to an Existing Cluster
+### Configure Local Machine to Remote Cluster
+Log into the Vultr dashboard and download the cluster's config file.
+``` bash
+export KUBECONFIG=export KUBECONFIG="/Users/jamal/projects/grodt/vultr-k8s.yaml"
+```
+
+### Secrets
+We use `kubeseal` for managing encrypted secrets
+``` bash
+brew install kubeseal
+```
+
+Assuming you have `.env.production` in the `src/` directory, convert an env file to a kubernetes secret:
+``` bash
+cd path/to/cmd
+./convert_env_to_secret.sh
+```
+
+Convert the secret to a sealed secret and deploy with the sealed secret with:
+``` bash
+kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < cmd/secret.yaml > .clusters/production/sealedsecret.yaml
+```
+
+### Config
+Similarly, create a configmap from an env file with command:
+``` bash
+cd path/to/cmd
+./convert_env_to_config.sh
+```
+
+Remove any variables that you do not wish to use.
+
+### Connecting
+Go to the vultr dashboard and download the kube context file.
+``` bash
+export KUBECONFIG=/Users/jamal/projects/grodt/vultr-k8s.yaml
+```
+
 # Telemetry
 Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475. Used the following guide to set up: https://grafana.com/docs/grafana-cloud/monitor-applications/application-observability/setup/quickstart/go/
 
