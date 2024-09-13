@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grodt-configmap
-  namespace: grodt
+  namespace: default
 data:
   STOCK_QUOTES_URL: "https://api.tradier.com/v1/markets/quotes"
   MARKET_CALENDAR_URL: "https://api.tradier.com/v1/markets/calendar"
