@@ -4,6 +4,13 @@ A mock trading platform.
 # Development
 We use python's bump2version for managing the app version.
 
+## Container Registry
+Docker containers are hosted on vultr. Before pushing and pulling, you need to login.
+``` bash
+docker login https://ewr.vultrcr.com/grodt -u $VULTR_REGISTRY_USER -p $VULTR_REGISTRY_PASS
+```
+`VULTR_REGISTRY_USER` and `VULTR_REGISTRY_PASS` can be found on the Vultr console.
+
 ## Installing bump2version
 ``` bash
 python3 -m ensurepip --upgrade
