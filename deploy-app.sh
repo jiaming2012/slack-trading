@@ -36,7 +36,7 @@ docker build -t ewr.vultrcr.com/grodt/app:$VERSION -f Dockerfile .
 docker push ewr.vultrcr.com/grodt/app:$VERSION
 
 # Update deployment.yaml with the new image version
-sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" deployment.yaml
+sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
 
 # Remove backup file created by sed
 rm deployment.yaml.bak
