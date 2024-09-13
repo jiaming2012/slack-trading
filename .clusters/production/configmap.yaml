@@ -19,4 +19,4 @@ data:
   LOG_LEVEL: "info"
   DRY_RUN: "true"
   OPTIONS_CONFIG_FILE: "options-config-prod.yaml"
-  PORT: 8080
+  PORT: "8080"
