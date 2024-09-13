@@ -21,10 +21,10 @@ bump2version patch --config-file $CONFIG_FILE
 VERSION=$(grep -i "version=" Dockerfile | cut -d'=' -f2 | tr -d '" ')
 
 # Build the images with the version tag
-docker build -t grodt:$VERSION -f Dockerfile .
+docker build -t ewr.vultrcr.com/grodt:$VERSION -f Dockerfile .
 
 # Push the images to the Docker registry
-docker push grodt:$VERSION
+docker push ewr.vultrcr.com/grodt:$VERSION
 
 # Push to Github
 git push
