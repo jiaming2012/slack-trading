@@ -11,8 +11,4 @@ spec:
     kind: GitRepository
     name: flux-system
   targetNamespace: default
-  healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: grodt
   timeout: 2m
