@@ -14,5 +14,5 @@ spec:
   healthChecks:
     - apiVersion: apps/v1
       kind: Deployment
-      name: grodt-app
+      name: grodt
   timeout: 3m
