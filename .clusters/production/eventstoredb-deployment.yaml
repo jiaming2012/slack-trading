@@ -30,6 +30,10 @@ spec:
         - name: eventstoredb-config
           mountPath: /etc/eventstore
         args: ["--config=/etc/eventstore/eventstoredb.conf"]
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
       volumes:
       - name: eventstoredb-data
         persistentVolumeClaim:
