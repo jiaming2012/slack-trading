@@ -5,6 +5,13 @@ metadata:
   namespace: flux-system
 resources:
   - deployment.yaml
+  - configmap.yaml
+  - eventstoredb-pvc.yaml
+  - eventstoredb-service.yaml
+  - eventstoredb-deployment.yaml
+  - eventstoredb-config.yaml
+  - sealedsecret-flux-git-deploy.yaml
+  - sealedsecret.yaml
 spec:
   interval: 15s
   path: "./clusters/production"
