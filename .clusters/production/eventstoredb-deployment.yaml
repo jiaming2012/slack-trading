@@ -13,6 +13,15 @@ spec:
       labels:
         app: eventstoredb
     spec:
+      initContainers:
+      - name: init-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /var/lib/eventstore"]
+        securityContext:
+          runAsUser: 0   # Run the sidecar as root
+        volumeMounts:
+        - name: eventstoredb-data
+          mountPath: /var/lib/eventstore
       containers:
       - name: eventstoredb
         image: eventstore/eventstore:24.2.0-jammy
