@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
@@ -198,7 +197,7 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 
 	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("runtime.Start: %v", err)
 	}
 
 	return
@@ -286,14 +285,14 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 }
 
 func run() {
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		log.Fatalf("missing PROJECTS_DIR environment variable")
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	if err != nil {
+		log.Fatalf("PROJECTS_DIR not set: %v", err)
 	}
 
-	goEnv := os.Getenv("GO_ENV")
+	goEnv, err := utils.GetEnv("GO_ENV")
 	if goEnv == "" {
-		log.Fatalf("missing GO_ENV environment variable")
+		log.Fatalf("GO_ENV not set: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -315,83 +314,88 @@ func run() {
 	log.Infof("Main: you da boss...")
 
 	// Get env
-	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
-	if len(stockQuotesURL) == 0 {
-		log.Fatal("$STOCK_QUOTES_URL must be set")
+	stockQuotesURL, err := utils.GetEnv("STOCK_QUOTES_URL")
+	if err != nil {
+		log.Fatalf("$STOCK_QUOTES_URL not set: %v", err)
 	}
 
-	calendarURL := os.Getenv("MARKET_CALENDAR_URL")
-	if len(calendarURL) == 0 {
-		log.Fatal("$MARKET_CALENDAR_URL must be set")
+	calendarURL, err := utils.GetEnv("MARKET_CALENDAR_URL")
+	if err != nil {
+		log.Fatalf("$MARKET_CALENDAR_URL not set: %v", err)
 	}
 
-	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
-	if len(optionChainURL) == 0 {
-		log.Fatal("$OPTION_CHAIN_URL must be set")
+	optionChainURL, err := utils.GetEnv("OPTION_CHAIN_URL")
+	if err != nil {
+		log.Fatalf("$OPTION_CHAIN_URL not set: %v", err)
 	}
 
-	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
-	if len(brokerBearerToken) == 0 {
-		log.Fatal("$TRADIER_BEARER_TOKEN must be set")
+	brokerBearerToken, err := utils.GetEnv("TRADIER_BEARER_TOKEN")
+	if err != nil {
+		log.Fatalf("$TRADIER_BEARER_TOKEN not set: %v", err)
 	}
 
-	fmt.Println("TRADIER_BEARER_TOKEN: ", brokerBearerToken)
-
-	slackWebhookURL := os.Getenv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
-	if len(slackWebhookURL) == 0 {
-		log.Fatal("$SLACK_OPTION_ALERTS_WEBHOOK_URL must be set")
+	slackWebhookURL, err := utils.GetEnv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
+	if err != nil {
+		log.Fatalf("$SLACK_OPTION_ALERTS_WEBHOOK_URL not set: %v", err)
 	}
 
-	// quotesAccountID := os.Getenv("TRADIER_ACCOUNT_ID")
+	// quotesAccountID := utils.GetEnv("TRADIER_ACCOUNT_ID")
 
-	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
-	if len(tradesAccountID) == 0 {
-		log.Fatal("$TRADIER_TRADES_ACCOUNT_ID must be set")
+	tradesAccountID, err := utils.GetEnv("TRADIER_TRADES_ACCOUNT_ID")
+	if err != nil {
+		log.Fatalf("$TRADIER_TRADES_ACCOUNT_ID not set: %v", err)
 	}
 
-	// tradierOrdersURL := fmt.Sprintf(os.Getenv("TRADIER_ORDERS_URL_TEMPLATE"), quotesAccountID)
-
-	tradierTradesOrderURL := fmt.Sprintf(os.Getenv("TRADIER_TRADES_URL_TEMPLATE"), tradesAccountID)
-	if len(tradierTradesOrderURL) == 0 {
-		log.Fatal("$TRADIER_TRADES_URL_TEMPLATE must be set")
+	tradierTradesUrlTemplate, err := utils.GetEnv("TRADIER_TRADES_URL_TEMPLATE")
+	if err != nil {
+		log.Fatalf("$TRADIER_TRADES_URL_TEMPLATE not set: %v", err)
 	}
 
-	tradierPositionsURL := fmt.Sprintf(os.Getenv("TRADIER_POSITIONS_URL_TEMPLATE"), tradesAccountID)
-	if len(tradierPositionsURL) == 0 {
-		log.Fatal("$TRADIER_POSITIONS_URL_TEMPLATE must be set")
+	tradierTradesOrderURL := fmt.Sprintf(tradierTradesUrlTemplate, tradesAccountID)
+
+	tradierPositionsUrlTemplate, err := utils.GetEnv("TRADIER_POSITIONS_URL_TEMPLATE")
+	if err != nil {
+		log.Fatalf("$TRADIER_POSITIONS_URL_TEMPLATE not set: %v", err)
 	}
 
-	tradierTradesBearerToken := os.Getenv("TRADIER_TRADES_BEARER_TOKEN")
-	if len(tradierTradesBearerToken) == 0 {
-		log.Fatal("$TRADIER_TRADES_BEARER_TOKEN must be set")
+	tradierPositionsURL := fmt.Sprintf(tradierPositionsUrlTemplate, tradesAccountID)
+
+	tradierTradesBearerToken, err := utils.GetEnv("TRADIER_TRADES_BEARER_TOKEN")
+	if err != nil {
+		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
-	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
-	if len(eventStoreDbURL) == 0 {
-		log.Fatal("$EVENTSTOREDB_URL must be set")
+	eventStoreDbURL, err := utils.GetEnv("EVENTSTOREDB_URL")
+	if err != nil {
+		log.Fatalf("$EVENTSTOREDB_URL not set: %v", err)
 	}
 
-	oandaFxQuotesURLBase := os.Getenv("OANDA_FX_QUOTES_URL_BASE")
-	if len(oandaFxQuotesURLBase) == 0 {
-		log.Fatal("$OANDA_FX_QUOTES_URL_BASE must be set")
+	oandaFxQuotesURLBase, err := utils.GetEnv("OANDA_FX_QUOTES_URL_BASE")
+	if err != nil {
+		log.Fatalf("$OANDA_FX_QUOTES_URL_BASE not set: %v", err)
 	}
 
-	oandaBearerToken := os.Getenv("OANDA_BEARER_TOKEN")
-	if len(oandaBearerToken) == 0 {
-		log.Fatal("$OANDA_BEARER_TOKEN must be set")
+	oandaBearerToken, err := utils.GetEnv("OANDA_BEARER_TOKEN")
+	if err != nil {
+		log.Fatalf("$OANDA_BEARER_TOKEN not set: %v", err)
 	}
 
-	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
-	if len(optionsExpirationURL) == 0 {
-		log.Fatal("$OPTION_EXPIRATIONS_URL must be set")
+	optionsExpirationURL, err := utils.GetEnv("OPTION_EXPIRATIONS_URL")
+	if err != nil {
+		log.Fatalf("$OPTION_EXPIRATIONS_URL not set: %v", err)
 	}
 
-	optionsConfigFile := os.Getenv("OPTIONS_CONFIG_FILE")
-	if len(optionsConfigFile) == 0 {
-		log.Fatal("$OPTIONS_CONFIG_FILE must be set")
+	optionsConfigFile, err := utils.GetEnv("OPTIONS_CONFIG_FILE")
+	if err != nil {
+		log.Fatalf("$OPTIONS_CONFIG_FILE not set: %v", err)
 	}
 
-	isDryRun := strings.ToLower(os.Getenv("DRY_RUN")) == "true"
+	isDryRunEnv, err := utils.GetEnv("DRY_RUN")
+	if err != nil {
+		log.Fatalf("$DRY_RUN not set: %v", err)
+	}
+
+	isDryRun := strings.ToLower(isDryRunEnv) == "true"
 
 	// Set up Telemetry
 	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
@@ -436,9 +440,9 @@ func run() {
 	}
 
 	// Setup router
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		log.Fatal("$PORT must be set")
+	port, err := utils.GetEnv("PORT")
+	if err != nil {
+		log.Fatalf("$PORT not set: %v", err)
 	}
 
 	// Setup dispatcher

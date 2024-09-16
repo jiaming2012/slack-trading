@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +21,15 @@ func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 	timestamp := entry.Time.Format("01-02-2006 15:04:05")
 	log := fmt.Sprintf("[%s] %s %s\n", timestamp, entry.Level, entry.Message)
 	return []byte(log), nil
+}
+
+func GetEnv(key string) (string, error) {
+	envVar := os.Getenv(key)
+	if len(envVar) == 0 {
+		return "", fmt.Errorf("environment variable %s not set", key)
+	}
+
+	return strings.Trim(envVar, `"`), nil
 }
 
 func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
