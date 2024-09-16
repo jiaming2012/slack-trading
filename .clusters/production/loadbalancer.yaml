@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: grodt-lb
   namespace: default
+  annotations:
+    service.beta.kubernetes.io/vultr-loadbalancer-protocol: "http"
   labels:
     app: grodt
 spec:
