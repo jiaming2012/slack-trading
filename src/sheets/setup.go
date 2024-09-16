@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
@@ -16,6 +17,7 @@ var service *sheets.Service
 
 func setup(ctx context.Context, googleSecurityKeyJsonBase64 string) (*sheets.Service, *drive.Service, error) {
 	// get bytes from base64 encoded google service accounts key
+	googleSecurityKeyJsonBase64 = strings.Trim(googleSecurityKeyJsonBase64, `"`)
 	fmt.Println("googleSecurityKeyJsonBase64", googleSecurityKeyJsonBase64)
 	credBytes, err := base64.StdEncoding.DecodeString(googleSecurityKeyJsonBase64)
 	if err != nil {
