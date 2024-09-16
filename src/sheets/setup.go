@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
+
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 var service *sheets.Service
@@ -51,9 +52,9 @@ func NewClient(ctx context.Context, googleSecurityKeyJsonBase64 string) (*sheets
 }
 
 func NewClientFromEnv(ctx context.Context) (*sheets.Service, *drive.Service, error) {
-	googleSecurityKeyJsonBase64 := os.Getenv("GOOGLE_SECURITY_KEY_JSON_BASE64")
-	if googleSecurityKeyJsonBase64 == "" {
-		return nil, nil, fmt.Errorf("GOOGLE_SECURITY_KEY_JSON_BASE64 environment variable is not set")
+	googleSecurityKeyJsonBase64, err := utils.GetEnv("GOOGLE_SECURITY_KEY_JSON_BASE64")
+	if err != nil {
+		return nil, nil, fmt.Errorf("GOOGLE_SECURITY_KEY_JSON_BASE64 not set: %v", err)
 	}
 
 	return NewClient(ctx, googleSecurityKeyJsonBase64)
