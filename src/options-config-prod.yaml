@@ -5,4 +5,4 @@ options:
     expirationsInDays: [3]
     minDistanceBetweenStrikes: 10.0
     maxNoOfStrikes: 4
-    maxNoOfPositions: 6
+    maxNoOfPositions: 2
