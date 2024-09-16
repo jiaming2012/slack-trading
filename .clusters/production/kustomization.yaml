@@ -12,6 +12,7 @@ resources:
   - eventstoredb-config.yaml
   - sealedsecret-flux-git-deploy.yaml
   - sealedsecret.yaml
+  - loadbalancer.yaml
 spec:
   interval: 15s
   path: "./clusters/production"
