@@ -51,9 +51,9 @@ func NewClient(ctx context.Context, googleSecurityKeyJsonBase64 string) (*sheets
 }
 
 func NewClientFromEnv(ctx context.Context) (*sheets.Service, *drive.Service, error) {
-	googleSecurityKeyJsonBase64 := os.Getenv("KEY_JSON_BASE64")
+	googleSecurityKeyJsonBase64 := os.Getenv("GOOGLE_SECURITY_KEY_JSON_BASE64")
 	if googleSecurityKeyJsonBase64 == "" {
-		return nil, nil, fmt.Errorf("KEY_JSON_BASE64 environment variable is not set")
+		return nil, nil, fmt.Errorf("GOOGLE_SECURITY_KEY_JSON_BASE64 environment variable is not set")
 	}
 
 	return NewClient(ctx, googleSecurityKeyJsonBase64)
