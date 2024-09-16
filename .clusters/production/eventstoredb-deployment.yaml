@@ -25,7 +25,6 @@ spec:
       containers:
       - name: eventstoredb
         image: eventstore/eventstore:24.2.0-jammy
-        command: ["/bin/sh", "-c", "sleep infinity"]
         env:
         - name: EVENTSTORE_INSECURE
           value: "true"
