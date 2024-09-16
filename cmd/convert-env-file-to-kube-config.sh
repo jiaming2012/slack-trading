@@ -2,7 +2,7 @@
 
 # Define the name of the Kubernetes ConfigMap
 CONFIGMAP_NAME="grodt-configmap"
-NAMESPACE="grodt"
+NAMESPACE="default"
 
 # Create the header for the ConfigMap YAML file
 echo "apiVersion: v1

@@ -53,14 +53,13 @@ Flux needs a deploy key in order to pull from GitHub. Create one and then apply 
 
 First, create a namespace for the app and the database
 ``` bash
-kubectl create namespace grodt
 kubectl create namespace eventstoredb
 ```
 
 Second, create a normal secret from the private key file
 ``` bash
 kubectl create secret generic flux-git-deploy \
-  --namespace grodt \
+  --namespace default \
   --from-file=identity=<absolute-path-to-your-private-key> \
   --dry-run=client -o yaml > secret.yaml
 ```
@@ -131,7 +130,7 @@ cd path/to/cmd
 
 Convert the secret to a sealed secret and deploy with the sealed secret with:
 ``` bash
-kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < cmd/secret.yaml > .clusters/production/sealedsecret.yaml
+kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > .clusters/production/sealedsecret.yaml
 ```
 
 ### Config

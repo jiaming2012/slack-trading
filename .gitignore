@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+*.pem
 .DS_Store
 credentials.json
 src/env.txt

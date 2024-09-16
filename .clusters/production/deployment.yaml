@@ -24,4 +24,4 @@ spec:
         - configMapRef:
             name: grodt-configmap
         - secretRef:
-            name: app-secrets
+            name: grodt-secrets

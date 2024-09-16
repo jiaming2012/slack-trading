@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define the name of the Kubernetes secret
-SECRET_NAME="app-secrets"
-NAMESPACE="grodt"
+SECRET_NAME="grodt-secrets"
+NAMESPACE="default"
 
 # Create the header for the secrets YAML file
 echo "apiVersion: v1
