@@ -149,6 +149,13 @@ Go to the vultr dashboard and download the kube context file.
 export KUBECONFIG=/Users/jamal/projects/grodt/vultr-k8s.yaml
 ```
 
+# Data
+In order to run scripts for importing data into eventstore db:
+``` bash
+kubectl port-forward pod/eventstoredb-0 2113:2113 -n eventstoredb
+```
+You can now run import scripts from local machine.
+
 # Telemetry
 Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475. Used the following guide to set up: https://grafana.com/docs/grafana-cloud/monitor-applications/application-observability/setup/quickstart/go/
 
