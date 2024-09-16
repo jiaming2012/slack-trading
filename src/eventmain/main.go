@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
+
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
@@ -333,6 +334,8 @@ func run() {
 	if len(brokerBearerToken) == 0 {
 		log.Fatal("$TRADIER_BEARER_TOKEN must be set")
 	}
+
+	fmt.Println("TRADIER_BEARER_TOKEN: ", brokerBearerToken)
 
 	slackWebhookURL := os.Getenv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
 	if len(slackWebhookURL) == 0 {
