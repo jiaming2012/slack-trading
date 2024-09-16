@@ -9,9 +9,9 @@ src/env.txt
 run*.sh
 **__debug**
 main
-src/.env.development
-src/.env.production
-src/.env.production-secrets
+.env.development
+.env.production
+.env.production-secrets
 src/cmd/backtester-sandbox 
 env/
 *.csv

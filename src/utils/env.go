@@ -23,13 +23,22 @@ func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 }
 
 func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
-	// Currently, we use heroku for production which doesn't support .env files
+	// In production, environment variables are set in the environment
 	if os.Getenv("ENV") == "production" {
 		log.Info("Running in production environment")
+
+		level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+		if err != nil {
+			return fmt.Errorf("failed to parse log level: %v", err)
+		}
+
+		log.SetLevel(level)
+		log.SetFormatter(&log.JSONFormatter{})
+
 		return nil
 	}
 
-	envDir := filepath.Join(projectsDir, "slack-trading", "src")
+	envDir := filepath.Join(projectsDir, "slack-trading")
 
 	log.Infof("Using go environment: %s", goEnvironment)
 
