@@ -16,4 +16,4 @@ data:" > configmap.yaml
 while IFS='=' read -r key value; do
   # Append the key-value pair to the ConfigMap YAML file
   echo "  $key: $value" >> configmap.yaml
-done < ../src/.env.production
+done < ${PROJECTS_DIR}/slack-trading/src/.env.production
