@@ -19,7 +19,7 @@ data:
   TRAIER_QUOTES_HISTORY_URL: "https://api.tradier.com/v1/markets/history"
   EVENTSTOREDB_URL: "esdb://admin:changeit@eventstoredb.eventstoredb.svc.cluster.local:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
   OANDA_FX_QUOTES_URL_BASE: "https://api-fxtrade.oanda.com/v3/instruments/%s/candles"
-  LOG_LEVEL: "info"
+  LOG_LEVEL: "debug"
   DRY_RUN: "true"
   OPTIONS_CONFIG_FILE: "options-config-prod.yaml"
   PORT: "8080"
