@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
+
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
@@ -536,7 +537,9 @@ func run() {
 		})
 
 		for event := range eventCh {
-			processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, riskProfileConstraint, loc, goEnv)
+			if err := processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, riskProfileConstraint, loc, goEnv); err != nil {
+				log.Errorf("failed to process signal triggered event: %v", err)
+			}
 		}
 	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
 
