@@ -1,4 +1,4 @@
-# version="1.0.21"
+# version="1.0.22"
 
 # Start from the latest Debian base image
 FROM docker.io/jiamingnj/grodt-base-image-2
