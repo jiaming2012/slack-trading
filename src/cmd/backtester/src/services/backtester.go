@@ -13,8 +13,8 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func fetchCandles(symbol eventmodels.StockSymbol, from, to time.Time) ([]*eventmodels.CandleDTO, error) {
-	resp, err := eventservices.FetchPolygonStockChart(symbol, 1, "minute", from, to)
+func fetchCandles(symbol eventmodels.StockSymbol, from, to time.Time, apiKey string) ([]*eventmodels.CandleDTO, error) {
+	resp, err := eventservices.FetchPolygonStockChart(symbol, 1, "minute", from, to, apiKey)
 	if err != nil {
 		return nil, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 	}
@@ -32,7 +32,7 @@ func fetchCandles(symbol eventmodels.StockSymbol, from, to time.Time) ([]*eventm
 	return candles, nil
 }
 
-func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder) ([]*eventmodels.CandleDTO, error) {
+func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, apiKey string) ([]*eventmodels.CandleDTO, error) {
 	var firstOpenTime, finalOpenTime time.Time
 	var firstExpiration, finalExpiration time.Time
 	var results []*eventmodels.CandleDTO
@@ -60,12 +60,12 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 		}
 	}
 
-	openCandles, err := fetchCandles(symbol, firstOpenTime, finalOpenTime)
+	openCandles, err := fetchCandles(symbol, firstOpenTime, finalOpenTime, apiKey)
 	if err != nil {
 		return nil, fmt.Errorf("fetchCandles: failed to fetch open candles: %v", err)
 	}
 
-	expirationCandles, err := fetchCandles(symbol, firstExpiration, finalExpiration)
+	expirationCandles, err := fetchCandles(symbol, firstExpiration, finalExpiration, apiKey)
 	if err != nil {
 		return nil, fmt.Errorf("fetchCandles: failed to fetch expiration candles: %v", err)
 	}

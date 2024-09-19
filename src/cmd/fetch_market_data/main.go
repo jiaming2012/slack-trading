@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -57,38 +56,38 @@ var runCmd = &cobra.Command{
 }
 
 func Run(args RunArgs) (RunResult, error) {
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		log.Fatalf("missing PROJECTS_DIR environment variable")
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("PROJECTS_DIR not set")
 	}
 
 	if err := utils.InitEnvironmentVariables(projectsDir, args.GoEnv); err != nil {
-		log.Fatalf("error loading environment variables: %v", err)
+		return RunResult{}, fmt.Errorf("error initializing environment variables: %v", err)
 	}
 
-	accountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
-	if accountID == "" {
-		log.Fatalf("missing TRADIER_TRADES_ACCOUNT_ID environment variable")
+	accountID, err := utils.GetEnv("TRADIER_TRADES_ACCOUNT_ID")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("TRADIER_TRADES_ACCOUNT_ID not set")
 	}
 
-	tradesBearerToken := os.Getenv("TRADIER_TRADES_BEARER_TOKEN")
-	if tradesBearerToken == "" {
-		log.Fatalf("missing TRADIER_TRADES_BEARER_TOKEN environment variable")
+	tradesBearerToken, err := utils.GetEnv("TRADIER_TRADES_BEARER_TOKEN")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("TRADIER_TRADES_BEARER_TOKEN not set")
 	}
 
-	quotesHistoryURL := os.Getenv("TRAIER_QUOTES_HISTORY_URL")
-	if quotesHistoryURL == "" {
-		log.Fatalf("missing TRAIER_QUOTES_HISTORY_URL environment variable")
-	}
-
-	tradierTradesURLTemplate := os.Getenv("TRADIER_TRADES_URL_TEMPLATE")
-	if tradierTradesURLTemplate == "" {
-		log.Fatalf("missing TRADIER_TRADES_URL_TEMPLATE environment variable")
+	tradierTradesURLTemplate, err := utils.GetEnv("TRADIER_TRADES_URL_TEMPLATE")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("TRADIER_TRADES_URL_TEMPLATE not set")
 	}
 
 	estLocation, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		return RunResult{}, fmt.Errorf("error loading EST location: %v", err)
+	}
+
+	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("error getting polygon api key: %v", err)
 	}
 
 	ordersUrl := fmt.Sprintf(tradierTradesURLTemplate, accountID)
@@ -196,7 +195,7 @@ func Run(args RunArgs) (RunResult, error) {
 		dayOfOpen := order.CreateDate
 		dayAfterOpen := order.CreateDate.AddDate(0, 0, 1)
 
-		resp, err := eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", dayOfOpen, dayAfterOpen)
+		resp, err := eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", dayOfOpen, dayAfterOpen, polygonApiKey)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 		}
@@ -235,7 +234,7 @@ func Run(args RunArgs) (RunResult, error) {
 		optionOrderData.Price = append(optionOrderData.Price, optionOpenPrice)
 
 		// Close
-		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", option1.Expiration, option1.Expiration.AddDate(0, 0, 1))
+		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 1, "minute", option1.Expiration, option1.Expiration.AddDate(0, 0, 1), polygonApiKey)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 		}
@@ -268,7 +267,7 @@ func Run(args RunArgs) (RunResult, error) {
 
 		fromDate, toDate = order.CreateDate, option1.Expiration
 
-		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 15, "minute", fromDate, toDate)
+		resp, err = eventservices.FetchPolygonStockChart(underlyingSymbol, 15, "minute", fromDate, toDate, polygonApiKey)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch stock chart: %v", err)
 		}

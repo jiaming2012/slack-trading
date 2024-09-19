@@ -218,7 +218,7 @@ func addAdditionInfoToOptionsHistoricalV3(options []eventmodels.OptionContractV3
 func addTickDataToOptionChainTicksByExpirationMap(contracts []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest) error {
 	for _, c := range contracts {
 		url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), polygonTickDataReq.EndDate.Format("2006-01-02"))
-		dtos, err := utils.FetchRecursively(url, FetchPolygonAggregateBars(polygonTickDataReq.IsHistorical))
+		dtos, err := utils.FetchRecursively(url, polygonTickDataReq.ApiKey, FetchPolygonAggregateBars(polygonTickDataReq.IsHistorical))
 		if err != nil {
 			log.Warnf("fetchPolygonBulkHistOptionOhlc: failed to fetch data from polygon for %v: %v", c.Symbol, err)
 			continue
@@ -252,7 +252,7 @@ func addTickDataToOptionChainTicksByExpirationMap(contracts []eventmodels.Option
 	return nil
 }
 
-func ConvertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
+func convertOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
 	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
 	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
 	defer span.End()

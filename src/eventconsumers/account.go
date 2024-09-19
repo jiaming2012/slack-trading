@@ -10,11 +10,9 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/eventservices"
-
-	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
 
 type AccountWorker struct {
@@ -57,7 +55,7 @@ func (w *AccountWorker) findAccount(name string) (*eventmodels.Account, error) {
 	return nil, fmt.Errorf("AccountWorker.findAccount: could not find account with name %v", name)
 }
 
-func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateAccountRequestEventV1) {
+func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateAccountRequestEventV1, env string) {
 	log.Debug("<- AccountWorker.createAccountRequestHandler")
 
 	var datafeed *eventmodels.Datafeed
@@ -73,7 +71,7 @@ func (w *AccountWorker) createAccountRequestHandler(request *eventmodels.CreateA
 		return
 	}
 
-	account, err := eventmodels.NewAccount(request.Name, request.Balance, datafeed)
+	account, err := eventmodels.NewAccount(request.Name, request.Balance, datafeed, env)
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.createAccountRequestHandler", err, &request.Meta)
 		return

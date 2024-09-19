@@ -17,6 +17,7 @@ func TestUpdateConditions(t *testing.T) {
 	symbol := "testSymbol"
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	datafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
+	env := "test"
 	priceLevels := []*eventmodels.PriceLevel{
 		{
 			Price: 1.0,
@@ -36,7 +37,7 @@ func TestUpdateConditions(t *testing.T) {
 	}
 
 	t.Run("0 entry conditions", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test account", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test account", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		accounts := []*eventmodels.Account{account}
@@ -47,7 +48,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("1 entry condition", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test account", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test account", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(strategyName, symbol, eventmodels.Down, 100, priceLevels, account)
@@ -68,7 +69,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("missed entry condition", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test account", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test account", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(strategyName, symbol, eventmodels.Down, 100, priceLevels, nil)
@@ -88,7 +89,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("2 entry conditions", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test account", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test account", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(strategyName, symbol, eventmodels.Down, 100, priceLevels, account)
@@ -112,7 +113,7 @@ func TestUpdateConditions(t *testing.T) {
 	})
 
 	t.Run("entry condition not satisfied when exit condition is satisfied", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test account", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test account", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(strategyName, symbol, eventmodels.Down, 100, priceLevels, account)
@@ -153,6 +154,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	datafeed := eventmodels.NewDatafeed(eventmodels.ManualDatafeed)
 	tf := new(int)
+	env := "test"
 	*tf = 5
 
 	priceLevels := []*eventmodels.PriceLevel{
@@ -178,7 +180,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -241,7 +243,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -297,7 +299,7 @@ func TestGetStatsDownDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close via two partial closes", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -383,6 +385,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	tf := new(int)
 	*tf = 5
+	env := "test"
 	priceLevels := []*eventmodels.PriceLevel{
 		{
 			Price:             1.0,
@@ -403,7 +406,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 	}
 
 	t.Run("open trades adjust after a 50% partial close", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -465,7 +468,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -521,7 +524,7 @@ func TestGetStatsUpDirection(t *testing.T) {
 	})
 
 	t.Run("open trades adjust after a full close via two partial closes", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)
@@ -607,6 +610,7 @@ func TestFetchTrades(t *testing.T) {
 	ts := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	tf := new(int)
 	*tf = 5
+	env := "test"
 	priceLevels := []*eventmodels.PriceLevel{
 		{
 			Price:             1.0,
@@ -627,7 +631,7 @@ func TestFetchTrades(t *testing.T) {
 	}
 
 	t.Run("Fetch trades is nil when no trades have been placed", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("test", 1000, datafeed)
+		account, err := eventmodels.NewAccount("test", 1000, datafeed, env)
 		assert.NoError(t, err)
 		result := FetchTrades(id, account)
 		assert.NotNil(t, result)
@@ -635,7 +639,7 @@ func TestFetchTrades(t *testing.T) {
 	})
 
 	t.Run("one buy trade", func(t *testing.T) {
-		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed)
+		account, err := eventmodels.NewAccount("testAccount", 1000, datafeed, env)
 		assert.NoError(t, err)
 
 		strategy, err := eventmodels.NewStrategyDeprecated(name, symbol, direction, 100, priceLevels, account)

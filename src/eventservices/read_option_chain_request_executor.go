@@ -9,7 +9,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestExecutor, r *http.Request, request eventmodels.ApiRequest3, resultCh chan map[string]interface{}, errorCh chan error) {
+func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestExecutor, r *http.Request, request eventmodels.ApiRequest3, projectsDir string, resultCh chan map[string]interface{}, errorCh chan error) {
 	req := request.(*eventmodels.ReadOptionChainRequest)
 
 	bFindSpreads := false
@@ -30,7 +30,7 @@ func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestE
 			errorCh <- fmt.Errorf("tradier executer: %v: failed to collect data: %v", req.Symbol, err)
 			return
 		}
-		go s.ServeWithParams(r.Context(), req, *data, bFindSpreads, now, resultCh, errorCh)
+		go s.ServeWithParams(r.Context(), req, *data, bFindSpreads, projectsDir, now, resultCh, errorCh)
 	} else {
 		// go s.serve(req, resultCh, errorCh)
 		panic("not implemented")

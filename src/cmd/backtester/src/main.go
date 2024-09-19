@@ -131,7 +131,7 @@ func Run(args RunArgs) (RunResults, error) {
 		return RunResults{}, fmt.Errorf("failed to unmarshal options config: %v", err)
 	}
 
-	execResult := run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.StartAtEventNumber, args.OutDir, goEnv)
+	execResult := run.Exec(ctx, &wg, args.Symbol, optionsConfig, args.StartAtEventNumber, args.OutDir, projectsDir, goEnv)
 	if execResult.Err != nil {
 		if err := slackClient.SendMessage(fmt.Sprintf("[ERROR] Backtest failed: %v", execResult.Err)); err != nil {
 			log.Errorf("failed to send slack error message: %v", err)

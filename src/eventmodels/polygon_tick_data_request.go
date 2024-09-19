@@ -8,4 +8,5 @@ type PolygonOptionTickDataRequest struct {
 	EndDate   time.Time
 	Spread    float64
 	IsHistorical bool
+	ApiKey string
 }

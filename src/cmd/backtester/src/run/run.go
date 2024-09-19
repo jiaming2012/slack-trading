@@ -26,7 +26,7 @@ func positionFetcher() ([]eventmodels.TradierPositionDTO, error) {
 	panic("not implemented")
 }
 
-func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config BacktesterConfig, execResultCh chan ExecResult, isDryRun bool) {
+func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, projectsDir string, config BacktesterConfig, execResultCh chan ExecResult, apiKey string, isDryRun bool) {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		execResultCh <- ExecResult{
@@ -87,7 +87,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		resultCh := make(chan map[string]interface{})
 
-		go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, signal.Timestamp, resultCh, errCh)
+		go optionsRequestExecutor.ServeWithParams(ctx, readOptionChainReq, *data, true, projectsDir, signal.Timestamp, resultCh, errCh)
 
 		// todo: metadata should be attached to each order
 		// todo: this should be refactored to mostly use the same as eventmain
@@ -110,7 +110,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 		return
 	}
 
-	candlesDTO, err := services.FetchCandlesFromBacktesterOrders(config.Symbol, allTrades)
+	candlesDTO, err := services.FetchCandlesFromBacktesterOrders(config.Symbol, allTrades, apiKey)
 	if err != nil {
 		execResultCh <- ExecResult{
 			Err: fmt.Errorf("failed to fetch candles: %w", err),
@@ -145,12 +145,13 @@ type BacktesterConfig struct {
 	GoEnv                     string
 }
 
-func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, startAtEventNumber uint64, outDir, goEnv string) ExecResult {
+func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbol, optionsConfig eventmodels.OptionsConfigYAML, startAtEventNumber uint64, outDir, projectsDir string, goEnv string) ExecResult {
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
 	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
 	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+	polygonAPIKey := os.Getenv("POLYGON_API_KEY")
 
 	optionConfig, err := optionsConfig.GetOption(symbol)
 	if err != nil {
@@ -192,7 +193,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
 
-	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
+	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonAPIKey)
 
 	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
@@ -205,7 +206,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 
 	resultCh := make(chan ExecResult)
 
-	go Exec_Backtesterfunc(ctx, trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, backtesterConfig, resultCh, isDryRun)
+	go Exec_Backtesterfunc(ctx, trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, projectsDir, backtesterConfig, resultCh, polygonAPIKey, isDryRun)
 
 	trackerV3OptionEVConsumer.Replay(ctx, startAtEventNumber)
 

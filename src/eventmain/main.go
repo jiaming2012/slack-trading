@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
@@ -214,7 +213,7 @@ func (req *EmptyRequest) Validate(r *http.Request) error {
 	return nil
 }
 
-func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, projectsDir string, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -276,7 +275,7 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 		return fmt.Errorf("tradier executer: %v: no option chain data", event.Signal)
 	}
 
-	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, time.Now(), resultCh, errCh)
+	go optionsRequestExecutor.ServeWithParams(ctx, req, *data, true, projectsDir, time.Now(), resultCh, errCh)
 
 	if err := eventconsumers.SendHighestEVTradeToMarket(ctx, resultCh, errCh, event, tradierOrderExecuter, riskProfileConstraint, optionConfig.MaxNoOfPositions, goEnv); err != nil {
 		log.Errorf("tradier executer: %v: send to market failed: %v", event.Signal, err)
@@ -398,6 +397,11 @@ func run() {
 
 	isDryRun := strings.ToLower(isDryRunEnv) == "true"
 
+	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
+	if err != nil {
+		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
+	}
+
 	// Set up Telemetry
 	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
 		log.PanicLevel,
@@ -455,7 +459,7 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
+	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonApiKey)
 
 	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
@@ -537,7 +541,7 @@ func run() {
 		})
 
 		for event := range eventCh {
-			if err := processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, config, riskProfileConstraint, loc, goEnv); err != nil {
+			if err := processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, projectsDir, config, riskProfileConstraint, loc, goEnv); err != nil {
 				log.Errorf("failed to process signal triggered event: %v", err)
 			}
 		}

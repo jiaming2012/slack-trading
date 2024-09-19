@@ -2,10 +2,8 @@ package eventmodels
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
-	"os"
 	"sort"
 	"time"
 
@@ -190,16 +188,10 @@ func (s *ReadOptionChainRequestExecutor) formatOptionContracts(options []OptionC
 // 	}, nil
 // }
 
-func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *ReadOptionChainRequest, inputData FetchOptionChainDataInput, bFindSpreads bool, now time.Time, resultCh chan map[string]interface{}, errorCh chan error) {
+func (s *ReadOptionChainRequestExecutor) ServeWithParams(ctx context.Context, req *ReadOptionChainRequest, inputData FetchOptionChainDataInput, bFindSpreads bool, projectsDir string, now time.Time, resultCh chan map[string]interface{}, errorCh chan error) {
 	tracer := otel.Tracer("ReadOptionChainRequestExecutor")
 	ctx, span := tracer.Start(ctx, "ReadOptionChainRequestExecutor.ServeWithParams")
 	defer span.End()
-
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		errorCh <- errors.New("missing PROJECTS_DIR environment variable")
-		return
-	}
 
 	result := map[string]interface{}{
 		"stock": map[string]interface{}{

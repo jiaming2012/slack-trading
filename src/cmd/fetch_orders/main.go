@@ -104,6 +104,11 @@ func Run(args RunArgs) (RunResult, error) {
 		log.Fatalf("missing TRADIER_TRADES_URL_TEMPLATE environment variable")
 	}
 
+	polygonAPIKey := os.Getenv("POLYGON_API_KEY")
+	if polygonAPIKey == "" {
+		log.Fatalf("missing POLYGON_API_KEY environment variable")
+	}
+
 	ordersUrl := fmt.Sprintf(tradierTradesURLTemplate, accountID)
 
 	var resultOrders []*eventmodels.OptionOrderSpreadResult
@@ -165,7 +170,7 @@ func Run(args RunArgs) (RunResult, error) {
 	for symbol := range indexSymbols {
 		log.Infof("Fetching index ticks for symbol: %v", symbol)
 
-		resp, err := eventservices.FetchPolygonIndexChart(symbol, 15, "minute", indexStartDate, indexEndDate)
+		resp, err := eventservices.FetchPolygonIndexChart(symbol, 15, "minute", indexStartDate, indexEndDate, polygonAPIKey)
 		if err != nil {
 			return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch index ticks for expiration: %v", err)
 		}
@@ -195,7 +200,7 @@ func Run(args RunArgs) (RunResult, error) {
 				candlesDTO = append(candlesDTO, candle)
 			}
 		} else {
-			resp, err := eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", order.CreateDate.Add(-5*time.Minute), order.CreateDate)
+			resp, err := eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", order.CreateDate.Add(-5*time.Minute), order.CreateDate, polygonAPIKey)
 			if err != nil {
 				return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch order.CreatedAt on stock chart: %v", err)
 			}
@@ -209,7 +214,7 @@ func Run(args RunArgs) (RunResult, error) {
 				candlesDTO = append(candlesDTO, candle)
 			}
 
-			resp, err = eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", option.Expiration.Add(-5*time.Minute), option.Expiration)
+			resp, err = eventservices.FetchPolygonStockChart(eventmodels.StockSymbol(order.Symbol), 1, "minute", option.Expiration.Add(-5*time.Minute), option.Expiration, polygonAPIKey)
 			if err != nil {
 				return RunResult{}, fmt.Errorf("fetchCandles: failed to fetch option expiration on stock chart: %v", err)
 			}

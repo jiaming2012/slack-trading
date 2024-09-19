@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -267,12 +266,12 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 	return closeTradesRequests, nil
 }
 
-func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, error) {
+func NewAccount(name string, balance float64, datafeed *Datafeed, env string) (*Account, error) {
 	switch datafeed.Name {
 	case CoinbaseDatafeed:
 	case IBDatafeed:
 	case ManualDatafeed:
-		if os.Getenv("ENV") == "PRODUCTION" {
+		if env == "PRODUCTION" {
 			log.Fatalf("cannot use manual datafeed in production")
 		}
 	default:

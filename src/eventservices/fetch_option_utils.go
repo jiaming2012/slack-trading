@@ -432,48 +432,6 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 	return expirationDates, allResults
 }
 
-func fetchTradierHistoricalPrices(url string, bearerToken string, symbol eventmodels.StockSymbol, startDate time.Time, endDate time.Time) ([]*eventmodels.TradierCandleDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("fetchTradierHistoricalPrices: failed to create request: %w", err)
-	}
-
-	startDateStr := startDate.Format("2006-01-02")
-	endDateStr := endDate.Format("2006-01-02")
-
-	q := req.URL.Query()
-	q.Add("symbol", string(symbol))
-	q.Add("interval", "daily")
-	q.Add("start", startDateStr)
-	q.Add("end", endDateStr)
-
-	req.URL.RawQuery = q.Encode()
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetchTradierHistoricalPrices: failed to fetch historical prices: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetchTradierHistoricalPrices: failed to fetch historical prices, http code %v", res.Status)
-	}
-
-	var candles []*eventmodels.TradierCandleDTO
-	if err := json.NewDecoder(res.Body).Decode(&candles); err != nil {
-		return nil, fmt.Errorf("fetchTradierHistoricalPrices: failed to decode json: %w", err)
-	}
-
-	return candles, nil
-}
-
 func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels.StockSymbol) (*eventmodels.OptionContractDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,

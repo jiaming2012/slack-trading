@@ -43,7 +43,7 @@ func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 }
 
 func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
-	resp, err := FetchPolygonStockChart(req.Root, 1, "minute", at, at.AddDate(0, 0, 1))
+	resp, err := FetchPolygonStockChart(req.Root, 1, "minute", at, at.AddDate(0, 0, 1), req.ApiKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
 	}
