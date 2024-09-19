@@ -12,6 +12,7 @@ import (
 
 const DEV_ENV_FILENAME = ".env.development"
 const PROD_ENV_FILENAME = ".env.production"
+const PROD_ENV_SECRETS_FILENAME = ".env.production-secrets"
 
 // CustomFormatter is a custom log formatter for Logrus
 type LogFormatter struct{}
@@ -55,6 +56,11 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	// Determine which .env file to load
 	envFile := filepath.Join(envDir, DEV_ENV_FILENAME) // default to development environment
 	if goEnvironment == "production" {
+		// load secrets file
+		if err := godotenv.Load(filepath.Join(envDir, PROD_ENV_SECRETS_FILENAME)); err != nil {
+			return fmt.Errorf("failed to load secrets file: %v", err)
+		}
+
 		envFile = filepath.Join(envDir, PROD_ENV_FILENAME)
 	}
 

@@ -279,6 +279,21 @@ func (fetcher *PolygonOptionsDataFetcher) FetchEVSpreads(ctx context.Context, pr
 	}
 }
 
+func filterOptionContractsV3BySymbol(contracts []eventmodels.OptionContractV3, includeSymbolPrefixes []string) []eventmodels.OptionContractV3 {
+	out := make([]eventmodels.OptionContractV3, 0)
+
+	for _, c := range contracts {
+		for _, symbolPrefix := range includeSymbolPrefixes {
+			optionSymbolPrefix := fmt.Sprintf("O:%s", symbolPrefix)
+			if string(c.Symbol[:len(optionSymbolPrefix)]) == optionSymbolPrefix {
+				out = append(out, c)
+			}
+		}
+	}
+
+	return out
+}
+
 func (fetcher *PolygonOptionsDataFetcher) FetchOptionChainDataInput(symbol eventmodels.StockSymbol, isHistorical bool, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
 	optionSpreadPerc := 0.005
 
@@ -307,6 +322,11 @@ func (fetcher *PolygonOptionsDataFetcher) FetchOptionChainDataInput(symbol event
 	contracts, optionTickByExpirationMap, err := resp.GetOptionContractsV3(loc, optionSpreadPerc)
 	if err != nil {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to get option contracts: %w", err)
+	}
+
+	// handles an edge case where both SPX and SPXW are present
+	if request.Root == "SPX" {
+		contracts = filterOptionContractsV3BySymbol(contracts, []string{"SPXW"})
 	}
 
 	optionTypes := []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut}

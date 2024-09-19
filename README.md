@@ -4,6 +4,12 @@ A mock trading platform.
 # Development
 We use python's bump2version for managing the app version.
 
+## Debugging
+Port forward to the production ESDB instance:
+``` bash
+kubectl port-forward svc/eventstoredb 21133:2113 -n eventstoredb
+```
+
 ## Container Registry
 Docker containers are hosted on vultr. Before pushing and pulling, you need to login.
 ``` bash
