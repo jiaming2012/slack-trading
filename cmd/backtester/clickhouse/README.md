@@ -15,7 +15,7 @@ brew install clickhouse
 
 Log into clickhouse client:
 ``` bash
-clickhouse
+clickhouse client
 ```
 
 ## Check Installation is Running
