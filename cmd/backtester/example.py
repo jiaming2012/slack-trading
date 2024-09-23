@@ -1,29 +1,9 @@
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 from backtesting.test import SMA
-import requests
+from lib import FetchPolygonDataframe
 import pandas as pd
 import pandas_ta as ta
-
-def fetch_polygon_data(symbol, start, end, multiplier, timespan):
-    url = 'http://localhost:8080/data/polygon?symbol={}&from={}&to={}&multiplier={}&timespan={}'.format(symbol, start, end, multiplier, timespan)
-    response = requests.get(url)
-    
-    data = response.json()
-        
-    if response.status_code != 200:
-        raise Exception('Error fetching data from Polygon')
-        
-    # Convert the JSON response into a DataFrame
-    df = pd.DataFrame(data)
-
-    # Convert the 'Datetime' column to Pandas datetime, recognizing the RFC 3339 format
-    df['Datetime'] = pd.to_datetime(df['Datetime'])
-    
-    # Set 'Datetime' as the index
-    df.set_index('Datetime', inplace=True)
-        
-    return df
 
 class Supertrend(Strategy):
     def init(self):
@@ -51,7 +31,7 @@ class SmaCross(Strategy):
         elif crossover(self.ma2, self.ma1):
             self.sell()
 
-df = fetch_polygon_data('COIN', '2024-01-01T00:00:00Z', '2024-10-02T00:00:00Z', 1, 'day')
+df = FetchPolygonDataframe('COIN', '2024-01-01T00:00:00Z', '2024-10-02T00:00:00Z', 1, 'day')
 
 # # Calculate hlcc4 (average of High, Low, and two times Close)
 # df['hlcc4'] = (df['High'] + df['Low'] + 2 * df['Close']) / 4
