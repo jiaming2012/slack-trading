@@ -13,7 +13,7 @@ type GetStateExecutor struct {
 	tracker *eventconsumers.TrackerConsumerV3
 }
 
-func (s *GetStateExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan map[string]interface{}, errCh chan error) {
+func (s *GetStateExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {
 	state, unlock := s.tracker.GetState()
 	defer unlock()
 
