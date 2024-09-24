@@ -1,12 +1,15 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type BacktesterOrder struct {
 	ID        uint                    `json:"id"`
 	Class     BacktesterOrderClass    `json:"class"`
 	Symbol    string                  `json:"symbol"`
-	Side      string                  `json:"side"`
+	Side      BacktesterOrderSide     `json:"side"`
 	Quantity  float64                 `json:"quantity"`
 	Type      BacktesterOrderType     `json:"type"`
 	Duration  BacktesterOrderDuration `json:"duration"`
@@ -29,7 +32,7 @@ func (o *BacktesterOrder) Reject() {
 
 func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
 	if o.status != nil {
-		if !(*o.status).IsTradeable() {
+		if !(*o.status).IsTradingAllowed() {
 			return fmt.Errorf("order is not open or partially filled")
 		}
 	}
@@ -38,16 +41,16 @@ func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
 		return fmt.Errorf("trade price must be greater than 0")
 	}
 
-	if trade.Quantity <= 0 {
-		return fmt.Errorf("trade quantity must be greater than 0")
-	}
-
 	filledQuantity := 0.0
 	for _, t := range o.Trades {
 		filledQuantity += t.Quantity
 	}
 
-	if trade.Quantity+filledQuantity > o.Quantity {
+	if trade.Quantity == 0 {
+		return fmt.Errorf("trade quantity must be non-zero")
+	}
+
+	if math.Abs(trade.Quantity+filledQuantity) > o.Quantity {
 		return fmt.Errorf("trade quantity exceeds order quantity")
 	}
 
@@ -65,16 +68,22 @@ func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
 		return BacktesterOrderStatusOpen
 	}
 
-	filledQuantity := 0.0
-	for _, trade := range o.Trades {
-		filledQuantity += trade.Quantity
-	}
+	filledQuantity := o.GetFilledQuantity()
 
 	if filledQuantity == o.Quantity {
 		return BacktesterOrderStatusFilled
 	}
 
 	return BacktesterOrderStatusPartiallyFilled
+}
+
+func (o *BacktesterOrder) GetFilledQuantity() float64 {
+	filledQuantity := 0.0
+	for _, trade := range o.Trades {
+		filledQuantity += trade.Quantity
+	}
+
+	return filledQuantity
 }
 
 func (o *BacktesterOrder) GetAvgFillPrice() float64 {
@@ -90,7 +99,7 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol, side string, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, tag *string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol string, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, tag *string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:        id,
 		Class:     class,

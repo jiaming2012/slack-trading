@@ -11,6 +11,10 @@ const (
 	BacktesterOrderStatusRejected        BacktesterOrderStatus = "rejected"
 )
 
-func (status BacktesterOrderStatus) IsTradeable() bool {
+func (status BacktesterOrderStatus) IsTradingAllowed() bool {
 	return status == BacktesterOrderStatusOpen || status == BacktesterOrderStatusPartiallyFilled
+}
+
+func (status BacktesterOrderStatus) IsFilled() bool {
+	return status == BacktesterOrderStatusFilled || status == BacktesterOrderStatusPartiallyFilled
 }

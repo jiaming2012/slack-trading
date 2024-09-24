@@ -10,7 +10,7 @@ type MockBacktesterDataFeed struct {
 	currentPrice float64
 }
 
-func (feed *MockBacktesterDataFeed) SetCurrentPrice(price float64) {
+func (feed *MockBacktesterDataFeed) SetPrice(price float64) {
 	feed.currentPrice = price
 }
 

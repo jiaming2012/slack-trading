@@ -1,5 +1,5 @@
 package models
 
 type StateChange struct {
-	NewTrades []BacktesterTrade
+	NewTrades []*BacktesterTrade
 }

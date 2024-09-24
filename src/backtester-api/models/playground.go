@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,12 +17,17 @@ type Playground struct {
 	datafeed BacktesterDataFeed
 }
 
-func (p *Playground) checkForNewTrades() ([]BacktesterTrade, error) {
-	var trades []BacktesterTrade
+func (p *Playground) addPendingOrdersToOrders() {
+	p.account.Orders = append(p.account.Orders, p.account.PendingOrders...)
+	p.account.PendingOrders = []*BacktesterOrder{}
+}
+
+func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
+	var trades []*BacktesterTrade
 
 	for _, order := range p.account.Orders {
 		orderStatus := order.GetStatus()
-		if orderStatus.IsTradeable() && order.Type == Market {
+		if orderStatus.IsTradingAllowed() && order.Type == Market {
 			if order.Class != Equity {
 				return nil, fmt.Errorf("checkForNewTrades: only equity orders are supported")
 			}
@@ -31,15 +37,20 @@ func (p *Playground) checkForNewTrades() ([]BacktesterTrade, error) {
 				return nil, fmt.Errorf("error fetching price: %w", err)
 			}
 
-			trade := BacktesterTrade{
-				TransactionDate: p.clock,
-				Quantity:        order.Quantity,
-				Price:           price,
+			quantity := order.Quantity
+			if order.Side == BacktesterOrderSideSell || order.Side == BacktesterOrderSideSellShort {
+				quantity *= -1
 			}
 
-			if err = order.Fill(&trade); err != nil {
+			trade := NewBacktesterTrade(order.Symbol, p.clock, quantity, price)
+
+			if err = order.Fill(trade); err != nil {
 				return nil, fmt.Errorf("error filling order: %w", err)
 			}
+
+			status := BacktesterOrderStatusFilled
+
+			order.status = &status
 
 			trades = append(trades, trade)
 		}
@@ -48,30 +59,140 @@ func (p *Playground) checkForNewTrades() ([]BacktesterTrade, error) {
 	return trades, nil
 }
 
-func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
-	p.clock = p.clock.Add(d)
+func (p *Playground) UpdateBalance(newTrades []*BacktesterTrade, startingPositions map[string]*Position) {
+	for _, trade := range newTrades {
+		currentPosition, ok := startingPositions[trade.Symbol]
+		if !ok {
+			currentPosition = &Position{}
+		}
 
-	trades, err := p.checkForNewTrades()
+		if currentPosition.Quantity > 0 {
+			if trade.Quantity < 0 {
+				closeQuantity := math.Min(currentPosition.Quantity, math.Abs(trade.Quantity))
+				pl := (trade.Price - currentPosition.CostBasis) * closeQuantity
+				p.account.Balance += pl
+			}
+		} else if currentPosition.Quantity < 0 {
+			if trade.Quantity > 0 {
+				closeQuantity := math.Min(math.Abs(currentPosition.Quantity), trade.Quantity)
+				pl := (currentPosition.CostBasis - trade.Price) * closeQuantity
+				p.account.Balance += pl
+			}
+		}
+	}
+}
+
+func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
+	startingPositions := p.GetPositions()
+
+	p.addPendingOrdersToOrders()
+
+	newTrades, err := p.checkForNewTrades()
 	if err != nil {
 		return nil, fmt.Errorf("error checking for new trades: %w", err)
 	}
 
+	p.UpdateBalance(newTrades, startingPositions)
+
+	p.clock = p.clock.Add(d)
+
 	return &StateChange{
-		NewTrades: trades,
+		NewTrades: newTrades,
 	}, nil
 }
 
 func (p *Playground) GetAccountBalance() float64 {
-	return p.account.Amount
+	return p.account.Balance
 }
 
-func (p *Playground) GetOrders() []BacktesterOrder {
+func (p *Playground) GetOrders() []*BacktesterOrder {
 	return p.account.Orders
 }
 
-func (p *Playground) AddOrder(order BacktesterOrder) error {
+func (p *Playground) GetPosition(symbol string) Position {
+	position, ok := p.GetPositions()[symbol]
+	if !ok {
+		return Position{}
+	}
+
+	return *position
+}
+
+func (p *Playground) GetPositions() map[string]*Position {
+	postions := make(map[string]*Position)
+
+	for _, order := range p.account.Orders {
+		_, ok := postions[order.Symbol]
+		if !ok {
+			postions[order.Symbol] = &Position{}
+		}
+
+		orderStatus := order.GetStatus()
+		if orderStatus.IsFilled() {
+			postions[order.Symbol].Quantity += order.GetFilledQuantity()
+		}
+	}
+
+	vwapMap := make(map[string]float64)
+	totalQuantityMap := make(map[string]float64)
+	for _, order := range p.account.Orders {
+		_, ok := vwapMap[order.Symbol]
+		if !ok {
+			vwapMap[order.Symbol] = 0.0
+			totalQuantityMap[order.Symbol] = 0.0
+		}
+
+		orderStatus := order.GetStatus()
+		if orderStatus == BacktesterOrderStatusFilled || orderStatus == BacktesterOrderStatusPartiallyFilled {
+			totalQuantityMap[order.Symbol] += order.GetFilledQuantity()
+			vwapMap[order.Symbol] += order.GetAvgFillPrice() * order.GetFilledQuantity()
+		}
+	}
+
+	for symbol, vwap := range vwapMap {
+		var avgPrice float64
+		totalQuantity := totalQuantityMap[symbol]
+		if totalQuantity != 0 {
+			avgPrice = vwap / totalQuantity
+		}
+
+		postions[symbol].CostBasis = avgPrice
+	}
+
+	return postions
+}
+
+func (p *Playground) AddOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
 		return fmt.Errorf("only equity orders are supported")
+	}
+
+	position := p.GetPosition(order.Symbol)
+
+	if position.Quantity > 0 {
+		if order.Side == BacktesterOrderSideBuyToCover {
+			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
+		}
+
+		if order.Side == BacktesterOrderSideSellShort {
+			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
+		}
+	} else if position.Quantity < 0 {
+		if order.Side == BacktesterOrderSideBuy {
+			return fmt.Errorf("cannot buy when short position exists: must sell to close")
+		}
+
+		if order.Side == BacktesterOrderSideSell {
+			return fmt.Errorf("cannot sell to close when short position exists: must buy to cover")
+		}
+	} else {
+		if order.Side == BacktesterOrderSideSell {
+			return fmt.Errorf("cannot sell when no position exists: must sell short")
+		}
+
+		if order.Side == BacktesterOrderSideBuyToCover {
+			return fmt.Errorf("cannot buy to cover when no position exists")
+		}
 	}
 
 	if order.Price != nil && *order.Price <= 0 {
@@ -82,7 +203,19 @@ func (p *Playground) AddOrder(order BacktesterOrder) error {
 		return fmt.Errorf("quantity must be greater than 0")
 	}
 
-	p.account.Orders = append(p.account.Orders, order)
+	for _, o := range p.account.Orders {
+		if o.ID == order.ID {
+			return fmt.Errorf("order with id %d already exists in orders", order.ID)
+		}
+	}
+
+	for _, o := range p.account.PendingOrders {
+		if o.ID == order.ID {
+			return fmt.Errorf("order with id %d already exists in pending orders", order.ID)
+		}
+	}
+
+	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
 	return nil
 }
@@ -91,7 +224,7 @@ func NewPlayground(balance float64, startTime time.Time, feed BacktesterDataFeed
 	return &Playground{
 		ID: uuid.New(),
 		account: BacktesterAccount{
-			Amount: balance,
+			Balance: balance,
 		},
 		clock:    startTime,
 		datafeed: feed,
