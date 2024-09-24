@@ -46,6 +46,36 @@ func TestBalance(t *testing.T) {
 
 		assert.Equal(t, 1150.0, playground.GetAccountBalance())
 	})
+
+	t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
+		feed := mock.NewMockBacktesterDataFeed()
+
+		playground := NewPlayground(1000.0, time.Time{}, feed)
+
+		order1 := NewBacktesterOrder(1, Equity, "AAPL", BacktesterOrderSideBuy, 10, Market, Day, nil, nil, nil)
+		err := playground.AddOrder(order1)
+		assert.NoError(t, err)
+
+		feed.SetPrice(100.0)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		feed.SetPrice(85.0)
+
+		assert.Equal(t, 1000.0, playground.GetAccountBalance())
+
+		order2 := NewBacktesterOrder(2, Equity, "AAPL", BacktesterOrderSideSell, 10, Market, Day, nil, nil, nil)
+		err = playground.AddOrder(order2)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 850.0, playground.GetAccountBalance())
+	})
 }
 
 func TestPositions(t *testing.T) {
