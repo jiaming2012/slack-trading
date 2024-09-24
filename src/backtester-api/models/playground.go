@@ -13,7 +13,7 @@ import (
 type Playground struct {
 	ID       uuid.UUID
 	account  BacktesterAccount
-	clock    time.Time
+	clock    *Clock
 	datafeed BacktesterDataFeed
 }
 
@@ -32,7 +32,7 @@ func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("checkForNewTrades: only equity orders are supported")
 			}
 
-			price, err := p.datafeed.FetchStockPrice(p.clock, eventmodels.StockSymbol(order.Symbol))
+			price, err := p.datafeed.FetchStockPrice(p.clock.CurrentTime, eventmodels.StockSymbol(order.Symbol))
 			if err != nil {
 				return nil, fmt.Errorf("error fetching price: %w", err)
 			}
@@ -42,7 +42,7 @@ func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
 				quantity *= -1
 			}
 
-			trade := NewBacktesterTrade(order.Symbol, p.clock, quantity, price)
+			trade := NewBacktesterTrade(order.Symbol, p.clock.CurrentTime, quantity, price)
 
 			if err = order.Fill(trade); err != nil {
 				return nil, fmt.Errorf("error filling order: %w", err)
@@ -59,7 +59,7 @@ func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
 	return trades, nil
 }
 
-func (p *Playground) UpdateBalance(newTrades []*BacktesterTrade, startingPositions map[string]*Position) {
+func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositions map[string]*Position) {
 	for _, trade := range newTrades {
 		currentPosition, ok := startingPositions[trade.Symbol]
 		if !ok {
@@ -83,6 +83,8 @@ func (p *Playground) UpdateBalance(newTrades []*BacktesterTrade, startingPositio
 }
 
 func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
+	p.clock.Add(d)
+
 	startingPositions := p.GetPositions()
 
 	p.addPendingOrdersToOrders()
@@ -92,9 +94,7 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 		return nil, fmt.Errorf("error checking for new trades: %w", err)
 	}
 
-	p.UpdateBalance(newTrades, startingPositions)
-
-	p.clock = p.clock.Add(d)
+	p.updateBalance(newTrades, startingPositions)
 
 	return &StateChange{
 		NewTrades: newTrades,
@@ -220,13 +220,13 @@ func (p *Playground) AddOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlayground(balance float64, startTime time.Time, feed BacktesterDataFeed) *Playground {
+func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) *Playground {
 	return &Playground{
 		ID: uuid.New(),
 		account: BacktesterAccount{
 			Balance: balance,
 		},
-		clock:    startTime,
+		clock:    clock,
 		datafeed: feed,
 	}
 }

@@ -1,0 +1,23 @@
+package models
+
+import "time"
+
+type Clock struct {
+	CurrentTime time.Time
+	EndTime     time.Time
+}
+
+func (c *Clock) Add(timeToAdd time.Duration) {
+	c.CurrentTime = c.CurrentTime.Add(timeToAdd)
+}
+
+func (c *Clock) IsFinished() bool {
+	return c.CurrentTime.Equal(c.EndTime) || c.CurrentTime.After(c.EndTime)
+}
+
+func NewClock(currentTime time.Time, endTime time.Time) *Clock {
+	return &Clock{
+		CurrentTime: currentTime,
+		EndTime:     endTime,
+	}
+}
