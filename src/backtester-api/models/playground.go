@@ -11,10 +11,11 @@ import (
 )
 
 type Playground struct {
-	ID       uuid.UUID
-	account  BacktesterAccount
-	clock    *Clock
-	datafeed BacktesterDataFeed
+	ID                 uuid.UUID
+	account            BacktesterAccount
+	clock              *Clock
+	datafeed           BacktesterDataFeed
+	isBacktestComplete bool
 }
 
 func (p *Playground) addPendingOrdersToOrders() {
@@ -83,7 +84,21 @@ func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositio
 }
 
 func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
-	p.clock.Add(d)
+	if !p.clock.IsFinished() {
+		p.clock.Add(d)
+	}
+	
+	if p.clock.IsFinished() {
+		if p.isBacktestComplete {
+			return nil, fmt.Errorf("backtest is already complete")
+		}
+
+		p.isBacktestComplete = true
+
+		return &StateChange{
+			IsBacktestComplete: true,
+		}, nil
+	}
 
 	startingPositions := p.GetPositions()
 
