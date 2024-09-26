@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type Playground struct {
@@ -48,7 +49,6 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 			}
 
 			price, err := p.getCurrentPrice(order.Symbol)
-			// price, err := p.datafeed.FetchStockPrice(p.clock.CurrentTime, eventmodels.StockSymbol(order.Symbol))
 			if err != nil {
 				return nil, fmt.Errorf("updateTrades: error fetching price: %w", err)
 			}
@@ -199,7 +199,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	return postions
 }
 
-func (p *Playground) AddOrder(order *BacktesterOrder) error {
+func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
 		return fmt.Errorf("only equity orders are supported")
 	}
