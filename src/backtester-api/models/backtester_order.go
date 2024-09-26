@@ -3,12 +3,14 @@ package models
 import (
 	"fmt"
 	"math"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type BacktesterOrder struct {
 	ID        uint                    `json:"id"`
 	Class     BacktesterOrderClass    `json:"class"`
-	Symbol    string                  `json:"symbol"`
+	Symbol    eventmodels.Instrument  `json:"symbol"`
 	Side      BacktesterOrderSide     `json:"side"`
 	Quantity  float64                 `json:"quantity"`
 	Type      BacktesterOrderType     `json:"type"`
@@ -99,7 +101,7 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol string, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, tag *string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, tag *string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:        id,
 		Class:     class,

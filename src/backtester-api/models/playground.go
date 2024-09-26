@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	log "github.com/sirupsen/logrus"
 )
 
 type Playground struct {
 	ID                 uuid.UUID
 	account            BacktesterAccount
 	clock              *Clock
-	datafeed           BacktesterDataFeed
+	repos              map[eventmodels.Instrument]*BacktesterCandleRepository
 	isBacktestComplete bool
 }
 
@@ -23,19 +23,34 @@ func (p *Playground) addPendingOrdersToOrders() {
 	p.account.PendingOrders = []*BacktesterOrder{}
 }
 
-func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
+func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, error) {
+	repo, ok := p.repos[symbol]
+	if !ok {
+		return 0, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
+	}
+
+	candle := repo.GetCurrentCandle()
+	if candle == nil {
+		return 0, fmt.Errorf("getCurrentPrice: no more candles")
+	}
+
+	return candle.Close, nil
+}
+
+func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 	var trades []*BacktesterTrade
 
 	for _, order := range p.account.Orders {
 		orderStatus := order.GetStatus()
 		if orderStatus.IsTradingAllowed() && order.Type == Market {
 			if order.Class != Equity {
-				return nil, fmt.Errorf("checkForNewTrades: only equity orders are supported")
+				return nil, fmt.Errorf("updateTrades: only equity orders are supported")
 			}
 
-			price, err := p.datafeed.FetchStockPrice(p.clock.CurrentTime, eventmodels.StockSymbol(order.Symbol))
+			price, err := p.getCurrentPrice(order.Symbol)
+			// price, err := p.datafeed.FetchStockPrice(p.clock.CurrentTime, eventmodels.StockSymbol(order.Symbol))
 			if err != nil {
-				return nil, fmt.Errorf("error fetching price: %w", err)
+				return nil, fmt.Errorf("updateTrades: error fetching price: %w", err)
 			}
 
 			quantity := order.Quantity
@@ -45,8 +60,8 @@ func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
 
 			trade := NewBacktesterTrade(order.Symbol, p.clock.CurrentTime, quantity, price)
 
-			if err = order.Fill(trade); err != nil {
-				return nil, fmt.Errorf("error filling order: %w", err)
+			if err := order.Fill(trade); err != nil {
+				return nil, fmt.Errorf("updateTrades: error filling order: %w", err)
 			}
 
 			status := BacktesterOrderStatusFilled
@@ -60,7 +75,7 @@ func (p *Playground) checkForNewTrades() ([]*BacktesterTrade, error) {
 	return trades, nil
 }
 
-func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositions map[string]*Position) {
+func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
 	for _, trade := range newTrades {
 		currentPosition, ok := startingPositions[trade.Symbol]
 		if !ok {
@@ -87,10 +102,10 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	if !p.clock.IsFinished() {
 		p.clock.Add(d)
 	}
-	
-	if p.clock.IsFinished() {
+
+	if p.clock.IsFinished() { // Expired
 		if p.isBacktestComplete {
-			return nil, fmt.Errorf("backtest is already complete")
+			return nil, fmt.Errorf("backtest complete: clock expired")
 		}
 
 		p.isBacktestComplete = true
@@ -100,11 +115,18 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 		}, nil
 	}
 
+	for instrument, repo := range p.repos {
+		if err := repo.Next(p.clock.CurrentTime); err != nil {
+			log.Warnf("repo.Next [%s]: %v", instrument, err)
+			return nil, fmt.Errorf("backtest complete: no more ticks")
+		}
+	}
+
 	startingPositions := p.GetPositions()
 
 	p.addPendingOrdersToOrders()
 
-	newTrades, err := p.checkForNewTrades()
+	newTrades, err := p.updateTrades()
 	if err != nil {
 		return nil, fmt.Errorf("error checking for new trades: %w", err)
 	}
@@ -124,7 +146,7 @@ func (p *Playground) GetOrders() []*BacktesterOrder {
 	return p.account.Orders
 }
 
-func (p *Playground) GetPosition(symbol string) Position {
+func (p *Playground) GetPosition(symbol eventmodels.Instrument) Position {
 	position, ok := p.GetPositions()[symbol]
 	if !ok {
 		return Position{}
@@ -133,8 +155,8 @@ func (p *Playground) GetPosition(symbol string) Position {
 	return *position
 }
 
-func (p *Playground) GetPositions() map[string]*Position {
-	postions := make(map[string]*Position)
+func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
+	postions := make(map[eventmodels.Instrument]*Position)
 
 	for _, order := range p.account.Orders {
 		_, ok := postions[order.Symbol]
@@ -148,8 +170,8 @@ func (p *Playground) GetPositions() map[string]*Position {
 		}
 	}
 
-	vwapMap := make(map[string]float64)
-	totalQuantityMap := make(map[string]float64)
+	vwapMap := make(map[eventmodels.Instrument]float64)
+	totalQuantityMap := make(map[eventmodels.Instrument]float64)
 	for _, order := range p.account.Orders {
 		_, ok := vwapMap[order.Symbol]
 		if !ok {
@@ -235,13 +257,24 @@ func (p *Playground) AddOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) *Playground {
+func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Playground, error) {
+	candles, err := feed.FetchRange(clock.CurrentTime, clock.EndTime)
+	if err != nil {
+		return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
+	}
+
+	repo := NewBacktesterCandleRepository(candles)
+
+	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
+
+	repos[feed.GetSymbol()] = repo
+
 	return &Playground{
 		ID: uuid.New(),
 		account: BacktesterAccount{
 			Balance: balance,
 		},
-		clock:    clock,
-		datafeed: feed,
-	}
+		clock: clock,
+		repos: repos,
+	}, nil
 }

@@ -7,6 +7,10 @@ import (
 
 type StockSymbol string
 
+func (s StockSymbol) GetTicker() string {
+	return s.String()
+}
+
 func (s StockSymbol) String() string {
 	return strings.ToUpper(string(s))
 }

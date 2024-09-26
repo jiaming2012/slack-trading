@@ -7,5 +7,6 @@ import (
 )
 
 type BacktesterDataFeed interface {
-	FetchStockPrice(time time.Time, symbol eventmodels.StockSymbol) (float64, error)
+	GetSymbol() eventmodels.Instrument
+	FetchRange(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error)
 }
