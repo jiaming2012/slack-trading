@@ -242,6 +242,24 @@ func TestBalance(t *testing.T) {
 	})
 }
 
+func TestPlaceOrder(t *testing.T) {
+	t.Run("Cannot place order if data feed is not imported", func(t *testing.T) {
+		symbol := eventmodels.StockSymbol("AAPL")
+		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
+		clock := NewClock(startTime, endTime)
+
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{100.0})
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		order := NewBacktesterOrder(1, Equity, eventmodels.StockSymbol("GOOG"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, nil)
+		err = playground.PlaceOrder(order)
+		assert.Error(t, err)
+	})
+}
+
 func TestPositions(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)

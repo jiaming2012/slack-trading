@@ -229,6 +229,10 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		return fmt.Errorf("only equity orders are supported")
 	}
 
+	if _, ok := p.repos[order.Symbol]; !ok {
+		return fmt.Errorf("symbol %s not found in repos", order.Symbol)
+	}
+
 	position := p.GetPosition(order.Symbol)
 
 	if position.Quantity > 0 {
