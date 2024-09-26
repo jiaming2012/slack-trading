@@ -99,11 +99,11 @@ func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositio
 }
 
 func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
-	if !p.clock.IsFinished() {
+	if !p.clock.IsExpired() {
 		p.clock.Add(d)
 	}
 
-	if p.clock.IsFinished() { // Expired
+	if p.clock.IsExpired() {
 		if p.isBacktestComplete {
 			return nil, fmt.Errorf("backtest complete: clock expired")
 		}
@@ -115,10 +115,20 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 		}, nil
 	}
 
+	var newCandles []*BacktesterCandle
+
 	for instrument, repo := range p.repos {
-		if err := repo.Next(p.clock.CurrentTime); err != nil {
+		newCandle, err := repo.Update(p.clock.CurrentTime)
+		if err != nil {
 			log.Warnf("repo.Next [%s]: %v", instrument, err)
 			return nil, fmt.Errorf("backtest complete: no more ticks")
+		}
+
+		if newCandle != nil {
+			newCandles = append(newCandles, &BacktesterCandle{
+				Symbol: instrument,
+				Candle: newCandle,
+			})
 		}
 	}
 
@@ -134,7 +144,8 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	p.updateBalance(newTrades, startingPositions)
 
 	return &StateChange{
-		NewTrades: newTrades,
+		NewTrades:  newTrades,
+		NewCandles: newCandles,
 	}, nil
 }
 
@@ -199,6 +210,20 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	return postions
 }
 
+func (p *Playground) GetCandle(symbol eventmodels.Instrument) (*eventmodels.PolygonAggregateBarV2, error) {
+	repo, ok := p.repos[symbol]
+	if !ok {
+		return nil, fmt.Errorf("GetTick: symbol %s not found in repos", symbol)
+	}
+
+	candle := repo.GetCurrentCandle()
+	if candle == nil {
+		return nil, fmt.Errorf("GetTick: no more candles for %s", symbol)
+	}
+
+	return candle, nil
+}
+
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
 		return fmt.Errorf("only equity orders are supported")
@@ -257,17 +282,39 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	return nil
 }
 
+func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
+
+	for _, feed := range feeds {
+		candles, err := feed.FetchRange(clock.CurrentTime, clock.EndTime)
+		if err != nil {
+			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
+		}
+
+		repo := NewBacktesterCandleRepository(candles)
+
+		repos[feed.GetSymbol()] = repo
+	}
+
+	return &Playground{
+		ID: uuid.New(),
+		account: BacktesterAccount{
+			Balance: balance,
+		},
+		clock: clock,
+		repos: repos,
+	}, nil
+}
+
 func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
+
 	candles, err := feed.FetchRange(clock.CurrentTime, clock.EndTime)
 	if err != nil {
 		return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
 	}
 
-	repo := NewBacktesterCandleRepository(candles)
-
-	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
-
-	repos[feed.GetSymbol()] = repo
+	repos[feed.GetSymbol()] = NewBacktesterCandleRepository(candles)
 
 	return &Playground{
 		ID: uuid.New(),

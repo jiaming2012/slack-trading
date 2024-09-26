@@ -11,24 +11,94 @@ import (
 )
 
 func TestFeed(t *testing.T) {
-	// startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-	// endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	// clock := NewClock(startTime, endTime)
+	symbol1 := eventmodels.StockSymbol("AAPL")
+	symbol2 := eventmodels.StockSymbol("GOOG")
+	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
+	t1_appl := startTime
+	t2_appl := startTime.Add(5 * time.Second)
+	t3_appl := startTime.Add(10 * time.Second)
+	t1_goog := startTime
+	t2_goog := startTime.Add(10 * time.Second)
+	t3_goog := startTime.Add(20 * time.Second)
 
-	t.Run("Tick returns new candle", func(t *testing.T) {
-		// feed := mock.NewMockBacktesterDataFeed()
+	t.Run("Returns previous candle until new candle is available", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
 
-		// playground := NewPlayground(1000.0, clock, feed)
+		candle, err := playground.GetCandle(symbol1)
+		assert.NoError(t, err)
 
-		// candle, err := feed.FetchCandle(startTime, eventmodels.StockSymbol("AAPL"))
-		// assert.NoError(t, err)
-		// assert.NotNil(t, candle)
+		assert.Equal(t, startTime, candle.Timestamp)
+	})
 
-		// stateChange, err := playground.Tick(time.Second)
-		// assert.NoError(t, err)
-		// assert.NotNil(t, stateChange)
+	t.Run("Skip a candle", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
 
-		// assert.Equal(t, candle, stateChange.NewCandle)
+		candle, err := playground.GetCandle(symbol1)
+		assert.NoError(t, err)
+
+		assert.Equal(t, startTime, candle.Timestamp)
+
+		stateChange, err := playground.Tick(20 * time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		candle, err = playground.GetCandle(symbol1)
+		assert.NoError(t, err)
+		assert.Equal(t, t3_appl, candle.Timestamp)
+		assert.Equal(t, 15.0, candle.Close)
+	})
+
+	t.Run("Returns new candle/s on state changes", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, []time.Time{t1_goog, t2_goog, t3_goog}, []float64{0.0, 100.0, 200.0})
+
+		playground, err := NewPlaygroundMultipleFeeds(1000.0, clock, feed1, feed2)
+		assert.NoError(t, err)
+
+		// new APPL candle, but not GOOG
+		stateChange, err := playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, stateChange.NewCandles, 1)
+		assert.Equal(t, symbol1, stateChange.NewCandles[0].Symbol)
+		assert.Equal(t, t2_appl, stateChange.NewCandles[0].Candle.Timestamp)
+		assert.Equal(t, 10.0, stateChange.NewCandles[0].Candle.Close)
+
+		// new APPL and GOOG candle
+		stateChange, err = playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, stateChange.NewCandles, 2)
+		assert.Equal(t, symbol1, stateChange.NewCandles[0].Symbol)
+		assert.Equal(t, t3_appl, stateChange.NewCandles[0].Candle.Timestamp)
+		assert.Equal(t, 15.0, stateChange.NewCandles[0].Candle.Close)
+		assert.Equal(t, symbol2, stateChange.NewCandles[1].Symbol)
+		assert.Equal(t, t2_goog, stateChange.NewCandles[1].Candle.Timestamp)
+		assert.Equal(t, 100.0, stateChange.NewCandles[1].Candle.Close)
+
+		// no new candle
+		stateChange, err = playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, stateChange.NewCandles, 0)
+	})
+
+	t.Run("GetCandle returns the first candle until Tick is called", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{startTime, startTime.Add(5), startTime.Add(10)}, []float64{0.0, 10.0, 15.0})
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		candle, err := playground.GetCandle(symbol1)
+		assert.NoError(t, err)
+		assert.Equal(t, startTime, candle.Timestamp)
+		assert.Equal(t, 0.0, candle.Close)
 	})
 }
 
@@ -69,25 +139,25 @@ func TestClock(t *testing.T) {
 
 		clock.Add(60 * time.Minute)
 
-		assert.True(t, clock.IsFinished())
+		assert.True(t, clock.IsExpired())
 
 		clock.Add(time.Minute)
 
-		assert.True(t, clock.IsFinished())
+		assert.True(t, clock.IsExpired())
 	})
 
 	t.Run("Clock is finished at end time", func(t *testing.T) {
 		clock := NewClock(startTime, endTime)
 
-		assert.False(t, clock.IsFinished())
+		assert.False(t, clock.IsExpired())
 
 		clock.Add(59 * time.Minute)
 
-		assert.False(t, clock.IsFinished())
+		assert.False(t, clock.IsExpired())
 
 		clock.Add(time.Minute)
 
-		assert.True(t, clock.IsFinished())
+		assert.True(t, clock.IsExpired())
 	})
 }
 
@@ -95,9 +165,10 @@ func TestBalance(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	clock := NewClock(startTime, endTime)
 
 	t.Run("GetAccountBalance", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		playground, err := NewPlayground(1000.0, clock, mock.NewMockBacktesterDataFeed(symbol, nil, nil))
 
 		assert.NoError(t, err)
@@ -108,6 +179,8 @@ func TestBalance(t *testing.T) {
 	})
 
 	t.Run("GetAccountBalance - increase after profitable trade", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		prices := []float64{0, 100.0, 115.0}
 
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{startTime, startTime.Add(time.Second), startTime.Add(2 * time.Second)}, prices)
@@ -135,33 +208,38 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, 1150.0, playground.GetAccountBalance())
 	})
 
-		t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
-			prices := []float64{0, 100.0, 85.0}
+	t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
 
-			feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{startTime, startTime.Add(time.Second), startTime.Add(2 * time.Second)}, prices)
-			playground, err := NewPlayground(1000.0, clock, feed)
-			assert.NoError(t, err)
+		t1 := startTime
+		t2 := startTime.Add(time.Second)
+		t3 := startTime.Add(2 * time.Second)
+		prices := []float64{0, 100.0, 85.0}
 
-			order1 := NewBacktesterOrder(1, Equity, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, nil)
-			err = playground.PlaceOrder(order1)
-			assert.NoError(t, err)
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
 
-			stateChange, err := playground.Tick(time.Second)
-			assert.NoError(t, err)
-			assert.NotNil(t, stateChange)
+		order1 := NewBacktesterOrder(1, Equity, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, nil)
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
 
-			assert.Equal(t, 1000.0, playground.GetAccountBalance())
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
 
-			order2 := NewBacktesterOrder(2, Equity, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSell, 10, Market, Day, nil, nil, nil)
-			err = playground.PlaceOrder(order2)
-			assert.NoError(t, err)
+		assert.Equal(t, 1000.0, playground.GetAccountBalance())
 
-			stateChange, err = playground.Tick(time.Second)
-			assert.NoError(t, err)
-			assert.NotNil(t, stateChange)
+		order2 := NewBacktesterOrder(2, Equity, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSell, 10, Market, Day, nil, nil, nil)
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
 
-			assert.Equal(t, 850.0, playground.GetAccountBalance())
-		})
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 850.0, playground.GetAccountBalance())
+	})
 }
 
 func TestPositions(t *testing.T) {

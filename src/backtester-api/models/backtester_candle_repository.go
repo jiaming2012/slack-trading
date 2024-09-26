@@ -20,16 +20,27 @@ func (r *BacktesterCandleRepository) GetCurrentCandle() *eventmodels.PolygonAggr
 	return r.candles[r.position]
 }
 
-func (r *BacktesterCandleRepository) Next(currentTime time.Time) error {
+func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels.PolygonAggregateBarV2, error) {
 	if r.position >= len(r.candles) {
-		return fmt.Errorf("no more candles")
+		return nil, fmt.Errorf("no more candles")
 	}
 
-	for r.position < len(r.candles) && currentTime.After(r.candles[r.position].Timestamp) {
-		r.position++
+	var newCandle *eventmodels.PolygonAggregateBarV2
+	for {
+		if r.position >= len(r.candles)-1 {
+			break
+		}
+
+		nextCandleTimestamp := r.candles[r.position+1].Timestamp
+		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
+			r.position++
+			newCandle = r.GetCurrentCandle()
+		} else {
+			break
+		}
 	}
 
-	return nil
+	return newCandle, nil
 }
 
 func NewBacktesterCandleRepository(candles []*eventmodels.PolygonAggregateBarV2) *BacktesterCandleRepository {

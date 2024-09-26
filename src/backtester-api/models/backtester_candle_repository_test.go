@@ -27,26 +27,28 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		err := repo.Next(tstamp)
+		c, err := repo.Update(tstamp)
 
 		assert.NoError(t, err)
+
+		assert.Nil(t, c)
 
 		candle := repo.GetCurrentCandle()
 
 		assert.Equal(t, tstamp, candle.Timestamp)
 	})
 
-	t.Run("returns nil if there are no more candles", func(t *testing.T) {
+	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
 		repo := NewBacktesterCandleRepository(candles)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 
-		err := repo.Next(tstamp)
+		_, err := repo.Update(tstamp)
 
 		assert.NoError(t, err)
 
 		candle := repo.GetCurrentCandle()
 
-		assert.Nil(t, candle)
+		assert.Equal(t, candles[len(candles)-1].Timestamp, candle.Timestamp)
 	})
 }

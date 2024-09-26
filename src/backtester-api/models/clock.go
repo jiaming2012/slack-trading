@@ -11,7 +11,7 @@ func (c *Clock) Add(timeToAdd time.Duration) {
 	c.CurrentTime = c.CurrentTime.Add(timeToAdd)
 }
 
-func (c *Clock) IsFinished() bool {
+func (c *Clock) IsExpired() bool {
 	return c.CurrentTime.Equal(c.EndTime) || c.CurrentTime.After(c.EndTime)
 }
 
