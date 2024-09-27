@@ -197,6 +197,14 @@
             "env": {
                 "GO_ENV": "production"
             }
+        },
+        {
+            "name": "grid strategy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/backtester-api/strategies/grid.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         }
     ]
 }
