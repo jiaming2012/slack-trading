@@ -32,6 +32,7 @@ import (
 
 	// lokiclient "github.com/grafana/loki-client-go"
 
+	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventproducers"
@@ -110,8 +111,6 @@ func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
 		Prefix: prefix,
 		Items:  make(map[string]RouterSetupItem),
 	}
-
-	// router.HandleFunc(prefix, r.ServeHTTP)
 
 	return r
 }
@@ -459,6 +458,7 @@ func run() {
 	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
+	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter())
 
 	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
 
