@@ -104,7 +104,7 @@ type CreateOrderRequest struct {
 	Duration  models.BacktesterOrderDuration `json:"duration"`
 	Price     *float64                       `json:"price"`
 	StopPrice *float64                       `json:"stop_price"`
-	Tag       *string                        `json:"tag"`
+	Tag       string                         `json:"tag"`
 }
 
 func (req *CreateOrderRequest) Validate() error {
@@ -339,10 +339,63 @@ func handlePlayground(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleTick(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
+
+	// get `seconds` query parameter
+	secondsStr := r.URL.Query().Get("seconds")
+	if secondsStr == "" {
+		setErrorResponse("handleTick: missing seconds query parameter", 400, fmt.Errorf("missing seconds query parameter"), w)
+		return
+	}
+
+	seconds, err := time.ParseDuration(secondsStr)
+	if err != nil {
+		setErrorResponse("handleTick: failed to parse seconds query parameter", 400, err, w)
+		return
+	}
+	
+	delta, err := time.ParseDuration(fmt.Sprintf("%ss", seconds))
+	if err != nil {
+		setErrorResponse("handleTick: failed to parse seconds", 500, err, w)
+		return
+	}
+
+	// get playground id
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		setErrorResponse("handleTick: failed to playground id", 400, err, w)
+		return
+	}
+
+	playground, ok := playgrounds[id]
+	if !ok {
+		setErrorResponse("handleTick: playground not found", 404, fmt.Errorf("playground not found"), w)
+		return
+	}
+
+	// tick
+	stateChange, err := playground.Tick(delta)
+	if err != nil {
+		setErrorResponse("handleTick: failed to tick", 500, err, w)
+		return
+	}
+
+	if err := setResponse(stateChange, w); err != nil {
+		setErrorResponse("handleTick: failed to set response", 500, err, w)
+		return
+	}
+}
+
 func SetupHandler(router *mux.Router, apiKey string) {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
 
 	router.HandleFunc("", handlePlayground)
 	router.HandleFunc("/{id}/account", handleAccount)
 	router.HandleFunc("/{id}/order", handleOrder)
+	router.HandleFunc("/{id}/tick", handleTick)
 }

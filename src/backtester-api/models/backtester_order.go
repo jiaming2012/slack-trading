@@ -15,9 +15,9 @@ type BacktesterOrder struct {
 	AbsoluteQuantity float64                 `json:"quantity"`
 	Type             BacktesterOrderType     `json:"type"`
 	Duration         BacktesterOrderDuration `json:"duration"`
-	Price            *float64                `json:"price"`
-	StopPrice        *float64                `json:"stop_price"`
-	Tag              *string                 `json:"tag"`
+	Price            *float64                `json:"price,omitempty"`
+	StopPrice        *float64                `json:"stop_price,omitempty"`
+	Tag              string                  `json:"tag"`
 	Trades           []*BacktesterTrade      `json:"trades"`
 	Status           BacktesterOrderStatus   `json:"status"`
 }
@@ -107,7 +107,7 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag *string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
 		Class:            class,
@@ -120,5 +120,6 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.
 		StopPrice:        stopPrice,
 		Tag:              tag,
 		Status:           status,
+		Trades:           []*BacktesterTrade{},
 	}
 }
