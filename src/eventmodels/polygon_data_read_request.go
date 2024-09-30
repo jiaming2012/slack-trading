@@ -1,15 +1,13 @@
 package eventmodels
 
 import (
-	"time"
-
 	"github.com/polygon-io/client-go/rest/models"
 )
 
 type PolygonDataReadRequest struct {
 	Symbol     StockSymbol
-	From       time.Time
-	To         time.Time
+	From       string
+	To         string
 	Multiplier int
 	Timespan   models.Timespan
 }

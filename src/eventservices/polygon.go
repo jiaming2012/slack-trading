@@ -17,7 +17,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func makeRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time, apiKey string) (string, error) {
+func makeRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
 	// Parse the base URL
 	parsedURL, err := url.Parse("https://api.polygon.io/v2/aggs/ticker")
 	if err != nil {
@@ -100,7 +100,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 	}
 
 	for {
-		url, err := makeRequestURL(inputSymbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
+		url, err := makeRequestURL(inputSymbol, timeframeValue, timeframeUnit, fromDate, toDate)
 		if err != nil {
 			return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
 		}

@@ -9,7 +9,19 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func TestSymbol(t *testing.T) {
+	t.Run("returns the symbol", func(t *testing.T) {
+		symbol := eventmodels.StockSymbol("AAPL")
+
+		repo := NewBacktesterCandleRepository(symbol, nil)
+
+		assert.Equal(t, symbol, repo.GetSymbol())
+	})
+}
+
 func TestNext(t *testing.T) {
+	symbol := eventmodels.StockSymbol("AAPL")
+
 	candles := []*eventmodels.PolygonAggregateBarV2{
 		{
 			Timestamp: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -23,7 +35,7 @@ func TestNext(t *testing.T) {
 	}
 
 	t.Run("returns the next candle", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(candles)
+		repo := NewBacktesterCandleRepository(symbol, candles)
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -39,7 +51,7 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(candles)
+		repo := NewBacktesterCandleRepository(symbol, candles)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 

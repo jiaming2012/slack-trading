@@ -53,10 +53,7 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("updateTrades: error fetching price: %w", err)
 			}
 
-			quantity := order.Quantity
-			if order.Side == BacktesterOrderSideSell || order.Side == BacktesterOrderSideSellShort {
-				quantity *= -1
-			}
+			quantity := order.GetQuantity()
 
 			trade := NewBacktesterTrade(order.Symbol, p.clock.CurrentTime, quantity, price)
 
@@ -64,9 +61,7 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("updateTrades: error filling order: %w", err)
 			}
 
-			status := BacktesterOrderStatusFilled
-
-			order.status = &status
+			order.status = BacktesterOrderStatusFilled
 
 			trades = append(trades, trade)
 		}
@@ -149,7 +144,7 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	}, nil
 }
 
-func (p *Playground) GetAccountBalance() float64 {
+func (p *Playground) GetBalance() float64 {
 	return p.account.Balance
 }
 
@@ -265,7 +260,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		return fmt.Errorf("price must be greater than 0")
 	}
 
-	if order.Quantity <= 0 {
+	if order.AbsoluteQuantity <= 0 {
 		return fmt.Errorf("quantity must be greater than 0")
 	}
 
@@ -281,6 +276,8 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		}
 	}
 
+	order.status = BacktesterOrderStatusPending
+
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
 	return nil
@@ -295,7 +292,7 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
 		}
 
-		repo := NewBacktesterCandleRepository(candles)
+		repo := NewBacktesterCandleRepository(feed.GetSymbol(), candles)
 
 		repos[feed.GetSymbol()] = repo
 	}
@@ -318,7 +315,9 @@ func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Pla
 		return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
 	}
 
-	repos[feed.GetSymbol()] = NewBacktesterCandleRepository(candles)
+	symbol := feed.GetSymbol()
+
+	repos[symbol] = NewBacktesterCandleRepository(symbol, candles)
 
 	return &Playground{
 		ID: uuid.New(),

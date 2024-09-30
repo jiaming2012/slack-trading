@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
@@ -458,7 +457,7 @@ func run() {
 	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
-	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter())
+	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), polygonApiKey)
 
 	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
 

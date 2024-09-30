@@ -15,9 +15,9 @@ func (c *Clock) IsExpired() bool {
 	return c.CurrentTime.Equal(c.EndTime) || c.CurrentTime.After(c.EndTime)
 }
 
-func NewClock(currentTime time.Time, endTime time.Time) *Clock {
+func NewClock(startTime time.Time, endTime time.Time) *Clock {
 	return &Clock{
-		CurrentTime: currentTime,
+		CurrentTime: startTime,
 		EndTime:     endTime,
 	}
 }

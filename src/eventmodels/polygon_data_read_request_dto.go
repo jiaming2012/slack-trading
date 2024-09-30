@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/polygon-io/client-go/rest/models"
 )
@@ -19,22 +18,20 @@ type PolygonDataReadRequestDTO struct {
 }
 
 func (dto *PolygonDataReadRequestDTO) ToModel() (*PolygonDataReadRequest, error) {
-	from, err := time.Parse(time.RFC3339, dto.From)
-	if err != nil {
-		return nil, fmt.Errorf("PolygonDataReadRequestDTO: ToModel: from: %w", err)
-	}
+	// from, err := time.Parse(time.RFC3339, dto.From)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("PolygonDataReadRequestDTO: ToModel: from: %w", err)
+	// }
 
-	to, err := time.Parse(time.RFC3339, dto.To)
-	if err != nil {
-		return nil, fmt.Errorf("PolygonDataReadRequestDTO: ToModel: to: %w", err)
-	}
-
-	symbol := StockSymbol(dto.Symbol)
+	// to, err := time.Parse(time.RFC3339, dto.To)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("PolygonDataReadRequestDTO: ToModel: to: %w", err)
+	// }
 
 	return &PolygonDataReadRequest{
-		Symbol:     symbol,
-		From:       from,
-		To:         to,
+		Symbol:     StockSymbol(dto.Symbol),
+		From:       dto.From,
+		To:         dto.To,
 		Multiplier: dto.Multiplier,
 		Timespan:   models.Timespan(dto.Timespan),
 	}, nil

@@ -8,35 +8,39 @@ import (
 )
 
 type BacktesterOrder struct {
-	ID        uint                    `json:"id"`
-	Class     BacktesterOrderClass    `json:"class"`
-	Symbol    eventmodels.Instrument  `json:"symbol"`
-	Side      BacktesterOrderSide     `json:"side"`
-	Quantity  float64                 `json:"quantity"`
-	Type      BacktesterOrderType     `json:"type"`
-	Duration  BacktesterOrderDuration `json:"duration"`
-	Price     *float64                `json:"price"`
-	StopPrice *float64                `json:"stop_price"`
-	Tag       *string                 `json:"tag"`
-	Trades    []*BacktesterTrade      `json:"trades"`
-	status    *BacktesterOrderStatus
+	ID               uint                    `json:"id"`
+	Class            BacktesterOrderClass    `json:"class"`
+	Symbol           eventmodels.Instrument  `json:"symbol"`
+	Side             BacktesterOrderSide     `json:"side"`
+	AbsoluteQuantity float64                 `json:"quantity"`
+	Type             BacktesterOrderType     `json:"type"`
+	Duration         BacktesterOrderDuration `json:"duration"`
+	Price            *float64                `json:"price"`
+	StopPrice        *float64                `json:"stop_price"`
+	Tag              *string                 `json:"tag"`
+	Trades           []*BacktesterTrade      `json:"trades"`
+	status           BacktesterOrderStatus
 }
 
 func (o *BacktesterOrder) Cancel() {
-	status := BacktesterOrderStatusCancelled
-	o.status = &status
+	o.status = BacktesterOrderStatusCancelled
 }
 
 func (o *BacktesterOrder) Reject() {
-	status := BacktesterOrderStatusRejected
-	o.status = &status
+	o.status = BacktesterOrderStatusRejected
+}
+
+func (o *BacktesterOrder) GetQuantity() float64 {
+	if o.Side == BacktesterOrderSideSell || o.Side == BacktesterOrderSideSellShort {
+		return -o.AbsoluteQuantity
+	}
+
+	return o.AbsoluteQuantity
 }
 
 func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
-	if o.status != nil {
-		if !(*o.status).IsTradingAllowed() {
-			return fmt.Errorf("order is not open or partially filled")
-		}
+	if !o.status.IsTradingAllowed() {
+		return fmt.Errorf("order is not open or partially filled")
 	}
 
 	if trade.Price <= 0 {
@@ -52,18 +56,20 @@ func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
 		return fmt.Errorf("trade quantity must be non-zero")
 	}
 
-	if math.Abs(trade.Quantity+filledQuantity) > o.Quantity {
+	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
 		return fmt.Errorf("trade quantity exceeds order quantity")
 	}
 
 	o.Trades = append(o.Trades, trade)
 
+	o.status = BacktesterOrderStatusOpen
+
 	return nil
 }
 
 func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
-	if o.status != nil {
-		return *o.status
+	if !o.status.IsTradingAllowed() {
+		return o.status
 	}
 
 	if len(o.Trades) == 0 {
@@ -72,7 +78,7 @@ func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
 
 	filledQuantity := o.GetFilledQuantity()
 
-	if filledQuantity == o.Quantity {
+	if filledQuantity == o.GetQuantity() {
 		return BacktesterOrderStatusFilled
 	}
 
@@ -101,17 +107,18 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, tag *string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag *string) *BacktesterOrder {
 	return &BacktesterOrder{
-		ID:        id,
-		Class:     class,
-		Symbol:    symbol,
-		Side:      side,
-		Quantity:  quantity,
-		Type:      orderType,
-		Duration:  duration,
-		Price:     price,
-		StopPrice: stopPrice,
-		Tag:       tag,
+		ID:               id,
+		Class:            class,
+		Symbol:           symbol,
+		Side:             side,
+		AbsoluteQuantity: quantity,
+		Type:             orderType,
+		Duration:         duration,
+		Price:            price,
+		StopPrice:        stopPrice,
+		Tag:              tag,
+		status:           status,
 	}
 }
