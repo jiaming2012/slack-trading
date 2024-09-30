@@ -172,6 +172,16 @@ func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.Polyg
 	return models.NewBacktesterCandleRepository(symbol, bars), nil
 }
 
+func convertPositionsToMap(positions map[eventmodels.Instrument]*models.Position) map[string]interface{} {
+	response := map[string]interface{}{}
+
+	for k, v := range positions {
+		response[k.GetTicker()] = v
+	}
+
+	return response
+}
+
 func handleAccount(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := uuid.Parse(vars["id"])
@@ -187,9 +197,9 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"balance": playground.GetBalance(),
-		"orders":  playground.GetOrders(),
-		"positions": playground.GetPositions(),
+		"balance":   playground.GetBalance(),
+		"orders":    playground.GetOrders(),
+		"positions": convertPositionsToMap(playground.GetPositions()),
 	}
 
 	if err := setResponse(response, w); err != nil {
