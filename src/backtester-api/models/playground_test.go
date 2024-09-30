@@ -425,19 +425,23 @@ func TestOrders(t *testing.T) {
 
 	feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{100.0})
 
-	t.Run("PlaceOrder", func(t *testing.T) {
+	t.Run("PlaceOrder - market", func(t *testing.T) {
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
 		order := NewBacktesterOrder(1, Equity, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, nil)
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		assert.Len(t, playground.GetOrders(), 0)
+		orders := playground.GetOrders()
+		assert.Len(t, orders, 1)
+		assert.Equal(t, BacktesterOrderStatusOpen, orders[0].GetStatus())
 
 		_, err = playground.Tick(time.Second)
 		assert.NoError(t, err)
 
-		assert.Len(t, playground.GetOrders(), 1)
+		orders = playground.GetOrders()
+		assert.Len(t, orders, 1)
+		assert.Equal(t, BacktesterOrderStatusFilled, orders[0].GetStatus())
 	})
 
 	t.Run("PlaceOrder - cannot buy after short sell", func(t *testing.T) {

@@ -149,7 +149,7 @@ func (p *Playground) GetBalance() float64 {
 }
 
 func (p *Playground) GetOrders() []*BacktesterOrder {
-	return p.account.Orders
+	return append(p.account.Orders, p.account.PendingOrders...)
 }
 
 func (p *Playground) GetPosition(symbol eventmodels.Instrument) Position {
