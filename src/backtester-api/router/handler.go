@@ -18,8 +18,7 @@ import (
 var (
 	client      = new(eventservices.PolygonTickDataMachine)
 	playgrounds = map[uuid.UUID]*models.Playground{}
-	repos       = map[uuid.UUID]*models.BacktesterCandleRepository{}
-	clocks      = map[uuid.UUID]*models.Clock{}
+	orderID     = uint(0)
 )
 
 type errorResponse struct {
@@ -34,7 +33,7 @@ func NewErrorResponse(errType string, message string) *errorResponse {
 	}
 }
 
-func setResponse(response map[string]interface{}, w http.ResponseWriter) error {
+func setResponse(response interface{}, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
@@ -70,6 +69,11 @@ func getPlayground(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
+func getOrderID() uint {
+	orderID++
+	return orderID
+}
+
 type CreatePlaygroundRequest struct {
 	Balance    float64                 `json:"balance"`
 	Clock      CreateClockRequest      `json:"clock"`
@@ -89,6 +93,114 @@ type PolygonTimespanRequest struct {
 type CreateRepositoryRequest struct {
 	Symbol   string                 `json:"symbol"`
 	Timespan PolygonTimespanRequest `json:"timespan"`
+}
+
+type CreateOrderRequest struct {
+	Symbol    string                         `json:"symbol"`
+	Class     models.BacktesterOrderClass    `json:"class"`
+	Quantity  float64                        `json:"quantity"`
+	Side      models.BacktesterOrderSide     `json:"side"`
+	OrderType models.BacktesterOrderType     `json:"type"`
+	Duration  models.BacktesterOrderDuration `json:"duration"`
+	Price     *float64                       `json:"price"`
+	StopPrice *float64                       `json:"stop_price"`
+	Tag       *string                        `json:"tag"`
+}
+
+func (req *CreateOrderRequest) Validate() error {
+	if err := req.Class.Validate(); err != nil {
+		return fmt.Errorf("invalid class: %w", err)
+	}
+
+	if err := req.Side.Validate(); err != nil {
+		return fmt.Errorf("invalid side: %w", err)
+	}
+
+	if req.Quantity <= 0 {
+		return fmt.Errorf("quantity must be greater than 0")
+	}
+
+	if err := req.OrderType.Validate(); err != nil {
+		return fmt.Errorf("invalid order type: %w", err)
+	}
+
+	if req.Price != nil && *req.Price <= 0 {
+		return fmt.Errorf("price must be greater than 0")
+	}
+
+	if req.StopPrice != nil && *req.StopPrice <= 0 {
+		return fmt.Errorf("stop price must be greater than 0")
+	}
+
+	if err := req.Duration.Validate(); err != nil {
+		return fmt.Errorf("invalid duration: %w", err)
+	}
+
+	return nil
+}
+
+func placeOrder(playground *models.Playground, req *CreateOrderRequest) (*models.BacktesterOrder, error) {
+	order := models.NewBacktesterOrder(
+		getOrderID(),
+		req.Class,
+		eventmodels.StockSymbol(req.Symbol),
+		req.Side,
+		req.Quantity,
+		req.OrderType,
+		req.Duration,
+		req.Price,
+		req.StopPrice,
+		models.BacktesterOrderStatusPending,
+		req.Tag,
+	)
+
+	if err := playground.PlaceOrder(order); err != nil {
+		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
+	}
+
+	return order, nil
+}
+
+func handleOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(404)
+		return
+	}
+
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
+		return
+	}
+
+	playground, ok := playgrounds[id]
+	if !ok {
+		setErrorResponse("handleAccount: playground not found", 404, fmt.Errorf("playground not found"), w)
+		return
+	}
+
+	var req CreateOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		setErrorResponse("createOrder: failed to decode request", 400, err, w)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		setErrorResponse("createOrder: invalid request", 400, err, w)
+		return
+	}
+
+	order, err := placeOrder(playground, &req)
+	if err != nil {
+		setErrorResponse("createOrder: failed to place order", 500, err, w)
+		return
+	}
+
+	if err := setResponse(order, w); err != nil {
+		setErrorResponse("createOrder: failed to set response", 500, err, w)
+		return
+	}
 }
 
 func createPlayground(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +294,20 @@ func convertPositionsToMap(positions map[eventmodels.Instrument]*models.Position
 	return response
 }
 
+func getAccountInfo(playground *models.Playground) map[string]interface{} {
+	return map[string]interface{}{
+		"balance":   playground.GetBalance(),
+		"orders":    playground.GetOrders(),
+		"positions": convertPositionsToMap(playground.GetPositions()),
+	}
+}
+
 func handleAccount(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
+
 	vars := mux.Vars(r)
 	id, err := uuid.Parse(vars["id"])
 	if err != nil {
@@ -196,13 +321,9 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]interface{}{
-		"balance":   playground.GetBalance(),
-		"orders":    playground.GetOrders(),
-		"positions": convertPositionsToMap(playground.GetPositions()),
-	}
+	accountInfo := getAccountInfo(playground)
 
-	if err := setResponse(response, w); err != nil {
+	if err := setResponse(accountInfo, w); err != nil {
 		setErrorResponse("handleAccount: failed to set response", 500, err, w)
 		return
 	}
@@ -223,4 +344,5 @@ func SetupHandler(router *mux.Router, apiKey string) {
 
 	router.HandleFunc("", handlePlayground)
 	router.HandleFunc("/{id}/account", handleAccount)
+	router.HandleFunc("/{id}/order", handleOrder)
 }

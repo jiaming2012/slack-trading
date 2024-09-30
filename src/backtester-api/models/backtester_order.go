@@ -19,15 +19,15 @@ type BacktesterOrder struct {
 	StopPrice        *float64                `json:"stop_price"`
 	Tag              *string                 `json:"tag"`
 	Trades           []*BacktesterTrade      `json:"trades"`
-	status           BacktesterOrderStatus
+	Status           BacktesterOrderStatus   `json:"status"`
 }
 
 func (o *BacktesterOrder) Cancel() {
-	o.status = BacktesterOrderStatusCancelled
+	o.Status = BacktesterOrderStatusCancelled
 }
 
 func (o *BacktesterOrder) Reject() {
-	o.status = BacktesterOrderStatusRejected
+	o.Status = BacktesterOrderStatusRejected
 }
 
 func (o *BacktesterOrder) GetQuantity() float64 {
@@ -39,7 +39,7 @@ func (o *BacktesterOrder) GetQuantity() float64 {
 }
 
 func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
-	if !o.status.IsTradingAllowed() {
+	if !o.Status.IsTradingAllowed() {
 		return fmt.Errorf("order is not open or partially filled")
 	}
 
@@ -62,14 +62,14 @@ func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
 
 	o.Trades = append(o.Trades, trade)
 
-	o.status = BacktesterOrderStatusOpen
+	o.Status = BacktesterOrderStatusOpen
 
 	return nil
 }
 
 func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
-	if !o.status.IsTradingAllowed() {
-		return o.status
+	if !o.Status.IsTradingAllowed() {
+		return o.Status
 	}
 
 	if len(o.Trades) == 0 {
@@ -119,6 +119,6 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.
 		Price:            price,
 		StopPrice:        stopPrice,
 		Tag:              tag,
-		status:           status,
+		Status:           status,
 	}
 }

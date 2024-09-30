@@ -61,7 +61,7 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("updateTrades: error filling order: %w", err)
 			}
 
-			order.status = BacktesterOrderStatusFilled
+			order.Status = BacktesterOrderStatusFilled
 
 			trades = append(trades, trade)
 		}
@@ -280,7 +280,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		}
 	}
 
-	order.status = BacktesterOrderStatusPending
+	order.Status = BacktesterOrderStatusPending
 
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
