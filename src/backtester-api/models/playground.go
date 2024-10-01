@@ -209,11 +209,24 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	for symbol, vwap := range vwapMap {
 		var avgPrice float64
 		totalQuantity := totalQuantityMap[symbol]
+
+		// calculate average price
 		if totalQuantity != 0 {
 			avgPrice = vwap / totalQuantity
 		}
 
 		postions[symbol].CostBasis = avgPrice
+
+		// calculate pl
+		if postions[symbol].Quantity > 0 {
+			close, err := p.getCurrentPrice(symbol)
+			if err == nil {
+				postions[symbol].PL = (close - avgPrice) * postions[symbol].Quantity
+			} else {
+				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
+				postions[symbol].PL = 0
+			}
+		}
 	}
 
 	return postions
@@ -273,7 +286,6 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if _, ok := p.repos[order.Symbol]; !ok {
 		return fmt.Errorf("symbol %s not found in repos", order.Symbol)
 	}
-
 
 	if err := p.isSideAllowed(order.Symbol, order.Side); err != nil {
 		return fmt.Errorf("PlaceOrder: side not allowed: %w", err)

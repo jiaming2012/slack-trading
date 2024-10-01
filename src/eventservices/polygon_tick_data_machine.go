@@ -83,7 +83,7 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 		}
 
 		// assert last bar is the to date
-		if !bars[len(bars)-1].Timestamp.Before(toDate) {
+		if !(bars[len(bars)-1].Timestamp.Before(toDate) || bars[len(bars)-1].Timestamp.Equal(toDate)) {
 			return nil, fmt.Errorf("last bar %v timestamp does not match to date %v", bars[len(bars)-1].Timestamp, toDate)
 		}
 	} else {

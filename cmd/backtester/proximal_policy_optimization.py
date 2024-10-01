@@ -5,6 +5,7 @@ import pandas as pd
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
+from backtester_playground_client import BacktesterPlaygroundClient, OrderSide
 
 class RenkoTradingEnv(gym.Env):
     """
@@ -21,6 +22,7 @@ class RenkoTradingEnv(gym.Env):
         self.balance = initial_balance
         self.current_step = 0
         self.position = 0  # 1 for long, -1 for short, 0 for no position
+        self.playground_client = BacktesterPlaygroundClient(initial_balance, 'AAPL', '2021-01-04', '2021-01-31')
         self.returns = []
         self.negative_returns = []
 
@@ -50,6 +52,11 @@ class RenkoTradingEnv(gym.Env):
         current_price = self.data['price'].iloc[self.current_step]
         
         if self.position == 0:
+            if self.position == 1:
+                self.playground_client.place_order('AAPL', 1, OrderSide.SELL)
+            elif self.position == -1:
+                self.playground_client.place_order('AAPL', 1, OrderSide.BUY)
+            
             self.position = current_block
             self.entry_price = current_price
         else:
@@ -125,7 +132,7 @@ def load_data(csv_path):
     return data
 
 # Load your data (replace 'renko_patterns.csv' with your file path)
-data = load_data('renko_patterns.csv')
+data = load_data('/Users/jamal/projects/slack-trading/cmd/backtester/renko_patterns.csv')
 
 # Initialize the environment
 env = RenkoTradingEnv(data)

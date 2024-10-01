@@ -205,6 +205,22 @@
             "program": "${workspaceFolder}/src/backtester-api/strategies/grid.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "proximal policy optimization",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "backtester playground client",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         }
     ]
 }

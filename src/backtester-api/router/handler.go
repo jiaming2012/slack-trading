@@ -255,7 +255,7 @@ func createPlayground(w http.ResponseWriter, r *http.Request) {
 	playgrounds[playground.ID] = playground
 
 	response := map[string]interface{}{
-		"playground": playground.ID,
+		"playground_id": playground.ID,
 	}
 
 	if err := setResponse(response, w); err != nil {
