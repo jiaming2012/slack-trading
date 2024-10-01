@@ -530,15 +530,43 @@ func TestTrades(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	clock := NewClock(startTime, endTime)
 
 	prices := []float64{100.0, 105.0, 110.0}
 	t1 := startTime
 	t2 := startTime.Add(time.Second)
 	t3 := startTime.Add(2 * time.Second)
-	feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
+
+	t.Run("Short order rejected if long position exists", func(t *testing.T) {
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
+		clock := NewClock(startTime, endTime)
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		now := startTime
+
+		order1 := NewBacktesterOrder(1, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, stateChange.NewTrades, 1)
+
+		orders := playground.GetOrders()
+		assert.Len(t, orders, 2)
+		assert.Equal(t, BacktesterOrderStatusFilled, orders[0].GetStatus())
+		assert.Equal(t, BacktesterOrderStatusRejected, orders[1].GetStatus())
+	})
 
 	t.Run("Tick", func(t *testing.T) {
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
+		clock := NewClock(startTime, endTime)
+
 		now := startTime
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
@@ -552,7 +580,7 @@ func TestTrades(t *testing.T) {
 		assert.NotNil(t, stateChange)
 
 		assert.Len(t, stateChange.NewTrades, 1)
-		assert.Equal(t, clock.CurrentTime, stateChange.NewTrades[0].TransactionDate)
+		assert.Equal(t, clock.CurrentTime, stateChange.NewTrades[0].CreateDate)
 		assert.Equal(t, quantity, stateChange.NewTrades[0].Quantity)
 		assert.Equal(t, prices[1], stateChange.NewTrades[0].Price)
 
@@ -565,7 +593,7 @@ func TestTrades(t *testing.T) {
 		assert.NotNil(t, stateChange)
 
 		assert.Len(t, stateChange.NewTrades, 1)
-		assert.Equal(t, clock.CurrentTime, stateChange.NewTrades[0].TransactionDate)
+		assert.Equal(t, clock.CurrentTime, stateChange.NewTrades[0].CreateDate)
 		assert.Equal(t, quantity, stateChange.NewTrades[0].Quantity)
 		assert.Equal(t, prices[2], stateChange.NewTrades[0].Price)
 

@@ -48,6 +48,11 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("updateTrades: only equity orders are supported")
 			}
 
+			if err := p.isSideAllowed(order.Symbol, order.Side); err != nil {
+				order.Status = BacktesterOrderStatusRejected
+				continue
+			}
+
 			price, err := p.getCurrentPrice(order.Symbol)
 			if err != nil {
 				return nil, fmt.Errorf("updateTrades: error fetching price: %w", err)
@@ -91,6 +96,10 @@ func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositio
 			}
 		}
 	}
+}
+
+func (p *Playground) GetCurrentTime() time.Time {
+	return p.clock.CurrentTime
 }
 
 func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
@@ -139,8 +148,9 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	p.updateBalance(newTrades, startingPositions)
 
 	return &StateChange{
-		NewTrades:  newTrades,
-		NewCandles: newCandles,
+		NewTrades:   newTrades,
+		NewCandles:  newCandles,
+		CurrentTime: p.clock.CurrentTime.Format(time.RFC3339),
 	}, nil
 }
 
@@ -223,6 +233,38 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument) (*eventmodels.Poly
 	return candle, nil
 }
 
+func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side BacktesterOrderSide) error {
+	position := p.GetPosition(symbol)
+
+	if position.Quantity > 0 {
+		if side == BacktesterOrderSideBuyToCover {
+			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
+		}
+
+		if side == BacktesterOrderSideSellShort {
+			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
+		}
+	} else if position.Quantity < 0 {
+		if side == BacktesterOrderSideBuy {
+			return fmt.Errorf("cannot buy when short position exists: must sell to close")
+		}
+
+		if side == BacktesterOrderSideSell {
+			return fmt.Errorf("cannot sell to close when short position exists: must buy to cover")
+		}
+	} else {
+		if side == BacktesterOrderSideSell {
+			return fmt.Errorf("cannot sell when no position exists: must sell short")
+		}
+
+		if side == BacktesterOrderSideBuyToCover {
+			return fmt.Errorf("cannot buy to cover when no position exists")
+		}
+	}
+
+	return nil
+}
+
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
 		return fmt.Errorf("only equity orders are supported")
@@ -232,32 +274,9 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		return fmt.Errorf("symbol %s not found in repos", order.Symbol)
 	}
 
-	position := p.GetPosition(order.Symbol)
 
-	if position.Quantity > 0 {
-		if order.Side == BacktesterOrderSideBuyToCover {
-			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
-		}
-
-		if order.Side == BacktesterOrderSideSellShort {
-			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
-		}
-	} else if position.Quantity < 0 {
-		if order.Side == BacktesterOrderSideBuy {
-			return fmt.Errorf("cannot buy when short position exists: must sell to close")
-		}
-
-		if order.Side == BacktesterOrderSideSell {
-			return fmt.Errorf("cannot sell to close when short position exists: must buy to cover")
-		}
-	} else {
-		if order.Side == BacktesterOrderSideSell {
-			return fmt.Errorf("cannot sell when no position exists: must sell short")
-		}
-
-		if order.Side == BacktesterOrderSideBuyToCover {
-			return fmt.Errorf("cannot buy to cover when no position exists")
-		}
+	if err := p.isSideAllowed(order.Symbol, order.Side); err != nil {
+		return fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 	}
 
 	if order.Price != nil && *order.Price <= 0 {

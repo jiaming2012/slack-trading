@@ -7,17 +7,17 @@ import (
 )
 
 type BacktesterTrade struct {
-	Symbol          eventmodels.Instrument
-	TransactionDate time.Time
-	Quantity        float64
-	Price           float64
+	Symbol     eventmodels.Instrument `json:"symbol"`
+	CreateDate time.Time              `json:"create_date"`
+	Quantity   float64                `json:"quantity"`
+	Price      float64                `json:"price"`
 }
 
-func NewBacktesterTrade(symbol eventmodels.Instrument, transactionDate time.Time, quantity float64, price float64) *BacktesterTrade {
+func NewBacktesterTrade(symbol eventmodels.Instrument, createDate time.Time, quantity float64, price float64) *BacktesterTrade {
 	return &BacktesterTrade{
-		Symbol:          symbol,
-		TransactionDate: transactionDate,
-		Quantity:        quantity,
-		Price:           price,
+		Symbol:     symbol,
+		CreateDate: createDate,
+		Quantity:   quantity,
+		Price:      price,
 	}
 }

@@ -192,7 +192,7 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdOn := time.Now()
+	createdOn := playground.GetCurrentTime()
 
 	order, err := placeOrder(playground, &req, createdOn)
 	if err != nil {
@@ -265,17 +265,19 @@ func createPlayground(w http.ResponseWriter, r *http.Request) {
 }
 
 func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
-	startTime, err := time.Parse("2006-01-02", start.ToString())
+	// Load the location for New York (Eastern Time)
+	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		return nil, fmt.Errorf("createClock: failed to parse start date: %w", err)
+		return nil, fmt.Errorf("createClock: failed to load location America/New_York: %w", err)
 	}
 
-	endTime, err := time.Parse("2006-01-02", stop.ToString())
-	if err != nil {
-		return nil, fmt.Errorf("createClock: failed to parse end date: %w", err)
-	}
+	// start at stock market open
+	fromDate := time.Date(start.Year, time.Month(start.Month), start.Day, 9, 30, 0, 0, loc)
 
-	return models.NewClock(startTime, endTime), nil
+	// end at stock market close
+	toDate := time.Date(stop.Year, time.Month(stop.Month), stop.Day, 16, 0, 0, 0, loc)
+
+	return models.NewClock(fromDate, toDate), nil
 }
 
 func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) (*models.BacktesterCandleRepository, error) {
@@ -343,7 +345,7 @@ func handlePlayground(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTick(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	if r.Method != "POST" {
 		w.WriteHeader(404)
 		return
 	}
@@ -355,13 +357,7 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	seconds, err := time.ParseDuration(secondsStr)
-	if err != nil {
-		setErrorResponse("handleTick: failed to parse seconds query parameter", 400, err, w)
-		return
-	}
-	
-	delta, err := time.ParseDuration(fmt.Sprintf("%ss", seconds))
+	seconds, err := time.ParseDuration(fmt.Sprintf("%ss", secondsStr))
 	if err != nil {
 		setErrorResponse("handleTick: failed to parse seconds", 500, err, w)
 		return
@@ -382,7 +378,7 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// tick
-	stateChange, err := playground.Tick(delta)
+	stateChange, err := playground.Tick(seconds)
 	if err != nil {
 		setErrorResponse("handleTick: failed to tick", 500, err, w)
 		return
