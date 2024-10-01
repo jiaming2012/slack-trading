@@ -139,10 +139,11 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func placeOrder(playground *models.Playground, req *CreateOrderRequest) (*models.BacktesterOrder, error) {
+func placeOrder(playground *models.Playground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
 	order := models.NewBacktesterOrder(
 		getOrderID(),
 		req.Class,
+		createdOn,
 		eventmodels.StockSymbol(req.Symbol),
 		req.Side,
 		req.Quantity,
@@ -191,7 +192,9 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := placeOrder(playground, &req)
+	createdOn := time.Now()
+
+	order, err := placeOrder(playground, &req, createdOn)
 	if err != nil {
 		setErrorResponse("createOrder: failed to place order", 500, err, w)
 		return

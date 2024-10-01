@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -20,6 +21,7 @@ type BacktesterOrder struct {
 	Tag              string                  `json:"tag"`
 	Trades           []*BacktesterTrade      `json:"trades"`
 	Status           BacktesterOrderStatus   `json:"status"`
+	CreateDate       time.Time               `json:"create_date"`
 }
 
 func (o *BacktesterOrder) Cancel() {
@@ -107,10 +109,11 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
 		Class:            class,
+		CreateDate:       createDate,
 		Symbol:           symbol,
 		Side:             side,
 		AbsoluteQuantity: quantity,
