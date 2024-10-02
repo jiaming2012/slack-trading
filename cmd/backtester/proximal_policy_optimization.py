@@ -61,7 +61,7 @@ class RenkoTradingEnv(gym.Env):
         account = self.playground_client.fetch_account_state()
          
         if self.position == 0:
-            if len(self.close_prices) >= 5:
+            if len(self.close_prices) >= 10:
                 ma = np.mean(self.close_prices)
                 current_price = self.close_prices[-1]
                 
@@ -83,6 +83,8 @@ class RenkoTradingEnv(gym.Env):
                     self.playground_client.place_order('AAPL', 1, OrderSide.BUY_TO_COVER)
                     self.position = 0
                     
+                reward = pl
+                    
             elif pl <= -stop_loss:
                 # Close the position
                 if self.position > 0:
@@ -91,6 +93,8 @@ class RenkoTradingEnv(gym.Env):
                 elif self.position < 0:
                     self.playground_client.place_order('AAPL', 1, OrderSide.BUY_TO_COVER)
                     self.position = 0
+                    
+                reward = pl
                 
         # Move into the future by one step
         self.playground_client.tick(60)
@@ -116,13 +120,16 @@ class RenkoTradingEnv(gym.Env):
         return observation, reward, terminated, truncated, info
 
     def _get_observation(self):
-        # Get the last 10 renko blocks, padded if necessary
+        # Get the last 10 prices, padded if necessary
         obs = np.zeros(10, dtype=np.float32)
         
         # Ensure that the renko_chart has enough data to fill the observation
         # renko_blocks = self.data['renko_chart'].iloc[self.current_step:self.current_step + 10].values
         # obs[:len(renko_blocks)] = renko_blocks
-        obs[:len(self.close_prices)] = self.close_prices
+        if len(self.close_prices) >= 10:
+            moving_average = np.mean(self.close_prices)
+            
+            obs[:len(self.close_prices)] = self.close_prices - moving_average
 
         # Append the balance as the 11th element
         return np.append(obs, [self.balance]).astype(np.float32)
@@ -181,7 +188,7 @@ vec_env = DummyVecEnv([lambda: env])
 
 # Create and train the PPO model
 model = PPO('MlpPolicy', vec_env, verbose=1)
-model.learn(total_timesteps=100)
+model.learn(total_timesteps=100000)
 
 # Test the trained agent and track balance over time
 obs = vec_env.reset()
@@ -190,7 +197,7 @@ balance_over_time = []
 print('Testing the agent...')
 print('Playground ID:', env.playground_client.id)
 
-for _ in range(1000):
+for i in range(1000):
     action, _states = model.predict(obs)
     result = vec_env.step(action)
     sl = action[0][1]

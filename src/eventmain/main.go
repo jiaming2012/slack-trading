@@ -457,7 +457,7 @@ func run() {
 	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
-	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), polygonApiKey)
+	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey)
 
 	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher()
 

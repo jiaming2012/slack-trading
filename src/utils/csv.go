@@ -7,6 +7,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -23,6 +24,33 @@ func findPercentChange(candles []*eventmodels.TradingViewCandle, index, lookahea
 	}
 
 	return (candles[index+lookahead].Close - candles[index].Close) / candles[index].Close * 100
+}
+
+func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("ImportCandlesFromCsv: error opening CSV file: %w", err)
+	}
+
+	defer file.Close()
+
+	var dto []*eventmodels.PolygonAggregateBarV2DTO
+
+	reader := csv.NewReader(file)
+
+	if err := gocsv.UnmarshalCSV(reader, &dto); err != nil {
+		return nil, fmt.Errorf("ImportCandlesFromCsv: error unmarshalling CSV: %w", err)
+	}
+
+	candles := make([]*eventmodels.PolygonAggregateBarV2, len(dto))
+	for i, d := range dto {
+		candles[i], err = d.ToModel()
+		if err != nil {
+			return nil, fmt.Errorf("ImportCandlesFromCsv: error converting DTO to model: %w", err)
+		}
+	}
+
+	return candles, nil
 }
 
 func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) ([]string, error) {

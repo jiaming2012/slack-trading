@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,13 +14,15 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 // todo: move state to database
 var (
-	client      = new(eventservices.PolygonTickDataMachine)
-	playgrounds = map[uuid.UUID]*models.Playground{}
-	orderID     = uint(0)
+	client            = new(eventservices.PolygonTickDataMachine)
+	playgrounds       = map[uuid.UUID]*models.Playground{}
+	orderID           = uint(0)
+	projectsDirectory string
 )
 
 type errorResponse struct {
@@ -91,9 +94,22 @@ type PolygonTimespanRequest struct {
 	Unit       string `json:"unit"`
 }
 
+type RepositorySourceType string
+
+const (
+	RepositorySourcePolygon RepositorySourceType = "polygon"
+	RepositorySourceCSV     RepositorySourceType = "csv"
+)
+
+type RepositorySource struct {
+	Type        RepositorySourceType `json:"type"`
+	CSVFilename *string              `json:"filename"`
+}
+
 type CreateRepositoryRequest struct {
 	Symbol   string                 `json:"symbol"`
 	Timespan PolygonTimespanRequest `json:"timespan"`
+	Source   RepositorySource       `json:"source"`
 }
 
 type CreateOrderRequest struct {
@@ -240,7 +256,32 @@ func createPlayground(w http.ResponseWriter, r *http.Request) {
 		Unit:       eventmodels.PolygonTimespanUnit(req.Repository.Timespan.Unit),
 	}
 
-	repository, err := createRepository(eventmodels.StockSymbol(req.Repository.Symbol), timespan, from, to)
+	var bars []*eventmodels.PolygonAggregateBarV2
+	if req.Repository.Source.Type == RepositorySourcePolygon {
+		bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(req.Repository.Symbol), timespan, from, to)
+		if err != nil {
+			setErrorResponse("createPlayground: failed to fetch aggregate bars", 500, err, w)
+			return
+		}
+	} else if req.Repository.Source.Type == RepositorySourceCSV {
+		if req.Repository.Source.CSVFilename == nil {
+			setErrorResponse("createPlayground: missing CSV filename", 400, fmt.Errorf("missing CSV filename"), w)
+			return
+		}
+
+		sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *req.Repository.Source.CSVFilename)
+
+		bars, err = utils.ImportCandlesFromCsv(sourceDir)
+		if err != nil {
+			setErrorResponse("createPlayground: failed to import candles from CSV", 500, err, w)
+			return
+		}
+	} else {
+		setErrorResponse("createPlayground: invalid repository source", 400, fmt.Errorf("invalid repository source"), w)
+		return
+	}
+
+	repository, err := createRepository(eventmodels.StockSymbol(req.Repository.Symbol), timespan, bars)
 	if err != nil {
 		setErrorResponse("createPlayground: failed to create repository", 500, err, w)
 		return
@@ -302,12 +343,7 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	return clock, nil
 }
 
-func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) (*models.BacktesterCandleRepository, error) {
-	bars, err := client.FetchAggregateBars(symbol, timespan, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("createRepository: failed to fetch aggregate bars: %w", err)
-	}
-
+func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2) (*models.BacktesterCandleRepository, error) {
 	return models.NewBacktesterCandleRepository(symbol, bars), nil
 }
 
@@ -412,8 +448,9 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SetupHandler(router *mux.Router, apiKey string) {
+func SetupHandler(router *mux.Router, projectsDir string, apiKey string) {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
+	projectsDirectory = projectsDir
 
 	router.HandleFunc("", handlePlayground)
 	router.HandleFunc("/{id}/account", handleAccount)
