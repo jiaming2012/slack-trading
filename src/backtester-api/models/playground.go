@@ -202,7 +202,12 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		orderStatus := order.GetStatus()
 		if orderStatus == BacktesterOrderStatusFilled || orderStatus == BacktesterOrderStatusPartiallyFilled {
 			totalQuantityMap[order.Symbol] += order.GetFilledQuantity()
-			vwapMap[order.Symbol] += order.GetAvgFillPrice() * order.GetFilledQuantity()
+
+			if totalQuantityMap[order.Symbol] != 0 {
+				vwapMap[order.Symbol] += order.GetAvgFillPrice() * order.GetFilledQuantity()
+			} else {
+				vwapMap[order.Symbol] = 0
+			}
 		}
 	}
 
@@ -218,14 +223,12 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		postions[symbol].CostBasis = avgPrice
 
 		// calculate pl
-		if postions[symbol].Quantity > 0 {
-			close, err := p.getCurrentPrice(symbol)
-			if err == nil {
-				postions[symbol].PL = (close - avgPrice) * postions[symbol].Quantity
-			} else {
-				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
-				postions[symbol].PL = 0
-			}
+		close, err := p.getCurrentPrice(symbol)
+		if err == nil {
+			postions[symbol].PL = (close - avgPrice) * postions[symbol].Quantity
+		} else {
+			log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
+			postions[symbol].PL = 0
 		}
 	}
 

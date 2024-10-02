@@ -13,11 +13,11 @@ class RenkoTradingEnv(gym.Env):
     """
     metadata = {'render.modes': ['human']}
     
-    def __init__(self, data, initial_balance=10000):
+    def __init__(self, initial_balance=10000):
         super(RenkoTradingEnv, self).__init__()
         
         # Parameters and variables
-        self.data = data
+        # self.data = data
         self.initial_balance = initial_balance
         self.balance = initial_balance
         self.current_step = 0
@@ -25,6 +25,13 @@ class RenkoTradingEnv(gym.Env):
         self.playground_client = BacktesterPlaygroundClient(initial_balance, 'AAPL', '2021-01-04', '2021-01-31')
         self.returns = []
         self.negative_returns = []
+        self.close_prices = []
+        self.is_backtest_complete = False
+        self.sl = None
+        self.tp = None
+        self.timestamp = None
+        
+        print(f'Running simulation in playground {self.playground_client.id}')
 
         # Action space: Continuous (renko_size, take_profit, stop_loss)
         self.action_space = spaces.Box(low=np.array([5, 1, 1]), high=np.array([20, 5, 5]), dtype=np.float32)
@@ -37,38 +44,65 @@ class RenkoTradingEnv(gym.Env):
         renko_size = action[0]
         take_profit = action[1]
         stop_loss = action[2]
+        
+        self.sl = stop_loss
+        self.tp = take_profit
 
         reward = 0
         terminated = False
         truncated = False
 
         # Ensure we are still within the data bounds
-        if self.current_step >= len(self.data) - 1:
+        if self.playground_client.is_backtest_complete():
             truncated = True  # Episode truncated (e.g., max steps reached)
             return self._get_observation(), reward, terminated, truncated, {'balance': self.balance}
 
         # Simulate trade, adjust balance, and calculate reward
-        current_block = self.data['renko_chart'].iloc[self.current_step]
-        current_price = self.data['price'].iloc[self.current_step]
-        
+        account = self.playground_client.fetch_account_state()
+         
         if self.position == 0:
-            if self.position == 1:
-                self.playground_client.place_order('AAPL', 1, OrderSide.SELL)
-            elif self.position == -1:
-                self.playground_client.place_order('AAPL', 1, OrderSide.BUY)
+            if len(self.close_prices) >= 5:
+                ma = np.mean(self.close_prices)
+                current_price = self.close_prices[-1]
+                
+                if current_price > ma:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.SELL_SHORT)
+                    self.position = -1
+                elif current_price < ma:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.BUY)
+                    self.position = 1
+        else:        
+            pl  = account['positions']['AAPL']['pl']
             
-            self.position = current_block
-            self.entry_price = current_price
-        else:
-            price_change = (current_price - self.entry_price) * self.position
-            if price_change >= take_profit * renko_size:
-                reward += take_profit * renko_size
-                self.balance += reward
-                self.position = 0
-            elif price_change <= -stop_loss * renko_size:
-                reward -= stop_loss * renko_size
-                self.balance += reward
-                self.position = 0
+            if pl >= take_profit:
+                # Close the position
+                if self.position > 0:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.SELL)
+                    self.position = 0
+                elif self.position < 0:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.BUY_TO_COVER)
+                    self.position = 0
+                    
+            elif pl <= -stop_loss:
+                # Close the position
+                if self.position > 0:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.SELL)
+                    self.position = 0
+                elif self.position < 0:
+                    self.playground_client.place_order('AAPL', 1, OrderSide.BUY_TO_COVER)
+                    self.position = 0
+                
+        # Move into the future by one step
+        self.playground_client.tick(60)
+        if self.playground_client.current_candle:
+            self.timestamp = self.playground_client.current_candle['datetime']
+            self.close_prices.append(self.playground_client.current_candle['close'])
+            if len(self.close_prices) > 10:
+                self.close_prices.pop(0)
+            
+        # Update the account state
+        account = self.playground_client.fetch_account_state()
+        self.balance = account['balance']
 
         # Update the step and returns
         self.current_step += 1
@@ -86,8 +120,9 @@ class RenkoTradingEnv(gym.Env):
         obs = np.zeros(10, dtype=np.float32)
         
         # Ensure that the renko_chart has enough data to fill the observation
-        renko_blocks = self.data['renko_chart'].iloc[self.current_step:self.current_step + 10].values
-        obs[:len(renko_blocks)] = renko_blocks
+        # renko_blocks = self.data['renko_chart'].iloc[self.current_step:self.current_step + 10].values
+        # obs[:len(renko_blocks)] = renko_blocks
+        obs[:len(self.close_prices)] = self.close_prices
 
         # Append the balance as the 11th element
         return np.append(obs, [self.balance]).astype(np.float32)
@@ -97,60 +132,69 @@ class RenkoTradingEnv(gym.Env):
         if seed is not None:
             np.random.seed(seed)
         
+        self.playground_client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-31')
         self.balance = self.initial_balance
         self.current_step = 0
         self.position = 0
         self.returns = []
         self.negative_returns = []
+        self.close_prices = []
+        self.sl = None
+        self.tp = None
 
         # Return the initial observation and an empty info dictionary
         return self._get_observation(), {}
 
     def render(self, mode='human', close=False):
-        print(f"Step: {self.current_step}, Balance: {self.balance}, Position: {self.position}")
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Position: {self.position}, SL: {self.sl}, TP: {self.tp}")
 
-def load_data(csv_path):
-    df = pd.read_csv(csv_path)
+# def load_data(csv_path):
+#     df = pd.read_csv(csv_path)
     
-    # Flatten the renko_chart into a list and create corresponding price changes
-    renko_charts = []
-    prices = []
-    last_price = 100  # Start with an initial price of 100
+#     # Flatten the renko_chart into a list and create corresponding price changes
+#     renko_charts = []
+#     prices = []
+#     last_price = 100  # Start with an initial price of 100
     
-    for index, row in df.iterrows():
-        renko_sequence = list(map(int, row['renko_chart'].split(',')))
-        renko_charts.extend(renko_sequence)
-        for block in renko_sequence:
-            last_price += block * 10  # Assume renko_size=10 for simplicity
-            prices.append(last_price)
+#     for index, row in df.iterrows():
+#         renko_sequence = list(map(int, row['renko_chart'].split(',')))
+#         renko_charts.extend(renko_sequence)
+#         for block in renko_sequence:
+#             last_price += block * 10  # Assume renko_size=10 for simplicity
+#             prices.append(last_price)
     
-    data = pd.DataFrame({
-        'renko_chart': renko_charts,
-        'price': prices
-    })
+#     data = pd.DataFrame({
+#         'renko_chart': renko_charts,
+#         'price': prices
+#     })
     
-    return data
+#     return data
 
 # Load your data (replace 'renko_patterns.csv' with your file path)
-data = load_data('/Users/jamal/projects/slack-trading/cmd/backtester/renko_patterns.csv')
+# data = load_data('/Users/jamal/projects/slack-trading/cmd/backtester/renko_patterns.csv')
 
 # Initialize the environment
-env = RenkoTradingEnv(data)
+env = RenkoTradingEnv()
 
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])
 
 # Create and train the PPO model
 model = PPO('MlpPolicy', vec_env, verbose=1)
-model.learn(total_timesteps=10000)
+model.learn(total_timesteps=100)
 
 # Test the trained agent and track balance over time
 obs = vec_env.reset()
 balance_over_time = []
 
+print('Testing the agent...')
+print('Playground ID:', env.playground_client.id)
+
 for _ in range(1000):
     action, _states = model.predict(obs)
     result = vec_env.step(action)
+    sl = action[0][1]
+    tp = action[0][2]
     
     if len(result) == 5:
         obs, reward, terminated, truncated, info = result

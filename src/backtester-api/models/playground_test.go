@@ -210,6 +210,80 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, 1150.0, playground.GetBalance())
 	})
 
+	t.Run("GetAccountBalance - increase and decrease after profitable and unprofitable trade", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
+		t1 := startTime
+		t2 := startTime.Add(time.Second)
+		t3 := startTime.Add(2 * time.Second)
+		t4 := startTime.Add(3 * time.Second)
+		t5 := startTime.Add(4 * time.Second)
+		t6 := startTime.Add(5 * time.Second)
+
+		prices := []float64{0.0, 100.0, 110.0, 90.0, 100.0, 90.0}
+
+		now := startTime
+
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3, t4, t5, t6}, prices)
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		// open 1st order
+		order1 := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 1000.0, playground.GetBalance())
+
+		// open 2nd order
+		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 1000.0, playground.GetBalance())
+
+		// close orders
+		order3 := NewBacktesterOrder(3, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order3)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 700.0, playground.GetBalance())
+
+		// open 3rd order
+		order4 := NewBacktesterOrder(4, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order4)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 700.0, playground.GetBalance())
+
+		// close order
+		order5 := NewBacktesterOrder(5, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order5)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		assert.Equal(t, 800.0, playground.GetBalance())
+	})
+
 	t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
 		clock := NewClock(startTime, endTime)
 
@@ -270,9 +344,10 @@ func TestPositions(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	clock := NewClock(startTime, endTime)
 
 	t.Run("GetPosition", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		playground, err := NewPlayground(1000.0, clock, mock.NewMockBacktesterDataFeed(symbol, nil, nil))
 		assert.NoError(t, err)
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
@@ -280,7 +355,157 @@ func TestPositions(t *testing.T) {
 		assert.Equal(t, 0.0, position.CostBasis)
 	})
 
+	t.Run("GetPosition - average cost basis - multiple orders - same direction", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
+		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3, t4}, []float64{100.0, 200.0, 300.0, 400.0})
+
+		now := startTime
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		// 1st order
+		order1 := NewBacktesterOrder(1, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position := playground.GetPosition(symbol)
+		assert.Equal(t, 10.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		// 2nd order
+		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 20.0, position.Quantity)
+		assert.Equal(t, 150.0, position.CostBasis)
+
+		// close orders
+		order3 := NewBacktesterOrder(3, Equity, now, symbol, BacktesterOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order3)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 0.0, position.Quantity)
+		assert.Equal(t, 0.0, position.CostBasis)
+
+		// 3rd order - original direction
+		order4 := NewBacktesterOrder(4, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order4)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 10.0, position.Quantity)
+		assert.Equal(t, 400.0, position.CostBasis)
+	})
+
+	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
+		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
+		t5 := time.Date(2021, time.January, 1, 0, 0, 5, 0, time.UTC)
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3, t4, t5}, []float64{100.0, 200.0, 300.0, 400.0, 500.0})
+
+		now := startTime
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+
+		// 1st order
+		order1 := NewBacktesterOrder(1, Equity, now, symbol, BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position := playground.GetPosition(symbol)
+		assert.Equal(t, -10.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		// 2nd order
+		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, -20.0, position.Quantity)
+		assert.Equal(t, 150.0, position.CostBasis)
+
+		// close orders
+		order3 := NewBacktesterOrder(3, Equity, now, symbol, BacktesterOrderSideBuyToCover, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order3)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 0.0, position.Quantity)
+		assert.Equal(t, 0.0, position.CostBasis)
+
+		// 3rd order - reverse direction
+		order4 := NewBacktesterOrder(4, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order4)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 10.0, position.Quantity)
+		assert.Equal(t, 400.0, position.CostBasis)
+
+		// 4th order - reverse direction
+		order5 := NewBacktesterOrder(5, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order5)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 20.0, position.Quantity)
+		assert.Equal(t, 450.0, position.CostBasis)
+	})
+
 	t.Run("GetPosition - average cost basis", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2}, []float64{600.0, 300.0})
@@ -369,6 +594,8 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
 
 		now := startTime
@@ -401,6 +628,8 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - Quantity decrease after buy to cover", func(t *testing.T) {
+		clock := NewClock(startTime, endTime)
+
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
 
 		now := startTime
