@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -277,7 +278,28 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// end at stock market close
 	toDate := time.Date(stop.Year, time.Month(stop.Month), stop.Day, 16, 0, 0, 0, loc)
 
-	return models.NewClock(fromDate, toDate), nil
+	// create calendar
+	startDate := eventmodels.PolygonDate{
+		Year:  start.Year,
+		Month: start.Month,
+		Day:   start.Day,
+	}
+
+	endDate := eventmodels.PolygonDate{
+		Year:  stop.Year,
+		Month: stop.Month,
+		Day:   stop.Day,
+	}
+
+	calendar, err := services.FetchCalendar(startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("createClock: failed to fetch calendar: %w", err)
+	}
+
+	// create clock
+	clock := models.NewClock(fromDate, toDate, calendar)
+
+	return clock, nil
 }
 
 func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) (*models.BacktesterCandleRepository, error) {

@@ -1,0 +1,97 @@
+package services
+
+import (
+	"encoding/csv"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"time"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
+)
+
+func FetchCalendar(startDate, endDate eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	if err != nil {
+		panic(err)
+	}
+
+	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	scriptDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "pandas_market_calendars", "main.py")
+	startDateArg := startDate.ToString()
+	endDateArg := endDate.ToString()
+
+	cmd := exec.Command(interpreter, scriptDir, startDateArg, endDateArg)
+	cmd.Stderr = os.Stderr
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("FetchCalendar: error running main.py: %v", err)
+	}
+
+	// Unmarshal CSV data
+	schedules, err := unmarshalCSV(output)
+	if err != nil {
+		return nil, fmt.Errorf("FetchCalendar: error unmarshalling CSV: %v", err)
+	}
+
+	// Return the schedules
+	scheduleMap := make(map[string]*eventmodels.Calendar)
+
+	for _, schedule := range schedules {
+		scheduleMap[schedule.Date] = &schedule
+	}
+
+	return scheduleMap, nil
+}
+
+func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
+	r := csv.NewReader(strings.NewReader(string(data)))
+	r.FieldsPerRecord = -1 // Allow variable number of fields per record
+
+	// Read the header
+	_, err := r.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	var schedules []eventmodels.Calendar
+	const layout = "2006-01-02 15:04:05-07:00" // Custom layout to match the time format
+
+	for {
+		record, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		marketOpen, err := time.Parse(layout, record[1])
+		if err != nil {
+			return nil, err
+		}
+
+		marketClose, err := time.Parse(layout, record[2])
+		if err != nil {
+			return nil, err
+		}
+
+		schedule := eventmodels.Calendar{
+			Date:        record[0],
+			MarketOpen:  marketOpen,
+			MarketClose: marketClose,
+		}
+		schedules = append(schedules, schedule)
+	}
+
+	if len(schedules) == 0 {
+		return nil, fmt.Errorf("unmarshalCSV: no schedules found")
+	}
+
+	return schedules, nil
+}

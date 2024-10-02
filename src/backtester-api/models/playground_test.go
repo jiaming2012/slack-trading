@@ -23,7 +23,7 @@ func TestFeed(t *testing.T) {
 	t3_goog := startTime.Add(20 * time.Second)
 
 	t.Run("Returns previous candle until new candle is available", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
@@ -35,7 +35,7 @@ func TestFeed(t *testing.T) {
 	})
 
 	t.Run("Skip a candle", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
@@ -56,7 +56,7 @@ func TestFeed(t *testing.T) {
 	})
 
 	t.Run("Returns new candle/s on state changes", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 		feed1 := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
 		feed2 := mock.NewMockBacktesterDataFeed(symbol2, []time.Time{t1_goog, t2_goog, t3_goog}, []float64{0.0, 100.0, 200.0})
 
@@ -89,7 +89,7 @@ func TestFeed(t *testing.T) {
 	})
 
 	t.Run("GetCandle returns the first candle until Tick is called", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 		feed := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{startTime, startTime.Add(5), startTime.Add(10)}, []float64{0.0, 10.0, 15.0})
 
 		playground, err := NewPlayground(1000.0, clock, feed)
@@ -109,7 +109,7 @@ func TestClock(t *testing.T) {
 	t.Run("Backtester is complete", func(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
 
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{startTime, startTime.Add(1), startTime.Add(2)}, []float64{100.0, 100.0, 100.0})
 
@@ -135,7 +135,7 @@ func TestClock(t *testing.T) {
 	})
 
 	t.Run("Clock remains finished", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		clock.Add(60 * time.Minute)
 
@@ -147,7 +147,7 @@ func TestClock(t *testing.T) {
 	})
 
 	t.Run("Clock is finished at end time", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		assert.False(t, clock.IsExpired())
 
@@ -167,7 +167,7 @@ func TestBalance(t *testing.T) {
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 
 	t.Run("GetAccountBalance", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		playground, err := NewPlayground(1000.0, clock, mock.NewMockBacktesterDataFeed(symbol, nil, nil))
 
@@ -179,7 +179,7 @@ func TestBalance(t *testing.T) {
 	})
 
 	t.Run("GetAccountBalance - increase after profitable trade", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
 
@@ -211,7 +211,7 @@ func TestBalance(t *testing.T) {
 	})
 
 	t.Run("GetAccountBalance - increase and decrease after profitable and unprofitable trade", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		t1 := startTime
 		t2 := startTime.Add(time.Second)
@@ -285,7 +285,7 @@ func TestBalance(t *testing.T) {
 	})
 
 	t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		t1 := startTime
 		t2 := startTime.Add(time.Second)
@@ -325,7 +325,7 @@ func TestPlaceOrder(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
 
@@ -346,7 +346,7 @@ func TestPositions(t *testing.T) {
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 
 	t.Run("GetPosition", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		playground, err := NewPlayground(1000.0, clock, mock.NewMockBacktesterDataFeed(symbol, nil, nil))
 		assert.NoError(t, err)
@@ -356,7 +356,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - same direction", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
@@ -423,7 +423,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
@@ -504,7 +504,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - average cost basis", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
@@ -540,7 +540,7 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition - Quantity increase after buy", func(t *testing.T) {
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
 
@@ -564,7 +564,7 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition - Quantity decrease after sell", func(t *testing.T) {
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
 
@@ -594,7 +594,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
 
@@ -628,7 +628,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - Quantity decrease after buy to cover", func(t *testing.T) {
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
 
@@ -666,7 +666,7 @@ func TestOrders(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	clock := NewClock(startTime, endTime)
+	clock := NewClock(startTime, endTime, nil)
 
 	now := startTime
 
@@ -767,7 +767,7 @@ func TestTrades(t *testing.T) {
 
 	t.Run("Short order rejected if long position exists", func(t *testing.T) {
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
@@ -794,7 +794,7 @@ func TestTrades(t *testing.T) {
 
 	t.Run("Tick", func(t *testing.T) {
 		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{t1, t2, t3}, prices)
-		clock := NewClock(startTime, endTime)
+		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
 		playground, err := NewPlayground(1000.0, clock, feed)
