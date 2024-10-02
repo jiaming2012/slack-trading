@@ -92,7 +92,7 @@ func main() {
 	probabilityTransitionDown := 0.1
 	probabilityCandleUp := 0.55
 	jumpSize := 5.0
-	startTimeStr := "2024-01-01 9:00:00"
+	startTimeStr := "2021-01-04 9:30:00"
 
 	// Initial Time
 	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)

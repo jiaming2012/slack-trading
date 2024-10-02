@@ -7,12 +7,23 @@ class OrderSide(Enum):
     SELL = 'sell'
     SELL_SHORT = 'sell_short'
     BUY_TO_COVER = 'buy_to_cover'
+    
+class RepositorySource(Enum):
+    CSV = 'csv'
+    POLYGON = 'polygon'
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str):
+    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None):
         self.symbol = symbol
         self.base_url = 'http://localhost:8080'
-        self.id = self.create_playground(balance, symbol, start_date, stop_date)
+        
+        if source == RepositorySource.CSV:
+            self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
+        elif source == RepositorySource.POLYGON:
+            self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date)
+        else:
+            raise Exception('Invalid source')
+
         self.current_candle = None
         self._is_backtest_complete = False
         
@@ -66,8 +77,7 @@ class BacktesterPlaygroundClient:
         
         return response.json()
     
-    def create_playground(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
-        # Create a new playground
+    def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         response = requests.post(
             f'{self.base_url}/playground',
             json={
@@ -81,6 +91,37 @@ class BacktesterPlaygroundClient:
                     'timespan': {
                         'multiplier': 1,
                         'unit': 'minute'
+                    },
+                    'source': {
+                        'type': 'csv',
+                        'filename': filename
+                    }
+                }
+            }
+        )
+        
+        if response.status_code != 200:
+            raise Exception(response.text)
+        
+        return response.json()['playground_id']
+    
+    def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
+        response = requests.post(
+            f'{self.base_url}/playground',
+            json={
+                'balance': balance,
+                'clock': {
+                    'start': start_date,
+                    'stop': stop_date
+                },
+                'repository': {
+                    'symbol': symbol,
+                    'timespan': {
+                        'multiplier': 1,
+                        'unit': 'minute'
+                    },
+                    'source': {
+                        'type': 'polygon'
                     }
                 }
             }

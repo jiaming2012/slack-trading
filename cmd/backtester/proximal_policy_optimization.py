@@ -5,7 +5,7 @@ import pandas as pd
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
-from backtester_playground_client import BacktesterPlaygroundClient, OrderSide
+from backtester_playground_client import BacktesterPlaygroundClient, OrderSide, RepositorySource
 
 class RenkoTradingEnv(gym.Env):
     """
@@ -22,7 +22,7 @@ class RenkoTradingEnv(gym.Env):
         self.balance = initial_balance
         self.current_step = 0
         self.position = 0  # 1 for long, -1 for short, 0 for no position
-        self.playground_client = BacktesterPlaygroundClient(initial_balance, 'AAPL', '2021-01-04', '2021-01-31')
+        self.playground_client = BacktesterPlaygroundClient(initial_balance, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.CSV, 'training_data.csv')
         self.returns = []
         self.negative_returns = []
         self.close_prices = []
@@ -139,7 +139,7 @@ class RenkoTradingEnv(gym.Env):
         if seed is not None:
             np.random.seed(seed)
         
-        self.playground_client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-31')
+        self.playground_client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.CSV, 'training_data.csv')
         self.balance = self.initial_balance
         self.current_step = 0
         self.position = 0
@@ -187,8 +187,8 @@ env = RenkoTradingEnv()
 vec_env = DummyVecEnv([lambda: env])
 
 # Create and train the PPO model
-model = PPO('MlpPolicy', vec_env, verbose=1)
-model.learn(total_timesteps=100000)
+model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64]})
+model.learn(total_timesteps=10000)
 
 # Test the trained agent and track balance over time
 obs = vec_env.reset()
@@ -197,7 +197,7 @@ balance_over_time = []
 print('Testing the agent...')
 print('Playground ID:', env.playground_client.id)
 
-for i in range(1000):
+for i in range(2000):
     action, _states = model.predict(obs)
     result = vec_env.step(action)
     sl = action[0][1]
