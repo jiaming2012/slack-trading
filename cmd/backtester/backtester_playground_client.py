@@ -1,6 +1,31 @@
 import requests
 from enum import Enum
+from datetime import datetime, timedelta
 import numpy as np
+from urllib.parse import urlencode
+from dataclasses import dataclass
+from typing import List
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
+
+@dataclass
+class Trade:
+    symbol: str
+    quantity: int
+    price: float
+    create_date: datetime
+    
+@dataclass
+class Candle:
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+    datetime: str
 
 class OrderSide(Enum):
     BUY = 'buy'
@@ -35,8 +60,101 @@ class BacktesterPlaygroundClient:
         
         return response.json()
     
+    def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
+        current_date = trade.create_date
+        while True:
+            future_date = current_date + timedelta(hours=1)  # use library for next day
+            candles = self.fetch_candles(current_date, future_date)
+            
+            if len(candles) == 0:
+                break
+            
+            for candle in candles:
+                if candle.close <= sl:
+                    return -abs(trade.quantity * (sl - trade.price))
+                elif candle.close >= tp:
+                    return abs(trade.quantity * (tp - trade.price))
+                
+            current_date = future_date
+            
+        return 0
+    
+    def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float) -> float:
+        new_trades = current_state.get('new_trades')
+        if not new_trades or len(new_trades) == 0:
+            return 0
+        
+        reward = 0
+        
+        for trade in new_trades:
+            if trade['symbol'] == self.symbol:
+                qty = trade['quantity']
+                prc = trade['price']
+            
+                if qty > 0:
+                    sl_prc = prc - sl
+                    tp_prc = prc + tp
+                elif qty < 0:
+                    sl_prc = prc + sl
+                    tp_prc = prc - tp
+                else:
+                    continue
+                
+                reward += self.calculate_future_pl(
+                    Trade(
+                        symbol=trade['symbol'],
+                        quantity=trade['quantity'],
+                        price=prc,
+                        create_date=datetime.fromisoformat(trade['create_date'])
+                    ),
+                    sl_prc,
+                    tp_prc
+                )
+        
+        return reward
+    
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
+    
+    def fetch_candles(self, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
+        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+        
+       # Manually insert the colon in the timezone offset
+        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
+        toStr = toStr[:-2] + ':' + toStr[-2:]
+        
+        query_params = urlencode({
+            'symbol': self.symbol,
+            'from': fromStr,
+            'to': toStr
+        })
+                
+        response = requests.get(
+            f'{self.base_url}/playground/{self.id}/candles?{query_params}'
+        )
+        
+        if response.status_code != 200:
+            raise Exception(response.text)
+        
+        resp = response.json()
+        
+        candles_data = resp.get('candles')
+        if not candles_data:
+            return []
+        
+        candles = [
+            Candle(
+                open=candle['open'],
+                high=candle['high'],
+                low=candle['low'],
+                close=candle['close'],
+                volume=candle['volume'],
+                datetime=candle['datetime']
+            ) for candle in candles_data
+        ]
+        
+        return candles
         
     def tick(self, seconds: int) -> object:
         response = requests.post(
@@ -134,7 +252,7 @@ class BacktesterPlaygroundClient:
 
 if __name__ == '__main__':
     try:
-        playground_client = BacktesterPlaygroundClient(1000, 'AAPL', '2021-01-04', '2021-01-31')
+        playground_client = BacktesterPlaygroundClient(1000, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
         
         print('playground_id: ', playground_client.id)
         
@@ -142,9 +260,9 @@ if __name__ == '__main__':
         
         print(result)
         
-        result = playground_client.tick(60)
+        new_state = playground_client.tick(60)
         
-        print(result)
+        print(new_state)
         
         account = playground_client.fetch_account_state()
         
@@ -152,15 +270,14 @@ if __name__ == '__main__':
         
         print(account['balance'])
         
-        x = [1,2,3,4,5]
-        
-        y = np.zeros(10, dtype=np.float32)
-        
-        y[:len(x)] = x
-        
-        print(y)
-        
         print(playground_client.is_backtest_complete())
+        
+        candles = playground_client.fetch_candles(datetime(2021, 1, 4, 10, 40, 0, 0, ZoneInfo('US/Eastern')), datetime(2021, 1, 4, 11, 0, 0, 0, ZoneInfo('US/Eastern')))
+        
+        reward = playground_client.fetch_reward_from_new_trades(new_state, 2, 2)
+        
+        print('reward: ', reward)
+        
         
     except Exception as e:
         print(e)

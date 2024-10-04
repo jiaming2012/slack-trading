@@ -124,6 +124,12 @@ type CreateOrderRequest struct {
 	Tag       string                         `json:"tag"`
 }
 
+type FetchCandlesRequest struct {
+	Symbol string    `json:"symbol"`
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+}
+
 func (req *CreateOrderRequest) Validate() error {
 	if err := req.Class.Validate(); err != nil {
 		return fmt.Errorf("invalid class: %w", err)
@@ -392,6 +398,68 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleCandles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(404)
+		return
+	}
+
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		setErrorResponse("handleCandles: failed to playground id", 400, err, w)
+		return
+	}
+
+	playground, ok := playgrounds[id]
+	if !ok {
+		setErrorResponse("handleCandles: playground not found", 404, fmt.Errorf("playground not found"), w)
+		return
+	}
+
+	// fetch from query parameters
+	if err := r.ParseForm(); err != nil {
+		setErrorResponse("handleCandles: failed to parse form", 400, err, w)
+		return
+	}
+
+	symbolStr := r.Form.Get("symbol")
+	if symbolStr == "" {
+		setErrorResponse("handleCandles: missing symbol", 400, fmt.Errorf("missing symbol"), w)
+		return
+	}
+
+	fromStr := r.Form.Get("from")
+
+	from, err := time.Parse(time.RFC3339, fromStr)
+	if err != nil {
+		setErrorResponse("handleCandles: failed to parse from", 400, err, w)
+		return
+	}
+
+	toStr := r.Form.Get("to")
+	to, err := time.Parse(time.RFC3339, toStr)
+	if err != nil {
+		setErrorResponse("handleCandles: failed to parse to", 400, err, w)
+		return
+	}
+
+	candles, err := playground.FetchCandles(eventmodels.StockSymbol(symbolStr), from, to)
+	if err != nil {
+		setErrorResponse("handleCandles: failed to fetch candles", 500, err, w)
+		return
+	}
+
+	response := map[string]interface{}{
+		"candles": candles,
+	}
+
+	if err := setResponse(response, w); err != nil {
+		setErrorResponse("handleCandles: failed to set response", 500, err, w)
+		return
+	}
+}
+
 func handlePlayground(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		getPlayground(w, r)
@@ -456,4 +524,5 @@ func SetupHandler(router *mux.Router, projectsDir string, apiKey string) {
 	router.HandleFunc("/{id}/account", handleAccount)
 	router.HandleFunc("/{id}/order", handleOrder)
 	router.HandleFunc("/{id}/tick", handleTick)
+	router.HandleFunc("/{id}/candles", handleCandles)
 }

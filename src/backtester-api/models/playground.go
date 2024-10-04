@@ -102,6 +102,20 @@ func (p *Playground) GetCurrentTime() time.Time {
 	return p.clock.CurrentTime
 }
 
+func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	repo, ok := p.repos[symbol]
+	if !ok {
+		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
+	}
+
+	candles, err := repo.FetchRange(from, to)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching candles: %w", err)
+	}
+
+	return candles, nil
+}
+
 func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	if !p.clock.IsExpired() {
 		p.clock.Add(d)
