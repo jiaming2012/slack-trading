@@ -163,6 +163,15 @@ func checkMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecute
 	return nil
 }
 
+func symbolPriceAdjustment(symbol eventmodels.StockSymbol, price float64) float64 {
+	if symbol == "SPX" {
+		// must follow a tick size of 0.05
+		return math.Round(price*20) / 20
+	}
+
+	return price
+}
+
 func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, options []*eventmodels.OptionSpreadContractDTO, event eventmodels.SignalTriggeredEvent, riskProfileConstraint *eventmodels.RiskProfileConstraint) ([]*eventmodels.TradeSpreadRequestComponents, error) {
 	tracer := otel.GetTracerProvider().Tracer("getTradeComponents")
 	ctx, span := tracer.Start(ctx, "getTradeComponents")
@@ -188,6 +197,7 @@ func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, 
 
 	for _, spread := range highestEVLongSpreads {
 		if spread != nil {
+			// requestedPrc = symbolPriceAdjustment(event.Symbol, requestedPrc)
 			logger.WithField("event", "signal").Infof("Ignoring long %s: %v", side, spread)
 		} else {
 			logger.WithField("event", "signal").Infof("No Positive EV Long %s found", side)
@@ -205,6 +215,8 @@ func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, 
 				logger.Errorf("getTradeComponents: requested price must be positive")
 				continue
 			}
+
+			requestedPrc = symbolPriceAdjustment(event.Symbol, requestedPrc)
 
 			tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
