@@ -56,7 +56,7 @@ class RenkoTradingEnv(gym.Env):
         self.action_space = spaces.Box(low=np.array([50, 50]), high=np.array([80, 80]), dtype=np.float32)
 
         # Observation space: Last 10 Renko blocks + portfolio balance + pl + position
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(303,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(305,), dtype=np.float32)
         
     def print_current_state(self):
         if self.timestamp is None:
@@ -75,7 +75,7 @@ class RenkoTradingEnv(gym.Env):
             avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
             avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
             
-            print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Position: {self.position}, PL: {self.pl}, Current Price: {self.current_price}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}')
+            print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Commission: {self.total_commission}, PL: {self.pl}, Current Price: {self.current_price}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}')
 
     def get_reward(self):
         return self.balance + self.pl - self.initial_balance - self.total_commission
@@ -186,7 +186,7 @@ class RenkoTradingEnv(gym.Env):
         obs = np.zeros(300, dtype=np.float32)
 
         if len(self.recent_close_prices) == 0:
-            return np.append(obs, [self.balance, self.position, self.pl]).astype(np.float32)
+            return np.append(obs, [self.balance, self.position, self.pl, self.initial_balance, self.total_commission]).astype(np.float32)
         
         # Create a non-zero mask
         non_zero_mask = self.recent_close_prices != 0
@@ -197,7 +197,7 @@ class RenkoTradingEnv(gym.Env):
 
         obs[:len(diff)] = diff
         
-        return np.append(obs, [self.balance, self.position, self.pl]).astype(np.float32)
+        return np.append(obs, [self.balance, self.position, self.pl, self.initial_balance, self.total_commission]).astype(np.float32)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -217,7 +217,7 @@ class RenkoTradingEnv(gym.Env):
         avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Position: {self.position}, SL: {self.sl}, TP: {self.tp}, Total Commission: {self.total_commission}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}") 
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Commission: {self.total_commission}, SL: {self.sl}, TP: {self.tp}, Total Commission: {self.total_commission}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}") 
 
 # def load_data(csv_path):
 #     df = pd.read_csv(csv_path)
