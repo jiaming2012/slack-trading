@@ -68,8 +68,8 @@ class RenkoTradingEnv(gym.Env):
         days_elapsed = (t2 - t1).days
         if days_elapsed >= 1:
             self._internal_timestamp = self.timestamp
-            avg_sl = np.mean(self.sl_history)
-            avg_tp = np.mean(self.tp_history)
+            avg_sl = np.mean(self.sl_history) if len(self.sl_history) > 0 else 0
+            avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
             print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Position: {self.position}, PL: {self.pl}, Current Price: {self.current_price}, MA: {self.ma}, Avg SL: {avg_sl}, Avg TP: {avg_tp}')
 
     def get_reward(self):
@@ -220,8 +220,8 @@ class RenkoTradingEnv(gym.Env):
         return self._get_observation(), {}
 
     def render(self, mode='human', close=False):
-        avg_sl = np.mean(self.sl_history)
-        avg_tp = np.mean(self.tp_history)
+        avg_sl = np.mean(self.sl_history) if len(self.sl_history) > 0 else 0
+        avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
         print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Position: {self.position}, SL: {self.sl}, TP: {self.tp}, Total Commission: {self.total_commission}, Avg SL: {avg_sl}, Avg TP: {avg_tp}")
 
 # def load_data(csv_path):
