@@ -25,7 +25,7 @@ go run generate_data/main.go
 mv stock_data.csv ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/validation_data.csv
 ```
 
-## Plot the data
+## Plot the Data
 ``` bash
 python ${PROJECTS_DIR}/slack-trading/src/cmd/stats/plot_candlestick.py ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/training_data.csv
 ```
@@ -38,6 +38,15 @@ cd ${PROJECTS_DIR}/slack-trading/src/eventmain
 ```
 
 ## Run the PPO
+First we have to install of stats python packages:
 ``` bash
+cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+source env/bin/activate
+pip install -r requirements.txt
+```
 
+Finally we can run our script:
+``` bash
+cd ${PROJECTS_DIR}/slack-trading
+./cmd/backtester/venv/bin/python cmd/backtester/proximal_policy_optimization.py
 ```
