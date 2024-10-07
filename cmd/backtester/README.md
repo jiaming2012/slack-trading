@@ -11,7 +11,7 @@ pip install -r requirements.txt
 # Proximal Policy Optimization
 Runs a machine learning reinforcement algorithm to train a model on a particular strategy, leveraging the backtester playground API.
 
-# Run
+# Prepare the Data
 First, we want to generate fake training data
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
@@ -28,4 +28,9 @@ mv stock_data.csv ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/validati
 ## Plot the data
 ``` bash
 python ${PROJECTS_DIR}/slack-trading/src/cmd/stats/plot_candlestick.py ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/training_data.csv
+```
+
+## Run it
+``` bash
+
 ```
