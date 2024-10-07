@@ -23,7 +23,7 @@ class RenkoTradingEnv(gym.Env):
         self.playground_client = BacktesterPlaygroundClient(self.balance, 'AAPL', '2021-01-04', '2021-01-12', RepositorySource.CSV, 'training_data.csv')
         self.returns = []
         self.negative_returns = []
-        self.recent_close_prices = []
+        self.recent_close_prices = np.array([])
         self.is_backtest_complete = False
         self.sl = 0
         self.tp = 0
@@ -50,10 +50,10 @@ class RenkoTradingEnv(gym.Env):
         self.sl_history, self.tp_history, self.rewards_history = [], [], []
 
         # Action space: Continuous (take_profit, stop_loss)
-        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([100, 100]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([50, 50]), high=np.array([80, 80]), dtype=np.float32)
 
         # Observation space: Last 10 Renko blocks + portfolio balance + pl + position
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(306,), dtype=np.float32)
         
     def print_current_state(self):
         if self.timestamp is None:
@@ -153,9 +153,9 @@ class RenkoTradingEnv(gym.Env):
         
         if self.playground_client.current_candle:
             self.timestamp = self.playground_client.current_candle['datetime']
-            self.recent_close_prices.append(self.playground_client.current_candle['close'])
-            if len(self.recent_close_prices) > 100:
-                self.recent_close_prices.pop(0)
+            self.recent_close_prices = self.recent_close_prices.append(self.playground_client.current_candle['close'])
+            if len(self.recent_close_prices) > 300:
+                self.recent_close_prices = self.recent_close_prices[1:]  # Remove the first element
                 
         # Print the current time
         self.print_current_state()
@@ -179,38 +179,22 @@ class RenkoTradingEnv(gym.Env):
         return observation, reward, truncated, terminated, info
 
     def _get_observation(self):
-        # Get the last 10 prices, padded if necessary
-        obs = np.zeros(0, dtype=np.float32)
-        
-        # Ensure that the renko_chart has enough data to fill the observation
-        # renko_blocks = self.data['renko_chart'].iloc[self.current_step:self.current_step + 10].values
-        # obs[:len(renko_blocks)] = renko_blocks
-        if len(self.recent_close_prices) > 0:
-            moving_average = np.mean(self.recent_close_prices)
-            min = np.min(self.recent_close_prices)
-            max = np.max(self.recent_close_prices)
-            
-            # obs[:len(self.close_prices)] = self.close_prices - moving_average
-            obs = np.append(obs, [self.recent_close_prices[-1]]).astype(np.float32)
-            obs = np.append(obs, [moving_average]).astype(np.float32)
-            obs = np.append(obs, [min]).astype(np.float32)
-            obs = np.append(obs, [max]).astype(np.float32)
-        else:
-            obs = np.append(obs, [0]).astype(np.float32)
-            obs = np.append(obs, [0]).astype(np.float32)
-            obs = np.append(obs, [0]).astype(np.float32)
-            obs = np.append(obs, [0]).astype(np.float32)
+        # Get the last 300 prices, padded if necessary
+        obs = np.zeros(300, dtype=np.float32)
 
-        # Append the balance as the 11th element
-        # obs = np.append(obs, [self.balance]).astype(np.float32)
+        if len self.recent_close_prices = 0:
+            return np.append(obs, [self.balance, self.position, self.pl]).astype(np.float32)
         
-        # Append pl as the 12th element
-        obs = np.append(obs, [self.pl]).astype(np.float32)
+        # Create a non-zero mask
+        non_zero_mask = self.recent_close_prices != 0
+
+        mean = np.mean(self.recent_close_prices[non_zero_mask])
+
+        diff = self.recent_close_prices - mean
+
+        obs[:len(diff)] = diff
         
-        # Append position as the 13th element
-        obs = np.append(obs, [self.position]).astype(np.float32)
-        
-        return obs
+        return np.append(obs, [self.balance, self.position, self.pl]).astype(np.float32)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -273,11 +257,11 @@ model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 12
 # Epsilon-greedy parameters
 timestep_epsilon = 1.0  # Initial exploration rate
 epsilon_min = 0.1  # Minimum exploration rate
-timestep_epsilon_decay = 0.9 
+timestep_epsilon_decay = 0.99 
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 5
+total_timesteps = 50
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
 
