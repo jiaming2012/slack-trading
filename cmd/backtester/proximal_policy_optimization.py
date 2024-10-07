@@ -53,7 +53,7 @@ class RenkoTradingEnv(gym.Env):
         self.action_space = spaces.Box(low=np.array([50, 50]), high=np.array([80, 80]), dtype=np.float32)
 
         # Observation space: Last 10 Renko blocks + portfolio balance + pl + position
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(306,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(303,), dtype=np.float32)
         
     def print_current_state(self):
         if self.timestamp is None:
@@ -153,7 +153,7 @@ class RenkoTradingEnv(gym.Env):
         
         if self.playground_client.current_candle:
             self.timestamp = self.playground_client.current_candle['datetime']
-            self.recent_close_prices = self.recent_close_prices.append(self.playground_client.current_candle['close'])
+            self.recent_close_prices = np.append(self.recent_close_prices, self.playground_client.current_candle['close'])
             if len(self.recent_close_prices) > 300:
                 self.recent_close_prices = self.recent_close_prices[1:]  # Remove the first element
                 
@@ -182,7 +182,7 @@ class RenkoTradingEnv(gym.Env):
         # Get the last 300 prices, padded if necessary
         obs = np.zeros(300, dtype=np.float32)
 
-        if len self.recent_close_prices = 0:
+        if len(self.recent_close_prices) == 0:
             return np.append(obs, [self.balance, self.position, self.pl]).astype(np.float32)
         
         # Create a non-zero mask
