@@ -6,6 +6,9 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from datetime import datetime
 import random
+import argparse
+import os
+
 # from stable_baselines3.common.noise import NormalActionNoise
 import matplotlib.pyplot as plt
 from backtester_playground_client import BacktesterPlaygroundClient, OrderSide, RepositorySource
@@ -240,6 +243,13 @@ class RenkoTradingEnv(gym.Env):
 
 # Load your data (replace 'renko_patterns.csv' with your file path)
 # data = load_data('/Users/jamal/projects/slack-trading/cmd/backtester/renko_patterns.csv')
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', type=str, help='The name of the model to load')
+args = parser.parse_args()
+
+projectsDir = os.getenv('PROJECTS_DIR')
+if projectsDir is None:
+    raise ValueError('PROJECTS_DIR environment variable is not set')
 
 # Initialize the environment
 env = RenkoTradingEnv()
@@ -247,12 +257,21 @@ env = RenkoTradingEnv()
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])
 
+if args.model is not None:
+    # Load the PPO model
+    loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+    model = PPO.load(os.path.join(loadModelDir, args.model))
+    model.set_env(vec_env)  # Assign the environment again (necessary for further training)
+    print(f'Loaded model: {args.model}')
+else:
+    # Create and train the PPO model
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.1)
+
 # Add action noise for exploration
 # n_actions = env.action_space.shape[-1]
 # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
-# Create and train the PPO model
-model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.1)
+
 
 # Epsilon-greedy parameters
 timestep_epsilon = 1.0  # Initial exploration rate
@@ -261,7 +280,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 50
+total_timesteps = 1
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
 
@@ -303,6 +322,12 @@ for timestep in range(total_timesteps):
     
     # Reset the environment
     obs = vec_env.reset()
+
+# Save the trained model with timestamp
+saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+modelName = 'my_first_ppo_model-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+model.save(os.path.join(saveModelDir, modelName))
+print(f'Saved model: {modelName} to {saveModelDir}')
 
 # Test the trained agent and track balance over time
 obs = vec_env.reset()
