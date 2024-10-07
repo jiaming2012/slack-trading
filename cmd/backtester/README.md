@@ -30,7 +30,14 @@ mv stock_data.csv ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/validati
 python ${PROJECTS_DIR}/slack-trading/src/cmd/stats/plot_candlestick.py ${PROJECTS_DIR}/slack-trading/src/backtester-api/data/training_data.csv
 ```
 
-## Run it
+## Run Event Main
+Event main is needed to use the playground api.
+``` bash
+cd ${PROJECTS_DIR}/slack-trading/src/eventmain
+./run-dev.sh
+```
+
+## Run the PPO
 ``` bash
 
 ```

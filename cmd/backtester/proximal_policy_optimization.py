@@ -33,7 +33,7 @@ class RenkoTradingEnv(gym.Env):
         self.timestamp = None
         self._internal_timestamp = None
         self.total_commission = 0
-        self.sl_history, self.tp_history = [], []
+        self.sl_history, self.tp_history, self.rewards_history = [], [], []
         
         print(f'Running simulation in playground {self.playground_client.id}')
         
@@ -47,7 +47,7 @@ class RenkoTradingEnv(gym.Env):
         self.pl = None
         self.timestamp = None
         self._internal_timestamp = None
-        self.sl_history, self.tp_history = [], []
+        self.sl_history, self.tp_history, self.rewards_history = [], [], []
 
         # Action space: Continuous (take_profit, stop_loss)
         self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([100, 100]), dtype=np.float32)
@@ -70,7 +70,9 @@ class RenkoTradingEnv(gym.Env):
             self._internal_timestamp = self.timestamp
             avg_sl = np.mean(self.sl_history) if len(self.sl_history) > 0 else 0
             avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
-            print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Position: {self.position}, PL: {self.pl}, Current Price: {self.current_price}, MA: {self.ma}, Avg SL: {avg_sl}, Avg TP: {avg_tp}')
+            avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
+            
+            print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Position: {self.position}, PL: {self.pl}, Current Price: {self.current_price}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}')
 
     def get_reward(self):
         return self.balance + self.pl - self.initial_balance - self.total_commission
@@ -91,12 +93,14 @@ class RenkoTradingEnv(gym.Env):
         truncated = False
         if self.balance <= 0:
             reward = self.get_reward()
+            self.rewards_history.append(reward)
             terminated = True
             self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
 
         # Ensure we are still within the data bounds
         if self.playground_client.is_backtest_complete():
             reward = self.get_reward()
+            self.rewards_history.append(reward)
             truncated = True  # Episode truncated (e.g., max steps reached)
             return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
 
@@ -160,6 +164,8 @@ class RenkoTradingEnv(gym.Env):
         account = self.playground_client.fetch_account_state()
         self.balance = account['balance'] - self.total_commission
         reward = self.get_reward()
+        self.rewards_history.append(reward)
+        
 
         # Update the step and returns
         self.current_step += 1
@@ -222,7 +228,9 @@ class RenkoTradingEnv(gym.Env):
     def render(self, mode='human', close=False):
         avg_sl = np.mean(self.sl_history) if len(self.sl_history) > 0 else 0
         avg_tp = np.mean(self.tp_history) if len(self.tp_history) > 0 else 0
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Position: {self.position}, SL: {self.sl}, TP: {self.tp}, Total Commission: {self.total_commission}, Avg SL: {avg_sl}, Avg TP: {avg_tp}")
+        avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
+        
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.balance}, Position: {self.position}, SL: {self.sl}, TP: {self.tp}, Total Commission: {self.total_commission}, Avg SL: {avg_sl}, Avg TP: {avg_tp}, Avg Reward: {avg_reward}") 
 
 # def load_data(csv_path):
 #     df = pd.read_csv(csv_path)
