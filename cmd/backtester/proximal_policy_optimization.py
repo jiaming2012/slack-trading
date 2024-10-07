@@ -53,7 +53,7 @@ class RenkoTradingEnv(gym.Env):
         self.sl_history, self.tp_history, self.rewards_history = [], [], []
 
         # Action space: Continuous (take_profit, stop_loss)
-        self.action_space = spaces.Box(low=np.array([50, 50]), high=np.array([80, 80]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([100, 100]), dtype=np.float32)
 
         # Observation space: Last 10 Renko blocks + portfolio balance + pl + position
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(305,), dtype=np.float32)
