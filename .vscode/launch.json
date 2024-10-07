@@ -221,6 +221,16 @@
             "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "generate_data",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/stats/generate_data/main.go",
+            "env": {
+                "GO_ENV": "development"
+            }
         }
     ]
 }

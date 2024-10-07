@@ -70,21 +70,27 @@ class BacktesterPlaygroundClient:
                 break
             
             for candle in candles:
-                if candle.close <= sl:
-                    return -abs(trade.quantity * (sl - trade.price))
-                elif candle.close >= tp:
-                    return abs(trade.quantity * (tp - trade.price))
+                if trade.quantity > 0:
+                    if candle.low <= sl:
+                        return -abs(trade.quantity * (sl - trade.price))
+                    elif candle.high >= tp:
+                        return abs(trade.quantity * (tp - trade.price))
+                elif trade.quantity < 0:
+                    if candle.high >= sl:
+                        return -abs(trade.quantity * (sl - trade.price))
+                    elif candle.low <= tp:
+                        return abs(trade.quantity * (tp - trade.price))
                 
             current_date = future_date
             
         return 0
     
-    def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float) -> float:
+    def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float, commission: float) -> float:
         new_trades = current_state.get('new_trades')
         if not new_trades or len(new_trades) == 0:
             return 0
         
-        reward = 0
+        reward = -commission
         
         for trade in new_trades:
             if trade['symbol'] == self.symbol:

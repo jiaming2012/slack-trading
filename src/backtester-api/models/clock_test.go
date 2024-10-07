@@ -15,7 +15,7 @@ func TestCalendar(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := services.FetchCalendar(eventmodels.PolygonDate{
+		calendar, err := services.FetchCalendarMap(eventmodels.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),
@@ -40,7 +40,7 @@ func TestCalendar(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := services.FetchCalendar(eventmodels.PolygonDate{
+		calendar, err := services.FetchCalendarMap(eventmodels.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),

@@ -32,11 +32,6 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			MaxNoOfPositions: maxNoOfPositions,
 		}
 
-		// If the symbol is SPX, the minimum preice increment is 0.05
-		if event.Symbol == "SPX" {
-			tradeRequest.Price = eventservices.RoundToNearest(tradeRequest.Price, 0.05)
-		}
-
 		if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter, tradeRequest); err != nil {
 			return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread:: error placing trade: %v", err)
 		}

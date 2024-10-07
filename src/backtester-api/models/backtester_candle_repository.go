@@ -47,7 +47,7 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 			break
 		}
 
-		nextCandleTimestamp := r.candles[r.position+1].Timestamp
+		nextCandleTimestamp := r.candles[r.position].Timestamp
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
 			newCandle = r.GetCurrentCandle()

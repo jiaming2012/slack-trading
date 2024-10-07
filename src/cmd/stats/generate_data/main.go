@@ -9,6 +9,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func transitionJump(probabilityUp, probabilityDown float64, jumpSize float64) float64 {
@@ -86,13 +89,13 @@ func main() {
 	initialPrice := 1000.0
 	minStockPrice := 500.0
 	candleVolatility := 10.0
-	durationHoursInDay := 24 // duration in hours, for simplicity treated as steps
-	durationDays := 90       // duration in days, for simplicity treated as steps
 	probabilityTransitionUp := 0.05
 	probabilityTransitionDown := 0.1
 	probabilityCandleUp := 0.55
 	jumpSize := 5.0
 	startTimeStr := "2021-01-04 9:30:00"
+	endTimeStr := "2021-01-31 16:00:00"
+	timeDelta := time.Minute
 
 	// Initial Time
 	startTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr)
@@ -101,29 +104,63 @@ func main() {
 		return
 	}
 
+	// End Time
+	endTime, err := time.Parse("2006-01-02 15:04:05", endTimeStr)
+	if err != nil {
+		log.Fatalf("Error parsing end time: %v", err)
+		return
+	}
+
+	// Fetch calendar
+	calendar, err := services.FetchCalendar(eventmodels.PolygonDate{
+		Year:  startTime.Year(),
+		Month: int(startTime.Month()),
+		Day:   startTime.Day(),
+	}, eventmodels.PolygonDate{
+		Year:  endTime.Year(),
+		Month: int(endTime.Month()),
+		Day:   endTime.Day(),
+	})
+
+	if err != nil {
+		log.Fatalf("Error fetching calendar: %v", err)
+	}
+
+	// Print the calendar
+	for _, c := range calendar {
+		fmt.Printf("Date: %s, Market Open: %s, Market Close: %s\n", c.Date, c.MarketOpen, c.MarketClose)
+	}
+
 	// Slice to hold prices
 	var times []time.Time
 	var candles []Candle
 
-	// Initial price
+	// Initial price + change this!!!!!
 	initialDiff := getNextPriceDifference(probabilityCandleUp, candleVolatility)
-	candles = append(candles, generateCandle(minStockPrice, initialPrice, initialPrice+initialDiff, candleVolatility, probabilityCandleUp))
-	times = append(times, startTime)
-	var j = 1
+	// candles = append(candles, generateCandle(minStockPrice, initialPrice, initialPrice+initialDiff, candleVolatility, probabilityCandleUp))
+	// times = append(times, startTime)
+	initialCandle := generateCandle(minStockPrice, initialPrice, initialPrice+initialDiff, candleVolatility, probabilityCandleUp)
 
 	// Simulate the range-bound period
-	for i := 0; i < durationDays; i++ {
-		for ; j < durationHoursInDay; j++ {
+	for _, c := range calendar {
+		tstamp := time.Date(c.MarketOpen.Year(), c.MarketOpen.Month(), c.MarketOpen.Day(), c.MarketOpen.Hour(), c.MarketOpen.Minute(), c.MarketOpen.Second(), c.MarketOpen.Nanosecond(), c.MarketOpen.Location())
+		for tstamp.Before(c.MarketClose) {
 			transitionJump := transitionJump(probabilityTransitionUp, probabilityTransitionDown, jumpSize)
 			diff := getNextPriceDifference(probabilityCandleUp, candleVolatility)
 
-			prevClose := candles[len(candles)-1].Close + transitionJump
+			var prevClose float64
+			if len(candles) > 0 {
+				prevClose = candles[len(candles)-1].Close + transitionJump
+			} else {
+				prevClose = initialCandle.Close
+			}
+
 			nextCandle := generateCandle(minStockPrice, prevClose, prevClose+diff, candleVolatility, probabilityCandleUp)
 			candles = append(candles, nextCandle)
-			times = append(times, startTime.Add(time.Duration(j+i*durationHoursInDay)*time.Hour))
-		}
+			times = append(times, tstamp)
 
-		j = 0
+			tstamp = tstamp.Add(timeDelta)
+		}
 	}
 
 	// Export the prices

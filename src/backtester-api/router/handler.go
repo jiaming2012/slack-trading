@@ -338,7 +338,7 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 		Day:   stop.Day,
 	}
 
-	calendar, err := services.FetchCalendar(startDate, endDate)
+	calendar, err := services.FetchCalendarMap(startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("createClock: failed to fetch calendar: %w", err)
 	}

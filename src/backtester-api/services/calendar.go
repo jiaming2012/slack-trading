@@ -14,7 +14,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func FetchCalendar(startDate, endDate eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
+func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.Calendar, error) {
 	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
 	if err != nil {
 		panic(err)
@@ -39,11 +39,24 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) (map[string]*even
 		return nil, fmt.Errorf("FetchCalendar: error unmarshalling CSV: %v", err)
 	}
 
-	// Return the schedules
+	var result []*eventmodels.Calendar
+	for _, schedule := range schedules {
+		result = append(result, &schedule)
+	}
+
+	return result, nil
+}
+
+func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
 	scheduleMap := make(map[string]*eventmodels.Calendar)
 
+	schedules, err := FetchCalendar(startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("FetchCalendarMap: error fetching calendar: %v", err)
+	}
+
 	for _, schedule := range schedules {
-		scheduleMap[schedule.Date] = &schedule
+		scheduleMap[schedule.Date] = schedule
 	}
 
 	return scheduleMap, nil
