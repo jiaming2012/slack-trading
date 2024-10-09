@@ -130,7 +130,6 @@ class RenkoTradingEnv(gym.Env):
             # close positive position
             self.playground_client.place_order('AAPL', self.position, OrderSide.SELL)
             cs = self.playground_client.tick(1)
-            print('cs: ', cs)
             seconds_elapsed -= 1
             
             # open new short position
