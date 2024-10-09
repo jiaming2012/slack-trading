@@ -130,6 +130,13 @@ class RenkoTradingEnv(gym.Env):
             # close positive position
             self.playground_client.place_order('AAPL', self.position, OrderSide.SELL)
             cs = self.playground_client.tick(1)
+            
+            if self.playground_client.is_backtest_complete():
+                reward = self.get_reward()
+                self.rewards_history.append(reward)
+                truncated = True  # Episode truncated (e.g., max steps reached)
+                return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                
             seconds_elapsed -= 1
             
             # open new short position
@@ -145,6 +152,13 @@ class RenkoTradingEnv(gym.Env):
             # close negative position
             self.playground_client.place_order('AAPL', abs(self.position), OrderSide.BUY_TO_COVER)
             cs = self.playground_client.tick(1)
+            
+            if self.playground_client.is_backtest_complete():
+                reward = self.get_reward()
+                self.rewards_history.append(reward)
+                truncated = True  # Episode truncated (e.g., max steps reached)
+                return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                
             seconds_elapsed -= 1
             
             # open new long position
