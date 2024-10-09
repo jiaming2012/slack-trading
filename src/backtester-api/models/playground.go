@@ -128,6 +128,8 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 
 		p.isBacktestComplete = true
 
+		log.Infof("setting status -> backtest complete: clock expired")
+
 		return &StateChange{
 			IsBacktestComplete: true,
 		}, nil

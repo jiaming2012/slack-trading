@@ -215,6 +215,14 @@
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         },
         {
+            "name": "proximal policy optimization v2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v2.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",

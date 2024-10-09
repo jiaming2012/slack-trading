@@ -26,3 +26,4 @@ src/cmd/backtest-sandbox/
 results/
 options_input.json
 secret.yaml
+cmd/backtester/models
