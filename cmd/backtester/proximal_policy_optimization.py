@@ -261,11 +261,20 @@ if args.model is not None:
     # Load the PPO model
     loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
     model = PPO.load(os.path.join(loadModelDir, args.model))
+
+    # Change learning rate by directly modifying the lr_schedule
+    new_learning_rate = 0.001  # Set your new learning rate
+    model.lr_schedule = lambda _: new_learning_rate  # Apply the new learning rate
+
+    # Update the entropy coefficient
+    model.ent_coef = 0.5  # Set your new entropy coefficient
+
     model.set_env(vec_env)  # Assign the environment again (necessary for further training)
+
     print(f'Loaded model: {args.model}')
 else:
     # Create and train the PPO model
-    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.1)
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [256, 128, 64]}, ent_coef=0.1)
 
 # Add action noise for exploration
 # n_actions = env.action_space.shape[-1]
@@ -280,7 +289,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 1
+total_timesteps = 500
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
 
