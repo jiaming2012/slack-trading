@@ -21,6 +21,7 @@ class RenkoTradingEnv(gym.Env):
     
     def initialize(self):
         self.balance = self.initial_balance
+        self.previous_balance = self.balance
         self.current_step = 0
         self.position = 0  # 1 for long, -1 for short, 0 for no position
         self.playground_client = BacktesterPlaygroundClient(self.balance, 'AAPL', '2021-01-04', '2021-01-12', RepositorySource.CSV, 'training_data.csv')
@@ -81,8 +82,10 @@ class RenkoTradingEnv(gym.Env):
             
             print(f'Current time: {self._internal_timestamp}, Balance: {self.balance}, Commission: {self.total_commission}, PL: {self.pl}, Current Price: {self.current_price}, Avg Reward: {avg_reward}')
 
-    def get_reward(self):
-        return self.balance + self.pl - self.initial_balance - self.total_commission
+    def get_reward(self, commission):
+        result = self.balance - self.previous_balance - commission
+        self.previous_balance = self.balance
+        return result
     
     def step(self, action):
         # Example custom logic to apply the action and calculate reward
@@ -92,14 +95,14 @@ class RenkoTradingEnv(gym.Env):
         terminated = False
         truncated = False
         if self.balance <= 0:
-            reward = self.get_reward()
+            reward = self.get_reward(0)
             self.rewards_history.append(reward)
             terminated = True
             self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
 
         # Ensure we are still within the data bounds
         if self.playground_client.is_backtest_complete():
-            reward = self.get_reward()
+            reward = self.get_reward(0)
             self.rewards_history.append(reward)
             truncated = True  # Episode truncated (e.g., max steps reached)
             return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
@@ -117,22 +120,42 @@ class RenkoTradingEnv(gym.Env):
          
         # if len(self.recent_close_prices) >= 5:
         if position > self.position >= 0:
-            new_position_volume = position - self.position
-            self.playground_client.place_order('AAPL', new_position_volume, OrderSide.BUY)
-            commission = 2 * new_position_volume
-            self.position = position
+            self.playground_client.place_order('AAPL', position, OrderSide.BUY)
+            
+            cs = self.playground_client.tick(1)
+                
+            if self.playground_client.is_backtest_complete():
+                reward = self.get_reward(0)
+                self.rewards_history.append(reward)
+                truncated = True  # Episode truncated (e.g., max steps reached)
+                return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+            
+            seconds_elapsed -= 1
+                
+            commission = 2 * position
+            self.position += position
         elif position < self.position <= 0:
-            new_position_volume = abs(position) - abs(self.position)
-            self.playground_client.place_order('AAPL', new_position_volume, OrderSide.SELL_SHORT)
-            commission = 2 * new_position_volume
-            self.position = position
+            self.playground_client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
+            
+            cs = self.playground_client.tick(1)
+                
+            if self.playground_client.is_backtest_complete():
+                reward = self.get_reward(0)
+                self.rewards_history.append(reward)
+                truncated = True  # Episode truncated (e.g., max steps reached)
+                return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+            
+            seconds_elapsed -= 1
+            
+            commission = 2 * position
+            self.position += position
         elif position < 0 and self.position > 0:
             # close positive position
             self.playground_client.place_order('AAPL', self.position, OrderSide.SELL)
             cs = self.playground_client.tick(1)
             
             if self.playground_client.is_backtest_complete():
-                reward = self.get_reward()
+                reward = self.get_reward(0)
                 self.rewards_history.append(reward)
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
@@ -142,6 +165,16 @@ class RenkoTradingEnv(gym.Env):
             # open new short position
             try:
                 self.playground_client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
+                
+                cs = self.playground_client.tick(1)
+                
+                if self.playground_client.is_backtest_complete():
+                    reward = self.get_reward(0)
+                    self.rewards_history.append(reward)
+                    truncated = True  # Episode truncated (e.g., max steps reached)
+                    return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                
+                seconds_elapsed -= 1
             except Exception as e:
                 print('cs: ', cs)
                 raise(e)
@@ -154,7 +187,7 @@ class RenkoTradingEnv(gym.Env):
             cs = self.playground_client.tick(1)
             
             if self.playground_client.is_backtest_complete():
-                reward = self.get_reward()
+                reward = self.get_reward(0)
                 self.rewards_history.append(reward)
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
@@ -164,6 +197,16 @@ class RenkoTradingEnv(gym.Env):
             # open new long position
             try:
                 self.playground_client.place_order('AAPL', position, OrderSide.BUY)
+                cs = self.playground_client.tick(1)
+                
+                if self.playground_client.is_backtest_complete():
+                    reward = self.get_reward(0)
+                    self.rewards_history.append(reward)
+                    truncated = True  # Episode truncated (e.g., max steps reached)
+                    return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                
+                seconds_elapsed -= 1
+            
             except Exception as e:
                 print('cs: ', cs)
                 raise(e)
@@ -189,8 +232,8 @@ class RenkoTradingEnv(gym.Env):
             
         # Update the account state
         account = self.playground_client.fetch_account_state()
-        self.balance = account['balance'] - self.total_commission
-        reward = self.get_reward()
+        self.balance = account['balance']
+        reward = self.get_reward(commission)
         self.rewards_history.append(reward)
         
 
