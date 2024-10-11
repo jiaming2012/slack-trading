@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from urllib.parse import urlencode
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 
 try:
     from zoneinfo import ZoneInfo
@@ -26,6 +26,33 @@ class Candle:
     close: float
     volume: int
     datetime: str
+    
+@dataclass
+class Position:
+    symbol: str
+    quantity: int
+    cost_basis: float
+    pl: float
+    
+@dataclass
+class Account:
+    balance: float
+    positions: Dict[str, Position]
+    
+    @property
+    def pl(self) -> float:
+        return sum([position.pl for position in self.positions.values()])
+    
+    @property
+    def get_position(self, symbol) -> Position:
+        return self.positions.get(symbol)
+    
+    def get_pl(self, symbol) -> float:
+        pl = 0
+        position = self.positions.get(symbol)
+        if position:
+            pl = position.pl
+        return pl
 
 class OrderSide(Enum):
     BUY = 'buy'
@@ -49,16 +76,29 @@ class BacktesterPlaygroundClient:
         else:
             raise Exception('Invalid source')
 
+        self.account = self.fetch_account_state()
         self.current_candle = None
         self._is_backtest_complete = False
         
-    def fetch_account_state(self) -> object:
+    def fetch_account_state(self) -> Account:
         response = requests.get(f'{self.base_url}/playground/{self.id}/account')
         
         if response.status_code != 200:
             raise Exception(response.text)
         
-        return response.json()
+        obj = response.json()
+        
+        return Account(
+            balance=obj['balance'],
+            positions={
+                symbol: Position(
+                    symbol=symbol,
+                    quantity=position['quantity'],
+                    cost_basis=position['cost_basis'],
+                    pl=position['pl']
+                ) for symbol, position in obj['positions'].items()
+            }
+        )
     
     def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
         current_date = trade.create_date
@@ -180,6 +220,8 @@ class BacktesterPlaygroundClient:
                     break
                 
         self._is_backtest_complete = new_state['is_backtest_complete']
+        
+        self.account = self.fetch_account_state()
                 
         return new_state
         

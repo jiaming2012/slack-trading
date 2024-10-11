@@ -1,2 +1,2 @@
 from .polygon import FetchPolygonDataframe
-from .renkodf import Renko
+from .renkodf import Renko, RenkoWS
