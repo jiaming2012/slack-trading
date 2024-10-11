@@ -43,7 +43,6 @@ class Account:
     def pl(self) -> float:
         return sum([position.pl for position in self.positions.values()])
     
-    @property
     def get_position(self, symbol) -> Position:
         return self.positions.get(symbol)
     
@@ -79,6 +78,8 @@ class BacktesterPlaygroundClient:
         self.account = self.fetch_account_state()
         self.current_candle = None
         self._is_backtest_complete = False
+        self._initial_timestamp = None
+        self.timestamp = None
         
     def fetch_account_state(self) -> Account:
         response = requests.get(f'{self.base_url}/playground/{self.id}/account')
@@ -219,11 +220,24 @@ class BacktesterPlaygroundClient:
                     self.current_candle = candle['candle']
                     break
                 
+        timestamp = new_state.get('timestamp')
+        if timestamp:
+            if self._initial_timestamp is None:
+                self._initial_timestamp = datetime.fromisoformat(timestamp)
+                
+            self.timestamp = datetime.fromisoformat(timestamp)
+                
         self._is_backtest_complete = new_state['is_backtest_complete']
         
         self.account = self.fetch_account_state()
-                
+                        
         return new_state
+    
+    def time_elapsed(self) -> timedelta:
+        if self.timestamp is None:
+            return timedelta(0)
+        
+        return self.timestamp - self._initial_timestamp
         
     def place_order(self, symbol: str, quantity: int, side: OrderSide) -> object:
         response = requests.post(
@@ -270,6 +284,7 @@ class BacktesterPlaygroundClient:
             raise Exception(response.text)
         
         return response.json()['playground_id']
+
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
         response = requests.post(
