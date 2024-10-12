@@ -203,7 +203,7 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	return
 }
 
-func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, projectsDir string, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -391,11 +391,6 @@ func run() {
 	}
 
 	isDryRun := strings.ToLower(isDryRunEnv) == "true"
-
-	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
-	if err != nil {
-		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
-	}
 
 	// Set up Telemetry
 	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
