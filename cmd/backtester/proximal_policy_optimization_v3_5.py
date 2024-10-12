@@ -21,7 +21,7 @@ class RenkoTradingEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def initialize(self):
-        self.client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-29', self.repository_source, self.csv_path)
+        self.client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-29', self.repository_source, self.csv_path, host='http://149.28.239.60')
         self.previous_balance = self.initial_balance
         self.current_step = 0
         self.position = 0  # 1 for long, -1 for short, 0 for no position
