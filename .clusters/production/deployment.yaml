@@ -17,7 +17,11 @@ spec:
     spec:
       containers:
       - name: grodt
+<<<<<<< HEAD
         image: ewr.vultrcr.com/grodt/app:1.0.27
+=======
+        image: ewr.vultrcr.com/grodt/app:1.1.0
+>>>>>>> dev
         ports:
         - containerPort: 8080
         envFrom:

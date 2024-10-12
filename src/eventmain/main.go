@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
+
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
@@ -202,17 +203,7 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	return
 }
 
-type EmptyRequest struct{}
-
-func (req *EmptyRequest) ParseHTTPRequest(r *http.Request) error {
-	return nil
-}
-
-func (req *EmptyRequest) Validate(r *http.Request) error {
-	return nil
-}
-
-func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, projectsDir string, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
+func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, loc *time.Location, goEnv string) error {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -502,13 +493,18 @@ func run() {
 	signalsGetStateExecutor := signalapi.NewGetStateExecutor(trackerV3OptionEVConsumer)
 	processSignalExecutor := signalapi.NewProcessSignalExecutor(esdbProducer)
 	s := NewRouterSetup("/signals", router)
-	s.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: signalsGetStateExecutor, Request: &EmptyRequest{}})
+	s.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: signalsGetStateExecutor, Request: &eventmodels.EmptyRequest{}})
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
 
 	// Setup polygon tick data machine
 	polygonTickDataMachine := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
+
+	// Setup app version
+	appVersion := &eventservices.AppVersion{}
+	a := NewRouterSetup("/version", router)
+	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
 
 	// options router
 	// r := NewRouterSetup("/options", router)
