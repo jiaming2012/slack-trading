@@ -85,11 +85,16 @@ class RenkoTradingEnv(gym.Env):
             self.render()
 
     def get_reward(self, commission, include_pl=False):
+        balance = self.client.account.balance
         pl = 0
+        
         if include_pl:
             pl = self.client.account.pl
+        elif self.client.account.pl < 0:
+            pl_ratio = abs(self.client.account.pl / balance)
+            if pl_ratio > 0.1:
+                pl = self.client.account.pl * 0.1
         
-        balance = self.client.account.balance
         result = balance - self.previous_balance - commission + pl
         self.previous_balance = balance
         return result
@@ -405,7 +410,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 30
+total_timesteps = 100
 
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
