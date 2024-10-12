@@ -31,6 +31,7 @@ import (
 	"gopkg.in/yaml.v3"
 	// lokiclient "github.com/grafana/loki-client-go"
 
+	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventproducers"
@@ -109,8 +110,6 @@ func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
 		Prefix: prefix,
 		Items:  make(map[string]RouterSetupItem),
 	}
-
-	// router.HandleFunc(prefix, r.ServeHTTP)
 
 	return r
 }
@@ -339,6 +338,11 @@ func run() {
 		log.Fatalf("$SLACK_OPTION_ALERTS_WEBHOOK_URL not set: %v", err)
 	}
 
+	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
+	if err != nil {
+		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
+	}
+
 	// quotesAccountID := utils.GetEnv("TRADIER_ACCOUNT_ID")
 
 	tradesAccountID, err := utils.GetEnv("TRADIER_TRADES_ACCOUNT_ID")
@@ -458,6 +462,7 @@ func run() {
 	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
+	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey)
 
 	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonApiKey)
 
@@ -499,6 +504,11 @@ func run() {
 	s := NewRouterSetup("/signals", router)
 	s.Add(RouterSetupItem{Method: http.MethodGet, URL: "", Executor: signalsGetStateExecutor, Request: &EmptyRequest{}})
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
+
+	// Setup polygon tick data machine
+	polygonTickDataMachine := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	d := NewRouterSetup("/data", router)
+	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
 
 	// options router
 	// r := NewRouterSetup("/options", router)

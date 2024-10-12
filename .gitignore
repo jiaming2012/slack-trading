@@ -1,6 +1,8 @@
 __pycache__/
+*.html
 *.pyc
 *.pem
+venv
 .DS_Store
 credentials.json
 src/env.txt
@@ -24,3 +26,4 @@ src/cmd/backtest-sandbox/
 results/
 options_input.json
 secret.yaml
+cmd/backtester/models

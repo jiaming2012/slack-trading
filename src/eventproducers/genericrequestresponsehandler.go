@@ -43,14 +43,10 @@ func ApiRequestHandler3(ctx context.Context, req eventmodels.ApiRequest3, reques
 	// 	IsExternalRequest: true,
 	// }
 
-	resultCh := make(chan map[string]interface{})
+	resultCh := make(chan interface{})
 	errCh := make(chan error)
 	
 	go requestExector.Serve(r, req, resultCh, errCh)
-
-	// pubsub.PublishEvent("ApiRequestHandler3", eventName, req)
-
-	// todo: add metrics and context to response
 
 	select {
 	case result := <-resultCh:

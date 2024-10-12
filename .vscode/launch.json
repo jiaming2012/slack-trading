@@ -197,6 +197,64 @@
             "env": {
                 "GO_ENV": "production"
             }
+        },
+        {
+            "name": "grid strategy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/backtester-api/strategies/grid.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "proximal policy optimization",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "proximal policy optimization v2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v2.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "proximal policy optimization v3",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v3.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "proximal policy optimization v3.5",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v3_5.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "backtester playground client",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
+            "name": "generate_data",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/src/cmd/stats/generate_data/main.go",
+            "env": {
+                "GO_ENV": "development"
+            }
         }
     ]
 }
