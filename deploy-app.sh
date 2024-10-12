@@ -29,6 +29,8 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+echo "Deploying version $VERSION..."
+
 # Build the Docker image with the version tag
 docker build -t ewr.vultrcr.com/grodt/app:$VERSION -f Dockerfile .
 
