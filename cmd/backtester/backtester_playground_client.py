@@ -64,9 +64,9 @@ class RepositorySource(Enum):
     POLYGON = 'polygon'
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None):
+    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080'):
         self.symbol = symbol
-        self.base_url = 'http://localhost:8080'
+        self.host = host
         
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -82,7 +82,7 @@ class BacktesterPlaygroundClient:
         self.timestamp = None
         
     def fetch_account_state(self) -> Account:
-        response = requests.get(f'{self.base_url}/playground/{self.id}/account')
+        response = requests.get(f'{self.host}/playground/{self.id}/account')
         
         if response.status_code != 200:
             raise Exception(response.text)
@@ -178,7 +178,7 @@ class BacktesterPlaygroundClient:
         })
                 
         response = requests.get(
-            f'{self.base_url}/playground/{self.id}/candles?{query_params}'
+            f'{self.host}/playground/{self.id}/candles?{query_params}'
         )
         
         if response.status_code != 200:
@@ -205,7 +205,7 @@ class BacktesterPlaygroundClient:
         
     def tick(self, seconds: int) -> object:
         response = requests.post(
-            f'{self.base_url}/playground/{self.id}/tick?seconds={seconds}'
+            f'{self.host}/playground/{self.id}/tick?seconds={seconds}'
         )
         
         if response.status_code != 200:
@@ -241,7 +241,7 @@ class BacktesterPlaygroundClient:
         
     def place_order(self, symbol: str, quantity: int, side: OrderSide) -> object:
         response = requests.post(
-            f'{self.base_url}/playground/{self.id}/order',
+            f'{self.host}/playground/{self.id}/order',
             json={
                 'symbol': symbol,
                 'class': 'equity',
@@ -259,7 +259,7 @@ class BacktesterPlaygroundClient:
     
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         response = requests.post(
-            f'{self.base_url}/playground',
+            f'{self.host}/playground',
             json={
                 'balance': balance,
                 'clock': {
@@ -288,7 +288,7 @@ class BacktesterPlaygroundClient:
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
         response = requests.post(
-            f'{self.base_url}/playground',
+            f'{self.host}/playground',
             json={
                 'balance': balance,
                 'clock': {
