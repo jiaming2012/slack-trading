@@ -5,11 +5,7 @@ import numpy as np
 from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import List, Dict
-
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 
 @dataclass
 class Trade:

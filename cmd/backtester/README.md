@@ -13,18 +13,20 @@ Either create new deploy keys and add them to the `slack-trading` repo,
 ``` bash
 ssh-keygen
 ```
-or copy the already created keys to the deploy machines `~/.ssh` folder.
+or copy the already created keys to the deploy machines `~/.ssh` folder. On the deployment machine:
 ``` bash
-
+VULTR_IP=""
+scp vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id_rsa
 ```
 ### Pull the Source
 ``` bash
-git clone 
+git clone git@github.com:jiaming2012/slack-trading.git
 ```
 
 ### Build the Source
 ``` bash
-apt install -y python3.10-venv
+apt update
+apt install -y python3-venv
 cd /root/slack-trading/cmd/backtester
 python3 -m venv venv
 source venv/bin/activate
