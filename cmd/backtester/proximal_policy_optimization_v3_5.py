@@ -484,43 +484,43 @@ model.save(os.path.join(saveModelDir, modelName))
 print(f'Saved model: {modelName} to {saveModelDir}')
 
 # Test the trained agent and track balance over time
-env.set_repository(RepositorySource.CSV, 'validation_data.csv')
-obs = vec_env.reset()
-balance_over_time = []
+# env.set_repository(RepositorySource.CSV, 'validation_data.csv')
+# obs = vec_env.reset()
+# balance_over_time = []
 
-print('Testing the agent! ...')
-print('Playground ID:', env.client.id)
+# print('Testing the agent! ...')
+# print('Playground ID:', env.client.id)
 
-isDone = False
-counter = 0
-while not isDone:
-    action, _states = model.predict(obs)
-    result = vec_env.step(action)
+# isDone = False
+# counter = 0
+# while not isDone:
+#     action, _states = model.predict(obs)
+#     result = vec_env.step(action)
     
-    if len(result) == 5:
-        obs, reward, terminated, truncated, info = result
-    elif len(result) == 4:
-        obs, reward, terminated, info = result
-        truncated = False
-    else:
-        raise ValueError('Invalid result length, expected 4 or 5 values, got', len(result))
+#     if len(result) == 5:
+#         obs, reward, terminated, truncated, info = result
+#     elif len(result) == 4:
+#         obs, reward, terminated, info = result
+#         truncated = False
+#     else:
+#         raise ValueError('Invalid result length, expected 4 or 5 values, got', len(result))
 
-    isDone = terminated or truncated
+#     isDone = terminated or truncated
 
-    # Access the balance from the `info` dictionary
-    balance = info[0]['balance']  # Access balance for the first environment
-    balance_over_time.append(balance)
+#     # Access the balance from the `info` dictionary
+#     balance = info[0]['balance']  # Access balance for the first environment
+#     balance_over_time.append(balance)
 
-    # Access the render method for the first environment inside the DummyVecEnv
-    if counter % 60 == 0:
-        vec_env.env_method('render', indices=0)
+#     # Access the render method for the first environment inside the DummyVecEnv
+#     if counter % 60 == 0:
+#         vec_env.env_method('render', indices=0)
     
-    counter += 1
+#     counter += 1
 
 
-# Plot the agent's balance over time
-plt.plot(balance_over_time)
-plt.xlabel('Time Step')
-plt.ylabel('Balance')
-plt.title('Agent Balance Over Time')
-plt.show()
+# # Plot the agent's balance over time
+# plt.plot(balance_over_time)
+# plt.xlabel('Time Step')
+# plt.ylabel('Balance')
+# plt.title('Agent Balance Over Time')
+# plt.show()
