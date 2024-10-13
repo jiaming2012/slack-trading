@@ -400,7 +400,7 @@ if args.model is not None:
     print(f'Loaded model: {args.model}')
 else:
     # Create and train the PPO model
-    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001)
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001, device='cuda'))
 
 # Add action noise for exploration
 # n_actions = env.action_space.shape[-1]
