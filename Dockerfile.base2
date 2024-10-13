@@ -1,7 +1,7 @@
 # version="1.0.0"
 
 # Start from the latest Debian base image
-FROM ewr.vultrcr.com/grodt/grodt-base-image
+FROM ewr.vultrcr.com/grodt/grodt-base-image:1.1.12
 
 # Download and install Go 1.22.4
 RUN wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz && \
