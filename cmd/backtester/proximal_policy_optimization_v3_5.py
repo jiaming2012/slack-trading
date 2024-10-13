@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 import random
 import argparse
 import os
+import torch
+
+print('cuda available: ', torch.cuda.is_available())  # Should return True if GPU is available
 
 # from stable_baselines3.common.noise import NormalActionNoise
 import matplotlib.pyplot as plt
@@ -384,7 +387,7 @@ if projectsDir is None:
     raise ValueError('PROJECTS_DIR environment variable is not set')
 
 # Initialize the environment
-env = RenkoTradingEnv()
+env = RenkoTradingEnv(repository_source=RepositorySource.POLYGON)
 
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])
