@@ -1,5 +1,36 @@
 Backtester is based off of https://pypi.org/project/Backtesting/
 
+# Deploy to the Cloud
+1. Start a vultr instance. Select SSH keys
+2. SSH into instance
+``` bash
+ssh root@ip_address
+```
+ip_address can be found in the Vultr console.
+
+## Download Source
+Either create new deploy keys and add them to the `slack-trading` repo, or copy the already created keys to the deploy machines `~/.ssh` folder.
+
+### Pull the Source
+``` bash
+git clone 
+```
+
+### Build the Source
+``` bash
+apt install -y python3.10-venv
+cd /root/slack-trading/cmd/backtester
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+```
+
+### Run the App
+``` bash
+
+```
+
 # Installation
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading/cmd/backtester
