@@ -9,8 +9,14 @@ ssh root@ip_address
 ip_address can be found in the Vultr console.
 
 ## Download Source
-Either create new deploy keys and add them to the `slack-trading` repo, or copy the already created keys to the deploy machines `~/.ssh` folder.
+Either create new deploy keys and add them to the `slack-trading` repo, 
+``` bash
+ssh-keygen
+```
+or copy the already created keys to the deploy machines `~/.ssh` folder.
+``` bash
 
+```
 ### Pull the Source
 ``` bash
 git clone 
@@ -28,7 +34,8 @@ pip install -r requirements.txt
 
 ### Run the App
 ``` bash
-
+export PROJECTS_DIR="/root"
+/root/slack-trading/cmd/backtester/venv/bin/python /root/slack-trading/cmd/backtester/proximal_policy_optimization_v3_5.py
 ```
 
 # Installation

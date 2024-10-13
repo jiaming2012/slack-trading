@@ -64,8 +64,8 @@ class RenkoTradingEnv(gym.Env):
         # Action space: Continuous (take_profit, stop_loss)
         # self.action_space = spaces.Box(low=np.array([50, 50, -3]), high=np.array([80, 80]), dtype=np.float32)
         self.action_space = spaces.Box(
-            low=np.array([-3]),
-            high=np.array([3]),
+            low=np.array([-300]),
+            high=np.array([300]),
             dtype=np.float32
         )
 
