@@ -400,7 +400,7 @@ if args.model is not None:
     print(f'Loaded model: {args.model}')
 else:
     # Create and train the PPO model
-    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001, device='cuda')
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001)
 
 # Add action noise for exploration
 # n_actions = env.action_space.shape[-1]
@@ -413,7 +413,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 100
+total_timesteps = 70
 
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()

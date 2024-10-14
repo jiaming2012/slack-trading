@@ -25,10 +25,11 @@ git clone git@github.com:jiaming2012/slack-trading.git
 
 ### Build the Source
 ``` bash
+add-apt-repository ppa:deadsnakes/ppa
 apt update
-apt install -y python3-venv
+apt install -y python3.10 python3.10-venv python3.10-dev
 cd /root/slack-trading/cmd/backtester
-python3 -m venv venv
+python3.10 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
@@ -37,6 +38,23 @@ pip install -r requirements.txt
 ### Run the App
 ``` bash
 export PROJECTS_DIR="/root"
+```
+
+#### In Background
+To run in the background:
+``` bash
+tmux
+/root/slack-trading/cmd/backtester/venv/bin/python /root/slack-trading/cmd/backtester/proximal_policy_optimization_v3_5.py
+```
+Detach the session with Ctrl+B followed by D
+
+To reattach to the session:
+``` bash
+tmux attach-session -t 0
+```
+
+#### In Foreground
+``` bash
 /root/slack-trading/cmd/backtester/venv/bin/python /root/slack-trading/cmd/backtester/proximal_policy_optimization_v3_5.py
 ```
 
