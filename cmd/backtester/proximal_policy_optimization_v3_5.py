@@ -60,6 +60,7 @@ class RenkoTradingEnv(gym.Env):
         self.timestamp = None
         self._internal_timestamp = None
         self.rewards_history = []
+        self.per_trade_commission = 0.1
 
         # Action space: Continuous (take_profit, stop_loss)
         # self.action_space = spaces.Box(low=np.array([50, 50, -3]), high=np.array([80, 80]), dtype=np.float32)
@@ -151,7 +152,7 @@ class RenkoTradingEnv(gym.Env):
             
             seconds_elapsed -= 1
                 
-            commission = 2 * position
+            commission = self.per_trade_commission * position
             self.position += position
         elif position < 0 and self.position <= 0:
             self.client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
@@ -172,7 +173,7 @@ class RenkoTradingEnv(gym.Env):
             
             seconds_elapsed -= 1
             
-            commission = 2 * abs(position)
+            commission = self.per_trade_commission * abs(position)
             self.position += position
         elif position < 0 and self.position > 0:
             # close positive position
@@ -203,7 +204,7 @@ class RenkoTradingEnv(gym.Env):
                     cs = self.client.tick(1)
                     balance = self.client.account.balance
                     pl = self.client.account.pl
-                    commission = 2 * abs(remaining_position)
+                    commission = self.per_trade_commission * abs(remaining_position)
                     
                     if self.client.is_backtest_complete():
                         reward = self.get_reward(0, include_pl=True)
@@ -248,7 +249,7 @@ class RenkoTradingEnv(gym.Env):
                     cs = self.client.tick(1)
                     balance = self.client.account.balance
                     pl = self.client.account.pl
-                    commission = 2 * remaining_position
+                    commission = self.per_trade_commission * remaining_position
                     
                     if self.client.is_backtest_complete():
                         reward = self.get_reward(0, include_pl=True)
