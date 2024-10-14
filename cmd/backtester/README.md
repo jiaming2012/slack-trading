@@ -53,6 +53,11 @@ To reattach to the session:
 tmux attach-session -t 0
 ```
 
+To list all `tmux` sessions:
+``` bash
+tmux ls
+```
+
 #### In Foreground
 ``` bash
 /root/slack-trading/cmd/backtester/venv/bin/python /root/slack-trading/cmd/backtester/proximal_policy_optimization_v3_5.py
