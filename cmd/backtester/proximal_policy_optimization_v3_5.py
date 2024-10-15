@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 import random
 import argparse
 import os
+import torch
+
+print('cuda available: ', torch.cuda.is_available())  # Should return True if GPU is available
 
 # from stable_baselines3.common.noise import NormalActionNoise
 import matplotlib.pyplot as plt
@@ -57,12 +60,13 @@ class RenkoTradingEnv(gym.Env):
         self.timestamp = None
         self._internal_timestamp = None
         self.rewards_history = []
+        self.per_trade_commission = 0.1
 
         # Action space: Continuous (take_profit, stop_loss)
         # self.action_space = spaces.Box(low=np.array([50, 50, -3]), high=np.array([80, 80]), dtype=np.float32)
         self.action_space = spaces.Box(
-            low=np.array([-3]),
-            high=np.array([3]),
+            low=np.array([-300]),
+            high=np.array([300]),
             dtype=np.float32
         )
 
@@ -148,7 +152,7 @@ class RenkoTradingEnv(gym.Env):
             
             seconds_elapsed -= 1
                 
-            commission = 2 * position
+            commission = self.per_trade_commission * position
             self.position += position
         elif position < 0 and self.position <= 0:
             self.client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
@@ -169,7 +173,7 @@ class RenkoTradingEnv(gym.Env):
             
             seconds_elapsed -= 1
             
-            commission = 2 * abs(position)
+            commission = self.per_trade_commission * abs(position)
             self.position += position
         elif position < 0 and self.position > 0:
             # close positive position
@@ -200,7 +204,7 @@ class RenkoTradingEnv(gym.Env):
                     cs = self.client.tick(1)
                     balance = self.client.account.balance
                     pl = self.client.account.pl
-                    commission = 2 * abs(remaining_position)
+                    commission = self.per_trade_commission * abs(remaining_position)
                     
                     if self.client.is_backtest_complete():
                         reward = self.get_reward(0, include_pl=True)
@@ -245,7 +249,7 @@ class RenkoTradingEnv(gym.Env):
                     cs = self.client.tick(1)
                     balance = self.client.account.balance
                     pl = self.client.account.pl
-                    commission = 2 * remaining_position
+                    commission = self.per_trade_commission * remaining_position
                     
                     if self.client.is_backtest_complete():
                         reward = self.get_reward(0, include_pl=True)
@@ -384,7 +388,7 @@ if projectsDir is None:
     raise ValueError('PROJECTS_DIR environment variable is not set')
 
 # Initialize the environment
-env = RenkoTradingEnv()
+env = RenkoTradingEnv(repository_source=RepositorySource.POLYGON)
 
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])
@@ -410,7 +414,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 100
+total_timesteps = 70
 
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
@@ -481,43 +485,43 @@ model.save(os.path.join(saveModelDir, modelName))
 print(f'Saved model: {modelName} to {saveModelDir}')
 
 # Test the trained agent and track balance over time
-env.set_repository(RepositorySource.CSV, 'validation_data.csv')
-obs = vec_env.reset()
-balance_over_time = []
+# env.set_repository(RepositorySource.CSV, 'validation_data.csv')
+# obs = vec_env.reset()
+# balance_over_time = []
 
-print('Testing the agent! ...')
-print('Playground ID:', env.client.id)
+# print('Testing the agent! ...')
+# print('Playground ID:', env.client.id)
 
-isDone = False
-counter = 0
-while not isDone:
-    action, _states = model.predict(obs)
-    result = vec_env.step(action)
+# isDone = False
+# counter = 0
+# while not isDone:
+#     action, _states = model.predict(obs)
+#     result = vec_env.step(action)
     
-    if len(result) == 5:
-        obs, reward, terminated, truncated, info = result
-    elif len(result) == 4:
-        obs, reward, terminated, info = result
-        truncated = False
-    else:
-        raise ValueError('Invalid result length, expected 4 or 5 values, got', len(result))
+#     if len(result) == 5:
+#         obs, reward, terminated, truncated, info = result
+#     elif len(result) == 4:
+#         obs, reward, terminated, info = result
+#         truncated = False
+#     else:
+#         raise ValueError('Invalid result length, expected 4 or 5 values, got', len(result))
 
-    isDone = terminated or truncated
+#     isDone = terminated or truncated
 
-    # Access the balance from the `info` dictionary
-    balance = info[0]['balance']  # Access balance for the first environment
-    balance_over_time.append(balance)
+#     # Access the balance from the `info` dictionary
+#     balance = info[0]['balance']  # Access balance for the first environment
+#     balance_over_time.append(balance)
 
-    # Access the render method for the first environment inside the DummyVecEnv
-    if counter % 60 == 0:
-        vec_env.env_method('render', indices=0)
+#     # Access the render method for the first environment inside the DummyVecEnv
+#     if counter % 60 == 0:
+#         vec_env.env_method('render', indices=0)
     
-    counter += 1
+#     counter += 1
 
 
-# Plot the agent's balance over time
-plt.plot(balance_over_time)
-plt.xlabel('Time Step')
-plt.ylabel('Balance')
-plt.title('Agent Balance Over Time')
-plt.show()
+# # Plot the agent's balance over time
+# plt.plot(balance_over_time)
+# plt.xlabel('Time Step')
+# plt.ylabel('Balance')
+# plt.title('Agent Balance Over Time')
+# plt.show()

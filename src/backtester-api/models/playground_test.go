@@ -353,6 +353,84 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
+		assert.Nil(t, position.OpenTrades)
+	})
+
+	t.Run("GetPosition - open trades, long", func(t *testing.T) {
+		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
+		clock := NewClock(startTime, endTime, nil)
+
+		now := startTime
+
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		// assert single open trade
+		position1 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.Len(t, position1.OpenTrades, 1)
+		assert.Equal(t, 10.0, position1.OpenTrades[0].Quantity)
+
+		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		// assert single open trade volume decreased
+		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.Len(t, position2.OpenTrades, 1)
+		assert.Equal(t, 5.0, position2.OpenTrades[0].Quantity)
+	})
+
+	t.Run("GetPosition - open trades, short", func(t *testing.T) {
+		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
+		clock := NewClock(startTime, endTime, nil)
+
+		now := startTime
+
+		feed := mock.NewMockBacktesterDataFeed(symbol, []time.Time{endTime}, []float64{250.0})
+
+		playground, err := NewPlayground(1000.0, clock, feed)
+		assert.NoError(t, err)
+		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+
+		err = playground.PlaceOrder(order)
+		assert.NoError(t, err)
+
+		stateChange, err := playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		// assert single open trade
+		position1 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.Len(t, position1.OpenTrades, 1)
+		assert.Equal(t, -10.0, position1.OpenTrades[0].Quantity)
+
+		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order)
+		assert.NoError(t, err)
+
+		stateChange, err = playground.Tick(time.Second)
+		assert.NoError(t, err)
+		assert.NotNil(t, stateChange)
+
+		// assert single open trade volume decreased
+		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.Len(t, position2.OpenTrades, 1)
+		assert.Equal(t, -5.0, position2.OpenTrades[0].Quantity)
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - same direction", func(t *testing.T) {
@@ -381,6 +459,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(symbol)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		// 2nd order
 		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -394,6 +474,9 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 20.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, 10.0, position.OpenTrades[1].Quantity)
 
 		// close orders
 		order3 := NewBacktesterOrder(3, Equity, now, symbol, BacktesterOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -407,6 +490,7 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 0)
 
 		// 3rd order - original direction
 		order4 := NewBacktesterOrder(4, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -420,6 +504,8 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 400.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
@@ -449,6 +535,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(symbol)
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
 		// 2nd order
 		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -462,6 +550,9 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, -20.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, -10.0, position.OpenTrades[1].Quantity)
 
 		// close orders
 		order3 := NewBacktesterOrder(3, Equity, now, symbol, BacktesterOrderSideBuyToCover, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -475,6 +566,7 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 0)
 
 		// 3rd order - reverse direction
 		order4 := NewBacktesterOrder(4, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -488,6 +580,8 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 400.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		// 4th order - reverse direction
 		order5 := NewBacktesterOrder(5, Equity, now, symbol, BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -501,6 +595,9 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 20.0, position.Quantity)
 		assert.Equal(t, 450.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, 10.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - average cost basis", func(t *testing.T) {
@@ -524,6 +621,8 @@ func TestPositions(t *testing.T) {
 
 		position := playground.GetPosition(symbol)
 		assert.Equal(t, 600.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		order2 := NewBacktesterOrder(2, Equity, now, symbol, BacktesterOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		err = playground.PlaceOrder(order2)
@@ -535,6 +634,9 @@ func TestPositions(t *testing.T) {
 
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 400.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, 20.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity increase after buy", func(t *testing.T) {
@@ -559,6 +661,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 1000.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity decrease after sell", func(t *testing.T) {
@@ -591,6 +695,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, 5.0, position.OpenTrades[0].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
@@ -613,6 +719,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
 		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		err = playground.PlaceOrder(order)
@@ -625,6 +733,9 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -15.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, -5.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity decrease after buy to cover", func(t *testing.T) {
@@ -647,6 +758,8 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
 		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		err = playground.PlaceOrder(order2)
@@ -659,6 +772,8 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
+		assert.Len(t, position.OpenTrades, 1)
+		assert.Equal(t, -5.0, position.OpenTrades[0].Quantity)
 	})
 }
 

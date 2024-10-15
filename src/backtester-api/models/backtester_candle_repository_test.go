@@ -34,16 +34,26 @@ func TestNext(t *testing.T) {
 		},
 	}
 
-	t.Run("returns the next candle", func(t *testing.T) {
+	t.Run("returns the current candle", func(t *testing.T) {
 		repo := NewBacktesterCandleRepository(symbol, candles)
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+
+		candle := repo.GetCurrentCandle()
+
+		assert.Equal(t, tstamp, candle.Timestamp)
+	})
+
+	t.Run("returns the next candle", func(t *testing.T) {
+		repo := NewBacktesterCandleRepository(symbol, candles)
+
+		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
 		c, err := repo.Update(tstamp)
 
 		assert.NoError(t, err)
 
-		assert.Nil(t, c)
+		assert.NotNil(t, c)
 
 		candle := repo.GetCurrentCandle()
 

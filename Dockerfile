@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-# version="1.0.27"
-=======
-# version="1.1.2"
->>>>>>> dev
+# version="1.1.17"
 
 # Start from the latest Debian base image
-FROM docker.io/jiamingnj/grodt-base-image-2
+FROM ewr.vultrcr.com/grodt/grodt-base-image-2:1.1.14
 
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading

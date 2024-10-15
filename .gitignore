@@ -1,4 +1,5 @@
 __pycache__/
+*.log
 *.html
 *.pyc
 *.pem
@@ -27,3 +28,4 @@ results/
 options_input.json
 secret.yaml
 cmd/backtester/models
+vultr_ml_id_rsa
