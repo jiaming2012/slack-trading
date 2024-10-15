@@ -20,6 +20,9 @@ type Playground struct {
 }
 
 func (p *Playground) addPendingOrdersToOrders() {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	p.account.Orders = append(p.account.Orders, p.account.PendingOrders...)
 	p.account.PendingOrders = []*BacktesterOrder{}
 }
@@ -39,6 +42,9 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, er
 }
 
 func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	var trades []*BacktesterTrade
 
 	for _, order := range p.account.Orders {
@@ -76,6 +82,9 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 }
 
 func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	for _, trade := range newTrades {
 		currentPosition, ok := startingPositions[trade.Symbol]
 		if !ok {
@@ -175,6 +184,9 @@ func (p *Playground) GetBalance() float64 {
 }
 
 func (p *Playground) GetOrders() []*BacktesterOrder {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	result := append(p.account.Orders, p.account.PendingOrders...)
 	if len(result) == 0 {
 		return make([]*BacktesterOrder, 0)
@@ -191,18 +203,167 @@ func (p *Playground) GetPosition(symbol eventmodels.Instrument) Position {
 	return *position
 }
 
-func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
-	postions := make(map[eventmodels.Instrument]*Position)
+func (p *Playground) getCopyOfNetTrades(trades []*BacktesterTrade) []*BacktesterTrade {
+	netTrades := []*BacktesterTrade{}
+	direction := 0
+	totalQuantity := 0.0
 
+	for _, trade := range trades {
+		copy := *trade
+
+		if direction > 0 {
+			if totalQuantity + copy.Quantity < 0 {
+				copy.Quantity += totalQuantity
+
+				netTrades = []*BacktesterTrade{
+					&copy,
+				}
+
+				direction = -1
+				totalQuantity = copy.Quantity
+
+				continue
+			} else if totalQuantity + copy.Quantity == 0 {
+				direction = 0
+				netTrades = []*BacktesterTrade{}
+				
+				continue
+			}
+
+			totalQuantity += copy.Quantity
+		} else if direction < 0 {
+			if totalQuantity + copy.Quantity > 0 {
+				copy.Quantity -= totalQuantity
+
+				netTrades = []*BacktesterTrade{
+					&copy,
+				}
+
+				direction = 1
+				totalQuantity = copy.Quantity
+
+				continue
+			} else if totalQuantity + copy.Quantity == 0 {
+				direction = 0
+				netTrades = []*BacktesterTrade{}
+
+				continue
+			}
+
+			totalQuantity += copy.Quantity
+		} else {
+			if copy.Quantity > 0 {
+				direction = 1
+			} else if copy.Quantity < 0 {
+				direction = -1
+			} 
+			
+			totalQuantity = copy.Quantity
+		}
+
+		netTrades = append(netTrades, &copy)
+	}
+
+	return netTrades
+}
+
+func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
+	positions := make(map[eventmodels.Instrument]*Position)
+
+	allTrades := make(map[eventmodels.Instrument][]*BacktesterTrade)
 	for _, order := range p.account.Orders {
-		_, ok := postions[order.Symbol]
+		_, ok := positions[order.Symbol]
 		if !ok {
-			postions[order.Symbol] = &Position{}
+			positions[order.Symbol] = &Position{}
 		}
 
 		orderStatus := order.GetStatus()
 		if orderStatus.IsFilled() {
-			postions[order.Symbol].Quantity += order.GetFilledQuantity()
+			filledQty := order.GetFilledQuantity()
+			positions[order.Symbol].Quantity += filledQty
+			allTrades[order.Symbol] = append(allTrades[order.Symbol], order.Trades...)
+		}
+	}
+
+	// adjust open trades
+	for symbol, position := range positions {
+		netOpenTradesCopy := p.getCopyOfNetTrades(allTrades[symbol])
+		openTradesLen := len(netOpenTradesCopy)
+
+		if position.Quantity > 0 {
+			var positiveTradePos *int
+			for i := 0; i < openTradesLen; i++ {
+				trade := netOpenTradesCopy[i]
+
+				if trade.Quantity > 0 {
+					positiveTradePos = &i
+				}
+
+				if trade.Quantity < 0 {
+					if positiveTradePos == nil {
+						log.Fatalf("invalid state: no positive trade found")
+					}
+
+					positiveTrade := netOpenTradesCopy[*positiveTradePos]
+
+					if math.Abs(trade.Quantity) > positiveTrade.Quantity {
+						log.Fatalf("invalid state: negative trade quantity exceeds positive trade quantity")
+					}
+
+					// adjust positive trade quantity by negative trade quantity
+					positiveTrade.Quantity += trade.Quantity
+
+					// remove negative trade
+					netOpenTradesCopy = append(netOpenTradesCopy[:i], netOpenTradesCopy[i+1:]...)
+					openTradesLen--
+
+					// if positive trade quantity is 0, remove positive trade
+					if positiveTrade.Quantity == 0 {
+						netOpenTradesCopy = netOpenTradesCopy[*positiveTradePos:]
+						openTradesLen--
+						positiveTradePos = nil
+					}
+				}
+			}
+
+			position.OpenTrades = netOpenTradesCopy
+		} else if position.Quantity < 0 {
+			var negativeTradePos *int
+			for i := 0; i < openTradesLen; i++ {
+				trade := netOpenTradesCopy[i]
+
+				if trade.Quantity < 0 {
+					negativeTradePos = &i
+				}
+
+				if trade.Quantity > 0 {
+					if negativeTradePos == nil {
+						log.Fatalf("invalid state: no negative trade found")
+					}
+
+					negativeTrade := netOpenTradesCopy[*negativeTradePos]
+
+					if trade.Quantity > math.Abs(negativeTrade.Quantity) {
+						log.Fatalf("invalid state: positive trade quantity exceeds negative trade quantity")
+					}
+
+					// adjust negative trade quantity by positive trade quantity
+					negativeTrade.Quantity += trade.Quantity
+
+					// remove positive trade
+					netOpenTradesCopy = append(netOpenTradesCopy[:i], netOpenTradesCopy[i+1:]...)
+					openTradesLen--
+
+					// if negative trade quantity is 0, remove negative trade
+					if negativeTrade.Quantity == 0 {
+						netOpenTradesCopy = netOpenTradesCopy[*negativeTradePos:]
+						openTradesLen--
+						negativeTradePos = nil
+					}
+				}
+			}
+
+			position.OpenTrades = netOpenTradesCopy
 		}
 	}
 
@@ -236,19 +397,19 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 			avgPrice = vwap / totalQuantity
 		}
 
-		postions[symbol].CostBasis = avgPrice
+		positions[symbol].CostBasis = avgPrice
 
 		// calculate pl
 		close, err := p.getCurrentPrice(symbol)
 		if err == nil {
-			postions[symbol].PL = (close - avgPrice) * postions[symbol].Quantity
+			positions[symbol].PL = (close - avgPrice) * positions[symbol].Quantity
 		} else {
 			log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
-			postions[symbol].PL = 0
+			positions[symbol].PL = 0
 		}
 	}
 
-	return postions
+	return positions
 }
 
 func (p *Playground) GetCandle(symbol eventmodels.Instrument) (*eventmodels.PolygonAggregateBarV2, error) {
@@ -297,6 +458,15 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side Backteste
 	return nil
 }
 
+// func (p *Playground) GetFreeMargin() float64 {
+// 	usedMargin := 0.0
+// 	positions := p.GetPositions()
+
+// 	for _, pos := range positions {
+
+// 	}
+// }
+
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
 		return fmt.Errorf("only equity orders are supported")
@@ -317,6 +487,9 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.AbsoluteQuantity <= 0 {
 		return fmt.Errorf("quantity must be greater than 0")
 	}
+
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
 
 	for _, o := range p.account.Orders {
 		if o.ID == order.ID {
@@ -353,9 +526,7 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 
 	return &Playground{
 		ID: uuid.New(),
-		account: BacktesterAccount{
-			Balance: balance,
-		},
+		account: *NewBacktesterAccount(balance),
 		clock: clock,
 		repos: repos,
 	}, nil
@@ -374,11 +545,9 @@ func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Pla
 	repos[symbol] = NewBacktesterCandleRepository(symbol, candles)
 
 	return &Playground{
-		ID: uuid.New(),
-		account: BacktesterAccount{
-			Balance: balance,
-		},
-		clock: clock,
-		repos: repos,
+		ID:      uuid.New(),
+		account: *NewBacktesterAccount(balance),
+		clock:   clock,
+		repos:   repos,
 	}, nil
 }

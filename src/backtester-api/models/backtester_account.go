@@ -1,6 +1,9 @@
 package models
 
+import "sync"
+
 type BacktesterAccount struct {
+	mutex         *sync.Mutex
 	Balance       float64
 	Orders        []*BacktesterOrder
 	PendingOrders []*BacktesterOrder
@@ -14,4 +17,11 @@ func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
 		}
 	}
 	return result
+}
+
+func NewBacktesterAccount(balance float64) *BacktesterAccount {
+	return &BacktesterAccount{
+		mutex:   &sync.Mutex{},
+		Balance: balance,
+	}
 }
