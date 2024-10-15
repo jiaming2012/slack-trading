@@ -203,65 +203,61 @@ func (p *Playground) GetPosition(symbol eventmodels.Instrument) Position {
 	return *position
 }
 
-func (p *Playground) getCopyOfNetTrades(trades []*BacktesterTrade) []*BacktesterTrade {
+func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade {
 	netTrades := []*BacktesterTrade{}
 	direction := 0
 	totalQuantity := 0.0
 
 	for _, trade := range trades {
-		copy := *trade
-
 		if direction > 0 {
-			if totalQuantity + copy.Quantity < 0 {
-				copy.Quantity += totalQuantity
-
+			if totalQuantity + trade.Quantity < 0 {
 				netTrades = []*BacktesterTrade{
-					&copy,
+					netTrades[len(netTrades)-1],
+					trade,
 				}
 
 				direction = -1
-				totalQuantity = copy.Quantity
+				totalQuantity = trade.Quantity
 
 				continue
-			} else if totalQuantity + copy.Quantity == 0 {
+			} else if totalQuantity + trade.Quantity == 0 {
 				direction = 0
 				netTrades = []*BacktesterTrade{}
 				
 				continue
 			}
 
-			totalQuantity += copy.Quantity
+			totalQuantity += trade.Quantity
 		} else if direction < 0 {
-			if totalQuantity + copy.Quantity > 0 {
-				copy.Quantity -= totalQuantity
-
+			if totalQuantity + trade.Quantity > 0 {
 				netTrades = []*BacktesterTrade{
-					&copy,
+					netTrades[len(netTrades)-1],
+					trade,
 				}
 
 				direction = 1
-				totalQuantity = copy.Quantity
+				totalQuantity = trade.Quantity
 
 				continue
-			} else if totalQuantity + copy.Quantity == 0 {
+			} else if totalQuantity + trade.Quantity == 0 {
 				direction = 0
 				netTrades = []*BacktesterTrade{}
 
 				continue
 			}
 
-			totalQuantity += copy.Quantity
+			totalQuantity += trade.Quantity
 		} else {
-			if copy.Quantity > 0 {
+			if trade.Quantity > 0 {
 				direction = 1
-			} else if copy.Quantity < 0 {
+			} else if trade.Quantity < 0 {
 				direction = -1
 			} 
 			
-			totalQuantity = copy.Quantity
+			totalQuantity = trade.Quantity
 		}
 
-		netTrades = append(netTrades, &copy)
+		netTrades = append(netTrades, trade)
 	}
 
 	return netTrades
@@ -287,84 +283,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 
 	// adjust open trades
 	for symbol, position := range positions {
-		netOpenTradesCopy := p.getCopyOfNetTrades(allTrades[symbol])
-		openTradesLen := len(netOpenTradesCopy)
-
-		if position.Quantity > 0 {
-			var positiveTradePos *int
-			for i := 0; i < openTradesLen; i++ {
-				trade := netOpenTradesCopy[i]
-
-				if trade.Quantity > 0 {
-					positiveTradePos = &i
-				}
-
-				if trade.Quantity < 0 {
-					if positiveTradePos == nil {
-						log.Fatalf("invalid state: no positive trade found")
-					}
-
-					positiveTrade := netOpenTradesCopy[*positiveTradePos]
-
-					if math.Abs(trade.Quantity) > positiveTrade.Quantity {
-						log.Fatalf("invalid state: negative trade quantity exceeds positive trade quantity")
-					}
-
-					// adjust positive trade quantity by negative trade quantity
-					positiveTrade.Quantity += trade.Quantity
-
-					// remove negative trade
-					netOpenTradesCopy = append(netOpenTradesCopy[:i], netOpenTradesCopy[i+1:]...)
-					openTradesLen--
-
-					// if positive trade quantity is 0, remove positive trade
-					if positiveTrade.Quantity == 0 {
-						netOpenTradesCopy = netOpenTradesCopy[*positiveTradePos:]
-						openTradesLen--
-						positiveTradePos = nil
-					}
-				}
-			}
-
-			position.OpenTrades = netOpenTradesCopy
-		} else if position.Quantity < 0 {
-			var negativeTradePos *int
-			for i := 0; i < openTradesLen; i++ {
-				trade := netOpenTradesCopy[i]
-
-				if trade.Quantity < 0 {
-					negativeTradePos = &i
-				}
-
-				if trade.Quantity > 0 {
-					if negativeTradePos == nil {
-						log.Fatalf("invalid state: no negative trade found")
-					}
-
-					negativeTrade := netOpenTradesCopy[*negativeTradePos]
-
-					if trade.Quantity > math.Abs(negativeTrade.Quantity) {
-						log.Fatalf("invalid state: positive trade quantity exceeds negative trade quantity")
-					}
-
-					// adjust negative trade quantity by positive trade quantity
-					negativeTrade.Quantity += trade.Quantity
-
-					// remove positive trade
-					netOpenTradesCopy = append(netOpenTradesCopy[:i], netOpenTradesCopy[i+1:]...)
-					openTradesLen--
-
-					// if negative trade quantity is 0, remove negative trade
-					if negativeTrade.Quantity == 0 {
-						netOpenTradesCopy = netOpenTradesCopy[*negativeTradePos:]
-						openTradesLen--
-						negativeTradePos = nil
-					}
-				}
-			}
-
-			position.OpenTrades = netOpenTradesCopy
-		}
+		position.OpenTrades = p.getNetTrades(allTrades[symbol])
 	}
 
 	vwapMap := make(map[eventmodels.Instrument]float64)

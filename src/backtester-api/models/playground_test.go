@@ -390,8 +390,9 @@ func TestPositions(t *testing.T) {
 
 		// assert single open trade volume decreased
 		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
-		assert.Len(t, position2.OpenTrades, 1)
-		assert.Equal(t, 5.0, position2.OpenTrades[0].Quantity)
+		assert.Len(t, position2.OpenTrades, 2)
+		assert.Equal(t, 10.0, position2.OpenTrades[0].Quantity)
+		assert.Equal(t, -5.0, position2.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - open trades, short", func(t *testing.T) {
@@ -429,8 +430,9 @@ func TestPositions(t *testing.T) {
 
 		// assert single open trade volume decreased
 		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
-		assert.Len(t, position2.OpenTrades, 1)
-		assert.Equal(t, -5.0, position2.OpenTrades[0].Quantity)
+		assert.Len(t, position2.OpenTrades, 2)
+		assert.Equal(t, -10.0, position2.OpenTrades[0].Quantity)
+		assert.Equal(t, 5.0, position2.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - same direction", func(t *testing.T) {
@@ -695,8 +697,9 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
-		assert.Len(t, position.OpenTrades, 1)
-		assert.Equal(t, 5.0, position.OpenTrades[0].Quantity)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, -5.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
@@ -772,8 +775,9 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
-		assert.Len(t, position.OpenTrades, 1)
-		assert.Equal(t, -5.0, position.OpenTrades[0].Quantity)
+		assert.Len(t, position.OpenTrades, 2)
+		assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
+		assert.Equal(t, 5.0, position.OpenTrades[1].Quantity)
 	})
 }
 
