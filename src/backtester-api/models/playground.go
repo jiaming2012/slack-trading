@@ -13,7 +13,7 @@ import (
 
 type Playground struct {
 	ID                 uuid.UUID
-	account            BacktesterAccount
+	account            *BacktesterAccount
 	clock              *Clock
 	repos              map[eventmodels.Instrument]*BacktesterCandleRepository
 	isBacktestComplete bool
@@ -210,7 +210,7 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 
 	for _, trade := range trades {
 		if direction > 0 {
-			if totalQuantity + trade.Quantity < 0 {
+			if totalQuantity+trade.Quantity < 0 {
 				netTrades = []*BacktesterTrade{
 					netTrades[len(netTrades)-1],
 					trade,
@@ -220,16 +220,16 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 				totalQuantity = trade.Quantity
 
 				continue
-			} else if totalQuantity + trade.Quantity == 0 {
+			} else if totalQuantity+trade.Quantity == 0 {
 				direction = 0
 				netTrades = []*BacktesterTrade{}
-				
+
 				continue
 			}
 
 			totalQuantity += trade.Quantity
 		} else if direction < 0 {
-			if totalQuantity + trade.Quantity > 0 {
+			if totalQuantity+trade.Quantity > 0 {
 				netTrades = []*BacktesterTrade{
 					netTrades[len(netTrades)-1],
 					trade,
@@ -239,7 +239,7 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 				totalQuantity = trade.Quantity
 
 				continue
-			} else if totalQuantity + trade.Quantity == 0 {
+			} else if totalQuantity+trade.Quantity == 0 {
 				direction = 0
 				netTrades = []*BacktesterTrade{}
 
@@ -252,8 +252,8 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 				direction = 1
 			} else if trade.Quantity < 0 {
 				direction = -1
-			} 
-			
+			}
+
 			totalQuantity = trade.Quantity
 		}
 
@@ -444,10 +444,10 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 	}
 
 	return &Playground{
-		ID: uuid.New(),
-		account: *NewBacktesterAccount(balance),
-		clock: clock,
-		repos: repos,
+		ID:      uuid.New(),
+		account: NewBacktesterAccount(balance),
+		clock:   clock,
+		repos:   repos,
 	}, nil
 }
 
@@ -465,7 +465,7 @@ func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Pla
 
 	return &Playground{
 		ID:      uuid.New(),
-		account: *NewBacktesterAccount(balance),
+		account: NewBacktesterAccount(balance),
 		clock:   clock,
 		repos:   repos,
 	}, nil
