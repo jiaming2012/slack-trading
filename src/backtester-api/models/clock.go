@@ -21,6 +21,7 @@ func (c *Clock) Add(timeToAdd time.Duration) {
 		today, ok := c.Calendar[c.CurrentTime.Format("2006-01-02")]
 		if ok {
 			if !today.IsBetweenMarketHours(c.CurrentTime) {
+				c.CurrentTime = c.CurrentTime.Add(24 * time.Hour)
 				c.advanceToNextMarketOpen()
 				return
 			}
@@ -40,17 +41,17 @@ func (c *Clock) advanceToNextMarketOpen() {
 	}
 
 	for {
-		if c.IsExpired() {
-			return
-		}
-
-		c.CurrentTime = c.CurrentTime.Add(24 * time.Hour)
-
 		calendar, ok := c.Calendar[c.CurrentTime.Format("2006-01-02")]
 		if ok {
 			c.CurrentTime = calendar.MarketOpen.In(location)
 			return
 		}
+
+		if c.IsExpired() {
+			return
+		}
+
+		c.CurrentTime = c.CurrentTime.Add(24 * time.Hour)
 	}
 }
 
@@ -62,7 +63,12 @@ func NewClock(startTime time.Time, endTime time.Time, calendar map[string]*event
 	}
 
 	if calendar != nil {
-		clock.advanceToNextMarketOpen()
+		today, ok := calendar[clock.CurrentTime.Format("2006-01-02")]
+		if ok {
+			if !today.IsBetweenMarketHours(clock.CurrentTime) {
+				clock.advanceToNextMarketOpen()
+			}
+		}
 	}
 
 	return clock

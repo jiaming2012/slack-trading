@@ -33,7 +33,7 @@ func TestCalendar(t *testing.T) {
 		assert.NoError(t, err)
 		nextMarketOpen := time.Date(2021, time.January, 12, 9, 30, 0, 0, loc)
 
-		assert.Equal(t, nextMarketOpen.UTC(), clock.CurrentTime)
+		assert.Equal(t, nextMarketOpen, clock.CurrentTime)
 	})
 
 	t.Run("advances to next market open", func(t *testing.T) {
@@ -58,17 +58,17 @@ func TestCalendar(t *testing.T) {
 		assert.NoError(t, err)
 		nextMarketOpen := time.Date(2021, time.January, 12, 9, 30, 0, 0, loc)
 
-		assert.Equal(t, nextMarketOpen.UTC(), clock.CurrentTime)
+		assert.Equal(t, nextMarketOpen, clock.CurrentTime)
 
 		// advance to market close
 		clock.Add(6 * time.Hour)
-		clock.Add(30 * time.Minute)
+		clock.Add(29 * time.Minute)
 
-		assert.Equal(t, time.Date(2021, time.January, 12, 16, 0, 0, 0, loc).UTC(), clock.CurrentTime)
+		assert.Equal(t, time.Date(2021, time.January, 12, 15, 59, 0, 0, loc), clock.CurrentTime)
 
 		// expect: next tick should be next market open
 		clock.Add(1 * time.Minute)
 
-		assert.Equal(t, time.Date(2021, time.January, 13, 9, 30, 0, 0, loc).UTC(), clock.CurrentTime)
+		assert.Equal(t, time.Date(2021, time.January, 13, 9, 30, 0, 0, loc), clock.CurrentTime)
 	})
 }
