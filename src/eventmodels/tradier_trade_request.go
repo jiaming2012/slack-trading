@@ -3,7 +3,7 @@ package eventmodels
 type BacktesterOrder struct {
 	Underlying StockSymbol
 	Spread     *OptionSpreadContractDTO
-	Quantity   int
+	Quantity   float64
 	Tag        string
 	Config     *OptionYAML
 }

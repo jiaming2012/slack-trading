@@ -19,12 +19,34 @@ type Playground struct {
 	isBacktestComplete bool
 }
 
-func (p *Playground) addPendingOrdersToOrders() {
+func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrder, errs error) {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	p.account.Orders = append(p.account.Orders, p.account.PendingOrders...)
+	invalidOrders = []*BacktesterOrder{}
+	for _, order := range p.account.PendingOrders {
+		currentPrice, err := p.getCurrentPrice(order.Symbol)
+		if err != nil {
+			invalidOrders = append(invalidOrders, order)
+			errs = fmt.Errorf("addPendingOrdersToOrders: error fetching price: %w", err)
+			continue
+		}
+
+		freeMargin := p.GetFreeMargin()
+		requiredMargin := calculateMaintenanceRequirement(order.GetQuantity(), currentPrice)
+
+		if freeMargin < requiredMargin {
+			invalidOrders = append(invalidOrders, order)
+			order.Status = BacktesterOrderStatusRejected
+			continue
+		}
+
+		p.account.Orders = append(p.account.Orders, order)
+	}
+
 	p.account.PendingOrders = []*BacktesterOrder{}
+
+	return
 }
 
 func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, error) {
@@ -163,7 +185,10 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 
 	startingPositions := p.GetPositions()
 
-	p.addPendingOrdersToOrders()
+	invalidOrders, err := p.addPendingOrdersToOrders()
+	if err != nil {
+		return nil, fmt.Errorf("error adding pending orders to orders: %w", err)
+	}
 
 	newTrades, err := p.updateTrades()
 	if err != nil {
@@ -173,9 +198,10 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 	p.updateBalance(newTrades, startingPositions)
 
 	return &StateChange{
-		NewTrades:   newTrades,
-		NewCandles:  newCandles,
-		CurrentTime: p.clock.CurrentTime.Format(time.RFC3339),
+		NewTrades:     newTrades,
+		NewCandles:    newCandles,
+		CurrentTime:   p.clock.CurrentTime.Format(time.RFC3339),
+		InvalidOrders: invalidOrders,
 	}, nil
 }
 
@@ -377,14 +403,29 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side Backteste
 	return nil
 }
 
-// func (p *Playground) GetFreeMargin() float64 {
-// 	usedMargin := 0.0
-// 	positions := p.GetPositions()
+// max returns the maximum of two float64 values
+func max(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
 
-// 	for _, pos := range positions {
+func (p *Playground) GetFreeMargin() float64 {
+	positions := p.GetPositions()
+	pl := 0.0
+	for _, position := range positions {
+		pl += position.PL
+	}
 
-// 	}
-// }
+	freeMargin := (p.account.Balance + pl) * 2.0
+
+	for _, p := range positions {
+		freeMargin -= calculateMaintenanceRequirement(p.Quantity, p.CostBasis)
+	}
+
+	return freeMargin
+}
 
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.Class != Equity {
