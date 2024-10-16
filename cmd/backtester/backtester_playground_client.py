@@ -33,6 +33,7 @@ class Position:
 @dataclass
 class Account:
     balance: float
+    free_margin: float
     positions: Dict[str, Position]
     
     @property
@@ -87,6 +88,7 @@ class BacktesterPlaygroundClient:
         
         return Account(
             balance=obj['balance'],
+            free_margin=obj['free_margin'],
             positions={
                 symbol: Position(
                     symbol=symbol,
@@ -311,32 +313,68 @@ class BacktesterPlaygroundClient:
 
 if __name__ == '__main__':
     try:
-        playground_client = BacktesterPlaygroundClient(1000, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
+        playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
         
         print('playground_id: ', playground_client.id)
         
-        result = playground_client.place_order('AAPL', 10, OrderSide.BUY)
+        result = playground_client.place_order('AAPL', 10, OrderSide.SELL_SHORT)
+                
+        tick_delta = playground_client.tick(6000)
         
-        print(result)
+        print('tick_delta #1: ', tick_delta)
         
-        new_state = playground_client.tick(60)
+        invalid_orders = tick_delta.get('invalid_orders')
         
-        print(new_state)
+        found_insufficient_free_margin = False
+        if invalid_orders:
+            for order in invalid_orders:
+                if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
+                    found_insufficient_free_margin = True
+                    break
+        
+        print('L1: found_insufficient_free_margin: ', found_insufficient_free_margin)
         
         account = playground_client.fetch_account_state()
         
-        print(account['positions']['AAPL']['pl'])
+        print('L1: account: ', account)
         
-        print(account['balance'])
+        tick_delta = playground_client.tick(360000)
         
-        print(playground_client.is_backtest_complete())
+        print('tick_delta #2: ', tick_delta)
         
-        candles = playground_client.fetch_candles(datetime(2021, 1, 4, 10, 40, 0, 0, ZoneInfo('US/Eastern')), datetime(2021, 1, 4, 11, 0, 0, 0, ZoneInfo('US/Eastern')))
+        invalid_orders = tick_delta.get('invalid_orders')
         
-        reward = playground_client.fetch_reward_from_new_trades(new_state, 2, 2)
+        found_insufficient_free_margin = False
+        if invalid_orders:
+            for order in invalid_orders:
+                if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
+                    found_insufficient_free_margin = True
+                    break
         
-        print('reward: ', reward)
+        print('L2: found_insufficient_free_margin: ', found_insufficient_free_margin)
+
+        account = playground_client.fetch_account_state()
         
+        print('L2: account: ', account)
+        
+        result = playground_client.place_order('AAPL', 3, OrderSide.SELL_SHORT)
+        
+        tick_delta = playground_client.tick(360000)
+        
+        print('tick_delta #3: ', tick_delta)
+        
+        # tick_delta = playground_client.tick(121260)
+        tick_delta = playground_client.tick(60000)
+        tick_delta = playground_client.tick(60000)
+        
+        
+        print('tick_delta #4: ', tick_delta)
+        
+        account = playground_client.fetch_account_state()
+        
+        print('L4: account: ', account)
+        
+                
         
     except Exception as e:
         print(e)
