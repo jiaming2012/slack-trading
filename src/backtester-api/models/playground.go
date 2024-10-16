@@ -19,26 +19,26 @@ type Playground struct {
 	isBacktestComplete bool
 }
 
-func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrder, errs error) {
+func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrderDTO) {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	invalidOrders = []*BacktesterOrder{}
+	invalidOrders = []*BacktesterOrderDTO{}
 	for _, order := range p.account.PendingOrders {
 		currentPrice, err := p.getCurrentPrice(order.Symbol)
 		if err != nil {
-			invalidOrders = append(invalidOrders, order)
-			errs = fmt.Errorf("addPendingOrdersToOrders: error fetching price: %w", err)
-			continue
-		}
-
-		freeMargin := p.GetFreeMargin()
-		requiredMargin := calculateMaintenanceRequirement(order.GetQuantity(), currentPrice)
-
-		if freeMargin < requiredMargin {
-			invalidOrders = append(invalidOrders, order)
+			invalidOrders = append(invalidOrders, order.ToDTO())
 			order.Status = BacktesterOrderStatusRejected
-			continue
+			order.RejectReason = &ErrNoPriceAvailable
+		} else {
+			freeMargin := p.GetFreeMargin()
+			requiredMargin := calculateMaintenanceRequirement(order.GetQuantity(), currentPrice)
+
+			if freeMargin < requiredMargin {
+				order.Status = BacktesterOrderStatusRejected
+				order.RejectReason = &ErrInsufficientFreeMargin
+				invalidOrders = append(invalidOrders, order.ToDTO())
+			}
 		}
 
 		p.account.Orders = append(p.account.Orders, order)
@@ -139,7 +139,7 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time,
 		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
 	}
 
-	candles, err := repo.FetchRange(from, to)
+	candles, err := repo.FetchCandles(from, to)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching candles: %w", err)
 	}
@@ -147,7 +147,7 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time,
 	return candles, nil
 }
 
-func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
+func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 	if !p.clock.IsExpired() {
 		p.clock.Add(d)
 	}
@@ -161,7 +161,7 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 
 		log.Infof("setting status -> backtest complete: clock expired")
 
-		return &StateChange{
+		return &TickDelta{
 			IsBacktestComplete: true,
 		}, nil
 	}
@@ -185,10 +185,7 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 
 	startingPositions := p.GetPositions()
 
-	invalidOrders, err := p.addPendingOrdersToOrders()
-	if err != nil {
-		return nil, fmt.Errorf("error adding pending orders to orders: %w", err)
-	}
+	invalidOrdersDTO := p.addPendingOrdersToOrders()
 
 	newTrades, err := p.updateTrades()
 	if err != nil {
@@ -197,11 +194,11 @@ func (p *Playground) Tick(d time.Duration) (*StateChange, error) {
 
 	p.updateBalance(newTrades, startingPositions)
 
-	return &StateChange{
+	return &TickDelta{
 		NewTrades:     newTrades,
 		NewCandles:    newCandles,
 		CurrentTime:   p.clock.CurrentTime.Format(time.RFC3339),
-		InvalidOrders: invalidOrders,
+		InvalidOrders: invalidOrdersDTO,
 	}, nil
 }
 
@@ -411,8 +408,7 @@ func max(a, b float64) float64 {
 	return b
 }
 
-func (p *Playground) GetFreeMargin() float64 {
-	positions := p.GetPositions()
+func (p *Playground) GetFreeMarginFromPositions(positions map[eventmodels.Instrument]*Position) float64 {
 	pl := 0.0
 	for _, position := range positions {
 		pl += position.PL
@@ -425,6 +421,11 @@ func (p *Playground) GetFreeMargin() float64 {
 	}
 
 	return freeMargin
+}
+
+func (p *Playground) GetFreeMargin() float64 {
+	positions := p.GetPositions()
+	return p.GetFreeMarginFromPositions(positions)
 }
 
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
@@ -474,7 +475,7 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
 
 	for _, feed := range feeds {
-		candles, err := feed.FetchRange(clock.CurrentTime, clock.EndTime)
+		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
 		if err != nil {
 			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
 		}
@@ -495,7 +496,7 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
 
-	candles, err := feed.FetchRange(clock.CurrentTime, clock.EndTime)
+	candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
 	if err != nil {
 		return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
 	}

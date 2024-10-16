@@ -21,7 +21,32 @@ type BacktesterOrder struct {
 	Tag              string                  `json:"tag"`
 	Trades           []*BacktesterTrade      `json:"trades"`
 	Status           BacktesterOrderStatus   `json:"status"`
+	RejectReason     *error                  `json:"reject_reason,omitempty"`
 	CreateDate       time.Time               `json:"create_date"`
+}
+
+func (o *BacktesterOrder) ToDTO() *BacktesterOrderDTO {
+	rejectReason := ""
+	if o.RejectReason != nil {
+		rejectReason = (*o.RejectReason).Error()
+	}
+
+	return &BacktesterOrderDTO{
+		ID:               o.ID,
+		Class:            o.Class,
+		Symbol:           o.Symbol,
+		Side:             o.Side,
+		AbsoluteQuantity: o.AbsoluteQuantity,
+		Type:             o.Type,
+		Duration:         o.Duration,
+		Price:            o.Price,
+		StopPrice:        o.StopPrice,
+		Tag:              o.Tag,
+		Trades:           o.Trades,
+		Status:           o.GetStatus(),
+		RejectReason:     rejectReason,
+		CreateDate:       o.CreateDate,
+	}
 }
 
 func (o *BacktesterOrder) Cancel() {

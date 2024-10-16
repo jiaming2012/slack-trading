@@ -8,5 +8,5 @@ import (
 
 type BacktesterDataFeed interface {
 	GetSymbol() eventmodels.Instrument
-	FetchRange(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error)
+	FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error)
 }

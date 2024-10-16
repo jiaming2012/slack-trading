@@ -364,10 +364,13 @@ func convertPositionsToMap(positions map[eventmodels.Instrument]*models.Position
 }
 
 func getAccountInfo(playground *models.Playground) map[string]interface{} {
+	positions := playground.GetPositions()
+	freeMargin := playground.GetFreeMarginFromPositions(positions)
 	return map[string]interface{}{
-		"balance":   playground.GetBalance(),
-		"orders":    playground.GetOrders(),
-		"positions": convertPositionsToMap(playground.GetPositions()),
+		"balance":     playground.GetBalance(),
+		"free_margin": freeMargin,
+		"orders":      playground.GetOrders(),
+		"positions":   convertPositionsToMap(positions),
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -17,12 +19,16 @@ func (r *BacktesterCandleRepository) GetSymbol() eventmodels.Instrument {
 	return r.symbol
 }
 
-func (r *BacktesterCandleRepository) FetchRange(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	var candles []*eventmodels.PolygonAggregateBarV2
 	for _, candle := range r.candles {
 		if (candle.Timestamp.Equal(startTime) || candle.Timestamp.After(startTime)) && candle.Timestamp.Before(endTime) {
 			candles = append(candles, candle)
 		}
+	}
+
+	if len(candles) == 0 {
+		log.Warnf("No candles found for %s between %s and %s", r.symbol, startTime, endTime)
 	}
 
 	return candles, nil

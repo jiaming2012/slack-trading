@@ -265,7 +265,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		assert.Equal(t, balance - 300.0, playground.GetBalance())
+		assert.Equal(t, balance-300.0, playground.GetBalance())
 
 		// open 3rd order
 		order4 := NewBacktesterOrder(4, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -276,7 +276,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		assert.Equal(t, balance - 300.0, playground.GetBalance())
+		assert.Equal(t, balance-300.0, playground.GetBalance())
 
 		// close order
 		order5 := NewBacktesterOrder(5, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -287,7 +287,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		assert.Equal(t, balance - 200.0, playground.GetBalance())
+		assert.Equal(t, balance-200.0, playground.GetBalance())
 	})
 
 	t.Run("GetAccountBalance - decrease after unprofitable trade", func(t *testing.T) {
@@ -323,7 +323,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		assert.Equal(t, balance - 150.0, playground.GetBalance())
+		assert.Equal(t, balance-150.0, playground.GetBalance())
 	})
 }
 
@@ -901,8 +901,8 @@ func TestFreeMargin(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Len(t, delta.InvalidOrders, 1)
-		assert.Equal(t, order, delta.InvalidOrders[0])
-		assert.Equal(t, BacktesterOrderStatusRejected, delta.InvalidOrders[0].GetStatus())
+		assert.Equal(t, BacktesterOrderStatusRejected, delta.InvalidOrders[0].Status)
+		assert.Equal(t, ErrInsufficientFreeMargin.Error(), delta.InvalidOrders[0].RejectReason)
 	})
 }
 
