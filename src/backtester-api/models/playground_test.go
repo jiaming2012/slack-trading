@@ -10,6 +10,98 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func TestLiquidation(t *testing.T) {
+	symbol1 := eventmodels.StockSymbol("AAPL")
+	symbol2 := eventmodels.StockSymbol("GOOG")
+	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
+
+	t.Run("Buy and sell orders - multiple liquidations", func(t *testing.T) {
+
+	})
+
+	t.Run("Sell orders - single liquidation", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+		t1 := startTime.Add(5 * time.Second)
+		t2 := startTime.Add(10 * time.Second)
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{startTime, t1, t2}, []float64{0.0, 10.0, 10.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, []time.Time{startTime, t1, t2}, []float64{0.0, 100.0, 200.0})
+
+		balance := 1000.0
+		playground, err := NewPlaygroundMultipleFeeds(balance, clock, feed1, feed2)
+		assert.NoError(t, err)
+
+		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, BacktesterOrderSideSellShort, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		order2 := NewBacktesterOrder(2, Equity, startTime, symbol2, BacktesterOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		delta, err := playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, delta.NewTrades, 2)
+		assert.Equal(t,symbol1, delta.NewTrades[0].Symbol)
+		assert.Equal(t, 10.0, delta.NewTrades[0].Price)
+		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
+		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
+
+		positions := playground.GetPositions()
+		assert.Len(t, positions, 2)
+
+		delta, err = playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, delta.Events, 1)
+		assert.Equal(t, TickDeltaEventTypeLiquidation, delta.Events[0].Type)
+		assert.NotNil(t, delta.Events[0].LiquidationEvent)
+
+		liquidationOrders := delta.Events[0].LiquidationEvent.OrdersPlaced
+		assert.Len(t, liquidationOrders, 1)
+		assert.Equal(t, BacktesterOrderStatusFilled, liquidationOrders[0].GetStatus())
+		assert.Contains(t, liquidationOrders[0].Tag, "liquidation - free margin @")
+		
+		assert.Len(t, liquidationOrders[0].Trades, 1)
+		assert.Equal(t, 5.0, liquidationOrders[0].Trades[0].Quantity)
+		assert.Equal(t, 200.0, liquidationOrders[0].Trades[0].Price)
+
+		positions = playground.GetPositions()
+		assert.Len(t, positions, 1)
+	})
+
+	t.Run("Buy orders - no liquidation", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+		t1 := startTime.Add(5 * time.Second)
+		t2 := startTime.Add(10 * time.Second)
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, []time.Time{startTime, t1, t2}, []float64{0.0, 10.0, 0.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, []time.Time{startTime, t1, t2}, []float64{0.0, 100.0, 0.0})
+
+		balance := 1000.0
+		playground, err := NewPlaygroundMultipleFeeds(balance, clock, feed1, feed2)
+		assert.NoError(t, err)
+
+		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, BacktesterOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+
+		order2 := NewBacktesterOrder(2, Equity, startTime, symbol2, BacktesterOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+
+		delta, err := playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Len(t, delta.NewTrades, 2)
+		assert.Equal(t,symbol1, delta.NewTrades[0].Symbol)
+		assert.Equal(t, 10.0, delta.NewTrades[0].Price)
+		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
+		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
+
+		delta, err = playground.Tick(5 * time.Second)
+		assert.NoError(t, err)
+		assert.Nil(t, delta.Events)
+	})
+}
+
 func TestFeed(t *testing.T) {
 	symbol1 := eventmodels.StockSymbol("AAPL")
 	symbol2 := eventmodels.StockSymbol("GOOG")

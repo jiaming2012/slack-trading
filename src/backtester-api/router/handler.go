@@ -21,7 +21,6 @@ import (
 var (
 	client            = new(eventservices.PolygonTickDataMachine)
 	playgrounds       = map[uuid.UUID]*models.Playground{}
-	orderID           = uint(0)
 	projectsDirectory string
 )
 
@@ -71,11 +70,6 @@ func getPlayground(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
-}
-
-func getOrderID() uint {
-	orderID++
-	return orderID
 }
 
 type CreatePlaygroundRequest struct {
@@ -164,7 +158,7 @@ func (req *CreateOrderRequest) Validate() error {
 
 func placeOrder(playground *models.Playground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
 	order := models.NewBacktesterOrder(
-		getOrderID(),
+		playground.NextOrderID(),
 		req.Class,
 		createdOn,
 		eventmodels.StockSymbol(req.Symbol),

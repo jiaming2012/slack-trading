@@ -19,12 +19,14 @@ type Playground struct {
 	isBacktestComplete bool
 }
 
-func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrder) {
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
+func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, positions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	invalidOrders = []*BacktesterOrder{}
-	for _, order := range p.account.PendingOrders {
+	for _, order := range pendingOrders {
+		if order.Status != BacktesterOrderStatusPending {
+			log.Warnf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
+			continue
+		}
+
 		currentPrice, err := p.getCurrentPrice(order.Symbol)
 		if err != nil {
 			invalidOrders = append(invalidOrders, order)
@@ -33,9 +35,18 @@ func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrde
 			order.RejectReason = &rejectReason
 		} else {
 			freeMargin := p.GetFreeMargin()
-			requiredMargin := calculateMaintenanceRequirement(order.GetQuantity(), currentPrice)
+			orderQuantity := order.GetQuantity()
+			requiredMargin := calculateMaintenanceRequirement(orderQuantity, currentPrice)
+			position := positions[order.Symbol]
 
-			if freeMargin < requiredMargin {
+			performMarginCheck := true
+			if position != nil && position.Quantity < 0 && orderQuantity > 0 && orderQuantity <= math.Abs(position.Quantity) {
+				performMarginCheck = false
+			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 && math.Abs(orderQuantity) < position.Quantity {
+				performMarginCheck = false
+			}
+
+			if performMarginCheck && freeMargin < requiredMargin {
 				order.Status = BacktesterOrderStatusRejected
 				rejectReason := ErrInsufficientFreeMargin.Error()
 				order.RejectReason = &rejectReason
@@ -46,7 +57,13 @@ func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrde
 		p.account.Orders = append(p.account.Orders, order)
 	}
 
-	p.account.PendingOrders = []*BacktesterOrder{}
+	newTrades, err = p.updateTrades()
+	if err != nil {
+		err = fmt.Errorf("error updating trades: %w", err)
+		return
+	}
+
+	p.updateBalance(newTrades, positions)
 
 	return
 }
@@ -66,9 +83,6 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, er
 }
 
 func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
 	var trades []*BacktesterTrade
 
 	for _, order := range p.account.Orders {
@@ -106,9 +120,6 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 }
 
 func (p *Playground) updateBalance(newTrades []*BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
 	for _, trade := range newTrades {
 		currentPosition, ok := startingPositions[trade.Symbol]
 		if !ok {
@@ -135,6 +146,75 @@ func (p *Playground) GetCurrentTime() time.Time {
 	return p.clock.CurrentTime
 }
 
+func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, freeMargin float64) (*BacktesterOrder, error) {
+	var order *BacktesterOrder
+
+	tag := fmt.Sprintf("liquidation - free margin @ %.2f", freeMargin)
+
+	if position.Quantity > 0 {
+		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, BacktesterOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+	} else if position.Quantity < 0 {
+		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, BacktesterOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+	} else {
+		return nil, nil
+	}
+
+	_, invalidOrders, err := p.commitPendingOrders([]*BacktesterOrder{order}, map[eventmodels.Instrument]*Position{symbol: position})
+	if err != nil {
+		return nil, fmt.Errorf("error committing pending orders: %w", err)
+	}
+
+	if len(invalidOrders) > 0 {
+		return nil, fmt.Errorf("error committing pending orders: %d invalid orders: %v", len(invalidOrders), invalidOrders)
+	}
+
+	return order, nil
+}
+
+func (p *Playground) NextOrderID() uint {
+	return p.account.NextOrderID()
+}
+
+// checkForLiquidations checks for liquidations and returns a LiquidationEvent if liquidations are necessary
+// Liquidations are performed in the following order:
+// 1. Sort positions by position size (quantity * cost_basis) in descending order
+// 2. Liquidate positions until free margin is positive or all positions are liquidated
+func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*Position) (*TickDeltaEvent, error) {
+	freeMargin := p.GetFreeMarginFromPositions(positions)
+
+	var liquidatedOrders []*BacktesterOrder
+	for freeMargin < 0 && len(positions) > 0 {
+		sortedSymbols, sortedPositions := sortPositionsByQuantityDesc(positions)
+
+		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], freeMargin)
+		if err != nil {
+			return nil, fmt.Errorf("error performing liquidations: %w", err)
+		}
+
+		if order != nil {
+			liquidatedOrders = append(liquidatedOrders, order)
+		}
+
+		positions := p.GetPositions()
+		freeMargin = p.GetFreeMarginFromPositions(positions)
+	}
+
+	if freeMargin < 0 {
+		log.Warnf("free margin, %.2f, still negative after liquidating all positions", freeMargin)
+	}
+
+	if len(liquidatedOrders) > 0 {
+		return &TickDeltaEvent{
+			Type: TickDeltaEventTypeLiquidation,
+			LiquidationEvent: &LiquidationEvent{
+				OrdersPlaced: liquidatedOrders,
+			},
+		}, nil
+	}
+
+	return nil, nil
+}
+
 func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	repo, ok := p.repos[symbol]
 	if !ok {
@@ -150,6 +230,7 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time,
 }
 
 func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
+	// Update the clock
 	if !p.clock.IsExpired() {
 		p.clock.Add(d)
 	}
@@ -168,8 +249,8 @@ func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 		}, nil
 	}
 
+	// Update the candle repos
 	var newCandles []*BacktesterCandle
-
 	for instrument, repo := range p.repos {
 		newCandle, err := repo.Update(p.clock.CurrentTime)
 		if err != nil {
@@ -185,22 +266,38 @@ func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 		}
 	}
 
+	// Update the account
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
+	// Check for liquidations
+	var tickDeltaEvents []*TickDeltaEvent
+
 	startingPositions := p.GetPositions()
 
-	invalidOrdersDTO := p.addPendingOrdersToOrders()
-
-	newTrades, err := p.updateTrades()
+	liquidationEvents, err := p.checkForLiquidations(startingPositions)
 	if err != nil {
-		return nil, fmt.Errorf("error checking for new trades: %w", err)
+		return nil, fmt.Errorf("error checking for liquidations: %w", err)
 	}
 
-	p.updateBalance(newTrades, startingPositions)
+	if liquidationEvents != nil {
+		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
+	}
+
+	// Commit pending orders
+	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(p.account.PendingOrders, startingPositions)
+	if err != nil {
+		return nil, fmt.Errorf("error committing pending orders: %w", err)
+	}
+
+	p.account.PendingOrders = []*BacktesterOrder{}
 
 	return &TickDelta{
 		NewTrades:     newTrades,
 		NewCandles:    newCandles,
 		CurrentTime:   p.clock.CurrentTime.Format(time.RFC3339),
 		InvalidOrders: invalidOrdersDTO,
+		Events:        tickDeltaEvents,
 	}, nil
 }
 
@@ -306,6 +403,13 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		}
 	}
 
+	// remove positions with zero quantity
+	for symbol, position := range positions {
+		if position.Quantity == 0 {
+			delete(positions, symbol)
+		}
+	}
+
 	// adjust open trades
 	for symbol, position := range positions {
 		position.OpenTrades = p.getNetTrades(allTrades[symbol])
@@ -339,6 +443,10 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		// calculate average price
 		if totalQuantity != 0 {
 			avgPrice = vwap / totalQuantity
+		}
+
+		if _, ok := positions[symbol]; !ok {
+			continue
 		}
 
 		positions[symbol].CostBasis = avgPrice
