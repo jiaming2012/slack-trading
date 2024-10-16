@@ -19,25 +19,27 @@ type Playground struct {
 	isBacktestComplete bool
 }
 
-func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrderDTO) {
+func (p *Playground) addPendingOrdersToOrders() (invalidOrders []*BacktesterOrder) {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	invalidOrders = []*BacktesterOrderDTO{}
+	invalidOrders = []*BacktesterOrder{}
 	for _, order := range p.account.PendingOrders {
 		currentPrice, err := p.getCurrentPrice(order.Symbol)
 		if err != nil {
-			invalidOrders = append(invalidOrders, order.ToDTO())
+			invalidOrders = append(invalidOrders, order)
 			order.Status = BacktesterOrderStatusRejected
-			order.RejectReason = &ErrNoPriceAvailable
+			rejectReason := ErrNoPriceAvailable.Error()
+			order.RejectReason = &rejectReason
 		} else {
 			freeMargin := p.GetFreeMargin()
 			requiredMargin := calculateMaintenanceRequirement(order.GetQuantity(), currentPrice)
 
 			if freeMargin < requiredMargin {
 				order.Status = BacktesterOrderStatusRejected
-				order.RejectReason = &ErrInsufficientFreeMargin
-				invalidOrders = append(invalidOrders, order.ToDTO())
+				rejectReason := ErrInsufficientFreeMargin.Error()
+				order.RejectReason = &rejectReason
+				invalidOrders = append(invalidOrders, order)
 			}
 		}
 

@@ -902,7 +902,8 @@ func TestFreeMargin(t *testing.T) {
 
 		assert.Len(t, delta.InvalidOrders, 1)
 		assert.Equal(t, BacktesterOrderStatusRejected, delta.InvalidOrders[0].Status)
-		assert.Equal(t, ErrInsufficientFreeMargin.Error(), delta.InvalidOrders[0].RejectReason)
+		assert.NotNil(t, delta.InvalidOrders[0].RejectReason)
+		assert.Equal(t, ErrInsufficientFreeMargin.Error(), *delta.InvalidOrders[0].RejectReason)
 	})
 }
 
