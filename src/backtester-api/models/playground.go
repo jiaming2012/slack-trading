@@ -42,7 +42,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 			performMarginCheck := true
 			if position != nil && position.Quantity < 0 && orderQuantity > 0 && orderQuantity <= math.Abs(position.Quantity) {
 				performMarginCheck = false
-			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 && math.Abs(orderQuantity) < position.Quantity {
+			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 && math.Abs(orderQuantity) <= position.Quantity {
 				performMarginCheck = false
 			}
 
@@ -195,7 +195,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 			liquidatedOrders = append(liquidatedOrders, order)
 		}
 
-		positions := p.GetPositions()
+		positions = p.GetPositions()
 		freeMargin = p.GetFreeMarginFromPositions(positions)
 	}
 
