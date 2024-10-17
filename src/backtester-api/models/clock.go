@@ -25,6 +25,8 @@ func (c *Clock) Add(timeToAdd time.Duration) {
 				c.advanceToNextMarketOpen()
 				return
 			}
+		} else {
+			c.advanceToNextMarketOpen()
 		}
 	}
 }

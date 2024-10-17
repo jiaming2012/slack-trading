@@ -366,6 +366,9 @@ if __name__ == '__main__':
         # tick_delta = playground_client.tick(121260)
         tick_delta = playground_client.tick(60000)
         tick_delta = playground_client.tick(60000)
+        tick_delta = playground_client.tick(120000)
+        tick_delta = playground_client.tick(120000)
+        
         
         
         print('tick_delta #4: ', tick_delta)

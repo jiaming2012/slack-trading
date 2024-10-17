@@ -72,7 +72,7 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 			Close:     iter.Item().Close,
 			High:      iter.Item().High,
 			Low:       iter.Item().Low,
-			Timestamp: time.Time(iter.Item().Timestamp),
+			Timestamp: time.Time(iter.Item().Timestamp).In(loc),
 		})
 	}
 
