@@ -100,7 +100,6 @@ class RenkoTradingEnv(gym.Env):
         result = np.mean(self.rewards_history)
         return 0 if np.isnan(result) else result
         
-    
     def get_batch_size(self) -> int:
         avg_reward = self.get_average_reward()
         if avg_reward <= 0:
@@ -156,7 +155,8 @@ class RenkoTradingEnv(gym.Env):
                 result -= 100
                 self.render()
                 print('Insufficient free margin detected: subtracting 100 from reward.')
-            elif self.found_liquidation(tick_delta):
+            
+            if self.found_liquidation(tick_delta):
                 result -= self.initial_balance
                 self.render()
                 print(f'Liquidation detected: subtracting {self.initial_balance} from reward.')
