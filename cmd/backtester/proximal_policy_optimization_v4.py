@@ -103,7 +103,6 @@ class RenkoTradingEnv(gym.Env):
     
     def get_batch_size(self) -> int:
         avg_reward = self.get_average_reward()
-        print(f'Average reward: {avg_reward}')
         if avg_reward <= 0:
             return 300
         elif avg_reward < 10:
@@ -451,6 +450,8 @@ for timestep in range(total_timesteps):
     print(f'Training complete @ Timestep {timestep}')
 
     print('*' * 50)
+    
+    vec_env.env_method('render', indices=0)
     
     batch_size = env.get_batch_size()
 
