@@ -36,7 +36,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 		} else {
 			freeMargin := p.GetFreeMargin()
 			orderQuantity := order.GetQuantity()
-			requiredMargin := calculateMaintenanceRequirement(orderQuantity, currentPrice)
+			requiredMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
 			position := positions[order.Symbol]
 
 			performMarginCheck := true
@@ -146,10 +146,8 @@ func (p *Playground) GetCurrentTime() time.Time {
 	return p.clock.CurrentTime
 }
 
-func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, freeMargin float64) (*BacktesterOrder, error) {
+func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*BacktesterOrder, error) {
 	var order *BacktesterOrder
-
-	tag := fmt.Sprintf("liquidation - free margin @ %.2f", freeMargin)
 
 	if position.Quantity > 0 {
 		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, BacktesterOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
@@ -180,13 +178,16 @@ func (p *Playground) NextOrderID() uint {
 // 1. Sort positions by position size (quantity * cost_basis) in descending order
 // 2. Liquidate positions until free margin is positive or all positions are liquidated
 func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*Position) (*TickDeltaEvent, error) {
-	freeMargin := p.GetFreeMarginFromPositions(positions)
+	equity := p.GetEquity(positions)
+	maintenanceMargin := p.getMaintenanceMargin(positions)
 
 	var liquidatedOrders []*BacktesterOrder
-	for freeMargin < 0 && len(positions) > 0 {
+	for equity < maintenanceMargin && len(positions) > 0 {
 		sortedSymbols, sortedPositions := sortPositionsByQuantityDesc(positions)
 
-		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], freeMargin)
+		tag := fmt.Sprintf("liquidation - equity @ %.2f, maintenance margin @ %.2f", equity, maintenanceMargin)
+
+		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], tag)
 		if err != nil {
 			return nil, fmt.Errorf("error performing liquidations: %w", err)
 		}
@@ -196,11 +197,11 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 		}
 
 		positions = p.GetPositions()
-		freeMargin = p.GetFreeMarginFromPositions(positions)
+		maintenanceMargin = p.getMaintenanceMargin(positions)
 	}
 
-	if freeMargin < 0 {
-		log.Warnf("free margin, %.2f, still negative after liquidating all positions", freeMargin)
+	if equity < maintenanceMargin {
+		log.Warnf("equity, %.2f, still below maintenance margin, %.2f, after liquidating all positions", equity, maintenanceMargin)
 	}
 
 	if len(liquidatedOrders) > 0 {
@@ -303,6 +304,16 @@ func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 
 func (p *Playground) GetBalance() float64 {
 	return p.account.Balance
+}
+
+func (p *Playground) GetEquity(positions map[eventmodels.Instrument]*Position) float64 {
+	equity := p.GetBalance()
+
+	for _, position := range positions {
+		equity += position.PL
+	}
+
+	return equity
 }
 
 func (p *Playground) GetOrders() []*BacktesterOrder {
@@ -518,7 +529,16 @@ func max(a, b float64) float64 {
 	return b
 }
 
-func (p *Playground) GetFreeMarginFromPositions(positions map[eventmodels.Instrument]*Position) float64 {
+func (p *Playground) getMaintenanceMargin(positions map[eventmodels.Instrument]*Position) float64 {
+	maintenanceMargin := 0.0
+	for _, position := range positions {
+		maintenanceMargin += calculateMaintenanceRequirement(position.Quantity, position.CostBasis)
+	}
+
+	return maintenanceMargin
+}
+
+func (p *Playground) GetFreeMarginFromPositionMap(positions map[eventmodels.Instrument]*Position) float64 {
 	pl := 0.0
 	for _, position := range positions {
 		pl += position.PL
@@ -526,8 +546,8 @@ func (p *Playground) GetFreeMarginFromPositions(positions map[eventmodels.Instru
 
 	freeMargin := (p.account.Balance + pl) * 2.0
 
-	for _, p := range positions {
-		freeMargin -= calculateMaintenanceRequirement(p.Quantity, p.CostBasis)
+	for _, position := range positions {
+		freeMargin -= calculateInitialMarginRequirement(position.Quantity, position.CostBasis)
 	}
 
 	return freeMargin
@@ -535,7 +555,7 @@ func (p *Playground) GetFreeMarginFromPositions(positions map[eventmodels.Instru
 
 func (p *Playground) GetFreeMargin() float64 {
 	positions := p.GetPositions()
-	return p.GetFreeMarginFromPositions(positions)
+	return p.GetFreeMarginFromPositionMap(positions)
 }
 
 func (p *Playground) PlaceOrder(order *BacktesterOrder) error {

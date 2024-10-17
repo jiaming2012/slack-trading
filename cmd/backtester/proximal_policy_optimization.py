@@ -108,7 +108,7 @@ class RenkoTradingEnv(gym.Env):
             return self._get_observation(), reward, terminated, truncated, {'balance': self.balance, 'pl': self.pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
 
         # Simulate trade, adjust balance, and calculate reward
-        account = self.playground_client.fetch_account_state()
+        account = self.playground_client.fetch_and_update_account_state()
         commission = 0
          
         if self.position == 0:
@@ -164,7 +164,7 @@ class RenkoTradingEnv(gym.Env):
         self.print_current_state()
             
         # Update the account state
-        account = self.playground_client.fetch_account_state()
+        account = self.playground_client.fetch_and_update_account_state()
         self.balance = account['balance'] - self.total_commission
         reward = self.get_reward()
         self.rewards_history.append(reward)

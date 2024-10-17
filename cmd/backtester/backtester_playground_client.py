@@ -72,13 +72,17 @@ class BacktesterPlaygroundClient:
         else:
             raise Exception('Invalid source')
 
-        self.account = self.fetch_account_state()
+        self.position = None
+        self.balance = None
+
+        self.account = self.fetch_and_update_account_state()
         self.current_candle = None
         self._is_backtest_complete = False
         self._initial_timestamp = None
         self.timestamp = None
         
-    def fetch_account_state(self) -> Account:
+    def fetch_and_update_account_state(self) -> Account:
+        # Fetch the account state
         response = requests.get(f'{self.host}/playground/{self.id}/account')
         
         if response.status_code != 200:
@@ -86,7 +90,7 @@ class BacktesterPlaygroundClient:
         
         obj = response.json()
         
-        return Account(
+        acc = Account(
             balance=obj['balance'],
             free_margin=obj['free_margin'],
             positions={
@@ -98,6 +102,16 @@ class BacktesterPlaygroundClient:
                 ) for symbol, position in obj['positions'].items()
             }
         )
+        
+        # Update the client's account state
+        self.balance = acc.balance
+        
+        if self.symbol in acc.positions:
+            self.position = acc.positions[self.symbol].quantity
+        else:
+            self.position = 0
+        
+        return acc
     
     def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
         current_date = trade.create_date
@@ -227,7 +241,7 @@ class BacktesterPlaygroundClient:
                 
         self._is_backtest_complete = new_state['is_backtest_complete']
         
-        self.account = self.fetch_account_state()
+        self.account = self.fetch_and_update_account_state()
                         
         return new_state
     
@@ -334,7 +348,7 @@ if __name__ == '__main__':
         
         print('L1: found_insufficient_free_margin: ', found_insufficient_free_margin)
         
-        account = playground_client.fetch_account_state()
+        account = playground_client.fetch_and_update_account_state()
         
         print('L1: account: ', account)
         
@@ -353,9 +367,11 @@ if __name__ == '__main__':
         
         print('L2: found_insufficient_free_margin: ', found_insufficient_free_margin)
 
-        account = playground_client.fetch_account_state()
+        account = playground_client.fetch_and_update_account_state()
         
         print('L2: account: ', account)
+        
+        print('L2: position: ', playground_client.position)
         
         result = playground_client.place_order('AAPL', 3, OrderSide.SELL_SHORT)
         
@@ -363,19 +379,51 @@ if __name__ == '__main__':
         
         print('tick_delta #3: ', tick_delta)
         
-        # tick_delta = playground_client.tick(121260)
+        account = playground_client.fetch_and_update_account_state()
+        
+        print('L3: account: ', account)
+        
+        print('L3: position: ', playground_client.position)
+        
         tick_delta = playground_client.tick(60000)
+        
+        print('tick_delta #3.1: ', tick_delta)
+        
         tick_delta = playground_client.tick(60000)
+        
+        print('tick_delta #3.2: ', tick_delta)
+        
+        found_liquidation = False
+        if tick_delta.get('events'):
+            for event in tick_delta['events']:
+                if event['type'] == 'liquidation':
+                    found_liquidation = True
+                    break
+                
+        print('L3.1: found_liquidation: ', found_liquidation)
+        
         tick_delta = playground_client.tick(120000)
+        
+        print('tick_delta #3.3: ', tick_delta)
+        
+        found_liquidation = False
+        if tick_delta.get('events'):
+            for event in tick_delta['events']:
+                if event['type'] == 'liquidation':
+                    found_liquidation = True
+                    break
+                
+        print('L3.2: found_liquidation: ', found_liquidation)
+        
         tick_delta = playground_client.tick(120000)
         
-        
-        
-        print('tick_delta #4: ', tick_delta)
-        
-        account = playground_client.fetch_account_state()
+        print('tick_delta #3.4: ', tick_delta)
+                
+        account = playground_client.fetch_and_update_account_state()
         
         print('L4: account: ', account)
+        
+        print('L4: position: ', playground_client.position)
         
                 
         

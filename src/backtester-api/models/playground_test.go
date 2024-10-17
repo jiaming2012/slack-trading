@@ -56,10 +56,12 @@ func TestLiquidation(t *testing.T) {
 		assert.Len(t, liquidationOrders, 2)
 		assert.Equal(t, symbol2, liquidationOrders[0].Symbol)
 		assert.Equal(t, BacktesterOrderStatusFilled, liquidationOrders[0].GetStatus())
-		assert.Contains(t, liquidationOrders[0].Tag, "liquidation - free margin @")
+		assert.Contains(t, liquidationOrders[0].Tag, "liquidation - equity @")
+		assert.Contains(t, liquidationOrders[0].Tag, "maintenance margin @")
 		assert.Equal(t, symbol1, liquidationOrders[1].Symbol)
 		assert.Equal(t, BacktesterOrderStatusFilled, liquidationOrders[1].GetStatus())
-		assert.Contains(t, liquidationOrders[1].Tag, "liquidation - free margin @")
+		assert.Contains(t, liquidationOrders[1].Tag, "liquidation - equity @")
+		assert.Contains(t, liquidationOrders[1].Tag, "maintenance margin @")
 
 		assert.Len(t, liquidationOrders[0].Trades, 1)
 		assert.Equal(t, 10.0, liquidationOrders[0].Trades[0].Quantity)
@@ -112,7 +114,8 @@ func TestLiquidation(t *testing.T) {
 		liquidationOrders := delta.Events[0].LiquidationEvent.OrdersPlaced
 		assert.Len(t, liquidationOrders, 1)
 		assert.Equal(t, BacktesterOrderStatusFilled, liquidationOrders[0].GetStatus())
-		assert.Contains(t, liquidationOrders[0].Tag, "liquidation - free margin @")
+		assert.Contains(t, liquidationOrders[0].Tag, "liquidation - equity @")
+		assert.Contains(t, liquidationOrders[0].Tag, "maintenance margin @")
 
 		assert.Len(t, liquidationOrders[0].Trades, 1)
 		assert.Equal(t, 5.0, liquidationOrders[0].Trades[0].Quantity)

@@ -6,11 +6,10 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-// CalculateMaintenanceRequirement calculates the maintenance requirement based on stock price and shares sold short
+
+// calculateMaintenanceRequirement calculates the maintenance requirement based on stock price and shares sold short
 func calculateMaintenanceRequirement(stockQuantity, stockPrice float64) float64 {
-	if stockQuantity > 0 {
-		return stockQuantity * stockPrice
-	} else if stockQuantity < 0 {
+	if stockQuantity < 0 {
 		sharesSoldShort := -stockQuantity
 
 		var maintenanceRequirementPerShare float64
@@ -27,6 +26,32 @@ func calculateMaintenanceRequirement(stockQuantity, stockPrice float64) float64 
 		// Total maintenance requirement
 		totalMaintenance := maintenanceRequirementPerShare * sharesSoldShort
 		return totalMaintenance
+	}
+
+	return 0
+}
+
+// CalculateMaintenanceRequirement calculates the initial margin requirement based on stock price and shares sold short
+func calculateInitialMarginRequirement(stockQuantity, stockPrice float64) float64 {
+	if stockQuantity > 0 {
+		return stockQuantity * stockPrice
+	} else if stockQuantity < 0 {
+		sharesSoldShort := -stockQuantity
+
+		var marginRequirementPerShare float64
+
+		// Determine initial margina requirement based on stock price
+		if stockPrice >= 5.0 {
+			// For stocks trading at $5 or higher
+			marginRequirementPerShare = max(1.50*stockPrice, 5.0)
+		} else {
+			// For stocks trading below $5
+			marginRequirementPerShare = max(stockPrice, 2.5)
+		}
+
+		// Total initial margin requirement
+		totalMargin := marginRequirementPerShare * sharesSoldShort
+		return totalMargin
 	}
 
 	return 0

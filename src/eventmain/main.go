@@ -29,7 +29,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-
 	// lokiclient "github.com/grafana/loki-client-go"
 
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
