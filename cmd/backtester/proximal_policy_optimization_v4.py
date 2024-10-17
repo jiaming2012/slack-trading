@@ -420,12 +420,8 @@ else:
     model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001)
 
 
-# Training loop with epsilon-greedy strategy
+# Hyper parameters
 total_timesteps = 70
-
-# batch_size = 500  # Collect experiences in batches
-obs = vec_env.reset()
-
 batch_size = 100
 
 for timestep in range(total_timesteps):    
