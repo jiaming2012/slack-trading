@@ -185,7 +185,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 	for equity < maintenanceMargin && len(positions) > 0 {
 		sortedSymbols, sortedPositions := sortPositionsByQuantityDesc(positions)
 
-		tag := fmt.Sprintf("liquidation - equity @ %.2f, maintenance margin @ %.2f", equity, maintenanceMargin)
+		tag := fmt.Sprintf("liquidation - equity @ %.2f < maintenance margin @ %.2f", equity, maintenanceMargin)
 
 		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], tag)
 		if err != nil {
@@ -448,24 +448,26 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	}
 
 	for symbol, vwap := range vwapMap {
-		var avgPrice float64
+		var costBasis float64
 		totalQuantity := totalQuantityMap[symbol]
 
 		// calculate average price
 		if totalQuantity != 0 {
-			avgPrice = vwap / totalQuantity
+			costBasis = vwap / totalQuantity
 		}
 
 		if _, ok := positions[symbol]; !ok {
 			continue
 		}
 
-		positions[symbol].CostBasis = avgPrice
+		positions[symbol].CostBasis = costBasis
+
+		positions[symbol].MaintenanceMargin = calculateMaintenanceRequirement(totalQuantity, costBasis)
 
 		// calculate pl
 		close, err := p.getCurrentPrice(symbol)
 		if err == nil {
-			positions[symbol].PL = (close - avgPrice) * positions[symbol].Quantity
+			positions[symbol].PL = (close - costBasis) * positions[symbol].Quantity
 		} else {
 			log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
 			positions[symbol].PL = 0

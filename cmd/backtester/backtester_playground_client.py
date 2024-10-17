@@ -28,11 +28,13 @@ class Position:
     symbol: str
     quantity: int
     cost_basis: float
+    maintenance_margin: float
     pl: float
     
 @dataclass
 class Account:
     balance: float
+    equity: float
     free_margin: float
     positions: Dict[str, Position]
     
@@ -42,6 +44,16 @@ class Account:
     
     def get_position(self, symbol) -> Position:
         return self.positions.get(symbol)
+    
+    def get_maintenance_margin(self, symbol) -> float:
+        if symbol in self.positions:
+            return self.positions[symbol].maintenance_margin
+        return 0.0
+    
+    def get_position_float(self, symbol) -> float:
+        if symbol in self.positions:
+            return self.positions[symbol].quantity
+        return 0.0
     
     def get_pl(self, symbol) -> float:
         pl = 0
@@ -73,7 +85,6 @@ class BacktesterPlaygroundClient:
             raise Exception('Invalid source')
 
         self.position = None
-        self.balance = None
 
         self.account = self.fetch_and_update_account_state()
         self.current_candle = None
@@ -92,25 +103,22 @@ class BacktesterPlaygroundClient:
         
         acc = Account(
             balance=obj['balance'],
+            equity=obj['equity'],
             free_margin=obj['free_margin'],
             positions={
                 symbol: Position(
                     symbol=symbol,
                     quantity=position['quantity'],
                     cost_basis=position['cost_basis'],
+                    maintenance_margin=position['maintenance_margin'],
                     pl=position['pl']
                 ) for symbol, position in obj['positions'].items()
             }
         )
         
-        # Update the client's account state
-        self.balance = acc.balance
-        
-        if self.symbol in acc.positions:
-            self.position = acc.positions[self.symbol].quantity
-        else:
-            self.position = 0
-        
+        # Update the client state
+        self.position = acc.get_position_float(self.symbol)
+            
         return acc
     
     def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
