@@ -452,7 +452,15 @@ for timestep in range(total_timesteps):
     
     batch_size = env.get_batch_size()
 
-    vec_env.reset()        
+    vec_env.reset()
+    
+    if timestep % 20 == 0:
+        # Save the trained model with timestep
+        saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+        modelName = 'ppo_model_v3-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
+        model.save(os.path.join(saveModelDir, modelName))
+        print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName, ".zip")}')
+
 
 # Check if log files contain data
 log_files = os.listdir(log_dir)
