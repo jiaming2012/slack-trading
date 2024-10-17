@@ -116,26 +116,22 @@ class RenkoTradingEnv(gym.Env):
     def found_insufficient_free_margin(self, tick_delta: object) -> bool:
         invalid_orders = tick_delta.get('invalid_orders')
         
-        found_insufficient_free_margin = False
         if invalid_orders:
             for order in invalid_orders:
                 if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
-                    found_insufficient_free_margin = True
-                    break
+                    return True
                 
-        return found_insufficient_free_margin
+        return False
     
     def found_liquidation(self, tick_delta: object) -> bool:
         events = tick_delta.get('events')
         
-        found_liquidation = False
         if events:
             for event in events:
                 if event['type'] == 'liquidation':
-                    found_liquidation = True
-                    break
+                    return True
                 
-        return found_liquidation
+        return False
 
     def get_reward(self, commission, tick_delta=None, include_pl=False):
         balance = self.client.account.balance
@@ -449,9 +445,9 @@ for timestep in range(total_timesteps):
     # Print the current timestep and balance
     print(f'Training complete @ Timestep {timestep}')
 
-    print('*' * 50)
-    
     vec_env.env_method('render', indices=0)
+    
+    print('*' * 50)
     
     batch_size = env.get_batch_size()
 

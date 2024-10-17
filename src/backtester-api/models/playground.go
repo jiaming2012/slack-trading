@@ -176,7 +176,7 @@ func (p *Playground) NextOrderID() uint {
 // checkForLiquidations checks for liquidations and returns a LiquidationEvent if liquidations are necessary
 // Liquidations are performed in the following order:
 // 1. Sort positions by position size (quantity * cost_basis) in descending order
-// 2. Liquidate positions until free margin is positive or all positions are liquidated
+// 2. Liquidate positions until equity reaches above maintenance margin or until all positions have been liquidated
 func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*Position) (*TickDeltaEvent, error) {
 	equity := p.GetEquity(positions)
 	maintenanceMargin := p.getMaintenanceMargin(positions)
