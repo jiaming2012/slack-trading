@@ -403,6 +403,7 @@ class RenkoTradingEnv(gym.Env):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=str, help='The name of the model to load')
+parser.add_argument('--timestamps', type=int, help='The number of timestamps to train the model', default=75)
 args = parser.parse_args()
 
 projectsDir = os.getenv('PROJECTS_DIR')
@@ -434,7 +435,7 @@ else:
 
 
 # Hyper parameters
-total_timesteps = 75
+total_timesteps = args.timestamps
 batch_size = 100
 
 for timestep in range(total_timesteps):    
