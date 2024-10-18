@@ -47,7 +47,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 				performMarginCheck = false
 			}
 
-			if performMarginCheck && freeMargin - initialMargin > maintenanceMargin {
+			if performMarginCheck && freeMargin - initialMargin < maintenanceMargin {
 				order.Status = BacktesterOrderStatusRejected
 				rejectReason := ErrInsufficientFreeMargin.Error()
 				order.RejectReason = &rejectReason
