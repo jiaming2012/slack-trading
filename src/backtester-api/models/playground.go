@@ -47,7 +47,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 				performMarginCheck = false
 			}
 
-			if performMarginCheck && freeMargin - initialMargin < maintenanceMargin {
+			if performMarginCheck && freeMargin - initialMargin <= maintenanceMargin {
 				order.Status = BacktesterOrderStatusRejected
 				rejectReason := ErrInsufficientFreeMargin.Error()
 				order.RejectReason = &rejectReason
@@ -277,14 +277,14 @@ func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 
 	startingPositions := p.GetPositions()
 
-	liquidationEvents, err := p.checkForLiquidations(startingPositions)
-	if err != nil {
-		return nil, fmt.Errorf("error checking for liquidations: %w", err)
-	}
+	// liquidationEvents, err := p.checkForLiquidations(startingPositions)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error checking for liquidations: %w", err)
+	// }
 
-	if liquidationEvents != nil {
-		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
-	}
+	// if liquidationEvents != nil {
+	// 	tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
+	// }
 
 	// Commit pending orders
 	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(p.account.PendingOrders, startingPositions)
