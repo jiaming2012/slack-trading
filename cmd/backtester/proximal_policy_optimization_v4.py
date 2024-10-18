@@ -151,12 +151,10 @@ class RenkoTradingEnv(gym.Env):
         for tick_delta in deltas:
             if self.found_insufficient_free_margin(tick_delta):
                 result -= 100
-                self.render()
                 print('Insufficient free margin detected: subtracting 100 from reward.')
             
             if self.found_liquidation(tick_delta):
                 result -= self.initial_balance
-                self.render()
                 print(f'Liquidation detected: subtracting {self.initial_balance} from reward.')
         
         self.previous_balance = balance
@@ -458,7 +456,7 @@ for timestep in range(total_timesteps):
 
     vec_env.reset()
     
-    if timestep % 1 == 0:
+    if timestep % 20 == 0:
         # Save the trained model with timestep
         saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
         modelName = 'ppo_model_v3-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
