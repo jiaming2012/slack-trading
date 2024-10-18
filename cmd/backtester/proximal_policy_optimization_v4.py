@@ -151,7 +151,6 @@ class RenkoTradingEnv(gym.Env):
         for tick_delta in deltas:
             if self.found_insufficient_free_margin(tick_delta):
                 result -= 100
-                print('Insufficient free margin detected: subtracting 100 from reward.')
             
             if self.found_liquidation(tick_delta):
                 result -= self.initial_balance
