@@ -36,7 +36,8 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 		} else {
 			freeMargin := p.GetFreeMargin()
 			orderQuantity := order.GetQuantity()
-			requiredMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
+			initialMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
+			maintenanceMargin := calculateMaintenanceRequirement(orderQuantity, currentPrice)
 			position := positions[order.Symbol]
 
 			performMarginCheck := true
@@ -46,7 +47,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 				performMarginCheck = false
 			}
 
-			if performMarginCheck && freeMargin < requiredMargin {
+			if performMarginCheck && freeMargin - initialMargin > maintenanceMargin {
 				order.Status = BacktesterOrderStatusRejected
 				rejectReason := ErrInsufficientFreeMargin.Error()
 				order.RejectReason = &rejectReason
