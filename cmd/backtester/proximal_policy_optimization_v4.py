@@ -28,7 +28,8 @@ class RenkoTradingEnv(gym.Env):
     def initialize(self):
         self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, '2021-01-04', '2021-03-31', self.repository_source, self.csv_path)# , host='http://149.28.239.60')
         random_tick = self.pick_random_tick('2021-01-04', '2021-03-31')
-        tick_delta = self.client.tick(random_tick)
+        self.client.tick(random_tick)
+        tick_delta = self.client.flush_tick_delta_buffer()[0]
         print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
         
         self.previous_balance = self.initial_balance
@@ -133,7 +134,7 @@ class RenkoTradingEnv(gym.Env):
                 
         return False
 
-    def get_reward(self, commission, tick_delta=None, include_pl=False):
+    def get_reward(self, commission, include_pl=False):
         balance = self.client.account.balance
         pl = 0
         
@@ -146,7 +147,8 @@ class RenkoTradingEnv(gym.Env):
         
         result = balance - self.previous_balance - commission + pl
         
-        if tick_delta:
+        deltas = self.client.flush_tick_delta_buffer()
+        for tick_delta in deltas:
             if self.found_insufficient_free_margin(tick_delta):
                 result -= 100
                 self.render()
@@ -316,7 +318,7 @@ class RenkoTradingEnv(gym.Env):
         self.total_commission += commission
         
         # Move into the future by one step
-        tick_delta = self.client.tick(seconds_elapsed)
+        self.client.tick(seconds_elapsed)
         pl = self.client.account.pl
                 
         if self.client.current_candle:
@@ -333,7 +335,7 @@ class RenkoTradingEnv(gym.Env):
         self.show_progress()
             
         # Update the account state
-        reward = self.get_reward(commission, tick_delta=tick_delta, include_pl=False)
+        reward = self.get_reward(commission, include_pl=False)
         self.rewards_history.append(reward)
 
         # Update the step and returns
@@ -417,7 +419,7 @@ log_dir = "tmp/"
 os.makedirs(log_dir, exist_ok=True)
 
 # Initialize the environment
-env = RenkoTradingEnv(repository_source=RepositorySource.POLYGON)
+env = RenkoTradingEnv(initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
 # Wrap the environment with Monitor
 env = Monitor(env, log_dir)

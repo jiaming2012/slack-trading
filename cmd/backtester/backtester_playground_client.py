@@ -91,6 +91,12 @@ class BacktesterPlaygroundClient:
         self._is_backtest_complete = False
         self._initial_timestamp = None
         self.timestamp = None
+        self._tick_delta_buffer = []
+        
+    def flush_tick_delta_buffer(self) -> List[object]:
+        buffer = self._tick_delta_buffer
+        self._tick_delta_buffer = []
+        return buffer
         
     def fetch_and_update_account_state(self) -> Account:
         # Fetch the account state
@@ -223,7 +229,7 @@ class BacktesterPlaygroundClient:
         
         return candles
         
-    def tick(self, seconds: int) -> object:
+    def tick(self, seconds: int):
         response = requests.post(
             f'{self.host}/playground/{self.id}/tick?seconds={seconds}'
         )
@@ -250,9 +256,9 @@ class BacktesterPlaygroundClient:
         self._is_backtest_complete = new_state['is_backtest_complete']
         
         self.account = self.fetch_and_update_account_state()
-                        
-        return new_state
-    
+        
+        self._tick_delta_buffer.append(new_state)
+                            
     def time_elapsed(self) -> timedelta:
         if self.timestamp is None:
             return timedelta(0)
