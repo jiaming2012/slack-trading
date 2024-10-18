@@ -410,6 +410,8 @@ projectsDir = os.getenv('PROJECTS_DIR')
 if projectsDir is None:
     raise ValueError('PROJECTS_DIR environment variable is not set')
 
+start_time = datetime.now()
+
 # Create log directory
 log_dir = "tmp/"
 os.makedirs(log_dir, exist_ok=True)
@@ -454,10 +456,10 @@ for timestep in range(total_timesteps):
 
     vec_env.reset()
     
-    if timestep % 20 == 0:
+    if timestep % 1 == 0:
         # Save the trained model with timestep
         saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-        modelName = 'ppo_model_v3-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
+        modelName = 'ppo_model_v3-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
         model.save(os.path.join(saveModelDir, modelName))
         print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName, ".zip")}')
 
