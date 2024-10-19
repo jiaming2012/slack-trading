@@ -26,7 +26,7 @@ class Candle:
 @dataclass
 class Position:
     symbol: str
-    quantity: int
+    quantity: float
     cost_basis: float
     maintenance_margin: float
     pl: float
@@ -44,6 +44,11 @@ class Account:
     
     def get_position(self, symbol) -> Position:
         return self.positions.get(symbol)
+    
+    def get_quantity(self, symbol) -> float:
+        if symbol in self.positions:
+            return self.positions[symbol].quantity
+        return 0.0
     
     def get_maintenance_margin(self, symbol) -> float:
         if symbol in self.positions:
@@ -264,8 +269,19 @@ class BacktesterPlaygroundClient:
             return timedelta(0)
         
         return self.timestamp - self._initial_timestamp
+    
+    def get_free_margin_over_equity(self) -> float:
+        return self.account.free_margin / self.account.equity
         
     def place_order(self, symbol: str, quantity: int, side: OrderSide) -> object:
+        if self.get_free_margin_over_equity() < 0.2:
+            quantity = self.account.get_quantity(symbol)
+            if quantity > 0 and side == OrderSide.BUY:
+                raise Exception('Insufficient free margin')
+            elif quantity < 0 and side == OrderSide.SELL_SHORT:
+                raise Exception('Insufficient free margin')
+  
+        
         response = requests.post(
             f'{self.host}/playground/{self.id}/order',
             json={
@@ -279,7 +295,7 @@ class BacktesterPlaygroundClient:
         )
         
         if response.status_code != 200:
-            raise Exception(response.text)
+                raise Exception(response.text)
         
         return response.json()
     

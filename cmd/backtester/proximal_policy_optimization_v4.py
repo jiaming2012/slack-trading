@@ -150,7 +150,7 @@ class RenkoTradingEnv(gym.Env):
         deltas = self.client.flush_tick_delta_buffer()
         for tick_delta in deltas:
             if self.found_insufficient_free_margin(tick_delta):
-                result -= 100
+                print('Insufficient free margin detected.')
             
             if self.found_liquidation(tick_delta):
                 result -= self.initial_balance
@@ -188,7 +188,11 @@ class RenkoTradingEnv(gym.Env):
         seconds_elapsed = 60
          
         if position > 0 and self.client.position >= 0:
-            self.client.place_order(self.symbol, position, OrderSide.BUY)
+            try:
+                self.client.place_order(self.symbol, position, OrderSide.BUY)
+            except Exception as e:
+                print(f'Error placing order: {e}')    
+            
             self.client.tick(1)
             seconds_elapsed -= 1
             
@@ -205,7 +209,11 @@ class RenkoTradingEnv(gym.Env):
             commission = self.per_trade_commission * position
 
         elif position < 0 and self.client.position <= 0:
-            self.client.place_order(self.symbol, abs(position), OrderSide.SELL_SHORT)
+            try:
+                self.client.place_order(self.symbol, abs(position), OrderSide.SELL_SHORT)
+            except Exception as e:
+                print(f'Error placing order: {e}')
+                
             self.client.tick(1)
             seconds_elapsed -= 1
             
@@ -247,7 +255,11 @@ class RenkoTradingEnv(gym.Env):
             
             if remaining_position < 0:
                 try:
-                    self.client.place_order(self.symbol, abs(remaining_position), OrderSide.SELL_SHORT)
+                    try:
+                        self.client.place_order(self.symbol, abs(remaining_position), OrderSide.SELL_SHORT)
+                    except Exception as e:
+                        print(f'Error placing order: {e}')
+                        
                     self.client.tick(1)
                     seconds_elapsed -= 1
                     
@@ -292,7 +304,11 @@ class RenkoTradingEnv(gym.Env):
             remaining_position = position + current_position
             if remaining_position > 0:
                 try:
-                    self.client.place_order(self.symbol, remaining_position, OrderSide.BUY)
+                    try:
+                        self.client.place_order(self.symbol, remaining_position, OrderSide.BUY)
+                    except Exception as e:
+                        print(f'Error placing order: {e}')
+                        
                     self.client.tick(1)
                     seconds_elapsed -= 1
                     
@@ -355,12 +371,13 @@ class RenkoTradingEnv(gym.Env):
         if self.renko:
             df = self.renko.renko_animate()
             
+        balance_delta = self.client.account.balance - self.initial_balance
         pl = self.client.account.pl
-        free_margin = self.client.account.free_margin
+        free_margin_over_equity = self.client.get_free_margin_over_equity()
         liquidation_buffer = self.get_liquidation_buffer()
 
         if df is None or len(df) == 0:
-            return np.append(obs, [self.client.account.balance, self.client.position, pl, free_margin, self.total_commission, liquidation_buffer]).astype(np.float64)
+            return np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
         
         # Take the last 20 prices
         df = df.tail(20)
@@ -373,7 +390,7 @@ class RenkoTradingEnv(gym.Env):
             
             j += 3
         
-        return np.append(obs, [self.client.account.balance, self.client.position, pl, free_margin, self.total_commission, liquidation_buffer]).astype(np.float64)
+        return np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
