@@ -245,6 +245,9 @@
             "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v4.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+            "args": [
+                "--model", "ppo_model_v3-2024-10-18-23-22-33_200-of-500.zip"
+            ]
         },
         {
             "name": "backtester playground client",
