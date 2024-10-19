@@ -88,7 +88,8 @@ class RenkoTradingEnv(gym.Env):
         elif self.client.position < 0 and unit_quantity > 0:
             return abs(self.client.position) * unit_quantity
         else:
-            current_price = self.client.current_candle['close']
+            current_candle = self.client.get('current_candle')
+            current_price = current_candle['close'] if current_candle else 0
             if current_price == 0:
                 return 0
             max_free_margin_per_trade = 0.3
