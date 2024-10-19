@@ -273,7 +273,10 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity
         
-    def place_order(self, symbol: str, quantity: int, side: OrderSide) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide) -> object:
+        if quantity == 0:
+            return
+            
         if self.get_free_margin_over_equity() < 0.2:
             quantity = self.account.get_quantity(symbol)
             if quantity > 0 and side == OrderSide.BUY:
