@@ -82,6 +82,19 @@ class RenkoTradingEnv(gym.Env):
         # Observation space: Last 60 Renko blocks + balance, position, pl, free_margin, total_commission, liquidation_buffer
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(66,), dtype=np.float64)
         
+    def get_position_size(self, unit_quantity: float) -> float:
+        if self.client.position > 0 and unit_quantity < 0:
+            return self.client.position * unit_quantity
+        elif self.client.position < 0 and unit_quantity > 0:
+            return abs(self.client.position) * unit_quantity
+        else:
+            current_price = self.client.current_candle['close']
+            if current_price == 0:
+                return 0
+            max_free_margin_per_trade = 0.3
+            position = (self.client.account.free_margin * max_free_margin_per_trade * unit_quantity) / current_price
+            return position
+        
     def show_progress(self):
         if self.timestamp is None:
             return None
@@ -161,7 +174,9 @@ class RenkoTradingEnv(gym.Env):
     
     def step(self, action):
         pl = self.client.account.pl
-        position = round(action[0])  # Discrete action as integer
+        quantity = round(action[0])  # Discrete action as integer
+        unit_quantity = quantity / 300.0
+        position = self.get_position_size(unit_quantity)
 
         terminated = False
         truncated = False
