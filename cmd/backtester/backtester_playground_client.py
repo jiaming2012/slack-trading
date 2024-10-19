@@ -278,7 +278,6 @@ class BacktesterPlaygroundClient:
             return
             
         if self.get_free_margin_over_equity() < 0.2:
-            quantity = self.account.get_quantity(symbol)
             if quantity > 0 and side == OrderSide.BUY:
                 raise Exception('Insufficient free margin')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
@@ -298,7 +297,7 @@ class BacktesterPlaygroundClient:
         )
         
         if response.status_code != 200:
-                raise Exception(response.text)
+            raise Exception(response.text)
         
         return response.json()
     
