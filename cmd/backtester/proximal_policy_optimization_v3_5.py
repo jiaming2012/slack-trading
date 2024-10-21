@@ -24,10 +24,9 @@ class RenkoTradingEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def initialize(self):
-        self.client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-29', self.repository_source, self.csv_path, host='http://149.28.239.60')
+        self.client = BacktesterPlaygroundClient(self.initial_balance, 'AAPL', '2021-01-04', '2021-01-29', self.repository_source, self.csv_path, host='http://127.0.0.1:8080')
         self.previous_balance = self.initial_balance
         self.current_step = 0
-        self.position = 0  # 1 for long, -1 for short, 0 for no position
         self.returns = []
         self.negative_returns = []
         self.recent_close_prices = np.array([])
@@ -56,7 +55,6 @@ class RenkoTradingEnv(gym.Env):
         self.initial_balance = initial_balance
         self.repository_source = repository_source
         self.csv_path = csv_path
-        self.position = None
         self.timestamp = None
         self._internal_timestamp = None
         self.rewards_history = []
@@ -118,7 +116,7 @@ class RenkoTradingEnv(gym.Env):
             terminated = True
             self.render()
             print('Balance is zero or negative. Terminating episode ...')
-            return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+            return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
 
         # Ensure we are still within the data bounds
         if self.client.is_backtest_complete():
@@ -127,7 +125,7 @@ class RenkoTradingEnv(gym.Env):
             truncated = True  # Episode truncated (e.g., max steps reached)
             self.render()
             print('Backtest is complete. Terminating episode ...')
-            return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+            return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
 
         # Simulate trade, adjust balance, and calculate reward
         
@@ -135,8 +133,11 @@ class RenkoTradingEnv(gym.Env):
         seconds_elapsed = 60
          
         # if len(self.recent_close_prices) >= 5:
-        if position > 0 and self.position >= 0:
-            self.client.place_order('AAPL', position, OrderSide.BUY)
+        if position > 0 and self.client.position >= 0:
+            try:
+                self.client.place_order('AAPL', position, OrderSide.BUY)
+            except Exception as e:
+                print(e)
             
             cs = self.client.tick(1)
             balance = self.client.account.balance
@@ -148,14 +149,16 @@ class RenkoTradingEnv(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
             
             seconds_elapsed -= 1
                 
             commission = self.per_trade_commission * position
-            self.position += position
-        elif position < 0 and self.position <= 0:
-            self.client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
+        elif position < 0 and self.client.position <= 0:
+            try:
+                self.client.place_order('AAPL', abs(position), OrderSide.SELL_SHORT)
+            except Exception as e:
+                print(e)
             
             cs = self.client.tick(1)
             balance = self.client.account.balance
@@ -169,16 +172,20 @@ class RenkoTradingEnv(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
             
             seconds_elapsed -= 1
             
             commission = self.per_trade_commission * abs(position)
-            self.position += position
-        elif position < 0 and self.position > 0:
+
+        elif position < 0 and self.client.position > 0:
             # close positive position
-            close_quantity = min(self.position, abs(position))
-            self.client.place_order('AAPL', close_quantity, OrderSide.SELL)
+            close_quantity = min(self.client.position, abs(position))
+            try:
+                self.client.place_order('AAPL', close_quantity, OrderSide.SELL)
+            except Exception as e:
+                print(e)
+                
             cs = self.client.tick(1)
             balance = self.client.account.balance
             pl = self.client.account.pl
@@ -189,41 +196,24 @@ class RenkoTradingEnv(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
                 
             seconds_elapsed -= 1
             
             # open new short position
-            remaining_position = position + self.position
+            remaining_position = position + self.client.position
             commission = 0
             
-            if remaining_position < 0:
-                try:
-                    self.client.place_order('AAPL', abs(remaining_position), OrderSide.SELL_SHORT)
-                    
-                    cs = self.client.tick(1)
-                    balance = self.client.account.balance
-                    pl = self.client.account.pl
-                    commission = self.per_trade_commission * abs(remaining_position)
-                    
-                    if self.client.is_backtest_complete():
-                        reward = self.get_reward(0, include_pl=True)
-                        self.rewards_history.append(reward)
-                        truncated = True  # Episode truncated (e.g., max steps reached)
-                        self.render()
-                        print('Backtest is complete. Terminating episode ...')
-                        return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
-                    
-                    seconds_elapsed -= 1
-                except Exception as e:
-                    print('cs: ', cs)
-                    raise(e)
+
             
-            self.position = remaining_position
-        elif position > 0 and self.position < 0:
+        elif position > 0 and self.client.position < 0:
             # close negative position
-            close_quantity = min(abs(self.position), position)
-            self.client.place_order('AAPL', close_quantity, OrderSide.BUY_TO_COVER)
+            close_quantity = min(abs(self.client.position), position)
+            try:
+                self.client.place_order('AAPL', close_quantity, OrderSide.BUY_TO_COVER)
+            except Exception as e:
+                print(e)
+                
             cs = self.client.tick(1)
             balance = self.client.account.balance
             pl = self.client.account.pl
@@ -236,37 +226,12 @@ class RenkoTradingEnv(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
+                return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
                 
             seconds_elapsed -= 1
             commission = 0
             
-            # open new long position
-            remaining_position = position + self.position
-            if remaining_position > 0:
-                try:
-                    self.client.place_order('AAPL', remaining_position, OrderSide.BUY)
-                    cs = self.client.tick(1)
-                    balance = self.client.account.balance
-                    pl = self.client.account.pl
-                    commission = self.per_trade_commission * remaining_position
-                    
-                    if self.client.is_backtest_complete():
-                        reward = self.get_reward(0, include_pl=True)
-                        self.rewards_history.append(reward)
-                        truncated = True  # Episode truncated (e.g., max steps reached)
-                        self.render()
-                        print('Backtest is complete. Terminating episode ...')
-                        return self._get_observation(), reward, terminated, truncated, {'balance': balance, 'pl': pl, 'position': self.position, 'current_price': self.current_price, 'ma': self.ma }
-                    
-                    seconds_elapsed -= 1
-                
-                except Exception as e:
-                    print('cs: ', cs)
-                    raise(e)
-            
-            self.position = remaining_position
-    
+        
                                     
         self.total_commission += commission
         
@@ -304,7 +269,7 @@ class RenkoTradingEnv(gym.Env):
         observation = self._get_observation()
         
         # Include the balance in the info dictionary
-        info = {'balance': balance, 'pl': pl, 'position': self.position}
+        info = {'balance': balance, 'pl': pl, 'position': self.client.position}
 
         # Return the required 5 values for Gymnasium
         return observation, reward, truncated, terminated, info
@@ -321,7 +286,7 @@ class RenkoTradingEnv(gym.Env):
         pl = self.client.account.pl
 
         if df is None or len(df) == 0:
-            return np.append(obs, [balance, self.position, pl, self.total_commission]).astype(np.float32)
+            return np.append(obs, [balance, self.client.position, pl, self.total_commission]).astype(np.float32)
         
         # Take the last 20 prices
         df = df.tail(20)
@@ -334,7 +299,7 @@ class RenkoTradingEnv(gym.Env):
             
             j += 3
         
-        return np.append(obs, [balance, self.position, pl, self.total_commission]).astype(np.float32)
+        return np.append(obs, [balance, self.client.position, pl, self.total_commission]).astype(np.float32)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)

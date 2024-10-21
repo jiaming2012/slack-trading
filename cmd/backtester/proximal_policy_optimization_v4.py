@@ -32,6 +32,10 @@ class RenkoTradingEnv(gym.Env):
         tick_delta = self.client.flush_tick_delta_buffer()[0]
         print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
         
+        # temp
+        self.current_observation = None
+        self.previous_observation = None
+        
         self.previous_balance = self.initial_balance
         self.current_step = 0
         self.returns = []
@@ -383,6 +387,10 @@ class RenkoTradingEnv(gym.Env):
         # Get the last 300 prices, padded if necessary
         obs = np.zeros(60, dtype=np.float64)
         
+        
+        # temp
+        self.previous_observation = self.current_observation
+        
         df = None
         if self.renko:
             df = self.renko.renko_animate()
@@ -393,7 +401,8 @@ class RenkoTradingEnv(gym.Env):
         liquidation_buffer = self.get_liquidation_buffer()
 
         if df is None or len(df) == 0:
-            return np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+            self.current_observation = np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+            return self.current_observation
         
         # Take the last 20 prices
         df = df.tail(20)
@@ -406,7 +415,8 @@ class RenkoTradingEnv(gym.Env):
             
             j += 3
         
-        return np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+        self.current_observation = np.append(obs, [balance_delta, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+        return self.current_observation
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -473,9 +483,7 @@ total_timesteps = args.timestamps
 batch_size = 100
 
 for timestep in range(total_timesteps):    
-    print(f'Training model with batch size: {batch_size} ...')
-    
-    model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+    print(f'Training model with batch size: {batch_size} ...')    model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
     
     # Print the current timestep and balance
     print(f'Training complete @ Timestep {timestep}')
