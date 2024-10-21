@@ -43,7 +43,7 @@ class RenkoTradingEnv(gym.Env):
         self.returns = []
         self.negative_returns = []
         self.renko = None
-        self.renko_brick_size = 1
+        self.renko_brick_size = 3
         self.is_backtest_complete = False
         self.sl = 0
         self.tp = 0
