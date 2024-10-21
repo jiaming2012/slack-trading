@@ -233,6 +233,16 @@ class BacktesterPlaygroundClient:
         ]
         
         return candles
+    
+    def preview_tick(self, seconds: int) -> object:
+        response = requests.post(
+            f'{self.host}/playground/{self.id}/tick?seconds={seconds}&preview=true'
+        )
+        
+        if response.status_code != 200:
+            raise Exception(response.text)
+        
+        return response.json()
         
     def tick(self, seconds: int):
         response = requests.post(
