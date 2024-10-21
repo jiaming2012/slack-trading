@@ -251,7 +251,7 @@ class BacktesterPlaygroundClient:
                     self.current_candle = candle['candle']
                     break
                 
-        timestamp = new_state.get('timestamp')
+        timestamp = new_state.get('current_time')
         if timestamp:
             if self._initial_timestamp is None:
                 self._initial_timestamp = datetime.fromisoformat(timestamp)

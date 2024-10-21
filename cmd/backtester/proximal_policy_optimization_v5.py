@@ -540,21 +540,20 @@ for timestep in range(total_timesteps):
         # Perform the action in the environment
         obs, rewards, dones, info = vec_env.step(action)
         
-        if env.client is not None:
-            time_delta = env.client.time_elapsed() - time_elasped
-            if time_delta >= timedelta(weeks=1):
-                # Train the model with the new experience
-                print(f'Training model after one week with batch size: {batch_size} ...')
-                
-                model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
-                
-                # Print the current timestep and balance
-                print(f'Training complete. Timestep: {timestep}, Balance: {info[0]["balance"]}')
-                
-                time_elasped = env.client.time_elapsed()
-                
-                batch_size = 0
-        
+        time_delta = env.client.time_elapsed() - time_elasped
+        if time_delta >= timedelta(weeks=1):
+            # Train the model with the new experience
+            print(f'Training model after one week with batch size: {batch_size} ...')
+            
+            model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+            
+            # Print the current timestep and balance
+            print(f'Training complete. Timestep: {timestep}, Balance: {info[0]["balance"]}')
+            
+            time_elasped = env.client.time_elapsed()
+            
+            batch_size = 0
+    
         isDone = any(dones)
         
         # Decay the epilson
@@ -565,7 +564,7 @@ for timestep in range(total_timesteps):
     if timestep_epsilon > epsilon_min:
         timestep_epsilon *= timestep_epsilon_decay
             
-    # Train the model with the new experience
+    # Train the model with the new experience after each episode is done
     print(f'Training model with batch size: {batch_size} ...')
     
     model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
