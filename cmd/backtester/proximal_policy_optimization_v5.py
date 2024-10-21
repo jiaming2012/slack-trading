@@ -26,8 +26,8 @@ class RenkoTradingEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def initialize(self):
-        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, '2021-01-04', '2021-03-31', self.repository_source, self.csv_path)# , host='http://149.28.239.60')
-        random_tick = self.pick_random_tick('2021-01-04', '2021-03-31')
+        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, '2024-06-03', '2024-09-30', self.repository_source, self.csv_path)# , host='http://149.28.239.60')
+        random_tick = self.pick_random_tick('2024-06-03', '2024-09-30')
         self.client.tick(random_tick)
         tick_delta = self.client.flush_tick_delta_buffer()[0]
         print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
@@ -70,7 +70,7 @@ class RenkoTradingEnv(gym.Env):
         super(RenkoTradingEnv, self).__init__()
         
         # Parameters and variables
-        self.symbol = 'AAPL'
+        self.symbol = 'COIN'
         self.initial_balance = initial_balance
         self.repository_source = repository_source
         self.csv_path = csv_path
@@ -513,7 +513,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 70
+total_timesteps = 100
 
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
@@ -577,7 +577,7 @@ for timestep in range(total_timesteps):
         
     print('*' * 50)
     
-    if timestep % 20 == 0:
+    if timestep % 5 == 0:
         # Save the trained model with timestep
         saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
         modelName = 'ppo_model_v5-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
