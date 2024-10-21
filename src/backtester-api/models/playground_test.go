@@ -35,7 +35,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second)
+		delta, err := playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -46,7 +46,7 @@ func TestLiquidation(t *testing.T) {
 		positions := playground.GetPositions()
 		assert.Len(t, positions, 2)
 
-		delta, err = playground.Tick(5 * time.Second)
+		delta, err = playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.Events, 1)
 		assert.Equal(t, TickDeltaEventTypeLiquidation, delta.Events[0].Type)
@@ -94,7 +94,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second)
+		delta, err := playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -105,7 +105,7 @@ func TestLiquidation(t *testing.T) {
 		positions := playground.GetPositions()
 		assert.Len(t, positions, 2)
 
-		delta, err = playground.Tick(5 * time.Second)
+		delta, err = playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.Events, 1)
 		assert.Equal(t, TickDeltaEventTypeLiquidation, delta.Events[0].Type)
@@ -144,7 +144,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second)
+		delta, err := playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -152,7 +152,7 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
 		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		delta, err = playground.Tick(5 * time.Second)
+		delta, err = playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Nil(t, delta.Events)
 	})
@@ -193,7 +193,7 @@ func TestFeed(t *testing.T) {
 
 		assert.Equal(t, startTime, candle.Timestamp)
 
-		delta, err := playground.Tick(20 * time.Second)
+		delta, err := playground.Tick(20 * time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -213,7 +213,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		// new APPL candle, but not GOOG
-		delta, err := playground.Tick(5 * time.Second)
+		delta, err := playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 1)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
@@ -221,7 +221,7 @@ func TestFeed(t *testing.T) {
 		assert.Equal(t, 10.0, delta.NewCandles[0].Candle.Close)
 
 		// new APPL and GOOG candle
-		delta, err = playground.Tick(5 * time.Second)
+		delta, err = playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
@@ -232,7 +232,7 @@ func TestFeed(t *testing.T) {
 		assert.Equal(t, 100.0, delta.NewCandles[1].Candle.Close)
 
 		// no new candle
-		delta, err = playground.Tick(5 * time.Second)
+		delta, err = playground.Tick(5 * time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 0)
 	})
@@ -265,12 +265,12 @@ func TestClock(t *testing.T) {
 		playground, err := NewPlayground(1000.0, clock, feed)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		delta, err = playground.Tick(time.Hour)
+		delta, err = playground.Tick(time.Hour, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
@@ -278,7 +278,7 @@ func TestClock(t *testing.T) {
 		assert.True(t, delta.IsBacktestComplete)
 
 		// no longer able to tick after backtest is complete
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.Error(t, err)
 		assert.Nil(t, delta)
 	})
@@ -342,7 +342,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -354,7 +354,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -387,7 +387,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -398,7 +398,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -409,7 +409,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -420,7 +420,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -431,7 +431,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order5)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -457,7 +457,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -467,7 +467,7 @@ func TestBalance(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -527,7 +527,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -540,7 +540,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -568,7 +568,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -581,7 +581,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -612,7 +612,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -627,7 +627,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -643,7 +643,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -657,7 +657,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -689,7 +689,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -704,7 +704,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -720,7 +720,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -734,7 +734,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -749,7 +749,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order5)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -777,7 +777,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -790,7 +790,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -817,7 +817,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -843,7 +843,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -851,7 +851,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -876,7 +876,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -890,7 +890,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -915,7 +915,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -929,7 +929,7 @@ func TestPositions(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -973,14 +973,14 @@ func TestFreeMargin(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		_, err = playground.Tick(time.Second)
+		_, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		freeMargin := playground.GetFreeMargin()
 		assert.Equal(t, 1000.0, freeMargin)
 
 		// move price: tick went from 100 to 200
-		_, err = playground.Tick(time.Hour)
+		_, err = playground.Tick(time.Hour, false)
 		assert.NoError(t, err)
 
 		freeMargin = playground.GetFreeMargin()
@@ -997,7 +997,7 @@ func TestFreeMargin(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		assert.Len(t, delta.NewTrades, 1)
@@ -1017,7 +1017,7 @@ func TestFreeMargin(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		_, err = playground.Tick(time.Second)
+		_, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		freeMargin := playground.GetFreeMargin()
@@ -1031,11 +1031,11 @@ func TestFreeMargin(t *testing.T) {
 		assert.NoError(t, err)
 
 		// place order equal to free margin
-		order := NewBacktesterOrder(1, Equity, now, symbol, BacktesterOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, Equity, now, symbol, BacktesterOrderSideBuy, 19, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		assert.Len(t, delta.InvalidOrders, 0)
@@ -1045,7 +1045,7 @@ func TestFreeMargin(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		assert.Len(t, delta.InvalidOrders, 1)
@@ -1076,7 +1076,7 @@ func TestOrders(t *testing.T) {
 		assert.Len(t, orders, 1)
 		assert.Equal(t, BacktesterOrderStatusOpen, orders[0].GetStatus())
 
-		_, err = playground.Tick(time.Second)
+		_, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		orders = playground.GetOrders()
@@ -1091,7 +1091,7 @@ func TestOrders(t *testing.T) {
 		err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
-		_, err = playground.Tick(time.Second)
+		_, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
 		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), BacktesterOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1175,7 +1175,7 @@ func TestTrades(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 1)
 
@@ -1197,7 +1197,7 @@ func TestTrades(t *testing.T) {
 		err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Second)
+		delta, err := playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -1210,7 +1210,7 @@ func TestTrades(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Second)
+		delta, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 

@@ -47,7 +47,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 				performMarginCheck = false
 			}
 
-			if performMarginCheck && freeMargin - initialMargin <= maintenanceMargin {
+			if performMarginCheck && freeMargin-initialMargin <= maintenanceMargin {
 				order.Status = BacktesterOrderStatusRejected
 				rejectReason := ErrInsufficientFreeMargin.Error()
 				order.RejectReason = &rejectReason
@@ -234,7 +234,36 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time,
 	return candles, nil
 }
 
-func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
+func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
+	// Preview
+	if isPreview {
+		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
+
+		var newCandles []*BacktesterCandle
+		for instrument, repo := range p.repos {
+			newCandle, err := repo.FetchCandlesAtOrAfter(nextTick)
+			if err != nil {
+				log.Warnf("repo.FetchCandlesAtOrAfter [%s]: %v", instrument, err)
+				return nil, fmt.Errorf("backtest complete: no more ticks")
+			}
+
+			if newCandle != nil {
+				newCandles = append(newCandles, &BacktesterCandle{
+					Symbol: instrument,
+					Candle: newCandle,
+				})
+			}
+		}
+
+		isBacktestComplete := p.clock.IsTimeExpired(nextTick)
+
+		return &TickDelta{
+			NewCandles:         newCandles,
+			CurrentTime:        nextTick.Format(time.RFC3339),
+			IsBacktestComplete: isBacktestComplete,
+		}, nil
+	}
+
 	// Update the clock
 	if !p.clock.IsExpired() {
 		p.clock.Add(d)

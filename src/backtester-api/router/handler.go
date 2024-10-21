@@ -480,6 +480,18 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// get `preview` query parameter
+	previewStr := r.URL.Query().Get("preview")
+	preview := false
+	if previewStr != "" {
+		var err error
+		preview, err = utils.ParseBool(previewStr)
+		if err != nil {
+			setErrorResponse("handleTick: failed to parse preview", 400, err, w)
+			return
+		}
+	}
+
 	seconds, err := time.ParseDuration(fmt.Sprintf("%ss", secondsStr))
 	if err != nil {
 		setErrorResponse("handleTick: failed to parse seconds", 500, err, w)
@@ -501,7 +513,7 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// tick
-	stateChange, err := playground.Tick(seconds)
+	stateChange, err := playground.Tick(seconds, preview)
 	if err != nil {
 		setErrorResponse("handleTick: failed to tick", 500, err, w)
 		return

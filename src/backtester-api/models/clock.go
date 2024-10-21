@@ -12,40 +12,46 @@ type Clock struct {
 	CurrentTime time.Time
 	EndTime     time.Time
 	Calendar    map[string]*eventmodels.Calendar
+	location    *time.Location
+}
+
+func (c *Clock) GetNext(currentTime time.Time, timeToAdd time.Duration) time.Time {
+	currentTime = currentTime.Add(timeToAdd)
+
+	if c.Calendar != nil {
+		today, ok := c.Calendar[currentTime.Format("2006-01-02")]
+		if ok {
+			if !today.IsBetweenMarketHours(currentTime) {
+				currentTime = currentTime.Add(24 * time.Hour)
+				c.advanceToNextMarketOpen(&currentTime)
+				return currentTime
+			}
+		} else {
+			c.advanceToNextMarketOpen(&currentTime)
+		}
+	}
+
+	return currentTime
 }
 
 func (c *Clock) Add(timeToAdd time.Duration) {
-	c.CurrentTime = c.CurrentTime.Add(timeToAdd)
-
-	if c.Calendar != nil {
-		today, ok := c.Calendar[c.CurrentTime.Format("2006-01-02")]
-		if ok {
-			if !today.IsBetweenMarketHours(c.CurrentTime) {
-				c.CurrentTime = c.CurrentTime.Add(24 * time.Hour)
-				c.advanceToNextMarketOpen()
-				return
-			}
-		} else {
-			c.advanceToNextMarketOpen()
-		}
-	}
+	nextTime := c.GetNext(c.CurrentTime, timeToAdd)
+	c.CurrentTime = nextTime
 }
 
 func (c *Clock) IsExpired() bool {
-	return c.CurrentTime.Equal(c.EndTime) || c.CurrentTime.After(c.EndTime)
+	return c.IsTimeExpired(c.CurrentTime)
 }
 
-func (c *Clock) advanceToNextMarketOpen() {
-	// Load the New York time zone
-	location, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		log.Fatalf("Error loading location: %v", err)
-	}
+func (c *Clock) IsTimeExpired(timeToCheck time.Time) bool {
+	return timeToCheck.Equal(c.EndTime) || timeToCheck.After(c.EndTime)
+}
 
+func (c *Clock) advanceToNextMarketOpen(currentTime *time.Time) {
 	for {
-		calendar, ok := c.Calendar[c.CurrentTime.Format("2006-01-02")]
+		calendar, ok := c.Calendar[currentTime.Format("2006-01-02")]
 		if ok {
-			c.CurrentTime = calendar.MarketOpen.In(location)
+			*currentTime = calendar.MarketOpen.In(c.location)
 			return
 		}
 
@@ -53,22 +59,29 @@ func (c *Clock) advanceToNextMarketOpen() {
 			return
 		}
 
-		c.CurrentTime = c.CurrentTime.Add(24 * time.Hour)
+		*currentTime = currentTime.Add(24 * time.Hour)
 	}
 }
 
 func NewClock(startTime time.Time, endTime time.Time, calendar map[string]*eventmodels.Calendar) *Clock {
+	// Load the New York time zone
+	location, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatalf("Error loading location: %v", err)
+	}
+
 	clock := &Clock{
 		CurrentTime: startTime,
 		EndTime:     endTime,
 		Calendar:    calendar,
+		location:    location,
 	}
 
 	if calendar != nil {
 		today, ok := calendar[clock.CurrentTime.Format("2006-01-02")]
 		if ok {
 			if !today.IsBetweenMarketHours(clock.CurrentTime) {
-				clock.advanceToNextMarketOpen()
+				clock.advanceToNextMarketOpen(&clock.CurrentTime)
 			}
 		}
 	}

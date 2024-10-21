@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path"
@@ -448,6 +450,20 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey)
+
+	// Register pprof handlers
+	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
+	pprofRouter.HandleFunc("/", http.HandlerFunc(pprof.Index))
+	pprofRouter.HandleFunc("/cmdline", http.HandlerFunc(pprof.Cmdline))
+	pprofRouter.HandleFunc("/profile", http.HandlerFunc(pprof.Profile))
+	pprofRouter.HandleFunc("/symbol", http.HandlerFunc(pprof.Symbol))
+	pprofRouter.HandleFunc("/trace", http.HandlerFunc(pprof.Trace))
+	pprofRouter.Handle("/allocs", pprof.Handler("allocs"))
+	pprofRouter.Handle("/block", pprof.Handler("block"))
+	pprofRouter.Handle("/goroutine", pprof.Handler("goroutine"))
+	pprofRouter.Handle("/heap", pprof.Handler("heap"))
+	pprofRouter.Handle("/mutex", pprof.Handler("mutex"))
+	pprofRouter.Handle("/threadcreate", pprof.Handler("threadcreate"))
 
 	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonApiKey)
 

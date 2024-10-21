@@ -34,6 +34,18 @@ func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) 
 	return candles, nil
 }
 
+func (r *BacktesterCandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.PolygonAggregateBarV2, error) {
+	for _, candle := range r.candles {
+		if candle.Timestamp.Equal(tstamp) || candle.Timestamp.After(tstamp) {
+			return candle, nil
+		}
+	}
+
+	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp)
+
+	return nil, nil
+}
+
 func (r *BacktesterCandleRepository) GetCurrentCandle() *eventmodels.PolygonAggregateBarV2 {
 	if r.position >= len(r.candles) {
 		return nil
