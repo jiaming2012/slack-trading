@@ -169,12 +169,11 @@ class RenkoTradingEnv(gym.Env):
         
         deltas = self.client.flush_tick_delta_buffer()
         for tick_delta in deltas:
-            if self.found_insufficient_free_margin(tick_delta):
-                print('Insufficient free margin detected.')
+            # if self.found_insufficient_free_margin(tick_delta):
+            #     print('Insufficient free margin detected.')
             
             if self.found_liquidation(tick_delta):
-                result -= self.initial_balance
-                print(f'Liquidation detected: subtracting {self.initial_balance} from reward.')
+                print(f'Liquidation detected')
         
         self.previous_balance = balance
         return result
@@ -218,7 +217,8 @@ class RenkoTradingEnv(gym.Env):
             try:
                 self.client.place_order(self.symbol, position, OrderSide.BUY)
             except Exception as e:
-                print(f'Error placing order: {e}')    
+                # print(f'Error placing order: {e}') 
+                pass   
             
             self.client.tick(1)
             seconds_elapsed -= 1
@@ -241,7 +241,8 @@ class RenkoTradingEnv(gym.Env):
             try:
                 self.client.place_order(self.symbol, abs(position), OrderSide.SELL_SHORT)
             except Exception as e:
-                print(f'Error placing order: {e}')
+                # print(f'Error placing order: {e}') 
+                pass
                 
             self.client.tick(1)
             seconds_elapsed -= 1
@@ -291,7 +292,8 @@ class RenkoTradingEnv(gym.Env):
                     try:
                         self.client.place_order(self.symbol, abs(remaining_position), OrderSide.SELL_SHORT)
                     except Exception as e:
-                        print(f'Error placing order: {e}')
+                        # print(f'Error placing order: {e}') 
+                        pass   
                         
                     self.client.tick(1)
                     seconds_elapsed -= 1
@@ -344,7 +346,8 @@ class RenkoTradingEnv(gym.Env):
                     try:
                         self.client.place_order(self.symbol, remaining_position, OrderSide.BUY)
                     except Exception as e:
-                        print(f'Error placing order: {e}')
+                        # print(f'Error placing order: {e}')
+                        pass
                         
                     self.client.tick(1)
                     seconds_elapsed -= 1

@@ -37,7 +37,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 			freeMargin := p.GetFreeMargin()
 			orderQuantity := order.GetQuantity()
 			initialMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
-			maintenanceMargin := calculateMaintenanceRequirement(orderQuantity, currentPrice)
+			maintenanceMargin := p.getMaintenanceMargin(positions)
 			position := positions[order.Symbol]
 
 			performMarginCheck := true
@@ -188,6 +188,9 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 
 		tag := fmt.Sprintf("liquidation - equity @ %.2f < maintenance margin @ %.2f", equity, maintenanceMargin)
 
+		x := p.getMaintenanceMargin(positions)
+		log.Infof("maintenance margin: %.2f", x)
+
 		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], tag)
 		if err != nil {
 			return nil, fmt.Errorf("error performing liquidations: %w", err)
@@ -277,14 +280,14 @@ func (p *Playground) Tick(d time.Duration) (*TickDelta, error) {
 
 	startingPositions := p.GetPositions()
 
-	// liquidationEvents, err := p.checkForLiquidations(startingPositions)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error checking for liquidations: %w", err)
-	// }
+	liquidationEvents, err := p.checkForLiquidations(startingPositions)
+	if err != nil {
+		return nil, fmt.Errorf("error checking for liquidations: %w", err)
+	}
 
-	// if liquidationEvents != nil {
-	// 	tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
-	// }
+	if liquidationEvents != nil {
+		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
+	}
 
 	// Commit pending orders
 	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(p.account.PendingOrders, startingPositions)
