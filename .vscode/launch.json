@@ -261,6 +261,17 @@
             ]
         },
         {
+            "name": "proximal policy optimization v6",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v6.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+            "args": [
+                // "--model", "ppo_model_v5-2024-10-19-09-46-17_300-of-500.zip"
+            ]
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",
