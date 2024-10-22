@@ -561,11 +561,6 @@ for timestep in range(total_timesteps):
     
     # Print the current timestep and balance
     print(f'Training complete. Timestep: {timestep}.')
-            
-    
-    # Reset the environment
-    print('Resetting environment ...')
-    obs = vec_env.reset()
         
     print('*' * 50)
     
@@ -575,6 +570,10 @@ for timestep in range(total_timesteps):
         modelName = 'ppo_model_v6-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
         model.save(os.path.join(saveModelDir, modelName))
         print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName, ".zip")}')
+        
+        # Reset the environment
+        print('Resetting environment ...')
+        obs = vec_env.reset()
 
 
 # Check if log files contain data
