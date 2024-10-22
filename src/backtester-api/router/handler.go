@@ -357,15 +357,20 @@ func convertPositionsToMap(positions map[eventmodels.Instrument]*models.Position
 	return response
 }
 
-func getAccountInfo(playground *models.Playground) map[string]interface{} {
+func getAccountInfo(playground *models.Playground, fetchOrders bool) map[string]interface{} {
 	positions := playground.GetPositions()
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"balance":     playground.GetBalance(),
 		"equity":      playground.GetEquity(positions),
 		"free_margin": playground.GetFreeMarginFromPositionMap(positions),
-		"orders":      playground.GetOrders(),
 		"positions":   convertPositionsToMap(positions),
 	}
+
+	if fetchOrders {
+		out["orders"] = playground.GetOrders()
+	}
+
+	return out
 }
 
 func handleAccount(w http.ResponseWriter, r *http.Request) {
@@ -387,7 +392,12 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountInfo := getAccountInfo(playground)
+	fetchOrders := true
+	if r.URL.Query().Get("orders") == "false" {
+		fetchOrders = false
+	}
+
+	accountInfo := getAccountInfo(playground, fetchOrders)
 
 	if err := setResponse(accountInfo, w); err != nil {
 		setErrorResponse("handleAccount: failed to set response", 500, err, w)

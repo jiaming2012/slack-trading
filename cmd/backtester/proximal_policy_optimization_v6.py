@@ -564,9 +564,8 @@ for timestep in range(total_timesteps):
             
     
     # Reset the environment
-    # if isDone:
-    #     print('Resetting environment ...')
-    #     obs = vec_env.reset()
+    print('Resetting environment ...')
+    obs = vec_env.reset()
         
     print('*' * 50)
     

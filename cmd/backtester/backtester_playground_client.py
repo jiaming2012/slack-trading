@@ -105,7 +105,7 @@ class BacktesterPlaygroundClient:
         
     def fetch_and_update_account_state(self) -> Account:
         # Fetch the account state
-        response = requests.get(f'{self.host}/playground/{self.id}/account')
+        response = requests.get(f'{self.host}/playground/{self.id}/account?orders=false')
         
         if response.status_code != 200:
             raise Exception(response.text)

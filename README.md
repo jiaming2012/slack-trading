@@ -10,6 +10,12 @@ Port forward to the production ESDB instance:
 kubectl port-forward svc/eventstoredb 21133:2113 -n eventstoredb
 ```
 
+## Profiling
+Pprof can be easily set up to do profiling:
+``` bash
+go tool pprof -seconds 30 -http localhost:8090 myserver http://localhost:8080/debug/pprof/profile
+```
+
 ## Container Registry
 Docker containers are hosted on vultr. Before pushing and pulling, you need to login.
 ``` bash
