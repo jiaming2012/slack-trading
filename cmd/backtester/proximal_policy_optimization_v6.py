@@ -98,8 +98,13 @@ class RenkoTradingEnv(gym.Env):
             current_price = current_candle['close'] if current_candle else 0
             if current_price == 0:
                 return 0
+            
             max_free_margin_per_trade = 0.3
-            position = (self.client.account.free_margin * max_free_margin_per_trade * unit_quantity) / current_price
+            if abs(unit_quantity) > 0.1:
+                position = (self.client.account.free_margin * max_free_margin_per_trade * unit_quantity) / current_price
+            else:
+                position = 0
+                
             return position
     
     def show_progress(self):
