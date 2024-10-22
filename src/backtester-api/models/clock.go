@@ -55,7 +55,7 @@ func (c *Clock) advanceToNextMarketOpen(currentTime *time.Time) {
 			return
 		}
 
-		if c.IsExpired() {
+		if c.IsTimeExpired(*currentTime) {
 			return
 		}
 

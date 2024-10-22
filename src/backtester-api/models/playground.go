@@ -34,7 +34,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 			rejectReason := ErrNoPriceAvailable.Error()
 			order.RejectReason = &rejectReason
 		} else {
-			freeMargin := p.GetFreeMargin()
+			freeMargin := p.GetFreeMarginFromPositionMap(positions)
 			orderQuantity := order.GetQuantity()
 			initialMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
 			maintenanceMargin := p.getMaintenanceMargin(positions)

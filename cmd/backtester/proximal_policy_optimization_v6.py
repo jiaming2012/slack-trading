@@ -544,10 +544,7 @@ epsilon_decay = 0.999  # Decay rate for exploration
 # Training loop with epsilon-greedy strategy
 total_timesteps = 150
 
-# batch_size = 500  # Collect experiences in batches
-obs = vec_env.reset()
-
-for timestep in range(total_timesteps):
+for timestep in range(1, total_timesteps):
     epsilon = timestep_epsilon
     
     isDone = False
@@ -573,7 +570,7 @@ for timestep in range(total_timesteps):
         
         # Reset the environment
         print('Resetting environment ...')
-        obs = vec_env.reset()
+        vec_env.reset()
 
 
 # Check if log files contain data
