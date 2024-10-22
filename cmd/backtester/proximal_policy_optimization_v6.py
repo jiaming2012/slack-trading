@@ -542,7 +542,7 @@ timestep_epsilon_decay = 0.99
 epsilon_decay = 0.999  # Decay rate for exploration
 
 # Training loop with epsilon-greedy strategy
-total_timesteps = 100
+total_timesteps = 150
 
 # batch_size = 500  # Collect experiences in batches
 obs = vec_env.reset()
@@ -570,10 +570,10 @@ for timestep in range(total_timesteps):
         
     print('*' * 50)
     
-    if timestep % 5 == 0:
+    if timestep % 10 == 0:
         # Save the trained model with timestep
         saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-        modelName = 'ppo_model_v5-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
+        modelName = 'ppo_model_v6-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{timestep}-of-{total_timesteps}'
         model.save(os.path.join(saveModelDir, modelName))
         print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName, ".zip")}')
 
