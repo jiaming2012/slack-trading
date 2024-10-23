@@ -1,36 +1,32 @@
+import numpy as np
+import random
 import gymnasium as gym
 from gymnasium import spaces
-import numpy as np
-import pandas as pd
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results, X_TIMESTEPS
-from lib import RenkoWS
 from datetime import datetime
-import random
-import argparse
-import os
-import torch
-
-print('cuda available: ', torch.cuda.is_available())  # Should return True if GPU is available
-
-# from stable_baselines3.common.noise import NormalActionNoise
-import matplotlib.pyplot as plt
+from dataclasses import dataclass
 from backtester_playground_client import BacktesterPlaygroundClient, OrderSide, RepositorySource
+from lib import RenkoWS
 
-class RenkoTradingEnv(gym.Env):
+@dataclass
+class PlaygroundEnvironmentMode:
+    Train = 0
+    Validate = 1
+    Test = 2
+
+class PlaygroundEnvironment(gym.Env):
     """
     Custom Environment for Renko Chart Trading using PPO and Sortino Ratio as reward.
     """
     metadata = {'render.modes': ['human']}
     
     def initialize(self):
-        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, '2024-06-03', '2024-09-30', self.repository_source, self.csv_path)# , host='http://149.28.239.60')
-        random_tick = self.pick_random_tick('2024-06-03', '2024-09-30')
-        self.client.tick(random_tick)
-        tick_delta = self.client.flush_tick_delta_buffer()[0]
-        print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
+        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path)# , host='http://149.28.239.60')
+        
+        if self.mode == PlaygroundEnvironmentMode.Train:
+            random_tick = self.pick_random_tick(self.start_date, self.end_date)
+            self.client.tick(random_tick)
+            tick_delta = self.client.flush_tick_delta_buffer()[0]
+            print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
         
         # temp
         self.current_observation = None
@@ -66,11 +62,14 @@ class RenkoTradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv'):
-        super(RenkoTradingEnv, self).__init__()
+    def __init__(self, symbol, start_date, end_date, initial_balance=10000, mode=PlaygroundEnvironmentMode.Train, repository_source=RepositorySource.CSV, csv_path='training_data.csv'):
+        super(PlaygroundEnvironment, self).__init__()
         
         # Parameters and variables
-        self.symbol = 'COIN'
+        self.symbol = symbol
+        self.mode = mode
+        self.start_date = start_date
+        self.end_date = end_date
         self.initial_balance = initial_balance
         self.repository_source = repository_source
         self.csv_path = csv_path
@@ -217,7 +216,7 @@ class RenkoTradingEnv(gym.Env):
             terminated = True
             self.render()
             print('Balance is zero or negative. Terminating episode ...')
-            self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp } 
             return self.step_results
 
         # Ensure we are still within the data bounds
@@ -227,7 +226,7 @@ class RenkoTradingEnv(gym.Env):
             truncated = True  # Episode truncated (e.g., max steps reached)
             self.render()
             print('Backtest is complete. Terminating episode ...')
-            self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
             
             return self.step_results
 
@@ -305,7 +304,7 @@ class RenkoTradingEnv(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                 return self.step_results
                             
             # open new short position
@@ -334,7 +333,7 @@ class RenkoTradingEnv(gym.Env):
                         self.render()
                         print('Backtest is complete. Terminating episode ...')
                         
-                        self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+                        self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                         return self.step_results
                     
                 except Exception as e:
@@ -360,7 +359,7 @@ class RenkoTradingEnv(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                 return self.step_results
                 
             commission = 0
@@ -388,7 +387,7 @@ class RenkoTradingEnv(gym.Env):
                         truncated = True  # Episode truncated (e.g., max steps reached)
                         self.render()
                         print('Backtest is complete. Terminating episode ...')
-                        self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
+                        self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                         return self.step_results
                                     
                 except Exception as e:
@@ -425,7 +424,7 @@ class RenkoTradingEnv(gym.Env):
         observation = self._get_observation()
         
         # Include the balance in the info dictionary
-        info = {'balance': self.client.account.balance }
+        info = {'equity': self.client.account.equity, 'timestamp': self.timestamp }
         
         self.step_results_complete = observation, reward, terminated, truncated, info
 
@@ -494,79 +493,3 @@ class RenkoTradingEnv(gym.Env):
         position = self.client.position
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward:.2f}") 
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--model', type=str, help='The name of the model to load')
-parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=100)
-args = parser.parse_args()
-
-projectsDir = os.getenv('PROJECTS_DIR')
-if projectsDir is None:
-    raise ValueError('PROJECTS_DIR environment variable is not set')
-
-start_time = datetime.now()
-
-# Create log directory
-log_dir = "tmp/"
-os.makedirs(log_dir, exist_ok=True)
-
-# Initialize the environment
-env = RenkoTradingEnv(initial_balance=10000, repository_source=RepositorySource.POLYGON)
-
-# Wrap the environment with Monitor
-env = Monitor(env, log_dir)
-
-# Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
-vec_env = DummyVecEnv([lambda: env])
-
-if args.model is not None:
-    # Load the PPO model
-    loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-    model = PPO.load(os.path.join(loadModelDir, args.model))
-    model.set_env(vec_env)  # Assign the environment again (necessary for further training)
-    print(f'Loaded model: {args.model}')
-else:
-    # Create and train the PPO model
-    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001)
-
-
-# Hyper parameters
-total_timesteps = args.timestamps
-batch_size = 500
-
-for timestep in range(1, total_timesteps):    
-    isDone = False
-    batch_size = 1000
-    
-    # while not isDone:
-    # Train the model with the new experience
-    print(f'Training model after one week with batch size: {batch_size} ...')
-    
-    model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
-    
-    # Print the current timestep and balance
-    print(f'Training complete. Timestep: {timestep} / {total_timesteps}.')
-        
-    print('*' * 50)
-    
-    if timestep % 10 == 0:
-        # Save the trained model with timestep
-        saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-        modelName = 'ppo_model_v6-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{timestep}-of-{total_timesteps}'
-        model.save(os.path.join(saveModelDir, modelName))
-        print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
-        
-        # Reset the environment
-        print('Resetting environment ...')
-        vec_env.reset()
-
-
-# Check if log files contain data
-log_files = os.listdir(log_dir)
-print(f"Log files: {log_files}")
-    
-# Save the trained model with timestamp
-saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-modelName = 'ppo_model_v6-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-model.save(os.path.join(saveModelDir, modelName))
-print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
