@@ -535,7 +535,7 @@ else:
 
 
 # Hyper parameters
-total_timesteps = args.timestamps
+total_timesteps = args.timesteps
 batch_size = 500
 
 for timestep in range(1, total_timesteps):    
