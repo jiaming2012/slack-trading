@@ -272,6 +272,20 @@
             ]
         },
         {
+            "name": "proximal policy optimization [validate]",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/validate_model.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+            "args": [
+                "--model", "ppo_model_v6-2024-10-23-05-15-50.zip",
+                "--symbol", "COIN",
+                "--start-date", "2024-06-03",
+                "--end-date", "2024-09-30"
+            ]
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",

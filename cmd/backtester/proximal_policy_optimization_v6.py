@@ -26,8 +26,8 @@ class RenkoTradingEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def initialize(self):
-        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, '2024-06-03', '2024-09-30', self.repository_source, self.csv_path)# , host='http://149.28.239.60')
-        random_tick = self.pick_random_tick('2024-06-03', '2024-09-30')
+        self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path)# , host='http://149.28.239.60')
+        random_tick = self.pick_random_tick(self.start_date, self.end_date)
         self.client.tick(random_tick)
         tick_delta = self.client.flush_tick_delta_buffer()[0]
         print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
@@ -66,11 +66,13 @@ class RenkoTradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv'):
+    def __init__(self, start_date, end_date, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv'):
         super(RenkoTradingEnv, self).__init__()
         
         # Parameters and variables
-        self.symbol = 'COIN'
+        self.symbol = 'TSLA'
+        self.start_date = start_date
+        self.end_date = end_date
         self.initial_balance = initial_balance
         self.repository_source = repository_source
         self.csv_path = csv_path
@@ -511,6 +513,8 @@ log_dir = "tmp/"
 os.makedirs(log_dir, exist_ok=True)
 
 # Initialize the environment
+start_date = '2024-01-03'
+end_date = '2024-05-31'
 env = RenkoTradingEnv(initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
 # Wrap the environment with Monitor
