@@ -515,7 +515,7 @@ os.makedirs(log_dir, exist_ok=True)
 # Initialize the environment
 start_date = '2024-01-03'
 end_date = '2024-05-31'
-env = RenkoTradingEnv(initial_balance=10000, repository_source=RepositorySource.POLYGON)
+env = RenkoTradingEnv(start_date, end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
 # Wrap the environment with Monitor
 env = Monitor(env, log_dir)
