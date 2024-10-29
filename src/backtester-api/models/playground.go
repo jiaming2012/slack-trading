@@ -17,9 +17,10 @@ type Playground struct {
 	clock              *Clock
 	repos              map[eventmodels.Instrument]*BacktesterCandleRepository
 	isBacktestComplete bool
+	positionsCache     map[eventmodels.Instrument]*Position
 }
 
-func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, positions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	invalidOrders = []*BacktesterOrder{}
 	for _, order := range pendingOrders {
 		if order.Status != BacktesterOrderStatusPending {
@@ -34,11 +35,11 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 			rejectReason := ErrNoPriceAvailable.Error()
 			order.RejectReason = &rejectReason
 		} else {
-			freeMargin := p.GetFreeMarginFromPositionMap(positions)
+			freeMargin := p.GetFreeMarginFromPositionMap(startingPositions)
 			orderQuantity := order.GetQuantity()
 			initialMargin := calculateInitialMarginRequirement(orderQuantity, currentPrice)
-			maintenanceMargin := p.getMaintenanceMargin(positions)
-			position := positions[order.Symbol]
+			maintenanceMargin := p.getMaintenanceMargin(startingPositions)
+			position := startingPositions[order.Symbol]
 
 			performMarginCheck := true
 			if position != nil && position.Quantity < 0 && orderQuantity > 0 && orderQuantity <= math.Abs(position.Quantity) {
@@ -58,15 +59,45 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, posit
 		p.account.Orders = append(p.account.Orders, order)
 	}
 
-	newTrades, err = p.updateTrades()
+	newTrades, err = p.updateTrades(startingPositions)
 	if err != nil {
 		err = fmt.Errorf("error updating trades: %w", err)
 		return
 	}
 
-	p.updateBalance(newTrades, positions)
+	// update the account balance before updating the positions cache
+ 	p.updateBalance(newTrades, startingPositions)
+
+	for _, trade := range newTrades {
+		p.updatePositionsCache(trade)
+	}
 
 	return
+}
+
+func (p *Playground) updatePositionsCache(trade *BacktesterTrade) {
+	position, ok := p.positionsCache[trade.Symbol]
+	if !ok {
+		position = &Position{}
+	}
+
+	
+	totalQuantity := position.Quantity + trade.Quantity
+
+	// update the cost basis
+	if totalQuantity == 0 {
+		delete(p.positionsCache, trade.Symbol)
+	} else {
+		position.CostBasis = (position.CostBasis*position.Quantity + trade.Price*trade.Quantity) / totalQuantity
+
+		// update the quantity
+		position.Quantity = totalQuantity
+
+		// update the maintenance margin
+		position.MaintenanceMargin = calculateMaintenanceRequirement(position.Quantity, position.CostBasis)
+
+		p.positionsCache[trade.Symbol] = position
+	}
 }
 
 func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, error) {
@@ -83,8 +114,15 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, er
 	return candle.Close, nil
 }
 
-func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
+func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*Position) ([]*BacktesterTrade, error) {
 	var trades []*BacktesterTrade
+
+	positionsCopy := make(map[eventmodels.Instrument]*Position)
+	for symbol, position := range startingPositions {
+		positionsCopy[symbol] = &Position{
+			Quantity:          position.Quantity,
+		}
+	}
 
 	for _, order := range p.account.Orders {
 		orderStatus := order.GetStatus()
@@ -93,7 +131,13 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 				return nil, fmt.Errorf("updateTrades: only equity orders are supported")
 			}
 
-			if err := p.isSideAllowed(order.Symbol, order.Side); err != nil {
+			position, ok := positionsCopy[order.Symbol]
+			if !ok {
+				position = &Position{Quantity: 0}
+				positionsCopy[order.Symbol] = position
+			}
+
+			if err := p.isSideAllowed(order.Symbol, order.Side, position.Quantity); err != nil {
 				order.Status = BacktesterOrderStatusRejected
 				continue
 			}
@@ -114,6 +158,8 @@ func (p *Playground) updateTrades() ([]*BacktesterTrade, error) {
 			order.Status = BacktesterOrderStatusFilled
 
 			trades = append(trades, trade)
+
+			position.Quantity += quantity
 		}
 	}
 
@@ -430,6 +476,21 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 }
 
 func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
+	if p.positionsCache != nil {
+		// update pl
+		for symbol, position := range p.positionsCache {
+			close, err := p.getCurrentPrice(symbol)
+			if err == nil {
+				p.positionsCache[symbol].PL = (close - position.CostBasis) * position.Quantity
+			} else {
+				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
+				p.positionsCache[symbol].PL = 0
+			}
+		}
+
+		return p.positionsCache
+	}
+
 	positions := make(map[eventmodels.Instrument]*Position)
 
 	allTrades := make(map[eventmodels.Instrument][]*BacktesterTrade)
@@ -455,9 +516,9 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	}
 
 	// adjust open trades
-	for symbol, position := range positions {
-		position.OpenTrades = p.getNetTrades(allTrades[symbol])
-	}
+	// for symbol, position := range positions {
+	// 	position.OpenTrades = p.getNetTrades(allTrades[symbol])
+	// }
 
 	vwapMap := make(map[eventmodels.Instrument]float64)
 	totalQuantityMap := make(map[eventmodels.Instrument]float64)
@@ -484,7 +545,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		var costBasis float64
 		totalQuantity := totalQuantityMap[symbol]
 
-		// calculate average price
+		// calculate cost basis
 		if totalQuantity != 0 {
 			costBasis = vwap / totalQuantity
 		}
@@ -495,6 +556,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 
 		positions[symbol].CostBasis = costBasis
 
+		// calculate maintenance margin
 		positions[symbol].MaintenanceMargin = calculateMaintenanceRequirement(totalQuantity, costBasis)
 
 		// calculate pl
@@ -506,6 +568,9 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 			positions[symbol].PL = 0
 		}
 	}
+
+	// set the cache
+	p.positionsCache = positions
 
 	return positions
 }
@@ -524,10 +589,8 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument) (*eventmodels.Poly
 	return candle, nil
 }
 
-func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side BacktesterOrderSide) error {
-	position := p.GetPosition(symbol)
-
-	if position.Quantity > 0 {
+func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side BacktesterOrderSide, positionQuantity float64) error {
+	if positionQuantity > 0 {
 		if side == BacktesterOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
 		}
@@ -535,7 +598,7 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side Backteste
 		if side == BacktesterOrderSideSellShort {
 			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
 		}
-	} else if position.Quantity < 0 {
+	} else if positionQuantity < 0 {
 		if side == BacktesterOrderSideBuy {
 			return fmt.Errorf("cannot buy when short position exists: must sell to close")
 		}
@@ -602,7 +665,13 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 		return fmt.Errorf("symbol %s not found in repos", order.Symbol)
 	}
 
-	if err := p.isSideAllowed(order.Symbol, order.Side); err != nil {
+	positions := p.GetPositions()
+	positionQty := 0.0
+	if position, ok := positions[order.Symbol]; ok {
+		positionQty = position.Quantity
+	}
+
+	if err := p.isSideAllowed(order.Symbol, order.Side, positionQty); err != nil {
 		return fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 	}
 
@@ -651,10 +720,11 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 	}
 
 	return &Playground{
-		ID:      uuid.New(),
-		account: NewBacktesterAccount(balance),
-		clock:   clock,
-		repos:   repos,
+		ID:             uuid.New(),
+		account:        NewBacktesterAccount(balance),
+		clock:          clock,
+		repos:          repos,
+		positionsCache: nil,
 	}, nil
 }
 
@@ -671,9 +741,10 @@ func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Pla
 	repos[symbol] = NewBacktesterCandleRepository(symbol, candles)
 
 	return &Playground{
-		ID:      uuid.New(),
-		account: NewBacktesterAccount(balance),
-		clock:   clock,
-		repos:   repos,
+		ID:             uuid.New(),
+		account:        NewBacktesterAccount(balance),
+		clock:          clock,
+		repos:          repos,
+		positionsCache: nil,
 	}, nil
 }

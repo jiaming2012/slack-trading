@@ -39,7 +39,7 @@ df = FetchPolygonDataframe('COIN', '2024-01-01T00:00:00Z', '2024-10-02T00:00:00Z
 # # Calculate the Supertrend indicator using hlcc4
 # supertrend = ta.supertrend(high=df['hlcc4'], low=df['hlcc4'], close=df['hlcc4'], length=50, multiplier=3)
 
-supertrend = df.ta.supertrend(length=50, multiplier=3)
+supertrend = ta.supertrend(length=50, multiplier=3)
 
 # Add the Supertrend values to the dataframe
 df = pd.concat([df, supertrend], axis=1)
