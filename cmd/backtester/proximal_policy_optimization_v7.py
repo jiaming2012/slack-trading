@@ -456,6 +456,10 @@ class RenkoTradingEnv(gym.Env):
         
         # Take the last 20 prices
         df = df.tail(40)
+        
+        # from sklearn.preprocessing import MinMaxScaler
+        # scaler = MinMaxScaler()
+        # df['open'] = scaler.fit_transform(df[['open']])
                 
         j = 0
         for i in range(len(df)):
