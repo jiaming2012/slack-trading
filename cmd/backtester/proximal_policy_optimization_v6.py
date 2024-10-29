@@ -131,15 +131,11 @@ class RenkoTradingEnv(gym.Env):
     def get_batch_size(self) -> int:        
         avg_reward = self.get_average_reward()
         if avg_reward <= 0:
-            return 500
-        elif avg_reward < 10:
-            return 1000
-        elif avg_reward < 50:
             return 1500
-        elif avg_reward < 100:
-            return 2000
-        else:
+        elif avg_reward < 10:
             return 3000
+        else:
+            return 5000
             
     def found_insufficient_free_margin(self, tick_delta: object) -> bool:
         invalid_orders = tick_delta.get('invalid_orders')
@@ -536,11 +532,10 @@ else:
 
 # Hyper parameters
 total_timesteps = args.timesteps
-batch_size = 500
 
 for timestep in range(1, total_timesteps):    
     isDone = False
-    batch_size = 1000
+    batch_size = env.get_batch_size()
     
     # while not isDone:
     # Train the model with the new experience
