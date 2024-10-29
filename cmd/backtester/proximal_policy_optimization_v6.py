@@ -527,7 +527,7 @@ if args.model is not None:
     print(f'Loaded model: {args.model}')
 else:
     # Create and train the PPO model
-    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128]}, ent_coef=0.5, learning_rate=0.001)
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [128, 128, 128]}, ent_coef=0.5, learning_rate=0.001)
 
 
 # Hyper parameters
