@@ -12,6 +12,7 @@ import random
 import argparse
 import os
 import torch
+import math
 
 print('cuda available: ', torch.cuda.is_available())  # Should return True if GPU is available
 
@@ -167,6 +168,7 @@ class RenkoTradingEnv(gym.Env):
             pl_ratio = abs(self.client.account.pl / balance) if balance > 0 else 0
             if pl_ratio > 0.1:
                 pl = self.client.account.pl * 0.1
+            pass
         
         result = balance - self.previous_balance - commission + pl
         
@@ -186,6 +188,13 @@ class RenkoTradingEnv(gym.Env):
                         current_price = self.client.current_candle['close']
                         penalty = (future_price - current_price) * position * -1
                         result -= penalty
+                        
+                        if math.isnan(result):
+                            print('Result is NaN: penalty')
+                            print('penalty: ', penalty)
+                            print('future_price: ', future_price)
+                            print('current_price: ', current_price)
+                            print('position: ', position)
         
         deltas = self.client.flush_tick_delta_buffer()
         for tick_delta in deltas:
@@ -196,6 +205,16 @@ class RenkoTradingEnv(gym.Env):
                 print(f'Liquidation detected')
         
         self.previous_balance = balance
+        
+        if math.isnan(result):
+            print('Result is NaN')
+            print('balance: ', balance)
+            print('previous balance: ', self.previous_balance)
+            print('commission: ', commission)
+            print('pl: ', pl)
+            
+            return 0
+        
         return result
     
     def step(self, action):
