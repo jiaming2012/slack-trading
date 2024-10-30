@@ -471,6 +471,12 @@ class RenkoTradingEnv(gym.Env):
 
         if df is None or len(df) == 0:
             self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+            
+            nan_mask = np.isnan(self.current_observation)
+            if np.any(nan_mask):
+                print('Found NaN in observation:', self.current_observation)
+                print('Nan mask:', nan_mask)
+            
             return self.current_observation
         
         # Take the last 20 prices
@@ -490,6 +496,11 @@ class RenkoTradingEnv(gym.Env):
             j += 1
         
         self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+        nan_mask = np.isnan(self.current_observation)
+        if np.any(nan_mask):
+            print('Found NaN in observation:', self.current_observation)
+            print('Nan mask:', nan_mask)
+        
         return self.current_observation
 
     def reset(self, seed=None, options=None):
