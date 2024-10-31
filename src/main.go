@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,15 +12,22 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 
-	"github.com/jiaming2012/slack-trading/src/worker"
-
-	"github.com/jiaming2012/slack-trading/src/handler"
-
-	"github.com/jiaming2012/slack-trading/src/sheets"
-
+	pb "github.com/jiaming2012/slack-trading/src/backtester-api/playground"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/handler"
+	"github.com/jiaming2012/slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/worker"
 )
+
+type GrpcServer struct {
+	pb.UnimplementedPlaygroundServiceServer
+}
+
+func (s *GrpcServer) CreatePlayground(ctx context.Context, in *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
+	return &pb.CreatePlaygroundResponse{}, nil
+}
 
 func main() {
 	ctx := context.Background()
@@ -48,8 +56,8 @@ func main() {
 	router.HandleFunc("/", handler.SlackApiEventHandler)
 	router.HandleFunc("/dataplane/token/balance", handler.Balance)
 	router.HandleFunc("/dataplane/token/{name}", handler.Trade)
-	//router.HandleFunc("/trendspider", handler.TrendSpider)   -- moved to eventmain/main.go
 
+	// start the http server
 	srv := &http.Server{
 		Handler: router,
 		Addr:    fmt.Sprintf(":%s", port),
@@ -59,8 +67,25 @@ func main() {
 		log.Infof("listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil {
 			if err.Error() != "http: Server closed" {
-				panic(err)
+				log.Fatalf("http: failed to listen and serve: %v", err)
 			}
+		}
+	}()
+
+	// start the grpc server
+	go func() {
+		grpcServer := grpc.NewServer()
+		pb.RegisterPlaygroundServiceServer(grpcServer, &GrpcServer{})
+		port := 50051
+
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+
+		log.Infof("listening on :%d", port)
+		if err := grpcServer.Serve(listener); err != nil {
+			log.Fatalf("grpc: failed to serve: %v", err)
 		}
 	}()
 

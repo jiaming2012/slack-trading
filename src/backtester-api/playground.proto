@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package playground;
+
+option go_package = "./playground";
+
+service PlaygroundService {
+    rpc CreatePlayground (CreatePolygonPlaygroundRequest) returns (CreatePlaygroundResponse);
+}
+
+message CreatePolygonPlaygroundRequest {
+    float balance = 1;
+    string start_date = 2;
+    string stop_date = 3;
+    string symbol = 4;
+    uint32 timespan_multiplier = 5;
+    string timespan_unit = 6;
+}
+
+message CreatePlaygroundResponse {
+    string id = 1;
+}

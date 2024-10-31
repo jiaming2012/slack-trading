@@ -40,6 +40,15 @@ pip install -r requirements.txt
 export PROJECTS_DIR="/root"
 ```
 
+### Build the Protobufs
+Backtester-api uses protobufs to speed up client server communication
+
+## Build
+``` bash
+cd ${PROEJCTS_DIR}/cmd/backtester
+python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --proto_path=${PROJECTS_DIR}/slack-trading/src/backtester-api playground.proto
+```
+
 #### In Background
 To run in the background:
 ``` bash

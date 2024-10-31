@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from typing import List, Dict
 from zoneinfo import ZoneInfo
 
+import grpc
+from playground_pb2 import CreatePolygonPlaygroundRequest
+from playground_pb2_grpc import PlaygroundServiceStub
+
 @dataclass
 class Trade:
     symbol: str
@@ -78,9 +82,10 @@ class RepositorySource(Enum):
     POLYGON = 'polygon'
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080'):
+    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
         self.symbol = symbol
         self.host = host
+        self.grpc_host = grpc_host
         
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -341,32 +346,22 @@ class BacktesterPlaygroundClient:
 
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
-        response = requests.post(
-            f'{self.host}/playground',
-            json={
-                'balance': balance,
-                'clock': {
-                    'start': start_date,
-                    'stop': stop_date
-                },
-                'repository': {
-                    'symbol': symbol,
-                    'timespan': {
-                        'multiplier': 1,
-                        'unit': 'minute'
-                    },
-                    'source': {
-                        'type': 'polygon'
-                    }
-                }
-            }
+        channel = grpc.insecure_channel(self.grpc_host)
+        stub = PlaygroundServiceStub(channel)
+        request = CreatePolygonPlaygroundRequest(
+            balance=balance,
+            start_date=start_date,
+            stop_date=stop_date,
+            symbol=symbol,
+            timespan_multiplier=1,
+            timespan_unit='minute',
         )
 
-        if response.status_code != 200:
-            raise Exception(response.text)
+        response = stub.CreatePlayground(request)
 
-        return response.json()['playground_id']
+        return response.id
 
+    
 if __name__ == '__main__':
     try:
         playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
@@ -375,9 +370,9 @@ if __name__ == '__main__':
         
         result = playground_client.place_order('AAPL', 10, OrderSide.SELL_SHORT)
                 
-        resp = playground_client.tick(6000)
+        playground_client.tick(6000)
         
-        tick_delta = resp.flush_tick_delta_buffer()
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #1: ', tick_delta)
         
@@ -396,7 +391,9 @@ if __name__ == '__main__':
         
         print('L1: account: ', account)
         
-        tick_delta = playground_client.tick(360000)
+        playground_client.tick(360000)
+        
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #2: ', tick_delta)
         
@@ -419,7 +416,9 @@ if __name__ == '__main__':
         
         result = playground_client.place_order('AAPL', 3, OrderSide.SELL_SHORT)
         
-        tick_delta = playground_client.tick(360000)
+        playground_client.tick(360000)
+                
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #3: ', tick_delta)
         
@@ -429,11 +428,15 @@ if __name__ == '__main__':
         
         print('L3: position: ', playground_client.position)
         
-        tick_delta = playground_client.tick(60000)
+        playground_client.tick(60000)
+        
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #3.1: ', tick_delta)
         
-        tick_delta = playground_client.tick(60000)
+        playground_client.tick(60000)
+        
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #3.2: ', tick_delta)
         
@@ -446,7 +449,9 @@ if __name__ == '__main__':
                 
         print('L3.1: found_liquidation: ', found_liquidation)
         
-        tick_delta = playground_client.tick(120000)
+        playground_client.tick(120000)
+        
+        tick_delta = playground_client.flush_tick_delta_buffer()[0]
         
         print('tick_delta #3.3: ', tick_delta)
         

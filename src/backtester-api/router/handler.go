@@ -223,31 +223,22 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createPlayground(w http.ResponseWriter, r *http.Request) {
-	var req CreatePlaygroundRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		setErrorResponse("createClock: failed to decode request", 400, err, w)
-		return
-	}
-
+// todo: make private
+func CreatePlayground(req *CreatePlaygroundRequest) (*models.Playground, *eventmodels.WebError) {
 	// create clock
 	from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to parse clock.startDate", 400, err, w)
-		return
+		return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
 	}
 
 	to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to parse to clock.endDate", 400, err, w)
-		return
+		return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
 	}
 
 	clock, err := createClock(from, to)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to create clock", 500, err, w)
-		return
+		return nil, eventmodels.NewWebError(500, "failed to create clock")
 	}
 
 	// create repository
@@ -260,41 +251,52 @@ func createPlayground(w http.ResponseWriter, r *http.Request) {
 	if req.Repository.Source.Type == RepositorySourcePolygon {
 		bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(req.Repository.Symbol), timespan, from, to)
 		if err != nil {
-			setErrorResponse("createPlayground: failed to fetch aggregate bars", 500, err, w)
-			return
+			return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
 		}
 	} else if req.Repository.Source.Type == RepositorySourceCSV {
 		if req.Repository.Source.CSVFilename == nil {
-			setErrorResponse("createPlayground: missing CSV filename", 400, fmt.Errorf("missing CSV filename"), w)
-			return
+			return nil, eventmodels.NewWebError(400, "missing CSV filename")
 		}
 
 		sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *req.Repository.Source.CSVFilename)
 
 		bars, err = utils.ImportCandlesFromCsv(sourceDir)
 		if err != nil {
-			setErrorResponse("createPlayground: failed to import candles from CSV", 500, err, w)
-			return
+			return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
 		}
 	} else {
-		setErrorResponse("createPlayground: invalid repository source", 400, fmt.Errorf("invalid repository source"), w)
-		return
+		return nil, eventmodels.NewWebError(400, "invalid repository source")
 	}
 
 	repository, err := createRepository(eventmodels.StockSymbol(req.Repository.Symbol), timespan, bars)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to create repository", 500, err, w)
-		return
+		return nil, eventmodels.NewWebError(500, "failed to create repository")
 	}
 
 	// create playground
 	playground, err := models.NewPlayground(req.Balance, clock, repository)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to create playground", 500, err, w)
-		return
+		return nil, eventmodels.NewWebError(500, "failed to create playground")
 	}
 
 	playgrounds[playground.ID] = playground
+
+	return playground, nil
+}
+
+func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
+	var req CreatePlaygroundRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		setErrorResponse("createClock: failed to decode request", 400, err, w)
+		return
+	}
+
+	playground, err := CreatePlayground(&req)
+	if err != nil {
+		setErrorResponse("createPlayground: failed to create playground", err.StatusCode, err, w)
+		return
+	}
 
 	response := map[string]interface{}{
 		"playground_id": playground.ID,
@@ -471,7 +473,7 @@ func handlePlayground(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		getPlayground(w, r)
 	} else if r.Method == "POST" {
-		createPlayground(w, r)
+		handleCreatePlayground(w, r)
 	} else {
 		w.WriteHeader(404)
 	}

@@ -7,3 +7,12 @@ Provides a unified model to **train models** -> **backtest models** -> **live tr
 prices := []float64{0, 100.0, 115.0}
 feed := mock.NewMockBacktesterDataFeed()
 ```
+
+## Protobufs
+Protobufs are used to speed up communication with API clients.
+
+## Compiling
+``` bash
+cd ${PROJECTS_DIR}/src/backtester-api
+protoc --go_out=./proto --go_opt=paths=source_relative --go-grpc_out=./proto --go-grpc_opt=paths=source_relative playground.proto
+```
