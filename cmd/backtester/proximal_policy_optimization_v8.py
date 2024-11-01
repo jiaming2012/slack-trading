@@ -28,12 +28,10 @@ class RenkoTradingEnv(gym.Env):
     
     def initialize(self):
         self.client = BacktesterPlaygroundClient(self.initial_balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path)# , host='http://149.28.239.60')
-        
-        if self.is_training:
-            random_tick = self.pick_random_tick(self.start_date, self.end_date)
-            self.client.tick(random_tick)
-            tick_delta = self.client.flush_tick_delta_buffer()[0]
-            print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
+        random_tick = self.pick_random_tick(self.start_date, self.end_date)
+        self.client.tick(random_tick)
+        tick_delta = self.client.flush_tick_delta_buffer()[0]
+        print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
         
         # temp
         self.current_observation = None
@@ -69,7 +67,7 @@ class RenkoTradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, start_date, end_date, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
+    def __init__(self, start_date, end_date, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv'):
         super(RenkoTradingEnv, self).__init__()
         
         # Parameters and variables
@@ -83,7 +81,6 @@ class RenkoTradingEnv(gym.Env):
         self._internal_timestamp = None
         self.rewards_history = []
         self.per_trade_commission = 0.01
-        self.is_training = is_training
         
         self.action_space = spaces.Box(
             low=np.array([-1.0]),
@@ -163,62 +160,15 @@ class RenkoTradingEnv(gym.Env):
 
     def get_reward(self, commission, position=0, is_close=False, include_pl=False):
         balance = self.client.account.balance
-        pl = 0
+        equity = self.client.account.equity
+        free_margin = self.client.account.free_margin
+  
+        if free_margin > 0 :
+            reward = (equity - balance) / free_margin
+        else:
+            reward = equity - balance
         
-        if include_pl:
-            pl = self.client.account.pl
-        elif self.client.account.pl < 0:
-            pl_ratio = abs(self.client.account.pl / balance) if balance > 0 else 0
-            if pl_ratio > 0.1:
-                pl = self.client.account.pl * 0.1
-            pass
-        
-        result = balance - self.previous_balance - commission + pl
-        
-        # add preview penalty
-        if position != 0 and self.client.current_candle and is_close:
-            r = self.client.preview_tick(5 * 60)
-            if not r['is_backtest_complete']:
-                if r['new_candles'] and len(r['new_candles']) > 0:
-                    future_candle = None
-                    for candle in r['new_candles']:
-                        if candle['symbol'] == self.symbol:
-                            future_candle = candle['candle']
-                            break
-                        
-                    if future_candle:
-                        future_price = future_candle['close']
-                        current_price = self.client.current_candle['close']
-                        penalty = (future_price - current_price) * position * -1
-                        result -= penalty
-                        
-                        if math.isnan(result):
-                            print('Result is NaN: penalty')
-                            print('penalty: ', penalty)
-                            print('future_price: ', future_price)
-                            print('current_price: ', current_price)
-                            print('position: ', position)
-        
-        deltas = self.client.flush_tick_delta_buffer()
-        for tick_delta in deltas:
-            # if self.found_insufficient_free_margin(tick_delta):
-            #     print('Insufficient free margin detected.')
-            
-            if self.found_liquidation(tick_delta):
-                print(f'Liquidation detected')
-        
-        self.previous_balance = balance
-        
-        if math.isnan(result):
-            print('Result is NaN')
-            print('balance: ', balance)
-            print('previous balance: ', self.previous_balance)
-            print('commission: ', commission)
-            print('pl: ', pl)
-            
-            return 0
-        
-        return result
+        return reward
     
     def step(self, action):
         pl = self.client.account.pl
@@ -237,7 +187,7 @@ class RenkoTradingEnv(gym.Env):
             terminated = True
             self.render()
             print('Balance is zero or negative. Terminating episode ...')
-            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+            self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
             return self.step_results
 
         # Ensure we are still within the data bounds
@@ -247,7 +197,7 @@ class RenkoTradingEnv(gym.Env):
             truncated = True  # Episode truncated (e.g., max steps reached)
             self.render()
             print('Backtest is complete. Terminating episode ...')
-            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+            self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
             
             return self.step_results
 
@@ -276,7 +226,7 @@ class RenkoTradingEnv(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance, 'pl': pl }
                 return self.step_results
             
             commission = self.per_trade_commission * position
@@ -300,7 +250,7 @@ class RenkoTradingEnv(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
                 
                 return self.step_results
                         
@@ -325,7 +275,7 @@ class RenkoTradingEnv(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
                 return self.step_results
                             
             # open new short position
@@ -354,7 +304,7 @@ class RenkoTradingEnv(gym.Env):
                         self.render()
                         print('Backtest is complete. Terminating episode ...')
                         
-                        self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                        self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
                         return self.step_results
                     
                 except Exception as e:
@@ -380,7 +330,7 @@ class RenkoTradingEnv(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
                 return self.step_results
                 
             commission = 0
@@ -408,7 +358,7 @@ class RenkoTradingEnv(gym.Env):
                         truncated = True  # Episode truncated (e.g., max steps reached)
                         self.render()
                         print('Backtest is complete. Terminating episode ...')
-                        self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+                        self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance }
                         return self.step_results
                                     
                 except Exception as e:
@@ -445,7 +395,7 @@ class RenkoTradingEnv(gym.Env):
         observation = self._get_observation()
         
         # Include the balance in the info dictionary
-        info = {'equity': self.client.account.equity, 'timestamp': self.timestamp }
+        info = {'balance': self.client.account.balance }
         
         self.step_results_complete = observation, reward, terminated, truncated, info
 
@@ -528,89 +478,88 @@ class RenkoTradingEnv(gym.Env):
         pl = self.client.account.pl
         position = self.client.position
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward:.2f}") 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, help='The name of the model to load')
-    parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=100)
-    args = parser.parse_args()
+parser = argparse.ArgumentParser()
+parser.add_argument('--model', type=str, help='The name of the model to load')
+parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=100)
+args = parser.parse_args()
 
-    projectsDir = os.getenv('PROJECTS_DIR')
-    if projectsDir is None:
-        raise ValueError('PROJECTS_DIR environment variable is not set')
+projectsDir = os.getenv('PROJECTS_DIR')
+if projectsDir is None:
+    raise ValueError('PROJECTS_DIR environment variable is not set')
 
-    start_time = datetime.now()
+start_time = datetime.now()
 
-    # Create log directory
-    log_dir = "tmp/"
-    os.makedirs(log_dir, exist_ok=True)
+# Create log directory
+log_dir = "tmp/"
+os.makedirs(log_dir, exist_ok=True)
 
-    # Initialize the environment
-    start_date = '2024-01-03'
-    end_date = '2024-05-31'
-    env = RenkoTradingEnv(start_date, end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON)
+# Initialize the environment
+start_date = '2024-01-03'
+end_date = '2024-05-31'
+env = RenkoTradingEnv(start_date, end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
-    # Wrap the environment with Monitor
-    env = Monitor(env, log_dir)
+# Wrap the environment with Monitor
+env = Monitor(env, log_dir)
 
-    # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
-    vec_env = DummyVecEnv([lambda: env])
+# Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
+vec_env = DummyVecEnv([lambda: env])
 
-    if args.model is not None:
-        # Load the PPO model
-        loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-        old_model = PPO.load(os.path.join(loadModelDir, args.model))
-        # model.learning_rate = 0.00005
-        old_model.set_env(vec_env)  # Assign the environment again (necessary for further training)
+if args.model is not None:
+    # Load the PPO model
+    loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+    old_model = PPO.load(os.path.join(loadModelDir, args.model))
+    # model.learning_rate = 0.00005
+    old_model.set_env(vec_env)  # Assign the environment again (necessary for further training)
 
-        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
 
-        # Load parameters from the old model
-        model.set_parameters(old_model.get_parameters())
+    # Load parameters from the old model
+    model.set_parameters(old_model.get_parameters())
 
-        print(f'Loaded model: {args.model}')
-    else:
-        # Create and train the PPO model
-        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
+    print(f'Loaded model: {args.model}')
+else:
+    # Create and train the PPO model
+    model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
 
 
-    # Hyper parameters
-    total_timesteps = args.timesteps
+# Hyper parameters
+total_timesteps = args.timesteps
 
-    for timestep in range(1, total_timesteps):    
-        isDone = False
-        batch_size = env.get_batch_size()
+for timestep in range(1, total_timesteps):    
+    isDone = False
+    batch_size = env.get_batch_size()
+    
+    # while not isDone:
+    # Train the model with the new experience
+    print(f'Training model after one week with batch size: {batch_size} ...')
+    
+    model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+    
+    # Print the current timestep and balance
+    print(f'Training complete. Timestep: {timestep} / {total_timesteps}.')
         
-        # while not isDone:
-        # Train the model with the new experience
-        print(f'Training model after one week with batch size: {batch_size} ...')
+    print('*' * 50)
+    
+    if timestep % 10 == 0:
+        # Save the trained model with timestep
+        saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+        modelName = 'ppo_model_v8-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{timestep}-of-{total_timesteps}'
+        model.save(os.path.join(saveModelDir, modelName))
+        print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
         
-        model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
-        
-        # Print the current timestep and balance
-        print(f'Training complete. Timestep: {timestep} / {total_timesteps}.')
-            
-        print('*' * 50)
-        
-        if timestep % 10 == 0:
-            # Save the trained model with timestep
-            saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-            modelName = 'ppo_model_v7-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{timestep}-of-{total_timesteps}'
-            model.save(os.path.join(saveModelDir, modelName))
-            print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
-            
-            # Reset the environment
-            print('Resetting environment ...')
-            vec_env.reset()
+        # Reset the environment
+        print('Resetting environment ...')
+        vec_env.reset()
 
 
-    # Check if log files contain data
-    log_files = os.listdir(log_dir)
-    print(f"Log files: {log_files}")
-        
-    # Save the trained model with timestamp
-    saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-    modelName = 'ppo_model_v7-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    model.save(os.path.join(saveModelDir, modelName))
-    print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
+# Check if log files contain data
+log_files = os.listdir(log_dir)
+print(f"Log files: {log_files}")
+    
+# Save the trained model with timestamp
+saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+modelName = 'ppo_model_v8-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+model.save(os.path.join(saveModelDir, modelName))
+print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')

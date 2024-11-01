@@ -32,6 +32,10 @@ func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker eventmodels.Instru
 	return barsDTO, nil
 }
 
+func isInBetween(t time.Time, from, to time.Time) bool {
+	return (t.Equal(from) || t.After(from)) && (t.Equal(to) || t.Before(to))
+}
+
 func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
@@ -65,15 +69,19 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	var bars []*eventmodels.PolygonAggregateBarV2
 
 	for iter.Next() {
-		bars = append(bars, &eventmodels.PolygonAggregateBarV2{
-			Volume:    iter.Item().Volume,
-			VWAP:      iter.Item().VWAP,
-			Open:      iter.Item().Open,
-			Close:     iter.Item().Close,
-			High:      iter.Item().High,
-			Low:       iter.Item().Low,
-			Timestamp: time.Time(iter.Item().Timestamp).In(loc),
-		})
+		tstamp := time.Time(iter.Item().Timestamp).In(loc)
+
+		if isInBetween(tstamp, fromDate, toDate) {
+			bars = append(bars, &eventmodels.PolygonAggregateBarV2{
+				Volume:    iter.Item().Volume,
+				VWAP:      iter.Item().VWAP,
+				Open:      iter.Item().Open,
+				Close:     iter.Item().Close,
+				High:      iter.Item().High,
+				Low:       iter.Item().Low,
+				Timestamp: tstamp,
+			})
+		}
 	}
 
 	if len(bars) > 0 {

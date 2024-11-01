@@ -84,8 +84,8 @@ class PlaygroundEnvironment(gym.Env):
             dtype=np.float64
         )
 
-        # Observation space: Last 20 Renko blocks + current price + balance, position, pl, free_margin, total_commission, liquidation_buffer
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(27,), dtype=np.float64)
+        # Observation space: Last 40 Renko blocks + current price + balance, position, pl, free_margin, total_commission, liquidation_buffer
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(47,), dtype=np.float64)
     
     def get_position_size(self, unit_quantity: float) -> float:
         if self.client.position > 0 and unit_quantity < 0:
@@ -128,15 +128,11 @@ class PlaygroundEnvironment(gym.Env):
     def get_batch_size(self) -> int:        
         avg_reward = self.get_average_reward()
         if avg_reward <= 0:
-            return 500
-        elif avg_reward < 10:
-            return 1000
-        elif avg_reward < 50:
             return 1500
-        elif avg_reward < 100:
-            return 2000
-        else:
+        elif avg_reward < 10:
             return 3000
+        else:
+            return 5000
             
     def found_insufficient_free_margin(self, tick_delta: object) -> bool:
         invalid_orders = tick_delta.get('invalid_orders')
@@ -160,44 +156,15 @@ class PlaygroundEnvironment(gym.Env):
 
     def get_reward(self, commission, position=0, is_close=False, include_pl=False):
         balance = self.client.account.balance
-        pl = 0
+        equity = self.client.account.equity
+        free_margin = self.client.account.free_margin
+  
+        if free_margin > 0 :
+            reward = (equity - balance) / free_margin
+        else:
+            reward = equity - balance
         
-        if include_pl:
-            pl = self.client.account.pl
-        elif self.client.account.pl < 0:
-            pl_ratio = abs(self.client.account.pl / balance) if balance > 0 else 0
-            if pl_ratio > 0.1:
-                pl = self.client.account.pl * 0.1
-        
-        result = balance - self.previous_balance - commission + pl
-        
-        # add preview penalty
-        if position != 0 and self.client.current_candle and is_close:
-            r = self.client.preview_tick(5 * 60)
-            if not r['is_backtest_complete']:
-                if r['new_candles'] and len(r['new_candles']) > 0:
-                    future_candle = None
-                    for candle in r['new_candles']:
-                        if candle['symbol'] == self.symbol:
-                            future_candle = candle['candle']
-                            break
-                        
-                    if future_candle:
-                        future_price = future_candle['close']
-                        current_price = self.client.current_candle['close']
-                        penalty = (future_price - current_price) * position * -1
-                        result -= penalty
-        
-        deltas = self.client.flush_tick_delta_buffer()
-        for tick_delta in deltas:
-            # if self.found_insufficient_free_margin(tick_delta):
-            #     print('Insufficient free margin detected.')
-            
-            if self.found_liquidation(tick_delta):
-                print(f'Liquidation detected')
-        
-        self.previous_balance = balance
-        return result
+        return reward
     
     def step(self, action):
         pl = self.client.account.pl
@@ -216,7 +183,7 @@ class PlaygroundEnvironment(gym.Env):
             terminated = True
             self.render()
             print('Balance is zero or negative. Terminating episode ...')
-            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp } 
+            self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
             return self.step_results
 
         # Ensure we are still within the data bounds
@@ -255,7 +222,7 @@ class PlaygroundEnvironment(gym.Env):
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
                 
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance, 'pl': pl }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                 return self.step_results
             
             commission = self.per_trade_commission * position
@@ -279,7 +246,7 @@ class PlaygroundEnvironment(gym.Env):
                 truncated = True  # Episode truncated (e.g., max steps reached)
                 self.render()
                 print('Backtest is complete. Terminating episode ...')
-                self.step_results = self._get_observation(), reward, terminated, truncated, {'balance': self.client.account.balance, 'pl': pl, 'position': self.client.position, 'current_price': self.current_price, 'ma': self.ma }
+                self.step_results = self._get_observation(), reward, terminated, truncated, {'equity': self.client.account.equity, 'timestamp': self.timestamp }
                 
                 return self.step_results
                         
@@ -436,7 +403,7 @@ class PlaygroundEnvironment(gym.Env):
     
     def _get_observation(self):
         # Get the last 300 prices, padded if necessary
-        obs = np.zeros(20, dtype=np.float64)
+        obs = np.zeros(40, dtype=np.float64)
         
         # temp
         self.previous_observation = self.current_observation
@@ -453,10 +420,20 @@ class PlaygroundEnvironment(gym.Env):
 
         if df is None or len(df) == 0:
             self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+            
+            nan_mask = np.isnan(self.current_observation)
+            if np.any(nan_mask):
+                print('Found NaN in observation:', self.current_observation)
+                print('Nan mask:', nan_mask)
+            
             return self.current_observation
         
         # Take the last 20 prices
-        df = df.tail(20)
+        df = df.tail(40)
+        
+        # from sklearn.preprocessing import MinMaxScaler
+        # scaler = MinMaxScaler()
+        # df['open'] = scaler.fit_transform(df[['open']])
                 
         j = 0
         for i in range(len(df)):
@@ -468,6 +445,11 @@ class PlaygroundEnvironment(gym.Env):
             j += 1
         
         self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
+        nan_mask = np.isnan(self.current_observation)
+        if np.any(nan_mask):
+            print('Found NaN in observation:', self.current_observation)
+            print('Nan mask:', nan_mask)
+        
         return self.current_observation
 
     def reset(self, seed=None, options=None):
