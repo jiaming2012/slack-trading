@@ -305,6 +305,14 @@
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         },
         {
+            "name": "backtester playground client (grpc)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client_grpc.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+        },
+        {
             "name": "generate_data",
             "type": "go",
             "request": "launch",
