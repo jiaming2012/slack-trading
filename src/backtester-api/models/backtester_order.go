@@ -17,6 +17,7 @@ type BacktesterOrder struct {
 	Type             BacktesterOrderType     `json:"type"`
 	Duration         BacktesterOrderDuration `json:"duration"`
 	Price            *float64                `json:"price,omitempty"`
+	RequestedPrice   float64                 `json:"requested_price"`
 	StopPrice        *float64                `json:"stop_price,omitempty"`
 	Tag              string                  `json:"tag"`
 	Trades           []*BacktesterTrade      `json:"trades"`

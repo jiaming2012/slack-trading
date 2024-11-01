@@ -13,6 +13,6 @@ Protobufs are used to speed up communication with API clients.
 
 ## Compiling
 ``` bash
-cd ${PROJECTS_DIR}/src/backtester-api
-protoc --go_out=./proto --go_opt=paths=source_relative --go-grpc_out=./proto --go-grpc_opt=paths=source_relative playground.proto
+cd ${PROJECTS_DIR}/slack-trading/src/backtester-api
+protoc --go_out=./playground --go_opt=paths=source_relative --go-grpc_out=./playground --go-grpc_opt=paths=source_relative playground.proto
 ```

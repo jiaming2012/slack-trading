@@ -35,7 +35,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second, false)
+		delta, err := playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -46,7 +46,7 @@ func TestLiquidation(t *testing.T) {
 		positions := playground.GetPositions()
 		assert.Len(t, positions, 2)
 
-		delta, err = playground.Tick(5 * time.Second, false)
+		delta, err = playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.Events, 1)
 		assert.Equal(t, TickDeltaEventTypeLiquidation, delta.Events[0].Type)
@@ -94,7 +94,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second, false)
+		delta, err := playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -105,7 +105,7 @@ func TestLiquidation(t *testing.T) {
 		positions := playground.GetPositions()
 		assert.Len(t, positions, 2)
 
-		delta, err = playground.Tick(5 * time.Second, false)
+		delta, err = playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.Events, 1)
 		assert.Equal(t, TickDeltaEventTypeLiquidation, delta.Events[0].Type)
@@ -144,7 +144,7 @@ func TestLiquidation(t *testing.T) {
 		err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(5 * time.Second, false)
+		delta, err := playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewTrades, 2)
 		assert.Equal(t, symbol1, delta.NewTrades[0].Symbol)
@@ -152,7 +152,7 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
 		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		delta, err = playground.Tick(5 * time.Second, false)
+		delta, err = playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Nil(t, delta.Events)
 	})
@@ -193,7 +193,7 @@ func TestFeed(t *testing.T) {
 
 		assert.Equal(t, startTime, candle.Timestamp)
 
-		delta, err := playground.Tick(20 * time.Second, false)
+		delta, err := playground.Tick(20*time.Second, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -213,26 +213,26 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		// new APPL candle, but not GOOG
-		delta, err := playground.Tick(5 * time.Second, false)
+		delta, err := playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 1)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t2_appl, delta.NewCandles[0].Candle.Timestamp)
-		assert.Equal(t, 10.0, delta.NewCandles[0].Candle.Close)
+		assert.Equal(t, t2_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, 10.0, delta.NewCandles[0].Bar.Close)
 
 		// new APPL and GOOG candle
-		delta, err = playground.Tick(5 * time.Second, false)
+		delta, err = playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t3_appl, delta.NewCandles[0].Candle.Timestamp)
-		assert.Equal(t, 15.0, delta.NewCandles[0].Candle.Close)
+		assert.Equal(t, t3_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, 15.0, delta.NewCandles[0].Bar.Close)
 		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
-		assert.Equal(t, t2_goog, delta.NewCandles[1].Candle.Timestamp)
-		assert.Equal(t, 100.0, delta.NewCandles[1].Candle.Close)
+		assert.Equal(t, t2_goog, delta.NewCandles[1].Bar.Timestamp)
+		assert.Equal(t, 100.0, delta.NewCandles[1].Bar.Close)
 
 		// no new candle
-		delta, err = playground.Tick(5 * time.Second, false)
+		delta, err = playground.Tick(5*time.Second, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 0)
 	})

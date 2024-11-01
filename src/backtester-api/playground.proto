@@ -6,6 +6,9 @@ option go_package = "./playground";
 
 service PlaygroundService {
     rpc CreatePlayground (CreatePolygonPlaygroundRequest) returns (CreatePlaygroundResponse);
+    rpc NextTick(NextTickRequest) returns (TickDelta);
+    rpc PlaceOrder(PlaceOrderRequest) returns (Order);
+    rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
 }
 
 message CreatePolygonPlaygroundRequest {
@@ -20,3 +23,97 @@ message CreatePolygonPlaygroundRequest {
 message CreatePlaygroundResponse {
     string id = 1;
 }
+
+message GetAccountRequest {
+    string playground_id = 1;
+    bool fetch_orders = 2;
+}
+
+message GetAccountResponse {
+    float balance = 1;
+    float equity = 2;
+    float free_margin = 3;
+    repeated Order orders = 4;
+    map<string, Position> positions = 5;
+}
+
+message Position {
+    float quantity = 1;
+    double cost_basis = 2;
+    double pl = 3;
+    float maintenance_margin = 4;
+}
+ 
+message PlaceOrderRequest {
+    string playground_id = 1;
+    string symbol = 2;
+    string asset_class = 3;
+    double quantity = 4;
+    string side = 5;
+    string type = 6;
+    string duration = 7;
+}
+
+message NextTickRequest {
+    string playground_id = 1;
+    uint64 seconds = 2;
+    bool is_preview = 3;
+}
+
+message TickDelta {
+    repeated Trade new_trades = 1;
+    repeated Candle new_candles = 2;
+    repeated Order invalid_orders = 3;
+    repeated TickDeltaEvent events = 4;
+    string current_time = 5;
+    bool is_backtest_complete = 6;
+}
+
+message LiquidationEvent {
+    repeated Order orders_placed = 1;
+}
+
+message TickDeltaEvent {
+    string type = 1;
+    LiquidationEvent liquidation_event = 2;
+}
+
+message Bar {
+    float volume = 1;
+    float open = 2;
+    float close = 3;
+    float high = 4;
+    float low = 5;
+    string datetime = 6;
+}
+
+message Candle {
+    string symbol = 1;
+    Bar bar = 2;
+}
+
+message Trade {
+    string symbol = 1;
+    string create_date = 2;
+    double quantity = 3;
+    double price = 4;
+}
+
+message Order {
+    uint64 id = 1;
+    string class = 2;
+    string symbol = 3;
+    string side = 4;
+    float quantity = 5;
+    string type = 6;
+    string duration = 7;
+    double price = 8;
+    double requested_price = 9;
+    double stop_price = 10;
+    string tag = 11;
+    repeated Trade trades = 12;
+    string status = 13;
+    string reject_reason = 14;
+    string create_date = 15;
+}
+

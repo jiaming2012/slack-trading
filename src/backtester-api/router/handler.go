@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
@@ -70,6 +70,14 @@ func getPlayground(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
+}
+
+type GetAccountResponse struct {
+	Balance    float64                     `json:"balance"`
+	Equity     float64                     `json:"equity"`
+	FreeMargin float64                     `json:"free_margin"`
+	Positions  map[string]*models.Position `json:"positions"`
+	Orders     []*models.BacktesterOrder   `json:"orders"`
 }
 
 type CreatePlaygroundRequest struct {
@@ -156,7 +164,7 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func placeOrder(playground *models.Playground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
+func makeBacktesterOrder(playground *models.Playground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
 	order := models.NewBacktesterOrder(
 		playground.NextOrderID(),
 		req.Class,
@@ -192,26 +200,13 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	playground, ok := playgrounds[id]
-	if !ok {
-		setErrorResponse("handleAccount: playground not found", 404, fmt.Errorf("playground not found"), w)
-		return
-	}
-
-	var req CreateOrderRequest
+	var req *CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		setErrorResponse("createOrder: failed to decode request", 400, err, w)
 		return
 	}
 
-	if err := req.Validate(); err != nil {
-		setErrorResponse("createOrder: invalid request", 400, err, w)
-		return
-	}
-
-	createdOn := playground.GetCurrentTime()
-
-	order, err := placeOrder(playground, &req, createdOn)
+	order, err := placeOrder(id, req)
 	if err != nil {
 		setErrorResponse("createOrder: failed to place order", 500, err, w)
 		return
@@ -223,67 +218,6 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// todo: make private
-func CreatePlayground(req *CreatePlaygroundRequest) (*models.Playground, *eventmodels.WebError) {
-	// create clock
-	from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
-	if err != nil {
-		return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
-	}
-
-	to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
-	if err != nil {
-		return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
-	}
-
-	clock, err := createClock(from, to)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create clock")
-	}
-
-	// create repository
-	timespan := eventmodels.PolygonTimespan{
-		Multiplier: req.Repository.Timespan.Multiplier,
-		Unit:       eventmodels.PolygonTimespanUnit(req.Repository.Timespan.Unit),
-	}
-
-	var bars []*eventmodels.PolygonAggregateBarV2
-	if req.Repository.Source.Type == RepositorySourcePolygon {
-		bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(req.Repository.Symbol), timespan, from, to)
-		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
-		}
-	} else if req.Repository.Source.Type == RepositorySourceCSV {
-		if req.Repository.Source.CSVFilename == nil {
-			return nil, eventmodels.NewWebError(400, "missing CSV filename")
-		}
-
-		sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *req.Repository.Source.CSVFilename)
-
-		bars, err = utils.ImportCandlesFromCsv(sourceDir)
-		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
-		}
-	} else {
-		return nil, eventmodels.NewWebError(400, "invalid repository source")
-	}
-
-	repository, err := createRepository(eventmodels.StockSymbol(req.Repository.Symbol), timespan, bars)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create repository")
-	}
-
-	// create playground
-	playground, err := models.NewPlayground(req.Balance, clock, repository)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create playground")
-	}
-
-	playgrounds[playground.ID] = playground
-
-	return playground, nil
-}
-
 func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 	var req CreatePlaygroundRequest
 
@@ -292,9 +226,16 @@ func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	playground, err := CreatePlayground(&req)
+	playground, err := createPlayground(&req)
 	if err != nil {
-		setErrorResponse("createPlayground: failed to create playground", err.StatusCode, err, w)
+		webError, ok := err.(*eventmodels.WebError)
+		if ok {
+			setErrorResponse("createPlayground: failed to create playground", webError.StatusCode, err, w)
+		} else {
+			log.Warnf("failed to get status code from error: %v", err)
+			setErrorResponse("createPlayground: failed to create playground", 500, err, w)
+		}
+
 		return
 	}
 
@@ -349,32 +290,6 @@ func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.Polyg
 	return models.NewBacktesterCandleRepository(symbol, bars), nil
 }
 
-func convertPositionsToMap(positions map[eventmodels.Instrument]*models.Position) map[string]interface{} {
-	response := map[string]interface{}{}
-
-	for k, v := range positions {
-		response[k.GetTicker()] = v
-	}
-
-	return response
-}
-
-func getAccountInfo(playground *models.Playground, fetchOrders bool) map[string]interface{} {
-	positions := playground.GetPositions()
-	out := map[string]interface{}{
-		"balance":     playground.GetBalance(),
-		"equity":      playground.GetEquity(positions),
-		"free_margin": playground.GetFreeMarginFromPositionMap(positions),
-		"positions":   convertPositionsToMap(positions),
-	}
-
-	if fetchOrders {
-		out["orders"] = playground.GetOrders()
-	}
-
-	return out
-}
-
 func handleAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(404)
@@ -382,15 +297,9 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
+	playgroundID, err := uuid.Parse(vars["id"])
 	if err != nil {
 		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
-		return
-	}
-
-	playground, ok := playgrounds[id]
-	if !ok {
-		setErrorResponse("handleAccount: playground not found", 404, fmt.Errorf("playground not found"), w)
 		return
 	}
 
@@ -399,7 +308,11 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 		fetchOrders = false
 	}
 
-	accountInfo := getAccountInfo(playground, fetchOrders)
+	accountInfo, err := getAccountInfo(playgroundID, fetchOrders)
+	if err != nil {
+		setErrorResponse("handleAccount: failed to get account info", 500, err, w)
+		return
+	}
 
 	if err := setResponse(accountInfo, w); err != nil {
 		setErrorResponse("handleAccount: failed to set response", 500, err, w)
@@ -492,6 +405,12 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	duration, err := time.ParseDuration(fmt.Sprintf("%ss", secondsStr))
+	if err != nil {
+		setErrorResponse("handleTick: failed to parse duration", 400, err, w)
+		return
+	}
+
 	// get `preview` query parameter
 	previewStr := r.URL.Query().Get("preview")
 	preview := false
@@ -504,28 +423,16 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	seconds, err := time.ParseDuration(fmt.Sprintf("%ss", secondsStr))
-	if err != nil {
-		setErrorResponse("handleTick: failed to parse seconds", 500, err, w)
-		return
-	}
-
 	// get playground id
 	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
+	playgroundId, err := uuid.Parse(vars["id"])
 	if err != nil {
 		setErrorResponse("handleTick: failed to playground id", 400, err, w)
 		return
 	}
 
-	playground, ok := playgrounds[id]
-	if !ok {
-		setErrorResponse("handleTick: playground not found", 404, fmt.Errorf("playground not found"), w)
-		return
-	}
-
 	// tick
-	stateChange, err := playground.Tick(seconds, preview)
+	stateChange, err := nextTick(playgroundId, duration, preview)
 	if err != nil {
 		setErrorResponse("handleTick: failed to tick", 500, err, w)
 		return

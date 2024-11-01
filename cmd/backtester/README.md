@@ -45,7 +45,7 @@ Backtester-api uses protobufs to speed up client server communication
 
 ## Build
 ``` bash
-cd ${PROEJCTS_DIR}/cmd/backtester
+cd ${PROJECTS_DIR}/slack-trading/cmd/backtester
 python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --proto_path=${PROJECTS_DIR}/slack-trading/src/backtester-api playground.proto
 ```
 

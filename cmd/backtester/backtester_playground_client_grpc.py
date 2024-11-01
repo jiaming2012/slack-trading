@@ -8,7 +8,7 @@ from typing import List, Dict
 from zoneinfo import ZoneInfo
 
 import grpc
-from playground_pb2 import CreatePolygonPlaygroundRequest
+from playground_pb2 import CreatePolygonPlaygroundRequest, PlaceOrderRequest, NextTickRequest, GetAccountRequest
 from playground_pb2_grpc import PlaygroundServiceStub
 
 @dataclass
@@ -85,7 +85,9 @@ class BacktesterPlaygroundClient:
     def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
         self.symbol = symbol
         self.host = host
-        self.grpc_host = grpc_host
+        
+        channel = grpc.insecure_channel(grpc_host)
+        self.stub = PlaygroundServiceStub(channel)
         
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -109,26 +111,25 @@ class BacktesterPlaygroundClient:
         return buffer
         
     def fetch_and_update_account_state(self) -> Account:
-        # Fetch the account state
-        response = requests.get(f'{self.host}/playground/{self.id}/account?orders=false')
+        request = GetAccountRequest(
+            playground_id=self.id,
+            fetch_orders=False
+        )
         
-        if response.status_code != 200:
-            raise Exception(response.text)
-        
-        obj = response.json()
+        response = self.stub.GetAccount(request)
         
         acc = Account(
-            balance=obj['balance'],
-            equity=obj['equity'],
-            free_margin=obj['free_margin'],
+            balance=response.balance,
+            equity=response.equity,
+            free_margin=response.free_margin,
             positions={
                 symbol: Position(
                     symbol=symbol,
-                    quantity=position['quantity'],
-                    cost_basis=position['cost_basis'],
-                    maintenance_margin=position['maintenance_margin'],
-                    pl=position['pl']
-                ) for symbol, position in obj['positions'].items()
+                    quantity=position.quantity,
+                    cost_basis=position.cost_basis,
+                    maintenance_margin=position.maintenance_margin,
+                    pl=position.pl
+                ) for symbol, position in response.positions.items()
             }
         )
         
@@ -163,7 +164,7 @@ class BacktesterPlaygroundClient:
         return 0
     
     def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float, commission: float) -> float:
-        new_trades = current_state.get('new_trades')
+        new_trades = current_state.new_trades
         if not new_trades or len(new_trades) == 0:
             return 0
         
@@ -240,40 +241,40 @@ class BacktesterPlaygroundClient:
         return candles
     
     def preview_tick(self, seconds: int) -> object:
-        response = requests.post(
-            f'{self.host}/playground/{self.id}/tick?seconds={seconds}&preview=true'
+        request = NextTickRequest(
+            playground_id=self.id,
+            seconds=seconds,
+            is_preview=True
         )
         
-        if response.status_code != 200:
-            raise Exception(response.text)
+        response = self.stub.NextTick(request)
         
-        return response.json()
+        return response
         
     def tick(self, seconds: int):
-        response = requests.post(
-            f'{self.host}/playground/{self.id}/tick?seconds={seconds}'
+        request = NextTickRequest(
+            playground_id=self.id,
+            seconds=seconds,
+            is_preview=False
         )
         
-        if response.status_code != 200:
-            raise Exception(response.text)
+        new_state = self.stub.NextTick(request)
         
-        new_state = response.json()
-        
-        new_candles = new_state.get('new_candles')
+        new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
             for candle in new_candles:
                 if candle['symbol'] == self.symbol:
                     self.current_candle = candle['candle']
                     break
                 
-        timestamp = new_state.get('current_time')
+        timestamp = new_state.current_time
         if timestamp:
             if self._initial_timestamp is None:
                 self._initial_timestamp = datetime.fromisoformat(timestamp)
                 
             self.timestamp = datetime.fromisoformat(timestamp)
                 
-        self._is_backtest_complete = new_state['is_backtest_complete']
+        self._is_backtest_complete = new_state.is_backtest_complete
         
         self.account = self.fetch_and_update_account_state()
         
@@ -298,23 +299,19 @@ class BacktesterPlaygroundClient:
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
                 raise Exception('Insufficient free margin')
   
-        
-        response = requests.post(
-            f'{self.host}/playground/{self.id}/order',
-            json={
-                'symbol': symbol,
-                'class': 'equity',
-                'quantity': quantity,
-                'side': side.value,
-                'type': 'market',
-                'duration': 'day'
-            }
+        request = PlaceOrderRequest(
+            playground_id=self.id,
+            symbol=symbol,
+            asset_class='equity',
+            quantity=quantity,
+            side=side.value,
+            type='market',
+            duration='day'
         )
         
-        if response.status_code != 200:
-            raise Exception(response.text)
+        response = self.stub.PlaceOrder(request)
         
-        return response.json()
+        return response
     
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         response = requests.post(
@@ -343,11 +340,10 @@ class BacktesterPlaygroundClient:
             raise Exception(response.text)
         
         return response.json()['playground_id']
+        # raise Exception('Not implemented')
 
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
-        channel = grpc.insecure_channel(self.grpc_host)
-        stub = PlaygroundServiceStub(channel)
         request = CreatePolygonPlaygroundRequest(
             balance=balance,
             start_date=start_date,
@@ -357,14 +353,15 @@ class BacktesterPlaygroundClient:
             timespan_unit='minute',
         )
 
-        response = stub.CreatePlayground(request)
+        response = self.stub.CreatePlayground(request)
 
         return response.id
 
     
 if __name__ == '__main__':
     try:
-        playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
+        # playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
+        playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.CSV, filename='training_data.csv')
         
         print('playground_id: ', playground_client.id)
         
@@ -376,12 +373,12 @@ if __name__ == '__main__':
         
         print('tick_delta #1: ', tick_delta)
         
-        invalid_orders = tick_delta.get('invalid_orders')
+        invalid_orders = tick_delta.invalid_orders
         
         found_insufficient_free_margin = False
         if invalid_orders:
             for order in invalid_orders:
-                if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
+                if order.reject_reason and order.reject_reason.find('insufficient free margin') >= 0:
                     found_insufficient_free_margin = True
                     break
         
@@ -397,7 +394,7 @@ if __name__ == '__main__':
         
         print('tick_delta #2: ', tick_delta)
         
-        invalid_orders = tick_delta.get('invalid_orders')
+        invalid_orders = tick_delta.invalid_orders
         
         found_insufficient_free_margin = False
         if invalid_orders:
@@ -407,6 +404,15 @@ if __name__ == '__main__':
                     break
         
         print('L2: found_insufficient_free_margin: ', found_insufficient_free_margin)
+
+        found_liquidation = False
+        if tick_delta.events:
+            for event in tick_delta.events:
+                if event.type == 'liquidation':
+                    found_liquidation = True
+                    break
+                
+        print('L2: found_liquidation: ', found_liquidation)
 
         account = playground_client.fetch_and_update_account_state()
         
@@ -441,9 +447,9 @@ if __name__ == '__main__':
         print('tick_delta #3.2: ', tick_delta)
         
         found_liquidation = False
-        if tick_delta.get('events'):
-            for event in tick_delta['events']:
-                if event['type'] == 'liquidation':
+        if tick_delta.events:
+            for event in tick_delta.events:
+                if event.type == 'liquidation':
                     found_liquidation = True
                     break
                 
@@ -456,9 +462,9 @@ if __name__ == '__main__':
         print('tick_delta #3.3: ', tick_delta)
         
         found_liquidation = False
-        if tick_delta.get('events'):
-            for event in tick_delta['events']:
-                if event['type'] == 'liquidation':
+        if tick_delta.events:
+            for event in tick_delta.events:
+                if event.type == 'liquidation':
                     found_liquidation = True
                     break
                 

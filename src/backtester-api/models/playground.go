@@ -66,7 +66,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 	}
 
 	// update the account balance before updating the positions cache
- 	p.updateBalance(newTrades, startingPositions)
+	p.updateBalance(newTrades, startingPositions)
 
 	for _, trade := range newTrades {
 		p.updatePositionsCache(trade)
@@ -81,7 +81,6 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade) {
 		position = &Position{}
 	}
 
-	
 	totalQuantity := position.Quantity + trade.Quantity
 
 	// update the cost basis
@@ -120,7 +119,7 @@ func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*
 	positionsCopy := make(map[eventmodels.Instrument]*Position)
 	for symbol, position := range startingPositions {
 		positionsCopy[symbol] = &Position{
-			Quantity:          position.Quantity,
+			Quantity: position.Quantity,
 		}
 	}
 
@@ -296,7 +295,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 			if newCandle != nil {
 				newCandles = append(newCandles, &BacktesterCandle{
 					Symbol: instrument,
-					Candle: newCandle,
+					Bar:    newCandle,
 				})
 			}
 		}
@@ -341,7 +340,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		if newCandle != nil {
 			newCandles = append(newCandles, &BacktesterCandle{
 				Symbol: instrument,
-				Candle: newCandle,
+				Bar:    newCandle,
 			})
 		}
 	}

@@ -20,6 +20,9 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	PlaygroundService_CreatePlayground_FullMethodName = "/playground.PlaygroundService/CreatePlayground"
+	PlaygroundService_NextTick_FullMethodName         = "/playground.PlaygroundService/NextTick"
+	PlaygroundService_PlaceOrder_FullMethodName       = "/playground.PlaygroundService/PlaceOrder"
+	PlaygroundService_GetAccount_FullMethodName       = "/playground.PlaygroundService/GetAccount"
 )
 
 // PlaygroundServiceClient is the client API for PlaygroundService service.
@@ -27,6 +30,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PlaygroundServiceClient interface {
 	CreatePlayground(ctx context.Context, in *CreatePolygonPlaygroundRequest, opts ...grpc.CallOption) (*CreatePlaygroundResponse, error)
+	NextTick(ctx context.Context, in *NextTickRequest, opts ...grpc.CallOption) (*TickDelta, error)
+	PlaceOrder(ctx context.Context, in *PlaceOrderRequest, opts ...grpc.CallOption) (*Order, error)
+	GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -47,11 +53,44 @@ func (c *playgroundServiceClient) CreatePlayground(ctx context.Context, in *Crea
 	return out, nil
 }
 
+func (c *playgroundServiceClient) NextTick(ctx context.Context, in *NextTickRequest, opts ...grpc.CallOption) (*TickDelta, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TickDelta)
+	err := c.cc.Invoke(ctx, PlaygroundService_NextTick_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) PlaceOrder(ctx context.Context, in *PlaceOrderRequest, opts ...grpc.CallOption) (*Order, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Order)
+	err := c.cc.Invoke(ctx, PlaygroundService_PlaceOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAccountResponse)
+	err := c.cc.Invoke(ctx, PlaygroundService_GetAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations must embed UnimplementedPlaygroundServiceServer
 // for forward compatibility.
 type PlaygroundServiceServer interface {
 	CreatePlayground(context.Context, *CreatePolygonPlaygroundRequest) (*CreatePlaygroundResponse, error)
+	NextTick(context.Context, *NextTickRequest) (*TickDelta, error)
+	PlaceOrder(context.Context, *PlaceOrderRequest) (*Order, error)
+	GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error)
 	mustEmbedUnimplementedPlaygroundServiceServer()
 }
 
@@ -64,6 +103,15 @@ type UnimplementedPlaygroundServiceServer struct{}
 
 func (UnimplementedPlaygroundServiceServer) CreatePlayground(context.Context, *CreatePolygonPlaygroundRequest) (*CreatePlaygroundResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreatePlayground not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) NextTick(context.Context, *NextTickRequest) (*TickDelta, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NextTick not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) PlaceOrder(context.Context, *PlaceOrderRequest) (*Order, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PlaceOrder not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccount not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) mustEmbedUnimplementedPlaygroundServiceServer() {}
 func (UnimplementedPlaygroundServiceServer) testEmbeddedByValue()                           {}
@@ -104,6 +152,60 @@ func _PlaygroundService_CreatePlayground_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_NextTick_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NextTickRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).NextTick(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlaygroundService_NextTick_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).NextTick(ctx, req.(*NextTickRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_PlaceOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PlaceOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).PlaceOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlaygroundService_PlaceOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).PlaceOrder(ctx, req.(*PlaceOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlaygroundService_GetAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetAccount(ctx, req.(*GetAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +216,18 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreatePlayground",
 			Handler:    _PlaygroundService_CreatePlayground_Handler,
+		},
+		{
+			MethodName: "NextTick",
+			Handler:    _PlaygroundService_NextTick_Handler,
+		},
+		{
+			MethodName: "PlaceOrder",
+			Handler:    _PlaygroundService_PlaceOrder_Handler,
+		},
+		{
+			MethodName: "GetAccount",
+			Handler:    _PlaygroundService_GetAccount_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

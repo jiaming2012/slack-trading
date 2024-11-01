@@ -54,9 +54,13 @@ func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, er
 	candles := make([]*eventmodels.PolygonAggregateBarV2, len(dto))
 	for i, d := range dto {
 		candles[i], err = d.ToModel()
-		candles[i].Timestamp = convertTimestampToNewYorkTime(candles[i].Timestamp)
 		if err != nil {
 			return nil, fmt.Errorf("ImportCandlesFromCsv: error converting DTO to model: %w", err)
+		}
+
+		candles[i].Timestamp = convertTimestampToNewYorkTime(candles[i].Timestamp)
+		if err != nil {
+			return nil, fmt.Errorf("ImportCandlesFromCsv: failed converting timestamp to NY time: %w", err)
 		}
 	}
 

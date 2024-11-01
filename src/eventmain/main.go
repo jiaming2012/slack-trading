@@ -32,10 +32,8 @@ import (
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
-	// lokiclient "github.com/grafana/loki-client-go"
 
 	pb "github.com/jiaming2012/slack-trading/src/backtester-api/playground"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -82,38 +80,6 @@ All of the following:.................................................... no
 
 func main() {
 	run()
-}
-
-type GrpcServer struct {
-	pb.UnimplementedPlaygroundServiceServer
-}
-
-func (s *GrpcServer) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
-	playground, err := router.CreatePlayground(&router.CreatePlaygroundRequest{
-		Balance: float64(req.Balance),
-		Clock: backtester_router.CreateClockRequest{
-			StartDate: req.StartDate,
-			StopDate:  req.StopDate,
-		},
-		Repository: backtester_router.CreateRepositoryRequest{
-			Symbol: req.Symbol,
-			Timespan: backtester_router.PolygonTimespanRequest{
-				Multiplier: int(req.TimespanMultiplier),
-				Unit:       req.TimespanUnit,
-			},
-			Source: backtester_router.RepositorySource{
-				Type: backtester_router.RepositorySourcePolygon,
-			},
-		},
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create playground: %v", err)
-	}
-
-	return &pb.CreatePlaygroundResponse{
-		Id: playground.ID.String(),
-	}, nil
 }
 
 type RouterSetupItem struct {
@@ -578,7 +544,7 @@ func run() {
 	// start the grpc server
 	go func() {
 		grpcServer := grpc.NewServer()
-		pb.RegisterPlaygroundServiceServer(grpcServer, &GrpcServer{})
+		pb.RegisterPlaygroundServiceServer(grpcServer, &backtester_router.GrpcServer{})
 		port := 50051
 
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
