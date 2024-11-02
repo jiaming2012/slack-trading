@@ -33,7 +33,7 @@ class RenkoTradingEnv(gym.Env):
             random_tick = self.pick_random_tick(self.start_date, self.end_date)
             self.client.tick(random_tick)
             tick_delta = self.client.flush_tick_delta_buffer()[0]
-            print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.get("current_time")}')
+            print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.current_time}')
         
         # temp
         self.current_observation = None
@@ -101,7 +101,7 @@ class RenkoTradingEnv(gym.Env):
             return abs(self.client.position) * unit_quantity
         else:
             current_candle = self.client.current_candle
-            current_price = current_candle['close'] if current_candle else 0
+            current_price = current_candle.close if current_candle else 0
             if current_price == 0:
                 return 0
             
@@ -142,21 +142,21 @@ class RenkoTradingEnv(gym.Env):
             return 5000
             
     def found_insufficient_free_margin(self, tick_delta: object) -> bool:
-        invalid_orders = tick_delta.get('invalid_orders')
+        invalid_orders = tick_delta.invalid_orders
         
         if invalid_orders:
             for order in invalid_orders:
-                if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
+                if order.reject_reason and order.reject_reason.find('insufficient free margin') >= 0:
                     return True
                 
         return False
     
     def found_liquidation(self, tick_delta: object) -> bool:
-        events = tick_delta.get('events')
+        events = tick_delta.events
         
         if events:
             for event in events:
-                if event['type'] == 'liquidation':
+                if event.type == 'liquidation':
                     return True
                 
         return False
@@ -183,7 +183,7 @@ class RenkoTradingEnv(gym.Env):
                     future_candle = None
                     for candle in r.new_candles:
                         if candle.symbol == self.symbol:
-                            future_candle = candle.candle
+                            future_candle = candle.bar
                             break
                         
                     if future_candle:
@@ -422,9 +422,9 @@ class RenkoTradingEnv(gym.Env):
         pl = self.client.account.pl
                 
         if self.client.current_candle:
-            self.timestamp = self.client.current_candle['datetime']
-            cls_price = self.client.current_candle['close']
-            timestampMs = datetime.strptime(self.client.current_candle['datetime'], '%Y-%m-%dT%H:%M:%S%z').timestamp() * 1000
+            self.timestamp = self.client.current_candle.datetime
+            cls_price = self.client.current_candle.close
+            timestampMs = datetime.strptime(self.client.current_candle.datetime, '%Y-%m-%dT%H:%M:%S%z').timestamp() * 1000
             
             if self.renko is None:
                 self.renko = RenkoWS(timestampMs, cls_price, self.renko_brick_size, external_mode='normal')
@@ -468,7 +468,7 @@ class RenkoTradingEnv(gym.Env):
             
         balance = self.client.account.balance
         pl = self.client.account.pl
-        current_price = self.client.current_candle['close'] if self.client.current_candle else 0
+        current_price = self.client.current_candle.close if self.client.current_candle else 0
         free_margin_over_equity = self.client.get_free_margin_over_equity()
         liquidation_buffer = self.get_liquidation_buffer()
 

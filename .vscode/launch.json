@@ -283,6 +283,15 @@
             ]
         },
         {
+            "name": "proximal policy optimization v9",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v9.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+            "args": []
+        },
+        {
             "name": "proximal policy optimization [validate]",
             "type": "debugpy",
             "request": "launch",

@@ -8,7 +8,7 @@ from typing import List, Dict
 from zoneinfo import ZoneInfo
 
 import grpc
-from playground_pb2 import CreatePolygonPlaygroundRequest, PlaceOrderRequest, NextTickRequest, GetAccountRequest
+from playground_pb2 import CreatePolygonPlaygroundRequest, PlaceOrderRequest, NextTickRequest, GetAccountRequest, GetCandlesRequest
 from playground_pb2_grpc import PlaygroundServiceStub
 
 @dataclass
@@ -207,34 +207,26 @@ class BacktesterPlaygroundClient:
        # Manually insert the colon in the timezone offset
         fromStr = fromStr[:-2] + ':' + fromStr[-2:]
         toStr = toStr[:-2] + ':' + toStr[-2:]
-        
-        query_params = urlencode({
-            'symbol': self.symbol,
-            'from': fromStr,
-            'to': toStr
-        })
                 
-        response = requests.get(
-            f'{self.host}/playground/{self.id}/candles?{query_params}'
-        )
+        response = self.stub.GetCandles(GetCandlesRequest(
+            playground_id=self.id,
+            symbol=self.symbol,
+            fromRTF3339=fromStr,
+            toRTF3339=toStr
+        ))
         
-        if response.status_code != 200:
-            raise Exception(response.text)
-        
-        resp = response.json()
-        
-        candles_data = resp.get('candles')
+        candles_data = response.bars
         if not candles_data:
             return []
         
         candles = [
             Candle(
-                open=candle['open'],
-                high=candle['high'],
-                low=candle['low'],
-                close=candle['close'],
-                volume=candle['volume'],
-                datetime=candle['datetime']
+                open=candle.open,
+                high=candle.high,
+                low=candle.low,
+                close=candle.close,
+                volume=candle.volume,
+                datetime=candle.datetime,
             ) for candle in candles_data
         ]
         
@@ -263,8 +255,8 @@ class BacktesterPlaygroundClient:
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
             for candle in new_candles:
-                if candle['symbol'] == self.symbol:
-                    self.current_candle = candle['candle']
+                if candle.symbol == self.symbol:
+                    self.current_candle = candle.bar
                     break
                 
         timestamp = new_state.current_time
@@ -480,7 +472,11 @@ if __name__ == '__main__':
         
         print('L4: position: ', playground_client.position)
         
+        candles = playground_client.fetch_candles(datetime.fromisoformat('2021-01-04T09:30:00-05:00'), datetime.fromisoformat('2021-01-04T10:31:00-05:00'))
+        
+        print('candles: ', candles)
                 
         
     except Exception as e:
-        print(e)
+        print('Exception found: ', e)
+        raise(e)

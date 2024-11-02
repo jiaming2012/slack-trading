@@ -54,6 +54,11 @@ class PlaygroundServiceStub(object):
                 request_serializer=playground__pb2.GetAccountRequest.SerializeToString,
                 response_deserializer=playground__pb2.GetAccountResponse.FromString,
                 _registered_method=True)
+        self.GetCandles = channel.unary_unary(
+                '/playground.PlaygroundService/GetCandles',
+                request_serializer=playground__pb2.GetCandlesRequest.SerializeToString,
+                response_deserializer=playground__pb2.GetCandlesResponse.FromString,
+                _registered_method=True)
 
 
 class PlaygroundServiceServicer(object):
@@ -83,6 +88,12 @@ class PlaygroundServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetCandles(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_PlaygroundServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -105,6 +116,11 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
                     servicer.GetAccount,
                     request_deserializer=playground__pb2.GetAccountRequest.FromString,
                     response_serializer=playground__pb2.GetAccountResponse.SerializeToString,
+            ),
+            'GetCandles': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCandles,
+                    request_deserializer=playground__pb2.GetCandlesRequest.FromString,
+                    response_serializer=playground__pb2.GetCandlesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -215,6 +231,33 @@ class PlaygroundService(object):
             '/playground.PlaygroundService/GetAccount',
             playground__pb2.GetAccountRequest.SerializeToString,
             playground__pb2.GetAccountResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetCandles(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/playground.PlaygroundService/GetCandles',
+            playground__pb2.GetCandlesRequest.SerializeToString,
+            playground__pb2.GetCandlesResponse.FromString,
             options,
             channel_credentials,
             insecure,

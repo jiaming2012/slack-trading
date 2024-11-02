@@ -12,6 +12,20 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
+func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, from, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	playground, ok := playgrounds[playgroundID]
+	if !ok {
+		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found")
+	}
+
+	candles, err := playground.FetchCandles(symbol, from, to)
+	if err != nil {
+		return nil, eventmodels.NewWebError(500, "handleCandles: failed to fetch candles")
+	}
+
+	return candles, nil
+}
+
 func nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*models.TickDelta, error) {
 	playground, found := playgrounds[playgroundID]
 	if !found {

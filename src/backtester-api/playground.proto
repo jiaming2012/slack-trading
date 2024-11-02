@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package playground;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
 option go_package = "./playground";
 
 service PlaygroundService {
@@ -9,6 +12,7 @@ service PlaygroundService {
     rpc NextTick(NextTickRequest) returns (TickDelta);
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+    rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
 }
 
 message CreatePolygonPlaygroundRequest {
@@ -18,6 +22,17 @@ message CreatePolygonPlaygroundRequest {
     string symbol = 4;
     uint32 timespan_multiplier = 5;
     string timespan_unit = 6;
+}
+
+message GetCandlesRequest {
+    string playground_id = 1;
+    string symbol = 2;
+    string fromRTF3339 = 3;
+    string toRTF3339 = 4;
+}
+
+message GetCandlesResponse {
+    repeated Bar bars = 1;
 }
 
 message CreatePlaygroundResponse {

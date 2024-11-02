@@ -23,6 +23,7 @@ const (
 	PlaygroundService_NextTick_FullMethodName         = "/playground.PlaygroundService/NextTick"
 	PlaygroundService_PlaceOrder_FullMethodName       = "/playground.PlaygroundService/PlaceOrder"
 	PlaygroundService_GetAccount_FullMethodName       = "/playground.PlaygroundService/GetAccount"
+	PlaygroundService_GetCandles_FullMethodName       = "/playground.PlaygroundService/GetCandles"
 )
 
 // PlaygroundServiceClient is the client API for PlaygroundService service.
@@ -33,6 +34,7 @@ type PlaygroundServiceClient interface {
 	NextTick(ctx context.Context, in *NextTickRequest, opts ...grpc.CallOption) (*TickDelta, error)
 	PlaceOrder(ctx context.Context, in *PlaceOrderRequest, opts ...grpc.CallOption) (*Order, error)
 	GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error)
+	GetCandles(ctx context.Context, in *GetCandlesRequest, opts ...grpc.CallOption) (*GetCandlesResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -83,6 +85,16 @@ func (c *playgroundServiceClient) GetAccount(ctx context.Context, in *GetAccount
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetCandles(ctx context.Context, in *GetCandlesRequest, opts ...grpc.CallOption) (*GetCandlesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCandlesResponse)
+	err := c.cc.Invoke(ctx, PlaygroundService_GetCandles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations must embed UnimplementedPlaygroundServiceServer
 // for forward compatibility.
@@ -91,6 +103,7 @@ type PlaygroundServiceServer interface {
 	NextTick(context.Context, *NextTickRequest) (*TickDelta, error)
 	PlaceOrder(context.Context, *PlaceOrderRequest) (*Order, error)
 	GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error)
+	GetCandles(context.Context, *GetCandlesRequest) (*GetCandlesResponse, error)
 	mustEmbedUnimplementedPlaygroundServiceServer()
 }
 
@@ -112,6 +125,9 @@ func (UnimplementedPlaygroundServiceServer) PlaceOrder(context.Context, *PlaceOr
 }
 func (UnimplementedPlaygroundServiceServer) GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccount not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetCandles(context.Context, *GetCandlesRequest) (*GetCandlesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCandles not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) mustEmbedUnimplementedPlaygroundServiceServer() {}
 func (UnimplementedPlaygroundServiceServer) testEmbeddedByValue()                           {}
@@ -206,6 +222,24 @@ func _PlaygroundService_GetAccount_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetCandles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCandlesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetCandles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlaygroundService_GetCandles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetCandles(ctx, req.(*GetCandlesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +262,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAccount",
 			Handler:    _PlaygroundService_GetAccount_Handler,
+		},
+		{
+			MethodName: "GetCandles",
+			Handler:    _PlaygroundService_GetCandles_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

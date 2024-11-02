@@ -333,11 +333,7 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	playground, ok := playgrounds[id]
-	if !ok {
-		setErrorResponse("handleCandles: playground not found", 404, fmt.Errorf("playground not found"), w)
-		return
-	}
+	
 
 	// fetch from query parameters
 	if err := r.ParseForm(); err != nil {
@@ -345,8 +341,8 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	symbolStr := r.Form.Get("symbol")
-	if symbolStr == "" {
+	symbol := eventmodels.StockSymbol(r.Form.Get("symbol"))
+	if symbol == "" {
 		setErrorResponse("handleCandles: missing symbol", 400, fmt.Errorf("missing symbol"), w)
 		return
 	}
@@ -366,11 +362,7 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	candles, err := playground.FetchCandles(eventmodels.StockSymbol(symbolStr), from, to)
-	if err != nil {
-		setErrorResponse("handleCandles: failed to fetch candles", 500, err, w)
-		return
-	}
+	candles, err := fetchCandles(id, symbol, from, to)
 
 	response := map[string]interface{}{
 		"candles": candles,

@@ -310,7 +310,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	}
 
 	// Update the clock
-	if !p.clock.IsExpired() {
+ 	if !p.clock.IsExpired() {
 		p.clock.Add(d)
 	}
 

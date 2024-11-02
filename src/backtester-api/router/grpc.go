@@ -9,6 +9,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	pb "github.com/jiaming2012/slack-trading/src/backtester-api/playground"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type GrpcServer struct {
@@ -66,13 +67,53 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
+func (s *GrpcServer) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next tick: %v", err)
+	}
+
+	from, err := time.Parse(time.RFC3339, req.FromRTF3339)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next tick while parsing from timestamp: %v", err)
+	}
+
+	to, err := time.Parse(time.RFC3339, req.ToRTF3339)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next tick while parsing to timestamp: %v", err)
+	}
+
+	candles, err := fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), from, to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get candles: %v", err)
+	}
+
+	barsDTO := make([]*pb.Bar, 0)
+	for _, candle := range candles {
+		barsDTO = append(barsDTO, &pb.Bar{
+			Open:  float32(candle.Open),
+			High:  float32(candle.High),
+			Low:   float32(candle.Low),
+			Close: float32(candle.Close),
+			Volume: float32(candle.Volume),
+			Datetime: candle.Timestamp.String(),
+		})
+	}
+
+	return &pb.GetCandlesResponse{
+		Bars: barsDTO,
+	}, nil
+}
+
 func (s *GrpcServer) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
 	}
 
-	tick, err := nextTick(playgroundId, time.Duration(req.Seconds), req.IsPreview)
+	duration := time.Duration(req.Seconds) * time.Second
+
+	tick, err := nextTick(playgroundId, duration, req.IsPreview)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
 	}
@@ -89,13 +130,16 @@ func (s *GrpcServer) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb
 
 	newCandles := make([]*pb.Candle, 0)
 	for _, candle := range tick.NewCandles {
+		dto := candle.Bar.ToDTO()
 		newCandles = append(newCandles, &pb.Candle{
 			Symbol: candle.Symbol.GetTicker(),
 			Bar: &pb.Bar{
-				Open:  float32(candle.Bar.Open),
-				High:  float32(candle.Bar.High),
-				Low:   float32(candle.Bar.Low),
-				Close: float32(candle.Bar.Close),
+				Open:  float32(dto.Open),
+				High:  float32(dto.High),
+				Low:   float32(dto.Low),
+				Close: float32(dto.Close),
+				Volume: float32(dto.Volume),
+				Datetime: dto.Timestamp,
 			},
 		})
 	}
