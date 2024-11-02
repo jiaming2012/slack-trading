@@ -306,6 +306,8 @@ class BacktesterPlaygroundClient:
         return response
     
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
+        raise Exception('Not implemented')
+        
         response = requests.post(
             f'{self.host}/playground',
             json={
@@ -332,7 +334,6 @@ class BacktesterPlaygroundClient:
             raise Exception(response.text)
         
         return response.json()['playground_id']
-        # raise Exception('Not implemented')
 
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
