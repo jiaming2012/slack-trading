@@ -8,6 +8,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results, X_TIMESTEPS
 from lib import RenkoWS
 from datetime import datetime
+import pandas_ta as ta
 import random
 import argparse
 import os
@@ -18,6 +19,7 @@ print('cuda available: ', torch.cuda.is_available())  # Should return True if GP
 
 # from stable_baselines3.common.noise import NormalActionNoise
 import matplotlib.pyplot as plt
+
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource
 
 class RenkoTradingEnv(gym.Env):
@@ -36,11 +38,11 @@ class RenkoTradingEnv(gym.Env):
         
         self.client = BacktesterPlaygroundClient(balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path)# , host='http://149.28.239.60')
         
-        if self.is_training:
-            random_tick = self.pick_random_tick(self.start_date, self.end_date)
-            self.client.tick(random_tick)
-            tick_delta = self.client.flush_tick_delta_buffer()[0]
-            print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.current_time}')
+        # if self.is_training:
+        #     random_tick = self.pick_random_tick(self.start_date, self.end_date)
+        #     self.client.tick(random_tick)
+        #     tick_delta = self.client.flush_tick_delta_buffer()[0]
+        #     print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.current_time}')
         
         # terminal balances
         self.max_drawdown_equity = balance * 0.8
@@ -48,7 +50,6 @@ class RenkoTradingEnv(gym.Env):
         
         # temp
         self.current_observation = None
-        self.previous_observation = None 
         
         self.previous_balance = self.initial_balance
         self.current_step = 0
@@ -65,6 +66,10 @@ class RenkoTradingEnv(gym.Env):
         self._internal_timestamp = None
         self.total_commission = 0
         self.rewards_history = []
+        self.df = pd.DataFrame([])
+        self.supertrend = None
+        self.supertrend_direction = None
+        self.supertrend_cls_price_diff = None
         
         print(f'Running simulation in playground {self.client.id}')
         
@@ -95,6 +100,7 @@ class RenkoTradingEnv(gym.Env):
         self.terminal_equity = None
         self.reset_count = 0
         self.is_training = is_training
+        self.df = None
         
         self.action_space = spaces.Box(
             low=np.array([-1.0]),
@@ -103,7 +109,7 @@ class RenkoTradingEnv(gym.Env):
         )
 
         # Observation space: Last 40 Renko blocks + current price + balance, position, pl, free_margin, total_commission, liquidation_buffer
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(47,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(50,), dtype=np.float64)
     
     def get_position_size(self, unit_quantity: float) -> float:
         if self.client.position > 0 and unit_quantity < 0:
@@ -374,6 +380,21 @@ class RenkoTradingEnv(gym.Env):
             else:
                 self.renko.add_prices(timestampMs, cls_price)
                 
+            # Update super trend
+            new_row = {'timestamp': self.timestamp, 'high': self.client.current_candle.high, 'low': self.client.current_candle.low, 'close': self.client.current_candle.close}
+            self.df = self.df.append(new_row, ignore_index=True)
+            
+            if len(self.df) > 50:
+                if len(self.df) > 150:
+                    self.df = self.df.tail(150)
+                
+                supertrend = ta.supertrend(self.df['high'], self.df['low'], self.df['close'], length=50, multiplier=3)
+
+                self.supertrend = supertrend['SUPERT_50_3.0'].iloc[-1]
+                self.supertrend_direction = supertrend['SUPERTd_50_3.0'].iloc[-1]
+                self.supertrend_cls_price_diff = self.supertrend - cls_price
+                
+                    
         # Periodically show progress
         self.show_progress()
             
@@ -399,11 +420,8 @@ class RenkoTradingEnv(gym.Env):
         return self._get_observation()
     
     def _get_observation(self):
-        # Get the last 300 prices, padded if necessary
+        # Get the last 40 prices, padded if necessary
         obs = np.zeros(40, dtype=np.float64)
-        
-        # temp
-        self.previous_observation = self.current_observation
         
         df = None
         if self.renko:
@@ -414,15 +432,13 @@ class RenkoTradingEnv(gym.Env):
         current_price = self.client.current_candle.close if self.client.current_candle else 0
         free_margin_over_equity = self.client.get_free_margin_over_equity()
         liquidation_buffer = self.get_liquidation_buffer()
+        
+        supertrend = self.supertrend if self.supertrend else 0
+        supertrend_direction = self.supertrend_direction if self.supertrend_direction else 0
+        supertrend_cls_price_diff = self.supertrend_cls_price_diff if self.supertrend_cls_price_diff else 0
 
         if df is None or len(df) == 0:
-            self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
-            
-            nan_mask = np.isnan(self.current_observation)
-            if np.any(nan_mask):
-                print('Found NaN in observation:', self.current_observation)
-                print('Nan mask:', nan_mask)
-            
+            self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
             return self.current_observation
         
         # Take the last 20 prices
@@ -441,12 +457,7 @@ class RenkoTradingEnv(gym.Env):
             # j += 3
             j += 1
         
-        self.current_observation = np.append(obs, [current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
-        nan_mask = np.isnan(self.current_observation)
-        if np.any(nan_mask):
-            print('Found NaN in observation:', self.current_observation)
-            print('Nan mask:', nan_mask)
-        
+        self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, balance, self.client.position, pl, free_margin_over_equity, self.total_commission, liquidation_buffer]).astype(np.float64)
         return self.current_observation
 
     def reset(self, seed=None, options=None):
@@ -492,8 +503,8 @@ if __name__ == '__main__':
     os.makedirs(log_dir, exist_ok=True)
 
     # Initialize the environment
-    start_date = '2024-01-03'
-    end_date = '2024-05-31'
+    start_date = '2024-10-14'
+    end_date = '2024-10-16'
     env = RenkoTradingEnv(start_date, end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
     # Wrap the environment with Monitor
@@ -542,7 +553,7 @@ if __name__ == '__main__':
         if iterations % 10 == 0:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-            modelName = 'ppo_model_v10-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
+            modelName = 'ppo_model_v11-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
             model.save(os.path.join(saveModelDir, modelName))
             print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
             
@@ -555,6 +566,6 @@ if __name__ == '__main__':
         
     # Save the trained model with timestamp
     saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-    modelName = 'ppo_model_v10-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    modelName = 'ppo_model_v11-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     model.save(os.path.join(saveModelDir, modelName))
     print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
