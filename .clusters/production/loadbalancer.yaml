@@ -4,7 +4,7 @@ metadata:
   name: grodt-lb
   namespace: default
   annotations:
-    service.beta.kubernetes.io/vultr-loadbalancer-protocol: "http2"
+    service.beta.kubernetes.io/vultr-loadbalancer-protocol: "http"
   labels:
     app: grodt
 spec:
@@ -12,9 +12,11 @@ spec:
   selector:
     app: grodt
   ports:
-  - protocol: TCP
+  - name: http
+    protocol: TCP
     port: 80
     targetPort: 8080
-  - protocol: TCP
+  - name: grpc
+    protocol: TCP
     port: 50051
     targetPort: 50051
