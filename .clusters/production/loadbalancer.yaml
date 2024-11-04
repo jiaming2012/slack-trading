@@ -15,3 +15,6 @@ spec:
   - protocol: TCP
     port: 80
     targetPort: 8080
+  - protocol: TCP
+    port: 50051
+    targetPort: 50051
