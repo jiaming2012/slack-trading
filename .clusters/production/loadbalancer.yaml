@@ -4,7 +4,7 @@ metadata:
   name: grodt-lb
   namespace: default
   annotations:
-    service.beta.kubernetes.io/vultr-loadbalancer-protocol: "http"
+    service.beta.kubernetes.io/vultr-loadbalancer-protocol: "http2"
   labels:
     app: grodt
 spec:
