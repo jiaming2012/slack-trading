@@ -8,6 +8,8 @@ ssh root@ip_address
 ```
 ip_address can be found in the Vultr console.
 
+![Vultr Console](<Screenshot 2024-11-04 at 10.00.35 AM.png>)
+
 ## Download Source
 Either create new deploy keys and add them to the `slack-trading` repo, 
 ``` bash
