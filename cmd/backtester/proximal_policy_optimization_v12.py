@@ -492,7 +492,7 @@ class RenkoTradingEnv(gym.Env):
         position = self.client.position
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         average_equity = np.mean(self.equity_history) if len(self.equity_history) > 0 else 0
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
