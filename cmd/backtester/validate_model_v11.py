@@ -13,6 +13,7 @@ parser.add_argument('--model', type=str, help='The name of the model to load', r
 parser.add_argument('--symbol', type=str, help='The symbol to backtest, e.g. COIN', required=True)
 parser.add_argument('--start-date', type=str, help='The start date of the backtest in YYYY-MM-DD format', required=True)
 parser.add_argument('--end-date', type=str, help='The end date of the backtest in YYYY-MM-DD format', required=True)
+parser.add_argument('--host', type=str, help='The grpc host of the backtester playground', default='localhost:50051')
 
 args = parser.parse_args()
 
@@ -24,7 +25,7 @@ loadModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', '
 model = PPO.load(os.path.join(loadModelDir, args.model))
    
 # Initialize the environment
-env = RenkoTradingEnv(args.start_date, args.end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON, is_training=False)
+env = RenkoTradingEnv(args.start_date, args.end_date, args.host, initial_balance=10000, repository_source=RepositorySource.POLYGON, is_training=False)
 
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])
