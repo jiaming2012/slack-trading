@@ -36,7 +36,9 @@ On the remote terminal:
 tmux new -s app
 export PROJECTS_DIR="/root"
 cd ${PROJECTS_DIR}/slack-trading/cmd/backtester
+git checkout dev
 source venv/bin/activate
+python proximal_policy_optimization_v11.py --host localhost:50051
 ```
 
 ## Instructions

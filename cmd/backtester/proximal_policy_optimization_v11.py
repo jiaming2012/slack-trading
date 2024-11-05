@@ -506,8 +506,8 @@ if __name__ == '__main__':
     os.makedirs(log_dir, exist_ok=True)
 
     # Initialize the environment
-    start_date = '2024-10-14'
-    end_date = '2024-10-16'
+    start_date = '2024-03-18'
+    end_date = '2024-09-13'
     env = RenkoTradingEnv(start_date, end_date, args.host, initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
     # Wrap the environment with Monitor
