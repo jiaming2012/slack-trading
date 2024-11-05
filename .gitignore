@@ -29,3 +29,4 @@ options_input.json
 secret.yaml
 cmd/backtester/models
 vultr_ml_id_rsa
+vke.yaml

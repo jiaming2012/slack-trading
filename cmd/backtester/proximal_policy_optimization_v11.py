@@ -36,7 +36,7 @@ class RenkoTradingEnv(gym.Env):
         else:
             balance = self.terminal_equity
         
-        self.client = BacktesterPlaygroundClient(balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path)# , host='http://149.28.239.60')
+        self.client = BacktesterPlaygroundClient(balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path, grpc_host=self.grpc_host)
         
         # if self.is_training:
         #     random_tick = self.pick_random_tick(self.start_date, self.end_date)
@@ -83,11 +83,12 @@ class RenkoTradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, start_date, end_date, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
+    def __init__(self, start_date, end_date, grpc_host, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
         super(RenkoTradingEnv, self).__init__()
         
         # Parameters and variables
         self.symbol = 'TSLA'
+        self.grpc_host = grpc_host
         self.start_date = start_date
         self.end_date = end_date
         self.initial_balance = initial_balance
@@ -490,6 +491,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, help='The name of the model to load')
     parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=10)
+    parser.add_argument('--host', type=str, help='The grpc host of the backtester playground')
+    
     args = parser.parse_args()
 
     projectsDir = os.getenv('PROJECTS_DIR')
@@ -505,7 +508,7 @@ if __name__ == '__main__':
     # Initialize the environment
     start_date = '2024-10-14'
     end_date = '2024-10-16'
-    env = RenkoTradingEnv(start_date, end_date, initial_balance=10000, repository_source=RepositorySource.POLYGON)
+    env = RenkoTradingEnv(start_date, end_date, args.host, initial_balance=10000, repository_source=RepositorySource.POLYGON)
 
     # Wrap the environment with Monitor
     env = Monitor(env, log_dir)

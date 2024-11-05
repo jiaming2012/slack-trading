@@ -85,7 +85,7 @@ class BacktesterPlaygroundClient:
     def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
         self.symbol = symbol
         self.host = host
-        
+
         channel = grpc.insecure_channel(grpc_host)
         self.stub = PlaygroundServiceStub(channel)
         
