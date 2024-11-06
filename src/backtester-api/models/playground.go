@@ -253,9 +253,6 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 
 		tag := fmt.Sprintf("liquidation - equity @ %.2f < maintenance margin @ %.2f", equity, maintenanceMargin)
 
-		x := p.getMaintenanceMargin(positions)
-		log.Infof("maintenance margin: %.2f", x)
-
 		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], tag)
 		if err != nil {
 			return nil, fmt.Errorf("error performing liquidations: %w", err)

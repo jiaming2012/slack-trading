@@ -1,3 +1,8 @@
+import logging
+import logging.handlers
+import queue
+import threading
+import atexit
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -22,7 +27,7 @@ import matplotlib.pyplot as plt
 
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource
 
-class RenkoTradingEnv(gym.Env):
+class TradingEnv(gym.Env):
     """
     Custom Environment for Renko Chart Trading using PPO and Sortino Ratio as reward.
     """
@@ -38,11 +43,11 @@ class RenkoTradingEnv(gym.Env):
         
         self.client = BacktesterPlaygroundClient(balance, self.symbol, self.start_date, self.end_date, self.repository_source, self.csv_path, grpc_host=self.grpc_host)
         
-        # if self.is_training:
-        #     random_tick = self.pick_random_tick(self.start_date, self.end_date)
-        #     self.client.tick(random_tick)
-        #     tick_delta = self.client.flush_tick_delta_buffer()[0]
-        #     print(f'Random tick: {random_tick}, Start simulation at: {tick_delta.current_time}')
+        if self.is_training:
+            random_tick = self.pick_random_tick(self.start_date, self.end_date)
+            self.client.tick(random_tick)
+            tick_delta = self.client.flush_tick_delta_buffer()[0]
+            self.logger.info(f'Random tick: {random_tick}, Start simulation at: {tick_delta.current_time}')
         
         # terminal balances
         self.max_drawdown_equity = balance * 0.8
@@ -73,7 +78,7 @@ class RenkoTradingEnv(gym.Env):
         self.supertrend_cls_price_diff = None
         self.average_equity = balance
         
-        print(f'Running simulation in playground {self.client.id}')
+        self.logger.info(f'Running simulation in playground {self.client.id}')
         
     def set_repository(self, repository_source, csv_path):
         self.repository_source = repository_source
@@ -85,8 +90,8 @@ class RenkoTradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, start_date, end_date, grpc_host, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
-        super(RenkoTradingEnv, self).__init__()
+    def __init__(self, start_date, end_date, grpc_host, logger, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
+        super(TradingEnv, self).__init__()
         
         # Parameters and variables
         self.symbol = 'TSLA'
@@ -104,6 +109,9 @@ class RenkoTradingEnv(gym.Env):
         self.reset_count = 0
         self.is_training = is_training
         self.df = None
+        self.logger = logger
+        
+        self.logger.setLevel(logging.DEBUG)
         
         self.action_space = spaces.Box(
             low=np.array([-1.0]),
@@ -200,7 +208,7 @@ class RenkoTradingEnv(gym.Env):
         self.rewards_history.append(reward)
         self.render()
         
-        print('Backtest complete. Terminating episode ...')
+        self.logger.info('Backtest complete. Terminating episode ...')
         
         self.terminal_equity = self.client.account.equity
         
@@ -255,8 +263,8 @@ class RenkoTradingEnv(gym.Env):
             try:
                 self.client.place_order(self.symbol, position, OrderSide.BUY)
             except Exception as e:
-                # print(f'Error placing order: {e}') 
-                pass   
+                pass
+                # self.logger.error(f'Error placing order: {e}')
             
             self.client.tick(1)
             seconds_elapsed -= 1
@@ -274,8 +282,8 @@ class RenkoTradingEnv(gym.Env):
             try:
                 self.client.place_order(self.symbol, abs(position), OrderSide.SELL_SHORT)
             except Exception as e:
-                # print(f'Error placing order: {e}') 
                 pass
+                # self.logger.error(f'Error placing order: {e}')
                 
             self.client.tick(1)
             seconds_elapsed -= 1
@@ -315,8 +323,8 @@ class RenkoTradingEnv(gym.Env):
                     try:
                         self.client.place_order(self.symbol, abs(remaining_position), OrderSide.SELL_SHORT)
                     except Exception as e:
-                        # print(f'Error placing order: {e}') 
-                        pass   
+                        pass
+                        # self.logger.error(f'Error placing order: {e}')
                         
                     self.client.tick(1)
                     seconds_elapsed -= 1
@@ -359,8 +367,8 @@ class RenkoTradingEnv(gym.Env):
                     try:
                         self.client.place_order(self.symbol, remaining_position, OrderSide.BUY)
                     except Exception as e:
-                        # print(f'Error placing order: {e}')
                         pass
+                        # self.logger.error(f'Error placing order: {e}')
                         
                     self.client.tick(1)
                     seconds_elapsed -= 1
@@ -498,7 +506,7 @@ class RenkoTradingEnv(gym.Env):
         pl = self.client.account.pl
         position = self.client.position
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {self.average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
+        self.logger.info(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {self.average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -511,18 +519,48 @@ if __name__ == '__main__':
     projectsDir = os.getenv('PROJECTS_DIR')
     if projectsDir is None:
         raise ValueError('PROJECTS_DIR environment variable is not set')
-
+    
+    # Create a formatter that writes the log messages in a specific format
     start_time = datetime.now()
+    
+    # Create a queue for log messages
+    log_queue = queue.Queue()
 
+    # Create a handler that writes log messages to the queue
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+
+    # Create a logger and add the queue handler to it
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(queue_handler)
+
+    # Create a handler that writes log messages to a file
     # Create log directory
-    log_dir = "tmp/"
+    log_dir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'logs')
     os.makedirs(log_dir, exist_ok=True)
+    
+    log_file = os.path.join(log_dir, f'{start_time.strftime("%Y-%m-%d-%H-%M-%S")}.log')
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Create a formatter that writes the log messages in a specific format
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+
+    # Create a listener that reads log messages from the queue and writes them to the file
+    queue_listener = logging.handlers.QueueListener(log_queue, file_handler)
+
+    # Start the listener
+    queue_listener.start()
+    
+    # Register a function to stop the listener at exit
+    atexit.register(queue_listener.stop)
 
     # Initialize the environment
     start_date = '2024-03-18'
     end_date = '2024-09-13'
-    env = RenkoTradingEnv(start_date, end_date, args.host, initial_balance=10000, repository_source=RepositorySource.POLYGON)
-
+    env = TradingEnv(start_date, end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON)
+    
     # Wrap the environment with Monitor
     env = Monitor(env, log_dir)
 
@@ -541,7 +579,7 @@ if __name__ == '__main__':
         # Load parameters from the old model
         model.set_parameters(old_model.get_parameters())
 
-        print(f'Loaded model: {args.model}')
+        logger.info(f'Loaded model: {args.model}')
     else:
         # Create and train the PPO model
         model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
@@ -557,7 +595,7 @@ if __name__ == '__main__':
         
         # while not isDone:
         # Train the model with the new experience
-        print(f'Training model with batch size: {batch_size} ...')
+        logger.info(f'Training model with batch size: {batch_size} ...')
         
         try:
             model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
@@ -566,31 +604,27 @@ if __name__ == '__main__':
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}-terminated'
             model.save(os.path.join(saveModelDir, modelName))
-            print(f'Saved terminated model: {os.path.join(saveModelDir, modelName)}.zip')
+            logger.info(f'Saved terminated model: {os.path.join(saveModelDir, modelName)}.zip')
             
             raise(e)
         
         # Print the current timestep and balance
-        print(f'Training complete. Reset count: {env.reset_count} / {total_reset_counts}.')
+        logger.info(f'Training complete. Reset count: {env.reset_count} / {total_reset_counts}.')
             
-        print('*' * 50)
+        logger.info('*' * 50)
         
         if iterations % 10 == 0:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
             model.save(os.path.join(saveModelDir, modelName))
-            print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
+            logger.info(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
             
         iterations += 1
 
-
-    # Check if log files contain data
-    log_files = os.listdir(log_dir)
-    print(f"Log files: {log_files}")
         
     # Save the trained model with timestamp
     saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
     modelName = 'ppo_model_v13-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     model.save(os.path.join(saveModelDir, modelName))
-    print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
+    logger.info(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
