@@ -42,10 +42,30 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 			position := startingPositions[order.Symbol]
 
 			performMarginCheck := true
-			if position != nil && position.Quantity < 0 && orderQuantity > 0 && orderQuantity <= math.Abs(position.Quantity) {
-				performMarginCheck = false
-			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 && math.Abs(orderQuantity) <= position.Quantity {
-				performMarginCheck = false
+			if position != nil && position.Quantity < 0 && orderQuantity > 0 {
+				if orderQuantity > math.Abs(position.Quantity) {
+					order.Status = BacktesterOrderStatusRejected
+					rejectReason := ErrInvalidOrderVolumeLongVolume.Error()
+					order.RejectReason = &rejectReason
+					invalidOrders = append(invalidOrders, order)
+					p.account.Orders = append(p.account.Orders, order)
+
+					continue
+				} else {
+					performMarginCheck = false
+				}
+			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 {
+				if math.Abs(orderQuantity) > position.Quantity {
+					order.Status = BacktesterOrderStatusRejected
+					rejectReason := ErrInvalidOrderVolumeShortVolume.Error()
+					order.RejectReason = &rejectReason
+					invalidOrders = append(invalidOrders, order)
+					p.account.Orders = append(p.account.Orders, order)
+
+					continue
+				} else {
+					performMarginCheck = false
+				}
 			}
 
 			if performMarginCheck && freeMargin-initialMargin <= maintenanceMargin {
