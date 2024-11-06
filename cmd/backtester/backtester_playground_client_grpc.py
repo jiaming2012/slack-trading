@@ -85,7 +85,7 @@ class BacktesterPlaygroundClient:
     def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
         self.symbol = symbol
         self.host = host
-        
+
         channel = grpc.insecure_channel(grpc_host)
         self.stub = PlaygroundServiceStub(channel)
         
@@ -279,7 +279,7 @@ class BacktesterPlaygroundClient:
         return self.timestamp - self._initial_timestamp
     
     def get_free_margin_over_equity(self) -> float:
-        return self.account.free_margin / self.account.equity
+        return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
     def place_order(self, symbol: str, quantity: float, side: OrderSide) -> object:
         if quantity == 0:

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # version="1.1.18"
+=======
+# version="1.2.0"
+>>>>>>> dev
 
 # Start from the latest Debian base image
 FROM ewr.vultrcr.com/grodt/grodt-base-image-2:1.1.14

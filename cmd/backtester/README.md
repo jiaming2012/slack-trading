@@ -1,6 +1,47 @@
 Backtester is based off of https://pypi.org/project/Backtesting/
 
 # Deploy to the Cloud
+
+## Install Cert Manager
+``` bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.5.3 --set installCRDs=true
+```
+
+## Port Forward
+``` bash
+export VULTR_IP=""
+scp vke.yaml root@${VULTR_IP}:/root
+```
+
+SSH onto the remote machine:
+``` bash
+ssh root@${VULTR_IP}
+snap install kubectl --classic
+tmux new -s port-forward
+export KUBECONFIG="/root/vke.yaml"
+kubectl port-forward svc/grodt-lb 50051:50051
+```
+Detach from the tmux session by pressing Ctrl+B followed by D.
+
+To reattach to the session: 
+``` bash
+tmux attach -t port-forward
+```
+
+## App
+On the remote terminal:
+``` bash
+tmux new -s app
+export PROJECTS_DIR="/root"
+cd ${PROJECTS_DIR}/slack-trading/cmd/backtester
+git checkout dev
+source venv/bin/activate
+python proximal_policy_optimization_v11.py --host localhost:50051
+```
+
+## Instructions
 1. Start a vultr instance. Select SSH keys
 2. SSH into instance
 ``` bash

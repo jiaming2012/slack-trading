@@ -16,7 +16,7 @@ service PlaygroundService {
 }
 
 message CreatePolygonPlaygroundRequest {
-    float balance = 1;
+    double balance = 1;
     string start_date = 2;
     string stop_date = 3;
     string symbol = 4;
@@ -45,18 +45,18 @@ message GetAccountRequest {
 }
 
 message GetAccountResponse {
-    float balance = 1;
-    float equity = 2;
-    float free_margin = 3;
+    double balance = 1;
+    double equity = 2;
+    double free_margin = 3;
     repeated Order orders = 4;
     map<string, Position> positions = 5;
 }
 
 message Position {
-    float quantity = 1;
+    double quantity = 1;
     double cost_basis = 2;
     double pl = 3;
-    float maintenance_margin = 4;
+    double maintenance_margin = 4;
 }
  
 message PlaceOrderRequest {
@@ -119,7 +119,7 @@ message Order {
     string class = 2;
     string symbol = 3;
     string side = 4;
-    float quantity = 5;
+    double quantity = 5;
     string type = 6;
     string duration = 7;
     double price = 8;

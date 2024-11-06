@@ -3,6 +3,8 @@ package models
 import "fmt"
 
 var (
-	ErrInsufficientFreeMargin = fmt.Errorf("insufficient free margin")
-	ErrNoPriceAvailable       = fmt.Errorf("no price available")
+	ErrInsufficientFreeMargin        = fmt.Errorf("insufficient free margin")
+	ErrInvalidOrderVolumeLongVolume  = fmt.Errorf("invalid order volume: cannot close more than long volume")
+	ErrInvalidOrderVolumeShortVolume = fmt.Errorf("invalid order volume: cannot close more than short volume")
+	ErrNoPriceAvailable              = fmt.Errorf("no price available")
 )

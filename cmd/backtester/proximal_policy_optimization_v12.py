@@ -55,6 +55,7 @@ class RenkoTradingEnv(gym.Env):
         self.current_step = 0
         self.returns = []
         self.negative_returns = []
+        self.equity_history = []
         self.renko = None
         self.renko_brick_size = 3
         self.is_backtest_complete = False
@@ -180,14 +181,19 @@ class RenkoTradingEnv(gym.Env):
         return False
 
     def get_reward(self, commission, position=0, is_close=False, include_pl=False):
-        balance = self.client.account.balance
         equity = self.client.account.equity
         free_margin = self.client.account.free_margin
+        self.equity_history.append(equity)
+        
+        if len(self.equity_history) > 100:
+            self.equity_history = self.equity_history[-100:]
+            
+        average_equity = np.mean(self.equity_history)
   
         if free_margin > 0 :
-            reward = (equity - balance) / free_margin
+            reward = (equity - average_equity) / free_margin
         else:
-            reward = equity - balance
+            reward = equity - average_equity
         
         return reward - commission
     
@@ -485,13 +491,14 @@ class RenkoTradingEnv(gym.Env):
         pl = self.client.account.pl
         position = self.client.position
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
-        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward:.2f}") 
+        average_equity = np.mean(self.equity_history) if len(self.equity_history) > 0 else 0
+        print(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, help='The name of the model to load')
+    parser.add_argument('--model', type=str, help='The name of the model to load', required=False)
     parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=10)
-    parser.add_argument('--host', type=str, help='The grpc host of the backtester playground')
+    parser.add_argument('--host', type=str, help='The grpc host of the backtester playground', default='localhost:50051')
     
     args = parser.parse_args()
 
@@ -556,7 +563,7 @@ if __name__ == '__main__':
         if iterations % 10 == 0:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-            modelName = 'ppo_model_v11-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
+            modelName = 'ppo_model_v12-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
             model.save(os.path.join(saveModelDir, modelName))
             print(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
             
@@ -569,6 +576,6 @@ if __name__ == '__main__':
         
     # Save the trained model with timestamp
     saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-    modelName = 'ppo_model_v11-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    modelName = 'ppo_model_v12-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     model.save(os.path.join(saveModelDir, modelName))
     print(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')

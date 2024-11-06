@@ -42,7 +42,7 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 		Class:          string(o.Class),
 		Symbol:         o.Symbol.GetTicker(),
 		Side:           string(o.Side),
-		Quantity:       float32(o.AbsoluteQuantity),
+		Quantity:       o.AbsoluteQuantity,
 		Type:           string(o.Type),
 		Duration:       string(o.Duration),
 		RequestedPrice: o.RequestedPrice,
@@ -188,19 +188,19 @@ func (s *GrpcServer) GetAccount(ctx context.Context, req *pb.GetAccountRequest) 
 	positions := make(map[string]*pb.Position)
 	for k, v := range account.Positions {
 		positions[k] = &pb.Position{
-			Quantity:          float32(v.Quantity),
+			Quantity:          v.Quantity,
 			CostBasis:         v.CostBasis,
 			Pl:                v.PL,
-			MaintenanceMargin: float32(v.MaintenanceMargin),
+			MaintenanceMargin: v.MaintenanceMargin,
 		}
 	}
 
 	ordersDTO := convertOrders(account.Orders)
 
 	return &pb.GetAccountResponse{
-		Balance:    float32(account.Balance),
-		Equity:     float32(account.Equity),
-		FreeMargin: float32(account.FreeMargin),
+		Balance:    account.Balance,
+		Equity:     account.Equity,
+		FreeMargin: account.FreeMargin,
 		Positions:  positions,
 		Orders:     ordersDTO,
 	}, nil
