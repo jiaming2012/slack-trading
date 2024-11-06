@@ -602,7 +602,7 @@ if __name__ == '__main__':
         except Exception as e:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-            modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}-terminated'
+            modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}-terminated'
             model.save(os.path.join(saveModelDir, modelName))
             logger.info(f'Saved terminated model: {os.path.join(saveModelDir, modelName)}.zip')
             
@@ -616,7 +616,7 @@ if __name__ == '__main__':
         if iterations % 10 == 0:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
-            modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}'
+            modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}'
             model.save(os.path.join(saveModelDir, modelName))
             logger.info(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
             
