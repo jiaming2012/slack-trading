@@ -559,7 +559,16 @@ if __name__ == '__main__':
         # Train the model with the new experience
         print(f'Training model with batch size: {batch_size} ...')
         
-        model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+        try:
+            model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+        except Exception as e:
+            # Save the trained model with timestep
+            saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
+            modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'-{iterations}-terminated'
+            model.save(os.path.join(saveModelDir, modelName))
+            print(f'Saved terminated model: {os.path.join(saveModelDir, modelName)}.zip')
+            
+            raise(e)
         
         # Print the current timestep and balance
         print(f'Training complete. Reset count: {env.reset_count} / {total_reset_counts}.')
