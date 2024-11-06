@@ -279,7 +279,7 @@ class BacktesterPlaygroundClient:
         return self.timestamp - self._initial_timestamp
     
     def get_free_margin_over_equity(self) -> float:
-        return self.account.free_margin / self.account.equity
+        return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
     def place_order(self, symbol: str, quantity: float, side: OrderSide) -> object:
         if quantity == 0:
