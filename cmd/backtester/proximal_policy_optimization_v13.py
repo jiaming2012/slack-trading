@@ -577,7 +577,7 @@ if __name__ == '__main__':
     # Initialize the environment
     # start_date = '2024-03-18'
     # end_date = '2024-09-13'
-    env = TradingEnv(args.start_date, args.end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON)
+    env = TradingEnv(args.symbol, args.start_date, args.end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON)
     
     # Wrap the environment with Monitor
     env = Monitor(env, log_dir)
