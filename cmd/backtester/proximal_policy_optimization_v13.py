@@ -508,14 +508,16 @@ class TradingEnv(gym.Env):
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         self.logger.info(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {self.average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
-def save_meta(model_path, env, iterations, total_reset_counts):
+def save_meta(model_path, env, params, iterations, total_reset_counts):
     meta = {
+        'host': args.host,
         'symbol': env.symbol,
         'start_date': env.start_date,
         'end_date': env.end_date,
         'model_path': model_path,
         'iterations': iterations,
-        'total_reset_counts': total_reset_counts
+        'total_reset_counts': total_reset_counts,
+        'params': params
     }
     
     meta_path = model_path + '.meta'
@@ -584,6 +586,12 @@ if __name__ == '__main__':
 
     # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
     vec_env = DummyVecEnv([lambda: env])
+    
+    params = {
+        'policy_kwargs': {'net_arch': [64, 64, 64]},
+        'ent_coef': 0.01,
+        'learning_rate': 0.0002
+    }
 
     if args.model is not None:
         # Load the PPO model
@@ -592,7 +600,7 @@ if __name__ == '__main__':
         # model.learning_rate = 0.00005
         old_model.set_env(vec_env)  # Assign the environment again (necessary for further training)
 
-        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
+        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs=params['policy_kwargs'], ent_coef=params['ent_coef'], learning_rate=params['learning_rate'])
 
         # Load parameters from the old model
         model.set_parameters(old_model.get_parameters())
@@ -600,7 +608,7 @@ if __name__ == '__main__':
         logger.info(f'Loaded model: {args.model}')
     else:
         # Create and train the PPO model
-        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs={'net_arch': [64, 64, 64]}, ent_coef=0.01, learning_rate=0.0002)
+        model = PPO('MlpPolicy', vec_env, verbose=1, policy_kwargs=params['policy_kwargs'], ent_coef=params['ent_coef'], learning_rate=params['learning_rate'])
 
 
     # Hyper parameters
@@ -623,7 +631,7 @@ if __name__ == '__main__':
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}-terminated'
             modelFileName = os.path.join(saveModelDir, modelName)
             model.save(modelFileName)
-            save_meta(modelFileName, env, iterations, total_reset_counts)
+            save_meta(modelFileName, env, params, iterations, total_reset_counts)
             logger.info(f'Saved terminated model: {modelFileName}.zip')
             
             raise(e)
@@ -639,7 +647,7 @@ if __name__ == '__main__':
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}'
             modelFileName = os.path.join(saveModelDir, modelName)
             model.save(modelFileName)
-            save_meta(modelFileName, env, iterations, total_reset_counts)
+            save_meta(modelFileName, env, params, iterations, total_reset_counts)
             logger.info(f'Saved intermediate model: {modelFileName}.zip')
             
         iterations += 1
@@ -650,5 +658,5 @@ if __name__ == '__main__':
     modelName = 'ppo_model_v13-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     modelFileName = os.path.join(saveModelDir, modelName)
     model.save(modelFileName)
-    save_meta(modelFileName, env, iterations, total_reset_counts)
+    save_meta(modelFileName, env, params, iterations, total_reset_counts)
     logger.info(f'Saved model: {modelFileName}.zip')
