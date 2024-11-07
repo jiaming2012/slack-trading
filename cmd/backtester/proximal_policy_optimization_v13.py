@@ -90,11 +90,11 @@ class TradingEnv(gym.Env):
         delta = end - start
         return random.randint(0, delta.total_seconds())
                 
-    def __init__(self, start_date, end_date, grpc_host, logger, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
+    def __init__(self, symbol, start_date, end_date, grpc_host, logger, initial_balance=10000, repository_source=RepositorySource.CSV, csv_path='training_data.csv', is_training=True):
         super(TradingEnv, self).__init__()
         
         # Parameters and variables
-        self.symbol = 'TSLA'
+        self.symbol = symbol
         self.grpc_host = grpc_host
         self.start_date = start_date
         self.end_date = end_date
@@ -508,8 +508,26 @@ class TradingEnv(gym.Env):
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         self.logger.info(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {self.average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
+def save_meta(model_path, env, iterations, total_reset_counts):
+    meta = {
+        'symbol': env.symbol,
+        'start_date': env.start_date,
+        'end_date': env.end_date,
+        'model_path': model_path,
+        'iterations': iterations,
+        'total_reset_counts': total_reset_counts
+    }
+    
+    meta_path = model_path + '.meta'
+    with open(meta_path, 'w') as f:
+        f.write(str(meta))
+        f.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, help='The symbol to backtest, e.g. COIN', required=True)
+    parser.add_argument('--start-date', type=str, help='The start date of the backtest in YYYY-MM-DD format', required=True)
+    parser.add_argument('--end-date', type=str, help='The end date of the backtest in YYYY-MM-DD format', required=True)
     parser.add_argument('--model', type=str, help='The name of the model to load', required=False)
     parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=10)
     parser.add_argument('--host', type=str, help='The grpc host of the backtester playground', default='localhost:50051')
@@ -557,9 +575,9 @@ if __name__ == '__main__':
     atexit.register(queue_listener.stop)
 
     # Initialize the environment
-    start_date = '2024-03-18'
-    end_date = '2024-09-13'
-    env = TradingEnv(start_date, end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON)
+    # start_date = '2024-03-18'
+    # end_date = '2024-09-13'
+    env = TradingEnv(args.start_date, args.end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON)
     
     # Wrap the environment with Monitor
     env = Monitor(env, log_dir)
@@ -603,8 +621,10 @@ if __name__ == '__main__':
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}-terminated'
-            model.save(os.path.join(saveModelDir, modelName))
-            logger.info(f'Saved terminated model: {os.path.join(saveModelDir, modelName)}.zip')
+            modelFileName = os.path.join(saveModelDir, modelName)
+            model.save(modelFileName)
+            save_meta(modelFileName, env, iterations, total_reset_counts)
+            logger.info(f'Saved terminated model: {modelFileName}.zip')
             
             raise(e)
         
@@ -617,8 +637,10 @@ if __name__ == '__main__':
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}'
-            model.save(os.path.join(saveModelDir, modelName))
-            logger.info(f'Saved intermediate model: {os.path.join(saveModelDir, modelName)}.zip')
+            modelFileName = os.path.join(saveModelDir, modelName)
+            model.save(modelFileName)
+            save_meta(modelFileName, env, iterations, total_reset_counts)
+            logger.info(f'Saved intermediate model: {modelFileName}.zip')
             
         iterations += 1
 
@@ -626,5 +648,7 @@ if __name__ == '__main__':
     # Save the trained model with timestamp
     saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')
     modelName = 'ppo_model_v13-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    model.save(os.path.join(saveModelDir, modelName))
-    logger.info(f'Saved model: {os.path.join(saveModelDir, modelName)}.zip')
+    modelFileName = os.path.join(saveModelDir, modelName)
+    model.save(modelFileName)
+    save_meta(modelFileName, env, iterations, total_reset_counts)
+    logger.info(f'Saved model: {modelFileName}.zip')
