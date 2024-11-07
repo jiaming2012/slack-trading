@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import List, Dict
 from zoneinfo import ZoneInfo
+import time
 
 import grpc
 from playground_pb2 import CreatePolygonPlaygroundRequest, PlaceOrderRequest, NextTickRequest, GetAccountRequest, GetCandlesRequest
@@ -81,12 +82,35 @@ class RepositorySource(Enum):
     CSV = 'csv'
     POLYGON = 'polygon'
 
+def create_grpc_channel(target):
+    # Create a gRPC channel with options for reconnection
+    return grpc.insecure_channel(target)
+
+def grpc_call_with_retry(stub, request, max_retries=10, backoff=2):
+    retries = 0
+    while retries < max_retries:
+        try:
+            # Attempt the gRPC call
+            response = stub(request)
+            return response
+        except grpc.RpcError as e:
+            if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.UNKNOWN):
+                print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
+                retries += 1
+                time.sleep(backoff)
+                backoff *= 2  # Exponential backoff
+            else:
+                # If it's a different error, raise it
+                raise
+    raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
+
+
 class BacktesterPlaygroundClient:
     def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
         self.symbol = symbol
         self.host = host
 
-        channel = grpc.insecure_channel(grpc_host)
+        channel = create_grpc_channel(grpc_host)
         self.stub = PlaygroundServiceStub(channel)
         
         if source == RepositorySource.CSV:
@@ -116,7 +140,10 @@ class BacktesterPlaygroundClient:
             fetch_orders=False
         )
         
-        response = self.stub.GetAccount(request)
+        try:
+            response = grpc_call_with_retry(self.stub.GetAccount, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (fetch_and_update_account_state):", e)
         
         acc = Account(
             balance=response.balance,
@@ -207,13 +234,17 @@ class BacktesterPlaygroundClient:
        # Manually insert the colon in the timezone offset
         fromStr = fromStr[:-2] + ':' + fromStr[-2:]
         toStr = toStr[:-2] + ':' + toStr[-2:]
-                
-        response = self.stub.GetCandles(GetCandlesRequest(
-            playground_id=self.id,
-            symbol=self.symbol,
-            fromRTF3339=fromStr,
-            toRTF3339=toStr
-        ))
+                        
+        try:
+            response = grpc_call_with_retry(self.stub.GetCandles, GetCandlesRequest(
+                playground_id=self.id,
+                symbol=self.symbol,
+                fromRTF3339=fromStr,
+                toRTF3339=toStr
+            ))
+                        
+        except Exception as e:
+            print("Failed to connect to gRPC service (fetch_candles):", e)
         
         candles_data = response.bars
         if not candles_data:
@@ -239,8 +270,11 @@ class BacktesterPlaygroundClient:
             is_preview=True
         )
         
-        response = self.stub.NextTick(request)
-        
+        try:
+            response = grpc_call_with_retry(self.stub.NextTick, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (preview_tick):", e)
+                
         return response
         
     def tick(self, seconds: int):
@@ -250,7 +284,10 @@ class BacktesterPlaygroundClient:
             is_preview=False
         )
         
-        new_state = self.stub.NextTick(request)
+        try:
+            new_state = grpc_call_with_retry(self.stub.NextTick, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (tick):", e)
         
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
@@ -301,8 +338,11 @@ class BacktesterPlaygroundClient:
             duration='day'
         )
         
-        response = self.stub.PlaceOrder(request)
-        
+        try:
+            response = grpc_call_with_retry(self.stub.PlaceOrder, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (place_order):", e)
+                
         return response
     
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
@@ -346,7 +386,10 @@ class BacktesterPlaygroundClient:
             timespan_unit='minute',
         )
 
-        response = self.stub.CreatePlayground(request)
+        try:
+            response = grpc_call_with_retry(self.stub.CreatePlayground, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (create_playground_polygon):", e)
 
         return response.id
 

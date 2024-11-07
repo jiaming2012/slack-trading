@@ -7,8 +7,8 @@ spec:
   selector:
     app: grodt
   ports:
-  - name: grpc
+  - port: 50051              # The port on the service
+    targetPort: 50051         # The port the gRPC server is listening on within the pod
+    nodePort: 30051           # Port exposed on each node
     protocol: TCP
-    port: 50051
-    targetPort: 50051
-  type: ClusterIP
+  type: NodePort
