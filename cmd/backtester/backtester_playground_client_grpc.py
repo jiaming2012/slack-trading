@@ -81,6 +81,12 @@ class OrderSide(Enum):
 class RepositorySource(Enum):
     CSV = 'csv'
     POLYGON = 'polygon'
+    
+class PlaygroundNotFoundException(Exception):
+    pass
+
+class InvalidParametersException(Exception):
+    pass
 
 def create_grpc_channel(target):
     # Create a gRPC channel with options for reconnection
@@ -95,6 +101,9 @@ def grpc_call_with_retry(stub, request, max_retries=10, backoff=2):
             return response
         except grpc.RpcError as e:
             if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.UNKNOWN):
+                if e.details().find('playground not found'):
+                    raise PlaygroundNotFoundException("Playground not found")
+                
                 print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
                 retries += 1
                 time.sleep(backoff)
@@ -142,6 +151,8 @@ class BacktesterPlaygroundClient:
         
         try:
             response = grpc_call_with_retry(self.stub.GetAccount, request)
+        except PlaygroundNotFoundException:
+            raise
         except Exception as e:
             print("Failed to connect to gRPC service (fetch_and_update_account_state):", e)
         
@@ -243,6 +254,9 @@ class BacktesterPlaygroundClient:
                 toRTF3339=toStr
             ))
                         
+        except PlaygroundNotFoundException:
+            raise
+        
         except Exception as e:
             print("Failed to connect to gRPC service (fetch_candles):", e)
         
@@ -272,6 +286,8 @@ class BacktesterPlaygroundClient:
         
         try:
             response = grpc_call_with_retry(self.stub.NextTick, request)
+        except PlaygroundNotFoundException:
+            raise
         except Exception as e:
             print("Failed to connect to gRPC service (preview_tick):", e)
                 
@@ -286,6 +302,8 @@ class BacktesterPlaygroundClient:
         
         try:
             new_state = grpc_call_with_retry(self.stub.NextTick, request)
+        except PlaygroundNotFoundException:
+            raise
         except Exception as e:
             print("Failed to connect to gRPC service (tick):", e)
         
@@ -324,9 +342,9 @@ class BacktesterPlaygroundClient:
             
         if self.get_free_margin_over_equity() < 0.4:
             if quantity > 0 and side == OrderSide.BUY:
-                raise Exception('Insufficient free margin')
+                raise InvalidParametersException('Insufficient free margin')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
-                raise Exception('Insufficient free margin')
+                raise InvalidParametersException('Insufficient free margin')
   
         request = PlaceOrderRequest(
             playground_id=self.id,
@@ -340,6 +358,8 @@ class BacktesterPlaygroundClient:
         
         try:
             response = grpc_call_with_retry(self.stub.PlaceOrder, request)
+        except PlaygroundNotFoundException:
+            raise
         except Exception as e:
             print("Failed to connect to gRPC service (place_order):", e)
                 

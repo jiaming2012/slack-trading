@@ -25,7 +25,7 @@ print('cuda available: ', torch.cuda.is_available())  # Should return True if GP
 # from stable_baselines3.common.noise import NormalActionNoise
 import matplotlib.pyplot as plt
 
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundNotFoundException
 
 class TradingEnv(gym.Env):
     """
@@ -232,7 +232,7 @@ class TradingEnv(gym.Env):
  
         return None
     
-    def step(self, action):
+    def step(self, action):            
         if type(action) == np.ndarray:
             action = action[0]
             
@@ -262,6 +262,8 @@ class TradingEnv(gym.Env):
         if position > 0 and self.client.position >= 0:
             try:
                 self.client.place_order(self.symbol, position, OrderSide.BUY)
+            except PlaygroundNotFoundException:
+                raise
             except Exception as e:
                 pass
                 # self.logger.error(f'Error placing order: {e}')
@@ -281,6 +283,8 @@ class TradingEnv(gym.Env):
         elif position < 0 and self.client.position <= 0:
             try:
                 self.client.place_order(self.symbol, abs(position), OrderSide.SELL_SHORT)
+            except PlaygroundNotFoundException:
+                raise
             except Exception as e:
                 pass
                 # self.logger.error(f'Error placing order: {e}')
@@ -322,6 +326,8 @@ class TradingEnv(gym.Env):
                 try:
                     try:
                         self.client.place_order(self.symbol, abs(remaining_position), OrderSide.SELL_SHORT)
+                    except PlaygroundNotFoundException:
+                        raise
                     except Exception as e:
                         pass
                         # self.logger.error(f'Error placing order: {e}')
@@ -366,6 +372,8 @@ class TradingEnv(gym.Env):
                 try:
                     try:
                         self.client.place_order(self.symbol, remaining_position, OrderSide.BUY)
+                    except PlaygroundNotFoundException:
+                        raise
                     except Exception as e:
                         pass
                         # self.logger.error(f'Error placing order: {e}')
@@ -625,6 +633,10 @@ if __name__ == '__main__':
         
         try:
             model.learn(total_timesteps=batch_size, reset_num_timesteps=False)
+        except PlaygroundNotFoundException:
+            logger.info(f'Playground not found. Retrying ...')
+            vec_env.reset()
+            continue
         except Exception as e:
             # Save the trained model with timestep
             saveModelDir = os.path.join(projectsDir, 'slack-trading', 'cmd', 'backtester', 'models')

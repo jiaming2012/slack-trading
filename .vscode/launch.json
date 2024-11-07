@@ -325,7 +325,11 @@
             "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v13.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": []
+            "args": [
+                "--symbol", "TSLA",
+                "--start-date", "2024-06-03",
+                "--end-date", "2024-09-30"
+            ]
         },
         {
             "name": "proximal policy optimization [validate]",
