@@ -101,7 +101,7 @@ def grpc_call_with_retry(stub, request, max_retries=10, backoff=2):
             return response
         except grpc.RpcError as e:
             if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.UNKNOWN):
-                if e.details().find('playground not found'):
+                if e.details().find('playground not found') >= 0:
                     raise PlaygroundNotFoundException("Playground not found")
                 
                 print(f"Connection lost: {e}. Retrying in {backoff} seconds...")

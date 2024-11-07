@@ -327,8 +327,10 @@
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
             "args": [
                 "--symbol", "TSLA",
-                "--start-date", "2024-06-03",
-                "--end-date", "2024-09-30"
+                "--start-date", "2024-03-18",
+                "--end-date", "2024-11-13",
+                "--timesteps", "4500",
+                "--host", "66.135.30.196:30051"
             ]
         },
         {

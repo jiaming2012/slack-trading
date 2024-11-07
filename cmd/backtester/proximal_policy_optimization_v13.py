@@ -516,15 +516,16 @@ class TradingEnv(gym.Env):
         avg_reward = np.mean(self.rewards_history) if len(self.rewards_history) > 0 else 0
         self.logger.info(f"Step: {self.current_step}, Tstamp: {self.timestamp}, Balance: {self.client.account.balance:.2f}, Equity: {equity:.2f}, Avg Equity: {self.average_equity:.2f}, Free Margin: {free_margin:.2f}, Liquidation Buffer: {liquidation_buffer:.2f}, PL: {pl:.2f}, Position: {position}, Total Commission: {self.total_commission:.2f}, Avg Reward: {avg_reward}") 
 
-def save_meta(model_path, env, params, iterations, total_reset_counts):
+def save_meta(model_path, args, params, iterations):
     meta = {
         'host': args.host,
-        'symbol': env.symbol,
-        'start_date': env.start_date,
-        'end_date': env.end_date,
+        'symbol': args.symbol,
+        'model': args.model,
+        'start_date': args.start_date,
+        'end_date': args.end_date,
         'model_path': model_path,
         'iterations': iterations,
-        'total_reset_counts': total_reset_counts,
+        'timesteps': args.timesteps,
         'params': params
     }
     
@@ -620,10 +621,9 @@ if __name__ == '__main__':
 
 
     # Hyper parameters
-    total_reset_counts = args.timesteps
     iterations = 1
 
-    while env.reset_count < total_reset_counts:    
+    while env.reset_count < args.timesteps:    
         isDone = False
         batch_size = env.get_batch_size()
         
@@ -643,13 +643,13 @@ if __name__ == '__main__':
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}-terminated'
             modelFileName = os.path.join(saveModelDir, modelName)
             model.save(modelFileName)
-            save_meta(modelFileName, env, params, iterations, total_reset_counts)
+            save_meta(modelFileName, args, params, iterations)
             logger.info(f'Saved terminated model: {modelFileName}.zip')
             
             raise(e)
         
         # Print the current timestep and balance
-        logger.info(f'Training complete. Reset count: {env.reset_count} / {total_reset_counts}.')
+        logger.info(f'Training complete. Reset count: {env.reset_count} / {args.timesteps}.')
             
         logger.info('*' * 50)
         
@@ -659,7 +659,7 @@ if __name__ == '__main__':
             modelName = 'ppo_model_v13-' + start_time.strftime('%Y-%m-%d-%H-%M-%S') + f'_{iterations}'
             modelFileName = os.path.join(saveModelDir, modelName)
             model.save(modelFileName)
-            save_meta(modelFileName, env, params, iterations, total_reset_counts)
+            save_meta(modelFileName, args, params, iterations)
             logger.info(f'Saved intermediate model: {modelFileName}.zip')
             
         iterations += 1
@@ -670,5 +670,5 @@ if __name__ == '__main__':
     modelName = 'ppo_model_v13-' + datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     modelFileName = os.path.join(saveModelDir, modelName)
     model.save(modelFileName)
-    save_meta(modelFileName, env, params, iterations, total_reset_counts)
+    save_meta(modelFileName, args, params, iterations)
     logger.info(f'Saved model: {modelFileName}.zip')
