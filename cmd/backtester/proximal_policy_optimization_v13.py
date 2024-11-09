@@ -256,7 +256,7 @@ class TradingEnv(gym.Env):
 
         # Simulate trade, adjust balance, and calculate reward
         commission = 0
-        seconds_elapsed = 60
+        seconds_elapsed = 300
         is_close = False
          
         if position > 0 and self.client.position >= 0:

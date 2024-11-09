@@ -28,9 +28,19 @@ model = PPO.load(os.path.join(loadModelDir, args.model))
 # Create a logger and add the queue handler to it
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-    
+# Create a StreamHandler to log messages to the console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)  # Set the logging level for the handler
+
+# Create a formatter and set it for the handler
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+
+# Add the handler to the logger
+logger.addHandler(console_handler)
+
 # Initialize the environment
-env = TradingEnv(args.start_date, args.end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON, is_training=False)
+env = TradingEnv(args.symbol, args.start_date, args.end_date, args.host, logger, initial_balance=10000, repository_source=RepositorySource.POLYGON, is_training=False)
 
 # Wrap the environment with DummyVecEnv for compatibility with Stable-Baselines3
 vec_env = DummyVecEnv([lambda: env])

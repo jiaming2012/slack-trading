@@ -402,7 +402,7 @@ class BacktesterPlaygroundClient:
             start_date=start_date,
             stop_date=stop_date,
             symbol=symbol,
-            timespan_multiplier=1,
+            timespan_multiplier=5,
             timespan_unit='minute',
         )
 
