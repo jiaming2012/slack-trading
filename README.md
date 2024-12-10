@@ -4,6 +4,22 @@ A mock trading platform.
 # Development
 We use python's bump2version for managing the app version.
 
+# Twirp
+We use twirp for grpc communication over http.
+
+## Compile protobuf file
+``` bash
+cd ${PROJECTS_DIR}/slack-trading
+source cmd/backtester/venv/bin/activate
+protoc --go_out=. --python_out=./cmd/backtester --twirp_out=. --twirpy_out=./cmd/backtester src/backtester-api/playground.proto
+ mv ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester_api/playground_pb2.py ${PROJECTS_DIR}/slack-trading/cmd/backtester/rpc
+ mv ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester-api/playground_twirp.py ${PROJECTS_DIR}/slack-trading/cmd/backtester/rpc
+ rm
+ rmdir ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester_api/ ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester-api
+```
+
+Note that in order to run the twirpy plugin, `cmd/backtester/venv/bin` must be in the terminal's PATH.
+
 ## Debugging
 Port forward to the production ESDB instance:
 ``` bash

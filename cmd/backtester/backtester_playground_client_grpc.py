@@ -8,9 +8,9 @@ from typing import List, Dict
 from zoneinfo import ZoneInfo
 import time
 
-import grpc
-from playground_pb2 import CreatePolygonPlaygroundRequest, PlaceOrderRequest, NextTickRequest, GetAccountRequest, GetCandlesRequest
-from playground_pb2_grpc import PlaygroundServiceStub
+from playground_twirp import PlaygroundServiceClient
+from twirp.context import Context
+from twirp.exceptions import TwirpServerException
 
 @dataclass
 class Trade:
@@ -88,29 +88,20 @@ class PlaygroundNotFoundException(Exception):
 class InvalidParametersException(Exception):
     pass
 
-def create_grpc_channel(target):
-    # Create a gRPC channel with options for reconnection
-    return grpc.insecure_channel(target)
 
-def grpc_call_with_retry(stub, request, max_retries=10, backoff=2):
+def network_call_with_retry(stub, request, max_retries=10, backoff=2):
     retries = 0
     while retries < max_retries:
         try:
             # Attempt the gRPC call
             response = stub(request)
             return response
-        except grpc.RpcError as e:
-            if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.UNKNOWN):
-                if e.details().find('playground not found') >= 0:
-                    raise PlaygroundNotFoundException("Playground not found")
-                
-                print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
-                retries += 1
-                time.sleep(backoff)
-                backoff *= 2  # Exponential backoff
-            else:
-                # If it's a different error, raise it
-                raise
+        except TwirpServerException as e:
+            print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
+            retries += 1
+            time.sleep(backoff)
+            backoff *= 2  # Exponential backoff
+
     raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
 
 
@@ -119,8 +110,7 @@ class BacktesterPlaygroundClient:
         self.symbol = symbol
         self.host = host
 
-        channel = create_grpc_channel(grpc_host)
-        self.stub = PlaygroundServiceStub(channel)
+        self.client = PlaygroundServiceClient(grpc_host)
         
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -150,7 +140,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = grpc_call_with_retry(self.stub.GetAccount, request)
+            response = network_call_with_retry(self.stub.GetAccount, request)
         except PlaygroundNotFoundException:
             raise
         except Exception as e:
@@ -247,7 +237,7 @@ class BacktesterPlaygroundClient:
         toStr = toStr[:-2] + ':' + toStr[-2:]
                         
         try:
-            response = grpc_call_with_retry(self.stub.GetCandles, GetCandlesRequest(
+            response = network_call_with_retry(self.stub.GetCandles, GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 fromRTF3339=fromStr,
@@ -285,7 +275,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = grpc_call_with_retry(self.stub.NextTick, request)
+            response = network_call_with_retry(self.stub.NextTick, request)
         except PlaygroundNotFoundException:
             raise
         except Exception as e:
@@ -301,7 +291,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            new_state = grpc_call_with_retry(self.stub.NextTick, request)
+            new_state = network_call_with_retry(self.stub.NextTick, request)
         except PlaygroundNotFoundException:
             raise
         except Exception as e:
@@ -357,7 +347,9 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = grpc_call_with_retry(self.stub.PlaceOrder, request)
+            # response = network_call_with_retry(self.stub.PlaceOrder, request)
+            # TODO: update this
+            self.client.PlaceOrder(Context(), request)
         except PlaygroundNotFoundException:
             raise
         except Exception as e:
@@ -407,7 +399,7 @@ class BacktesterPlaygroundClient:
         )
 
         try:
-            response = grpc_call_with_retry(self.stub.CreatePlayground, request)
+            response = network_call_with_retry(self.stub.CreatePlayground, request)
         except Exception as e:
             print("Failed to connect to gRPC service (create_playground_polygon):", e)
 

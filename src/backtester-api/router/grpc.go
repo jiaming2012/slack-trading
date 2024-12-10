@@ -8,13 +8,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	pb "github.com/jiaming2012/slack-trading/src/backtester-api/playground"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pb "github.com/jiaming2012/slack-trading/playground"
 )
 
-type GrpcServer struct {
-	pb.UnimplementedPlaygroundServiceServer
-}
+type Server struct {}
 
 func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
 	out := make([]*pb.Order, len(orders))
@@ -67,7 +65,7 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
-func (s *GrpcServer) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
+func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
@@ -91,11 +89,11 @@ func (s *GrpcServer) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) 
 	barsDTO := make([]*pb.Bar, 0)
 	for _, candle := range candles {
 		barsDTO = append(barsDTO, &pb.Bar{
-			Open:  float32(candle.Open),
-			High:  float32(candle.High),
-			Low:   float32(candle.Low),
-			Close: float32(candle.Close),
-			Volume: float32(candle.Volume),
+			Open:     float32(candle.Open),
+			High:     float32(candle.High),
+			Low:      float32(candle.Low),
+			Close:    float32(candle.Close),
+			Volume:   float32(candle.Volume),
 			Datetime: candle.Timestamp.String(),
 		})
 	}
@@ -105,7 +103,7 @@ func (s *GrpcServer) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) 
 	}, nil
 }
 
-func (s *GrpcServer) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
+func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
@@ -134,11 +132,11 @@ func (s *GrpcServer) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb
 		newCandles = append(newCandles, &pb.Candle{
 			Symbol: candle.Symbol.GetTicker(),
 			Bar: &pb.Bar{
-				Open:  float32(dto.Open),
-				High:  float32(dto.High),
-				Low:   float32(dto.Low),
-				Close: float32(dto.Close),
-				Volume: float32(dto.Volume),
+				Open:     float32(dto.Open),
+				High:     float32(dto.High),
+				Low:      float32(dto.Low),
+				Close:    float32(dto.Close),
+				Volume:   float32(dto.Volume),
 				Datetime: dto.Timestamp,
 			},
 		})
@@ -174,7 +172,7 @@ func (s *GrpcServer) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb
 	}, nil
 }
 
-func (s *GrpcServer) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
+func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
@@ -206,7 +204,7 @@ func (s *GrpcServer) GetAccount(ctx context.Context, req *pb.GetAccountRequest) 
 	}, nil
 }
 
-func (s *GrpcServer) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
+func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
 	playgroundID, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
@@ -235,7 +233,7 @@ func (s *GrpcServer) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) 
 	return orderDTO, nil
 }
 
-func (s *GrpcServer) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
+func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	playground, err := createPlayground(&CreatePlaygroundRequest{
 		Balance: float64(req.Balance),
 		Clock: CreateClockRequest{

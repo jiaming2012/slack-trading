@@ -30,10 +30,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 
-	pb "github.com/jiaming2012/slack-trading/src/backtester-api/playground"
+	"github.com/jiaming2012/slack-trading/playground"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -543,19 +542,14 @@ func run() {
 
 	// start the grpc server
 	go func() {
-		grpcServer := grpc.NewServer()
-		pb.RegisterPlaygroundServiceServer(grpcServer, &backtester_router.GrpcServer{})
+		// 	grpcServer := grpc.NewServer()
+		// 	pb.RegisterPlaygroundServiceServer(grpcServer, &backtester_router.TwirpServer{})
+		server := &backtester_router.Server{}
+		twirpHandler := playground.NewPlaygroundServiceServer(server)
 		port := 50051
 
-		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
-		}
-
 		log.Infof("listening on :%d", port)
-		if err := grpcServer.Serve(listener); err != nil {
-			log.Fatalf("grpc: failed to serve: %v", err)
-		}
+		http.ListenAndServe(fmt.Sprintf(":%d", port), twirpHandler)
 	}()
 
 	// Create channel for shutdown signals.
