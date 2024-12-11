@@ -8,9 +8,11 @@ from typing import List, Dict
 from zoneinfo import ZoneInfo
 import time
 
-from playground_twirp import PlaygroundServiceClient
+from rpc.playground_twirp import PlaygroundServiceClient
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
+
 
 @dataclass
 class Trade:
@@ -89,12 +91,15 @@ class InvalidParametersException(Exception):
     pass
 
 
-def network_call_with_retry(stub, request, max_retries=10, backoff=2):
+def network_call_with_retry(client, request, max_retries=10, backoff=2):
     retries = 0
     while retries < max_retries:
         try:
-            # Attempt the gRPC call
-            response = stub(request)
+            # Attempt the twirp call
+            response = client(
+                ctx=Context(), 
+                request=request
+            )
             return response
         except TwirpServerException as e:
             print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
@@ -106,11 +111,11 @@ def network_call_with_retry(stub, request, max_retries=10, backoff=2):
 
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'localhost:50051'):
+    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'http://localhost:50051'):
         self.symbol = symbol
         self.host = host
 
-        self.client = PlaygroundServiceClient(grpc_host)
+        self.client = PlaygroundServiceClient(grpc_host, timeout=60)
         
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -140,11 +145,10 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = network_call_with_retry(self.stub.GetAccount, request)
-        except PlaygroundNotFoundException:
-            raise
+            response = network_call_with_retry(self.client.GetAccount, request)
         except Exception as e:
             print("Failed to connect to gRPC service (fetch_and_update_account_state):", e)
+            raise e
         
         acc = Account(
             balance=response.balance,
@@ -237,18 +241,16 @@ class BacktesterPlaygroundClient:
         toStr = toStr[:-2] + ':' + toStr[-2:]
                         
         try:
-            response = network_call_with_retry(self.stub.GetCandles, GetCandlesRequest(
+            response = network_call_with_retry(self.client.GetCandles, GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 fromRTF3339=fromStr,
                 toRTF3339=toStr
             ))
-                        
-        except PlaygroundNotFoundException:
-            raise
         
         except Exception as e:
             print("Failed to connect to gRPC service (fetch_candles):", e)
+            raise e
         
         candles_data = response.bars
         if not candles_data:
@@ -275,11 +277,10 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = network_call_with_retry(self.stub.NextTick, request)
-        except PlaygroundNotFoundException:
-            raise
+            response = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
             print("Failed to connect to gRPC service (preview_tick):", e)
+            raise e
                 
         return response
         
@@ -291,11 +292,10 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            new_state = network_call_with_retry(self.stub.NextTick, request)
-        except PlaygroundNotFoundException:
-            raise
+            new_state = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
             print("Failed to connect to gRPC service (tick):", e)
+            raise e
         
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
@@ -347,16 +347,11 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            # response = network_call_with_retry(self.stub.PlaceOrder, request)
-            # TODO: update this
-            self.client.PlaceOrder(Context(), request)
-        except PlaygroundNotFoundException:
-            raise
+            response = network_call_with_retry(self.client.PlaceOrder, request)
+            return response
         except Exception as e:
-            print("Failed to connect to gRPC service (place_order):", e)
-                
-        return response
-    
+            raise e
+                    
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')
         
@@ -399,17 +394,16 @@ class BacktesterPlaygroundClient:
         )
 
         try:
-            response = network_call_with_retry(self.stub.CreatePlayground, request)
+            response = network_call_with_retry(self.client.CreatePlayground, request)            
+            return response.id
         except Exception as e:
-            print("Failed to connect to gRPC service (create_playground_polygon):", e)
-
-        return response.id
-
+            raise("Failed to create playground:", e)
+        
     
 if __name__ == '__main__':
     try:
-        # playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
-        playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.CSV, filename='training_data.csv')
+        playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.POLYGON)
+        # playground_client = BacktesterPlaygroundClient(300, 'AAPL', '2021-01-04', '2021-01-31', RepositorySource.CSV, filename='training_data.csv')
         
         print('playground_id: ', playground_client.id)
         

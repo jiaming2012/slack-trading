@@ -548,8 +548,13 @@ func run() {
 		twirpHandler := playground.NewPlaygroundServiceServer(server)
 		port := 50051
 
-		log.Infof("listening on :%d", port)
-		http.ListenAndServe(fmt.Sprintf(":%d", port), twirpHandler)
+		mux := http.NewServeMux()
+		mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
+
+		log.Infof("Listening on :%d", port)
+		log.Infof("Path prefix: %v", twirpHandler.PathPrefix())
+
+		http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
 	}()
 
 	// Create channel for shutdown signals.
