@@ -541,7 +541,7 @@ if __name__ == '__main__':
     parser.add_argument('--end-date', type=str, help='The end date of the backtest in YYYY-MM-DD format', required=True)
     parser.add_argument('--model', type=str, help='The name of the model to load', required=False)
     parser.add_argument('--timesteps', type=int, help='The number of timesteps to train the model', default=10)
-    parser.add_argument('--host', type=str, help='The grpc host of the backtester playground', default='localhost:50051')
+    parser.add_argument('--host', type=str, help='The grpc host of the backtester playground', default='http://localhost:5051')
     
     args = parser.parse_args()
 

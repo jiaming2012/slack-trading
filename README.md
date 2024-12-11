@@ -7,6 +7,19 @@ We use python's bump2version for managing the app version.
 # Twirp
 We use twirp for grpc communication over http.
 
+## Run the ML client
+``` bash
+cd ${PROJECTS_DIR}/slack-trading
+./cmd/backtester/venv/bin/python ./cmd/backtester/proximal_policy_optimization_v13.py --symbol COIN --start-date 2024-09-03 --end-date 2024-11-13 --host http://127.0.0.1:5051
+```
+
+## Plot playground trades
+``` bash
+cd ${PROJECTS_DIR}/slack-trading
+MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
+./src/cmd/stats/env/bin/python ${PROJECTS_DIR}/slack-trading/src/cmd/stats/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
+```
+
 ## Compile protobuf file
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading
@@ -203,9 +216,9 @@ sudo apt-get install python3.8-venv
 
 ## Initiate your python env
 ``` bash
-cd path/to/slack-trading/src/cmd/stats
-python3 -m venv $PROJECTS_DIR/slack-trading/src/cmd/stats/env
-$PROJECTS_DIR/slack-trading/src/cmd/stats/env/bin/pip install -r src/cmd/stats/requirements.txt
+cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+python3.10 -m venv $PROJECTS_DIR/slack-trading/src/cmd/stats/env
+$PROJECTS_DIR/slack-trading/src/cmd/stats/env/bin/pip install -r requirements.txt
 ```
 
 # Dockerfile

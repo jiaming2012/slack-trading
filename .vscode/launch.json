@@ -330,7 +330,7 @@
                 "--start-date", "2024-03-18",
                 "--end-date", "2024-11-13",
                 "--timesteps", "4500",
-                "--host", "66.135.30.196:30051"
+                "--host", "http://127.0.0.1:5051"
             ]
         },
         {
@@ -345,6 +345,18 @@
                 "--symbol", "COIN",
                 "--start-date", "2024-06-03",
                 "--end-date", "2024-09-30"
+            ]
+        },
+        {
+            "name": "plot_playground",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/plot_playground.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "args": [
+                "--playground-id", "47936e56-1b86-4a17-83d8-725de68cff96",
+                "--host", "http://localhost:8080"
             ]
         },
         {

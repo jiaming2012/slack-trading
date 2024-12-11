@@ -47,6 +47,9 @@ vec_env = DummyVecEnv([lambda: env])
 
 # Evaluate the model
 obs = vec_env.reset()
+
+# Grab the playground id
+playground_id = env.client.id
  
 isDone = False
 rewards_series = []
@@ -59,10 +62,12 @@ while not isDone:
         timestamp = info[0]['timestamp']
         equity = info[0]['equity']
         data = data.append({'timestamp': timestamp, 'equity': equity}, ignore_index=True)
-    
+
+print('Results:')
 print(f'Average reward: {sum(rewards_series) / len(rewards_series)}')
 print(f'Min reward: {min(rewards_series)}')
 print(f'Max reward: {max(rewards_series)}')
+print(f'Playground ID: {playground_id}')
 
 # Plot the equity curve
 fig = make_subplots(rows=1, cols=1, shared_xaxes=True, vertical_spacing=0.2)

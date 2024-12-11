@@ -73,6 +73,7 @@ func getPlayground(w http.ResponseWriter, r *http.Request) {
 }
 
 type GetAccountResponse struct {
+	Meta       *models.PlaygroundMeta      `json:"meta"`
 	Balance    float64                     `json:"balance"`
 	Equity     float64                     `json:"equity"`
 	FreeMargin float64                     `json:"free_margin"`
@@ -332,8 +333,6 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		setErrorResponse("handleCandles: failed to playground id", 400, err, w)
 		return
 	}
-
-	
 
 	// fetch from query parameters
 	if err := r.ParseForm(); err != nil {

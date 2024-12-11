@@ -546,12 +546,12 @@ func run() {
 		// 	pb.RegisterPlaygroundServiceServer(grpcServer, &backtester_router.TwirpServer{})
 		server := &backtester_router.Server{}
 		twirpHandler := playground.NewPlaygroundServiceServer(server)
-		port := 50051
+		port := 5051
 
 		mux := http.NewServeMux()
 		mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
 
-		log.Infof("Listening on :%d", port)
+		log.Infof("Twirp server listening on :%d", port)
 		log.Infof("Path prefix: %v", twirpHandler.PathPrefix())
 
 		http.ListenAndServe(fmt.Sprintf(":%d", port), mux)

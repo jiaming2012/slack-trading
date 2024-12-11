@@ -54,6 +54,7 @@ func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountRespon
 	}
 
 	response := GetAccountResponse{
+		Meta:       playground.GetMeta(),
 		Balance:    playground.GetBalance(),
 		Equity:     playground.GetEquity(positions),
 		FreeMargin: playground.GetFreeMarginFromPositionMap(positions),

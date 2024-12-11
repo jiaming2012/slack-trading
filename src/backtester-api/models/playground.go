@@ -12,6 +12,7 @@ import (
 )
 
 type Playground struct {
+	Meta               *PlaygroundMeta
 	ID                 uuid.UUID
 	account            *BacktesterAccount
 	clock              *Clock
@@ -327,7 +328,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	}
 
 	// Update the clock
- 	if !p.clock.IsExpired() {
+	if !p.clock.IsExpired() {
 		p.clock.Add(d)
 	}
 
@@ -395,6 +396,10 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		InvalidOrders: invalidOrdersDTO,
 		Events:        tickDeltaEvents,
 	}, nil
+}
+
+func (p *Playground) GetMeta() *PlaygroundMeta {
+	return p.Meta
 }
 
 func (p *Playground) GetBalance() float64 {
@@ -757,6 +762,12 @@ func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Pla
 	repos[symbol] = NewBacktesterCandleRepository(symbol, candles)
 
 	return &Playground{
+		Meta: &PlaygroundMeta{
+			Symbols:         []string{symbol.GetTicker()},
+			StartDate:       clock.CurrentTime.Format(time.RFC3339),
+			EndDate:         clock.EndTime.Format(time.RFC3339),
+			StartingBalance: balance,
+		},
 		ID:             uuid.New(),
 		account:        NewBacktesterAccount(balance),
 		clock:          clock,
