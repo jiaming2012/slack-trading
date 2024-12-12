@@ -9,6 +9,7 @@ import pandas as pd
 import os
 import time
 import datetime
+import pytz
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -115,6 +116,13 @@ def fetch_playground(id: str, host: str) -> dict:
     response.raise_for_status()
     return response.json()
 
+def get_trades(playground: dict) -> list:
+    trades = []
+    for order in playground['orders']:
+        trades.extend(order['trades'])
+            
+    return trades
+
 def fetch_api_key() -> str:
     projectsDir = os.getenv('PROJECTS_DIR')
     if projectsDir is None:
@@ -145,8 +153,19 @@ parser.add_argument('--playground-id', type=str, help='The id of the playground 
 parser.add_argument('--host', type=str, help='The host of the playground', default='http://localhost:8080')
 args = parser.parse_args()
 
+# Fetch playground
 playground = fetch_playground(args.playground_id, args.host)
-# polygon_client = build_polygon_client()
+
+# Get trades from playground
+trades = get_trades(playground)
+
+buy_trades = [t for t in trades if t['quantity'] > 0]
+buy_trades_df = pd.DataFrame(buy_trades)
+
+sell_trades = [t for t in trades if t['quantity'] < 0]
+sell_trades_df = pd.DataFrame(sell_trades)
+
+# Fetch stock data
 api_key = fetch_api_key()
 
 meta = get_meta(playground)
@@ -156,19 +175,19 @@ if len(meta['symbols']) > 1:
 
 # Polygon input parameters
 symbol = meta['symbols'][0]
-timeframe_value = 1
+timeframe_value = 5
 timeframe_unit = 'minute'
 from_date = get_polygon_date(meta['start_date'])
 to_date = get_polygon_date(meta['end_date'])
 
-# Fetch data
 data = fetch_polygon_stock_chart_aggregated(symbol, timeframe_value, timeframe_unit, from_date, to_date, api_key)
 
-# Convert to DataFrame
+# Convert stock data to DataFrame
+exchange_tz = 'America/New_York'
 rows = []
 for a in data.results:
     df = rows.append({
-        'Date': pd.to_datetime(a['t'], unit='ms'),
+        'Date': pd.to_datetime(a['t'], unit='ms').tz_localize('UTC').tz_convert(exchange_tz),
         'Open': a['o'],
         'High': a['h'],
         'Low': a['l'],
@@ -183,20 +202,44 @@ print(f'Min Volume: {df["Volume"].min()}')
 print(f'Max Volume: {df["Volume"].max()}')
 
 # Create subplots
-fig = make_subplots(rows=1, cols=1, shared_xaxes=True,
-                    subplot_titles=(symbol,))
+# fig = make_subplots(rows=1, cols=1, shared_xaxes=True,
+#                     subplot_titles=(symbol,))
 
 # Add candlestick chart
-fig.add_trace(go.Candlestick(
+# fig.add_trace(go.Candlestick(
+#     x=df['Date'],
+#     open=df['Open'],
+#     high=df['High'],
+#     low=df['Low'],
+#     close=df['Close'],
+#     increasing_line_color='green',
+#     decreasing_line_color='red',
+#     name='Candle'
+# ), row=1, col=1)
+
+fig = go.Figure(go.Candlestick(
     x=df['Date'],
     open=df['Open'],
     high=df['High'],
     low=df['Low'],
-    close=df['Close'],
-    increasing_line_color='green',
-    decreasing_line_color='red',
-    name='Candle'
-), row=1, col=1)
+    close=df['Close']
+))
+
+fig.add_trace(go.Scatter(
+    x=buy_trades_df['create_date'],
+    y=buy_trades_df['price'],
+    mode='markers',
+    marker=dict(symbol='triangle-up', size=10, color='blue'),
+    name='Buy Orders'
+))
+
+fig.add_trace(go.Scatter(
+    x=sell_trades_df['create_date'],
+    y=sell_trades_df['price'],
+    mode='markers',
+    marker=dict(symbol='triangle-down', size=10, color='red'),
+    name='Sell Orders'
+))
 
 fig.update_layout(
     title=f'Playground ID {args.playground_id}',
@@ -213,6 +256,13 @@ fig.update_layout(
     )
 )
 
+fig.update_layout(
+    yaxis=dict(
+        autorange=False,
+        range=[0, 500]
+    )
+)
+
 # Add volume bar chart
 # fig.add_trace(go.Bar(
 #     x=df['Date'],
@@ -222,17 +272,17 @@ fig.update_layout(
 # ), row=2, col=1)
 
 # Update layout to include secondary y-axis
-fig.update_layout(
-    yaxis2=dict(
-        title='Volume',
-        overlaying='y',
-        side='right'
-    )
-)
+# fig.update_layout(
+#     yaxis2=dict(
+#         title='Volume',
+#         overlaying='y',
+#         side='right'
+#     )
+# )
 
 # Update x-axis and y-axis to scale
-fig.update_xaxes(type='category', row=1, col=1)
-fig.update_yaxes(row=1, col=1, autorange=True)
+# fig.update_xaxes(type='category', row=1, col=1)
+# fig.update_yaxes(row=1, col=1, autorange=True)
 # fig.update_yaxes(type='linear', row=2, col=1)
 
 # Show the plot
