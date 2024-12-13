@@ -12,13 +12,14 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results, X_TIMESTEPS
 from lib import RenkoWS
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas_ta as ta
 import random
 import argparse
 import os
 import torch
 import math
+import json
 
 print('cuda available: ', torch.cuda.is_available())  # Should return True if GPU is available
 
@@ -77,6 +78,7 @@ class TradingEnv(gym.Env):
         self.supertrend_direction = None
         self.supertrend_cls_price_diff = None
         self.average_equity = balance
+        self.previous_actions = [0] * 20
         
         self.logger.info(f'Running simulation in playground {self.client.id}')
         
@@ -119,9 +121,12 @@ class TradingEnv(gym.Env):
             dtype=np.float64
         )
 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(48,), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(51,), dtype=np.float64)
     
     def get_position_size(self, unit_quantity: float) -> float:
+        if abs(unit_quantity) < 0.1:
+            return 0
+        
         if self.client.position > 0 and unit_quantity < 0:
             return self.client.position * unit_quantity
         elif self.client.position < 0 and unit_quantity > 0:
@@ -137,10 +142,7 @@ class TradingEnv(gym.Env):
             else:
                 max_free_margin_per_trade = 0.65
                 
-            if abs(unit_quantity) > 0.1:
-                position = (self.client.account.free_margin * max_free_margin_per_trade * unit_quantity) / current_price
-            else:
-                position = 0
+            position = (self.client.account.free_margin * max_free_margin_per_trade * unit_quantity) / current_price
                 
             return position
     
@@ -191,17 +193,39 @@ class TradingEnv(gym.Env):
                     return True
                 
         return False
-
-    def get_reward(self, commission, position=0, is_close=False, include_pl=False):
+    
+    def get_reward(self, commission, position=0, is_close=False, include_pl=False, drawdown_penalty=0.1, hold_bonus=0.1):
         equity = self.client.account.equity
         free_margin = self.client.account.free_margin
-  
-        if free_margin > 0 :
-            reward = (equity - self.average_equity) / free_margin
-        else:
-            reward = equity - self.average_equity
         
-        return reward - commission
+        # Use a moving average of equity
+        recent_avg_equity = np.mean(self.equity_history[-10:])
+        reward = (recent_avg_equity - self.average_equity) / max(free_margin, 1)  # Avoid division by zero
+        
+        # Reward holding profitable positions
+        # if position > 0 and equity > self.average_equity:
+        #     reward += hold_bonus
+
+        drawdown = self.max_equity - equity
+        if free_margin > 0:
+            reward = (equity - self.average_equity) / free_margin - drawdown_penalty * drawdown
+        else:
+            reward = equity - self.average_equity - drawdown_penalty * drawdown
+
+        # Penalize for frequent trades within a 1-hour window
+        if self.client.position != 0 and position == 0:
+            reward += self.client.position    
+        elif len(self.client.trade_timestamps) > 1:
+            current_time = self.client.timestamp
+            fifteen_mins_ago = current_time - timedelta(minutes=15)
+            recent_trades = [timestamp for timestamp in self.client.trade_timestamps if timestamp >= fifteen_mins_ago]
+            if len(recent_trades) > 1:
+                time_diffs = np.diff([timestamp.timestamp() for timestamp in recent_trades])
+                penalty = np.sum(np.exp(time_diffs / 60))  # Example: exponential penalty based on time difference in minutes
+                reward -= penalty
+        
+        return reward / max(self.average_equity, 1) - commission
+
     
     def terminate_episode(self, terminated, truncated):
         reward = self.get_reward(0, include_pl=True)
@@ -236,6 +260,11 @@ class TradingEnv(gym.Env):
         if type(action) == np.ndarray:
             action = action[0]
             
+        self.previous_actions.append(action)
+        # only keep last 3 actions
+        if len(self.previous_actions) > 3:
+            self.previous_actions = self.previous_actions[-3:]
+        
         unit_quantity = action 
         position = self.get_position_size(unit_quantity)
         
@@ -244,10 +273,12 @@ class TradingEnv(gym.Env):
         
         self.equity_history.append(equity)
         
-        if len(self.equity_history) > 500:
-            self.equity_history = self.equity_history[-500:]
+        if len(self.equity_history) > 100:
+            self.equity_history = self.equity_history[-100:]
             
         self.average_equity = np.mean(self.equity_history)
+        
+        self.max_equity = np.max(self.equity_history)
         
         # Check terminal conditions
         isFinished = self.check_termainal_conditions()
@@ -468,7 +499,7 @@ class TradingEnv(gym.Env):
         supertrend_cls_price_diff = self.supertrend_cls_price_diff if self.supertrend_cls_price_diff else 0
 
         if df is None or len(df) == 0:
-            self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, equity, avg_equity, free_margin, self.client.position]).astype(np.float64)
+            self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, equity, avg_equity, free_margin, self.client.position, self.previous_actions[0], self.previous_actions[1], self.previous_actions[2]]).astype(np.float64)
             return self.current_observation
         
         # Take the last 20 prices
@@ -487,7 +518,7 @@ class TradingEnv(gym.Env):
             # j += 3
             j += 1
         
-        self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, equity, avg_equity, free_margin, self.client.position]).astype(np.float64)
+        self.current_observation = np.append(obs, [supertrend, supertrend_direction, supertrend_cls_price_diff, current_price, equity, avg_equity, free_margin, self.client.position,  self.previous_actions[0], self.previous_actions[1], self.previous_actions[2]]).astype(np.float64)
         return self.current_observation
 
     def reset(self, seed=None, options=None):
@@ -531,8 +562,7 @@ def save_meta(model_path, args, params, iterations):
     
     meta_path = model_path + '.meta'
     with open(meta_path, 'w') as f:
-        f.write(str(meta))
-        f.close()
+        json.dump(meta, f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -649,7 +679,7 @@ if __name__ == '__main__':
             raise(e)
         
         # Print the current timestep and balance
-        logger.info(f'Training complete. Reset count: {env.reset_count} / {args.timesteps}.')
+        logger.info(f'Training complete. Reset count: {env.reset_count} / {args.timesteps} - iteration: {iterations}')
             
         logger.info('*' * 50)
         

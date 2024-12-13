@@ -150,6 +150,15 @@ For Flux, you typically need the following scopes:
 flux bootstrap github --owner=jiaming2012 --repository=slack-trading --branch=main --path=.clusters/production --personal
 ```
 
+### Generate signals
+The heart of the program grabs tick data from polygon and generates signals from them
+
+``` bash
+cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+source env/bin/activate
+python generate_signals.py
+```
+
 ## Connect to an Existing Cluster
 ### Configure Local Machine to Remote Cluster
 Log into the Vultr dashboard and download the cluster's config file.

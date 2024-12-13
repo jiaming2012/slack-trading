@@ -158,7 +158,7 @@ playground = fetch_playground(args.playground_id, args.host)
 
 # Get trades from playground
 trades = get_trades(playground)
-
+    
 buy_trades = [t for t in trades if t['quantity'] > 0]
 buy_trades_df = pd.DataFrame(buy_trades)
 
@@ -196,6 +196,9 @@ for a in data.results:
     })
     
 df = pd.DataFrame(rows)
+
+# Filter out rows with NaN values in the relevant columns
+df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
     
 print(f'df: {df}')
 print(f'Min Volume: {df["Volume"].min()}')
@@ -217,7 +220,13 @@ print(f'Max Volume: {df["Volume"].max()}')
 #     name='Candle'
 # ), row=1, col=1)
 
-fig = go.Figure(go.Candlestick(
+fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                        vertical_spacing=0.1,
+                        subplot_titles=('Trades', 'Position'))
+
+
+# Add trades
+fig.add_trace(go.Candlestick(
     x=df['Date'],
     open=df['Open'],
     high=df['High'],
@@ -231,7 +240,7 @@ fig.add_trace(go.Scatter(
     mode='markers',
     marker=dict(symbol='triangle-up', size=10, color='blue'),
     name='Buy Orders'
-))
+), row=1, col=1)
 
 fig.add_trace(go.Scatter(
     x=sell_trades_df['create_date'],
@@ -239,7 +248,7 @@ fig.add_trace(go.Scatter(
     mode='markers',
     marker=dict(symbol='triangle-down', size=10, color='red'),
     name='Sell Orders'
-))
+), row=1, col=1)
 
 fig.update_layout(
     title=f'Playground ID {args.playground_id}',
@@ -256,12 +265,36 @@ fig.update_layout(
     )
 )
 
-fig.update_layout(
-    yaxis=dict(
-        autorange=False,
-        range=[0, 500]
-    )
-)
+# Add positions
+
+# Record the position throughout time
+position_arr = []
+ts = []
+position = 0
+for t in trades:
+    position += t['quantity']
+    position_arr.append(position)
+    ts.append(t['create_date'])
+    
+position_df = pd.DataFrame({
+    'Date': ts,
+    'Position': position_arr
+})
+
+fig.add_trace(go.Scatter(
+    x=position_df['Date'],
+    y=position_df['Position'],
+    mode='lines',
+    line=dict(dash='dot', color='black'),
+    name='Position'
+), row=2, col=1)
+
+# fig.update_layout(
+#     yaxis=dict(
+#         autorange=False,
+#         range=[0, 500]
+#     )
+# )
 
 # Add volume bar chart
 # fig.add_trace(go.Bar(

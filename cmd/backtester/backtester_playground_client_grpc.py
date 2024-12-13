@@ -131,6 +131,7 @@ class BacktesterPlaygroundClient:
         self._is_backtest_complete = False
         self._initial_timestamp = None
         self.timestamp = None
+        self.trade_timestamps = []
         self._tick_delta_buffer = []
         
     def flush_tick_delta_buffer(self) -> List[object]:
@@ -348,6 +349,7 @@ class BacktesterPlaygroundClient:
         
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request)
+            self.trade_timestamps.append(self.timestamp)
             return response
         except Exception as e:
             raise e
