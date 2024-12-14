@@ -360,6 +360,20 @@
             ]
         },
         {
+            "name": "generate signals",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/generate_signals.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "args": [
+                "--symbol", "COIN",
+                "--start-date", "2024-08-01",
+                "--end-date", "2024-08-31",
+                "--eventFn", "random"
+            ]
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",
