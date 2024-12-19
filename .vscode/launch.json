@@ -215,110 +215,6 @@
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         },
         {
-            "name": "proximal policy optimization v2",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v2.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-        },
-        {
-            "name": "proximal policy optimization v3",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v3.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-        },
-        {
-            "name": "proximal policy optimization v3.5",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v3_5.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-        },
-        {
-            "name": "proximal policy optimization v4",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v4.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                "--model", "ppo_model_v3-2024-10-18-23-22-33_200-of-500.zip"
-            ]
-        },
-        {
-            "name": "proximal policy optimization v5",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v5.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                // "--model", "ppo_model_v5-2024-10-19-09-46-17_300-of-500.zip"
-            ]
-        },
-        {
-            "name": "proximal policy optimization v6",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v6.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                // "--model", "ppo_model_v5-2024-10-19-09-46-17_300-of-500.zip"
-            ]
-        },
-        {
-            "name": "proximal policy optimization v7",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v7.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                // "--model", "ppo_model_v5-2024-10-19-09-46-17_300-of-500.zip"
-            ]
-        },
-        {
-            "name": "proximal policy optimization v9",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v9.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": []
-        },
-        {
-            "name": "proximal policy optimization v10",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v10.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": []
-        },
-        {
-            "name": "proximal policy optimization v11",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v11.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": []
-        },
-        {
-            "name": "proximal policy optimization v12",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v12.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": []
-        },
-        {
             "name": "proximal policy optimization v13",
             "type": "debugpy",
             "request": "launch",
@@ -331,6 +227,21 @@
                 "--end-date", "2024-11-13",
                 "--timesteps", "4500",
                 "--host", "http://127.0.0.1:5051"
+            ]
+        },
+        {
+            "name": "proximal policy optimization v14",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v14.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
+            "args": [
+                "--symbol", "COIN",
+                "--start-date", "2024-09-03",
+                "--end-date", "2024-11-13",
+                "--host", "http://127.0.0.1:5051",
+                "--iterations", "4500"
             ]
         },
         {
