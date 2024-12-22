@@ -23,12 +23,11 @@ MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
 ## Compile protobuf file
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading
-source cmd/backtester/venv/bin/activate
-protoc --go_out=. --python_out=./cmd/backtester --twirp_out=. --twirpy_out=./cmd/backtester src/backtester-api/playground.proto
- mv ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester_api/playground_pb2.py ${PROJECTS_DIR}/slack-trading/cmd/backtester/rpc
- mv ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester-api/playground_twirp.py ${PROJECTS_DIR}/slack-trading/cmd/backtester/rpc
- rm
- rmdir ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester_api/ ${PROJECTS_DIR}/slack-trading/cmd/backtester/src/backtester-api
+source src/cmd/stats/env/bin/activate
+protoc --go_out=. --python_out=./src/cmd/stats --twirp_out=. --twirpy_out=./src/cmd/stats src/playground.proto
+ mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
+ mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
+rmdir ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src
 ```
 
 Note that in order to run the twirpy plugin, `cmd/backtester/venv/bin` must be in the terminal's PATH.

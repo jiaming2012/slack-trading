@@ -19,9 +19,9 @@ message CreatePolygonPlaygroundRequest {
     double balance = 1;
     string start_date = 2;
     string stop_date = 3;
-    string symbol = 4;
-    uint32 timespan_multiplier = 5;
-    string timespan_unit = 6;
+    repeated string symbol = 4;
+    repeated uint32 timespan_multiplier = 5;
+    repeated string timespan_unit = 6;
 }
 
 message GetCandlesRequest {

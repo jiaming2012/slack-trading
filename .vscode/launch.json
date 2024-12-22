@@ -285,6 +285,15 @@
             ]
         },
         {
+            "name": "open strategy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/open_strategy.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "args": []
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",

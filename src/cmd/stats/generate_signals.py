@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 
 from dataclasses import dataclass, field
-from typing import List, Any
+from typing import List, Any, Tuple
 
 def train_random_forest_models(df, feature_columns, target_columns):
     """
@@ -52,17 +52,31 @@ def train_random_forest_models(df, feature_columns, target_columns):
 
     return models, predictions
 
-def fetch_data_and_add_features(symbol: str, start_date: datetime, end_date: datetime):
+
+def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Fetch historical stock data for a given symbol and date range.
+    """
+    
+    ltf_data = fetch_polygon_stock_chart_aggregated(symbol, 5, 'minute', start_date, end_date)
+    htf_data = fetch_polygon_stock_chart_aggregated(symbol, 60, 'minute', start_date, end_date)
+    
+    return ltf_data, htf_data
+
+def fetch_data_and_add_supertrend_momentum_signal_features(symbol: str, start_date: datetime, end_date: datetime):
+    ltf_data, htf_data = fetch_data(symbol, start_date, end_date)
+    return add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date, end_date)
+
+def add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     #Inputs
     min_max_period_in_hours = 4
     
     # Fetch htf data
-    htf_data = fetch_polygon_stock_chart_aggregated(symbol, 60, 'minute', start_date, end_date)
     supertrend = ta.supertrend(htf_data['High'], htf_data['Low'], htf_data['Close'], length=50, multiplier=3)
     htf_df = pd.concat([htf_data, supertrend], axis=1)
 
     # Fetch ltf data
-    ltf_data = fetch_polygon_stock_chart_aggregated(symbol, 5, 'minute', start_date, end_date)
+    
     stochrsi = ta.stochrsi(ltf_data['Close'], rsi_length=14, stoch_length=14, k=3, d=3)
     supertrend_ltf = ta.supertrend(ltf_data['High'], ltf_data['Low'], ltf_data['Close'], length=50, multiplier=3)
     
@@ -219,10 +233,8 @@ class SuperTrendMomentumSignalFactory:
             'ATR_14'
         ] + [f'High_{i}' for i in range(1, self.lag_features+1)] + [f'Low_{i}' for i in range(1, self.lag_features+1)] + [f'Close_{i}' for i in range(1, self.lag_features+1)] + [f'Open_{i}' for i in range(1, self.lag_features+1)]
 
-def new_supertrend_momentum_signal_factory(symbol: str, start_date: str, end_date: str) -> SuperTrendMomentumSignalFactory:
-    start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d')
-    end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d')
-    filtered_df = fetch_data_and_add_features(symbol, start_date, end_date)
+def new_supertrend_momentum_signal_factory(symbol: str, start_date: datetime, end_date: datetime) -> SuperTrendMomentumSignalFactory:
+    filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(symbol, start_date, end_date)
 
     print(f"generated {len(filtered_df)} {symbol} signals - from {start_date} to {end_date}")
     
@@ -256,15 +268,16 @@ if __name__ == '__main__':
     pd.set_option('display.max_rows', None)
     pd.set_option('display.max_columns', None)
     
-    factory = new_supertrend_momentum_signal_factory(args.symbol, args.start_date, args.end_date)
-
-    # Apply the newly generated model to a new dataset of future prices
     start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d')
     end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d')
+    
+    factory = new_supertrend_momentum_signal_factory(args.symbol, start_date, end_date)
+
+    # Apply the newly generated model to a new dataset of future prices
     future_start_data = end_date + pd.Timedelta(days=1)
     future_end_data = future_start_data + pd.Timedelta(days=7)
 
-    future_df = fetch_data_and_add_features(args.symbol, future_start_data, future_end_data)
+    future_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, future_start_data, future_end_data)
     future_df_features = future_df[factory.feature_columns]
 
     # Apply the trained models to the future data
