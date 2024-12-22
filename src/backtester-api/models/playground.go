@@ -16,7 +16,7 @@ type Playground struct {
 	ID                 uuid.UUID
 	account            *BacktesterAccount
 	clock              *Clock
-	repos              map[eventmodels.Instrument]*BacktesterCandleRepository
+	repos              map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository
 	isBacktestComplete bool
 	positionsCache     map[eventmodels.Instrument]*Position
 }
@@ -120,8 +120,8 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade) {
 	}
 }
 
-func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument) (float64, error) {
-	repo, ok := p.repos[symbol]
+func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument, period time.Duration) (float64, error) {
+	repo, ok := p.repos[symbol][period]
 	if !ok {
 		return 0, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
 	}
@@ -283,8 +283,8 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 	return nil, nil
 }
 
-func (p *Playground) FetchCandles(symbol eventmodels.Instrument, from time.Time, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
-	repo, ok := p.repos[symbol]
+func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	repo, ok := p.repos[symbol][period]
 	if !ok {
 		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
 	}
@@ -596,8 +596,8 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	return positions
 }
 
-func (p *Playground) GetCandle(symbol eventmodels.Instrument) (*eventmodels.PolygonAggregateBarV2, error) {
-	repo, ok := p.repos[symbol]
+func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error) {
+	repo, ok := p.repos[symbol][period]
 	if !ok {
 		return nil, fmt.Errorf("GetTick: symbol %s not found in repos", symbol)
 	}
@@ -726,18 +726,18 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
+func NewPlaygroundMultipleFeeds(balance float64, period time.Duration, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
 
 	for _, feed := range feeds {
-		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
+		candles, err := feed.FetchCandles(feed.GetPeriod(), clock.CurrentTime, clock.EndTime)
 		if err != nil {
 			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
 		}
 
 		repo := NewBacktesterCandleRepository(feed.GetSymbol(), candles)
 
-		repos[feed.GetSymbol()] = repo
+		repos[feed.GetSymbol()][feed.GetPeriod()] = repo
 	}
 
 	return &Playground{
@@ -749,21 +749,36 @@ func NewPlaygroundMultipleFeeds(balance float64, clock *Clock, feeds ...Backtest
 	}, nil
 }
 
-func NewPlayground(balance float64, clock *Clock, feed BacktesterDataFeed) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]*BacktesterCandleRepository)
+func NewPlayground(balance float64, clock *Clock, feeds []BacktesterDataFeed) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
+	var symbols []string
+	var minimumPeriod time.Duration
 
-	candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
-	if err != nil {
-		return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
+	for _, feed := range feeds {
+		symbol := feed.GetSymbol()
+
+		repo, ok := repos[symbol]
+		if !ok {
+			symbols = append(symbols, symbol.GetTicker())
+			repo = make(map[time.Duration]*BacktesterCandleRepository)
+			repos[symbol] = repo
+		}
+
+		candles, err := feed.FetchCandles(feed.GetPeriod(), clock.CurrentTime, clock.EndTime)
+		if err != nil {
+			return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
+		}
+
+		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, candles)
+
+		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
+			minimumPeriod = feed.GetPeriod()
+		}
 	}
-
-	symbol := feed.GetSymbol()
-
-	repos[symbol] = NewBacktesterCandleRepository(symbol, candles)
 
 	return &Playground{
 		Meta: &PlaygroundMeta{
-			Symbols:         []string{symbol.GetTicker()},
+			Symbols:         symbols,
 			StartDate:       clock.CurrentTime.Format(time.RFC3339),
 			EndDate:         clock.EndTime.Format(time.RFC3339),
 			StartingBalance: balance,

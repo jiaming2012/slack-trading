@@ -8,10 +8,11 @@ import (
 
 type MockBacktesterDataFeed struct {
 	symbol eventmodels.Instrument
+	period time.Duration
 	bars   []*eventmodels.PolygonAggregateBarV2
 }
 
-func (feed *MockBacktesterDataFeed) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (feed *MockBacktesterDataFeed) FetchCandles(period time.Duration, startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	return feed.bars, nil
 }
 
@@ -19,7 +20,11 @@ func (feed *MockBacktesterDataFeed) GetSymbol() eventmodels.Instrument {
 	return feed.symbol
 }
 
-func NewMockBacktesterDataFeed(symbol eventmodels.Instrument, timestamps []time.Time, closes []float64) *MockBacktesterDataFeed {
+func (feed *MockBacktesterDataFeed) GetPeriod() time.Duration {
+	return feed.period
+}
+
+func NewMockBacktesterDataFeed(symbol eventmodels.Instrument, period time.Duration, timestamps []time.Time, closes []float64) *MockBacktesterDataFeed {
 	if len(timestamps) != len(closes) {
 		panic("timestamps and closes must have the same length")
 	}
@@ -34,6 +39,7 @@ func NewMockBacktesterDataFeed(symbol eventmodels.Instrument, timestamps []time.
 
 	return &MockBacktesterDataFeed{
 		symbol: symbol,
+		period: period,
 		bars:   bars,
 	}
 }

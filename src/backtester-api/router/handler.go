@@ -82,9 +82,9 @@ type GetAccountResponse struct {
 }
 
 type CreatePlaygroundRequest struct {
-	Balance    float64                 `json:"balance"`
-	Clock      CreateClockRequest      `json:"clock"`
-	Repository CreateRepositoryRequest `json:"repository"`
+	Balance      float64                   `json:"balance"`
+	Clock        CreateClockRequest        `json:"clock"`
+	Repositories []CreateRepositoryRequest `json:"repositories"`
 }
 
 type CreateClockRequest struct {

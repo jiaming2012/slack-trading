@@ -105,7 +105,8 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 		return nil, eventmodels.NewWebError(500, "failed to create clock")
 	}
 
-	// create repository
+	// create repositories
+	var repositoryRequests []*CreateRepositoryRequest
 	timespan := eventmodels.PolygonTimespan{
 		Multiplier: req.Repository.Timespan.Multiplier,
 		Unit:       eventmodels.PolygonTimespanUnit(req.Repository.Timespan.Unit),

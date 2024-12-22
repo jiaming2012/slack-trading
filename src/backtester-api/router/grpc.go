@@ -7,12 +7,12 @@ import (
 
 	"github.com/google/uuid"
 
+	pb "github.com/jiaming2012/slack-trading/playground"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
-	pb "github.com/jiaming2012/slack-trading/playground"
 )
 
-type Server struct {}
+type Server struct{}
 
 func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
 	out := make([]*pb.Order, len(orders))
@@ -234,22 +234,32 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 }
 
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
+	var repositoryRequests []CreateRepositoryRequest
+
+	if len(req.Symbol) != len(req.TimespanMultiplier) || len(req.Symbol) != len(req.TimespanUnit) {
+		return nil, fmt.Errorf("symbol, timespan multiplier, and timespan unit must have the same length")
+	}
+
+	for i := 0; i < len(req.Symbol); i++ {
+		repositoryRequests = append(repositoryRequests, CreateRepositoryRequest{
+			Symbol: req.Symbol[i],
+			Timespan: PolygonTimespanRequest{
+				Multiplier: int(req.TimespanMultiplier[i]),
+				Unit:       req.TimespanUnit[i],
+			},
+			Source: RepositorySource{
+				Type: RepositorySourcePolygon,
+			},
+		})
+	}
+
 	playground, err := createPlayground(&CreatePlaygroundRequest{
 		Balance: float64(req.Balance),
 		Clock: CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
 		},
-		Repository: CreateRepositoryRequest{
-			Symbol: req.Symbol,
-			Timespan: PolygonTimespanRequest{
-				Multiplier: int(req.TimespanMultiplier),
-				Unit:       req.TimespanUnit,
-			},
-			Source: RepositorySource{
-				Type: RepositorySourcePolygon,
-			},
-		},
+		Repositories: repositoryRequests,
 	})
 
 	if err != nil {
