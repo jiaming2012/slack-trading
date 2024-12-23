@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -131,9 +131,9 @@ class BacktesterPlaygroundClient:
         self._initial_timestamp = None
         self.timestamp = None
         self.trade_timestamps = []
-        self._tick_delta_buffer = []
+        self._tick_delta_buffer: List[TickDelta] = []
         
-    def flush_tick_delta_buffer(self) -> List[object]:
+    def flush_tick_delta_buffer(self) -> List[TickDelta]:
         buffer = self._tick_delta_buffer
         self._tick_delta_buffer = []
         return buffer
@@ -292,7 +292,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            new_state = network_call_with_retry(self.client.NextTick, request)
+            new_state: TickDelta = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
             print("Failed to connect to gRPC service (tick):", e)
             raise e

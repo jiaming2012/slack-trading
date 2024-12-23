@@ -55,8 +55,13 @@ def _fetch_polygon_stock_chart(url: str, api_key: str) -> Optional[PolygonCandle
     except json.JSONDecodeError as e:
         logger.error(f"fetchPolygonStockChart: failed to decode json: {e}")
         return None
-    
+
 def fetch_polygon_stock_chart_aggregated(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime) -> pd.DataFrame:
+    rows = fetch_polygon_stock_chart_aggregated_as_list(symbol, timeframe_value, timeframe_unit, from_date, to_date)
+    df = pd.DataFrame(rows)
+    return df
+
+def fetch_polygon_stock_chart_aggregated_as_list(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime) -> pd.DataFrame:
     # Fetch stock data
     api_key = _fetch_api_key()
     
@@ -119,8 +124,7 @@ def fetch_polygon_stock_chart_aggregated(symbol: str, timeframe_value: int, time
             'Volume': a['v']
         })
         
-    df = pd.DataFrame(rows)
-    return df
+    return rows
 
 def _fetch_api_key() -> str:
     projectsDir = os.getenv('PROJECTS_DIR')
