@@ -19,6 +19,7 @@ type Playground struct {
 	repos              map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository
 	isBacktestComplete bool
 	positionsCache     map[eventmodels.Instrument]*Position
+	minimumPeriod      time.Duration
 }
 
 func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
@@ -29,7 +30,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 			continue
 		}
 
-		currentPrice, err := p.getCurrentPrice(order.Symbol)
+		currentPrice, err := p.getCurrentPrice(order.Symbol, p.minimumPeriod)
 		if err != nil {
 			invalidOrders = append(invalidOrders, order)
 			order.Status = BacktesterOrderStatusRejected
@@ -162,7 +163,7 @@ func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*
 				continue
 			}
 
-			price, err := p.getCurrentPrice(order.Symbol)
+			price, err := p.getCurrentPrice(order.Symbol, p.minimumPeriod)
 			if err != nil {
 				return nil, fmt.Errorf("updateTrades: error fetching price: %w", err)
 			}
@@ -303,18 +304,21 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
-		for instrument, repo := range p.repos {
-			newCandle, err := repo.FetchCandlesAtOrAfter(nextTick)
-			if err != nil {
-				log.Warnf("repo.FetchCandlesAtOrAfter [%s]: %v", instrument, err)
-				return nil, fmt.Errorf("backtest complete: no more ticks")
-			}
+		for instrument, periodRepoMap := range p.repos {
+			for period, repo := range periodRepoMap {
+				newCandle, err := repo.FetchCandlesAtOrAfter(nextTick)
+				if err != nil {
+					log.Warnf("repo.FetchCandlesAtOrAfter [%s]: %v", instrument, err)
+					return nil, fmt.Errorf("backtest complete: no more ticks")
+				}
 
-			if newCandle != nil {
-				newCandles = append(newCandles, &BacktesterCandle{
-					Symbol: instrument,
-					Bar:    newCandle,
-				})
+				if newCandle != nil {
+					newCandles = append(newCandles, &BacktesterCandle{
+						Symbol: instrument,
+						Period: period,
+						Bar:    newCandle,
+					})
+				}
 			}
 		}
 
@@ -348,18 +352,21 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 
 	// Update the candle repos
 	var newCandles []*BacktesterCandle
-	for instrument, repo := range p.repos {
-		newCandle, err := repo.Update(p.clock.CurrentTime)
-		if err != nil {
-			log.Warnf("repo.Next [%s]: %v", instrument, err)
-			return nil, fmt.Errorf("backtest complete: no more ticks")
-		}
+	for instrument, periodRepoMap := range p.repos {
+		for period, repo := range periodRepoMap {
+			newCandle, err := repo.Update(p.clock.CurrentTime)
+			if err != nil {
+				log.Warnf("repo.Next [%s]: %v", instrument, err)
+				return nil, fmt.Errorf("backtest complete: no more ticks")
+			}
 
-		if newCandle != nil {
-			newCandles = append(newCandles, &BacktesterCandle{
-				Symbol: instrument,
-				Bar:    newCandle,
-			})
+			if newCandle != nil {
+				newCandles = append(newCandles, &BacktesterCandle{
+					Symbol: instrument,
+					Period: period,
+					Bar:    newCandle,
+				})
+			}
 		}
 	}
 
@@ -500,7 +507,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	if p.positionsCache != nil {
 		// update pl
 		for symbol, position := range p.positionsCache {
-			close, err := p.getCurrentPrice(symbol)
+			close, err := p.getCurrentPrice(symbol, p.minimumPeriod)
 			if err == nil {
 				p.positionsCache[symbol].PL = (close - position.CostBasis) * position.Quantity
 			} else {
@@ -581,7 +588,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		positions[symbol].MaintenanceMargin = calculateMaintenanceRequirement(totalQuantity, costBasis)
 
 		// calculate pl
-		close, err := p.getCurrentPrice(symbol)
+		close, err := p.getCurrentPrice(symbol, p.minimumPeriod)
 		if err == nil {
 			positions[symbol].PL = (close - costBasis) * positions[symbol].Quantity
 		} else {
@@ -728,16 +735,21 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 
 func NewPlaygroundMultipleFeeds(balance float64, period time.Duration, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
+	var minDuration time.Duration
 
 	for _, feed := range feeds {
-		candles, err := feed.FetchCandles(feed.GetPeriod(), clock.CurrentTime, clock.EndTime)
+		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
 		if err != nil {
 			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
 		}
 
-		repo := NewBacktesterCandleRepository(feed.GetSymbol(), candles)
+		repo := NewBacktesterCandleRepository(feed.GetSymbol(), feed.GetPeriod(), candles)
 
 		repos[feed.GetSymbol()][feed.GetPeriod()] = repo
+
+		if minDuration == 0 || feed.GetPeriod() < minDuration {
+			minDuration = feed.GetPeriod()
+		}
 	}
 
 	return &Playground{
@@ -746,6 +758,7 @@ func NewPlaygroundMultipleFeeds(balance float64, period time.Duration, clock *Cl
 		clock:          clock,
 		repos:          repos,
 		positionsCache: nil,
+		minimumPeriod:  minDuration,
 	}, nil
 }
 
@@ -764,12 +777,12 @@ func NewPlayground(balance float64, clock *Clock, feeds []BacktesterDataFeed) (*
 			repos[symbol] = repo
 		}
 
-		candles, err := feed.FetchCandles(feed.GetPeriod(), clock.CurrentTime, clock.EndTime)
+		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
 		if err != nil {
 			return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
 		}
 
-		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, candles)
+		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, feed.GetPeriod(), candles)
 
 		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
 			minimumPeriod = feed.GetPeriod()
@@ -788,5 +801,6 @@ func NewPlayground(balance float64, clock *Clock, feeds []BacktesterDataFeed) (*
 		clock:          clock,
 		repos:          repos,
 		positionsCache: nil,
+		minimumPeriod:  minimumPeriod,
 	}, nil
 }

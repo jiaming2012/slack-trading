@@ -13,7 +13,6 @@ from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
-
 @dataclass
 class Trade:
     symbol: str
@@ -390,9 +389,9 @@ class BacktesterPlaygroundClient:
             balance=balance,
             start_date=start_date,
             stop_date=stop_date,
-            symbol=symbol,
-            timespan_multiplier=5,
-            timespan_unit='minute',
+            symbol=[symbol, symbol],
+            timespan_multiplier=[5, 60],
+            timespan_unit=['minute', 'minute'],
         )
 
         try:

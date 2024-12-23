@@ -52,6 +52,45 @@ def train_random_forest_models(df, feature_columns, target_columns):
 
     return models, predictions
 
+def train_gradient_boosting_models(df, feature_columns, target_columns):
+    """
+    Train Gradient Boosting models to predict max_price_1d and min_price_1d.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+        feature_columns (list): List of feature column names.
+        target_columns (list): List of target column names ('max_price_1d', 'min_price_1d').
+
+    Returns:
+        dict: Trained Gradient Boosting models and their predictions.
+    """
+    models = {}
+    predictions = {}
+
+    for target in target_columns:
+        # Split the data
+        X = df[feature_columns]
+        y = df[target]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Train Gradient Boosting Regressor
+        model = GradientBoostingRegressor(n_estimators=150, random_state=42)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        
+        # Store the model and predictions
+        models[target] = model
+        predictions[target] = (X_test, y_test, y_pred)
+
+        # Evaluate the model
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        print(f"Gradient Boosting Model for {target}:")
+        print(f"Mean Squared Error: {mse}")
+        print(f"R2 Score: {r2}")
+        print("-" * 40)
+
+    return models, predictions
 
 def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -240,15 +279,25 @@ def new_supertrend_momentum_signal_factory(symbol: str, start_date: datetime, en
     
     factory = SuperTrendMomentumSignalFactory()
     
-    # Train models
+    # Train Random Forest models
     print("Training Random Forest models...")
-    factory.models, predictions = train_random_forest_models(filtered_df, factory.feature_columns, factory.target_columns)
+    factory.models, rf_predictions = train_random_forest_models(filtered_df, factory.feature_columns, factory.target_columns)
     print("Training complete.")
         
     # Analyze Random Forest predictions
     for target in factory.target_columns:
-        X_test, y_test, y_pred = predictions[target]
+        X_test, y_test, y_pred = rf_predictions[target]
         analyze_data(f"RandomForest - {target}", y_test, y_pred)
+    
+    # Train Gradient Boosting models
+    print("Training Gradient Boosting models...")
+    gb_models, gb_predictions = train_gradient_boosting_models(filtered_df, factory.feature_columns, factory.target_columns)
+    print("Training complete.")
+    
+    # Analyze Gradient Boosting predictions
+    for target in factory.target_columns:
+        X_test, y_test, y_pred = gb_predictions[target]
+        analyze_data(f"GradientBoosting - {target}", y_test, y_pred)
         
     # Todo: create criteria for rejecting the model
     

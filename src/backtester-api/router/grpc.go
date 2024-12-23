@@ -81,7 +81,9 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 		return nil, fmt.Errorf("failed to get next tick while parsing to timestamp: %v", err)
 	}
 
-	candles, err := fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), from, to)
+	period := time.Duration(req.PeriodInSeconds) * time.Second
+
+	candles, err := fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get candles: %v", err)
 	}
@@ -131,6 +133,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		dto := candle.Bar.ToDTO()
 		newCandles = append(newCandles, &pb.Candle{
 			Symbol: candle.Symbol.GetTicker(),
+			Period: int32(candle.Period.Seconds()),
 			Bar: &pb.Bar{
 				Open:     float32(dto.Open),
 				High:     float32(dto.High),

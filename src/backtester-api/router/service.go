@@ -12,13 +12,13 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, from, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
 		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found")
 	}
 
-	candles, err := playground.FetchCandles(symbol, from, to)
+	candles, err := playground.FetchCandles(symbol, period, from, to)
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "handleCandles: failed to fetch candles")
 	}
@@ -106,40 +106,52 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 	}
 
 	// create repositories
-	var repositoryRequests []*CreateRepositoryRequest
-	timespan := eventmodels.PolygonTimespan{
-		Multiplier: req.Repository.Timespan.Multiplier,
-		Unit:       eventmodels.PolygonTimespanUnit(req.Repository.Timespan.Unit),
+	if len(req.Repositories) == 0 {
+		return nil, eventmodels.NewWebError(400, "missing repositories")
 	}
 
-	var bars []*eventmodels.PolygonAggregateBarV2
-	if req.Repository.Source.Type == RepositorySourcePolygon {
-		bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(req.Repository.Symbol), timespan, from, to)
-		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
-		}
-	} else if req.Repository.Source.Type == RepositorySourceCSV {
-		if req.Repository.Source.CSVFilename == nil {
+	var feeds []models.BacktesterDataFeed
+	for _, repo := range req.Repositories {
+		if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {
 			return nil, eventmodels.NewWebError(400, "missing CSV filename")
 		}
-
-		sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *req.Repository.Source.CSVFilename)
-
-		bars, err = utils.ImportCandlesFromCsv(sourceDir)
-		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
+	
+		timespan := eventmodels.PolygonTimespan{
+			Multiplier: repo.Timespan.Multiplier,
+			Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
 		}
-	} else {
-		return nil, eventmodels.NewWebError(400, "invalid repository source")
-	}
 
-	repository, err := createRepository(eventmodels.StockSymbol(req.Repository.Symbol), timespan, bars)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create repository")
+		var bars []*eventmodels.PolygonAggregateBarV2
+		if repo.Source.Type == RepositorySourcePolygon {
+			bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
+			if err != nil {
+				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
+			}
+		} else if repo.Source.Type == RepositorySourceCSV {
+			if repo.Source.CSVFilename == nil {
+				return nil, eventmodels.NewWebError(400, "missing CSV filename")
+			}
+
+			sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *repo.Source.CSVFilename)
+
+			bars, err = utils.ImportCandlesFromCsv(sourceDir)
+			if err != nil {
+				return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
+			}
+		} else {
+			return nil, eventmodels.NewWebError(400, "invalid repository source")
+		}
+
+		repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, bars)
+		if err != nil {
+			return nil, eventmodels.NewWebError(500, "failed to create repository")
+		}
+
+		feeds = append(feeds, repository)
 	}
 
 	// create playground
-	playground, err := models.NewPlayground(req.Balance, clock, repository)
+	playground, err := models.NewPlayground(req.Balance, clock, feeds)
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to create playground")
 	}

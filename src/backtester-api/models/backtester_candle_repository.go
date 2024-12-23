@@ -11,12 +11,17 @@ import (
 
 type BacktesterCandleRepository struct {
 	symbol   eventmodels.Instrument
+	period   time.Duration
 	candles  []*eventmodels.PolygonAggregateBarV2
 	position int
 }
 
 func (r *BacktesterCandleRepository) GetSymbol() eventmodels.Instrument {
 	return r.symbol
+}
+
+func (r *BacktesterCandleRepository) GetPeriod() time.Duration {
+	return r.period
 }
 
 func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
@@ -77,9 +82,10 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 	return newCandle, nil
 }
 
-func NewBacktesterCandleRepository(symbol eventmodels.Instrument, candles []*eventmodels.PolygonAggregateBarV2) *BacktesterCandleRepository {
+func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2) *BacktesterCandleRepository {
 	return &BacktesterCandleRepository{
 		symbol:   symbol,
+		period:   period,
 		candles:  candles,
 		position: 0,
 	}

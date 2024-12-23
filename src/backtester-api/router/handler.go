@@ -288,7 +288,8 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 }
 
 func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2) (*models.BacktesterCandleRepository, error) {
-	return models.NewBacktesterCandleRepository(symbol, bars), nil
+	period := timespan.ToDuration()
+	return models.NewBacktesterCandleRepository(symbol, period, bars), nil
 }
 
 func handleAccount(w http.ResponseWriter, r *http.Request) {
@@ -346,6 +347,18 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	periodStr := r.Form.Get("period")
+	if periodStr == "" {
+		setErrorResponse("handleCandles: missing period", 400, fmt.Errorf("missing period"), w)
+		return
+	}
+
+	period, err := time.ParseDuration(fmt.Sprintf("%ss", periodStr))
+	if err != nil {
+		setErrorResponse("handleCandles: failed to parse period", 400, err, w)
+		return
+	}
+
 	fromStr := r.Form.Get("from")
 
 	from, err := time.Parse(time.RFC3339, fromStr)
@@ -361,7 +374,11 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	candles, err := fetchCandles(id, symbol, from, to)
+	candles, err := fetchCandles(id, symbol, period, from, to)
+	if err != nil {
+		setErrorResponse("handleCandles: failed to fetch candles", 500, err, w)
+		return
+	}
 
 	response := map[string]interface{}{
 		"candles": candles,

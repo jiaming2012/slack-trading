@@ -12,7 +12,7 @@ type MockBacktesterDataFeed struct {
 	bars   []*eventmodels.PolygonAggregateBarV2
 }
 
-func (feed *MockBacktesterDataFeed) FetchCandles(period time.Duration, startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (feed *MockBacktesterDataFeed) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	return feed.bars, nil
 }
 

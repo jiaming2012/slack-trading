@@ -27,8 +27,9 @@ message CreatePolygonPlaygroundRequest {
 message GetCandlesRequest {
     string playground_id = 1;
     string symbol = 2;
-    string fromRTF3339 = 3;
-    string toRTF3339 = 4;
+    int32 period_in_seconds = 3;
+    string fromRTF3339 = 4;
+    string toRTF3339 = 5;
 }
 
 message GetCandlesResponse {
@@ -104,7 +105,8 @@ message Bar {
 
 message Candle {
     string symbol = 1;
-    Bar bar = 2;
+    int32 period = 2;
+    Bar bar = 3;
 }
 
 message Trade {
