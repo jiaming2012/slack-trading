@@ -10,16 +10,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 
 from dataclasses import dataclass, field
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Dict
 
 def train_random_forest_models(df, feature_columns, target_columns):
     """
-    Train Random Forest models to predict max_price_1d and min_price_1d.
+    Train Random Forest models to predict max_price_prediction and min_price_prediction.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
         feature_columns (list): List of feature column names.
-        target_columns (list): List of target column names ('max_price_1d', 'min_price_1d').
+        target_columns (list): List of target column names ('max_price_prediction', 'min_price_prediction').
 
     Returns:
         dict: Trained Random Forest models and their predictions.
@@ -54,12 +54,12 @@ def train_random_forest_models(df, feature_columns, target_columns):
 
 def train_gradient_boosting_models(df, feature_columns, target_columns):
     """
-    Train Gradient Boosting models to predict max_price_1d and min_price_1d.
+    Train Gradient Boosting models to predict max_price_prediction and min_price_prediction.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the data.
         feature_columns (list): List of feature column names.
-        target_columns (list): List of target column names ('max_price_1d', 'min_price_1d').
+        target_columns (list): List of target column names ('max_price_prediction', 'min_price_prediction').
 
     Returns:
         dict: Trained Gradient Boosting models and their predictions.
@@ -102,20 +102,73 @@ def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[p
     
     return ltf_data, htf_data
 
-def fetch_data_and_add_supertrend_momentum_signal_features(symbol: str, start_date: datetime, end_date: datetime):
+def fetch_data_and_add_supertrend_momentum_signal_features(symbol: str, start_date: datetime, end_date: datetime, min_max_window_in_hours: float):
     ltf_data, htf_data = fetch_data(symbol, start_date, end_date)
-    return add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date, end_date)
+    feature_set_df = add_supertrend_momentum_signal_feature_set(ltf_data, htf_data)
+    target_set_df = add_supertrend_momentum_signal_target_set(feature_set_df, min_max_window_in_hours)
+    return target_set_df
 
-def add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    #Inputs
-    min_max_period_in_hours = 4
+def add_supertrend_momentum_signal_target_set(ltf_df: pd.DataFrame, min_max_window_in_hours: float) -> pd.DataFrame:
+    # Initialize new columns
+    ltf_df['min_price_prediction'] = None
+    ltf_df['max_price_prediction'] = None
+    ltf_df['last_close_price'] = None
+    ltf_df['min_price_prediction_time'] = None
+    ltf_df['max_price_prediction_time'] = None
+    ltf_df['last_close_price_time'] = None
+
+    # Calculate min, max, and close prices within min_max_period_in_hours for rows where cross_below_80 is True
+    for idx, row in ltf_df[ltf_df['cross_below_80']].iterrows():
+        start_time = row['Date']
+        end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
+        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
+        
+        if not ltf_df.loc[mask].empty:
+            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
+            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
+            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
+            
+            ltf_df.loc[idx, 'min_price_prediction'] = ltf_df.loc[min_price_idx, 'Low']
+            ltf_df.loc[idx, 'max_price_prediction'] = ltf_df.loc[max_price_idx, 'High']
+            ltf_df.loc[idx, 'last_close_price'] = close_price_row['Close'] if close_price_row is not None else None
+            
+            ltf_df.loc[idx, 'min_price_prediction_time'] = ltf_df.loc[min_price_idx, 'Date']
+            ltf_df.loc[idx, 'max_price_prediction_time'] = ltf_df.loc[max_price_idx, 'Date']
+            ltf_df.loc[idx, 'last_close_price_time'] = close_price_row['Date'] if close_price_row is not None else None
+
+    # Calculate min, max, and close prices within 1 day for rows where cross_above_20 is True
+    for idx, row in ltf_df[ltf_df['cross_above_20']].iterrows():
+        start_time = row['Date']
+        end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
+        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
+        
+        if not ltf_df.loc[mask].empty:
+            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
+            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
+            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
+            
+            ltf_df.loc[idx, 'min_price_prediction'] = ltf_df.loc[min_price_idx, 'Low']
+            ltf_df.loc[idx, 'max_price_prediction'] = ltf_df.loc[max_price_idx, 'High']
+            ltf_df.loc[idx, 'last_close_price'] = close_price_row['Close'] if close_price_row is not None else None
+            
+            ltf_df.loc[idx, 'min_price_prediction_time'] = ltf_df.loc[min_price_idx, 'Date']
+            ltf_df.loc[idx, 'max_price_prediction_time'] = ltf_df.loc[max_price_idx, 'Date']
+            ltf_df.loc[idx, 'last_close_price_time'] = close_price_row['Date'] if close_price_row is not None else None
+
+    # Filter the DataFrame to include only rows with cross_below_80 or cross_above_20
+    filtered_df = ltf_df[(ltf_df['cross_below_80']) | (ltf_df['cross_above_20'])]
+
+    # Handle NaN values by filling them with 0
+    filtered_df = filtered_df.fillna(0)
     
+    return filtered_df
+    
+def add_supertrend_momentum_signal_feature_set(ltf_data, htf_data) -> pd.DataFrame:
     # Fetch htf data
     supertrend = ta.supertrend(htf_data['High'], htf_data['Low'], htf_data['Close'], length=50, multiplier=3)
     htf_df = pd.concat([htf_data, supertrend], axis=1)
 
     # Fetch ltf data
-    
     stochrsi = ta.stochrsi(ltf_data['Close'], rsi_length=14, stoch_length=14, k=3, d=3)
     supertrend_ltf = ta.supertrend(ltf_data['High'], ltf_data['Low'], ltf_data['Close'], length=50, multiplier=3)
     
@@ -136,26 +189,10 @@ def add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date: date
         'MA_200': ltf_df['Close'].rolling(window=200).mean()
     })
 
-    # Add exact values for the last 50 periods as features
-    # lag_features = pd.DataFrame({
-    #     f'High_{i}': ltf_df['High'].shift(i) for i in range(1, 51)
-    # }).join(pd.DataFrame({
-    #     f'Low_{i}': ltf_df['Low'].shift(i) for i in range(1, 51)
-    # })).join(pd.DataFrame({
-    #     f'Close_{i}': ltf_df['Close'].shift(i) for i in range(1, 51)
-    # })).join(pd.DataFrame({
-    #     f'Open_{i}': ltf_df['Open'].shift(i) for i in range(1, 51)
-    # }))
      # Add exact values for the last 20 periods as features
     lag_features = pd.DataFrame({
-        f'High_{i}': ltf_df['High'].shift(i) for i in range(1, 21)
-    }).join(pd.DataFrame({
-        f'Low_{i}': ltf_df['Low'].shift(i) for i in range(1, 21)
-    })).join(pd.DataFrame({
         f'Close_{i}': ltf_df['Close'].shift(i) for i in range(1, 21)
-    })).join(pd.DataFrame({
-        f'Open_{i}': ltf_df['Open'].shift(i) for i in range(1, 21)
-    }))
+    })
     
     # Add ATR as a feature
     atr = ta.atr(ltf_df['High'], ltf_df['Low'], ltf_df['Close'], length=14)
@@ -178,75 +215,23 @@ def add_supertrend_momentum_signal_features(ltf_data, htf_data, start_date: date
     ltf_df['cross_below_80'] = (ltf_df['STOCHRSId_14_14_3_3'] > 80) & (ltf_df['STOCHRSIk_14_14_3_3'].shift(1) >= ltf_df['STOCHRSId_14_14_3_3'].shift(1)) & (ltf_df['STOCHRSIk_14_14_3_3'] < ltf_df['STOCHRSId_14_14_3_3'])
     ltf_df['cross_above_20'] = (ltf_df['STOCHRSId_14_14_3_3'] < 20) & (ltf_df['STOCHRSIk_14_14_3_3'].shift(1) <= ltf_df['STOCHRSId_14_14_3_3'].shift(1)) & (ltf_df['STOCHRSIk_14_14_3_3'] > ltf_df['STOCHRSId_14_14_3_3'])
 
-    # Initialize new columns
-    ltf_df['min_price_1d'] = None
-    ltf_df['max_price_1d'] = None
-    ltf_df['close_price_1d'] = None
-    ltf_df['min_price_1d_time'] = None
-    ltf_df['max_price_1d_time'] = None
-    ltf_df['close_price_1d_time'] = None
-
-    # Calculate min, max, and close prices within 1 day for rows where cross_below_80 is True
-    for idx, row in ltf_df[ltf_df['cross_below_80']].iterrows():
-        start_time = row['Date']
-        end_time = start_time + pd.Timedelta(hours=min_max_period_in_hours)
-        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
-        
-        if not ltf_df.loc[mask].empty:
-            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
-            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
-            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
-            
-            ltf_df.loc[idx, 'min_price_1d'] = ltf_df.loc[min_price_idx, 'Low']
-            ltf_df.loc[idx, 'max_price_1d'] = ltf_df.loc[max_price_idx, 'High']
-            ltf_df.loc[idx, 'close_price_1d'] = close_price_row['Close'] if close_price_row is not None else None
-            
-            ltf_df.loc[idx, 'min_price_1d_time'] = ltf_df.loc[min_price_idx, 'Date']
-            ltf_df.loc[idx, 'max_price_1d_time'] = ltf_df.loc[max_price_idx, 'Date']
-            ltf_df.loc[idx, 'close_price_1d_time'] = close_price_row['Date'] if close_price_row is not None else None
-
-    # Calculate min, max, and close prices within 1 day for rows where cross_above_20 is True
-    for idx, row in ltf_df[ltf_df['cross_above_20']].iterrows():
-        start_time = row['Date']
-        end_time = start_time + pd.Timedelta(hours=min_max_period_in_hours)
-        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
-        
-        if not ltf_df.loc[mask].empty:
-            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
-            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
-            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
-            
-            ltf_df.loc[idx, 'min_price_1d'] = ltf_df.loc[min_price_idx, 'Low']
-            ltf_df.loc[idx, 'max_price_1d'] = ltf_df.loc[max_price_idx, 'High']
-            ltf_df.loc[idx, 'close_price_1d'] = close_price_row['Close'] if close_price_row is not None else None
-            
-            ltf_df.loc[idx, 'min_price_1d_time'] = ltf_df.loc[min_price_idx, 'Date']
-            ltf_df.loc[idx, 'max_price_1d_time'] = ltf_df.loc[max_price_idx, 'Date']
-            ltf_df.loc[idx, 'close_price_1d_time'] = close_price_row['Date'] if close_price_row is not None else None
-
-    # Filter the DataFrame to include only rows with cross_below_80 or cross_above_20
-    filtered_df = ltf_df[(ltf_df['cross_below_80']) | (ltf_df['cross_above_20'])]
-
-    # Handle NaN values by filling them with 0
-    filtered_df = filtered_df.fillna(0)
+    return ltf_df
     
-    return filtered_df
-    
-def analyze_data(title, y_test, y_pred):
+def analyze_data(title, y_test, y_pred) -> Dict[str, float]:    
     # Create a DataFrame with predictions and actual values
-    results_df = pd.DataFrame({
+    df = pd.DataFrame({
         'Actual': y_test,
         'Predicted': y_pred
     })
 
     # Print the DataFrame
-    print(f"Results for {title}:")
-    print(results_df.head(20))
+    print(f"Results for RandomForest - {title}:")
+    print(df.head(20))
 
-    # Calculate the standard deviation of the residuals for max_price_1d
+    # Calculate the standard deviation of the residuals for max_price_prediction
     residuals_max = y_test - y_pred
     std_dev_max = np.std(residuals_max)
-    print(f"Standard Deviation of Residuals for {title}: {std_dev_max}")
+    print(f"Standard Deviation of Residuals for RandomForest - {title}: {std_dev_max}")
     
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
@@ -255,11 +240,15 @@ def analyze_data(title, y_test, y_pred):
     print(f"R2 Score: {r2}")
     print("-" * 40)
     
+    return {
+        f'{title}_std_dev': std_dev_max,
+    }
+    
 @dataclass
 class SuperTrendMomentumSignalFactory:
     lag_features: int = 20
     feature_columns: List[str] = field(init=False)
-    target_columns: List[str] = field(default_factory=lambda: ['max_price_1d', 'min_price_1d'])
+    target_columns: List[str] = field(default_factory=lambda: ['max_price_prediction', 'min_price_prediction'])
     models: Any = None
     
     def __post_init__(self):
@@ -270,10 +259,10 @@ class SuperTrendMomentumSignalFactory:
             'SUPERT_LTF_50_3.0', 'SUPERTd_LTF_50_3.0', 'SUPERTl_LTF_50_3.0', 'SUPERTs_LTF_50_3.0',
             'MA_50', 'MA_100', 'MA_200',
             'ATR_14'
-        ] + [f'High_{i}' for i in range(1, self.lag_features+1)] + [f'Low_{i}' for i in range(1, self.lag_features+1)] + [f'Close_{i}' for i in range(1, self.lag_features+1)] + [f'Open_{i}' for i in range(1, self.lag_features+1)]
+        ] + [f'Close_{i}' for i in range(1, self.lag_features+1)]
 
 def new_supertrend_momentum_signal_factory(symbol: str, start_date: datetime, end_date: datetime) -> SuperTrendMomentumSignalFactory:
-    filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(symbol, start_date, end_date)
+    filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(symbol, start_date, end_date, min_max_window_in_hours=4)
 
     print(f"generated {len(filtered_df)} {symbol} signals - from {start_date} to {end_date}")
     
@@ -287,17 +276,19 @@ def new_supertrend_momentum_signal_factory(symbol: str, start_date: datetime, en
     # Analyze Random Forest predictions
     for target in factory.target_columns:
         X_test, y_test, y_pred = rf_predictions[target]
-        analyze_data(f"RandomForest - {target}", y_test, y_pred)
+        results = analyze_data(target, y_test, y_pred)
+        setattr(factory, f'{target}_std_dev', results[f'{target}_std_dev'])
+        
     
     # Train Gradient Boosting models
-    print("Training Gradient Boosting models...")
-    gb_models, gb_predictions = train_gradient_boosting_models(filtered_df, factory.feature_columns, factory.target_columns)
-    print("Training complete.")
+    # print("Training Gradient Boosting models...")
+    # gb_models, gb_predictions = train_gradient_boosting_models(filtered_df, factory.feature_columns, factory.target_columns)
+    # print("Training complete.")
     
     # Analyze Gradient Boosting predictions
-    for target in factory.target_columns:
-        X_test, y_test, y_pred = gb_predictions[target]
-        analyze_data(f"GradientBoosting - {target}", y_test, y_pred)
+    # for target in factory.target_columns:
+    #     X_test, y_test, y_pred = gb_predictions[target]
+    #     analyze_data(f"GradientBoosting - {target}", y_test, y_pred)
         
     # Todo: create criteria for rejecting the model
     
@@ -326,12 +317,12 @@ if __name__ == '__main__':
     future_start_data = end_date + pd.Timedelta(days=1)
     future_end_data = future_start_data + pd.Timedelta(days=7)
 
-    future_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, future_start_data, future_end_data)
+    future_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, future_start_data, future_end_data, min_max_window_in_hours=4)
     future_df_features = future_df[factory.feature_columns]
 
     # Apply the trained models to the future data
-    future_predictions_max = factory.models['max_price_1d'].predict(future_df_features)
-    future_predictions_min = factory.models['min_price_1d'].predict(future_df_features)
+    future_predictions_max = factory.models['max_price_prediction'].predict(future_df_features)
+    future_predictions_min = factory.models['min_price_prediction'].predict(future_df_features)
 
-    analyze_data('future_max_price_1d', future_df['max_price_1d'], future_predictions_max)
-    analyze_data('future_min_price_1d', future_df['min_price_1d'], future_predictions_min)
+    analyze_data('max_price_prediction', future_df['max_price_prediction'], future_predictions_max)
+    analyze_data('min_price_prediction', future_df['min_price_prediction'], future_predictions_min)

@@ -1,11 +1,16 @@
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundNotFoundException
-from generate_signals import new_supertrend_momentum_signal_factory
+from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set
 from dateutil.relativedelta import relativedelta
-from typing import List, Dict
+from typing import List, Tuple
 from rpc.playground_pb2 import TickDelta, Candle
 from utils import fetch_polygon_stock_chart_aggregated_as_list
 from collections import deque
+from enum import Enum
 import pandas as pd
+
+class OpenSignal(Enum):
+    CROSS_ABOVE_20 = 1
+    CROSS_BELOW_80 = 2
 
 class BaseStrategy:
     def __init__(self, playground):
@@ -44,10 +49,10 @@ class SimpleOpenStrategy(BaseStrategy):
         self.previous_month = current_month
         return result
     
-    def get_previous_one_month_date_range(self):
+    def get_previous_months_date_range(self, months):
         current_date = self.playground.timestamp
         first_day_of_current_month = current_date.replace(day=1)
-        first_day_of_previous_month = first_day_of_current_month - relativedelta(months=1)
+        first_day_of_previous_month = first_day_of_current_month - relativedelta(months=months)
         
         start_date = first_day_of_previous_month
         end_date = first_day_of_current_month - relativedelta(days=1)
@@ -75,18 +80,28 @@ class SimpleOpenStrategy(BaseStrategy):
             self.candles_1h.append(bar)
         else:
             raise Exception(f"Unsupported period: {new_candle})")
+            
+    def check_for_new_signal(self) -> Tuple[OpenSignal, pd.DataFrame]:
+        ltf_data = pd.DataFrame(self.candles_5m)
+        htf_data = pd.DataFrame(self.candles_1h)
         
-        pass
-    
-    def check_for_new_signal(self):
-        pass
+        data_set = add_supertrend_momentum_signal_feature_set(ltf_data, htf_data)
+        if data_set.iloc[-1]['cross_below_80']:
+            return (OpenSignal.CROSS_BELOW_80, data_set)
+        
+        if data_set.iloc[-1]['cross_above_20']:
+            return (OpenSignal.CROSS_ABOVE_20, data_set)
+        
+        return None, data_set
     
     def tick(self):
         self.playground.tick(self._tick_in_seconds)
         
         if self.is_new_month():
+            print("-" * 40)
             print(f"New month: {self.playground.timestamp}")
-            start_date, end_date = self.get_previous_one_month_date_range()
+            print("-" * 40)
+            start_date, end_date = self.get_previous_months_date_range(12)
             self.factory = new_supertrend_momentum_signal_factory(self.playground.symbol, start_date, end_date)
         
         tick_delta: List[TickDelta] = self.playground.flush_tick_delta_buffer()
@@ -95,22 +110,40 @@ class SimpleOpenStrategy(BaseStrategy):
             if hasattr(delta, 'new_candles'):
                 new_candles = delta.new_candles
                 break
-            
+        
         for c in new_candles:
             self.update_price_feed(c)
             
             if c.period == 300:
-                self.check_for_new_signal()
-            
-        if self.factory:
-            pass
+                open_signal, feature_set = self.check_for_new_signal()
+                if open_signal:
+                    print(f"New signal: {open_signal.name}")
+                    
+                    if not self.factory:
+                        print("Skipping signal creation: factory not initialized")
+                        continue
+                
+                    formatted_feature_set = feature_set.iloc[[-1]][self.factory.feature_columns]
+                    
+                    max_price_prediction = self.factory.models['max_price_prediction'].predict(formatted_feature_set)[0]
+                    min_price_prediction = self.factory.models['min_price_prediction'].predict(formatted_feature_set)[0]
+                    
+                    timestamp_utc = pd.Timestamp(c.bar.datetime)
+                    date = timestamp_utc.tz_convert('America/New_York')
+                    print(f"Date: {date}")
+                    print(f"Current bar close: {c.bar.close}")
+                    print(f"Max price prediction: {max_price_prediction}")
+                    print(f"Min price prediction: {min_price_prediction}")
+                    print(f"Max price standard deviation: {self.factory.max_price_prediction_std_dev}")
+                    print(f"Min price standard deviation: {self.factory.min_price_prediction_std_dev}")
+                    print("-" * 40)
 
 
 if __name__ == "__main__":
     balance = 10000
     symbol = 'AAPL'
-    start_date = '2024-06-03'
-    end_date = '2024-09-30'
+    start_date = '2024-10-10'
+    end_date = '2024-11-10'
     repository_source = RepositorySource.POLYGON
     csv_path = None
     grpc_host = 'http://localhost:5051'
