@@ -89,71 +89,83 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 }
 
 func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) {
-	// create clock
-	from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
-	if err != nil {
-		return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
-	}
-
-	to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
-	if err != nil {
-		return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
-	}
-
-	clock, err := createClock(from, to)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create clock")
-	}
-
-	// create repositories
-	if len(req.Repositories) == 0 {
-		return nil, eventmodels.NewWebError(400, "missing repositories")
-	}
-
-	var feeds []models.BacktesterDataFeed
-	for _, repo := range req.Repositories {
-		if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {
-			return nil, eventmodels.NewWebError(400, "missing CSV filename")
-		}
+	env := models.PlaygroundEnvironment(req.Env)
 	
-		timespan := eventmodels.PolygonTimespan{
-			Multiplier: repo.Timespan.Multiplier,
-			Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
+	if err := env.Validate(); err != nil {
+		return nil, eventmodels.NewWebError(400, "invalid playground environment")
+	}
+
+	var playground *models.Playground
+
+	if env == models.PlaygroundEnvironmentLive {
+
+	} else {
+		// create clock
+		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
+		if err != nil {
+			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
 		}
 
-		var bars []*eventmodels.PolygonAggregateBarV2
-		if repo.Source.Type == RepositorySourcePolygon {
-			bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
-			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
-			}
-		} else if repo.Source.Type == RepositorySourceCSV {
-			if repo.Source.CSVFilename == nil {
+		to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
+		if err != nil {
+			return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
+		}
+
+		clock, err := createClock(from, to)
+		if err != nil {
+			return nil, eventmodels.NewWebError(500, "failed to create clock")
+		}
+
+		// create repositories
+		if len(req.Repositories) == 0 {
+			return nil, eventmodels.NewWebError(400, "missing repositories")
+		}
+
+		var feeds []models.BacktesterDataFeed
+		for _, repo := range req.Repositories {
+			if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {
 				return nil, eventmodels.NewWebError(400, "missing CSV filename")
 			}
-
-			sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *repo.Source.CSVFilename)
-
-			bars, err = utils.ImportCandlesFromCsv(sourceDir)
-			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
+		
+			timespan := eventmodels.PolygonTimespan{
+				Multiplier: repo.Timespan.Multiplier,
+				Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
 			}
-		} else {
-			return nil, eventmodels.NewWebError(400, "invalid repository source")
+
+			var bars []*eventmodels.PolygonAggregateBarV2
+			if repo.Source.Type == RepositorySourcePolygon {
+				bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
+				if err != nil {
+					return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
+				}
+			} else if repo.Source.Type == RepositorySourceCSV {
+				if repo.Source.CSVFilename == nil {
+					return nil, eventmodels.NewWebError(400, "missing CSV filename")
+				}
+
+				sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *repo.Source.CSVFilename)
+
+				bars, err = utils.ImportCandlesFromCsv(sourceDir)
+				if err != nil {
+					return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
+				}
+			} else {
+				return nil, eventmodels.NewWebError(400, "invalid repository source")
+			}
+
+			repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, bars)
+			if err != nil {
+				return nil, eventmodels.NewWebError(500, "failed to create repository")
+			}
+
+			feeds = append(feeds, repository)
 		}
 
-		repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, bars)
+		// create playground
+		playground, err = models.NewPlayground(req.Balance, clock, feeds...)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create repository")
+			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}
-
-		feeds = append(feeds, repository)
-	}
-
-	// create playground
-	playground, err := models.NewPlayground(req.Balance, clock, feeds)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create playground")
 	}
 
 	playgrounds[playground.ID] = playground

@@ -20,6 +20,7 @@ type Playground struct {
 	isBacktestComplete bool
 	positionsCache     map[eventmodels.Instrument]*Position
 	minimumPeriod      time.Duration
+	Env                PlaygroundEnvironment
 }
 
 func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
@@ -301,6 +302,10 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	// Preview
 	if isPreview {
+		if p.Env == PlaygroundEnvironmentLive {
+			return nil, fmt.Errorf("preview not supported in live environment")
+		}
+
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
@@ -733,36 +738,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlaygroundMultipleFeeds(balance float64, period time.Duration, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
-	var minDuration time.Duration
-
-	for _, feed := range feeds {
-		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
-		if err != nil {
-			return nil, fmt.Errorf("NewPlaygroundMultipleFeeds: error fetching candles: %w", err)
-		}
-
-		repo := NewBacktesterCandleRepository(feed.GetSymbol(), feed.GetPeriod(), candles)
-
-		repos[feed.GetSymbol()][feed.GetPeriod()] = repo
-
-		if minDuration == 0 || feed.GetPeriod() < minDuration {
-			minDuration = feed.GetPeriod()
-		}
-	}
-
-	return &Playground{
-		ID:             uuid.New(),
-		account:        NewBacktesterAccount(balance),
-		clock:          clock,
-		repos:          repos,
-		positionsCache: nil,
-		minimumPeriod:  minDuration,
-	}, nil
-}
-
-func NewPlayground(balance float64, clock *Clock, feeds []BacktesterDataFeed) (*Playground, error) {
+func NewPlayground(balance float64, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -770,10 +746,9 @@ func NewPlayground(balance float64, clock *Clock, feeds []BacktesterDataFeed) (*
 	for _, feed := range feeds {
 		symbol := feed.GetSymbol()
 
-		repo, ok := repos[symbol]
-		if !ok {
+		if _, found := repos[symbol]; !found {
 			symbols = append(symbols, symbol.GetTicker())
-			repo = make(map[time.Duration]*BacktesterCandleRepository)
+			repo := make(map[time.Duration]*BacktesterCandleRepository)
 			repos[symbol] = repo
 		}
 

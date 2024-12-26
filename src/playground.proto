@@ -22,6 +22,7 @@ message CreatePolygonPlaygroundRequest {
     repeated string symbol = 4;
     repeated uint32 timespan_multiplier = 5;
     repeated string timespan_unit = 6;
+    string environment = 7;
 }
 
 message GetCandlesRequest {
@@ -68,6 +69,7 @@ message PlaceOrderRequest {
     string side = 5;
     string type = 6;
     string duration = 7;
+    string tag = 8;
 }
 
 message NextTickRequest {

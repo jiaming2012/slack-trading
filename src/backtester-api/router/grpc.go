@@ -213,8 +213,6 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
-	tag := ""
-
 	order, webErr := placeOrder(playgroundID, &CreateOrderRequest{
 		Symbol:    req.Symbol,
 		Class:     models.BacktesterOrderClass(req.AssetClass),
@@ -224,7 +222,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		Price:     nil,
 		StopPrice: nil,
 		Duration:  models.BacktesterOrderDuration(req.Duration),
-		Tag:       tag,
+		Tag:       req.Tag,
 	})
 
 	if webErr != nil {
@@ -257,6 +255,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}
 
 	playground, err := createPlayground(&CreatePlaygroundRequest{
+		Env:     req.GetEnvironment(),
 		Balance: float64(req.Balance),
 		Clock: CreateClockRequest{
 			StartDate: req.StartDate,

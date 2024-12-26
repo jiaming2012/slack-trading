@@ -294,6 +294,15 @@
             "args": []
         },
         {
+            "name": "trading engine",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "args": []
+        },
+        {
             "name": "backtester playground client",
             "type": "debugpy",
             "request": "launch",

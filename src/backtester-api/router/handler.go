@@ -82,6 +82,7 @@ type GetAccountResponse struct {
 }
 
 type CreatePlaygroundRequest struct {
+	Env          string                    `json:"env"`
 	Balance      float64                   `json:"balance"`
 	Clock        CreateClockRequest        `json:"clock"`
 	Repositories []CreateRepositoryRequest `json:"repositories"`

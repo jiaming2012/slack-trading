@@ -13,6 +13,10 @@ from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
+class PlaygroundEnvironment(Enum):
+    SIMULATOR = 'simulator'
+    LIVE = 'live'
+
 @dataclass
 class Trade:
     symbol: str
@@ -110,7 +114,7 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
 
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'http://localhost:50051'):
+    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, env: PlaygroundEnvironment = PlaygroundEnvironment.SIMULATOR, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'http://localhost:50051'):
         self.symbol = symbol
         self.host = host
 
@@ -119,7 +123,7 @@ class BacktesterPlaygroundClient:
         if source == RepositorySource.CSV:
             self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
         elif source == RepositorySource.POLYGON:
-            self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date)
+            self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date, env)
         else:
             raise Exception('Invalid source')
 
@@ -132,6 +136,7 @@ class BacktesterPlaygroundClient:
         self.timestamp = None
         self.trade_timestamps = []
         self._tick_delta_buffer: List[TickDelta] = []
+        self.environment = env
         
     def flush_tick_delta_buffer(self) -> List[TickDelta]:
         buffer = self._tick_delta_buffer
@@ -326,7 +331,7 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, tag: str = "") -> object:
         if quantity == 0:
             return
             
@@ -343,7 +348,8 @@ class BacktesterPlaygroundClient:
             quantity=quantity,
             side=side.value,
             type='market',
-            duration='day'
+            duration='day',
+            tag=tag
         )
         
         try:
@@ -384,7 +390,7 @@ class BacktesterPlaygroundClient:
         return response.json()['playground_id']
 
     
-    def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str) -> str:
+    def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> str:
         request = CreatePolygonPlaygroundRequest(
             balance=balance,
             start_date=start_date,
@@ -392,6 +398,7 @@ class BacktesterPlaygroundClient:
             symbol=[symbol, symbol],
             timespan_multiplier=[5, 60],
             timespan_unit=['minute', 'minute'],
+            environment=env.value
         )
 
         try:
