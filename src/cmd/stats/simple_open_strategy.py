@@ -1,4 +1,5 @@
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundNotFoundException
+from simple_base_strategy import SimpleBaseStrategy
 from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set
 from dateutil.relativedelta import relativedelta
 from typing import List, Tuple
@@ -21,22 +22,8 @@ class OpenSignal:
     min_price_prediction: float
     max_price_prediction_std_dev: float
     min_price_prediction_std_dev: float
-
-class BaseStrategy:
-    def __init__(self, playground):
-        self.playground = playground
-        
-        self.playground.tick(0)
-
-        self.timestamp = playground.timestamp
-        
-    def is_complete(self):
-        return self.playground.is_backtest_complete()
-        
-    def tick(self):
-        raise Exception("Not implemented")
     
-class SimpleOpenStrategy(BaseStrategy):
+class SimpleOpenStrategy(SimpleBaseStrategy):
     def __init__(self, playground, model_training_period_in_months, ltf_period_in_seconds=300):
         super().__init__(playground)
         

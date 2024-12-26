@@ -162,7 +162,7 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 		}
 
 		// create playground
-		playground, err = models.NewPlayground(req.Balance, clock, feeds...)
+		playground, err = models.NewPlayground(req.Balance, clock, env, feeds...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

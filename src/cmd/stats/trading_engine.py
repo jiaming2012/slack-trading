@@ -1,4 +1,4 @@
-from open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
+from cmd.stats.simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment
 from typing import List, Tuple
 import re
@@ -11,21 +11,6 @@ def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
     tp = signal.max_price_prediction
     return sl, tp
-
-def parse_order_tag(tag):
-    # Define the regular expression pattern
-    pattern = r"sl__(?P<sl>\d+_\d+)__tp__(?P<tp>\d+_\d+)"
-    
-    # Match the pattern with the tag
-    match = re.match(pattern, tag)
-    
-    if match:
-        # Extract the sl and tp values
-        sl = match.group('sl').replace('_', '.')
-        tp = match.group('tp').replace('_', '.')
-        return float(sl), float(tp)
-    else:
-        raise ValueError("Invalid tag format")
     
 def build_tag(side: OrderSide, min_value:float, max_value: float) -> str:
     # parse the tag on the order in the format sl__{sl}__tp__{tp}, e.g. sl__100_50__tp__200_00
@@ -51,6 +36,7 @@ if __name__ == "__main__":
     env = PlaygroundEnvironment.SIMULATOR
     
     playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, env, csv_path, grpc_host=grpc_host)
+    playground.tick(0)  # initialize the playground
     
     print(f"playground id: {playground.id}")
     

@@ -24,6 +24,8 @@ type BacktesterOrder struct {
 	Status           BacktesterOrderStatus   `json:"status"`
 	RejectReason     *string                 `json:"reject_reason,omitempty"`
 	CreateDate       time.Time               `json:"create_date"`
+	ClosedBy         []*BacktesterTrade      `json:"closed_by"`
+	Closes           []*BacktesterOrder      `json:"closes"`
 }
 
 func (o *BacktesterOrder) Cancel() {
@@ -89,6 +91,15 @@ func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
 	return BacktesterOrderStatusPartiallyFilled
 }
 
+func (o *BacktesterOrder) GetRemainingOpenQuantity() float64 {
+	closedQty := 0.0
+	for _, trade := range o.ClosedBy {
+		closedQty += trade.Quantity
+	}
+
+	return o.GetFilledQuantity() - closedQty
+}
+
 func (o *BacktesterOrder) GetFilledQuantity() float64 {
 	filledQuantity := 0.0
 	for _, trade := range o.Trades {
@@ -126,5 +137,7 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Tim
 		Tag:              tag,
 		Status:           status,
 		Trades:           []*BacktesterTrade{},
+		ClosedBy:         []*BacktesterTrade{},
+		Closes:           []*BacktesterOrder{},
 	}
 }

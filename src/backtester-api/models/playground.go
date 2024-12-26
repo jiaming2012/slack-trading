@@ -19,12 +19,24 @@ type Playground struct {
 	repos              map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository
 	isBacktestComplete bool
 	positionsCache     map[eventmodels.Instrument]*Position
+	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Env                PlaygroundEnvironment
 }
 
+func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder {
+	openOrders, found := p.openOrdersCache[symbol]
+	if !found {
+		return make([]*BacktesterOrder, 0)
+	}
+
+	return openOrders
+}
+
 func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	invalidOrders = []*BacktesterOrder{}
+	markForDelete := make(map[eventmodels.Instrument][]int) // adjust the open orders cache
+
 	for _, order := range pendingOrders {
 		if order.Status != BacktesterOrderStatusPending {
 			log.Warnf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
@@ -32,6 +44,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 		}
 
 		currentPrice, err := p.getCurrentPrice(order.Symbol, p.minimumPeriod)
+		isCloseOrder := false
 		if err != nil {
 			invalidOrders = append(invalidOrders, order)
 			order.Status = BacktesterOrderStatusRejected
@@ -56,6 +69,7 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 					continue
 				} else {
 					performMarginCheck = false
+					isCloseOrder = true
 				}
 			} else if position != nil && position.Quantity > 0 && orderQuantity < 0 {
 				if math.Abs(orderQuantity) > position.Quantity {
@@ -68,6 +82,33 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 					continue
 				} else {
 					performMarginCheck = false
+					isCloseOrder = true
+				}
+			}
+
+			if isCloseOrder {
+				closeVolume := math.Abs(orderQuantity)
+				openOrders := p.GetOpenOrders(order.Symbol)
+				for i, openOrder := range openOrders {
+					if closeVolume <= 0 {
+						break
+					}
+
+					remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
+
+					if _, found := markForDelete[order.Symbol]; !found {
+						markForDelete[order.Symbol] = []int{}
+					}
+
+					if closeVolume >= remainingOpenQuantity {
+						markForDelete[order.Symbol] = append(markForDelete[order.Symbol], i)
+					}
+
+					// if openOrder.Side == BacktesterOrderSideSellShort {
+					closeVolume -= remainingOpenQuantity
+					// }
+
+					order.Closes = append(order.Closes, openOrder)
 				}
 			}
 
@@ -86,6 +127,14 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 	if err != nil {
 		err = fmt.Errorf("error updating trades: %w", err)
 		return
+	}
+
+	// remove the open orders that were closed in cache
+	for symbol := range markForDelete {
+		cache := markForDelete[symbol]
+		for i := len(cache) - 1; i >= 0; i-- {
+			p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:cache[i]], p.openOrdersCache[symbol][cache[i]+1:]...)
+		}
 	}
 
 	// update the account balance before updating the positions cache
@@ -136,6 +185,15 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument, period time.
 	return candle.Close, nil
 }
 
+func (p *Playground) addToOpenOrdersCache(order *BacktesterOrder) {
+	openOrders, found := p.openOrdersCache[order.Symbol]
+	if !found {
+		openOrders = []*BacktesterOrder{}
+	}
+
+	p.openOrdersCache[order.Symbol] = append(openOrders, order)
+}
+
 func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*Position) ([]*BacktesterTrade, error) {
 	var trades []*BacktesterTrade
 
@@ -178,6 +236,15 @@ func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*
 			}
 
 			order.Status = BacktesterOrderStatusFilled
+
+			if order.Side == BacktesterOrderSideBuy || order.Side == BacktesterOrderSideSellShort {
+				p.addToOpenOrdersCache(order)
+			}
+
+			// mark the open orders that this trade closes
+			for _, o := range order.Closes {
+				o.ClosedBy = append(o.ClosedBy, trade)
+			}
 
 			trades = append(trades, trade)
 
@@ -400,6 +467,8 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	}
 
 	p.account.PendingOrders = []*BacktesterOrder{}
+
+	// p.UpdateOpenOrdersCache(newTrades)
 
 	return &TickDelta{
 		NewTrades:     newTrades,
@@ -738,7 +807,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlayground(balance float64, clock *Clock, feeds ...BacktesterDataFeed) (*Playground, error) {
+func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...BacktesterDataFeed) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -770,12 +839,14 @@ func NewPlayground(balance float64, clock *Clock, feeds ...BacktesterDataFeed) (
 			StartDate:       clock.CurrentTime.Format(time.RFC3339),
 			EndDate:         clock.EndTime.Format(time.RFC3339),
 			StartingBalance: balance,
+			Environment:     env,
 		},
-		ID:             uuid.New(),
-		account:        NewBacktesterAccount(balance),
-		clock:          clock,
-		repos:          repos,
-		positionsCache: nil,
-		minimumPeriod:  minimumPeriod,
+		ID:              uuid.New(),
+		account:         NewBacktesterAccount(balance),
+		clock:           clock,
+		repos:           repos,
+		positionsCache:  nil,
+		openOrdersCache: make(map[eventmodels.Instrument][]*BacktesterOrder),
+		minimumPeriod:   minimumPeriod,
 	}, nil
 }
