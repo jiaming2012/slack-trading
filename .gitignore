@@ -1,4 +1,5 @@
 __pycache__/
+profile_output.prof
 *.log
 *.html
 *.pyc

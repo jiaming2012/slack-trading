@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -47,6 +47,7 @@ class Account:
     equity: float
     free_margin: float
     positions: Dict[str, Position]
+    meta: AccountMeta
     
     @property
     def pl(self) -> float:
@@ -69,6 +70,9 @@ class Account:
         if symbol in self.positions:
             return self.positions[symbol].quantity
         return 0.0
+    
+    def get_meta(self) -> AccountMeta:
+        return self.meta
     
     def get_pl(self, symbol) -> float:
         pl = 0
@@ -142,6 +146,20 @@ class BacktesterPlaygroundClient:
         buffer = self._tick_delta_buffer
         self._tick_delta_buffer = []
         return buffer
+    
+    def fetch_open_orders(self, symbol: str) -> List[Order]:
+        request = GetOpenOrdersRequest(
+            playground_id=self.id,
+            symbol=symbol
+        )
+        
+        try:
+            response = network_call_with_retry(self.client.GetOpenOrders, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (fetch_open_orders):", e)
+            raise e
+        
+        return response.orders
         
     def fetch_and_update_account_state(self) -> Account:
         request = GetAccountRequest(
@@ -167,7 +185,8 @@ class BacktesterPlaygroundClient:
                     maintenance_margin=position.maintenance_margin,
                     pl=position.pl
                 ) for symbol, position in response.positions.items()
-            }
+            },
+            meta=response.meta
         )
         
         # Update the client state

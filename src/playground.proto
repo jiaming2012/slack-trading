@@ -13,6 +13,16 @@ service PlaygroundService {
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
     rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
+    rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
+}
+
+message GetOpenOrdersResponse {
+    repeated Order orders = 1;
+}
+
+message GetOpenOrdersRequest {
+    string playground_id = 1;
+    string symbol = 2;
 }
 
 message CreatePolygonPlaygroundRequest {
@@ -41,17 +51,26 @@ message CreatePlaygroundResponse {
     string id = 1;
 }
 
+message AccountMeta {
+    string start_date = 1;
+    string end_date = 2;
+    repeated string symbols = 3;
+    double starting_balance = 4;
+    string environment = 5;
+}
+
 message GetAccountRequest {
     string playground_id = 1;
     bool fetch_orders = 2;
 }
 
 message GetAccountResponse {
-    double balance = 1;
-    double equity = 2;
-    double free_margin = 3;
-    repeated Order orders = 4;
-    map<string, Position> positions = 5;
+    AccountMeta meta = 1;
+    double balance = 2;
+    double equity = 3;
+    double free_margin = 4;
+    repeated Order orders = 5;
+    map<string, Position> positions = 6;
 }
 
 message Position {
@@ -134,5 +153,7 @@ message Order {
     string status = 13;
     string reject_reason = 14;
     string create_date = 15;
+    repeated Trade closed_by = 16;
+    repeated Order closes = 17;
 }
 

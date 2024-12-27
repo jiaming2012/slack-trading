@@ -1,4 +1,4 @@
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundNotFoundException
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource
 from simple_base_strategy import SimpleBaseStrategy
 from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set
 from dateutil.relativedelta import relativedelta
@@ -24,7 +24,7 @@ class OpenSignal:
     min_price_prediction_std_dev: float
     
 class SimpleOpenStrategy(SimpleBaseStrategy):
-    def __init__(self, playground, model_training_period_in_months, ltf_period_in_seconds=300):
+    def __init__(self, playground, model_training_period_in_months):
         super().__init__(playground)
         
         if not model_training_period_in_months:
@@ -40,7 +40,6 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         h1_rows = fetch_polygon_stock_chart_aggregated_as_list(self.playground.symbol, 1, 'hour', start_date, end_date)
         self.candles_5m = deque(m5_rows, maxlen=len(m5_rows))
         self.candles_1h = deque(h1_rows, maxlen=len(h1_rows))
-        self._tick_in_seconds = ltf_period_in_seconds
         self.previous_month = None
         self.factory = None
         self.model_training_period_in_months = model_training_period_in_months
@@ -94,9 +93,7 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         
         return None, data_set
     
-    def tick(self) -> List[OpenSignal]:
-        self.playground.tick(self._tick_in_seconds)
-        
+    def tick(self) -> List[OpenSignal]:        
         if self.is_new_month():
             print("-" * 40)
             print(f"New month: {self.playground.timestamp}")

@@ -56,6 +56,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetCandlesRequest"),
 				output=_sym_db.GetSymbol("playground.GetCandlesResponse"),
 			),
+			"GetOpenOrders": Endpoint(
+				service_name="PlaygroundService",
+				name="GetOpenOrders",
+				function=getattr(service, "GetOpenOrders"),
+				input=_sym_db.GetSymbol("playground.GetOpenOrdersRequest"),
+				output=_sym_db.GetSymbol("playground.GetOpenOrdersResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -102,6 +109,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),
+			**kwargs,
+		)
+
+	def GetOpenOrders(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetOpenOrders",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetOpenOrdersResponse"),
 			**kwargs,
 		)
 
@@ -155,6 +171,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetOpenOrders(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetOpenOrders",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetOpenOrdersResponse"),
 				session=session,
 				**kwargs,
 			)

@@ -5,6 +5,7 @@ import "sync"
 type BacktesterAccount struct {
 	mutex         *sync.Mutex
 	OrderNonce    uint // Used to generate unique order IDs
+	TradeNounce   uint // Used to generate unique trade IDs
 	Balance       float64
 	Orders        []*BacktesterOrder
 	PendingOrders []*BacktesterOrder
@@ -13,6 +14,11 @@ type BacktesterAccount struct {
 func (a *BacktesterAccount) NextOrderID() uint {
 	a.OrderNonce++
 	return a.OrderNonce - 1
+}
+
+func (a *BacktesterAccount) NextTradeID() uint {
+	a.TradeNounce++
+	return a.TradeNounce - 1
 }
 
 func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {

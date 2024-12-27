@@ -15,7 +15,7 @@ import (
 type Server struct{}
 
 func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
-	out := make([]*pb.Order, len(orders))
+	out := make([]*pb.Order, 0)
 
 	for _, o := range orders {
 		out = append(out, convertOrder(o))
@@ -35,6 +35,20 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 		})
 	}
 
+	var closes []*pb.Order
+	for _, order := range o.Closes {
+		closes = append(closes, convertOrder(order))
+	}
+
+	var closedBy []*pb.Trade
+	for _, trade := range o.ClosedBy {
+		trades = append(trades, &pb.Trade{
+			Symbol:     trade.Symbol.GetTicker(),
+			CreateDate: trade.CreateDate.String(),
+			Quantity:   trade.Quantity,
+			Price:      trade.Price,
+		})
+	}
 	order := &pb.Order{
 		Id:             uint64(o.ID),
 		Class:          string(o.Class),
@@ -48,6 +62,8 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 		Trades:         trades,
 		Status:         string(o.Status),
 		CreateDate:     o.CreateDate.String(),
+		ClosedBy:       closedBy,
+		Closes:         closes,
 	}
 
 	if o.Price != nil {
@@ -63,6 +79,25 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	}
 
 	return order
+}
+
+func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest) (*pb.GetOpenOrdersResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %v", err)
+	}
+
+	symbol := eventmodels.StockSymbol(req.Symbol)
+	orders, err := getOpenOrders(playgroundId, symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %v", err)
+	}
+
+	ordersDTO := convertOrders(orders)
+
+	return &pb.GetOpenOrdersResponse{
+		Orders: ordersDTO,
+	}, nil
 }
 
 func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
@@ -199,6 +234,13 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	ordersDTO := convertOrders(account.Orders)
 
 	return &pb.GetAccountResponse{
+		Meta: &pb.AccountMeta{
+			StartingBalance: account.Meta.StartingBalance,
+			StartDate:       account.Meta.StartDate,
+			EndDate:         account.Meta.EndDate,
+			Symbols:         account.Meta.Symbols,
+			Environment:     string(account.Meta.Environment),
+		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,
 		FreeMargin: account.FreeMargin,

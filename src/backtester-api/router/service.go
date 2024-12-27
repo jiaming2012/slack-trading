@@ -40,6 +40,19 @@ func nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*
 	return tick, nil
 }
 
+func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.BacktesterOrder, error) {
+	playground, ok := playgrounds[playgroundID]
+	if !ok {
+		return nil, eventmodels.NewWebError(404, "playground not found")
+	}
+
+	// todo: add mutex for playground
+
+	orders := playground.GetOpenOrders(symbol)
+
+	return orders, nil
+}
+
 func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountResponse, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {

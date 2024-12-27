@@ -36,6 +36,7 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	invalidOrders = []*BacktesterOrder{}
 	markForDelete := make(map[eventmodels.Instrument][]int) // adjust the open orders cache
+	pendingCloses := make(map[*BacktesterOrder]float64)
 
 	for _, order := range pendingOrders {
 		if order.Status != BacktesterOrderStatusPending {
@@ -95,6 +96,13 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 					}
 
 					remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
+					if volume, found := pendingCloses[openOrder]; found {
+						remainingOpenQuantity -= volume
+					}
+
+					if remainingOpenQuantity <= 0 {
+						continue
+					}
 
 					if _, found := markForDelete[order.Symbol]; !found {
 						markForDelete[order.Symbol] = []int{}
@@ -104,9 +112,13 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 						markForDelete[order.Symbol] = append(markForDelete[order.Symbol], i)
 					}
 
-					// if openOrder.Side == BacktesterOrderSideSellShort {
-					closeVolume -= remainingOpenQuantity
-					// }
+					volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
+					closeVolume -= volumeToClose
+
+					if _, found := pendingCloses[openOrder]; !found {
+						pendingCloses[openOrder] = 0
+					}
+					pendingCloses[openOrder] += volumeToClose
 
 					order.Closes = append(order.Closes, openOrder)
 				}
@@ -229,7 +241,7 @@ func (p *Playground) updateTrades(startingPositions map[eventmodels.Instrument]*
 
 			quantity := order.GetQuantity()
 
-			trade := NewBacktesterTrade(order.Symbol, p.clock.CurrentTime, quantity, price)
+			trade := NewBacktesterTrade(p.account.NextTradeID(), order.Symbol, p.clock.CurrentTime, quantity, price)
 
 			if err := order.Fill(trade); err != nil {
 				return nil, fmt.Errorf("updateTrades: error filling order: %w", err)
