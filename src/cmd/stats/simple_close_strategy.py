@@ -33,8 +33,10 @@ class SimpleCloseStrategy(SimpleBaseStrategy):
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         
-    def tick(self) -> List[CloseSignal]:
+    def tick(self, current_price: float) -> List[CloseSignal]:
         signals = []
+        if not current_price:
+            return signals
         
         for symbol in self.symbols:
             open_orders = self.playground.fetch_open_orders(symbol)
@@ -46,19 +48,17 @@ class SimpleCloseStrategy(SimpleBaseStrategy):
                 except ValueError:
                     continue
                 
-                market_prc = self.playground.current_candle.close
                 if open_order.side == OrderSide.BUY.value:
-                    if market_prc <= sl:
+                    if current_price <= sl:
                         signals.append(CloseSignal(symbol, OrderSide.SELL, open_order.quantity, 'sl'))
-                    elif market_prc >= tp:
+                    elif current_price >= tp:
                         signals.append(CloseSignal(symbol, OrderSide.SELL, open_order.quantity, 'tp'))
                 elif open_order.side == OrderSide.SELL_SHORT.value:
-                    if market_prc >= sl:
+                    if current_price >= sl:
                         signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, open_order.quantity, 'sl'))
-                    elif market_prc <= tp:
+                    elif current_price <= tp:
                         signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, open_order.quantity, 'tp'))
                 else:
                     raise ValueError("Invalid side")
                 
         return signals
-                        

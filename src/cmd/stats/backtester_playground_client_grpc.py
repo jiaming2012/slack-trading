@@ -97,6 +97,10 @@ class PlaygroundNotFoundException(Exception):
 class InvalidParametersException(Exception):
     pass
 
+def set_nested_value(d, keys, value):
+    for key in keys[:-1]:
+        d = d.setdefault(key, {})
+    d[keys[-1]] = value
 
 def network_call_with_retry(client, request, max_retries=10, backoff=2):
     retries = 0
@@ -134,7 +138,7 @@ class BacktesterPlaygroundClient:
         self.position = None
 
         self.account = self.fetch_and_update_account_state()
-        self.current_candle = None
+        self.current_candles = {}
         self._is_backtest_complete = False
         self._initial_timestamp = None
         self.timestamp = None
@@ -146,6 +150,17 @@ class BacktesterPlaygroundClient:
         buffer = self._tick_delta_buffer
         self._tick_delta_buffer = []
         return buffer
+    
+    def get_current_candle(self, symbol: str, period: int) -> float:
+        symbols = self.current_candles.get(symbol)
+        if not symbols:
+            raise Exception(f"Current bar for symbol {symbol} not found")
+        
+        current_bar = symbols.get(period)
+        if not current_bar:
+            raise Exception(f"Current bar for symbol {symbol} and period {period} not found")
+        
+        return current_bar
     
     def fetch_open_orders(self, symbol: str) -> List[Order]:
         request = GetOpenOrdersRequest(
@@ -324,10 +339,8 @@ class BacktesterPlaygroundClient:
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
             for candle in new_candles:
-                if candle.symbol == self.symbol:
-                    self.current_candle = candle.bar
-                    break
-                
+                set_nested_value(self.current_candles, [candle.symbol, candle.period], candle.bar)
+
         timestamp = new_state.current_time
         if timestamp:
             if self._initial_timestamp is None:

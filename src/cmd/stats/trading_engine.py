@@ -12,14 +12,38 @@ def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     tp = signal.max_price_prediction
     return sl, tp
     
-def build_tag(side: OrderSide, min_value:float, max_value: float) -> str:
-    # parse the tag on the order in the format sl__{sl}__tp__{tp}, e.g. sl__100_50__tp__200_00
+def build_tag(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd) -> str:
+    """ Builds a tag for the order based on the current price and the min and max values.
+        min_value and max_value are the min and max values of the price prediction.
+        min_value_sd and max_value_sd are the standard deviations of the min and max values.
+        Parses the tag on the order in the format sl__{sl}__tp__{tp}, e.g. sl__100_50__tp__200_00
+    """
+    if not current_price:
+        raise ValueError("current_price not found")
+    
+    min_value = min(min_value, current_price)
+    max_value = max(max_value, current_price)
+        
     if side == OrderSide.BUY:
-        tp = str(round(max_value, 2)).replace('.', '_')
-        sl = str(round(min_value, 2)).replace('.', '_')
+        tp_target = max_value
+        if tp_target <= current_price:
+            raise ValueError(f"Invalid target price: tp_target of {tp_target} < current price of {current_price}")
+        
+        # sl_target = min_value - (0.5 * min_value_sd)
+        sl_target = min_value
+        
+        tp = str(round(tp_target, 2)).replace('.', '_')
+        sl = str(round(sl_target, 2)).replace('.', '_')
     elif side == OrderSide.SELL_SHORT:
-        tp = str(round(min_value, 2)).replace('.', '_')
-        sl = str(round(max_value, 2)).replace('.', '_')
+        tp_target = min_value
+        if tp_target >= current_price:
+            raise ValueError(f"Invalid target price: tp_target of {tp_target} > current price of {current_price}")
+        
+        # sl_target = max_value + (0.5 * max_value_sd)
+        sl_target = max_value
+        
+        tp = str(round(tp_target, 2)).replace('.', '_')
+        sl = str(round(sl_target, 2)).replace('.', '_')
     elif side == OrderSide.SELL:
         return "close_all"
     elif side == OrderSide.BUY_TO_COVER:
@@ -32,10 +56,11 @@ def build_tag(side: OrderSide, min_value:float, max_value: float) -> str:
 if __name__ == "__main__":
     # meta parameters
     playground_tick_in_seconds = 300
+    model_training_period_in_months = 12
     
     # input parameters
     balance = 100000
-    symbol = 'AAPL'
+    symbol = 'COIN'
     start_date = '2024-10-10'
     end_date = '2024-11-10'
     repository_source = RepositorySource.POLYGON
@@ -48,13 +73,18 @@ if __name__ == "__main__":
     
     print(f"playground id: {playground.id}")
     
-    model_training_period_in_months = 12
     open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months)
     close_strategy = SimpleCloseStrategy(playground)
     
     while not open_strategy.is_complete():
+        try:
+            current_price = playground.get_current_candle(symbol, period=playground_tick_in_seconds).close
+        except Exception as e:
+            current_price = None
+            print(f"Error getting current price: {e}")
+            
         # check for close signals
-        close_signals = close_strategy.tick()
+        close_signals = close_strategy.tick(current_price)
         for s in close_signals:
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, s.Reason)
             print(f"Placed close order: {resp}")
@@ -69,27 +99,36 @@ if __name__ == "__main__":
         if len(signals) > 1:
             print(f"[ERROR] Multiple signals detected: {signals}")
             
-        for s in signals:
-            volume = 10.0
-            
+        for s in signals:            
             if s.name == OpenSignalName.CROSS_ABOVE_20:
-                if position >= 0:
-                    side = OrderSide.BUY
-                else:
+                if position < 0:
                     volume = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                
+                    resp = playground.place_order(symbol, volume, side, tag)
+                    print(f"Placed close order: {resp}")
+                    playground.tick(0)
+
+                side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
-                if position <= 0:
-                    side = OrderSide.SELL_SHORT
-                else:
+                if position > 0:
                     volume = position
                     side = OrderSide.SELL
+                    resp = playground.place_order(symbol, volume, side, tag)
+                    print(f"Placed close order: {resp}")
+                    playground.tick(0)
+                    
+                side = OrderSide.SELL_SHORT
             else:
                 print(f"Unknown signal: {s.name}")
                 continue
             
-            tag = build_tag(side, s.min_price_prediction, s.max_price_prediction)
+            try:
+                volume = 10.0
+                tag = build_tag(side, current_price, s.min_price_prediction, s.min_price_prediction_std_dev, s.max_price_prediction, s.max_price_prediction_std_dev)
+            except ValueError as e:
+                print(f"Error building tag: {e}. Skipping order ...")
+                continue
+            
             resp = playground.place_order(symbol, volume, side, tag)
             print(f"Placed open order: {resp}")
             

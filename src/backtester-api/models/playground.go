@@ -415,6 +415,32 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		}, nil
 	}
 
+	// Update the account
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
+	// Check for liquidations
+	var tickDeltaEvents []*TickDeltaEvent
+
+	startingPositions := p.GetPositions()
+
+	liquidationEvents, err := p.checkForLiquidations(startingPositions)
+	if err != nil {
+		return nil, fmt.Errorf("error checking for liquidations: %w", err)
+	}
+
+	if liquidationEvents != nil {
+		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
+	}
+
+	// Commit pending orders
+	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(p.account.PendingOrders, startingPositions)
+	if err != nil {
+		return nil, fmt.Errorf("error committing pending orders: %w", err)
+	}
+
+	p.account.PendingOrders = []*BacktesterOrder{}
+
 	// Update the clock
 	if !p.clock.IsExpired() {
 		p.clock.Add(d)
@@ -453,34 +479,6 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 			}
 		}
 	}
-
-	// Update the account
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
-	// Check for liquidations
-	var tickDeltaEvents []*TickDeltaEvent
-
-	startingPositions := p.GetPositions()
-
-	liquidationEvents, err := p.checkForLiquidations(startingPositions)
-	if err != nil {
-		return nil, fmt.Errorf("error checking for liquidations: %w", err)
-	}
-
-	if liquidationEvents != nil {
-		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
-	}
-
-	// Commit pending orders
-	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(p.account.PendingOrders, startingPositions)
-	if err != nil {
-		return nil, fmt.Errorf("error committing pending orders: %w", err)
-	}
-
-	p.account.PendingOrders = []*BacktesterOrder{}
-
-	// p.UpdateOpenOrdersCache(newTrades)
 
 	return &TickDelta{
 		NewTrades:     newTrades,

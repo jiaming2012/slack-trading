@@ -85,10 +85,10 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         htf_data = pd.DataFrame(self.candles_1h)
         
         data_set = add_supertrend_momentum_signal_feature_set(ltf_data, htf_data)
-        if data_set.iloc[-1]['cross_below_80']:
+        if data_set.iloc[-1]['cross_below_80'] and data_set.iloc[-1]['SUPERTd_50_3.0'] == -1:
             return (OpenSignalName.CROSS_BELOW_80, data_set)
         
-        if data_set.iloc[-1]['cross_above_20']:
+        if data_set.iloc[-1]['cross_above_20'] and data_set.iloc[-1]['SUPERTd_50_3.0'] == 1:
             return (OpenSignalName.CROSS_ABOVE_20, data_set)
         
         return None, data_set
