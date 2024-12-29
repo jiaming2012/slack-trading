@@ -1,14 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path"
-	"strings"
 	"time"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
@@ -40,6 +35,18 @@ func main() {
 		Unit:       eventmodels.Minute,
 	}
 
+	pastFrom := &eventmodels.PolygonDate{
+		Year:  2021,
+		Month: 7,
+		Day:   15,
+	}
+
+	pastTo := &eventmodels.PolygonDate{
+		Year:  2021,
+		Month: 8,
+		Day:   31,
+	}
+
 	from := &eventmodels.PolygonDate{
 		Year:  2021,
 		Month: 9,
@@ -52,52 +59,30 @@ func main() {
 		Day:   30,
 	}
 
+	pastCandlesForIndicators, err := m.FetchAggregateBars(eventmodels.StockSymbol("AAPL"), timespan, pastFrom, pastTo)
+	if err != nil {
+		log.Fatalf("failed to fetch past aggregate bars: %v", err)
+	}
+
 	candles, err := m.FetchAggregateBars(eventmodels.StockSymbol("AAPL"), timespan, from, to)
 	if err != nil {
 		log.Fatalf("failed to fetch aggregate bars: %v", err)
 	}
 
-	candlesJSON, err := json.Marshal(candles)
+	indicators := []string{"supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"}
+
+	data, err := eventservices.AddIndicatorsToCandles(candles, pastCandlesForIndicators, indicators)
 	if err != nil {
-		log.Fatalf("failed to marshal candles to JSON: %v", err)
+		log.Fatalf("failed to add indicators to candles: %v", err)
 	}
 
-	indicators := "supertrend, stochrsi, moving_averages, lag_features, atr, stochrsi_cross_above_20, stochrsi_cross_below_80"
-
-	// Split the indicators string into a slice
-	indicatorsList := strings.Split(indicators, ",")
-
-	// Trim the spaces from each element in the slice
-	for i, indicator := range indicatorsList {
-		indicatorsList[i] = strings.TrimSpace(indicator)
-	}
-
-	// Run create_indicators.py and pass candles as JSON via standard input
-	pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
-	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
-	cmdArgs := append([]string{fileDir, "--indicators"}, indicatorsList...)
-	cmd := exec.Command(pythonInterp, cmdArgs...)
-	cmd.Stdin = bytes.NewReader(candlesJSON)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err = cmd.Run()
-	if err != nil {
-		log.Fatalf("failed to run create_indicators.py: %v\n%s", err, out.String())
-	}
-
-	// Unmarshall the json output from create_indicators.py
-	var data []eventmodels.AggregateBarIndicator
-	if err = json.Unmarshal(out.Bytes(), &data); err != nil {
-		log.Fatalf("failed to unmarshal JSON output from create_indicators.py: %v", err)
-	}
+	// Print the first candle
+	fmt.Printf("First Candle: %+v\n", candles[0])
 
 	// Print the last candle with indicators
-	fmt.Printf("Last Candle: %+v\n", data[len(data)-1])
+	fmt.Printf("First Candle with indicators: %+v\n", data[0])
 
-	repo := models.NewBacktesterCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, candles, indicators)
+	repo := models.NewBacktesterCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, data)
 
 	fmt.Printf("Current Candle: +%v", repo.GetCurrentCandle())
 }

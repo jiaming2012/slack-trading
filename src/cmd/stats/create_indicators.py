@@ -53,7 +53,7 @@ def calculate_stochrsi_cross_below_80(df) -> pd.DataFrame:
 
 def main():
     args = argparse.ArgumentParser()
-    args.add_argument('--indicators', type=str, nargs='+', required=True, help="List of indicators to calculate")
+    args.add_argument('--indicators', type=str, nargs='+', required=False, default=[], help="List of indicators to calculate")
     
     args = args.parse_args()
 

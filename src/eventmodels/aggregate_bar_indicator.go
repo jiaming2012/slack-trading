@@ -2,7 +2,7 @@ package eventmodels
 
 import "time"
 
-type AggregateBarIndicator struct {
+type AggregateBarWithIndicators struct {
 	Timestamp            time.Time `json:"datetime"`
 	Open                 float64   `json:"open"`
 	Close                float64   `json:"close"`
@@ -41,4 +41,15 @@ type AggregateBarIndicator struct {
 	CloseLag18           float64   `json:"close_lag_18"`
 	CloseLag19           float64   `json:"close_lag_19"`
 	CloseLag20           float64   `json:"close_lag_20"`
+}
+
+func (a *AggregateBarWithIndicators) ToPolygonAggregateBarV2() *PolygonAggregateBarV2 {
+	return &PolygonAggregateBarV2{
+		Volume:    a.Volume,
+		Open:      a.Open,
+		Close:     a.Close,
+		High:      a.High,
+		Low:       a.Low,
+		Timestamp: a.Timestamp,
+	}
 }

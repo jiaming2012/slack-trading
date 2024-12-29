@@ -9,10 +9,10 @@ import (
 type MockBacktesterDataFeed struct {
 	symbol eventmodels.Instrument
 	period time.Duration
-	bars   []*eventmodels.PolygonAggregateBarV2
+	bars   []*eventmodels.AggregateBarWithIndicators
 }
 
-func (feed *MockBacktesterDataFeed) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (feed *MockBacktesterDataFeed) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	return feed.bars, nil
 }
 
@@ -29,9 +29,9 @@ func NewMockBacktesterDataFeed(symbol eventmodels.Instrument, period time.Durati
 		panic("timestamps and closes must have the same length")
 	}
 
-	bars := make([]*eventmodels.PolygonAggregateBarV2, len(closes))
+	bars := make([]*eventmodels.AggregateBarWithIndicators, len(closes))
 	for i := 0; i < len(closes); i++ {
-		bars[i] = &eventmodels.PolygonAggregateBarV2{
+		bars[i] = &eventmodels.AggregateBarWithIndicators{
 			Timestamp: timestamps[i],
 			Close:     closes[i],
 		}

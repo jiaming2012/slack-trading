@@ -24,7 +24,7 @@ func TestNext(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	period := time.Minute
 
-	candles := []*eventmodels.PolygonAggregateBarV2{
+	candles := []*eventmodels.AggregateBarWithIndicators{
 		{
 			Timestamp: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
 		},

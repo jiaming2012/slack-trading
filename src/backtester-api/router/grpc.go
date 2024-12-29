@@ -126,11 +126,11 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 	barsDTO := make([]*pb.Bar, 0)
 	for _, candle := range candles {
 		barsDTO = append(barsDTO, &pb.Bar{
-			Open:     float32(candle.Open),
-			High:     float32(candle.High),
-			Low:      float32(candle.Low),
-			Close:    float32(candle.Close),
-			Volume:   float32(candle.Volume),
+			Open:     candle.Open,
+			High:     candle.High,
+			Low:      candle.Low,
+			Close:    candle.Close,
+			Volume:   candle.Volume,
 			Datetime: candle.Timestamp.String(),
 		})
 	}
@@ -164,18 +164,49 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	}
 
 	newCandles := make([]*pb.Candle, 0)
-	for _, candle := range tick.NewCandles {
-		dto := candle.Bar.ToDTO()
+	for _, c := range tick.NewCandles {
 		newCandles = append(newCandles, &pb.Candle{
-			Symbol: candle.Symbol.GetTicker(),
-			Period: int32(candle.Period.Seconds()),
+			Symbol: c.Symbol.GetTicker(),
+			Period: int32(c.Period.Seconds()),
 			Bar: &pb.Bar{
-				Open:     float32(dto.Open),
-				High:     float32(dto.High),
-				Low:      float32(dto.Low),
-				Close:    float32(dto.Close),
-				Volume:   float32(dto.Volume),
-				Datetime: dto.Timestamp,
+				Open:                  c.Bar.Open,
+				High:                  c.Bar.High,
+				Low:                   c.Bar.Low,
+				Close:                 c.Bar.Close,
+				Volume:                c.Bar.Volume,
+				Datetime:              c.Bar.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
+				SuperT_50_3:           c.Bar.SuperT_50_3,
+				SuperD_50_3:           int32(c.Bar.SuperD_50_3),
+				SuperL_50_3:           c.Bar.SuperL_50_3,
+				SuperS_50_3:           c.Bar.SuperS_50_3,
+				StochrsiK_14_14_3_3:   c.Bar.StochRsiK_14_14_3_3,
+				StochrsiD_14_14_3_3:   c.Bar.StochRsiD_14_14_3_3,
+				Atr_14:                c.Bar.ATRr_14,
+				Sma_50:                c.Bar.Sma50,
+				Sma_100:               c.Bar.Sma100,
+				Sma_200:               c.Bar.Sma200,
+				StochrsiCrossAbove_20: c.Bar.StochRsiCrossAbove20,
+				StochrsiCrossBelow_80: c.Bar.StochRsiCrossBelow80,
+				CloseLag_1:            c.Bar.CloseLag1,
+				CloseLag_2:            c.Bar.CloseLag2,
+				CloseLag_3:            c.Bar.CloseLag3,
+				CloseLag_4:            c.Bar.CloseLag4,
+				CloseLag_5:            c.Bar.CloseLag5,
+				CloseLag_6:            c.Bar.CloseLag6,
+				CloseLag_7:            c.Bar.CloseLag7,
+				CloseLag_8:            c.Bar.CloseLag8,
+				CloseLag_9:            c.Bar.CloseLag9,
+				CloseLag_10:           c.Bar.CloseLag10,
+				CloseLag_11:           c.Bar.CloseLag11,
+				CloseLag_12:           c.Bar.CloseLag12,
+				CloseLag_13:           c.Bar.CloseLag13,
+				CloseLag_14:           c.Bar.CloseLag14,
+				CloseLag_15:           c.Bar.CloseLag15,
+				CloseLag_16:           c.Bar.CloseLag16,
+				CloseLag_17:           c.Bar.CloseLag17,
+				CloseLag_18:           c.Bar.CloseLag18,
+				CloseLag_19:           c.Bar.CloseLag19,
+				CloseLag_20:           c.Bar.CloseLag20,
 			},
 		})
 	}
@@ -279,20 +310,17 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	var repositoryRequests []CreateRepositoryRequest
 
-	if len(req.Symbol) != len(req.TimespanMultiplier) || len(req.Symbol) != len(req.TimespanUnit) {
-		return nil, fmt.Errorf("symbol, timespan multiplier, and timespan unit must have the same length")
-	}
-
-	for i := 0; i < len(req.Symbol); i++ {
+	for _, repo := range req.Repositories {
 		repositoryRequests = append(repositoryRequests, CreateRepositoryRequest{
-			Symbol: req.Symbol[i],
+			Symbol: repo.Symbol,
 			Timespan: PolygonTimespanRequest{
-				Multiplier: int(req.TimespanMultiplier[i]),
-				Unit:       req.TimespanUnit[i],
+				Multiplier: int(repo.TimespanMultiplier),
+				Unit:       repo.TimespanUnit,
 			},
 			Source: RepositorySource{
 				Type: RepositorySourcePolygon,
 			},
+			Indicators: repo.Indicators,
 		})
 	}
 

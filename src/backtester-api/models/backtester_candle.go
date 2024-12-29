@@ -7,7 +7,7 @@ import (
 )
 
 type BacktesterCandle struct {
-	Symbol eventmodels.Instrument             `json:"symbol"`
-	Period time.Duration                      `json:"period"`
-	Bar    *eventmodels.PolygonAggregateBarV2 `json:"candle"`
+	Symbol eventmodels.Instrument                  `json:"symbol"`
+	Period time.Duration                           `json:"period"`
+	Bar    *eventmodels.AggregateBarWithIndicators `json:"candle"`
 }

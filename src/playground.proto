@@ -25,14 +25,19 @@ message GetOpenOrdersRequest {
     string symbol = 2;
 }
 
+message CreateRepositoryRequest {
+    string symbol = 1;
+    uint32 timespan_multiplier = 2;
+    string timespan_unit = 3;
+    repeated string indicators = 4;
+}
+
 message CreatePolygonPlaygroundRequest {
     double balance = 1;
     string start_date = 2;
     string stop_date = 3;
-    repeated string symbol = 4;
-    repeated uint32 timespan_multiplier = 5;
-    repeated string timespan_unit = 6;
-    string environment = 7;
+    repeated CreateRepositoryRequest repositories = 4;
+    string environment = 5;
 }
 
 message GetCandlesRequest {
@@ -116,12 +121,44 @@ message TickDeltaEvent {
 }
 
 message Bar {
-    float volume = 1;
-    float open = 2;
-    float close = 3;
-    float high = 4;
-    float low = 5;
+    double volume = 1;
+    double open = 2;
+    double close = 3;
+    double high = 4;
+    double low = 5;
     string datetime = 6;
+    double superT_50_3 = 7;
+    int32 superD_50_3 = 8;
+    double superL_50_3 = 9;
+    double superS_50_3 = 10;
+    double stochrsi_k_14_14_3_3 = 11;
+    double stochrsi_d_14_14_3_3 = 12;
+    double atr_14 = 13;
+    double sma_50 = 14;
+    double sma_100 = 15;
+    double sma_200 = 16;
+    bool stochrsi_cross_above_20 = 17;
+    bool stochrsi_cross_below_80 = 18;
+    double close_lag_1 = 19;
+    double close_lag_2 = 20;
+    double close_lag_3 = 21;
+    double close_lag_4 = 22;
+    double close_lag_5 = 23;
+    double close_lag_6 = 24;
+    double close_lag_7 = 25;
+    double close_lag_8 = 26;
+    double close_lag_9 = 27;
+    double close_lag_10 = 28;
+    double close_lag_11 = 29;
+    double close_lag_12 = 30;
+    double close_lag_13 = 31;
+    double close_lag_14 = 32;
+    double close_lag_15 = 33;
+    double close_lag_16 = 34;
+    double close_lag_17 = 35;
+    double close_lag_18 = 36;
+    double close_lag_19 = 37;
+    double close_lag_20 = 38;
 }
 
 message Candle {

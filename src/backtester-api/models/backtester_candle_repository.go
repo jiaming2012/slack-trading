@@ -12,7 +12,7 @@ import (
 type BacktesterCandleRepository struct {
 	symbol   eventmodels.Instrument
 	period   time.Duration
-	candles  []*eventmodels.PolygonAggregateBarV2
+	candles  []*eventmodels.AggregateBarWithIndicators
 	position int
 }
 
@@ -24,8 +24,8 @@ func (r *BacktesterCandleRepository) GetPeriod() time.Duration {
 	return r.period
 }
 
-func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
-	var candles []*eventmodels.PolygonAggregateBarV2
+func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+	var candles []*eventmodels.AggregateBarWithIndicators
 	for _, candle := range r.candles {
 		if (candle.Timestamp.Equal(startTime) || candle.Timestamp.After(startTime)) && candle.Timestamp.Before(endTime) {
 			candles = append(candles, candle)
@@ -39,7 +39,7 @@ func (r *BacktesterCandleRepository) FetchCandles(startTime, endTime time.Time) 
 	return candles, nil
 }
 
-func (r *BacktesterCandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.PolygonAggregateBarV2, error) {
+func (r *BacktesterCandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
 	for _, candle := range r.candles {
 		if candle.Timestamp.Equal(tstamp) || candle.Timestamp.After(tstamp) {
 			return candle, nil
@@ -51,7 +51,7 @@ func (r *BacktesterCandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*e
 	return nil, nil
 }
 
-func (r *BacktesterCandleRepository) GetCurrentCandle() *eventmodels.PolygonAggregateBarV2 {
+func (r *BacktesterCandleRepository) GetCurrentCandle() *eventmodels.AggregateBarWithIndicators {
 	if r.position >= len(r.candles) {
 		return nil
 	}
@@ -59,12 +59,12 @@ func (r *BacktesterCandleRepository) GetCurrentCandle() *eventmodels.PolygonAggr
 	return r.candles[r.position]
 }
 
-func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels.PolygonAggregateBarV2, error) {
+func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
 	if r.position >= len(r.candles) {
 		return nil, fmt.Errorf("no more candles")
 	}
 
-	var newCandle *eventmodels.PolygonAggregateBarV2
+	var newCandle *eventmodels.AggregateBarWithIndicators
 	for {
 		if r.position >= len(r.candles)-1 {
 			break
@@ -82,12 +82,7 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 	return newCandle, nil
 }
 
-type Indicators map[string][]float64
-
-func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicatorNames ...string) *BacktesterCandleRepository {
-	
-	
-	
+func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.AggregateBarWithIndicators) *BacktesterCandleRepository {
 	return &BacktesterCandleRepository{
 		symbol:   symbol,
 		period:   period,

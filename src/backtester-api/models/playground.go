@@ -364,7 +364,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 	return nil, nil
 }
 
-func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	repo, ok := p.repos[symbol][period]
 	if !ok {
 		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
@@ -698,7 +698,7 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 		return nil, fmt.Errorf("GetTick: no more candles for %s", symbol)
 	}
 
-	return candle, nil
+	return candle.ToPolygonAggregateBarV2(), nil
 }
 
 func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side BacktesterOrderSide, positionQuantity float64) error {

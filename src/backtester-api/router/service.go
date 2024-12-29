@@ -6,13 +6,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
 		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found")
@@ -103,7 +105,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 
 func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
-	
+
 	if err := env.Validate(); err != nil {
 		return nil, eventmodels.NewWebError(400, "invalid playground environment")
 	}
@@ -139,17 +141,36 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 			if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {
 				return nil, eventmodels.NewWebError(400, "missing CSV filename")
 			}
-		
+
 			timespan := eventmodels.PolygonTimespan{
 				Multiplier: repo.Timespan.Multiplier,
 				Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
 			}
 
-			var bars []*eventmodels.PolygonAggregateBarV2
+			var bars, pastBars []*eventmodels.PolygonAggregateBarV2
 			if repo.Source.Type == RepositorySourcePolygon {
 				bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
 				if err != nil {
 					return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
+				}
+
+				if len(repo.Indicators) > 0 {
+					_to := from.GetPreviousDay()
+					_from := _to.GetPreviousYear()
+					attempts := 5
+					for i := 0; true; i++ {
+						pastBars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, _from, _to)
+						if err == nil {
+							break
+						} else {
+							if i == attempts-1 {
+								return nil, eventmodels.NewWebError(500, "failed to fetch past aggregate bars")
+							}
+
+							_from = _from.GetPreviousDay()
+							time.Sleep(10 * time.Millisecond)
+						}
+					}
 				}
 			} else if repo.Source.Type == RepositorySourceCSV {
 				if repo.Source.CSVFilename == nil {
@@ -166,7 +187,13 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 				return nil, eventmodels.NewWebError(400, "invalid repository source")
 			}
 
-			repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, bars)
+			candles, err := eventservices.AddIndicatorsToCandles(bars, pastBars, repo.Indicators)
+			if err != nil {
+				log.Errorf("failed to add indicators to candles: %v", err)
+				return nil, eventmodels.NewWebError(500, "failed to add indicators to candles")
+			}
+
+			repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, candles)
 			if err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to create repository")
 			}
