@@ -82,7 +82,12 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 	return newCandle, nil
 }
 
-func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2) *BacktesterCandleRepository {
+type Indicators map[string][]float64
+
+func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicatorNames ...string) *BacktesterCandleRepository {
+	
+	
+	
 	return &BacktesterCandleRepository{
 		symbol:   symbol,
 		period:   period,
