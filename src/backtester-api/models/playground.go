@@ -33,6 +33,10 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 	return openOrders
 }
 
+func (p *Playground) updateOrderClosesField(order *BacktesterOrder, markForDeleteCache map[eventmodels.Instrument][]int) {
+	
+}
+
 func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	invalidOrders = []*BacktesterOrder{}
 	markForDelete := make(map[eventmodels.Instrument][]int) // adjust the open orders cache
@@ -87,7 +91,12 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 				}
 			}
 
-			if isCloseOrder {
+			if performMarginCheck && freeMargin-initialMargin <= maintenanceMargin {
+				order.Status = BacktesterOrderStatusRejected
+				rejectReason := ErrInsufficientFreeMargin.Error()
+				order.RejectReason = &rejectReason
+				invalidOrders = append(invalidOrders, order)
+			} else if isCloseOrder {
 				closeVolume := math.Abs(orderQuantity)
 				openOrders := p.GetOpenOrders(order.Symbol)
 				for i, openOrder := range openOrders {
@@ -122,13 +131,6 @@ func (p *Playground) commitPendingOrders(pendingOrders []*BacktesterOrder, start
 
 					order.Closes = append(order.Closes, openOrder)
 				}
-			}
-
-			if performMarginCheck && freeMargin-initialMargin <= maintenanceMargin {
-				order.Status = BacktesterOrderStatusRejected
-				rejectReason := ErrInsufficientFreeMargin.Error()
-				order.RejectReason = &rejectReason
-				invalidOrders = append(invalidOrders, order)
 			}
 		}
 
@@ -817,7 +819,48 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	return nil
 }
 
-func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...BacktesterDataFeed) (*Playground, error) {
+// todo: change repository on playground to BacktesterCandleRepository
+func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...(*BacktesterCandleRepository)) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
+	var symbols []string
+	var minimumPeriod time.Duration
+
+	for _, feed := range feeds {
+		symbol := feed.GetSymbol()
+
+		if _, found := repos[symbol]; !found {
+			symbols = append(symbols, symbol.GetTicker())
+			repo := make(map[time.Duration]*BacktesterCandleRepository)
+			repos[symbol] = repo
+		}
+
+		repos[symbol][feed.GetPeriod()] = feed
+
+		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
+			minimumPeriod = feed.GetPeriod()
+		}
+	}
+
+	return &Playground{
+		Meta: &PlaygroundMeta{
+			Symbols:         symbols,
+			StartDate:       clock.CurrentTime.Format(time.RFC3339),
+			EndDate:         clock.EndTime.Format(time.RFC3339),
+			StartingBalance: balance,
+			Environment:     env,
+		},
+		ID:              uuid.New(),
+		account:         NewBacktesterAccount(balance),
+		clock:           clock,
+		repos:           repos,
+		positionsCache:  nil,
+		openOrdersCache: make(map[eventmodels.Instrument][]*BacktesterOrder),
+		minimumPeriod:   minimumPeriod,
+	}, nil
+}
+
+// note: this is only here for testing
+func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...BacktesterDataFeed) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -833,10 +876,10 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, fee
 
 		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
 		if err != nil {
-			return nil, fmt.Errorf("NewPlayground: error fetching candles: %w", err)
+			return nil, fmt.Errorf("error fetching candles: %w", err)
 		}
 
-		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, feed.GetPeriod(), candles)
+		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, feed.GetPeriod(), candles, 0)
 
 		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
 			minimumPeriod = feed.GetPeriod()

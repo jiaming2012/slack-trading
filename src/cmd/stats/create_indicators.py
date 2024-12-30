@@ -36,15 +36,7 @@ def calculate_atr(df) -> pd.DataFrame:
     return df
 
 def calculate_stochrsi_cross_above_20(df) -> pd.DataFrame:
-    
-    
-    try:
-        df['stochrsi_cross_above_20'] = (df['STOCHRSId_14_14_3_3'] < 20) & (df['STOCHRSIk_14_14_3_3'].shift(1) <= df['STOCHRSId_14_14_3_3'].shift(1)) & (df['STOCHRSIk_14_14_3_3'] > df['STOCHRSId_14_14_3_3'])
-    except Exception as e:
-        print(df['STOCHRSId_14_14_3_3'])
-        print(df['STOCHRSIk_14_14_3_3'])
-        
-        raise e
+    df['stochrsi_cross_above_20'] = (df['STOCHRSId_14_14_3_3'] < 20) & (df['STOCHRSIk_14_14_3_3'].shift(1) <= df['STOCHRSId_14_14_3_3'].shift(1)) & (df['STOCHRSIk_14_14_3_3'] > df['STOCHRSId_14_14_3_3'])
     return df
 
 def calculate_stochrsi_cross_below_80(df) -> pd.DataFrame:

@@ -10,10 +10,11 @@ import (
 )
 
 type BacktesterCandleRepository struct {
-	symbol   eventmodels.Instrument
-	period   time.Duration
-	candles  []*eventmodels.AggregateBarWithIndicators
-	position int
+	symbol           eventmodels.Instrument
+	period           time.Duration
+	candles          []*eventmodels.AggregateBarWithIndicators
+	position         int
+	startingPosition int
 }
 
 func (r *BacktesterCandleRepository) GetSymbol() eventmodels.Instrument {
@@ -74,6 +75,9 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
 			newCandle = r.GetCurrentCandle()
+		} else if r.position == r.startingPosition {
+			newCandle = r.GetCurrentCandle()
+			break
 		} else {
 			break
 		}
@@ -82,11 +86,12 @@ func (r *BacktesterCandleRepository) Update(currentTime time.Time) (*eventmodels
 	return newCandle, nil
 }
 
-func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.AggregateBarWithIndicators) *BacktesterCandleRepository {
+func NewBacktesterCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.AggregateBarWithIndicators, startingPosition int) *BacktesterCandleRepository {
 	return &BacktesterCandleRepository{
-		symbol:   symbol,
-		period:   period,
-		candles:  candles,
-		position: 0,
+		symbol:           symbol,
+		period:           period,
+		candles:          candles,
+		position:         startingPosition,
+		startingPosition: startingPosition,
 	}
 }

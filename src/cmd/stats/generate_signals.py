@@ -104,66 +104,90 @@ def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[p
 
 def fetch_data_and_add_supertrend_momentum_signal_features(symbol: str, start_date: datetime, end_date: datetime, min_max_window_in_hours: float):
     ltf_data, htf_data = fetch_data(symbol, start_date, end_date)
-    feature_set_df = add_supertrend_momentum_signal_feature_set(ltf_data, htf_data)
+    feature_set_df = add_supertrend_momentum_signal_feature_set_v1(ltf_data, htf_data)
     target_set_df = add_supertrend_momentum_signal_target_set(feature_set_df, min_max_window_in_hours)
     return target_set_df
 
-def add_supertrend_momentum_signal_target_set(ltf_df: pd.DataFrame, min_max_window_in_hours: float) -> pd.DataFrame:
+def add_supertrend_momentum_signal_target_set(df: pd.DataFrame, min_max_window_in_hours: float) -> pd.DataFrame:
     # Initialize new columns
-    ltf_df['min_price_prediction'] = None
-    ltf_df['max_price_prediction'] = None
-    ltf_df['last_close_price'] = None
-    ltf_df['min_price_prediction_time'] = None
-    ltf_df['max_price_prediction_time'] = None
-    ltf_df['last_close_price_time'] = None
+    df['min_price_prediction'] = None
+    df['max_price_prediction'] = None
+    df['last_close_price'] = None
+    df['min_price_prediction_time'] = None
+    df['max_price_prediction_time'] = None
+    df['last_close_price_time'] = None
 
     # Calculate min, max, and close prices within min_max_period_in_hours for rows where cross_below_80 is True
-    for idx, row in ltf_df[ltf_df['cross_below_80']].iterrows():
-        start_time = row['Date']
+    for idx, row in df[df['stochrsi_cross_below_80']].iterrows():
+        start_time = row['date']
         end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
-        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
+        mask = (df['date'] > start_time) & (df['date'] <= end_time)
         
-        if not ltf_df.loc[mask].empty:
-            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
-            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
-            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
+        if not df.loc[mask].empty:
+            min_price_idx = df.loc[mask, 'low'].idxmin()
+            max_price_idx = df.loc[mask, 'high'].idxmax()
+            close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            ltf_df.loc[idx, 'min_price_prediction'] = ltf_df.loc[min_price_idx, 'Low']
-            ltf_df.loc[idx, 'max_price_prediction'] = ltf_df.loc[max_price_idx, 'High']
-            ltf_df.loc[idx, 'last_close_price'] = close_price_row['Close'] if close_price_row is not None else None
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
+            df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
-            ltf_df.loc[idx, 'min_price_prediction_time'] = ltf_df.loc[min_price_idx, 'Date']
-            ltf_df.loc[idx, 'max_price_prediction_time'] = ltf_df.loc[max_price_idx, 'Date']
-            ltf_df.loc[idx, 'last_close_price_time'] = close_price_row['Date'] if close_price_row is not None else None
+            df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
+            df.loc[idx, 'max_price_prediction_time'] = df.loc[max_price_idx, 'date']
+            df.loc[idx, 'last_close_price_time'] = close_price_row['date'] if close_price_row is not None else None
 
     # Calculate min, max, and close prices within 1 day for rows where cross_above_20 is True
-    for idx, row in ltf_df[ltf_df['cross_above_20']].iterrows():
-        start_time = row['Date']
+    for idx, row in df[df['stochrsi_cross_above_20']].iterrows():
+        start_time = row['date']
         end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
-        mask = (ltf_df['Date'] > start_time) & (ltf_df['Date'] <= end_time)
+        mask = (df['date'] > start_time) & (df['date'] <= end_time)
         
-        if not ltf_df.loc[mask].empty:
-            min_price_idx = ltf_df.loc[mask, 'Low'].idxmin()
-            max_price_idx = ltf_df.loc[mask, 'High'].idxmax()
-            close_price_row = ltf_df.loc[mask].iloc[-1] if not ltf_df.loc[mask].empty else None
+        if not df.loc[mask].empty:
+            min_price_idx = df.loc[mask, 'low'].idxmin()
+            max_price_idx = df.loc[mask, 'high'].idxmax()
+            close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            ltf_df.loc[idx, 'min_price_prediction'] = ltf_df.loc[min_price_idx, 'Low']
-            ltf_df.loc[idx, 'max_price_prediction'] = ltf_df.loc[max_price_idx, 'High']
-            ltf_df.loc[idx, 'last_close_price'] = close_price_row['Close'] if close_price_row is not None else None
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
+            df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
-            ltf_df.loc[idx, 'min_price_prediction_time'] = ltf_df.loc[min_price_idx, 'Date']
-            ltf_df.loc[idx, 'max_price_prediction_time'] = ltf_df.loc[max_price_idx, 'Date']
-            ltf_df.loc[idx, 'last_close_price_time'] = close_price_row['Date'] if close_price_row is not None else None
+            df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
+            df.loc[idx, 'max_price_prediction_time'] = df.loc[max_price_idx, 'date']
+            df.loc[idx, 'last_close_price_time'] = close_price_row['date'] if close_price_row is not None else None
 
     # Filter the DataFrame to include only rows with cross_below_80 or cross_above_20
-    filtered_df = ltf_df[(ltf_df['cross_below_80']) | (ltf_df['cross_above_20'])]
+    filtered_df = df[(df['stochrsi_cross_below_80']) | (df['stochrsi_cross_above_20'])]
 
     # Handle NaN values by filling them with 0
     filtered_df = filtered_df.fillna(0)
     
     return filtered_df
+
+def add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data) -> pd.DataFrame:
+    # Convert the 'Date' column to a datetime object
+    exchange_tz = 'America/New_York'
     
-def add_supertrend_momentum_signal_feature_set(ltf_data, htf_data) -> pd.DataFrame:
+    ltf_data['date'] = pd.to_datetime(ltf_data['datetime'], utc=True).dt.tz_convert(exchange_tz)
+    htf_data['date'] = pd.to_datetime(htf_data['datetime'], utc=True).dt.tz_convert(exchange_tz)
+    
+    # Rename columns of supertrend_ltf
+    htf_data = htf_data.rename(columns={
+        'superT_50_3': 'superT_htf_50_3',
+        'superD_50_3': 'superD_htf_50_3',
+        'superS_50_3': 'superS_htf_50_3',
+        'superL_50_3': 'superL_htf_50_3'
+    })
+    
+    df = pd.merge_asof(
+        ltf_data,
+        htf_data[['date', 'superT_htf_50_3', 'superD_htf_50_3', 'superS_htf_50_3', 'superL_htf_50_3']],
+        on='date',
+        direction='backward'  # Ensure each ltf_data row is matched with the most recent previous htf_df row
+    )
+    
+    return df
+
+def add_supertrend_momentum_signal_feature_set_v1(ltf_data, htf_data) -> pd.DataFrame:
     # Fetch htf data
     supertrend = ta.supertrend(htf_data['High'], htf_data['Low'], htf_data['Close'], length=50, multiplier=3)
     htf_df = pd.concat([htf_data, supertrend], axis=1)
@@ -253,24 +277,20 @@ class SuperTrendMomentumSignalFactory:
     
     def __post_init__(self):
         self.feature_columns = [
-            'Open', 'High', 'Low', 'Close', 'Volume',
-            'STOCHRSIk_14_14_3_3', 'STOCHRSId_14_14_3_3',
-            'SUPERT_50_3.0', 'SUPERTd_50_3.0', 'SUPERTl_50_3.0', 'SUPERTs_50_3.0',
-            'SUPERT_LTF_50_3.0', 'SUPERTd_LTF_50_3.0', 'SUPERTl_LTF_50_3.0', 'SUPERTs_LTF_50_3.0',
-            'MA_50', 'MA_100', 'MA_200',
-            'ATR_14'
-        ] + [f'Close_{i}' for i in range(1, self.lag_features+1)]
+            'open', 'high', 'low', 'close', 'volume',
+            'stochrsi_k_14_14_3_3', 'stochrsi_d_14_14_3_3',
+            'superT_50_3', 'superD_50_3', 'superL_50_3', 'superS_50_3',
+            'superT_htf_50_3', 'superD_htf_50_3', 'superL_htf_50_3', 'superS_htf_50_3',
+            'sma_50', 'sma_100', 'sma_200',
+            'atr_14'
+        ] + [f'close_lag_{i}' for i in range(1, self.lag_features+1)]
 
-def new_supertrend_momentum_signal_factory(symbol: str, start_date: datetime, end_date: datetime) -> SuperTrendMomentumSignalFactory:
-    filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(symbol, start_date, end_date, min_max_window_in_hours=4)
-
-    print(f"generated {len(filtered_df)} {symbol} signals - from {start_date} to {end_date}")
-    
+def new_supertrend_momentum_signal_factory(df: pd.DataFrame) -> SuperTrendMomentumSignalFactory:    
     factory = SuperTrendMomentumSignalFactory()
     
     # Train Random Forest models
     print("Training Random Forest models...")
-    factory.models, rf_predictions = train_random_forest_models(filtered_df, factory.feature_columns, factory.target_columns)
+    factory.models, rf_predictions = train_random_forest_models(df, factory.feature_columns, factory.target_columns)
     print("Training complete.")
         
     # Analyze Random Forest predictions
@@ -311,7 +331,10 @@ if __name__ == '__main__':
     start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d')
     end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d')
     
-    factory = new_supertrend_momentum_signal_factory(args.symbol, start_date, end_date)
+    filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, start_date, end_date, min_max_window_in_hours=4)
+    print(f"generated {len(filtered_df)} {args.symbol} signals - from {start_date} to {end_date}")
+    
+    factory = new_supertrend_momentum_signal_factory(filtered_df)
 
     # Apply the newly generated model to a new dataset of future prices
     future_start_data = end_date + pd.Timedelta(days=1)

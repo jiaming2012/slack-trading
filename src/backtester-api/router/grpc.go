@@ -124,15 +124,48 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 	}
 
 	barsDTO := make([]*pb.Bar, 0)
-	for _, candle := range candles {
+	for _, c := range candles {
 		barsDTO = append(barsDTO, &pb.Bar{
-			Open:     candle.Open,
-			High:     candle.High,
-			Low:      candle.Low,
-			Close:    candle.Close,
-			Volume:   candle.Volume,
-			Datetime: candle.Timestamp.String(),
-		})
+				Open:                  c.Open,
+				High:                  c.High,
+				Low:                   c.Low,
+				Close:                 c.Close,
+				Volume:                c.Volume,
+				Datetime:              c.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
+				SuperT_50_3:           c.SuperT_50_3,
+				SuperD_50_3:           int32(c.SuperD_50_3),
+				SuperL_50_3:           c.SuperL_50_3,
+				SuperS_50_3:           c.SuperS_50_3,
+				StochrsiK_14_14_3_3:   c.StochRsiK_14_14_3_3,
+				StochrsiD_14_14_3_3:   c.StochRsiD_14_14_3_3,
+				Atr_14:                c.ATRr_14,
+				Sma_50:                c.Sma50,
+				Sma_100:               c.Sma100,
+				Sma_200:               c.Sma200,
+				StochrsiCrossAbove_20: c.StochRsiCrossAbove20,
+				StochrsiCrossBelow_80: c.StochRsiCrossBelow80,
+				CloseLag_1:            c.CloseLag1,
+				CloseLag_2:            c.CloseLag2,
+				CloseLag_3:            c.CloseLag3,
+				CloseLag_4:            c.CloseLag4,
+				CloseLag_5:            c.CloseLag5,
+				CloseLag_6:            c.CloseLag6,
+				CloseLag_7:            c.CloseLag7,
+				CloseLag_8:            c.CloseLag8,
+				CloseLag_9:            c.CloseLag9,
+				CloseLag_10:           c.CloseLag10,
+				CloseLag_11:           c.CloseLag11,
+				CloseLag_12:           c.CloseLag12,
+				CloseLag_13:           c.CloseLag13,
+				CloseLag_14:           c.CloseLag14,
+				CloseLag_15:           c.CloseLag15,
+				CloseLag_16:           c.CloseLag16,
+				CloseLag_17:           c.CloseLag17,
+				CloseLag_18:           c.CloseLag18,
+				CloseLag_19:           c.CloseLag19,
+				CloseLag_20:           c.CloseLag20,
+			},
+		)
 	}
 
 	return &pb.GetCandlesResponse{

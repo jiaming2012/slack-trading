@@ -82,7 +82,7 @@ func main() {
 	// Print the last candle with indicators
 	fmt.Printf("First Candle with indicators: %+v\n", data[0])
 
-	repo := models.NewBacktesterCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, data)
+	repo := models.NewBacktesterCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, data, len(pastCandlesForIndicators))
 
 	fmt.Printf("Current Candle: +%v", repo.GetCurrentCandle())
 }

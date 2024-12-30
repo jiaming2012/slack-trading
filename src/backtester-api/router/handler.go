@@ -291,7 +291,12 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 
 func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.AggregateBarWithIndicators) (*models.BacktesterCandleRepository, error) {
 	period := timespan.ToDuration()
-	return models.NewBacktesterCandleRepository(symbol, period, bars), nil
+	return models.NewBacktesterCandleRepository(symbol, period, bars, 0), nil
+}
+
+func createRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.AggregateBarWithIndicators, startingPosition int) (*models.BacktesterCandleRepository, error) {
+	period := timespan.ToDuration()
+	return models.NewBacktesterCandleRepository(symbol, period, bars, startingPosition), nil
 }
 
 func handleAccount(w http.ResponseWriter, r *http.Request) {

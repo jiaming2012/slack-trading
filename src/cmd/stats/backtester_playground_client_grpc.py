@@ -1,4 +1,5 @@
 import requests
+from collections import deque
 from enum import Enum
 from datetime import datetime, timedelta
 import numpy as np
@@ -9,7 +10,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, CreateRepositoryRequest, Bar
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -97,10 +98,10 @@ class PlaygroundNotFoundException(Exception):
 class InvalidParametersException(Exception):
     pass
 
-def set_nested_value(d, keys, value):
-    for key in keys[:-1]:
-        d = d.setdefault(key, {})
-    d[keys[-1]] = value
+def set_nested_value(d, key1, key2, value):
+    if key1 not in d:
+        d[key1] = {}
+    d[key1][key2] = value
 
 def network_call_with_retry(client, request, max_retries=10, backoff=2):
     retries = 0
@@ -143,12 +144,12 @@ class BacktesterPlaygroundClient:
         self._initial_timestamp = None
         self.timestamp = None
         self.trade_timestamps = []
-        self._tick_delta_buffer: List[TickDelta] = []
+        self._new_state_buffer: List[TickDelta] = []
         self.environment = env
         
-    def flush_tick_delta_buffer(self) -> List[TickDelta]:
-        buffer = self._tick_delta_buffer
-        self._tick_delta_buffer = []
+    def flush_new_state_buffer(self) -> List[TickDelta]:
+        buffer = self._new_state_buffer
+        self._new_state_buffer = []
         return buffer
     
     def get_current_candle(self, symbol: str, period: int) -> float:
@@ -271,7 +272,7 @@ class BacktesterPlaygroundClient:
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles(self, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
+    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Bar]:
         fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
         toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
         
@@ -283,6 +284,30 @@ class BacktesterPlaygroundClient:
             response = network_call_with_retry(self.client.GetCandles, GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
+                period_in_seconds=period_in_seconds,
+                fromRTF3339=fromStr,
+                toRTF3339=toStr
+            ))
+        
+        except Exception as e:
+            print("Failed to connect to gRPC service (fetch_candles):", e)
+            raise e
+        
+        return response.bars
+    
+    def fetch_candles(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
+        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+        
+       # Manually insert the colon in the timezone offset
+        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
+        toStr = toStr[:-2] + ':' + toStr[-2:]
+                        
+        try:
+            response = network_call_with_retry(self.client.GetCandles, GetCandlesRequest(
+                playground_id=self.id,
+                symbol=self.symbol,
+                period_in_seconds=period_in_seconds,
                 fromRTF3339=fromStr,
                 toRTF3339=toStr
             ))
@@ -339,7 +364,7 @@ class BacktesterPlaygroundClient:
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
             for candle in new_candles:
-                set_nested_value(self.current_candles, [candle.symbol, candle.period], candle.bar)
+                set_nested_value(self.current_candles, candle.symbol, candle.period, candle.bar)
 
         timestamp = new_state.current_time
         if timestamp:
@@ -352,8 +377,8 @@ class BacktesterPlaygroundClient:
         
         self.account = self.fetch_and_update_account_state()
         
-        self._tick_delta_buffer.append(new_state)
-                            
+        self._new_state_buffer.append(new_state)
+                                    
     def time_elapsed(self) -> timedelta:
         if self.timestamp is None:
             return timedelta(0)
@@ -423,13 +448,25 @@ class BacktesterPlaygroundClient:
 
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> str:
+        ltf_repo = CreateRepositoryRequest(
+            symbol=symbol,
+            timespan_multiplier=5,
+            timespan_unit='minute',
+            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"]
+        )
+        
+        htf_repo = CreateRepositoryRequest(
+            symbol=symbol,
+            timespan_multiplier=60,
+            timespan_unit='minute',
+            indicators=["supertrend"]
+        )
+        
         request = CreatePolygonPlaygroundRequest(
             balance=balance,
             start_date=start_date,
             stop_date=stop_date,
-            symbol=[symbol, symbol],
-            timespan_multiplier=[5, 60],
-            timespan_unit=['minute', 'minute'],
+            repositories=[ltf_repo, htf_repo],
             environment=env.value
         )
 
@@ -451,7 +488,7 @@ if __name__ == '__main__':
                 
         playground_client.tick(6000)
         
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #1: ', tick_delta)
         
@@ -472,7 +509,7 @@ if __name__ == '__main__':
         
         playground_client.tick(360000)
         
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #2: ', tick_delta)
         
@@ -506,7 +543,7 @@ if __name__ == '__main__':
         
         playground_client.tick(360000)
                 
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #3: ', tick_delta)
         
@@ -518,13 +555,13 @@ if __name__ == '__main__':
         
         playground_client.tick(60000)
         
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #3.1: ', tick_delta)
         
         playground_client.tick(60000)
         
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #3.2: ', tick_delta)
         
@@ -539,7 +576,7 @@ if __name__ == '__main__':
         
         playground_client.tick(120000)
         
-        tick_delta = playground_client.flush_tick_delta_buffer()[0]
+        tick_delta = playground_client.flush_new_state_buffer()[0]
         
         print('tick_delta #3.3: ', tick_delta)
         

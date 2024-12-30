@@ -60,8 +60,5 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, pastCa
 		return nil, fmt.Errorf("failed to unmarshal JSON output from create_indicators.py: %v", err)
 	}
 
-	// Find the index of the first candle in the candles slice
-	firstCandleIndex := len(pastCandles)
-
-	return data[firstCandleIndex:], nil
+	return data, nil
 }

@@ -14,7 +14,7 @@ func TestSymbol(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
 		period := time.Minute
 
-		repo := NewBacktesterCandleRepository(symbol, period, nil)
+		repo := NewBacktesterCandleRepository(symbol, period, nil, 0)
 
 		assert.Equal(t, symbol, repo.GetSymbol())
 	})
@@ -37,7 +37,7 @@ func TestNext(t *testing.T) {
 	}
 
 	t.Run("returns the current candle", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles)
+		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -47,7 +47,7 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns the next candle", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles)
+		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
@@ -63,7 +63,7 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles)
+		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 

@@ -136,7 +136,7 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 			return nil, eventmodels.NewWebError(400, "missing repositories")
 		}
 
-		var feeds []models.BacktesterDataFeed
+		var feeds []*models.BacktesterCandleRepository
 		for _, repo := range req.Repositories {
 			if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {
 				return nil, eventmodels.NewWebError(400, "missing CSV filename")
@@ -193,7 +193,8 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 				return nil, eventmodels.NewWebError(500, "failed to add indicators to candles")
 			}
 
-			repository, err := createRepository(eventmodels.StockSymbol(repo.Symbol), timespan, candles)
+			startingPosition := len(pastBars)
+			repository, err := createRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, candles, startingPosition)
 			if err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to create repository")
 			}
