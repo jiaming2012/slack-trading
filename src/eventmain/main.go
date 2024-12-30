@@ -361,6 +361,11 @@ func run() {
 		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
+	tradierMarketTimesalesURL, err := utils.GetEnv("TRADIER_MARKET_TIMESALES_URL")
+	if err != nil {
+		log.Fatalf("$TRADIER_MARKET_TIMESALES_URL not set: %v", err)
+	}
+
 	eventStoreDbURL, err := utils.GetEnv("EVENTSTOREDB_URL")
 	if err != nil {
 		log.Fatalf("$EVENTSTOREDB_URL not set: %v", err)
@@ -583,7 +588,7 @@ func run() {
 	trackerV3OptionEVConsumer.Start(ctx, false)
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
-	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
+	eventconsumers.NewTradierOrdersMonitoringWorker(&wg, nil, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
