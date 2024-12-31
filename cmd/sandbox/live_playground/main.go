@@ -91,6 +91,10 @@ func main() {
 	// }
 }
 
+func fetchTradierAccount() {
+	
+}
+
 func fetchLivePolygonCandles(client *eventservices.PolygonTickDataMachine, out chan<- eventmodels.PolygonAggregateBarV2) {
 	location, err := time.LoadLocation("America/New_York")
 	if err != nil {

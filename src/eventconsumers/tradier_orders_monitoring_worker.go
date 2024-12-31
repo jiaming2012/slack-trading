@@ -243,11 +243,11 @@ func (w *TradierOrdersMonitoringWorker) OrdersMonitoringWorking(ctx context.Cont
 	}
 }
 
-func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandles() {
+func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval) {
 	start := time.Now().Add(-1 * time.Hour).In(w.location)
 	end := start.Add(24 * time.Hour)
 
-	bars, err := w.FetchCandles(eventmodels.StockSymbol("COIN"), eventmodels.TradierInterval1Min, start, end)
+	bars, err := w.FetchCandles(symbol, interval, start, end)
 	if err != nil {
 		log.Fatalf("failed to fetch candles: %v", err)
 		return
@@ -283,7 +283,7 @@ func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 			case <-timer.C:
 				// w.OrdersMonitoringWorking(ctx)
 				if w.liveTradierCandles != nil {
-					w.FetchLiveTradierCandles()
+					w.FetchLiveTradierCandles(eventmodels.StockSymbol("COIN"), eventmodels.TradierInterval1Min)
 				}
 			}
 		}
