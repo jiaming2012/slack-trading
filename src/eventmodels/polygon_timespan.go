@@ -9,21 +9,21 @@ type PolygonTimespan struct {
 
 func (p PolygonTimespan) ToDuration() time.Duration {
 	switch p.Unit {
-	case Second:
+	case PolygonTimespanUnitSecond:
 		return time.Duration(p.Multiplier) * time.Second
-	case Minute:
+	case PolygonTimespanUnitMinute:
 		return time.Duration(p.Multiplier) * time.Minute
-	case Hour:
+	case PolygonTimespanUnitHour:
 		return time.Duration(p.Multiplier) * time.Hour
-	case Day:
+	case PolygonTimespanUnitDay:
 		return time.Duration(p.Multiplier) * 24 * time.Hour
-	case Week:
+	case PolygonTimespanUnitWeek:
 		return time.Duration(p.Multiplier) * 7 * 24 * time.Hour
-	case Month:
+	case PolygonTimespanUnitMonth:
 		return time.Duration(p.Multiplier) * 30 * 24 * time.Hour
-	case Quarter:
+	case PolygonTimespanUnitQuarter:
 		return time.Duration(p.Multiplier) * 90 * 24 * time.Hour
-	case Year:
+	case PolygonTimespanUnitYear:
 		return time.Duration(p.Multiplier) * 365 * 24 * time.Hour
 	default:
 		panic("invalid timespan unit")

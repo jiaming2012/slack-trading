@@ -1,21 +1,39 @@
 package models
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
+
+// MockFetchCalendarMap returns the mock calendar data
+func MockFetchCalendarMap(start, end eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
+	mockData := `{
+        "2021-01-12": {"Date": "2021-01-12", "MarketOpen": "2021-01-12T14:30:00Z", "MarketClose": "2021-01-12T21:00:00Z"},
+        "2021-01-13": {"Date": "2021-01-13", "MarketOpen": "2021-01-13T14:30:00Z", "MarketClose": "2021-01-13T21:00:00Z"},
+        "2021-01-14": {"Date": "2021-01-14", "MarketOpen": "2021-01-14T14:30:00Z", "MarketClose": "2021-01-14T21:00:00Z"},
+        "2021-01-15": {"Date": "2021-01-15", "MarketOpen": "2021-01-15T14:30:00Z", "MarketClose": "2021-01-15T21:00:00Z"}
+    }`
+
+	var calendar map[string]*eventmodels.Calendar
+	err := json.Unmarshal([]byte(mockData), &calendar)
+	if err != nil {
+		return nil, err
+	}
+
+	return calendar, nil
+}
 
 func TestCalendar(t *testing.T) {
 	t.Run("starts at market open", func(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := services.FetchCalendarMap(eventmodels.PolygonDate{
+		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),
@@ -24,6 +42,12 @@ func TestCalendar(t *testing.T) {
 			Month: int(endTime.Month()),
 			Day:   endTime.Day(),
 		})
+
+		assert.NoError(t, err)
+
+		cJSON, err := json.Marshal(calendar)
+
+		print(string(cJSON))
 
 		assert.NoError(t, err)
 
@@ -40,7 +64,7 @@ func TestCalendar(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := services.FetchCalendarMap(eventmodels.PolygonDate{
+		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),

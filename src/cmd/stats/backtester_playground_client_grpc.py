@@ -105,7 +105,7 @@ def set_nested_value(d, key1, key2, value):
 
 def network_call_with_retry(client, request, max_retries=10, backoff=2):
     retries = 0
-    while retries < max_retries:
+    while True:
         try:
             # Attempt the twirp call
             response = client(
@@ -114,10 +114,14 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
             )
             return response
         except TwirpServerException as e:
-            print(f"Connection lost: {e}. Retrying in {backoff} seconds...")
             retries += 1
-            time.sleep(backoff)
-            backoff *= 2  # Exponential backoff
+            
+            if retries < max_retries:
+                print(f"Network call failed: {e}. Retrying in {backoff} seconds...")
+                time.sleep(backoff)
+                backoff *= 2  # Exponential backoff
+            else:
+                break
 
     raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
 
@@ -348,7 +352,7 @@ class BacktesterPlaygroundClient:
                 
         return response
         
-    def tick(self, seconds: int):
+    def tick(self, seconds: int, raise_exception=True):
         request = NextTickRequest(
             playground_id=self.id,
             seconds=seconds,
@@ -359,7 +363,9 @@ class BacktesterPlaygroundClient:
             new_state: TickDelta = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
             print("Failed to connect to gRPC service (tick):", e)
-            raise e
+            if raise_exception:
+                raise e
+            return None
         
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
@@ -388,11 +394,11 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, tag: str = "") -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", raise_exception=True) -> object:
         if quantity == 0:
             return
             
-        if self.get_free_margin_over_equity() < 0.4:
+        if self.get_free_margin_over_equity() < 0.1:
             if quantity > 0 and side == OrderSide.BUY:
                 raise InvalidParametersException('Insufficient free margin')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
@@ -406,15 +412,18 @@ class BacktesterPlaygroundClient:
             side=side.value,
             type='market',
             duration='day',
-            tag=tag
+            tag=tag,
+            requested_price=price
         )
         
         try:
-            response = network_call_with_retry(self.client.PlaceOrder, request)
+            response = network_call_with_retry(self.client.PlaceOrder, request, max_retries=1)
             self.trade_timestamps.append(self.timestamp)
             return response
         except Exception as e:
-            raise e
+            if raise_exception:
+                raise e
+            return None
                     
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')

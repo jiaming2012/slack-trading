@@ -12,10 +12,33 @@ def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     tp = signal.max_price_prediction
     return sl, tp
 
-def calculate_new_trade_volume(equity: float, current_price: float, stop_loss: float, max_risk_percentage: float) -> float:
-    risk = abs(current_price - stop_loss)
-    volume = (equity * max_risk_percentage) / risk
-    return volume
+def calculate_required_margin(price: float, qty: float, side: OrderSide) -> float:
+    if side == OrderSide.BUY:
+        return qty * price * 0.5
+    elif side == OrderSide.SELL_SHORT:
+        if price < 5:
+            calc_price = max(price, 2.5)
+            return abs(qty) * calc_price
+        
+        return abs(qty) * price * 1.5
+    else:
+        raise ValueError("Invalid side")
+        
+
+def calculate_new_trade_quantity(equity: float, free_margin: float, current_price: float, side: OrderSide, stop_loss: float, max_per_trade_risk_percentage: float) -> float:
+    max_allowable_margin = free_margin * 0.99  # Change back to 25%
+    max_per_trade_risk = equity * max_per_trade_risk_percentage
+    
+    sl_distance = abs(current_price - stop_loss)
+    quantity = max_per_trade_risk / sl_distance
+
+    required_margin = calculate_required_margin(current_price, quantity, side)
+    if required_margin > max_allowable_margin:
+        _quantity = max_allowable_margin / calculate_required_margin(current_price, 1, side)
+        print(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}")
+        quantity = _quantity
+    
+    return quantity
 
 def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     """
@@ -68,15 +91,15 @@ if __name__ == "__main__":
     # input parameters
     balance = 100000
     symbol = 'COIN'
-    start_date = '2024-10-10'
-    end_date = '2024-11-10'
+    start_date = '2024-01-02'
+    end_date = '2024-12-31'
     repository_source = RepositorySource.POLYGON
     csv_path = None
     grpc_host = 'http://localhost:5051'
     env = PlaygroundEnvironment.SIMULATOR
     
     playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, env, csv_path, grpc_host=grpc_host)
-    playground.tick(0)  # initialize the playground
+    playground.tick(0, raise_exception=False)  # initialize the playground
     
     print(f"playground id: {playground.id}")
     
@@ -93,9 +116,9 @@ if __name__ == "__main__":
         # check for close signals
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, s.Reason)
+            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=False)
             print(f"Placed close order: {resp}")
-            playground.tick(0)
+            playground.tick(0, raise_exception=False)
 
         # check for open signals
         tick_delta = playground.flush_new_state_buffer()
@@ -117,20 +140,20 @@ if __name__ == "__main__":
         for s in signals:            
             if s.name == OpenSignalName.CROSS_ABOVE_20:
                 if position < 0:
-                    volume = abs(position)
+                    qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    resp = playground.place_order(symbol, volume, side, 'close_all')
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False)
                     print(f"Placed close order: {resp}")
-                    playground.tick(0)
+                    playground.tick(0, raise_exception=False)
 
                 side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
                 if position > 0:
-                    volume = position
+                    qty = position
                     side = OrderSide.SELL
-                    resp = playground.place_order(symbol, volume, side, 'close_all')
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False)
                     print(f"Placed close order: {resp}")
-                    playground.tick(0)
+                    playground.tick(0, raise_exception=False)
                     
                 side = OrderSide.SELL_SHORT
             else:
@@ -139,22 +162,22 @@ if __name__ == "__main__":
             
             try:
                 sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.min_price_prediction_std_dev, s.max_price_prediction, s.max_price_prediction_std_dev)
-                volume = calculate_new_trade_volume(playground.account.equity, current_price, s.min_price_prediction, 0.03)
-                volume = int(round(volume - 0.5, 0))
+                quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
+                quantity = int(round(quantity - 0.5, 0))
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
                 print(f"Error building tag: {e}. Skipping order ...")
                 continue
             
             try:
-                resp = playground.place_order(symbol, volume, side, tag)
+                resp = playground.place_order(symbol, quantity, side, current_price, tag)
             except Exception as e:
                 print(f"Error placing order: {e}")
                 continue
             
             print(f"Placed open order: {resp}")
             
-        playground.tick(playground_tick_in_seconds)
+        playground.tick(playground_tick_in_seconds, raise_exception=False)
             
     print(f"Playground: {playground.id}")
     print("Done")

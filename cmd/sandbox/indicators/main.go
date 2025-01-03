@@ -32,7 +32,7 @@ func main() {
 	m := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 	timespan := eventmodels.PolygonTimespan{
 		Multiplier: 15,
-		Unit:       eventmodels.Minute,
+		Unit:       eventmodels.PolygonTimespanUnitMinute,
 	}
 
 	pastFrom := &eventmodels.PolygonDate{

@@ -94,6 +94,7 @@ message PlaceOrderRequest {
     string type = 6;
     string duration = 7;
     string tag = 8;
+    double requested_price = 9;
 }
 
 message NextTickRequest {
@@ -168,10 +169,11 @@ message Candle {
 }
 
 message Trade {
-    string symbol = 1;
-    string create_date = 2;
-    double quantity = 3;
-    double price = 4;
+    uint64 id = 1;
+    string symbol = 2;
+    string create_date = 3;
+    double quantity = 4;
+    double price = 5;
 }
 
 message Order {

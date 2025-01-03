@@ -82,7 +82,7 @@ func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
 		return BacktesterOrderStatusOpen
 	}
 
-	filledQuantity := o.GetFilledQuantity()
+	filledQuantity := o.GetFilledVolume()
 
 	if filledQuantity == o.GetQuantity() {
 		return BacktesterOrderStatusFilled
@@ -97,16 +97,22 @@ func (o *BacktesterOrder) GetRemainingOpenQuantity() float64 {
 		closedQty += trade.Quantity
 	}
 
-	return o.GetFilledQuantity() - closedQty
+	if o.Side == BacktesterOrderSideBuy {
+		return math.Max(0, o.GetFilledVolume() + closedQty)
+	} else if o.Side == BacktesterOrderSideSellShort {
+		return math.Min(0, o.GetFilledVolume() + closedQty)
+	} else {
+		panic("unsupported order side")
+	}
 }
 
-func (o *BacktesterOrder) GetFilledQuantity() float64 {
-	filledQuantity := 0.0
+func (o *BacktesterOrder) GetFilledVolume() float64 {
+	filledVolume := 0.0
 	for _, trade := range o.Trades {
-		filledQuantity += trade.Quantity
+		filledVolume += trade.Quantity
 	}
 
-	return filledQuantity
+	return filledVolume
 }
 
 func (o *BacktesterOrder) GetAvgFillPrice() float64 {

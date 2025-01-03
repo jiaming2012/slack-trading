@@ -81,9 +81,21 @@ type GetAccountResponse struct {
 	Orders     []*models.BacktesterOrder   `json:"orders"`
 }
 
+type CreateAccountRequestSource struct {
+	Broker      string `json:"broker"`
+	AccountID   string `json:"account_id"`
+	ApiKeyName  string `json:"api_key_name"`
+}
+
+type CreateAccountRequest struct {
+	Balance float64                    `json:"balance"`
+	Source  CreateAccountRequestSource `json:"source"`
+}
+
 type CreatePlaygroundRequest struct {
 	Env          string                    `json:"environment"`
-	Balance      float64                   `json:"balance"`
+	Balance      float64                   `json:"balance"` // todo: remove
+	Account      CreateAccountRequest      `json:"account"`
 	Clock        CreateClockRequest        `json:"clock"`
 	Repositories []CreateRepositoryRequest `json:"repositories"`
 }
@@ -103,6 +115,7 @@ type RepositorySourceType string
 const (
 	RepositorySourcePolygon RepositorySourceType = "polygon"
 	RepositorySourceCSV     RepositorySourceType = "csv"
+	RepositorySourceTradier RepositorySourceType = "tradier"
 )
 
 type RepositorySource struct {

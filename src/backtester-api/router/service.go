@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
@@ -106,16 +107,54 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
+	// validations
 	if err := env.Validate(); err != nil {
 		return nil, eventmodels.NewWebError(400, "invalid playground environment")
 	}
 
+	if len(req.Repositories) == 0 {
+		return nil, eventmodels.NewWebError(400, "missing repositories")
+	}
+
+	// create playground
 	var playground *models.Playground
 
 	if env == models.PlaygroundEnvironmentLive {
+		// create live account
+		liveAccount, err := services.CreateLiveAccount(req.Account.Balance, req.Account.Source.AccountID, req.Account.Source.Broker, req.Account.Source.ApiKeyName)
+		if err != nil {
+			log.Errorf("failed to create live account: %v", err)
+			return nil, err
+		}
+
+		fmt.Printf("liveAccount: %v\n", liveAccount)
+
+		// fetch or create live repositories
+		for _, repo := range req.Repositories {
+			if repo.Source.Type != RepositorySourceTradier {
+				return nil, eventmodels.NewWebError(400, "invalid repository source")
+			}
+
+			polygonTimespan := eventmodels.PolygonTimespan{
+				Multiplier: repo.Timespan.Multiplier,
+				Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
+			}
+
+			timespan, err := eventmodels.NewTradierInterval(polygonTimespan)
+			if err != nil {
+				return nil, eventmodels.NewWebError(400, "failed to create tradier interval")
+			}
+
+			liveRepository, err := services.FetchOrCreateLiveRepository(eventmodels.StockSymbol(repo.Symbol), timespan)
+			if err != nil {
+				return nil, eventmodels.NewWebError(500, "failed to fetch or create live repository")
+			}
+
+			fmt.Printf("liveRepository: %v\n", liveRepository)
+		}
 
 	} else {
-		// create clock
+		// validations
 		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
 			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
@@ -126,16 +165,13 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 			return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
 		}
 
+		// create clock
 		clock, err := createClock(from, to)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create clock")
 		}
 
-		// create repositories
-		if len(req.Repositories) == 0 {
-			return nil, eventmodels.NewWebError(400, "missing repositories")
-		}
-
+		// create backtester repositories
 		var feeds []*models.BacktesterCandleRepository
 		for _, repo := range req.Repositories {
 			if repo.Source.Type == RepositorySourceCSV && repo.Source.CSVFilename == nil {

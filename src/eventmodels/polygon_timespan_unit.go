@@ -3,12 +3,12 @@ package eventmodels
 type PolygonTimespanUnit string
 
 const (
-	Second  PolygonTimespanUnit = "second"
-	Minute  PolygonTimespanUnit = "minute"
-	Hour    PolygonTimespanUnit = "hour"
-	Day     PolygonTimespanUnit = "day"
-	Week    PolygonTimespanUnit = "week"
-	Month   PolygonTimespanUnit = "month"
-	Quarter PolygonTimespanUnit = "quarter"
-	Year    PolygonTimespanUnit = "year"
+	PolygonTimespanUnitSecond  PolygonTimespanUnit = "second"
+	PolygonTimespanUnitMinute  PolygonTimespanUnit = "minute"
+	PolygonTimespanUnitHour    PolygonTimespanUnit = "hour"
+	PolygonTimespanUnitDay     PolygonTimespanUnit = "day"
+	PolygonTimespanUnitWeek    PolygonTimespanUnit = "week"
+	PolygonTimespanUnitMonth   PolygonTimespanUnit = "month"
+	PolygonTimespanUnitQuarter PolygonTimespanUnit = "quarter"
+	PolygonTimespanUnitYear    PolygonTimespanUnit = "year"
 )

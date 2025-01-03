@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/utils"
@@ -243,7 +244,7 @@ func (w *TradierOrdersMonitoringWorker) OrdersMonitoringWorking(ctx context.Cont
 	}
 }
 
-func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval) {
+func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandlesAndUpdateRepo(symbol eventmodels.Instrument, interval eventmodels.TradierInterval) {
 	start := time.Now().Add(-1 * time.Hour).In(w.location)
 	end := start.Add(24 * time.Hour)
 
@@ -271,7 +272,7 @@ func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandles(symbol eventmode
 func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	timer := time.NewTicker(5 * time.Second)
+	timer := time.NewTicker(10 * time.Second)
 
 	go func() {
 		defer w.wg.Done()
@@ -282,9 +283,18 @@ func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 				return
 			case <-timer.C:
 				// w.OrdersMonitoringWorking(ctx)
-				if w.liveTradierCandles != nil {
-					w.FetchLiveTradierCandles(eventmodels.StockSymbol("COIN"), eventmodels.TradierInterval1Min)
+				repos, unlockFn, err := services.FetchAllLiveRepositories()
+				if err != nil {
+					log.Errorf("failed to fetch all live repositories: %v", err)
+					continue
 				}
+
+				for _, repo := range repos {
+					log.Debugf("fetching candles for %s", repo.Instrument)
+					w.FetchLiveTradierCandlesAndUpdateRepo(repo.Instrument, repo.Period)
+				}
+
+				unlockFn()
 			}
 		}
 	}()
