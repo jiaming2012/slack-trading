@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/google/uuid"
+
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 var (
-	playgroundIdToAccountsMap = map[string]*eventmodels.LiveAccount{}
+	playgroundIdToAccountsMap = map[uuid.UUID]*models.LiveAccount{}
 )
 
-func SavePlaygroundAccount(playgroundID string, account *eventmodels.LiveAccount) {
-	playgroundIdToAccountsMap[playgroundID] = account
+func SavePlaygroundAccount(playground models.IPlayground, account *models.LiveAccount) {
+	playgroundIdToAccountsMap[playground.GetId()] = account
 }
 
-func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*eventmodels.LiveAccount, error) {
+func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*models.LiveAccount, error) {
 	if balance < 0 {
 		return nil, fmt.Errorf("balance cannot be negative")
 	}
@@ -54,7 +56,7 @@ func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*
 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
 	}
 
-	account := eventmodels.NewLiveAccount(balance, source)
+	account := models.NewLiveAccount(balance, source)
 
 	return account, nil
 }

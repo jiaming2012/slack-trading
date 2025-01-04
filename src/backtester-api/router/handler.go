@@ -20,7 +20,7 @@ import (
 // todo: move state to database
 var (
 	client            = new(eventservices.PolygonTickDataMachine)
-	playgrounds       = map[uuid.UUID]*models.Playground{}
+	playgrounds       = map[uuid.UUID]models.IPlayground{}
 	projectsDirectory string
 )
 
@@ -82,9 +82,9 @@ type GetAccountResponse struct {
 }
 
 type CreateAccountRequestSource struct {
-	Broker      string `json:"broker"`
-	AccountID   string `json:"account_id"`
-	ApiKeyName  string `json:"api_key_name"`
+	Broker     string `json:"broker"`
+	AccountID  string `json:"account_id"`
+	ApiKeyName string `json:"api_key_name"`
 }
 
 type CreateAccountRequest struct {
@@ -180,7 +180,7 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func makeBacktesterOrder(playground *models.Playground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
+func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
 	order := models.NewBacktesterOrder(
 		playground.NextOrderID(),
 		req.Class,
@@ -256,7 +256,7 @@ func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"playground_id": playground.ID,
+		"playground_id": playground.GetId(),
 	}
 
 	if err := setResponse(response, w); err != nil {

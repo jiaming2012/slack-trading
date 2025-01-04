@@ -11,6 +11,25 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+type IPlayground interface {
+	GetMeta() *PlaygroundMeta
+	GetId() uuid.UUID
+	GetBalance() float64
+	GetEquity(positions map[eventmodels.Instrument]*Position) float64
+	GetOrders() []*BacktesterOrder
+	GetPosition(symbol eventmodels.Instrument) Position
+	GetPositions() map[eventmodels.Instrument]*Position
+	GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error)
+	GetFreeMargin() float64
+	PlaceOrder(order *BacktesterOrder) error
+	Tick(d time.Duration, isPreview bool) (*TickDelta, error)
+	GetFreeMarginFromPositionMap(positions map[eventmodels.Instrument]*Position) float64
+	GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder
+	GetCurrentTime() time.Time
+	NextOrderID() uint
+	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
+}
+
 type Playground struct {
 	Meta               *PlaygroundMeta
 	ID                 uuid.UUID
@@ -22,6 +41,10 @@ type Playground struct {
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Env                PlaygroundEnvironment
+}
+
+func (p *Playground) GetId() uuid.UUID {
+	return p.ID
 }
 
 func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder {
@@ -859,14 +882,19 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, fee
 		}
 	}
 
+	meta := &PlaygroundMeta{
+		Symbols:         symbols,
+		StartingBalance: balance,
+		Environment:     env,
+	}
+
+	if clock != nil {
+		meta.StartDate = clock.CurrentTime.Format(time.RFC3339)
+		meta.EndDate = clock.EndTime.Format(time.RFC3339)
+	}
+
 	return &Playground{
-		Meta: &PlaygroundMeta{
-			Symbols:         symbols,
-			StartDate:       clock.CurrentTime.Format(time.RFC3339),
-			EndDate:         clock.EndTime.Format(time.RFC3339),
-			StartingBalance: balance,
-			Environment:     env,
-		},
+		Meta:            meta,
 		ID:              uuid.New(),
 		account:         NewBacktesterAccount(balance),
 		clock:           clock,

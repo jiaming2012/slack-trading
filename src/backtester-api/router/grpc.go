@@ -380,6 +380,6 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}
 
 	return &pb.CreatePlaygroundResponse{
-		Id: playground.ID.String(),
+		Id: playground.GetId().String(),
 	}, nil
 }

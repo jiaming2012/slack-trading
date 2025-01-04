@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"sync"
 
 	// "github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -12,8 +11,8 @@ import (
 type LiveAccountSource struct {
 	Broker    string `json:"broker"`
 	AccountID string `json:"account_id"`
-	Url    string `json:"-"`
-	ApiKey string `json:"-"`
+	Url       string `json:"-"`
+	ApiKey    string `json:"-"`
 }
 
 func (s LiveAccountSource) GetBroker() string {

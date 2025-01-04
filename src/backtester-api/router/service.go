@@ -104,7 +104,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 	return order, nil
 }
 
-func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) {
+func createPlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
 	// validations
@@ -117,7 +117,7 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 	}
 
 	// create playground
-	var playground *models.Playground
+	var playground models.IPlayground
 
 	if env == models.PlaygroundEnvironmentLive {
 		// create live account
@@ -130,6 +130,7 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 		fmt.Printf("liveAccount: %v\n", liveAccount)
 
 		// fetch or create live repositories
+		var repos []*models.LiveCandleRepository
 		for _, repo := range req.Repositories {
 			if repo.Source.Type != RepositorySourceTradier {
 				return nil, eventmodels.NewWebError(400, "invalid repository source")
@@ -151,7 +152,18 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 			}
 
 			fmt.Printf("liveRepository: %v\n", liveRepository)
+
+			repos = append(repos, liveRepository)
 		}
+
+		// create live playground
+		playground, err = models.NewLivePlayground(liveAccount, repos)
+		if err != nil {
+			return nil, eventmodels.NewWebError(500, "failed to create live playground")
+		}
+
+		// save live account
+		services.SavePlaygroundAccount(playground, liveAccount)
 
 	} else {
 		// validations
@@ -192,7 +204,8 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 
 				if len(repo.Indicators) > 0 {
 					_to := from.GetPreviousDay()
-					_from := _to.GetPreviousYear()
+					// _from := _to.GetPreviousYear()
+					_from := _to.GetPreviousDay()
 					attempts := 5
 					for i := 0; true; i++ {
 						pastBars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, _from, _to)
@@ -245,7 +258,7 @@ func createPlayground(req *CreatePlaygroundRequest) (*models.Playground, error) 
 		}
 	}
 
-	playgrounds[playground.ID] = playground
+	playgrounds[playground.GetId()] = playground
 
 	return playground, nil
 }

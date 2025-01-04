@@ -4,17 +4,18 @@ import (
 	"sync"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 )
 
 var (
 	databaseMutex    = sync.Mutex{}
-	liveRepositories = map[eventmodels.Instrument]map[eventmodels.TradierInterval]*eventmodels.LiveCandleRepository{}
+	liveRepositories = map[eventmodels.Instrument]map[eventmodels.TradierInterval]*models.LiveCandleRepository{}
 )
 
-func FetchAllLiveRepositories() (repositories []*eventmodels.LiveCandleRepository, releaseLockFn func(), err error) {
+func FetchAllLiveRepositories() (repositories []*models.LiveCandleRepository, releaseLockFn func(), err error) {
 	databaseMutex.Lock()
 
-	repositories = []*eventmodels.LiveCandleRepository{}
+	repositories = []*models.LiveCandleRepository{}
 	for _, symbolRepo := range liveRepositories {
 		for _, repo := range symbolRepo {
 			repositories = append(repositories, repo)
@@ -26,13 +27,13 @@ func FetchAllLiveRepositories() (repositories []*eventmodels.LiveCandleRepositor
 	}, nil
 }
 
-func FetchOrCreateLiveRepository(symbol eventmodels.StockSymbol, timespan eventmodels.TradierInterval) (*eventmodels.LiveCandleRepository, error) {
+func FetchOrCreateLiveRepository(symbol eventmodels.StockSymbol, timespan eventmodels.TradierInterval) (*models.LiveCandleRepository, error) {
 	databaseMutex.Lock()
 	defer databaseMutex.Unlock()
 
 	symbolRepo, ok := liveRepositories[symbol]
 	if !ok {
-		symbolRepo = map[eventmodels.TradierInterval]*eventmodels.LiveCandleRepository{}
+		symbolRepo = map[eventmodels.TradierInterval]*models.LiveCandleRepository{}
 	}
 
 	repo, ok := symbolRepo[timespan]
@@ -47,8 +48,8 @@ func FetchOrCreateLiveRepository(symbol eventmodels.StockSymbol, timespan eventm
 	return repo, nil
 }
 
-func createLiveRepository(symbol eventmodels.Instrument, timespan eventmodels.TradierInterval) *eventmodels.LiveCandleRepository {
-	return &eventmodels.LiveCandleRepository{
+func createLiveRepository(symbol eventmodels.Instrument, timespan eventmodels.TradierInterval) *models.LiveCandleRepository {
+	return &models.LiveCandleRepository{
 		Instrument: symbol,
 		Period:     timespan,
 	}
