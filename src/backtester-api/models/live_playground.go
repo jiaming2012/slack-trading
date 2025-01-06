@@ -57,8 +57,26 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) error {
 	qty := int(order.AbsoluteQuantity)
 	req := NewPlaceEquityOrderRequest(ticker, qty, order.Side, order.Type, order.Tag, false)
 
-	if err := p.account.Broker.PlaceOrder(context.Background(), req); err != nil {
+	resp, err := p.account.Broker.PlaceOrder(context.Background(), req)
+	if err != nil {
 		return fmt.Errorf("failed to place order in live playground: %w", err)
+	}
+
+	if orderMap, ok := resp["order"]; ok {
+		result, ok := orderMap.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("LivePlayground.PlaceOrder: failed to cast response to order id map")
+		}
+
+		if orderID, ok := result["id"]; ok {
+			if id, ok := orderID.(float64); ok {
+				order.ID = uint(id)
+			} else {
+				return fmt.Errorf("LivePlayground.PlaceOrder: failed to cast order id to int")
+			}
+		} else {
+			return fmt.Errorf("LivePlayground.PlaceOrder: order id not found in response")
+		}
 	}
 
 	return nil

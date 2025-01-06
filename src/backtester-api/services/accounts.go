@@ -14,13 +14,14 @@ type TradierBroker struct {
 	token string
 }
 
-func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) error {
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
 	
-	if err := PlaceOrder(ctx, b.url, b.token, req); err != nil {
-		return fmt.Errorf("failed to place order: %w", err)
+	resp, err := PlaceOrder(ctx, b.url, b.token, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to place order: %w", err)
 	}
 	
-	return nil
+	return resp, nil
 }
 
 func NewTradierBroker(url, token string) *TradierBroker {
