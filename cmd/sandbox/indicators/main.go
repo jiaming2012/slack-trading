@@ -71,18 +71,12 @@ func main() {
 
 	indicators := []string{"supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"}
 
-	data, err := eventservices.AddIndicatorsToCandles(candles, pastCandlesForIndicators, indicators)
-	if err != nil {
-		log.Fatalf("failed to add indicators to candles: %v", err)
-	}
+	aggregateCandles := append(pastCandlesForIndicators, candles...)
+	
+	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, len(pastCandlesForIndicators))
 
 	// Print the first candle
 	fmt.Printf("First Candle: %+v\n", candles[0])
-
-	// Print the last candle with indicators
-	fmt.Printf("First Candle with indicators: %+v\n", data[0])
-
-	repo := models.NewBacktesterCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, data, len(pastCandlesForIndicators))
 
 	fmt.Printf("Current Candle: +%v", repo.GetCurrentCandle())
 }

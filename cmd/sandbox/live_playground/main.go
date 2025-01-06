@@ -68,16 +68,23 @@ func main() {
 		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
-	newBarsCh := make(chan eventmodels.TradierMarketsTimeSalesDTO)
+	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
 
 	// tradier engine
-	worker := eventconsumers.NewTradierOrdersMonitoringWorker(&wg, newBarsCh, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken)
+	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken)
 
 	worker.Start(ctx)
 
 	go func() {
-		for candle := range newBarsCh {
-			log.Infof("new candle: %v", candle)
+		for {
+			candle, ok := liveCandlesUpdateQueue.Dequeue()
+			if ok {
+				log.Infof("candle: %v", candle)
+			} else {
+				log.Infof("queue is empty")
+			}
+
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
@@ -92,7 +99,7 @@ func main() {
 }
 
 func fetchTradierAccount() {
-	
+
 }
 
 func fetchLivePolygonCandles(client *eventservices.PolygonTickDataMachine, out chan<- eventmodels.PolygonAggregateBarV2) {

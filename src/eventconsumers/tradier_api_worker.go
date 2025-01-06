@@ -12,25 +12,25 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-type TradierOrdersMonitoringWorker struct {
-	wg                 *sync.WaitGroup
-	orders             eventmodels.TradierOrderDataStore
-	brokerURL          string
-	timeSalesURL       string
-	quotesBearerToken  string
-	tradesBearerToken  string
-	liveTradierCandles chan eventmodels.TradierMarketsTimeSalesDTO
-	location           *time.Location
-	currentBar         *eventmodels.TradierMarketsTimeSalesDTO
+type TradierApiWorker struct {
+	wg                *sync.WaitGroup
+	orders            eventmodels.TradierOrderDataStore
+	brokerURL         string
+	timeSalesURL      string
+	quotesBearerToken string
+	tradesBearerToken string
+	location          *time.Location
+	currentBar        *eventmodels.TradierMarketsTimeSalesDTO
 }
 
-func (w *TradierOrdersMonitoringWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
+func (w *TradierApiWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
 	if order, ok := w.orders[order.ID]; ok {
 		return order, nil
 	}
@@ -42,7 +42,7 @@ func (w *TradierOrdersMonitoringWorker) GetOrAddOrder(order *eventmodels.Tradier
 	}
 }
 
-func (w *TradierOrdersMonitoringWorker) FetchCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
+func (w *TradierApiWorker) FetchCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -103,7 +103,7 @@ func (w *TradierOrdersMonitoringWorker) FetchCandles(symbol eventmodels.Instrume
 					High:      data["high"].(float64),
 					Low:       data["low"].(float64),
 					Close:     data["close"].(float64),
-					Volume:    int(data["volume"].(float64)),
+					Volume:    data["volume"].(float64),
 					Vwap:      data["vwap"].(float64),
 				})
 			} else if data, isList := seriesSingleton["data"].([]interface{}); isList {
@@ -117,7 +117,7 @@ func (w *TradierOrdersMonitoringWorker) FetchCandles(symbol eventmodels.Instrume
 						High:      d["high"].(float64),
 						Low:       d["low"].(float64),
 						Close:     d["close"].(float64),
-						Volume:    int(d["volume"].(float64)),
+						Volume:    d["volume"].(float64),
 						Vwap:      d["vwap"].(float64),
 					})
 				}
@@ -133,7 +133,7 @@ func (w *TradierOrdersMonitoringWorker) FetchCandles(symbol eventmodels.Instrume
 	return results, nil
 }
 
-func (w *TradierOrdersMonitoringWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
+func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -172,7 +172,7 @@ func (w *TradierOrdersMonitoringWorker) fetchOrders() ([]*eventmodels.TradierOrd
 	return orders, nil
 }
 
-func (w *TradierOrdersMonitoringWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
+func (w *TradierApiWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
 	result := []uint{}
 
 	for orderID := range w.orders {
@@ -192,7 +192,7 @@ func (w *TradierOrdersMonitoringWorker) CheckForDelete(ordersDTO []*eventmodels.
 	return result
 }
 
-func (w *TradierOrdersMonitoringWorker) CheckForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*eventmodels.TradierOrderCreateEvent, []*eventmodels.TradierOrderUpdateEvent) {
+func (w *TradierApiWorker) CheckForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*eventmodels.TradierOrderCreateEvent, []*eventmodels.TradierOrderUpdateEvent) {
 	var createOrderEvents []*eventmodels.TradierOrderCreateEvent
 	var updateOrderEvents []*eventmodels.TradierOrderUpdateEvent
 
@@ -217,7 +217,7 @@ func (w *TradierOrdersMonitoringWorker) CheckForCreateOrUpdate(ordersDTO []*even
 	return createOrderEvents, updateOrderEvents
 }
 
-func (w *TradierOrdersMonitoringWorker) OrdersMonitoringWorking(ctx context.Context) {
+func (w *TradierApiWorker) OrdersMonitoringWorking(ctx context.Context) {
 	ordersDTO, err := w.fetchOrders()
 	if err != nil {
 		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
@@ -244,32 +244,39 @@ func (w *TradierOrdersMonitoringWorker) OrdersMonitoringWorking(ctx context.Cont
 	}
 }
 
-func (w *TradierOrdersMonitoringWorker) FetchLiveTradierCandlesAndUpdateRepo(symbol eventmodels.Instrument, interval eventmodels.TradierInterval) {
-	start := time.Now().Add(-1 * time.Hour).In(w.location)
-	end := start.Add(24 * time.Hour)
+func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
+	now := time.Now()
+	start := now.Add(-24 * time.Hour).In(w.location)
+	end := now.Add(24 * time.Hour)
 
-	bars, err := w.FetchCandles(symbol, interval, start, end)
+	candles, err := w.FetchCandles(repo.GetSymbol(), repo.GetInterval(), start, end)
 	if err != nil {
 		log.Fatalf("failed to fetch candles: %v", err)
 		return
 	}
 
-	if len(bars) > 1 {
-		newBar := bars[len(bars)-2]
-
-		if w.currentBar == nil {
-			w.currentBar = newBar
-			w.liveTradierCandles <- *newBar
-		} else {
-			if w.currentBar.Timestamp != (newBar.Timestamp) {
-				w.currentBar = newBar
-				w.liveTradierCandles <- *newBar
+	startAt := len(candles)
+	var newCandles []eventmodels.ICandle
+	lastCandleInRepo := repo.GetLastCandle()
+	if lastCandleInRepo != nil {
+		for i := len(candles) - 1; i >= 0; i-- {
+			tstamp := candles[i].GetTimestamp()
+			if !tstamp.After(lastCandleInRepo.Timestamp) {
+				break
 			}
+
+			startAt = i
 		}
 	}
+
+	for i := startAt; i < len(candles); i++ {
+		newCandles = append(newCandles, candles[i])
+	}
+
+	repo.AppendBars(newCandles)
 }
 
-func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
+func (w *TradierApiWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
 	timer := time.NewTicker(10 * time.Second)
@@ -290,8 +297,8 @@ func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 				}
 
 				for _, repo := range repos {
-					log.Debugf("fetching candles for %s", repo.Instrument)
-					w.FetchLiveTradierCandlesAndUpdateRepo(repo.Instrument, repo.Period)
+					log.Debugf("fetching candles for %s", repo.GetSymbol())
+					w.UpdateLiveRepos(repo)
 				}
 
 				unlockFn()
@@ -300,15 +307,14 @@ func (w *TradierOrdersMonitoringWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierOrdersMonitoringWorker(wg *sync.WaitGroup, liveTradierCandles chan eventmodels.TradierMarketsTimeSalesDTO, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string) *TradierOrdersMonitoringWorker {
-	worker := &TradierOrdersMonitoringWorker{
-		wg:                 wg,
-		orders:             make(map[uint]*eventmodels.TradierOrder),
-		brokerURL:          brokerURL,
-		timeSalesURL:       timeSalesURL,
-		quotesBearerToken:  quotesBearerToken,
-		tradesBearerToken:  tradesBearerToken,
-		liveTradierCandles: liveTradierCandles,
+func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string) *TradierApiWorker {
+	worker := &TradierApiWorker{
+		wg:                wg,
+		orders:            make(map[uint]*eventmodels.TradierOrder),
+		brokerURL:         brokerURL,
+		timeSalesURL:      timeSalesURL,
+		quotesBearerToken: quotesBearerToken,
+		tradesBearerToken: tradesBearerToken,
 	}
 
 	var err error

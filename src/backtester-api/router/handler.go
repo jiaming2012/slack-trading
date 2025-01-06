@@ -124,10 +124,11 @@ type RepositorySource struct {
 }
 
 type CreateRepositoryRequest struct {
-	Symbol     string                 `json:"symbol"`
-	Timespan   PolygonTimespanRequest `json:"timespan"`
-	Source     RepositorySource       `json:"source"`
-	Indicators []string               `json:"indicators"`
+	Symbol        string                 `json:"symbol"`
+	Timespan      PolygonTimespanRequest `json:"timespan"`
+	HistoryInDays uint32                 `json:"history_in_days"`
+	Source        RepositorySource       `json:"source"`
+	Indicators    []string               `json:"indicators"`
 }
 
 type CreateOrderRequest struct {
@@ -300,16 +301,6 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	clock := models.NewClock(fromDate, toDate, calendar)
 
 	return clock, nil
-}
-
-func createRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.AggregateBarWithIndicators) (*models.BacktesterCandleRepository, error) {
-	period := timespan.ToDuration()
-	return models.NewBacktesterCandleRepository(symbol, period, bars, 0), nil
-}
-
-func createRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.AggregateBarWithIndicators, startingPosition int) (*models.BacktesterCandleRepository, error) {
-	period := timespan.ToDuration()
-	return models.NewBacktesterCandleRepository(symbol, period, bars, startingPosition), nil
 }
 
 func handleAccount(w http.ResponseWriter, r *http.Request) {

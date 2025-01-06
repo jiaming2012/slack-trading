@@ -461,14 +461,16 @@ class BacktesterPlaygroundClient:
             symbol=symbol,
             timespan_multiplier=5,
             timespan_unit='minute',
-            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"]
+            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+            history_in_days=365
         )
         
         htf_repo = CreateRepositoryRequest(
             symbol=symbol,
             timespan_multiplier=60,
             timespan_unit='minute',
-            indicators=["supertrend"]
+            indicators=["supertrend"],
+            history_in_days=365
         )
         
         request = CreatePolygonPlaygroundRequest(

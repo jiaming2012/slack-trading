@@ -30,6 +30,7 @@ message CreateRepositoryRequest {
     uint32 timespan_multiplier = 2;
     string timespan_unit = 3;
     repeated string indicators = 4;
+    uint32 history_in_days = 5;
 }
 
 message CreatePolygonPlaygroundRequest {

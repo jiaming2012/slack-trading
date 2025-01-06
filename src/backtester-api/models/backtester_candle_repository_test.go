@@ -14,7 +14,9 @@ func TestSymbol(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
 		period := time.Minute
 
-		repo := NewBacktesterCandleRepository(symbol, period, nil, 0)
+		repo, err := NewCandleRepository(symbol, period, nil, []string{}, nil, 0)
+
+		assert.NoError(t, err)
 
 		assert.Equal(t, symbol, repo.GetSymbol())
 	})
@@ -24,7 +26,7 @@ func TestNext(t *testing.T) {
 	symbol := eventmodels.StockSymbol("AAPL")
 	period := time.Minute
 
-	candles := []*eventmodels.AggregateBarWithIndicators{
+	candles := []*eventmodels.PolygonAggregateBarV2{
 		{
 			Timestamp: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
 		},
@@ -37,7 +39,9 @@ func TestNext(t *testing.T) {
 	}
 
 	t.Run("returns the current candle", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0)
+
+		assert.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -47,7 +51,9 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns the next candle", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0)
+
+		assert.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
@@ -63,11 +69,13 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
-		repo := NewBacktesterCandleRepository(symbol, period, candles, 0)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0)
+
+		assert.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 
-		_, err := repo.Update(tstamp)
+		_, err = repo.Update(tstamp)
 
 		assert.NoError(t, err)
 

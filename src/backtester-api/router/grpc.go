@@ -361,7 +361,8 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 			Source: RepositorySource{
 				Type: RepositorySourcePolygon,
 			},
-			Indicators: repo.Indicators,
+			Indicators:    repo.Indicators,
+			HistoryInDays: repo.HistoryInDays,
 		})
 	}
 

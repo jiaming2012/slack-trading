@@ -4,19 +4,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/uuid"
-
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-var (
-	playgroundIdToAccountsMap = map[uuid.UUID]*models.LiveAccount{}
-)
+// var (
+// 	playgroundIdToAccountsMap = map[uuid.UUID]*models.LiveAccount{}
+// )
 
-func SavePlaygroundAccount(playground models.IPlayground, account *models.LiveAccount) {
-	playgroundIdToAccountsMap[playground.GetId()] = account
-}
+// func SavePlaygroundAccount(playground models.IPlayground, account *models.LiveAccount) {
+// 	playgroundIdToAccountsMap[playground.GetId()] = account
+// }
 
 func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*models.LiveAccount, error) {
 	if balance < 0 {

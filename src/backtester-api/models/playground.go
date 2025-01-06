@@ -35,7 +35,7 @@ type Playground struct {
 	ID                 uuid.UUID
 	account            *BacktesterAccount
 	clock              *Clock
-	repos              map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository
+	repos              map[eventmodels.Instrument]map[time.Duration]*CandleRepository
 	isBacktestComplete bool
 	positionsCache     map[eventmodels.Instrument]*Position
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
@@ -425,10 +425,6 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	// Preview
 	if isPreview {
-		if p.Env == PlaygroundEnvironmentLive {
-			return nil, fmt.Errorf("preview not supported in live environment")
-		}
-
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
@@ -861,8 +857,8 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...(*BacktesterCandleRepository)) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
+func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...(*CandleRepository)) (*Playground, error) {
+	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 
@@ -871,7 +867,7 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, fee
 
 		if _, found := repos[symbol]; !found {
 			symbols = append(symbols, symbol.GetTicker())
-			repo := make(map[time.Duration]*BacktesterCandleRepository)
+			repo := make(map[time.Duration]*CandleRepository)
 			repos[symbol] = repo
 		}
 
@@ -907,7 +903,7 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, fee
 
 // note: this is only here for testing
 func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...BacktesterDataFeed) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]map[time.Duration]*BacktesterCandleRepository)
+	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 
@@ -916,7 +912,7 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 
 		if _, found := repos[symbol]; !found {
 			symbols = append(symbols, symbol.GetTicker())
-			repo := make(map[time.Duration]*BacktesterCandleRepository)
+			repo := make(map[time.Duration]*CandleRepository)
 			repos[symbol] = repo
 		}
 
@@ -925,7 +921,15 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 			return nil, fmt.Errorf("error fetching candles: %w", err)
 		}
 
-		repos[symbol][feed.GetPeriod()] = NewBacktesterCandleRepository(symbol, feed.GetPeriod(), candles, 0)
+		var data []*eventmodels.PolygonAggregateBarV2
+		for _, candle := range candles {
+			data = append(data, candle.ToPolygonAggregateBarV2())
+		}
+
+		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0)
+		if err != nil {
+			return nil, fmt.Errorf("error creating repository: %w", err)
+		}
 
 		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
 			minimumPeriod = feed.GetPeriod()

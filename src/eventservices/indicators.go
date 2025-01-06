@@ -12,17 +12,15 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, pastCandles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	// Get the PROJECTS_DIR environment variable
 	projectsDir := os.Getenv("PROJECTS_DIR")
 	if projectsDir == "" {
 		return nil, fmt.Errorf("missing PROJECTS_DIR environment variable")
 	}
 
-	aggregateCandles := append(pastCandles, candles...)
-
 	// Marshal candles to JSON
-	candlesJSON, err := json.Marshal(aggregateCandles)
+	candlesJSON, err := json.Marshal(candles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal candles to JSON: %v", err)
 	}

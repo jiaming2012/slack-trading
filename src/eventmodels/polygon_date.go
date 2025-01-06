@@ -19,9 +19,9 @@ func (d *PolygonDate) ToTime() (time.Time, error) {
 	return time.Parse("2006-01-02", d.ToString())
 }
 
-func (d *PolygonDate) GetPreviousDay() *PolygonDate {
+func (d *PolygonDate) GetPreviousDay(daysPast int) *PolygonDate {
 	date := time.Date(d.Year, time.Month(d.Month), d.Day, 0, 0, 0, 0, time.UTC)
-	previousDay := date.AddDate(0, 0, -1)
+	previousDay := date.AddDate(0, 0, -1 * daysPast)
 	return &PolygonDate{
 		Year:  previousDay.Year(),
 		Month: int(previousDay.Month()),

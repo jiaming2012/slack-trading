@@ -1,24 +1,48 @@
 package services
 
 import (
+	"fmt"
 	"sync"
 
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 var (
 	databaseMutex    = sync.Mutex{}
-	liveRepositories = map[eventmodels.Instrument]map[eventmodels.TradierInterval]*models.LiveCandleRepository{}
+	liveRepositories = map[eventmodels.Instrument]map[eventmodels.TradierInterval][]*models.CandleRepository{}
 )
 
-func FetchAllLiveRepositories() (repositories []*models.LiveCandleRepository, releaseLockFn func(), err error) {
+// func AppendToLiveRepository(symbol eventmodels.StockSymbol, interval eventmodels.TradierInterval, bars []*eventmodels.AggregateBarWithIndicators) error {
+// 	databaseMutex.Lock()
+// 	defer databaseMutex.Unlock()
+
+// 	// query the liveRepository
+// 	symbolRepo, ok := liveRepositories[symbol]
+// 	if !ok {
+// 		return fmt.Errorf("UpdateLiveRepository: symbol %s not found", symbol)
+// 	}
+
+// 	repo, ok := symbolRepo[interval]
+// 	if !ok {
+// 		return fmt.Errorf("UpdateLiveRepository: interval %s not found", interval)
+// 	}
+
+// 	// append the bars to the repository
+// 	if err := repo.AppendBars(bars); err != nil {
+// 		return fmt.Errorf("UpdateLiveRepository: failed to append bars: %w", err)
+// 	}
+
+// 	return nil
+// }
+
+func FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
 	databaseMutex.Lock()
 
-	repositories = []*models.LiveCandleRepository{}
+	repositories = []*models.CandleRepository{}
 	for _, symbolRepo := range liveRepositories {
-		for _, repo := range symbolRepo {
-			repositories = append(repositories, repo)
+		for _, periodRepos := range symbolRepo {
+			repositories = append(repositories, periodRepos...)
 		}
 	}
 
@@ -27,30 +51,38 @@ func FetchAllLiveRepositories() (repositories []*models.LiveCandleRepository, re
 	}, nil
 }
 
-func FetchOrCreateLiveRepository(symbol eventmodels.StockSymbol, timespan eventmodels.TradierInterval) (*models.LiveCandleRepository, error) {
+func SaveLiveRepository(repo *models.CandleRepository) error {
 	databaseMutex.Lock()
 	defer databaseMutex.Unlock()
 
-	symbolRepo, ok := liveRepositories[symbol]
+	symbolRepo, ok := liveRepositories[repo.GetSymbol()]
 	if !ok {
-		symbolRepo = map[eventmodels.TradierInterval]*models.LiveCandleRepository{}
+		symbolRepo = map[eventmodels.TradierInterval][]*models.CandleRepository{}
 	}
 
-	repo, ok := symbolRepo[timespan]
+	periodRepos, ok := symbolRepo[repo.GetInterval()]
 	if !ok {
-		repo = createLiveRepository(symbol, timespan)
-		symbolRepo[timespan] = repo
+		periodRepos = []*models.CandleRepository{}
 	}
 
-	// save the symbolRepo back to the liveRepositories
-	liveRepositories[symbol] = symbolRepo
+	// append the repo to the periodRepos
+	periodRepos = append(periodRepos, repo)
+	symbolRepo[repo.GetInterval()] = periodRepos
+	liveRepositories[repo.GetSymbol()] = symbolRepo
 
-	return repo, nil
+	return nil
 }
 
-func createLiveRepository(symbol eventmodels.Instrument, timespan eventmodels.TradierInterval) *models.LiveCandleRepository {
-	return &models.LiveCandleRepository{
-		Instrument: symbol,
-		Period:     timespan,
+func CreateRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) (*models.CandleRepository, error) {
+	return CreateRepositoryWithPosition(symbol, timespan, bars, indicators, newCandlesQueue, 0)
+}
+
+func CreateRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], startingPosition int) (*models.CandleRepository, error) {
+	period := timespan.ToDuration()
+	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, startingPosition)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}
+
+	return repo, nil
 }
