@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -10,7 +11,7 @@ import (
 
 var (
 	databaseMutex    = sync.Mutex{}
-	liveRepositories = map[eventmodels.Instrument]map[eventmodels.TradierInterval][]*models.CandleRepository{}
+	liveRepositories = map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository{}
 )
 
 // func AppendToLiveRepository(symbol eventmodels.StockSymbol, interval eventmodels.TradierInterval, bars []*eventmodels.AggregateBarWithIndicators) error {
@@ -57,17 +58,17 @@ func SaveLiveRepository(repo *models.CandleRepository) error {
 
 	symbolRepo, ok := liveRepositories[repo.GetSymbol()]
 	if !ok {
-		symbolRepo = map[eventmodels.TradierInterval][]*models.CandleRepository{}
+		symbolRepo = map[time.Duration][]*models.CandleRepository{}
 	}
 
-	periodRepos, ok := symbolRepo[repo.GetInterval()]
+	periodRepos, ok := symbolRepo[repo.GetPeriod()]
 	if !ok {
 		periodRepos = []*models.CandleRepository{}
 	}
 
 	// append the repo to the periodRepos
 	periodRepos = append(periodRepos, repo)
-	symbolRepo[repo.GetInterval()] = periodRepos
+	symbolRepo[repo.GetPeriod()] = periodRepos
 	liveRepositories[repo.GetSymbol()] = symbolRepo
 
 	return nil

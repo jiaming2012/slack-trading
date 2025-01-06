@@ -17,7 +17,7 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 
 	highestEVOrderComponents, err := eventservices.DeriveHighestEVOrders(ctx, resultCh, errCh, event, tradierOrderExecuter, riskProfileConstraint)
 	if err != nil {
-		return fmt.Errorf("DeriveHighestEVOrders: failed to derive highest EV orders: %w", err)
+		return fmt.Errorf("SendHighestEVTradeToMarket: failed to derive highest EV orders: %w", err)
 	}
 
 	for _, order := range highestEVOrderComponents {
@@ -25,15 +25,19 @@ func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]in
 			Underlying:       event.Symbol,
 			Spread:           order.Spread,
 			Quantity:         1,
-			TradeType:        eventmodels.TradierTradeTypeCredit,
+			TradeType:        eventmodels.TradierOrderTypeCredit,
 			Price:            order.RequestedPrice,
 			TradeDuration:    eventmodels.TradeDurationDay,
 			Tag:              order.Tag,
 			MaxNoOfPositions: maxNoOfPositions,
 		}
 
+		if err := eventservices.CheckMaxNoOfPositions(tradierOrderExecuter, tradeRequest.Underlying, tradeRequest.Quantity, tradeRequest.MaxNoOfPositions); err != nil {
+			return fmt.Errorf("SendHighestEVTradeToMarket: failed to check max no of positions: %w", err)
+		}
+
 		if err := eventservices.PlaceTradeSpread(ctx, tradierOrderExecuter, tradeRequest); err != nil {
-			return fmt.Errorf("tradierOrderExecuter.PlaceTradeSpread:: error placing trade: %v", err)
+			return fmt.Errorf("SendHighestEVTradeToMarket: error placing trade: %v", err)
 		}
 	}
 

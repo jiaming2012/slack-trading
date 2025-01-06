@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -52,7 +53,15 @@ func (p *LivePlayground) GetFreeMargin() float64 {
 }
 
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) error {
-	return p.playground.PlaceOrder(order)
+	ticker := order.Symbol.GetTicker()
+	qty := int(order.AbsoluteQuantity)
+	req := NewPlaceEquityOrderRequest(ticker, qty, order.Side, order.Type, order.Tag, false)
+
+	if err := p.account.Broker.PlaceOrder(context.Background(), req); err != nil {
+		return fmt.Errorf("failed to place order in live playground: %w", err)
+	}
+
+	return nil
 }
 
 func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelta, error) {

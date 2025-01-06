@@ -331,7 +331,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		Symbol:    req.Symbol,
 		Class:     models.BacktesterOrderClass(req.AssetClass),
 		Quantity:  req.Quantity,
-		Side:      models.BacktesterOrderSide(req.Side),
+		Side:      models.TradierOrderSide(req.Side),
 		OrderType: models.BacktesterOrderType(req.Type),
 		Price:     price,
 		StopPrice: nil,

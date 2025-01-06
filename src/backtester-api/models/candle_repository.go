@@ -14,7 +14,7 @@ import (
 type CandleRepository struct {
 	symbol                eventmodels.Instrument
 	period                time.Duration
-	interval              eventmodels.TradierInterval
+	fetchInterval         eventmodels.TradierInterval
 	candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
 	baseCandles           []*eventmodels.PolygonAggregateBarV2
 	indicators            []string
@@ -32,8 +32,8 @@ func (r *CandleRepository) GetPeriod() time.Duration {
 	return r.period
 }
 
-func (r *CandleRepository) GetInterval() eventmodels.TradierInterval {
-	return r.interval
+func (r *CandleRepository) GetFetchInterval() eventmodels.TradierInterval {
+	return r.fetchInterval
 }
 
 func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicators {
@@ -175,7 +175,11 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 	case 15 * time.Minute:
 		interval = eventmodels.TradierInterval15Min
 	default:
-		log.Fatalf("Unsupported period: %s", period)
+		if period%(15*time.Minute) != 0 {
+			return nil, fmt.Errorf("period must be a multiple of 15 minutes: %s", period)
+		}
+
+		interval = eventmodels.TradierInterval15Min
 	}
 
 	candlesWithIndicators, err := eventservices.AddIndicatorsToCandles(candles, indicators)
@@ -186,7 +190,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 	return &CandleRepository{
 		symbol:                symbol,
 		period:                period,
-		interval:              interval,
+		fetchInterval:         interval,
 		candlesWithIndicators: candlesWithIndicators,
 		baseCandles:           candles,
 		position:              startingPosition,

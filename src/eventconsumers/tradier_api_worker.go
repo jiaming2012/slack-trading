@@ -249,7 +249,7 @@ func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
 	start := now.Add(-24 * time.Hour).In(w.location)
 	end := now.Add(24 * time.Hour)
 
-	candles, err := w.FetchCandles(repo.GetSymbol(), repo.GetInterval(), start, end)
+	candles, err := w.FetchCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
 	if err != nil {
 		log.Fatalf("failed to fetch candles: %v", err)
 		return
@@ -258,8 +258,9 @@ func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
 	startAt := len(candles)
 	var newCandles []eventmodels.ICandle
 	lastCandleInRepo := repo.GetLastCandle()
+	skipCandles := 1
 	if lastCandleInRepo != nil {
-		for i := len(candles) - 1; i >= 0; i-- {
+		for i := len(candles) - skipCandles - 1; i >= 0; i-- {
 			tstamp := candles[i].GetTimestamp()
 			if !tstamp.After(lastCandleInRepo.Timestamp) {
 				break
@@ -269,8 +270,13 @@ func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
 		}
 	}
 
-	for i := startAt; i < len(candles); i++ {
-		newCandles = append(newCandles, candles[i])
+	for i := startAt; i < len(candles) - skipCandles; i++ {
+		timestamp := candles[i].GetTimestamp()
+		totalMinutes := timestamp.Unix() / 60
+		period := int64(repo.GetPeriod().Minutes())
+		if totalMinutes%period == 0 {
+			newCandles = append(newCandles, candles[i])
+		}
 	}
 
 	repo.AppendBars(newCandles)

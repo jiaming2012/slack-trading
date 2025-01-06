@@ -129,9 +129,13 @@ func Run(args RunArgs) (RunResult, error) {
 		Underlying:       args.UnderlyingSymbol,
 		Spread:           spread,
 		Quantity:         args.Quantity,
-		TradeType:        eventmodels.TradierTradeTypeCredit,
+		TradeType:        eventmodels.TradierOrderTypeCredit,
 		Tag:              args.Tag,
 		MaxNoOfPositions: 1000,
+	}
+
+	if err := eventservices.CheckMaxNoOfPositions(tradierOrderExecuter, tradeRequest.Underlying, tradeRequest.Quantity, tradeRequest.MaxNoOfPositions); err != nil {
+		return RunResult{}, fmt.Errorf("failed to check max no of positions: %w", err)
 	}
 
 	if err := eventservices.PlaceTradeSpread(context.Background(), tradierOrderExecuter, tradeRequest); err != nil {

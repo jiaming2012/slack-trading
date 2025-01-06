@@ -122,7 +122,7 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 	return highestEVLong, highestEVShort, nil
 }
 
-func checkMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecuter, symbol eventmodels.StockSymbol, requestedQty, maxNoOfPositions int) error {
+func CheckMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecuter, symbol eventmodels.StockSymbol, requestedQty, maxNoOfPositions int) error {
 	positionsDTO, err := tradierOrderExecuter.PositionFetcher()
 	if err != nil {
 		return fmt.Errorf("checkMaxNoOfPositions: failed to fetch positions: %w", err)
@@ -300,10 +300,6 @@ func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *eventmodels.Tra
 
 	if tradeRequest.Quantity <= 0 {
 		return fmt.Errorf("placeTradeSpread: quantity must be positive")
-	}
-
-	if err := checkMaxNoOfPositions(tradierOrderExecuter, tradeRequest.Underlying, tradeRequest.Quantity, tradeRequest.MaxNoOfPositions); err != nil {
-		return fmt.Errorf("placeTradeSpread: failed to check max no of positions: %w", err)
 	}
 
 	quantityStr := strconv.Itoa(tradeRequest.Quantity)

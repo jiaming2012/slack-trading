@@ -4,7 +4,7 @@ type PlaceTradeSpreadRequest struct {
 	Underlying       StockSymbol
 	Spread           *OptionSpreadContractDTO
 	Quantity         int
-	TradeType        TradierTradeType
+	TradeType        TradierOrderType
 	Price            float64
 	TradeDuration    TradeDuration
 	Tag              string

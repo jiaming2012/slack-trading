@@ -135,7 +135,7 @@ type CreateOrderRequest struct {
 	Symbol    string                         `json:"symbol"`
 	Class     models.BacktesterOrderClass    `json:"class"`
 	Quantity  float64                        `json:"quantity"`
-	Side      models.BacktesterOrderSide     `json:"side"`
+	Side      models.TradierOrderSide        `json:"side"`
 	OrderType models.BacktesterOrderType     `json:"type"`
 	Duration  models.BacktesterOrderDuration `json:"duration"`
 	Price     *float64                       `json:"price"`

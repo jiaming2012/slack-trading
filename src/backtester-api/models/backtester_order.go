@@ -12,7 +12,7 @@ type BacktesterOrder struct {
 	ID               uint                    `json:"id"`
 	Class            BacktesterOrderClass    `json:"class"`
 	Symbol           eventmodels.Instrument  `json:"symbol"`
-	Side             BacktesterOrderSide     `json:"side"`
+	Side             TradierOrderSide        `json:"side"`
 	AbsoluteQuantity float64                 `json:"quantity"`
 	Type             BacktesterOrderType     `json:"type"`
 	Duration         BacktesterOrderDuration `json:"duration"`
@@ -37,7 +37,7 @@ func (o *BacktesterOrder) Reject() {
 }
 
 func (o *BacktesterOrder) GetQuantity() float64 {
-	if o.Side == BacktesterOrderSideSell || o.Side == BacktesterOrderSideSellShort {
+	if o.Side == TradierOrderSideSell || o.Side == TradierOrderSideSellShort {
 		return -o.AbsoluteQuantity
 	}
 
@@ -97,10 +97,10 @@ func (o *BacktesterOrder) GetRemainingOpenQuantity() float64 {
 		closedQty += trade.Quantity
 	}
 
-	if o.Side == BacktesterOrderSideBuy {
-		return math.Max(0, o.GetFilledVolume() + closedQty)
-	} else if o.Side == BacktesterOrderSideSellShort {
-		return math.Min(0, o.GetFilledVolume() + closedQty)
+	if o.Side == TradierOrderSideBuy {
+		return math.Max(0, o.GetFilledVolume()+closedQty)
+	} else if o.Side == TradierOrderSideSellShort {
+		return math.Min(0, o.GetFilledVolume()+closedQty)
 	} else {
 		panic("unsupported order side")
 	}
@@ -128,7 +128,7 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side BacktesterOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
 		Class:            class,

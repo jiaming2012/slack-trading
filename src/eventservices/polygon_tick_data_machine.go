@@ -85,8 +85,8 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	}
 
 	if len(bars) > 0 {
-		// assert first bar is the from date
-		if !bars[0].Timestamp.Equal(fromDate) {
+		// assert first bar is after the from date
+		if !(bars[0].Timestamp.Equal(fromDate) || bars[0].Timestamp.After(fromDate)) {
 			return nil, fmt.Errorf("first bar %v timestamp does not match from date %v", bars[0].Timestamp, fromDate)
 		}
 

@@ -291,7 +291,7 @@ func (p *Playground) updateTrades(ordersToOpen []*BacktesterOrder, startingPosit
 
 			order.Status = BacktesterOrderStatusFilled
 
-			if order.Side == BacktesterOrderSideBuy || order.Side == BacktesterOrderSideSellShort {
+			if order.Side == TradierOrderSideBuy || order.Side == TradierOrderSideSellShort {
 				p.addToOpenOrdersCache(order)
 			}
 
@@ -340,9 +340,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	var order *BacktesterOrder
 
 	if position.Quantity > 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, BacktesterOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
 	} else if position.Quantity < 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, BacktesterOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
 	} else {
 		return nil, nil
 	}
@@ -739,29 +739,29 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 	return candle.ToPolygonAggregateBarV2(), nil
 }
 
-func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side BacktesterOrderSide, positionQuantity float64) error {
+func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64) error {
 	if positionQuantity > 0 {
-		if side == BacktesterOrderSideBuyToCover {
+		if side == TradierOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
 		}
 
-		if side == BacktesterOrderSideSellShort {
+		if side == TradierOrderSideSellShort {
 			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
 		}
 	} else if positionQuantity < 0 {
-		if side == BacktesterOrderSideBuy {
+		if side == TradierOrderSideBuy {
 			return fmt.Errorf("cannot buy when short position exists: must sell to close")
 		}
 
-		if side == BacktesterOrderSideSell {
+		if side == TradierOrderSideSell {
 			return fmt.Errorf("cannot sell to close when short position exists: must buy to cover")
 		}
 	} else {
-		if side == BacktesterOrderSideSell {
+		if side == TradierOrderSideSell {
 			return fmt.Errorf("cannot sell when no position exists: must sell short")
 		}
 
-		if side == BacktesterOrderSideBuyToCover {
+		if side == TradierOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when no position exists")
 		}
 	}

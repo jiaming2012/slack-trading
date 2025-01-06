@@ -27,6 +27,10 @@ func (s LiveAccountSource) GetApiKey() string {
 	return s.ApiKey
 }
 
+func (s LiveAccountSource) GetBrokerUrl() string {
+	return s.Url
+}
+
 func (s LiveAccountSource) Validate() error {
 	if s.Broker != "tradier" {
 		return fmt.Errorf("unsupported broker: %s", s.Broker)

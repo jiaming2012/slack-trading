@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -8,15 +9,28 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-// var (
-// 	playgroundIdToAccountsMap = map[uuid.UUID]*models.LiveAccount{}
-// )
+type TradierBroker struct {
+	url  string
+	token string
+}
 
-// func SavePlaygroundAccount(playground models.IPlayground, account *models.LiveAccount) {
-// 	playgroundIdToAccountsMap[playground.GetId()] = account
-// }
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) error {
+	
+	if err := PlaceOrder(ctx, b.url, b.token, req); err != nil {
+		return fmt.Errorf("failed to place order: %w", err)
+	}
+	
+	return nil
+}
 
-func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*models.LiveAccount, error) {
+func NewTradierBroker(url, token string) *TradierBroker {
+	return &TradierBroker{
+		url: url,
+		token: token,
+	}
+}
+
+func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string) (*models.LiveAccount, error) {
 	if balance < 0 {
 		return nil, fmt.Errorf("balance cannot be negative")
 	}
@@ -34,7 +48,7 @@ func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*
 	url := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
 
 	source := LiveAccountSource{
-		Broker:    broker,
+		Broker:    brokerName,
 		AccountID: accountID,
 		ApiKey:    apiKey,
 		Url:       url,
@@ -54,7 +68,16 @@ func CreateLiveAccount(balance float64, accountID, broker, apiKeyName string) (*
 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
 	}
 
-	account := models.NewLiveAccount(balance, source)
+	tradierTradesUrlTemplate, err := utils.GetEnv("TRADIER_TRADES_URL_TEMPLATE")
+	if err != nil {
+		return nil, fmt.Errorf("$TRADIER_TRADES_URL_TEMPLATE not set: %v", err)
+	}
+
+	tradesUrl := fmt.Sprintf(tradierTradesUrlTemplate, accountID)
+
+	broker := NewTradierBroker(tradesUrl, apiKey)
+
+	account := models.NewLiveAccount(balance, source, broker)
 
 	return account, nil
 }
