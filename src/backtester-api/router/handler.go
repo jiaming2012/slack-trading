@@ -105,11 +105,6 @@ type CreateClockRequest struct {
 	StopDate  string `json:"stop"`
 }
 
-type PolygonTimespanRequest struct {
-	Multiplier int    `json:"multiplier"`
-	Unit       string `json:"unit"`
-}
-
 type RepositorySourceType string
 
 const (
@@ -124,11 +119,11 @@ type RepositorySource struct {
 }
 
 type CreateRepositoryRequest struct {
-	Symbol        string                 `json:"symbol"`
-	Timespan      PolygonTimespanRequest `json:"timespan"`
-	HistoryInDays uint32                 `json:"history_in_days"`
-	Source        RepositorySource       `json:"source"`
-	Indicators    []string               `json:"indicators"`
+	Symbol        string                             `json:"symbol"`
+	Timespan      eventmodels.PolygonTimespanRequest `json:"timespan"`
+	HistoryInDays uint32                             `json:"history_in_days"`
+	Source        RepositorySource                   `json:"source"`
+	Indicators    []string                           `json:"indicators"`
 }
 
 type CreateOrderRequest struct {

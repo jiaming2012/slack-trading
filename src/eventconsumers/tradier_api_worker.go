@@ -16,6 +16,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
@@ -27,7 +28,7 @@ type TradierApiWorker struct {
 	quotesBearerToken string
 	tradesBearerToken string
 	location          *time.Location
-	currentBar        *eventmodels.TradierMarketsTimeSalesDTO
+	polygonClient     *eventservices.PolygonTickDataMachine
 }
 
 func (w *TradierApiWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
@@ -42,7 +43,7 @@ func (w *TradierApiWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*even
 	}
 }
 
-func (w *TradierApiWorker) FetchCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
+func (w *TradierApiWorker) FetchTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -249,10 +250,28 @@ func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
 	start := now.Add(-24 * time.Hour).In(w.location)
 	end := now.Add(24 * time.Hour)
 
-	candles, err := w.FetchCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
-	if err != nil {
-		log.Fatalf("failed to fetch candles: %v", err)
-		return
+	var candles []eventmodels.ICandle
+
+	if repo.GetPeriod() <= 15*time.Minute {
+		tradierCandles, err := w.FetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
+		if err != nil {
+			log.Errorf("failed to fetch candles: %v", err)
+			return
+		}
+
+		for _, candle := range tradierCandles {
+			candles = append(candles, candle)
+		}
+	} else {
+		polygonCandles, err := w.polygonClient.FetchAggregateBarsWithDates(repo.GetSymbol(), repo.GetPolygonTimespan(), start, end, w.location)
+		if err != nil {
+			log.Errorf("failed to fetch candles: %v", err)
+			return
+		}
+
+		for _, candle := range polygonCandles {
+			candles = append(candles, candle)
+		}
 	}
 
 	startAt := len(candles)
@@ -270,7 +289,7 @@ func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
 		}
 	}
 
-	for i := startAt; i < len(candles) - skipCandles; i++ {
+	for i := startAt; i < len(candles)-skipCandles; i++ {
 		timestamp := candles[i].GetTimestamp()
 		totalMinutes := timestamp.Unix() / 60
 		period := int64(repo.GetPeriod().Minutes())
@@ -313,7 +332,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		orders:            make(map[uint]*eventmodels.TradierOrder),
@@ -321,6 +340,7 @@ func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue
 		timeSalesURL:      timeSalesURL,
 		quotesBearerToken: quotesBearerToken,
 		tradesBearerToken: tradesBearerToken,
+		polygonClient:     polygonClient,
 	}
 
 	var err error

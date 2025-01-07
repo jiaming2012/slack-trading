@@ -25,12 +25,12 @@ func main() {
 	}
 
 	// polgyon setup
-	// polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
-	// if err != nil {
-	// 	log.Fatalf("$POLYGON_API_KEY not set: %v", err)
-	// }
+	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
+	if err != nil {
+		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
+	}
 
-	// client := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 	// newBarsCh := make(chan eventmodels.PolygonAggregateBarV2)
 
 	// go fetchLivePolygonCandles(client, newBarsCh)
@@ -71,7 +71,7 @@ func main() {
 	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
 
 	// tradier engine
-	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken)
+	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient)
 
 	worker.Start(ctx)
 

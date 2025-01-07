@@ -53,6 +53,10 @@ func (p *LivePlayground) GetFreeMargin() float64 {
 }
 
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) error {
+	if err := p.playground.PlaceOrder(order); err != nil {
+		return fmt.Errorf("failed to place order in live playground: %w", err)
+	}
+
 	ticker := order.Symbol.GetTicker()
 	qty := int(order.AbsoluteQuantity)
 	req := NewPlaceEquityOrderRequest(ticker, qty, order.Side, order.Type, order.Tag, false)

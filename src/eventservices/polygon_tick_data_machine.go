@@ -42,13 +42,17 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	if err != nil {
 		return nil, fmt.Errorf("failed to load location America/New_York: %w", err)
 	}
-
+	
 	// start at stock market open
 	fromDate := time.Date(from.Year, time.Month(from.Month), from.Day, 9, 30, 0, 0, loc)
 
 	// end at stock market close
 	toDate := time.Date(to.Year, time.Month(to.Month), to.Day, 16, 0, 0, 0, loc)
 
+	return m.FetchAggregateBarsWithDates(ticker, timespan, fromDate, toDate, loc)
+}
+
+func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	// fetch data from polygon api
 	params := models.ListAggsParams{
 		Ticker:     ticker.GetTicker(),

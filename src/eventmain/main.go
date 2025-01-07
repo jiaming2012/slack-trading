@@ -591,7 +591,8 @@ func run() {
 
 	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
 
-	eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken).Start(ctx)
+	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)

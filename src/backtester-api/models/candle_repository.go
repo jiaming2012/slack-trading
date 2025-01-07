@@ -15,6 +15,7 @@ type CandleRepository struct {
 	symbol                eventmodels.Instrument
 	period                time.Duration
 	fetchInterval         eventmodels.TradierInterval
+	polygonTimespan       eventmodels.PolygonTimespan
 	candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
 	baseCandles           []*eventmodels.PolygonAggregateBarV2
 	indicators            []string
@@ -30,6 +31,10 @@ func (r *CandleRepository) GetSymbol() eventmodels.Instrument {
 
 func (r *CandleRepository) GetPeriod() time.Duration {
 	return r.period
+}
+
+func (r *CandleRepository) GetPolygonTimespan() eventmodels.PolygonTimespan {
+	return r.polygonTimespan
 }
 
 func (r *CandleRepository) GetFetchInterval() eventmodels.TradierInterval {
@@ -182,6 +187,11 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		interval = eventmodels.TradierInterval15Min
 	}
 
+	polygonTimespan, err := eventmodels.NewPolygonTimespanRequest(period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create polygon timespan: %v", err)
+	}
+
 	candlesWithIndicators, err := eventservices.AddIndicatorsToCandles(candles, indicators)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add indicators to candles: %v", err)
@@ -197,6 +207,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		startingPosition:      startingPosition,
 		indicators:            indicators,
 		newCandlesQueue:       newCandlesQueue,
+		polygonTimespan:       polygonTimespan,
 		mutex:                 sync.Mutex{},
 	}, nil
 }

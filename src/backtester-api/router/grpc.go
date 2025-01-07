@@ -354,7 +354,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	for _, repo := range req.Repositories {
 		repositoryRequests = append(repositoryRequests, CreateRepositoryRequest{
 			Symbol: repo.Symbol,
-			Timespan: PolygonTimespanRequest{
+			Timespan: eventmodels.PolygonTimespanRequest{
 				Multiplier: int(repo.TimespanMultiplier),
 				Unit:       repo.TimespanUnit,
 			},
