@@ -25,6 +25,7 @@ type TradierOrder struct {
 	OptionSymbol      *string              `json:"option_symbol"`
 	Leg               []TradierOrderLegDTO `json:"leg"`
 	Strategy          string               `json:"strategy"`
+	ReasonDescription *string               `json:"reason_description"`
 	Tag               string               `json:"tag"`
 }
 

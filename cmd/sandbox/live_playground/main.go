@@ -69,9 +69,10 @@ func main() {
 	}
 
 	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
 
 	// tradier engine
-	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient)
+	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue)
 
 	worker.Start(ctx)
 

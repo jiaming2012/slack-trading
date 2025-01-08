@@ -95,6 +95,19 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 
 	createdOn := playground.GetCurrentTime()
 
+	var playgroundEnv models.PlaygroundEnvironment
+	playgroundMeta := playground.GetMeta()
+	if playgroundMeta != nil {
+		playgroundEnv = playgroundMeta.Environment
+	} else {
+		return nil, eventmodels.NewWebError(500, "failed to get playground environment")
+	}
+
+	liveOrderTempId := uint(0)
+	if playgroundEnv == models.PlaygroundEnvironmentLive {
+		req.Id = &liveOrderTempId
+	}
+
 	order, err := makeBacktesterOrder(playground, req, createdOn)
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, fmt.Sprintf("failed to place order: %v", err))
@@ -152,8 +165,17 @@ func createPlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 			}
 		}
 
+		// fetch live orders
+		// really should fetch positions instead of orders
+		// orders if fetched, should be fetched from the DB
+		// liveOrders, err := liveAccount.Broker.FetchOrders(context.Background())
+		// if err != nil {
+		// 	return nil, eventmodels.NewWebError(500, "failed to fetch live orders")
+		// }
+		liveOrders := []*eventmodels.TradierOrder{}
+
 		// create live playground
-		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue)
+		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, liveOrders)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}

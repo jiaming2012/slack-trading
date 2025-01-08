@@ -454,7 +454,9 @@ func run() {
 	// signalapi.SetupHandler(router.PathPrefix("/signals").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
-	backtester_router.SetupHandler(router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey)
+
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
+	backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
@@ -592,7 +594,7 @@ func run() {
 	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
 
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)

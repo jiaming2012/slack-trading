@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 type FIFOQueue[T any] struct {
@@ -41,31 +42,27 @@ type X struct {
 	Val int
 }
 
+func GetQueryStartEndDates(now time.Time, period time.Duration, loc *time.Location) (time.Time, time.Time) {
+	startAfter := now.Add(-23 * time.Hour).In(loc)
+
+	start := startAfter.Truncate(period)
+
+	endAfter := now.Add(24 * time.Hour)
+
+	end := endAfter.Truncate(period)
+
+	return start, end
+}
+
 func main() {
-	queue := NewFIFOQueue[X](10)
-
-	// Enqueue items
-	queue.Enqueue(X{Val: 1})
-	queue.Enqueue(X{Val: 2})
-	queue.Enqueue(X{Val: 3})
-	queue.Enqueue(X{Val: 4})
-
-	// Dequeue items
-	var i, maxItems int = 0, 4
-	for i = 0; i < maxItems; i++ {
-		item, ok := queue.Dequeue()
-		if ok {
-			fmt.Printf("%d : %d\n", i, item.Val)
-		} else {
-			fmt.Printf("%d : queue is empty\n", i)
-			break
-		}
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		panic(err)
 	}
 
-	if i == maxItems {
-		fmt.Printf("warning: max items reached\n")
-	}
+	now := time.Now().Add(-12 * time.Minute).In(loc)
+	start, end := GetQueryStartEndDates(now, time.Minute * 30, loc)
 
-	// Wait for all items to be processed
-	queue.Close()
+	fmt.Printf("start: %s\n", start)	
+	fmt.Printf("end: %s\n", end)
 }

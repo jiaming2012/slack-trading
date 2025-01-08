@@ -25,6 +25,7 @@ type TradierOrderDTO struct {
 	Strategy          string               `json:"strategy"`
 	OptionSymbol      *string              `json:"option_symbol"`
 	Leg               []TradierOrderLegDTO `json:"leg"`
+	ReasonDescription *string              `json:"reason_description"`
 	Tag               string               `json:"tag"`
 }
 
@@ -59,6 +60,7 @@ func (dto *TradierOrderDTO) ToTradierOrder() (*TradierOrder, error) {
 		OptionSymbol:      dto.OptionSymbol,
 		Leg:               dto.Leg,
 		Strategy:          dto.Strategy,
+		ReasonDescription: dto.ReasonDescription,
 		Tag:               dto.Tag,
 	}, nil
 }

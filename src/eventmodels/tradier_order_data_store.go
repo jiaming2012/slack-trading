@@ -4,12 +4,12 @@ import log "github.com/sirupsen/logrus"
 
 type TradierOrderDataStore map[uint]*TradierOrder
 
-func (o TradierOrderDataStore) Update(order *TradierOrder) []*TradierOrderUpdateEvent {
-	var updates []*TradierOrderUpdateEvent
+func (o TradierOrderDataStore) Update(order *TradierOrder) []*TradierOrderModifyEvent {
+	var updates []*TradierOrderModifyEvent
 
 	if o, ok := o[order.ID]; ok {
 		if o.Status != order.Status {
-			updates = append(updates, &TradierOrderUpdateEvent{
+			updates = append(updates, &TradierOrderModifyEvent{
 				OrderID: order.ID,
 				Field:   "status",
 				Old:     o.Status,

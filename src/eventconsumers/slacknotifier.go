@@ -83,7 +83,7 @@ func (c *SlackNotifierClient) SendMessage(msg string) error {
 	return nil
 }
 
-func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *eventmodels.TradierOrderUpdateEvent) {
+func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *eventmodels.TradierOrderModifyEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderUpdateEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.OrderID, ev.Field, ev.Old, ev.New)

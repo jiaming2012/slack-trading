@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -127,6 +128,7 @@ type CreateRepositoryRequest struct {
 }
 
 type CreateOrderRequest struct {
+	Id        *uint                          `json:"id"`
 	Symbol    string                         `json:"symbol"`
 	Class     models.BacktesterOrderClass    `json:"class"`
 	Quantity  float64                        `json:"quantity"`
@@ -177,8 +179,15 @@ func (req *CreateOrderRequest) Validate() error {
 }
 
 func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
+	var orderId uint
+	if req.Id != nil {
+		orderId = *req.Id
+	} else {
+		orderId = playground.NextOrderID()
+	}
+
 	order := models.NewBacktesterOrder(
-		playground.NextOrderID(),
+		orderId,
 		req.Class,
 		createdOn,
 		eventmodels.StockSymbol(req.Symbol),
@@ -458,7 +467,84 @@ func handleTick(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SetupHandler(router *mux.Router, projectsDir string, apiKey string) {
+func findOrder(id uint) (models.IPlayground, *models.BacktesterOrder, bool) {
+	for _, playground := range playgrounds {
+		orders := playground.GetOrders()
+		for _, order := range orders {
+			if order.ID == id {
+				return playground, order, true
+			}
+		}
+	}
+
+	return nil, nil, false
+}
+
+func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			for {
+				event, ok := queue.Dequeue()
+				if !ok {
+					break
+				}
+
+				if event.CreateOrder != nil {
+					playground, order, found := findOrder(event.CreateOrder.Order.ID)
+
+					if found {
+						if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusFilled) {
+							performChecks := false
+							positions := playground.GetPositions()
+							fillOrderPriceMap := map[*models.BacktesterOrder]models.OrderFillEntry{
+								order: models.OrderFillEntry{
+									Time:  event.CreateOrder.Order.CreateDate,
+									Price: event.CreateOrder.Order.AvgFillPrice,
+								},
+							}
+
+							new_trades, invalid_orders, err := playground.CommitPendingOrders(positions, fillOrderPriceMap, performChecks)
+							if err != nil {
+								log.Fatalf("handleLiveOrders: failed to commit pending orders: %v", err)
+							}
+
+							if len(invalid_orders) > 0 {
+								log.Fatalf("handleLiveOrders: invalid orders found: %v", invalid_orders)
+							}
+
+							for _, trade := range new_trades {
+								log.Infof("handleLiveOrders: opened trade: %v", trade)
+							}
+
+						} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusRejected) {
+							reason := "rejected by broker"
+							if event.CreateOrder.Order.ReasonDescription != nil {
+								reason = *event.CreateOrder.Order.ReasonDescription
+							}
+
+							if err := playground.RejectOrder(order, reason); err != nil {
+								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
+							}
+						} else {
+							log.Fatalf("handleLiveOrders: unknown order status: %v", event.CreateOrder.Order.Status)
+						}
+					}
+				} else if event.ModifyOrder != nil {
+
+				} else if event.DeleteOrder != nil {
+					// pass
+				} else {
+					log.Warnf("handleLiveOrders: unknown event type: %v", event)
+				}
+			}
+		}
+	}
+}
+
+func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
 	projectsDirectory = projectsDir
 
@@ -467,4 +553,6 @@ func SetupHandler(router *mux.Router, projectsDir string, apiKey string) {
 	router.HandleFunc("/{id}/order", handleOrder)
 	router.HandleFunc("/{id}/tick", handleTick)
 	router.HandleFunc("/{id}/candles", handleCandles)
+
+	go handleLiveOrders(ctx, ordersUpdateQueue)
 }

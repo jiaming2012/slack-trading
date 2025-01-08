@@ -59,7 +59,7 @@ ssh-keygen
 or copy the already created keys to the deploy machines `~/.ssh` folder. On the deployment machine:
 ``` bash
 VULTR_IP=""
-scp vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id_rsa
+scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id_rsa
 ```
 ### Pull the Source
 ``` bash
