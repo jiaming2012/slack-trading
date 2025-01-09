@@ -9,6 +9,9 @@ WORKDIR /app/slack-trading
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
+# Install the Go dependencies
+RUN go mod download
+
 # Build the Go app
 RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.9" -o main ./src/eventmain/main.go
 
