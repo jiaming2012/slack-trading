@@ -1,13 +1,11 @@
 package eventservices
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"time"
 
 	polygon "github.com/polygon-io/client-go/rest"
-	"github.com/polygon-io/client-go/rest/models"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -15,6 +13,7 @@ import (
 
 type PolygonTickDataMachine struct {
 	Client *polygon.Client
+	ApiKey string
 }
 
 func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2DTO, error) {
@@ -42,7 +41,7 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	if err != nil {
 		return nil, fmt.Errorf("failed to load location America/New_York: %w", err)
 	}
-	
+
 	// start at stock market open
 	fromDate := time.Date(from.Year, time.Month(from.Month), from.Day, 9, 30, 0, 0, loc)
 
@@ -54,36 +53,65 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 
 func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	// fetch data from polygon api
-	params := models.ListAggsParams{
-		Ticker:     ticker.GetTicker(),
-		Multiplier: timespan.Multiplier,
-		Timespan:   models.Timespan(timespan.Unit),
-		From:       models.Millis(fromDate),
-		To:         models.Millis(toDate),
-	}.WithOrder(models.Asc).WithAdjusted(false)
+	// params := models.ListAggsParams{
+	// 	Ticker:     ticker.GetTicker(),
+	// 	Multiplier: timespan.Multiplier,
+	// 	Timespan:   models.Timespan(timespan.Unit),
+	// 	From:       models.Millis(fromDate),
+	// 	To:         models.Millis(toDate),
+	// }.WithOrder(models.Asc).WithAdjusted(false)
 
-	// make request
-	iter := m.Client.ListAggs(context.Background(), params)
+	// // make request
+	// iter := m.Client.ListAggs(context.Background(), params)
 
-	if iter.Err() != nil {
-		return nil, fmt.Errorf("failed to fetch data from polygon api: %w", iter.Err())
-	}
+	// if iter.Err() != nil {
+	// 	return nil, fmt.Errorf("failed to fetch data from polygon api: %w", iter.Err())
+	// }
 
 	// iterate over the results
 	var bars []*eventmodels.PolygonAggregateBarV2
 
-	for iter.Next() {
-		tstamp := time.Time(iter.Item().Timestamp).In(loc)
+	// for iter.Next() {
+	// 	tstamp := time.Time(iter.Item().Timestamp).In(loc)
 
-		if isInBetween(tstamp, fromDate, toDate) {
+	// 	if isInBetween(tstamp, fromDate, toDate) {
+	// 		bars = append(bars, &eventmodels.PolygonAggregateBarV2{
+	// 			Volume:    iter.Item().Volume,
+	// 			VWAP:      iter.Item().VWAP,
+	// 			Open:      iter.Item().Open,
+	// 			Close:     iter.Item().Close,
+	// 			High:      iter.Item().High,
+	// 			Low:       iter.Item().Low,
+	// 			Timestamp: tstamp,
+	// 		})
+	// 	}
+	// }
+
+	symbol := eventmodels.StockSymbol(ticker.GetTicker())
+	result, err := FetchPolygonStockChart(symbol, timespan.Multiplier, string(timespan.Unit), fromDate, toDate, m.ApiKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data from polygon api: %w", err)
+	}
+
+	for _, result := range result.Results {
+		dto, err := result.ToCandleDTO()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert result to candle dto: %w", err)
+		}
+
+		bar, err := dto.ToCandle(loc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert dto to model: %w", err)
+		}
+
+		if isInBetween(bar.Timestamp, fromDate, toDate) {
 			bars = append(bars, &eventmodels.PolygonAggregateBarV2{
-				Volume:    iter.Item().Volume,
-				VWAP:      iter.Item().VWAP,
-				Open:      iter.Item().Open,
-				Close:     iter.Item().Close,
-				High:      iter.Item().High,
-				Low:       iter.Item().Low,
-				Timestamp: tstamp,
+				Volume:    bar.Volume,
+				Open:      bar.Open,
+				Close:     bar.Close,
+				High:      bar.High,
+				Low:       bar.Low,
+				Timestamp: bar.Timestamp,
 			})
 		}
 	}
@@ -149,5 +177,6 @@ func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest eventmodels.A
 func NewPolygonTickDataMachine(apiKey string) *PolygonTickDataMachine {
 	return &PolygonTickDataMachine{
 		Client: polygon.New(apiKey),
+		ApiKey: apiKey,
 	}
 }

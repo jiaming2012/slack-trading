@@ -13,7 +13,8 @@ type CandleDTO struct {
 	High   float64 `json:"high"`
 	Low    float64 `json:"low"`
 	Close  float64 `json:"close"`
-	Volume int     `json:"volume"`
+	Vwap   float64 `json:"vwap"`
+	Volume float64 `json:"volume"`
 }
 
 func (c *CandleDTO) ToCandle(loc *time.Location) (Candle, error) {
@@ -30,6 +31,8 @@ func (c *CandleDTO) ToCandle(loc *time.Location) (Candle, error) {
 		High:        c.High,
 		Low:         c.Low,
 		Close:       c.Close,
+		Volume:      c.Volume,
+		Vwap:        c.Vwap,
 	}, nil
 }
 

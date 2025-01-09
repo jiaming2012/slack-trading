@@ -167,6 +167,6 @@ func (c *ThetaDataCandle) ToCandleDTO() (CandleDTO, error) {
 		High:   c.High,
 		Low:    c.Low,
 		Close:  c.Close,
-		Volume: int(c.Volume),
+		Volume: c.Volume,
 	}, nil
 }

@@ -18,11 +18,12 @@ func (d *PolygonCandleDTO) ToCandleDTO() (*CandleDTO, error) {
 	timestamp := time.Unix(0, d.Timestamp*int64(time.Millisecond)).UTC()
 
 	return &CandleDTO{
-		Volume: int(d.Volume),
 		Open:   d.Open,
 		Close:  d.Close,
 		High:   d.High,
 		Low:    d.Low,
+		Volume: d.Volume,
+		Vwap:   d.Vwap,
 		Date:   timestamp.Format("2006-01-02 15:04:05"),
 	}, nil
 }
