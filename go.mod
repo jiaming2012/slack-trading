@@ -5,7 +5,6 @@ go 1.22.4
 require (
 	github.com/EventStore/EventStore-Client-Go/v4 v4.1.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/docker/docker v25.0.5+incompatible
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -74,5 +73,4 @@ require (
 	golang.org/x/sys v0.26.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
 )
