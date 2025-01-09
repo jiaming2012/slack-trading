@@ -10,6 +10,6 @@ type AppVersion struct{}
 
 func (m *AppVersion) Serve(r *http.Request, apiRequest eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {
 	resultCh <- &eventmodels.AppVersionResponseDTO{
-		Version: "$VERSION",
+		Version: "${VERSION}",
 	}
 }
