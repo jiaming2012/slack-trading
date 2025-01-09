@@ -13,7 +13,7 @@ COPY . .
 RUN go mod download
 
 # Build the Go app
-RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.9" -o main ./src/eventmain/main.go
+RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.10" -o main ./src/eventmain/main.go
 
 # Command to run the executable
 CMD ["./main"]
