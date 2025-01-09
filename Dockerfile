@@ -10,7 +10,7 @@ WORKDIR /app/slack-trading
 COPY . .
 
 # Build the Go app
-RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.2" -o main ./src/eventmain/main.go
+RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.6 -o main ./src/eventmain/main.go
 
 # Command to run the executable
 CMD ["./main"]
