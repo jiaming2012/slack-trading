@@ -386,16 +386,18 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
-	currentPrice, err := p.fetchCurrentPrice(context.Background(), symbol)
-	if err != nil {
-		return nil, fmt.Errorf("performLiquidations: error fetching price: %w", err)
-	}
+	orderFillPriceMap := map[*BacktesterOrder]OrderFillEntry{}
 
-	orderFillPriceMap := map[*BacktesterOrder]OrderFillEntry{
-		order: OrderFillEntry{
-			Price: currentPrice,
+	for _, order := range p.account.PendingOrders {
+		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching price: %w", err)
+		}
+
+		orderFillPriceMap[order] = OrderFillEntry{
+			Price: price,
 			Time:  p.clock.CurrentTime,
-		},
+		}
 	}
 
 	_, invalidOrders, err := p.CommitPendingOrders(map[eventmodels.Instrument]*Position{symbol: position}, orderFillPriceMap, true)
