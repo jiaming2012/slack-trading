@@ -1,4 +1,4 @@
-# version="2.4.7"
+# version="2.4.8"
 
 # Start from the latest Debian base image
 FROM ewr.vultrcr.com/grodt/grodt-base-image-2:2.0.12
