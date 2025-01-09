@@ -24,34 +24,12 @@ bump2version $BUMP_TYPE --config-file $CONFIG_FILE
 # Get the current version from the Dockerfile
 VERSION=$(grep -i "version=" Dockerfile | cut -d'=' -f2 | tr -d '" ')
 
-# Debugging output
-echo "Extracted version: $VERSION"
-
 if [ -z "$VERSION" ]; then
   echo "Error: Unable to extract version from Dockerfile"
   exit 1
 fi
 
-# Debugging output
-echo "Replacing version in Dockerfile..."
-echo "Before sed:"
-cat ${PROJECTS_DIR}/slack-trading/Dockerfile
-
 sed -i.bak "s|Version=[^ ]*|Version=${VERSION}|" ${PROJECTS_DIR}/slack-trading/Dockerfile
-
-# Check if the sed command was successful
-if [ $? -ne 0 ]; then
-  echo "Error: sed command failed"
-  exit 1
-fi
-
-# Debugging output
-echo "After sed:"
-cat ${PROJECTS_DIR}/slack-trading/Dockerfile
-
-
-
-
 rm ${PROJECTS_DIR}/slack-trading/Dockerfile.bak
 git add ${PROJECTS_DIR}/slack-trading/Dockerfile
 git commit -m "Bump app version to $VERSION in Dockerfile"
