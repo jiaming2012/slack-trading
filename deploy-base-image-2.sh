@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-CONFIG_FILE=${PROJECTS_DIR}/slack-trading/.bumpversion.app.cfg
+CONFIG_FILE=${PROJECTS_DIR}/slack-trading/.bumpversion.base2-image.cfg
 
 # Check if the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
