@@ -75,4 +75,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 )
 
-replace github.com/jiaming2012/slack-trading/playground => ./playground
+replace github.com/jiaming2012/slack-trading/playground => ../playground
