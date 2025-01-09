@@ -130,15 +130,19 @@ func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels
 	return nil, nil
 }
 
-func (r *CandleRepository) GetCurrentCandle() *eventmodels.AggregateBarWithIndicators {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
+func (r *CandleRepository) getCurrentCandle() *eventmodels.AggregateBarWithIndicators {
 	if r.position >= len(r.candlesWithIndicators) {
 		return nil
 	}
 
 	return r.candlesWithIndicators[r.position]
+}
+
+func (r *CandleRepository) GetCurrentCandle() *eventmodels.AggregateBarWithIndicators {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	return r.getCurrentCandle()
 }
 
 func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
@@ -158,9 +162,9 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 		nextCandleTimestamp := r.candlesWithIndicators[r.position+1].Timestamp
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
-			newCandle = r.GetCurrentCandle()
+			newCandle = r.getCurrentCandle()
 		} else if r.position == r.startingPosition {
-			newCandle = r.GetCurrentCandle()
+			newCandle = r.getCurrentCandle()
 			break
 		} else {
 			break
