@@ -2,6 +2,7 @@ from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from simple_close_strategy import SimpleCloseStrategy
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment
 from typing import List, Tuple
+import os
 
 # todo:
 # refactor open_strategy to parameterize short and long periods
@@ -84,21 +85,31 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
     return sl_target, tp_target
 
 if __name__ == "__main__":
-    print('starting ...')
-
     # meta parameters
     playground_tick_in_seconds = 300
     model_training_period_in_months = 12
     
     # input parameters
-    balance = 100000
-    symbol = 'COIN'
+    # Read environment variables
+    balance = float(os.getenv("BALANCE"))
+    symbol = os.getenv("SYMBOL")
+    grpc_host = os.getenv("GRPC_HOST")
+
+    # Check if the required environment variables are set
+    if balance is None:
+        raise ValueError("Environment variable BALANCE is not set")
+    if symbol is None:
+        raise ValueError("Environment variable SYMBOL is not set")
+    if grpc_host is None:
+        raise ValueError("Environment variable GRPC_HOST is not set")
+    
     start_date = '2024-01-02'
     end_date = '2024-12-31'
     repository_source = RepositorySource.POLYGON
     csv_path = None
-    grpc_host = 'http://localhost:5051'
     env = PlaygroundEnvironment.SIMULATOR
+    
+    print(f"initializing {symbol} playground from {start_date} to {end_date} ...")
     
     playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, env, csv_path, grpc_host=grpc_host)
     playground.tick(0, raise_exception=False)  # initialize the playground
