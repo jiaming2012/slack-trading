@@ -29,11 +29,6 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-sed -i.bak "s|Version=[^ ]*|Version=${VERSION}\"|" ${PROJECTS_DIR}/slack-trading/Dockerfile
-rm ${PROJECTS_DIR}/slack-trading/Dockerfile.bak
-git add ${PROJECTS_DIR}/slack-trading/Dockerfile
-git commit -m "Bump app version to $VERSION in Dockerfile"
-
 echo "Deploying version $VERSION ..."
 
 # Build the Docker image with the version tag
