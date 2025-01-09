@@ -22,14 +22,13 @@ fi
 bump2version $BUMP_TYPE --config-file $CONFIG_FILE
 
 # Get the current version from the Dockerfile
-VERSION=$(grep -i "version=" Dockerfile | cut -d'=' -f2 | tr -d '" ')
+VERSION=$(grep -i "^# version=" Dockerfile | cut -d'=' -f2 | tr -d '" ')
 
 if [ -z "$VERSION" ]; then
   echo "Error: Unable to extract version from Dockerfile"
   exit 1
 fi
 
-echo $VERSION
 sed -i.bak "s|Version=[^ ]*|Version=$VERSION|" ${PROJECTS_DIR}/slack-trading/Dockerfile
 rm ${PROJECTS_DIR}/slack-trading/Dockerfile.bak
 git add ${PROJECTS_DIR}/slack-trading/Dockerfile
