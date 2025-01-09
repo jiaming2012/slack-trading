@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	pb "github.com/jiaming2012/slack-trading/playground"
+	pb "github.com/jiaming2012/slack-trading/src/playground"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )

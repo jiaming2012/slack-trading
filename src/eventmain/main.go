@@ -32,7 +32,7 @@ import (
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 
-	"github.com/jiaming2012/slack-trading/playground"
+	"github.com/jiaming2012/slack-trading/src/playground"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
