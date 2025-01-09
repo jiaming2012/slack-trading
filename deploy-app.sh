@@ -35,7 +35,7 @@ echo "Deploying version $VERSION ..."
 sed -i.bak 's/Version: ".*"/Version: "2.0.0"/' /Users/jamal/projects/slack-trading/src/eventservices/app_version.go
 git add ${PROJECTS_DIR}/slack-trading/src/eventservices/app_version.go
 git commit -m "Bump app version to $VERSION in app_version.go"
-rm ${PROJECTS_DIR}/slack-trading/src/eventservices/app_version.go
+rm ${PROJECTS_DIR}/slack-trading/src/eventservices/app_version.go.bak
 
 # Build the Docker image with the version tag
 docker build -t ewr.vultrcr.com/grodt/app:$VERSION -f Dockerfile .
