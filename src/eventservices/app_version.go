@@ -6,6 +6,9 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+// Version is the application version, set at build time
+var Version = ""
+
 type AppVersion struct{}
 
 func (m *AppVersion) Serve(r *http.Request, apiRequest eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {

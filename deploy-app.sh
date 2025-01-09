@@ -29,6 +29,11 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+sed -i.bak "s/Version=[^ ]*/Version=${VERSION}/" ${PROJECTS_DIR}/slack-trading/Dockerfile
+rm ${PROJECTS_DIR}/slack-trading/Dockerfile.bak
+git add ${PROJECTS_DIR}/slack-trading/Dockerfile
+git commit -m "Bump app version to $VERSION in Dockerfile"
+
 echo "Deploying version $VERSION ..."
 
 # Build the Docker image with the version tag
@@ -44,8 +49,8 @@ sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grod
 rm ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml.bak
 
 # Commit the updated deployment.yaml file and the version bump
-git add ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml Dockerfile
-git commit -m "Bump app version to $VERSION in Dockerfile and deployment.yaml"
+git add ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
+git commit -m "Bump app version to $VERSION in deployment.yaml"
 
 # Push the changes to GitHub
 git push
