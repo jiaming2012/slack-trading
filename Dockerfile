@@ -10,7 +10,7 @@ WORKDIR /app/slack-trading
 COPY . .
 
 # Install the Go dependencies
-RUN go mod download
+RUN go get github.com/jiaming2012/slack-trading/playground
 
 # Build the Go app
 RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=2.0.10" -o main ./src/eventmain/main.go
