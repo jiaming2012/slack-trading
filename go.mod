@@ -74,3 +74,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 )
+
+replace github.com/jiaming2012/slack-trading/playground => ./slack-trading/playground
