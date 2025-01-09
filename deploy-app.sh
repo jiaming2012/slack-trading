@@ -29,6 +29,7 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
+echo $VERSION
 sed -i.bak "s|Version=[^ ]*|Version=$VERSION|" ${PROJECTS_DIR}/slack-trading/Dockerfile
 rm ${PROJECTS_DIR}/slack-trading/Dockerfile.bak
 git add ${PROJECTS_DIR}/slack-trading/Dockerfile
