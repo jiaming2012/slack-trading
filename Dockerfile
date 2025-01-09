@@ -15,6 +15,9 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
+# Ensure all dependencies are available
+RUN go mod tidy
+
 # Build the Go app
 ARG VERSION
 RUN go build -ldflags "-X github.com/jiaming2012/slack-trading/src/eventservices.Version=${VERSION}" -o main ./src/eventmain/main.go
