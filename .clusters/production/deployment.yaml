@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: grodt
-        image: ewr.vultrcr.com/grodt/app:1.4.1
+        image: ewr.vultrcr.com/grodt/app:2.4.14
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
