@@ -84,6 +84,8 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
     return sl_target, tp_target
 
 if __name__ == "__main__":
+    print('starting ...')
+
     # meta parameters
     playground_tick_in_seconds = 300
     model_training_period_in_months = 12

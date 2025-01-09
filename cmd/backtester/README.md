@@ -63,7 +63,6 @@ scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id
 ```
 ### Pull the Source
 ``` bash
-git clone git@github.com:jiaming2012/slack-trading.git
 ```
 
 ### Build the Source

@@ -31,6 +31,7 @@ sudo apt-get install -y nodejs
 4. Install dependencies
 ``` bash
 sudo npm install pm2 -g
+pm2 completion install
 ```
 
 5. Download Source
