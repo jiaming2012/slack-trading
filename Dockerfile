@@ -9,17 +9,8 @@ RUN apt-get update && apt-get install -y git
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading
 
-# Copy the go.mod and go.sum files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
-
-# Ensure all dependencies are available
-RUN go mod tidy
 
 # Build the Go app
 RUN go build -o main ./src/eventmain/main.go
