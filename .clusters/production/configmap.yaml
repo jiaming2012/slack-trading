@@ -11,6 +11,7 @@ data:
   MARKET_CALENDAR_URL: "https://api.tradier.com/v1/markets/calendar"
   OPTION_CHAIN_URL: "https://api.tradier.com/v1/markets/options/chains"
   OPTION_EXPIRATIONS_URL: "https://api.tradier.com/v1/markets/options/expirations"
+  TRADIER_MARKET_TIMESALES_URL: "https://api.tradier.com/v1/markets/timesales"
   TRADIER_ACCOUNT_ID: "6YA49543"
   TRADIER_TRADES_ACCOUNT_ID: "6YA49543"
   TRADIER_ORDERS_URL_TEMPLATE: "https://api.tradier.com/v1/accounts/%s/orders"

@@ -56,4 +56,8 @@ git commit -m "Bump app version to $VERSION in deployment.yaml"
 # Push the changes to GitHub
 git push
 
+# Update kubernetes cluster
+kubectl apply -f .clusters/production/configmap.yaml
+kubectl apply -f .clusters/production/deployment.yaml
+
 echo "Deployment successful! Version $VERSION has been deployed."
