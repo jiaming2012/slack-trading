@@ -22,7 +22,7 @@ type IPlayground interface {
 	GetPositions() map[eventmodels.Instrument]*Position
 	GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error)
 	GetFreeMargin() float64
-	PlaceOrder(order *BacktesterOrder) error
+	PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error)
 	Tick(d time.Duration, isPreview bool) (*TickDelta, error)
 	GetFreeMarginFromPositionMap(positions map[eventmodels.Instrument]*Position) float64
 	GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder
@@ -871,13 +871,17 @@ func (p *Playground) GetFreeMargin() float64 {
 	return p.GetFreeMarginFromPositionMap(positions)
 }
 
-func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
+type PlaceOrderChanges struct {
+	AfterSave func() error
+}
+
+func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
 	if order.Class != Equity {
-		return fmt.Errorf("only equity orders are supported")
+		return nil, fmt.Errorf("only equity orders are supported")
 	}
 
 	if _, ok := p.repos[order.Symbol]; !ok {
-		return fmt.Errorf("symbol %s not found in repos", order.Symbol)
+		return nil, fmt.Errorf("symbol %s not found in repos", order.Symbol)
 	}
 
 	positions := p.GetPositions()
@@ -887,15 +891,15 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	}
 
 	if err := p.isSideAllowed(order.Symbol, order.Side, positionQty); err != nil {
-		return fmt.Errorf("PlaceOrder: side not allowed: %w", err)
+		return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 	}
 
 	if order.Price != nil && *order.Price <= 0 {
-		return fmt.Errorf("price must be greater than 0")
+		return nil, fmt.Errorf("price must be greater than 0")
 	}
 
 	if order.AbsoluteQuantity <= 0 {
-		return fmt.Errorf("quantity must be greater than 0")
+		return nil, fmt.Errorf("quantity must be greater than 0")
 	}
 
 	p.account.mutex.Lock()
@@ -905,7 +909,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.ID > 0 {
 		for _, o := range p.account.Orders {
 			if o.ID == order.ID {
-				return fmt.Errorf("order with id %d already exists in orders", order.ID)
+				return nil, fmt.Errorf("order with id %d already exists in orders", order.ID)
 			}
 		}
 	}
@@ -914,16 +918,23 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 	if order.ID > 0 {
 		for _, o := range p.account.PendingOrders {
 			if o.ID == order.ID {
-				return fmt.Errorf("order with id %d already exists in pending orders", order.ID)
+				return nil, fmt.Errorf("order with id %d already exists in pending orders", order.ID)
 			}
 		}
 	}
 
-	order.Status = BacktesterOrderStatusPending
+	return &PlaceOrderChanges{
+		AfterSave: func() error {
+			p.account.mutex.Lock()
+			defer p.account.mutex.Unlock()
 
-	p.account.PendingOrders = append(p.account.PendingOrders, order)
+			order.Status = BacktesterOrderStatusPending
 
-	return nil
+			p.account.PendingOrders = append(p.account.PendingOrders, order)
+
+			return nil
+		},
+	}, nil
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
@@ -1006,6 +1017,14 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 		}
 	}
 
+<<<<<<< Updated upstream
+=======
+	var endAt *time.Time
+	if clock != nil {
+		endAt = &clock.EndTime
+	}
+
+>>>>>>> Stashed changes
 	return &Playground{
 		Meta: &PlaygroundMeta{
 			Symbols:         symbols,

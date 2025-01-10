@@ -201,9 +201,11 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 		req.Tag,
 	)
 
-	if err := playground.PlaceOrder(order); err != nil {
+	if changes, err := playground.PlaceOrder(order); err != nil {
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
+
+	
 
 	return order, nil
 }

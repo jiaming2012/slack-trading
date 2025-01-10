@@ -14,7 +14,6 @@ type LivePlayground struct {
 	playground      *Playground
 	account         *LiveAccount
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
-	pendingOrders   map[uint]*BacktesterOrder
 }
 
 func (p *LivePlayground) GetAccount() *LiveAccount {
@@ -62,9 +61,11 @@ func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrumen
 	return
 }
 
-func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) error {
-	if err := p.playground.PlaceOrder(order); err != nil {
-		return fmt.Errorf("failed to place order in live playground: %w", err)
+func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
+	placeOrderChanges, err := p.playground.PlaceOrder(order)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 	}
 
 	ticker := order.Symbol.GetTicker()
@@ -73,29 +74,27 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) error {
 
 	resp, err := p.account.Broker.PlaceOrder(context.Background(), req)
 	if err != nil {
-		return fmt.Errorf("failed to place order in live playground: %w", err)
+		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 	}
 
 	if orderMap, ok := resp["order"]; ok {
 		result, ok := orderMap.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("LivePlayground.PlaceOrder: failed to cast response to order id map")
+			return nil, fmt.Errorf("LivePlayground.PlaceOrder: failed to cast response to order id map")
 		}
 
 		if orderID, ok := result["id"]; ok {
 			if id, ok := orderID.(float64); ok {
 				order.ID = uint(id)
 			} else {
-				return fmt.Errorf("LivePlayground.PlaceOrder: failed to cast order id to int")
+				return nil, fmt.Errorf("LivePlayground.PlaceOrder: failed to cast order id to int")
 			}
 		} else {
-			return fmt.Errorf("LivePlayground.PlaceOrder: order id not found in response")
+			return nil, fmt.Errorf("LivePlayground.PlaceOrder: order id not found in response")
 		}
 	}
 
-	p.pendingOrders[order.ID] = order
-
-	return nil
+	return placeOrderChanges, nil
 }
 
 func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelta, error) {
@@ -153,52 +152,9 @@ func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, n
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
 
-	orderFillPriceMap := make(map[*BacktesterOrder]OrderFillEntry)
-
-	for _, order := range backfillOrders {
-		if order.Status == string(BacktesterOrderStatusFilled) {
-			price := order.AvgFillPrice
-
-			o := &BacktesterOrder{
-				ID:               order.ID,
-				Type:             BacktesterOrderType(order.Type),
-				Symbol:           eventmodels.NewStockSymbol(order.Symbol),
-				Side:             TradierOrderSide(order.Side),
-				AbsoluteQuantity: order.Quantity,
-				Class:            BacktesterOrderClass(order.Class),
-				Duration:         BacktesterOrderDuration(order.Duration),
-				Price:            &price,
-				Tag:              order.Tag,
-				CreateDate:       order.CreateDate,
-			}
-
-			if err := playground.PlaceOrder(o); err != nil {
-				return nil, fmt.Errorf("NewLivePlayground: failed to place backfill: %w", err)
-			}
-
-			orderFillPriceMap[o] = OrderFillEntry{
-				Time: order.CreateDate,
-				Price: price,
-			}
-		}
-	}
-
-	performChecks := false
-	positions := playground.GetPositions()
-
-	_, invalid_orders, err := playground.CommitPendingOrders(positions, orderFillPriceMap, performChecks)
-	if err != nil {
-		return nil, fmt.Errorf("NewLivePlayground: failed to backfill order: %w", err)
-	}
-
-	if len(invalid_orders) > 0 {
-		return nil, fmt.Errorf("NewLivePlayground: invalid backfill orders: %v", invalid_orders)
-	}
-
 	return &LivePlayground{
 		playground:      playground,
 		account:         account,
 		newCandlesQueue: newCandlesQueue,
-		pendingOrders:   map[uint]*BacktesterOrder{},
 	}, nil
 }
