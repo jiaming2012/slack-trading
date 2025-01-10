@@ -88,6 +88,43 @@ kubectl create namespace sealed-secrets
 helm install sealed-secrets bitnami/sealed-secrets --namespace sealed-secrets
 ```
 
+### Install postgres
+Postgres is used to store trade data.
+
+#### Secrets
+The postgres secret file is not checked into version control. Add the following file to `${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-secret.yaml`:
+``` yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: database
+type: Opaque
+data:
+  POSTGRES_PASSWORD: $(echo -n "yourpassword" | base64)
+```
+
+A new cluster can be spun up in kubernetes with the following commands:
+``` bash
+kubectl create namespace database
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-configmap.yaml
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-secret.yaml
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-pvc.yaml
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-service.yaml
+kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-deployment.yaml
+```
+
+### Development
+In order to use the app locally, you will need to port-forward the connection:
+``` bash
+kubectl port-forward svc/postgres 5432:5432 -n database
+```
+
+Run the following commands in a SQL editor:
+``` bash
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+
 ### Add a Deploy Key to the Cluster (this can be skipped if the sealedsecret has already been created)
 Flux needs a deploy key in order to pull from GitHub. Create one and then apply it to the cluster as a sealed secret.
 

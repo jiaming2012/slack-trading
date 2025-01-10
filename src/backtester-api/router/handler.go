@@ -95,10 +95,10 @@ type CreateAccountRequest struct {
 
 type CreatePlaygroundRequest struct {
 	Env          string                    `json:"environment"`
-	Balance      float64                   `json:"balance"` // todo: remove
 	Account      CreateAccountRequest      `json:"account"`
 	Clock        CreateClockRequest        `json:"clock"`
 	Repositories []CreateRepositoryRequest `json:"repositories"`
+	CreatedAt    time.Time                 `json:"created_at"`
 }
 
 type CreateClockRequest struct {
@@ -249,7 +249,7 @@ func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	playground, err := createPlayground(&req)
+	playground, err := CreatePlayground(&req)
 	if err != nil {
 		webError, ok := err.(*eventmodels.WebError)
 		if ok {

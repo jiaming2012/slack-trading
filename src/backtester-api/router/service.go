@@ -116,7 +116,8 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 	return order, nil
 }
 
-func createPlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
+// todo: this should be refactored to a service
+func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
 	// validations
@@ -175,7 +176,7 @@ func createPlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		liveOrders := []*eventmodels.TradierOrder{}
 
 		// create live playground
-		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, liveOrders)
+		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, liveOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
@@ -205,7 +206,8 @@ func createPlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		}
 
 		// create playground
-		playground, err = models.NewPlayground(req.Balance, clock, env, repos...)
+		now := clock.CurrentTime
+		playground, err = models.NewPlayground(req.Account.Balance, clock, env, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

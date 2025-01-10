@@ -23,6 +23,7 @@ type CandleRepository struct {
 	startingPosition      int
 	isInitialTick         bool
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
+	isInitialTick         bool
 	mutex                 sync.Mutex
 }
 
@@ -216,6 +217,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		indicators:            indicators,
 		newCandlesQueue:       newCandlesQueue,
 		polygonTimespan:       polygonTimespan,
+		isInitialTick:         true,
 		mutex:                 sync.Mutex{},
 	}, nil
 }

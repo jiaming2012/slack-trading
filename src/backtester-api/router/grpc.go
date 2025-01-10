@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	pb "github.com/jiaming2012/slack-trading/src/playground"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type Server struct{}
@@ -303,8 +303,8 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
 			StartingBalance: account.Meta.StartingBalance,
-			StartDate:       account.Meta.StartDate,
-			EndDate:         account.Meta.EndDate,
+			StartDate:       account.Meta.StartAt.Format(time.RFC3339),
+			EndDate:         account.Meta.EndAt.Format(time.RFC3339),
 			Symbols:         account.Meta.Symbols,
 			Environment:     string(account.Meta.Environment),
 		},
@@ -366,9 +366,11 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	playground, err := createPlayground(&CreatePlaygroundRequest{
-		Env:     req.GetEnvironment(),
-		Balance: float64(req.Balance),
+	playground, err := CreatePlayground(&CreatePlaygroundRequest{
+		Env: req.GetEnvironment(),
+		Account: CreateAccountRequest{
+			Balance: float64(req.Balance),
+		},
 		Clock: CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
