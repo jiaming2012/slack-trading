@@ -22,6 +22,7 @@ type CandleRepository struct {
 	position              int
 	startingPosition      int
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
+	isInitialTick         bool
 	mutex                 sync.Mutex
 }
 
@@ -163,8 +164,9 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
 			newCandle = r.getCurrentCandle()
-		} else if r.position == r.startingPosition {
+		} else if r.isInitialTick {
 			newCandle = r.getCurrentCandle()
+			r.isInitialTick = false
 			break
 		} else {
 			break
@@ -212,6 +214,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		indicators:            indicators,
 		newCandlesQueue:       newCandlesQueue,
 		polygonTimespan:       polygonTimespan,
+		isInitialTick:         true,
 		mutex:                 sync.Mutex{},
 	}, nil
 }

@@ -927,7 +927,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) error {
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -948,15 +948,22 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, fee
 		}
 	}
 
+	var startAt time.Time
+	var endAt *time.Time
+
+	if clock != nil {
+		startAt = clock.CurrentTime
+		endAt = &clock.EndTime
+	} else {
+		startAt = now
+	}
+
 	meta := &PlaygroundMeta{
 		Symbols:         symbols,
 		StartingBalance: balance,
 		Environment:     env,
-	}
-
-	if clock != nil {
-		meta.StartDate = clock.CurrentTime.Format(time.RFC3339)
-		meta.EndDate = clock.EndTime.Format(time.RFC3339)
+		StartAt:         startAt,
+		EndAt:           endAt,
 	}
 
 	return &Playground{
@@ -1006,11 +1013,16 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 		}
 	}
 
+	var endAt *time.Time
+	if clock != nil{
+		endAt = &clock.EndTime
+	}
+
 	return &Playground{
 		Meta: &PlaygroundMeta{
 			Symbols:         symbols,
-			StartDate:       clock.CurrentTime.Format(time.RFC3339),
-			EndDate:         clock.EndTime.Format(time.RFC3339),
+			StartAt:         clock.CurrentTime,
+			EndAt:           endAt,
 			StartingBalance: balance,
 			Environment:     env,
 		},

@@ -147,8 +147,8 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], backfillOrders []*eventmodels.TradierOrder) (*LivePlayground, error) {
-	playground, err := NewPlayground(account.Balance, nil, PlaygroundEnvironmentLive, repositories...)
+func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], backfillOrders []*eventmodels.TradierOrder, now time.Time) (*LivePlayground, error) {
+	playground, err := NewPlayground(account.Balance, nil, PlaygroundEnvironmentLive, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
@@ -177,7 +177,7 @@ func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, n
 			}
 
 			orderFillPriceMap[o] = OrderFillEntry{
-				Time: order.CreateDate,
+				Time:  order.CreateDate,
 				Price: price,
 			}
 		}
