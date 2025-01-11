@@ -243,7 +243,7 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 		req.Tag,
 	)
 
-	changes, err := playground.PlaceOrder(order)
+	commit, err := playground.PlaceOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
@@ -253,9 +253,9 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 		if err := saveOrderRecord(playground.GetId(), order); err != nil {
 			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
 		}
-
-		changes.AfterSave()
 	}
+
+	commit.AfterSave()
 
 	return order, nil
 }
