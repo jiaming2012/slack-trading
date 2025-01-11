@@ -146,7 +146,7 @@ func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) *OrderRecord {
 		StopPrice:    o.StopPrice,
 		Status:       string(o.Status),
 		Tag:          o.Tag,
-		CreatedOn:    o.CreateDate,
+		Timestamp:    o.CreateDate,
 	}
 }
 

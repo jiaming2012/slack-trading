@@ -9,9 +9,9 @@ import (
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID uuid.UUID         `gorm:"type:uuid;not null"`
+	PlaygroundID uuid.UUID         `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
 	Playground   PlaygroundSession `gorm:"foreignKey:PlaygroundID"`
-	OrderID      uint              `gorm:"default:nextval('order_id_seq');not null"`
+	OrderID      uint              `gorm:"column:id;not null;index:idx_order_id"`
 	Class        string            `gorm:"column:class;type:text;not null"`
 	Symbol       string            `gorm:"column:symbol;type:text;not null"`
 	Side         string            `gorm:"column:side;type:text;not null"`
@@ -22,5 +22,6 @@ type OrderRecord struct {
 	StopPrice    *float64          `gorm:"column:stop_price;type:numeric"`
 	Status       string            `gorm:"column:status;type:text;not null"`
 	Tag          string            `gorm:"column:tag;type:text"`
-	CreatedOn    time.Time         `gorm:"column:start_at;type:timestamp;not null"`
+	Timestamp    time.Time         `gorm:"column:timestamp;type:timestamp;not null"`
+	Trades       []TradeRecord     `gorm:"foreignKey:OrderID"`
 }

@@ -216,11 +216,6 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}
-
-		// todo: remove this!!
-		if err := savePlaygroundSession(playground); err != nil {
-			log.Fatalf("failed to save playground: %v", err)
-		}
 	}
 
 	playgrounds[playground.GetId()] = playground

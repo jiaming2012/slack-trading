@@ -180,6 +180,15 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
+func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+	record := trade.ToTradeRecord(playgroundId, orderID)
+	if err := db.Create(&record).Error; err != nil {
+		return fmt.Errorf("failed to save trade record: %w", err)
+	}
+
+	return nil
+}
+
 func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
 	record := order.ToOrderRecord(playgroundId)
 	if err := db.Create(&record).Error; err != nil {
@@ -240,10 +249,7 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 	}
 
 	switch playground.(type) {
-	case *models.LivePlayground: // todo: switch this
-		fmt.Printf("dont save")
-
-	case *models.Playground:
+	case *models.LivePlayground:
 		if err := saveOrderRecord(playground.GetId(), order); err != nil {
 			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
 		}
@@ -546,7 +552,7 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 							performChecks := false
 							positions := playground.GetPositions()
 							fillOrderPriceMap := map[*models.BacktesterOrder]models.OrderFillEntry{
-								order: models.OrderFillEntry{
+								order: {
 									Time:  event.CreateOrder.Order.CreateDate,
 									Price: event.CreateOrder.Order.AvgFillPrice,
 								},
@@ -555,6 +561,12 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 							new_trades, invalid_orders, err := playground.CommitPendingOrders(positions, fillOrderPriceMap, performChecks)
 							if err != nil {
 								log.Fatalf("handleLiveOrders: failed to commit pending orders: %v", err)
+							}
+
+							for _, trade := range new_trades {
+								if err := saveTradeRecord(playground.GetId(), order.ID, trade); err != nil {
+									log.Fatalf("handleLiveOrders: failed to save trade record: %v", err)
+								}
 							}
 
 							if len(invalid_orders) > 0 {
