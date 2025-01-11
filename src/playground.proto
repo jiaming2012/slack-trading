@@ -14,6 +14,7 @@ service PlaygroundService {
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
     rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
+    rpc SavePlayground(SavePlaygroundRequest) returns (SavePlaygroundResponse);
 }
 
 message GetOpenOrdersResponse {
@@ -24,6 +25,12 @@ message GetOpenOrdersRequest {
     string playground_id = 1;
     string symbol = 2;
 }
+
+message SavePlaygroundRequest {
+    string playground_id = 1;
+}
+
+message SavePlaygroundResponse {}
 
 message CreateRepositoryRequest {
     string symbol = 1;

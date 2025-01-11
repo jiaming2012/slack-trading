@@ -872,7 +872,7 @@ func (p *Playground) GetFreeMargin() float64 {
 }
 
 type PlaceOrderChanges struct {
-	AfterSave func() error
+	Commit func() error
 }
 
 func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
@@ -924,7 +924,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 	}
 
 	return &PlaceOrderChanges{
-		AfterSave: func() error {
+		Commit: func() error {
 			p.account.mutex.Lock()
 			defer p.account.mutex.Unlock()
 
@@ -1025,7 +1025,7 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 	}
 
 	var endAt *time.Time
-	if clock != nil{
+	if clock != nil {
 		endAt = &clock.EndTime
 	}
 

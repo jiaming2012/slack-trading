@@ -69,12 +69,3 @@ pip install -r requirements.txt
 prices := []float64{0, 100.0, 115.0}
 feed := mock.NewMockBacktesterDataFeed()
 ```
-
-## Protobufs
-Protobufs are used to speed up communication with API clients.
-
-## Compiling
-``` bash
-cd ${PROJECTS_DIR}/slack-trading/src/backtester-api
-protoc --go_out=./playground --go_opt=paths=source_relative --go-grpc_out=./playground --go-grpc_opt=paths=source_relative playground.proto
-```

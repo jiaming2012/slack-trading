@@ -4,6 +4,19 @@ A mock trading platform.
 # Development
 We use python's bump2version for managing the app version.
 
+## Taskfile
+We use taskfile as our build tool.
+
+#### Install
+``` bash
+brew install go-task
+```
+
+You can list all commands with:
+``` bash
+task list
+```
+
 # Twirp
 We use twirp for grpc communication over http.
 

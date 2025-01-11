@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  list:
+    cmds:
+      - 'task --list-all'
+      
+  gen:proto:
+    cmds:
+      - 'source ${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/activate'
+      - 'protoc --proto_path=${PROJECTS_DIR}/slack-trading/src --go_out=${PROJECTS_DIR}/slack-trading --python_out=${PROJECTS_DIR}/slack-trading/src/cmd/stats --twirp_out=${PROJECTS_DIR}/slack-trading --twirpy_out=${PROJECTS_DIR}/slack-trading/src/cmd/stats ${PROJECTS_DIR}/slack-trading/src/playground.proto'
+      - 'mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc'
+      - 'mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc'
