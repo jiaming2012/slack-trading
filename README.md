@@ -123,6 +123,7 @@ kubectl port-forward svc/postgres 5432:5432 -n database
 Run the following commands in a SQL editor:
 ``` bash
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE SEQUENCE IF NOT EXISTS order_id_seq START 1;
 ```
 
 ### Add a Deploy Key to the Cluster (this can be skipped if the sealedsecret has already been created)

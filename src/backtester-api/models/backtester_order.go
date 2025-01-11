@@ -5,6 +5,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -128,6 +130,24 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	}
 
 	return total / float64(len(o.Trades))
+}
+
+func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) *OrderRecord {
+	return &OrderRecord{
+		PlaygroundID: playgroundId,
+		OrderID:      o.ID,
+		Class:        string(o.Class),
+		Symbol:       o.Symbol.GetTicker(),
+		Side:         string(o.Side),
+		Quantity:     o.AbsoluteQuantity,
+		OrderType:    string(o.Type),
+		Duration:     string(o.Duration),
+		Price:        o.Price,
+		StopPrice:    o.StopPrice,
+		Status:       string(o.Status),
+		Tag:          o.Tag,
+		CreatedOn:    o.CreateDate,
+	}
 }
 
 func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {

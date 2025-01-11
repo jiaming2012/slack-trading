@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
@@ -23,6 +24,7 @@ var (
 	client            = new(eventservices.PolygonTickDataMachine)
 	playgrounds       = map[uuid.UUID]models.IPlayground{}
 	projectsDirectory string
+	db                *gorm.DB
 )
 
 type errorResponse struct {
@@ -178,6 +180,37 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
+func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
+	record := order.ToOrderRecord(playgroundId)
+	if err := db.Create(&record).Error; err != nil {
+		return fmt.Errorf("failed to save order record: %w", err)
+	}
+
+	return nil
+}
+
+func savePlaygroundSession(playground models.IPlayground) error {
+	meta := playground.GetMeta()
+
+	if err := meta.Validate(); err != nil {
+		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
+	}
+
+	store := &models.PlaygroundSession{
+		Id:              playground.GetId(),
+		StartAt:         meta.StartAt,
+		EndAt:           meta.EndAt,
+		StartingBalance: meta.StartingBalance,
+		Env:             string(meta.Environment),
+	}
+
+	if err := db.Create(store).Error; err != nil {
+		return fmt.Errorf("failed to save playground: %w", err)
+	}
+
+	return nil
+}
+
 func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
 	var orderId uint
 	if req.Id != nil {
@@ -201,11 +234,22 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 		req.Tag,
 	)
 
-	if changes, err := playground.PlaceOrder(order); err != nil {
+	changes, err := playground.PlaceOrder(order)
+	if err != nil {
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
 
-	
+	switch playground.(type) {
+	case *models.LivePlayground: // todo: switch this
+		fmt.Printf("dont save")
+
+	case *models.Playground:
+		if err := saveOrderRecord(playground.GetId(), order); err != nil {
+			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
+		}
+
+		changes.AfterSave()
+	}
 
 	return order, nil
 }
@@ -546,8 +590,9 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 	}
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
+func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], database *gorm.DB) {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
+	db = database
 	projectsDirectory = projectsDir
 
 	router.HandleFunc("", handlePlayground)

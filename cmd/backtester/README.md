@@ -30,6 +30,12 @@ To reattach to the session:
 tmux attach -t port-forward
 ```
 
+### Postrgres
+In order to connect to postgres for development
+``` bash
+kubectl port-forward svc/postgres 5432:5432 -n database
+```
+
 ## App
 On the remote terminal:
 ``` bash

@@ -21,7 +21,6 @@ type CandleRepository struct {
 	indicators            []string
 	position              int
 	startingPosition      int
-	isInitialTick         bool
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
 	isInitialTick         bool
 	mutex                 sync.Mutex

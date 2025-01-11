@@ -181,6 +181,11 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
 
+		// always save live playgrounds
+		if err := savePlaygroundSession(playground); err != nil {
+			log.Fatalf("failed to save playground: %v", err)
+		}
+
 	} else {
 		// validations
 		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
@@ -210,6 +215,11 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		playground, err = models.NewPlayground(req.Account.Balance, clock, env, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
+		}
+
+		// todo: remove this!!
+		if err := savePlaygroundSession(playground); err != nil {
+			log.Fatalf("failed to save playground: %v", err)
 		}
 	}
 

@@ -31,8 +31,10 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -44,6 +46,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/tradeapi"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/playground"
 	"github.com/jiaming2012/slack-trading/src/sheets"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -275,6 +278,28 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	return nil
 }
 
+var db *gorm.DB
+
+func initDB() error {
+	var err error
+	dsn := "host=localhost user=grodt password=test747 dbname=playground port=5432 sslmode=disable TimeZone=UTC"
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to connect database: %w", err)
+	}
+
+	// Migrate the schema
+	if err := db.AutoMigrate(&models.PlaygroundSession{}); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	if err := db.AutoMigrate((&models.OrderRecord{})); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	return nil
+}
+
 func run() {
 	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
 	if err != nil {
@@ -418,6 +443,11 @@ func run() {
 		err = errors.Join(err, otelShutdown(context.Background()))
 	}()
 
+	// Setup postgres
+	if err := initDB(); err != nil {
+		log.Fatalf("failed to init db: %v", err)
+	}
+
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", optionsConfigFile)
 	data, err := os.ReadFile(optionsConfigInDir)
@@ -456,7 +486,7 @@ func run() {
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
 	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
-	backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue)
+	backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
