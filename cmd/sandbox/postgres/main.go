@@ -42,7 +42,7 @@ func savePlaygroundSession(playground models.IPlayground) error {
 	}
 
 	store := &models.PlaygroundSession{
-		Id:              playground.GetId(),
+		ID:              playground.GetId(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
 		StartingBalance: meta.StartingBalance,

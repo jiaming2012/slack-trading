@@ -19,7 +19,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-// todo: move state to database
+// todo: add a mutex playground level
 var (
 	client            = new(eventservices.PolygonTickDataMachine)
 	playgrounds       = map[uuid.UUID]models.IPlayground{}
@@ -60,19 +60,6 @@ func setErrorResponse(errType string, statusCode int, err error, w http.Response
 	}
 
 	return nil
-}
-
-func getPlayground(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"message": "Hello, playground!",
-	}
-
-	if err := setResponse(response, w); err != nil {
-		setErrorResponse("getPlayground: failed to set response", 500, err, w)
-		return
-	}
-
-	w.WriteHeader(200)
 }
 
 type GetAccountResponse struct {
@@ -180,25 +167,82 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+func saveTradeRecordTx(tx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
 	record := trade.ToTradeRecord(playgroundId, orderID)
-	if err := db.Create(&record).Error; err != nil {
+	if err := tx.Create(&record).Error; err != nil {
 		return fmt.Errorf("failed to save trade record: %w", err)
 	}
 
 	return nil
 }
 
-func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
-	record := order.ToOrderRecord(playgroundId)
-	if err := db.Create(&record).Error; err != nil {
-		return fmt.Errorf("failed to save order record: %w", err)
+func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+	return saveTradeRecordTx(db, playgroundId, orderID, trade)
+}
+
+func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) error {
+	for _, order := range orders {
+		oRec, tRecs := order.ToOrderRecord(playgroundId)
+		
+		if err := tx.Create(&oRec).Error; err != nil {
+			return fmt.Errorf("failed to save order records: %w", err)
+		}
+
+		if len(tRecs) > 0 {
+			for _, tRec := range tRecs {
+				tRec.OrderID = oRec.ID
+			}
+
+			if err := tx.Create(&tRecs).Error; err != nil {
+				return fmt.Errorf("failed to save trade records: %w", err)
+			}
+		}
 	}
 
 	return nil
 }
 
-func savePlaygroundSession(playground models.IPlayground) error {
+func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {
+	orderRecord, tradesRecords := order.ToOrderRecord(playgroundId)
+	if err := tx.Create(orderRecord).Error; err != nil {
+		return fmt.Errorf("failed to save order record: %w", err)
+	}
+
+	for _, tradeRecord := range tradesRecords {
+		if err := tx.Create(tradeRecord).Error; err != nil {
+			return fmt.Errorf("failed to save trade record: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
+	return saveOrderRecordTx(db, playgroundId, order)
+}
+
+func savePlayground(playground models.IPlayground) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := savePlaygroundSessionTx(tx, playground); err != nil {
+			return fmt.Errorf("failed to save playground session: %w", err)
+		}
+
+		playgroundId := playground.GetId()
+		if err := saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); err != nil {
+			return fmt.Errorf("failed to save order records: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("savePlayground: failed to save playground: %w", err)
+	}
+
+	return nil
+}
+
+func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 	meta := playground.GetMeta()
 
 	if err := meta.Validate(); err != nil {
@@ -206,18 +250,22 @@ func savePlaygroundSession(playground models.IPlayground) error {
 	}
 
 	store := &models.PlaygroundSession{
-		Id:              playground.GetId(),
+		ID:              playground.GetId(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
 		StartingBalance: meta.StartingBalance,
 		Env:             string(meta.Environment),
 	}
 
-	if err := db.Create(store).Error; err != nil {
+	if err := tx.Create(store).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
 	}
 
 	return nil
+}
+
+func savePlaygroundSession(playground models.IPlayground) error {
+	return savePlaygroundSessionTx(db, playground)
 }
 
 func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
@@ -459,7 +507,7 @@ func handleCandles(w http.ResponseWriter, r *http.Request) {
 
 func handlePlayground(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		getPlayground(w, r)
+		w.WriteHeader(404)
 	} else if r.Method == "POST" {
 		handleCreatePlayground(w, r)
 	} else {

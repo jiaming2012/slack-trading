@@ -288,7 +288,6 @@ func initDB() error {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// Migrate the schema
 	if err := db.AutoMigrate(&models.PlaygroundSession{}); err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}

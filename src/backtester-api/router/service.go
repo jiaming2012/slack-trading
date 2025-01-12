@@ -55,6 +55,15 @@ func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*mo
 	return orders, nil
 }
 
+func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
+	playground, ok := playgrounds[playgroundID]
+	if !ok {
+		return nil, eventmodels.NewWebError(404, "playground not found")
+	}
+
+	return playground, nil
+}
+
 func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountResponse, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {

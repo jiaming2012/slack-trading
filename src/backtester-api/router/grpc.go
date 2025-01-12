@@ -83,6 +83,24 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
+func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.SavePlaygroundResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save playground: %v", err)
+	}
+
+	playground, err := getPlayground(playgroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save playground: %v", err)
+	}
+
+	if err := savePlayground(playground); err != nil {
+		return nil, fmt.Errorf("failed to save playground: %v", err)
+	}
+
+	return &pb.SavePlaygroundResponse{}, nil
+}
+
 func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest) (*pb.GetOpenOrdersResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
