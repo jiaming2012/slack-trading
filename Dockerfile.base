@@ -59,6 +59,8 @@ RUN python3 -m venv /app/slack-trading/src/cmd/stats/env
 
 RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
 
+RUN /app/slack-trading/src/cmd/stats/env/bin/pip install --upgrade pip
+
 RUN /app/slack-trading/src/cmd/stats/env/bin/pip install Pillow
 
 # Copy the source from the current directory to the Working Directory inside the container
