@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,10 +10,27 @@ import (
 
 type PlaygroundSession struct {
 	gorm.Model
-	ID              uuid.UUID     `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	StartAt         time.Time     `gorm:"column:start_at;type:timestamp;not null"`
-	EndAt           *time.Time    `gorm:"column:end_at;type:timestamp"`
-	StartingBalance float64       `gorm:"column:starting_balance;type:numeric;not null"`
-	Env             string        `gorm:"column:environment;type:text;not null"`
-	Orders          []OrderRecord `gorm:"foreignKey:PlaygroundID"`
+	ID              uuid.UUID             `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	StartAt         time.Time             `gorm:"column:start_at;type:timestamp;not null"`
+	EndAt           *time.Time            `gorm:"column:end_at;type:timestamp"`
+	CurrentTime     time.Time             `gorm:"column:current_time;type:timestamp;not null"`
+	StartingBalance float64               `gorm:"column:starting_balance;type:numeric;not null"`
+	Env             string                `gorm:"column:environment;type:text;not null"`
+	Broker          *string               `gorm:"column:broker;type:text"`
+	AccountID       *string               `gorm:"column:account_id;type:text"`
+	ApiKey          *string               `gorm:"column:api_key;type:text"`
+	Orders          []OrderRecord         `gorm:"foreignKey:PlaygroundID"`
+	Repositories    CandleRepositoryRecord `gorm:"type:json;not null"`
+}
+
+func (s PlaygroundSession) ToPlayground() (IPlayground, error) {
+	if s.Env == "simulator" {
+
+		return &Playground{}, nil
+	} else if s.Env == "live" {
+
+		return &LivePlayground{}, nil
+	} else {
+		return nil, fmt.Errorf("unknown environment: %s", s.Env)
+	}
 }

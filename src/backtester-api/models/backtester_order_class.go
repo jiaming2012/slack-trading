@@ -5,12 +5,12 @@ import "fmt"
 type BacktesterOrderClass string
 
 const (
-	Equity BacktesterOrderClass = "equity"
+	BacktesterOrderClassEquity BacktesterOrderClass = "equity"
 )
 
 func (c BacktesterOrderClass) Validate() error {
 	switch c {
-	case Equity:
+	case BacktesterOrderClassEquity:
 		return nil
 	default:
 		return fmt.Errorf("invalid order class: %s", c)

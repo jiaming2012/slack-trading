@@ -36,7 +36,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		playground, err := createPlayground()
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -83,11 +83,11 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, Equity, startTime, symbol2, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -142,11 +142,11 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, TradierOrderSideSellShort, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, Equity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -192,11 +192,11 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, Equity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -402,7 +402,7 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -414,7 +414,7 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, 100.0, delta.NewTrades[0].Price)
 		assert.Equal(t, 1000.0, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -447,7 +447,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 
 		// open 1st order
-		order1 := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -458,7 +458,7 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, balance, playground.GetBalance())
 
 		// open 2nd order
-		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -469,7 +469,7 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, balance, playground.GetBalance())
 
 		// close orders
-		order3 := NewBacktesterOrder(3, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
@@ -480,7 +480,7 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, balance-300.0, playground.GetBalance())
 
 		// open 3rd order
-		order4 := NewBacktesterOrder(4, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
@@ -491,7 +491,7 @@ func TestBalance(t *testing.T) {
 		assert.Equal(t, balance-300.0, playground.GetBalance())
 
 		// close order
-		order5 := NewBacktesterOrder(5, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order5)
 		assert.NoError(t, err)
 
@@ -517,7 +517,7 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -527,7 +527,7 @@ func TestBalance(t *testing.T) {
 
 		assert.Equal(t, balance, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -555,7 +555,7 @@ func TestPlaceOrder(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("GOOG"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("GOOG"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
@@ -591,7 +591,7 @@ func TestPositions(t *testing.T) {
 		balance := 1000000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -605,7 +605,7 @@ func TestPositions(t *testing.T) {
 		// assert.Equal(t, 10.0, position1.OpenTrades[0].Quantity)
 		assert.Equal(t, 10.0, position1.Quantity)
 
-		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -633,7 +633,7 @@ func TestPositions(t *testing.T) {
 		balance := 1000000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -648,7 +648,7 @@ func TestPositions(t *testing.T) {
 		// assert.Equal(t, -10.0, position1.OpenTrades[0].Quantity)
 		assert.Equal(t, -10.0, position1.Quantity)
 
-		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -680,7 +680,7 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -695,7 +695,7 @@ func TestPositions(t *testing.T) {
 		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -711,7 +711,7 @@ func TestPositions(t *testing.T) {
 		// assert.Equal(t, 10.0, position.OpenTrades[1].Quantity)
 
 		// close orders
-		order3 := NewBacktesterOrder(3, Equity, now, symbol, TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
@@ -725,7 +725,7 @@ func TestPositions(t *testing.T) {
 		// assert.Len(t, position.OpenTrades, 0)
 
 		// 3rd order - original direction
-		order4 := NewBacktesterOrder(4, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
@@ -757,7 +757,7 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -774,7 +774,7 @@ func TestPositions(t *testing.T) {
 		assert.Equal(t, order1, openOrders[0])
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -791,7 +791,7 @@ func TestPositions(t *testing.T) {
 		assert.ElementsMatch(t, openOrders, []*BacktesterOrder{order1, order2})
 
 		// close orders
-		order3 := NewBacktesterOrder(3, Equity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order3)
 		assert.NoError(t, err)
 
@@ -816,7 +816,7 @@ func TestPositions(t *testing.T) {
 		assert.Equal(t, order3.Trades[0], order2.ClosedBy[0])
 
 		// 3rd order - reverse direction
-		order4 := NewBacktesterOrder(4, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order4)
 		assert.NoError(t, err)
 
@@ -833,7 +833,7 @@ func TestPositions(t *testing.T) {
 		assert.Equal(t, order4, openOrders[0])
 
 		// 4th order - continue in same direction
-		order5 := NewBacktesterOrder(5, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order5)
 		assert.NoError(t, err)
 
@@ -862,7 +862,7 @@ func TestPositions(t *testing.T) {
 		balance := 1000000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -875,7 +875,7 @@ func TestPositions(t *testing.T) {
 		// assert.Len(t, position.OpenTrades, 1)
 		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
-		order2 := NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -902,7 +902,7 @@ func TestPositions(t *testing.T) {
 		balance := 100000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -928,7 +928,7 @@ func TestPositions(t *testing.T) {
 
 		playground, err := NewPlaygroundDeprecated(1000000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -936,7 +936,7 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -961,7 +961,7 @@ func TestPositions(t *testing.T) {
 
 		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -975,7 +975,7 @@ func TestPositions(t *testing.T) {
 		// assert.Len(t, position.OpenTrades, 1)
 		// assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
-		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1000,7 +1000,7 @@ func TestPositions(t *testing.T) {
 
 		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order1 := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -1014,7 +1014,7 @@ func TestPositions(t *testing.T) {
 		// assert.Len(t, position.OpenTrades, 1)
 		// assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
-		order2 := NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -1060,7 +1060,7 @@ func TestFreeMargin(t *testing.T) {
 		assert.NoError(t, err)
 
 		// place order
-		order := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1084,7 +1084,7 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1104,7 +1104,7 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideSellShort, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1122,7 +1122,7 @@ func TestFreeMargin(t *testing.T) {
 		assert.NoError(t, err)
 
 		// place order equal to free margin
-		order := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 19, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 19, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1132,7 +1132,7 @@ func TestFreeMargin(t *testing.T) {
 		assert.Len(t, delta.InvalidOrders, 0)
 
 		// place order above free margin
-		order = NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1161,7 +1161,7 @@ func TestOrders(t *testing.T) {
 	t.Run("PlaceOrder - market", func(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
@@ -1180,14 +1180,14 @@ func TestOrders(t *testing.T) {
 	t.Run("PlaceOrder - cannot buy after short sell", func(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.NoError(t, err)
 
 		_, err = playground.Tick(time.Second, false)
 		assert.NoError(t, err)
 
-		order = NewBacktesterOrder(2, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
@@ -1195,7 +1195,7 @@ func TestOrders(t *testing.T) {
 	t.Run("PlaceOrder - cannot buy to cover when not short", func(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
@@ -1203,7 +1203,7 @@ func TestOrders(t *testing.T) {
 	t.Run("PlaceOrder - cannot sell before buy", func(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
@@ -1220,7 +1220,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 		price := float64(0)
-		order := NewBacktesterOrder(1, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, &price, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, &price, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
@@ -1231,11 +1231,11 @@ func TestOrders(t *testing.T) {
 
 		id := uint(1)
 
-		order1 := NewBacktesterOrder(id, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(id, Equity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.Error(t, err)
 	})
@@ -1262,11 +1262,11 @@ func TestTrades(t *testing.T) {
 
 		now := startTime
 
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 
@@ -1288,7 +1288,7 @@ func TestTrades(t *testing.T) {
 		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
 		assert.NoError(t, err)
 		quantity := 10.0
-		order1 := NewBacktesterOrder(1, Equity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 
@@ -1301,7 +1301,7 @@ func TestTrades(t *testing.T) {
 		assert.Equal(t, quantity, delta.NewTrades[0].Quantity)
 		assert.Equal(t, prices[1], delta.NewTrades[0].Price)
 
-		order2 := NewBacktesterOrder(2, Equity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 

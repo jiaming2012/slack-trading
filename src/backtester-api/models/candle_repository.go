@@ -23,11 +23,33 @@ type CandleRepository struct {
 	startingPosition      int
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
 	isInitialTick         bool
+	historyInDays         uint32
+	source                eventmodels.CandleRepositorySource
 	mutex                 sync.Mutex
+}
+
+func (r *CandleRepository) ToDTO() CandleRepositoryDTO {
+	return CandleRepositoryDTO{
+		Symbol:                   r.symbol.GetTicker(),
+		Duration:                 r.period,
+		FetchInterval:            string(r.fetchInterval),
+		PolygonTimespanMultipler: r.polygonTimespan.Multiplier,
+		PolygonTimespanUnit:      string(r.polygonTimespan.Unit),
+		Indicators:               r.indicators,
+		Position:                 r.position,
+		StartingPosition:         r.startingPosition,
+		HistoryInDays:            r.historyInDays,
+		SourceType:               r.source.Type,
+		IsInitialTick:            r.isInitialTick,
+	}
 }
 
 func (r *CandleRepository) GetSymbol() eventmodels.Instrument {
 	return r.symbol
+}
+
+func (r *CandleRepository) GetIndicators() []string {
+	return r.indicators
 }
 
 func (r *CandleRepository) GetPeriod() time.Duration {
@@ -40,6 +62,10 @@ func (r *CandleRepository) GetPolygonTimespan() eventmodels.PolygonTimespan {
 
 func (r *CandleRepository) GetFetchInterval() eventmodels.TradierInterval {
 	return r.fetchInterval
+}
+
+func (r *CandleRepository) GetHistoryInDays() uint32 {
+	return r.historyInDays
 }
 
 func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicators {
@@ -178,7 +204,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 	return newCandle, nil
 }
 
-func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], startingPosition int) (*CandleRepository, error) {
+func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], startingPosition int, historyInDays uint32, source eventmodels.CandleRepositorySource) (*CandleRepository, error) {
 	var interval eventmodels.TradierInterval
 	switch period {
 	case time.Minute:
@@ -217,6 +243,8 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		newCandlesQueue:       newCandlesQueue,
 		polygonTimespan:       polygonTimespan,
 		isInitialTick:         true,
+		historyInDays:         historyInDays,
+		source:                source,
 		mutex:                 sync.Mutex{},
 	}, nil
 }

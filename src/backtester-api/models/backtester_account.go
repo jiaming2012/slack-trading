@@ -31,9 +31,10 @@ func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
 	return result
 }
 
-func NewBacktesterAccount(balance float64) *BacktesterAccount {
+func NewBacktesterAccount(balance float64, orders []*BacktesterOrder) *BacktesterAccount {
 	return &BacktesterAccount{
 		mutex:   &sync.Mutex{},
 		Balance: balance,
+		Orders:  orders,
 	}
 }

@@ -39,6 +39,14 @@ func (d *PolygonDate) GetPreviousYear() *PolygonDate {
 	}
 }
 
+func NewPolygonDateFromTime(t time.Time) *PolygonDate {
+	return &PolygonDate{
+		Year:  t.Year(),
+		Month: int(t.Month()),
+		Day:   t.Day(),
+	}
+}
+
 func NewPolygonDate(date string) (*PolygonDate, error) {
 	var year, month, day int
 	_, err := fmt.Sscanf(date, "%d-%d-%d", &year, &month, &day)

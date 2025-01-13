@@ -28,6 +28,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.CreatePolygonPlaygroundRequest"),
 				output=_sym_db.GetSymbol("playground.CreatePlaygroundResponse"),
 			),
+			"GetPlaygrounds": Endpoint(
+				service_name="PlaygroundService",
+				name="GetPlaygrounds",
+				function=getattr(service, "GetPlaygrounds"),
+				input=_sym_db.GetSymbol("playground.GetPlaygroundsRequest"),
+				output=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
+			),
 			"NextTick": Endpoint(
 				service_name="PlaygroundService",
 				name="NextTick",
@@ -80,6 +87,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.CreatePlaygroundResponse"),
+			**kwargs,
+		)
+
+	def GetPlaygrounds(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetPlaygrounds",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
 			**kwargs,
 		)
 
@@ -147,6 +163,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.CreatePlaygroundResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetPlaygrounds(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetPlaygrounds",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
 				session=session,
 				**kwargs,
 			)

@@ -143,6 +143,8 @@ func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) (*OrderRecord, [
 		OrderType:       string(o.Type),
 		Duration:        string(o.Duration),
 		Price:           o.Price,
+		RequestedPrice:  o.RequestedPrice,
+		RejectReason:    o.RejectReason,
 		StopPrice:       o.StopPrice,
 		Status:          string(o.Status),
 		Tag:             o.Tag,

@@ -41,11 +41,18 @@ func savePlaygroundSession(playground models.IPlayground) error {
 		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
 	}
 
+	repos := playground.GetRepositories()
+	var repoDTOs []models.CandleRepositoryDTO
+	for _, repo := range repos {
+		repoDTOs = append(repoDTOs, repo.ToDTO())
+	}
+
 	store := &models.PlaygroundSession{
 		ID:              playground.GetId(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
 		StartingBalance: meta.StartingBalance,
+		Repositories:    repoDTOs,
 		Env:             string(meta.Environment),
 	}
 
@@ -87,21 +94,21 @@ func main() {
 	req := &r.CreatePlaygroundRequest{
 		Account: r.CreateAccountRequest{
 			Balance: 10000.0,
-			Source: r.CreateAccountRequestSource{
+			Source: &r.CreateAccountRequestSource{
 				Broker:     "tradier",
 				AccountID:  "VA12962195",
 				ApiKeyName: "TRADIER_TRADES_BEARER_TOKEN",
 			},
 		},
-		Repositories: []r.CreateRepositoryRequest{
+		Repositories: []eventmodels.CreateRepositoryRequest{
 			{
 				Symbol: "AAPL",
 				Timespan: eventmodels.PolygonTimespanRequest{
 					Multiplier: 1,
 					Unit:       "minute",
 				},
-				Source: r.RepositorySource{
-					Type: r.RepositorySourceTradier,
+				Source: eventmodels.RepositorySource{
+					Type: eventmodels.RepositorySourceTradier,
 				},
 				Indicators:    []string{"supertrend"},
 				HistoryInDays: 10,

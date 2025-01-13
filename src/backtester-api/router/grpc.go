@@ -83,6 +83,57 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
+func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
+	playgrounds := getPlaygrounds()
+
+	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
+	for _, p := range playgrounds {
+		meta := p.GetMeta()
+		positions := p.GetPositions()
+		balance := p.GetBalance()
+		equity := p.GetEquity(positions)
+		freeMargin := p.GetFreeMargin()
+
+		var clockStop *string
+		if meta.EndAt != nil {
+			_stop := meta.EndAt.Format(time.RFC3339)
+			clockStop = &_stop
+		}
+
+		var repos []*pb.Repository
+		for _, repo := range p.GetRepositories() {
+			repos = append(repos, &pb.Repository{
+				Symbol:             repo.GetSymbol().GetTicker(),
+				TimespanMultiplier: uint32(repo.GetPolygonTimespan().Multiplier),
+				TimespanUnit:       string(repo.GetPolygonTimespan().Unit),
+				Indicators:         repo.GetIndicators(),
+				HistoryInDays:      repo.GetHistoryInDays(),
+			})
+		}
+
+		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
+			PlaygroundId: p.GetId().String(),
+			Meta: &pb.Meta{
+				InitialBalance: meta.StartingBalance,
+				Environment:    string(meta.Environment),
+			},
+			Clock: &pb.Clock{
+				Start:       meta.StartAt.Format(time.RFC3339),
+				Stop:        clockStop,
+				CurrentTime: p.GetCurrentTime().Format(time.RFC3339),
+			},
+			Repositories: repos,
+			Balance:      balance,
+			Equity:       equity,
+			FreeMargin:   freeMargin,
+		})
+	}
+
+	return &pb.GetPlaygroundsResponse{
+		Playgrounds: playgroundsDTO,
+	}, nil
+}
+
 func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.SavePlaygroundResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
@@ -367,17 +418,17 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 }
 
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
-	var repositoryRequests []CreateRepositoryRequest
+	var repositoryRequests []eventmodels.CreateRepositoryRequest
 
 	for _, repo := range req.Repositories {
-		repositoryRequests = append(repositoryRequests, CreateRepositoryRequest{
+		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
 			Symbol: repo.Symbol,
 			Timespan: eventmodels.PolygonTimespanRequest{
 				Multiplier: int(repo.TimespanMultiplier),
 				Unit:       repo.TimespanUnit,
 			},
-			Source: RepositorySource{
-				Type: RepositorySourcePolygon,
+			Source: eventmodels.RepositorySource{
+				Type: eventmodels.RepositorySourcePolygon,
 			},
 			Indicators:    repo.Indicators,
 			HistoryInDays: repo.HistoryInDays,

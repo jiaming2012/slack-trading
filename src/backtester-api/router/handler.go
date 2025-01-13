@@ -78,42 +78,22 @@ type CreateAccountRequestSource struct {
 }
 
 type CreateAccountRequest struct {
-	Balance float64                    `json:"balance"`
-	Source  CreateAccountRequestSource `json:"source"`
+	Balance float64                     `json:"balance"`
+	Source  *CreateAccountRequestSource `json:"source"`
 }
 
 type CreatePlaygroundRequest struct {
-	Env          string                    `json:"environment"`
-	Account      CreateAccountRequest      `json:"account"`
-	Clock        CreateClockRequest        `json:"clock"`
-	Repositories []CreateRepositoryRequest `json:"repositories"`
-	CreatedAt    time.Time                 `json:"created_at"`
+	Env            string                                `json:"environment"`
+	Account        CreateAccountRequest                  `json:"account"`
+	Clock          CreateClockRequest                    `json:"clock"`
+	Repositories   []eventmodels.CreateRepositoryRequest `json:"repositories"`
+	BackfillOrders []*models.BacktesterOrder             `json:"orders"`
+	CreatedAt      time.Time                             `json:"created_at"`
 }
 
 type CreateClockRequest struct {
 	StartDate string `json:"start"`
 	StopDate  string `json:"stop"`
-}
-
-type RepositorySourceType string
-
-const (
-	RepositorySourcePolygon RepositorySourceType = "polygon"
-	RepositorySourceCSV     RepositorySourceType = "csv"
-	RepositorySourceTradier RepositorySourceType = "tradier"
-)
-
-type RepositorySource struct {
-	Type        RepositorySourceType `json:"type"`
-	CSVFilename *string              `json:"filename"`
-}
-
-type CreateRepositoryRequest struct {
-	Symbol        string                             `json:"symbol"`
-	Timespan      eventmodels.PolygonTimespanRequest `json:"timespan"`
-	HistoryInDays uint32                             `json:"history_in_days"`
-	Source        RepositorySource                   `json:"source"`
-	Indicators    []string                           `json:"indicators"`
 }
 
 type CreateOrderRequest struct {
@@ -183,7 +163,7 @@ func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.Backtes
 func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) error {
 	for _, order := range orders {
 		oRec, tRecs := order.ToOrderRecord(playgroundId)
-		
+
 		if err := tx.Create(&oRec).Error; err != nil {
 			return fmt.Errorf("failed to save order records: %w", err)
 		}
@@ -249,11 +229,19 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
 	}
 
+	repos := playground.GetRepositories()
+	var repoDTOs []models.CandleRepositoryDTO
+	for _, repo := range repos {
+		repoDTOs = append(repoDTOs, repo.ToDTO())
+	}
+
 	store := &models.PlaygroundSession{
 		ID:              playground.GetId(),
+		CurrentTime:     playground.GetCurrentTime(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
 		StartingBalance: meta.StartingBalance,
+		Repositories:    models.CandleRepositoryRecord(repoDTOs),
 		Env:             string(meta.Environment),
 	}
 
@@ -435,6 +423,88 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 		setErrorResponse("handleAccount: failed to set response", 500, err, w)
 		return
 	}
+}
+
+func loadPlaygrounds() error {
+	var playgroundsSlice []models.PlaygroundSession
+	if err := db.Preload("Orders").Preload("Orders.Trades").Find(&playgroundsSlice).Error; err != nil {
+		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
+	}
+
+	fmt.Printf("loaded playgrounds: %v\n", playgroundsSlice)
+
+	for _, p := range playgroundsSlice {
+		orders := make([]*models.BacktesterOrder, len(p.Orders))
+
+		var err error
+		for i, o := range p.Orders {
+			orders[i], err = o.ToBacktesterOrder()
+			if err != nil {
+				return fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
+			}
+		}
+
+		var source *CreateAccountRequestSource
+		var clockRequest CreateClockRequest
+		if p.Env == "simulator" {
+			if p.EndAt == nil {
+				return fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
+			}
+
+			clockRequest = CreateClockRequest{
+				StartDate: p.StartAt.Format(time.RFC3339),
+				StopDate:  p.EndAt.Format(time.RFC3339),
+			}
+
+		} else if p.Env == "live" {
+			if p.Broker == nil || p.AccountID == nil || p.ApiKey == nil {
+				return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
+			}
+
+			source = &CreateAccountRequestSource{
+				Broker:     *p.Broker,
+				AccountID:  *p.AccountID,
+				ApiKeyName: *p.ApiKey,
+			}
+
+			clockRequest = CreateClockRequest{
+				StartDate: p.StartAt.Format(time.RFC3339),
+			}
+
+		} else {
+			return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Env)
+		}
+
+		var createRepoRequests []eventmodels.CreateRepositoryRequest
+		for _, r := range p.Repositories {
+			req, err := r.ToCreateRepositoryRequest()
+			if err != nil {
+				return fmt.Errorf("loadPlaygrounds: failed to convert repository: %w", err)
+			}
+
+			createRepoRequests = append(createRepoRequests, req)
+		}
+
+		playground, err := CreatePlayground(&CreatePlaygroundRequest{
+			Env: p.Env,
+			Account: CreateAccountRequest{
+				Balance: p.StartingBalance,
+				Source:  source,
+			},
+			Clock:          clockRequest,
+			Repositories:   createRepoRequests,
+			BackfillOrders: orders,
+			CreatedAt:      p.CreatedAt,
+		})
+
+		if err != nil {
+			return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
+		}
+
+		playgrounds[playground.GetId()] = playground
+	}
+
+	return nil
 }
 
 func handleCandles(w http.ResponseWriter, r *http.Request) {
@@ -650,10 +720,14 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 	}
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], database *gorm.DB) {
+func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], database *gorm.DB) error {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
 	db = database
 	projectsDirectory = projectsDir
+
+	if err := loadPlaygrounds(); err != nil {
+		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
+	}
 
 	router.HandleFunc("", handlePlayground)
 	router.HandleFunc("/{id}/account", handleAccount)
@@ -662,4 +736,6 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 	router.HandleFunc("/{id}/candles", handleCandles)
 
 	go handleLiveOrders(ctx, ordersUpdateQueue)
+
+	return nil
 }

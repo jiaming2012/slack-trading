@@ -55,6 +55,15 @@ func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*mo
 	return orders, nil
 }
 
+func getPlaygrounds() []models.IPlayground {
+	var playgroundsSlice []models.IPlayground
+	for _, playground := range playgrounds {
+		playgroundsSlice = append(playgroundsSlice, playground)
+	}
+
+	return playgroundsSlice
+}
+
 func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
@@ -152,7 +161,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		fmt.Printf("liveAccount: %v\n", liveAccount)
 
 		// capture all candles up to tomorrow
-		tomorrow := time.Now().AddDate(0, 0, 1)
+		tomorrow := req.CreatedAt.AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")
 		from, err := eventmodels.NewPolygonDate(tomorrowStr)
 		if err != nil {
@@ -176,16 +185,11 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		}
 
 		// fetch live orders
-		// really should fetch positions instead of orders
+		// todo: really should fetch positions instead of orders
 		// orders if fetched, should be fetched from the DB
-		// liveOrders, err := liveAccount.Broker.FetchOrders(context.Background())
-		// if err != nil {
-		// 	return nil, eventmodels.NewWebError(500, "failed to fetch live orders")
-		// }
-		liveOrders := []*eventmodels.TradierOrder{}
 
 		// create live playground
-		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, liveOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, req.BackfillOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
@@ -195,7 +199,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 			log.Fatalf("failed to save playground: %v", err)
 		}
 
-	} else {
+	} else if env == models.PlaygroundEnvironmentSimulator {
 		// validations
 		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
@@ -221,10 +225,12 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.Account.Balance, clock, env, now, repos...)
+		playground, err = models.NewPlayground(req.Account.Balance, clock, req.BackfillOrders, env, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}
+	} else {
+		return nil, eventmodels.NewWebError(400, "invalid playground environment")
 	}
 
 	playgrounds[playground.GetId()] = playground
@@ -258,7 +264,7 @@ func fetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.Polyg
 	return nil, eventmodels.NewWebError(500, errMsg)
 }
 
-func createRepos(repoRequests []CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {
+func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {
 	var feeds []*models.CandleRepository
 	for _, repo := range repoRequests {
 		var bars, pastBars []*eventmodels.PolygonAggregateBarV2
@@ -269,14 +275,14 @@ func createRepos(repoRequests []CreateRepositoryRequest, from, to *eventmodels.P
 			Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
 		}
 
-		if repo.Source.Type == RepositorySourceTradier {
+		if repo.Source.Type == eventmodels.RepositorySourceTradier {
 			// pass
-		} else if repo.Source.Type == RepositorySourcePolygon {
+		} else if repo.Source.Type == eventmodels.RepositorySourcePolygon {
 			bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
 			if err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
 			}
-		} else if repo.Source.Type == RepositorySourceCSV {
+		} else if repo.Source.Type == eventmodels.RepositorySourceCSV {
 			if repo.Source.CSVFilename == nil {
 				return nil, eventmodels.NewWebError(400, "missing CSV filename")
 			}
@@ -300,8 +306,12 @@ func createRepos(repoRequests []CreateRepositoryRequest, from, to *eventmodels.P
 
 		aggregateBars := append(pastBars, bars...)
 
+		source := eventmodels.CandleRepositorySource{
+			Type: string(repo.Source.Type),
+		}
+
 		startingPosition := len(pastBars)
-		repository, err := services.CreateRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition)
+		repository, err := services.CreateRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition, repo.HistoryInDays, source)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create repository")
 		}

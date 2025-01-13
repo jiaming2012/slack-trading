@@ -72,8 +72,14 @@ func main() {
 	indicators := []string{"supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"}
 
 	aggregateCandles := append(pastCandlesForIndicators, candles...)
+
+	historyInDays := uint32(10)
+
+	repoSource := eventmodels.CandleRepositorySource{
+		Type: "polygon",
+	}
 	
-	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, len(pastCandlesForIndicators))
+	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, len(pastCandlesForIndicators), historyInDays, repoSource)
 
 	// Print the first candle
 	fmt.Printf("First Candle: %+v\n", candles[0])

@@ -24,6 +24,10 @@ func (feed *MockBacktesterDataFeed) GetPeriod() time.Duration {
 	return feed.period
 }
 
+func (feed *MockBacktesterDataFeed) GetSource() string {
+	return "mock"
+}
+
 func NewMockBacktesterDataFeed(symbol eventmodels.Instrument, period time.Duration, timestamps []time.Time, closes []float64) *MockBacktesterDataFeed {
 	if len(timestamps) != len(closes) {
 		panic("timestamps and closes must have the same length")

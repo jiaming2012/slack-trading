@@ -20,6 +20,7 @@ type IPlayground interface {
 	GetOrders() []*BacktesterOrder
 	GetPosition(symbol eventmodels.Instrument) Position
 	GetPositions() map[eventmodels.Instrument]*Position
+	GetRepositories() []*CandleRepository
 	GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error)
 	GetFreeMargin() float64
 	PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error)
@@ -48,6 +49,17 @@ type Playground struct {
 
 func (p *Playground) GetId() uuid.UUID {
 	return p.ID
+}
+
+func (p *Playground) GetRepositories() []*CandleRepository {
+	repos := make([]*CandleRepository, 0)
+	for _, periodRepoMap := range p.repos {
+		for _, repo := range periodRepoMap {
+			repos = append(repos, repo)
+		}
+	}
+
+	return repos
 }
 
 func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder {
@@ -300,7 +312,7 @@ func (p *Playground) updateTrades(ordersToOpen []*BacktesterOrder, startingPosit
 	for _, order := range ordersToOpen {
 		orderStatus := order.GetStatus()
 		if orderStatus.IsTradingAllowed() && order.Type == Market {
-			if order.Class != Equity {
+			if order.Class != BacktesterOrderClassEquity {
 				log.Errorf("updateTrades: only equity orders are supported")
 				continue
 			}
@@ -377,9 +389,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	var order *BacktesterOrder
 
 	if position.Quantity > 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
 	} else if position.Quantity < 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), Equity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
 	} else {
 		return nil, nil
 	}
@@ -876,7 +888,7 @@ type PlaceOrderChanges struct {
 }
 
 func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
-	if order.Class != Equity {
+	if order.Class != BacktesterOrderClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")
 	}
 
@@ -938,7 +950,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -980,7 +992,7 @@ func NewPlayground(balance float64, clock *Clock, env PlaygroundEnvironment, now
 	return &Playground{
 		Meta:            meta,
 		ID:              uuid.New(),
-		account:         NewBacktesterAccount(balance),
+		account:         NewBacktesterAccount(balance, orders),
 		clock:           clock,
 		repos:           repos,
 		positionsCache:  nil,
@@ -1014,7 +1026,11 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 			data = append(data, candle.ToPolygonAggregateBarV2())
 		}
 
-		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0)
+		source := eventmodels.CandleRepositorySource{
+			Type: feed.GetSource(),
+		}
+
+		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0, 0, source)
 		if err != nil {
 			return nil, fmt.Errorf("error creating repository: %w", err)
 		}
@@ -1038,7 +1054,7 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 			Environment:     env,
 		},
 		ID:              uuid.New(),
-		account:         NewBacktesterAccount(balance),
+		account:         NewBacktesterAccount(balance, []*BacktesterOrder{}),
 		clock:           clock,
 		repos:           repos,
 		positionsCache:  nil,

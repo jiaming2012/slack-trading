@@ -74,13 +74,13 @@ func SaveLiveRepository(repo *models.CandleRepository) error {
 	return nil
 }
 
-func CreateRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) (*models.CandleRepository, error) {
-	return CreateRepositoryWithPosition(symbol, timespan, bars, indicators, newCandlesQueue, 0)
+func CreateRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], historyInDays uint32, source eventmodels.CandleRepositorySource) (*models.CandleRepository, error) {
+	return CreateRepositoryWithPosition(symbol, timespan, bars, indicators, newCandlesQueue, 0, historyInDays, source)
 }
 
-func CreateRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], startingPosition int) (*models.CandleRepository, error) {
+func CreateRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], startingPosition int, historyInDays uint32, source eventmodels.CandleRepositorySource) (*models.CandleRepository, error) {
 	period := timespan.ToDuration()
-	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, startingPosition)
+	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, startingPosition, historyInDays, source)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}

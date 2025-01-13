@@ -20,6 +20,10 @@ func (p *LivePlayground) GetAccount() *LiveAccount {
 	return p.account
 }
 
+func (p *LivePlayground) GetRepositories() []*CandleRepository {
+	return p.playground.GetRepositories()
+}
+
 func (p *LivePlayground) GetMeta() *PlaygroundMeta {
 	return p.playground.GetMeta()
 }
@@ -146,8 +150,8 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], backfillOrders []*eventmodels.TradierOrder, now time.Time) (*LivePlayground, error) {
-	playground, err := NewPlayground(account.Balance, nil, PlaygroundEnvironmentLive, now, repositories...)
+func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+	playground, err := NewPlayground(account.Balance, nil, orders, PlaygroundEnvironmentLive, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

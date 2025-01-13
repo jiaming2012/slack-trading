@@ -9,12 +9,34 @@ option go_package = "./playground";
 
 service PlaygroundService {
     rpc CreatePlayground (CreatePolygonPlaygroundRequest) returns (CreatePlaygroundResponse);
+    rpc GetPlaygrounds(GetPlaygroundsRequest) returns (GetPlaygroundsResponse);
     rpc NextTick(NextTickRequest) returns (TickDelta);
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
     rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
     rpc SavePlayground(SavePlaygroundRequest) returns (SavePlaygroundResponse);
+}
+
+message GetPlaygroundsRequest {}
+
+message Meta {
+    double initial_balance = 1;
+    string environment = 2;
+}
+
+message PlaygroundSession {
+    string playground_id = 1;
+    Meta meta = 2;
+    Clock clock = 3;
+    repeated Repository repositories = 4;
+    double balance = 5;
+    double equity = 6;
+    double free_margin = 7;
+}
+
+message GetPlaygroundsResponse {
+    repeated PlaygroundSession playgrounds = 1;
 }
 
 message GetOpenOrdersResponse {
@@ -32,7 +54,13 @@ message SavePlaygroundRequest {
 
 message SavePlaygroundResponse {}
 
-message CreateRepositoryRequest {
+message Clock {
+    string current_time = 1;
+    string start = 2;
+    optional string stop = 3;
+}
+
+message Repository {
     string symbol = 1;
     uint32 timespan_multiplier = 2;
     string timespan_unit = 3;
@@ -44,7 +72,7 @@ message CreatePolygonPlaygroundRequest {
     double balance = 1;
     string start_date = 2;
     string stop_date = 3;
-    repeated CreateRepositoryRequest repositories = 4;
+    repeated Repository repositories = 4;
     string environment = 5;
 }
 
