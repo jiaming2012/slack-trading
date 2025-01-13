@@ -26,3 +26,7 @@ spec:
             name: grodt-configmap
         - secretRef:
             name: grodt-secrets
+        - configMapRef:
+            name: postgres-configmap
+        - secretRef:
+            name: postgres-secrets

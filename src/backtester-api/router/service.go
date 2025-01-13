@@ -313,6 +313,7 @@ func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *e
 		startingPosition := len(pastBars)
 		repository, err := services.CreateRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition, repo.HistoryInDays, source)
 		if err != nil {
+			log.Errorf("failed to create repository: %v", err)
 			return nil, eventmodels.NewWebError(500, "failed to create repository")
 		}
 
