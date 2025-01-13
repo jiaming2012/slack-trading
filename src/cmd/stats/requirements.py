@@ -23,6 +23,7 @@ pyparsing==3.1.2
 python-dateutil==2.9.0.post0
 pytz==2024.1
 requests==2.31.0
+scikit-learn==1.6.0
 scipy==1.7.3
 seaborn==0.12.2
 six==1.16.0
