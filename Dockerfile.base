@@ -41,10 +41,10 @@ RUN apt-get update && apt-get install -y \
     tcl-dev \
     tk-dev 
 
-# Download and install Python 3.7.9
-RUN wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz && \
-    tar xvf Python-3.7.9.tgz && \
-    cd Python-3.7.9 && \
+# Download and install Python 3.10.15
+RUN wget https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tgz && \
+    tar xvf Python-3.10.15.tgz && \
+    cd Python-3.10.15 && \
     ./configure --enable-optimizations && \
     make altinstall
 
@@ -52,9 +52,9 @@ RUN wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz && \
 WORKDIR /app/slack-trading
 
 # Ensure pip is installed and install venv
-RUN python3.7 -m ensurepip && python3.7 -m pip install --upgrade pip setuptools wheel && python3.7 -m pip install virtualenv
+RUN python3.10 -m ensurepip && python3.10 -m pip install --upgrade pip setuptools wheel && python3.10 -m pip install virtualenv
 
-# Create a virtual environment with Python 3.9
+# Create a virtual environment with Python 3.10
 RUN python3 -m venv /app/slack-trading/src/cmd/stats/env
 
 RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
