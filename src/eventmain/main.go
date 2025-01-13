@@ -280,9 +280,9 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 
 var db *gorm.DB
 
-func initDB() error {
+func initDB(host, user, password, dbName string) error {
 	var err error
-	dsn := "host=localhost user=grodt password=test747 dbname=playground port=5432 sslmode=disable TimeZone=UTC"
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=UTC", host, user, password, dbName)
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
@@ -419,6 +419,26 @@ func run() {
 		log.Fatalf("$OPTIONS_CONFIG_FILE not set: %v", err)
 	}
 
+	postgresHost, err := utils.GetEnv("POSTGRES_HOST")
+	if err != nil {
+		log.Fatalf("$POSTGRES_HOST not set: %v", err)
+	}
+
+	postgresUser, err := utils.GetEnv("POSTGRES_USER")
+	if err != nil {
+		log.Fatalf("$POSTGRES_USER not set: %v", err)
+	}
+
+	postgresPassword, err := utils.GetEnv("POSTGRES_PASSWORD")
+	if err != nil {
+		log.Fatalf("$POSTGRES_PASSWORD not set: %v", err)
+	}
+
+	postgresDb, err := utils.GetEnv("POSTGRES_DB")
+	if err != nil {
+		log.Fatalf("$POSTGRES_DB not set: %v", err)
+	}
+
 	isDryRunEnv, err := utils.GetEnv("DRY_RUN")
 	if err != nil {
 		log.Fatalf("$DRY_RUN not set: %v", err)
@@ -447,7 +467,7 @@ func run() {
 	}()
 
 	// Setup postgres
-	if err := initDB(); err != nil {
+	if err := initDB(postgresHost, postgresUser, postgresPassword, postgresDb); err != nil {
 		log.Fatalf("failed to init db: %v", err)
 	}
 

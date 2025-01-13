@@ -6,3 +6,4 @@ metadata:
 data:
   POSTGRES_DB: "playground"
   POSTGRES_USER: "grodt"
+  POSTGRES_HOST: "postgres.database.svc.cluster.local"
