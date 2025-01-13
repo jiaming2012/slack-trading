@@ -245,6 +245,12 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
+	if meta.Environment == models.PlaygroundEnvironmentLive {
+		store.Broker = &meta.SourceBroker
+		store.AccountID = &meta.SourceAccountId
+		store.ApiKey = &meta.SourceApiKey
+	}
+
 	if err := tx.Create(store).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
 	}
@@ -333,6 +339,10 @@ func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		setErrorResponse("createClock: failed to decode request", 400, err, w)
 		return
+	}
+
+	if req.Env == "live" {
+		req.CreatedAt = time.Now()
 	}
 
 	playground, err := CreatePlayground(&req)

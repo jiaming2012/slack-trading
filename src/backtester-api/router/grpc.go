@@ -417,6 +417,47 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	return orderDTO, nil
 }
 
+func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
+	var repositoryRequests []eventmodels.CreateRepositoryRequest
+
+	for _, repo := range req.Repositories {
+		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
+			Symbol: repo.Symbol,
+			Timespan: eventmodels.PolygonTimespanRequest{
+				Multiplier: int(repo.TimespanMultiplier),
+				Unit:       repo.TimespanUnit,
+			},
+			Source: eventmodels.RepositorySource{
+				Type: eventmodels.RepositorySourceTradier,
+			},
+			Indicators:    repo.Indicators,
+			HistoryInDays: repo.HistoryInDays,
+		})
+	}
+
+	playground, err := CreatePlayground(&CreatePlaygroundRequest{
+		Env: req.GetEnvironment(),
+		Account: CreateAccountRequest{
+			Balance: float64(req.Balance),
+			Source: &CreateAccountRequestSource{
+				AccountID:  req.SourceAccountId,
+				Broker:     req.SourceBroker,
+				ApiKeyName: req.SourceApiKeyName,
+			},
+		},
+		Repositories: repositoryRequests,
+		CreatedAt:    time.Now(),
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create playground: %v", err)
+	}
+
+	return &pb.CreatePlaygroundResponse{
+		Id: playground.GetId().String(),
+	}, nil
+}
+
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
 

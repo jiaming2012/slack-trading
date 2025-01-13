@@ -9,6 +9,7 @@ option go_package = "./playground";
 
 service PlaygroundService {
     rpc CreatePlayground (CreatePolygonPlaygroundRequest) returns (CreatePlaygroundResponse);
+    rpc CreateLivePlayground (CreateLivePlaygroundRequest) returns (CreatePlaygroundResponse);
     rpc GetPlaygrounds(GetPlaygroundsRequest) returns (GetPlaygroundsResponse);
     rpc NextTick(NextTickRequest) returns (TickDelta);
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
@@ -74,6 +75,15 @@ message CreatePolygonPlaygroundRequest {
     string stop_date = 3;
     repeated Repository repositories = 4;
     string environment = 5;
+}
+
+message CreateLivePlaygroundRequest {
+    double balance = 1;
+    string source_broker = 2;
+    string source_account_id = 3;
+    string source_api_key_name = 4;
+    repeated Repository repositories = 5;
+    string environment = 6;
 }
 
 message GetCandlesRequest {

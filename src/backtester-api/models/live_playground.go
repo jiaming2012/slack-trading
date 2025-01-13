@@ -151,7 +151,13 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 }
 
 func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
-	playground, err := NewPlayground(account.Balance, nil, orders, PlaygroundEnvironmentLive, now, repositories...)
+	source := &PlaygroundSource{
+		Broker: account.Source.GetBroker(),
+		ApiKeyName: account.Source.GetApiKey(),
+		AccountID: account.Source.GetAccountID(),
+	}
+
+	playground, err := NewPlayground(account.Balance, nil, orders, PlaygroundEnvironmentLive, source, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

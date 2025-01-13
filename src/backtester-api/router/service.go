@@ -225,7 +225,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.Account.Balance, clock, req.BackfillOrders, env, now, repos...)
+		playground, err = models.NewPlayground(req.Account.Balance, clock, req.BackfillOrders, env, nil, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

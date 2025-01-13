@@ -56,6 +56,12 @@ func savePlaygroundSession(playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
+	if meta.Environment == models.PlaygroundEnvironmentLive {
+		store.Broker = &meta.
+		store.AccountID = &meta.AccountID
+		store.ApiKey = &meta.ApiKey
+	}
+
 	if err := db.Create(store).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
 	}

@@ -950,7 +950,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -987,7 +987,14 @@ func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env
 		Environment:     env,
 		StartAt:         startAt,
 		EndAt:           endAt,
+		SourceBroker:    source.Broker,
+		SourceAccountId: source.AccountID,
+		SourceApiKey:    source.ApiKeyName,
 	}
+
+	// if env == PlaygroundEnvironmentLive {
+	// 	meta.SourceBroker =
+	// }
 
 	return &Playground{
 		Meta:            meta,
