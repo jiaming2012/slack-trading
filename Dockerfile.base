@@ -55,7 +55,7 @@ WORKDIR /app/slack-trading
 RUN python3.10 -m ensurepip && python3.10 -m pip install --upgrade pip setuptools wheel && python3.10 -m pip install virtualenv
 
 # Create a virtual environment with Python 3.10
-RUN python3 -m venv /app/slack-trading/src/cmd/stats/env
+RUN python3.10 -m venv /app/slack-trading/src/cmd/stats/env
 
 RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
 
