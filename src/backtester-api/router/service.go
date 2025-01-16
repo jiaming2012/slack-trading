@@ -189,14 +189,16 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(liveAccount, repos, newCandlesQueue, req.BackfillOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(req.ID, liveAccount, repos, newCandlesQueue, req.BackfillOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
 
-		// always save live playgrounds
-		if err := savePlaygroundSession(playground); err != nil {
-			log.Fatalf("failed to save playground: %v", err)
+		// always save live playgrounds if flag is set
+		if req.SaveToDB {
+			if err := savePlaygroundSession(playground); err != nil {
+				log.Fatalf("failed to save playground: %v", err)
+			}
 		}
 
 	} else if env == models.PlaygroundEnvironmentSimulator {
@@ -225,7 +227,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.Account.Balance, clock, req.BackfillOrders, env, nil, now, repos...)
+		playground, err = models.NewPlayground(req.ID, req.Account.Balance, clock, req.BackfillOrders, env, nil, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

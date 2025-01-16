@@ -33,10 +33,23 @@ type OrderRecord struct {
 
 func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 	class := BacktesterOrderClass(o.Class)
+	var symbol eventmodels.Instrument
+
 	switch class {
 	case BacktesterOrderClassEquity:
+		symbol = eventmodels.NewStockSymbol(o.Symbol)
 	default:
 		return nil, fmt.Errorf("invalid order class: %s", class)
+	}
+
+	var trades []*BacktesterTrade
+	for _, t := range o.Trades {
+		tr, err := t.ToBacktesterTrade(symbol)
+		if err != nil {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert trade: %w", err)
+		}
+
+		trades = append(trades, tr)
 	}
 
 	return &BacktesterOrder{
@@ -52,6 +65,7 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		StopPrice:        o.StopPrice,
 		Tag:              o.Tag,
 		Status:           BacktesterOrderStatus(o.Status),
+		Trades:           trades,
 		RejectReason:     o.RejectReason,
 		CreateDate:       o.Timestamp,
 	}, nil

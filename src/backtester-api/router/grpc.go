@@ -28,7 +28,6 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.Trades {
 		trades = append(trades, &pb.Trade{
-			Id:         uint64(trade.ID),
 			Symbol:     trade.Symbol.GetTicker(),
 			CreateDate: trade.CreateDate.String(),
 			Quantity:   trade.Quantity,
@@ -44,7 +43,6 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
-			Id:         uint64(trade.ID),
 			Symbol:     trade.Symbol.GetTicker(),
 			CreateDate: trade.CreateDate.String(),
 			Quantity:   trade.Quantity,
@@ -260,7 +258,6 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
 		newTrades = append(newTrades, &pb.Trade{
-			Id:         uint64(trade.ID),
 			Symbol:     trade.Symbol.GetTicker(),
 			CreateDate: trade.CreateDate.String(),
 			Quantity:   trade.Quantity,
@@ -367,13 +364,19 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
+	var endAt *string
+	if account.Meta.EndAt != nil {
+		_endAt := account.Meta.EndAt.Format(time.RFC3339)
+		endAt = &_endAt
+	}
+
 	ordersDTO := convertOrders(account.Orders)
 
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
 			StartingBalance: account.Meta.StartingBalance,
 			StartDate:       account.Meta.StartAt.Format(time.RFC3339),
-			EndDate:         account.Meta.EndAt.Format(time.RFC3339),
+			EndDate:         endAt,
 			Symbols:         account.Meta.Symbols,
 			Environment:     string(account.Meta.Environment),
 		},
@@ -446,6 +449,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 			},
 		},
 		Repositories: repositoryRequests,
+		SaveToDB:     true,
 		CreatedAt:    time.Now(),
 	})
 
@@ -486,6 +490,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 			StopDate:  req.StopDate,
 		},
 		Repositories: repositoryRequests,
+		SaveToDB:     false,
 	})
 
 	if err != nil {

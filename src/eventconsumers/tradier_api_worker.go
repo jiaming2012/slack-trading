@@ -11,6 +11,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
@@ -21,6 +22,7 @@ import (
 
 type TradierApiWorker struct {
 	wg                *sync.WaitGroup
+	db                *gorm.DB
 	orders            eventmodels.TradierOrderDataStore
 	brokerURL         string
 	timeSalesURL      string
@@ -31,7 +33,7 @@ type TradierApiWorker struct {
 	tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]
 }
 
-func (w *TradierApiWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
+func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
 	if order, ok := w.orders[order.ID]; ok {
 		return order, nil
 	}
@@ -43,7 +45,7 @@ func (w *TradierApiWorker) GetOrAddOrder(order *eventmodels.TradierOrder) (*even
 	}
 }
 
-func (w *TradierApiWorker) FetchTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
+func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -74,18 +76,18 @@ func (w *TradierApiWorker) FetchTradierCandles(symbol eventmodels.Instrument, in
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch option prices: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to read response body: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to read response body: %w", err)
 	}
 
 	var respMap map[string]interface{}
 
 	if json.Unmarshal(bytes, &respMap) != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to parse response body: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to parse response body: %w", err)
 	}
 
 	var results []*eventmodels.TradierMarketsTimeSalesDTO
@@ -123,15 +125,60 @@ func (w *TradierApiWorker) FetchTradierCandles(symbol eventmodels.Instrument, in
 					})
 				}
 			} else {
-				return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): expected data to be a map or a list of maps, got %T", series)
+				return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): expected data to be a map or a list of maps, got %T", series)
 			}
 
 		} else {
-			return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): expected series to be a map, got %T", series)
+			return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): expected series to be a map, got %T", series)
 		}
 	}
 
 	return results, nil
+}
+
+func (w *TradierApiWorker) fetchOrder(orderID uint) (*eventmodels.TradierOrderDTO, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	queryParams := url.Values{}
+	queryParams.Add("includeTags", "true")
+
+	url := fmt.Sprintf("%s/%d?%s", w.brokerURL, orderID, queryParams.Encode())
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.tradesBearerToken))
+
+	log.Debugf("fetching order from %s", req.URL.String())
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch option prices: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch option prices: %s", res.Status)
+	}
+
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to read response body: %w", err)
+	}
+
+	var resp eventmodels.TradierFetchOrderResponse
+
+	if err := json.Unmarshal(bytes, &resp); err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to parse response body: %w", err)
+	}
+
+	return resp.Order, nil
 }
 
 func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
@@ -178,7 +225,7 @@ func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error)
 	return orders, nil
 }
 
-func (w *TradierApiWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
+func (w *TradierApiWorker) checkForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
 	result := []uint{}
 
 	for orderID := range w.orders {
@@ -198,7 +245,7 @@ func (w *TradierApiWorker) CheckForDelete(ordersDTO []*eventmodels.TradierOrderD
 	return result
 }
 
-func (w *TradierApiWorker) CheckForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*eventmodels.TradierOrderCreateEvent, []*eventmodels.TradierOrderModifyEvent) {
+func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*eventmodels.TradierOrderCreateEvent, []*eventmodels.TradierOrderModifyEvent) {
 	var createOrderEvents []*eventmodels.TradierOrderCreateEvent
 	var updateOrderEvents []*eventmodels.TradierOrderModifyEvent
 
@@ -209,7 +256,7 @@ func (w *TradierApiWorker) CheckForCreateOrUpdate(ordersDTO []*eventmodels.Tradi
 			continue
 		}
 
-		_, createOrderEvent := w.GetOrAddOrder(newOrder)
+		_, createOrderEvent := w.getOrAddOrder(newOrder)
 		if createOrderEvent != nil {
 			createOrderEvents = append(createOrderEvents, createOrderEvent)
 		} else {
@@ -223,7 +270,54 @@ func (w *TradierApiWorker) CheckForCreateOrUpdate(ordersDTO []*eventmodels.Tradi
 	return createOrderEvents, updateOrderEvents
 }
 
-func (w *TradierApiWorker) ExecuteOrdersQueueUpdate(ctx context.Context) {
+func (w *TradierApiWorker) fetchPendingOrdersfromDB() ([]*models.OrderRecord, error) {
+	var orders []*models.OrderRecord
+
+	if err := w.db.Where("status = ?", "pending").Find(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
+	}
+
+	return orders, nil
+}
+
+func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
+	pendingOrders, err := w.fetchPendingOrdersfromDB()
+	if err != nil {
+		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
+		return
+	}
+
+	log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
+
+	for _, order := range pendingOrders {
+		orderDTO, err := w.fetchOrder(order.ExternalOrderID)
+		if err != nil {
+			log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch order: %v", err)
+			continue
+		}
+
+		fmt.Printf("orderDTO: %v\n", orderDTO)
+
+		if orderDTO.Status == string(models.BacktesterOrderStatusFilled) {
+			o, err := orderDTO.ToTradierOrder()
+			if err != nil {
+				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: failed to convert order to backtester order: %v", err)
+			}
+			
+			w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
+				CreateOrder: &eventmodels.TradierOrderCreateEvent{
+					Order: o,
+				},
+			})
+
+			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func (w *TradierApiWorker) executeOrdersQueueUpdateDeprecated(ctx context.Context) {
 	ordersDTO, err := w.fetchOrders()
 	if err != nil {
 		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
@@ -231,7 +325,7 @@ func (w *TradierApiWorker) ExecuteOrdersQueueUpdate(ctx context.Context) {
 	}
 
 	// check for delete
-	orderIDs := w.CheckForDelete(ordersDTO)
+	orderIDs := w.checkForDelete(ordersDTO)
 	for _, orderID := range orderIDs {
 		w.orders.Delete(orderID)
 		event := &eventmodels.TradierOrderDeleteEvent{
@@ -244,7 +338,7 @@ func (w *TradierApiWorker) ExecuteOrdersQueueUpdate(ctx context.Context) {
 	}
 
 	// check for add or update
-	createOrderEvents, updateEvents := w.CheckForCreateOrUpdate(ordersDTO)
+	createOrderEvents, updateEvents := w.checkForCreateOrUpdate(ordersDTO)
 	for _, orderEvent := range createOrderEvents {
 		// eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderCreateEventName, orderEvent)
 		w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
@@ -260,7 +354,7 @@ func (w *TradierApiWorker) ExecuteOrdersQueueUpdate(ctx context.Context) {
 	}
 }
 
-func (w *TradierApiWorker) GetQueryStartEndDates(now time.Time, period time.Duration) (time.Time, time.Time) {
+func (w *TradierApiWorker) getStartEndDates(now time.Time, period time.Duration) (time.Time, time.Time) {
 	startAfter := now.Add(-23 * time.Hour).In(w.location)
 
 	start := startAfter.Truncate(period)
@@ -272,15 +366,15 @@ func (w *TradierApiWorker) GetQueryStartEndDates(now time.Time, period time.Dura
 	return start, end
 }
 
-func (w *TradierApiWorker) UpdateLiveRepos(repo *models.CandleRepository) {
+func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 	now := time.Now()
-	start, end := w.GetQueryStartEndDates(now, repo.GetPeriod())
+	start, end := w.getStartEndDates(now, repo.GetPeriod())
 
 	var candles []eventmodels.ICandle
 	var skipCandles int
 
 	if repo.GetPeriod() <= 15*time.Minute {
-		tradierCandles, err := w.FetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
+		tradierCandles, err := w.fetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
 		if err != nil {
 			log.Errorf("failed to fetch candles: %v", err)
 			return
@@ -351,7 +445,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 
 	for _, repo := range repos {
 		log.Debugf("fetching candles for %s", repo.GetSymbol())
-		w.UpdateLiveRepos(repo)
+		w.updateLiveRepos(repo)
 	}
 }
 
@@ -368,16 +462,17 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				log.Info("stopping TradierOrdersMonitoringWorker consumer")
 				return
 			case <-timer.C:
-				w.ExecuteOrdersQueueUpdate(ctx)
+				w.executeOrdersQueueUpdate(ctx)
 				w.ExecuteLiveReposUpdate()
 			}
 		}
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], db *gorm.DB) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
+		db:                db,
 		orders:            make(map[uint]*eventmodels.TradierOrder),
 		brokerURL:         brokerURL,
 		timeSalesURL:      timeSalesURL,

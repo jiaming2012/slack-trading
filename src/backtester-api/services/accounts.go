@@ -69,9 +69,9 @@ func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string
 		return nil, fmt.Errorf("balance cannot be negative")
 	}
 
-	tradierTradesBearerToken := os.Getenv(apiKeyName)
-	if tradierTradesBearerToken == "" {
-		return nil, fmt.Errorf("cannot find apiKeyName: %s", apiKeyName)
+	apiKey := os.Getenv(apiKeyName)
+	if apiKey == "" {
+		return nil, fmt.Errorf("cannot find apiKey with apiKeyName: %s", apiKeyName)
 	}
 
 	tradierBalancesUrlTemplate, err := utils.GetEnv("TRADIER_BALANCES_URL_TEMPLATE")
@@ -82,10 +82,11 @@ func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string
 	url := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
 
 	source := LiveAccountSource{
-		Broker:    brokerName,
-		AccountID: accountID,
-		ApiKey:    tradierTradesBearerToken,
-		Url:       url,
+		Broker:     brokerName,
+		AccountID:  accountID,
+		ApiKey:     apiKey,
+		ApiKeyName: apiKeyName,
+		Url:        url,
 	}
 
 	if err := source.Validate(); err != nil {
@@ -113,13 +114,13 @@ func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string
 	if err != nil {
 		return nil, fmt.Errorf("$STOCK_QUOTES_URL not set: %v", err)
 	}
-	
+
 	tradierBearerToken, err := utils.GetEnv("TRADIER_BEARER_TOKEN")
 	if err != nil {
 		return nil, fmt.Errorf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
-	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierBearerToken, tradierTradesBearerToken)
+	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierBearerToken, apiKey)
 
 	account := models.NewLiveAccount(balance, source, broker)
 

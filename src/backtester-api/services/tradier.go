@@ -59,7 +59,7 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 	if err != nil {
 		return nil, fmt.Errorf("FetchQuotes: failed to read response body: %w", err)
 	}
-	
+
 	return utils.ParseTradierResponse[*models.TradierQuoteDTO](bytes)
 }
 
@@ -155,7 +155,12 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceEquityT
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("PlaceOrder: failed to place trade, http code %v", res.Status)
+		bytesErr, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("PlaceOrder: failed to read response body: %w", err)
+		}
+
+		return nil, fmt.Errorf("PlaceOrder: %s, http code %v", string(bytesErr), res.Status)
 	}
 
 	var response map[string]interface{}

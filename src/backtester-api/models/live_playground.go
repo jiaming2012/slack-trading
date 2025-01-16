@@ -60,7 +60,15 @@ func (p *LivePlayground) GetFreeMargin() float64 {
 	return p.playground.GetFreeMargin()
 }
 
-func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrument]*Position, orderFillPricesMap map[*BacktesterOrder]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
+}
+
+func (p *LivePlayground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry,  performChecks bool) error {
+	return p.playground.CommitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
+}
+
+func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	newTrades, invalidOrders, err = p.playground.CommitPendingOrders(positions, orderFillPricesMap, performChecks)
 	return
 }
@@ -150,14 +158,14 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker: account.Source.GetBroker(),
-		ApiKeyName: account.Source.GetApiKey(),
+		ApiKeyName: account.Source.GetApiKeyName(),
 		AccountID: account.Source.GetAccountID(),
 	}
 
-	playground, err := NewPlayground(account.Balance, nil, orders, PlaygroundEnvironmentLive, source, now, repositories...)
+	playground, err := NewPlayground(playgroundID, account.Balance, nil, orders, PlaygroundEnvironmentLive, source, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

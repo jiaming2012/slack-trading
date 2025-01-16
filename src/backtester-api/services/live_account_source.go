@@ -9,10 +9,11 @@ import (
 )
 
 type LiveAccountSource struct {
-	Broker    string `json:"broker"`
-	AccountID string `json:"account_id"`
-	Url       string `json:"-"`
-	ApiKey    string `json:"-"`
+	Broker     string `json:"broker"`
+	AccountID  string `json:"account_id"`
+	Url        string `json:"-"`
+	ApiKey     string `json:"-"`
+	ApiKeyName string `json:"api_key_name"`
 }
 
 func (s LiveAccountSource) GetBroker() string {
@@ -25,6 +26,10 @@ func (s LiveAccountSource) GetAccountID() string {
 
 func (s LiveAccountSource) GetApiKey() string {
 	return s.ApiKey
+}
+
+func (s LiveAccountSource) GetApiKeyName() string {
+	return s.ApiKeyName
 }
 
 func (s LiveAccountSource) GetBrokerUrl() string {

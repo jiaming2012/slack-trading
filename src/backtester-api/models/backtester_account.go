@@ -16,11 +16,6 @@ func (a *BacktesterAccount) NextOrderID() uint {
 	return a.OrderNonce - 1
 }
 
-func (a *BacktesterAccount) NextTradeID() uint {
-	a.TradeNounce++
-	return a.TradeNounce - 1
-}
-
 func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
 	result := make([]*BacktesterOrder, 0)
 	for _, order := range a.Orders {
@@ -32,9 +27,21 @@ func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
 }
 
 func NewBacktesterAccount(balance float64, orders []*BacktesterOrder) *BacktesterAccount {
+	var pendingOrders []*BacktesterOrder
+	var activeOrders []*BacktesterOrder
+
+	for _, order := range orders {
+		if order.Status == BacktesterOrderStatusPending {
+			pendingOrders = append(pendingOrders, order)
+		} else {
+			activeOrders = append(activeOrders, order)
+		}
+	}
+	
 	return &BacktesterAccount{
 		mutex:   &sync.Mutex{},
 		Balance: balance,
-		Orders:  orders,
+		Orders:  activeOrders,
+		PendingOrders: pendingOrders,
 	}
 }

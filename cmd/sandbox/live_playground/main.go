@@ -71,8 +71,10 @@ func main() {
 	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
 	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
 
+	panic("pass in a db contection to the worker")
+
 	// tradier engine
-	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue)
+	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, nil)
 
 	worker.Start(ctx)
 

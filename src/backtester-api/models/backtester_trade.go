@@ -9,7 +9,6 @@ import (
 )
 
 type BacktesterTrade struct {
-	ID         uint                   `json:"id"`
 	Symbol     eventmodels.Instrument `json:"symbol"`
 	CreateDate time.Time              `json:"create_date"`
 	Quantity   float64                `json:"quantity"`
@@ -17,12 +16,11 @@ type BacktesterTrade struct {
 }
 
 func (t *BacktesterTrade) ToTradeRecord(playgroundID uuid.UUID, orderID uint) *TradeRecord {
-	return NewTradeRecord(playgroundID, orderID, t.ID, t.CreateDate, t.Quantity, t.Price)
+	return NewTradeRecord(playgroundID, orderID, t.CreateDate, t.Quantity, t.Price)
 }
 
-func NewBacktesterTrade(id uint, symbol eventmodels.Instrument, createDate time.Time, quantity float64, price float64) *BacktesterTrade {
+func NewBacktesterTrade(symbol eventmodels.Instrument, createDate time.Time, quantity float64, price float64) *BacktesterTrade {
 	return &BacktesterTrade{
-		ID:         id,
 		Symbol:     symbol,
 		CreateDate: createDate,
 		Quantity:   quantity,

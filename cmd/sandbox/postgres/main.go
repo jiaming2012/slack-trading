@@ -57,9 +57,9 @@ func savePlaygroundSession(playground models.IPlayground) error {
 	}
 
 	if meta.Environment == models.PlaygroundEnvironmentLive {
-		store.Broker = &meta.
-		store.AccountID = &meta.AccountID
-		store.ApiKey = &meta.ApiKey
+		store.Broker = &meta.SourceBroker
+		store.AccountID = &meta.SourceAccountId
+		store.ApiKeyName = &meta.SourceApiKeyName
 	}
 
 	if err := db.Create(store).Error; err != nil {
@@ -121,6 +121,7 @@ func main() {
 			},
 		},
 		Env:       "live",
+		SaveToDB: false,
 		CreatedAt: time.Now(),
 	}
 

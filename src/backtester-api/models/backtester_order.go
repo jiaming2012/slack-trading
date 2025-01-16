@@ -72,7 +72,9 @@ func (o *BacktesterOrder) Fill(trade *BacktesterTrade, performChecks bool) error
 
 	o.Trades = append(o.Trades, trade)
 
-	o.Status = BacktesterOrderStatusOpen
+	if o.GetFilledVolume() == o.GetQuantity() {
+		o.Status = BacktesterOrderStatusFilled
+	}
 
 	return nil
 }

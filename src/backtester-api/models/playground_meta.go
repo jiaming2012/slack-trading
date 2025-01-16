@@ -7,14 +7,14 @@ import (
 
 // todo: refactor source into struct
 type PlaygroundMeta struct {
-	StartAt         time.Time             `json:"start_at"`
-	EndAt           *time.Time            `json:"end_at"`
-	Symbols         []string              `json:"symbols"`
-	StartingBalance float64               `json:"starting_balance"`
-	SourceBroker    string                `json:"source_broker"`
-	SourceAccountId string                `json:"source_account_id"`
-	SourceApiKey    string                `json:"source_api"`
-	Environment     PlaygroundEnvironment `json:"environment"`
+	StartAt          time.Time             `json:"start_at"`
+	EndAt            *time.Time            `json:"end_at"`
+	Symbols          []string              `json:"symbols"`
+	StartingBalance  float64               `json:"starting_balance"`
+	SourceBroker     string                `json:"source_broker"`
+	SourceAccountId  string                `json:"source_account_id"`
+	SourceApiKeyName string                `json:"source_api"`
+	Environment      PlaygroundEnvironment `json:"environment"`
 }
 
 func (p *PlaygroundMeta) Validate() error {
@@ -35,7 +35,7 @@ func (p *PlaygroundMeta) Validate() error {
 			return fmt.Errorf("PlaygroundMeta.Validate: source account id is not set")
 		}
 
-		if p.SourceApiKey == "" {
+		if p.SourceApiKeyName == "" {
 			return fmt.Errorf("PlaygroundMeta.Validate: source api key is not set")
 		}
 	} else {
@@ -72,6 +72,6 @@ func (p *PlaygroundMeta) ToDTO() *PlaygroundMetaDTO {
 		Environment:     string(p.Environment),
 		SourceBroker:    p.SourceBroker,
 		SourceAccountId: p.SourceAccountId,
-		SourceApiKey:    p.SourceApiKey,
+		SourceApiKey:    p.SourceApiKeyName,
 	}
 }

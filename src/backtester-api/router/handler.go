@@ -3,8 +3,10 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,12 +85,14 @@ type CreateAccountRequest struct {
 }
 
 type CreatePlaygroundRequest struct {
+	ID             *uuid.UUID                            `json:"playground_id"`
 	Env            string                                `json:"environment"`
 	Account        CreateAccountRequest                  `json:"account"`
 	Clock          CreateClockRequest                    `json:"clock"`
 	Repositories   []eventmodels.CreateRepositoryRequest `json:"repositories"`
 	BackfillOrders []*models.BacktesterOrder             `json:"orders"`
 	CreatedAt      time.Time                             `json:"created_at"`
+	SaveToDB       bool                                  `json:"-"`
 }
 
 type CreateClockRequest struct {
@@ -147,10 +151,34 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func saveTradeRecordTx(tx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
-	record := trade.ToTradeRecord(playgroundId, orderID)
-	if err := tx.Create(&record).Error; err != nil {
-		return fmt.Errorf("failed to save trade record: %w", err)
+func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+	err := parentTx.Transaction(func(tx *gorm.DB) error {
+		var orderRecord models.OrderRecord
+
+		if result := tx.First(&orderRecord, "external_id = ?", orderID); result.Error != nil {
+			return fmt.Errorf("saveTradeRecordTx: failed to find order record: %w", result.Error)
+		}
+
+		if orderRecord.Status != string(models.BacktesterOrderStatusOpen) && orderRecord.Status != string(models.BacktesterOrderStatusPending) {
+			return fmt.Errorf("saveTradeRecordTx: %w", models.ErrDbOrderIsNotOpenOrPending)
+		}
+
+		record := trade.ToTradeRecord(playgroundId, orderRecord.ID)
+		if err := tx.Create(&record).Error; err != nil {
+			return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
+		}
+
+		orderRecord.Status = string(models.BacktesterOrderStatusFilled)
+
+		if err := tx.Save(&orderRecord).Error; err != nil {
+			return fmt.Errorf("saveTradeRecordTx: failed to update order record: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
 	}
 
 	return nil
@@ -248,7 +276,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 	if meta.Environment == models.PlaygroundEnvironmentLive {
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
-		store.ApiKey = &meta.SourceApiKey
+		store.ApiKeyName = &meta.SourceApiKeyName
 	}
 
 	if err := tx.Create(store).Error; err != nil {
@@ -343,6 +371,7 @@ func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
 
 	if req.Env == "live" {
 		req.CreatedAt = time.Now()
+		req.SaveToDB = true
 	}
 
 	playground, err := CreatePlayground(&req)
@@ -467,14 +496,14 @@ func loadPlaygrounds() error {
 			}
 
 		} else if p.Env == "live" {
-			if p.Broker == nil || p.AccountID == nil || p.ApiKey == nil {
+			if p.Broker == nil || p.AccountID == nil || p.ApiKeyName == nil {
 				return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
 			}
 
 			source = &CreateAccountRequestSource{
 				Broker:     *p.Broker,
 				AccountID:  *p.AccountID,
-				ApiKeyName: *p.ApiKey,
+				ApiKeyName: *p.ApiKeyName,
 			}
 
 			clockRequest = CreateClockRequest{
@@ -496,6 +525,7 @@ func loadPlaygrounds() error {
 		}
 
 		playground, err := CreatePlayground(&CreatePlaygroundRequest{
+			ID:  &p.ID,
 			Env: p.Env,
 			Account: CreateAccountRequest{
 				Balance: p.StartingBalance,
@@ -505,6 +535,7 @@ func loadPlaygrounds() error {
 			Repositories:   createRepoRequests,
 			BackfillOrders: orders,
 			CreatedAt:      p.CreatedAt,
+			SaveToDB:       false,
 		})
 
 		if err != nil {
@@ -660,52 +691,130 @@ func findOrder(id uint) (models.IPlayground, *models.BacktesterOrder, bool) {
 	return nil, nil, false
 }
 
+type orderCache struct {
+	container map[uint]models.OrderFillEntry
+	mutex     *sync.Mutex
+}
+
+func (c *orderCache) Add(order *eventmodels.TradierOrder, entry models.OrderFillEntry) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.container[order.ID] = entry
+}
+
+func (c *orderCache) Get(order *eventmodels.TradierOrder) (models.OrderFillEntry, bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	entry, ok := c.container[order.ID]
+	return entry, ok
+}
+
+func (c *orderCache) GetMap() (container map[uint]models.OrderFillEntry, unlockFn func()) {
+	c.mutex.Lock()
+	container = c.container
+
+	unlockFn = func() {
+		c.mutex.Unlock()
+	}
+
+	return
+}
+
+func (c *orderCache) Remove(orderID uint, getMutex bool) {
+	if getMutex {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+	}
+
+	delete(c.container, orderID)
+}
+
 func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			for {
+	cache := &orderCache{
+		container: make(map[uint]models.OrderFillEntry),
+		mutex:     &sync.Mutex{},
+	}
+
+	commitPendingOrder := func() {
+		orderCache, unlockFn := cache.GetMap()
+
+		defer unlockFn()
+
+		for tradierOrder, orderFillEntry := range orderCache {
+			playground, order, found := findOrder(tradierOrder)
+			if !found {
+				log.Errorf("handleLiveOrders: order not found: %v", tradierOrder)
+				continue
+			}
+
+			positions := playground.GetPositions()
+
+			performChecks := false
+
+			trade, err := playground.FillOrder(order, performChecks, orderFillEntry, positions)
+			if err != nil {
+				log.Errorf("handleLiveOrders: failed to commit pending orders: %v", err)
+				return
+			}
+
+			if err := saveTradeRecord(playground.GetId(), tradierOrder, trade); err != nil {
+				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
+					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
+
+					cache.Remove(tradierOrder, false)
+					continue
+				}
+				log.Fatalf("handleLiveOrders: failed to save trade record: %v", err)
+			}
+
+			log.Infof("handleLiveOrders: opened trade: %v", trade)
+
+			cache.Remove(tradierOrder, false)
+		}
+	}
+
+	// commit pending orders from cache
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				commitPendingOrder()
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}()
+
+	// handles order from broker
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug("handleLiveOrders: context done")
+				return
+			default:
 				event, ok := queue.Dequeue()
 				if !ok {
-					break
+					continue
 				}
 
 				if event.CreateOrder != nil {
-					playground, order, found := findOrder(event.CreateOrder.Order.ID)
+					if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusFilled) {
+						cache.Add(event.CreateOrder.Order, models.OrderFillEntry{
+							Time:     event.CreateOrder.Order.CreateDate,
+							Price:    event.CreateOrder.Order.AvgFillPrice,
+							Quantity: event.CreateOrder.Order.LastFillQuantity,
+						})
 
-					if found {
-						if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusFilled) {
-							performChecks := false
-							positions := playground.GetPositions()
-							fillOrderPriceMap := map[*models.BacktesterOrder]models.OrderFillEntry{
-								order: {
-									Time:  event.CreateOrder.Order.CreateDate,
-									Price: event.CreateOrder.Order.AvgFillPrice,
-								},
-							}
+						log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)
+					} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusRejected) {
 
-							new_trades, invalid_orders, err := playground.CommitPendingOrders(positions, fillOrderPriceMap, performChecks)
-							if err != nil {
-								log.Fatalf("handleLiveOrders: failed to commit pending orders: %v", err)
-							}
+						playground, order, found := findOrder(event.CreateOrder.Order.ID)
 
-							for _, trade := range new_trades {
-								if err := saveTradeRecord(playground.GetId(), order.ID, trade); err != nil {
-									log.Fatalf("handleLiveOrders: failed to save trade record: %v", err)
-								}
-							}
-
-							if len(invalid_orders) > 0 {
-								log.Fatalf("handleLiveOrders: invalid orders found: %v", invalid_orders)
-							}
-
-							for _, trade := range new_trades {
-								log.Infof("handleLiveOrders: opened trade: %v", trade)
-							}
-
-						} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusRejected) {
+						if found {
 							reason := "rejected by broker"
 							if event.CreateOrder.Order.ReasonDescription != nil {
 								reason = *event.CreateOrder.Order.ReasonDescription
@@ -715,9 +824,15 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							}
 						} else {
-							log.Fatalf("handleLiveOrders: unknown order status: %v", event.CreateOrder.Order.Status)
+							log.Warnf("handleLiveOrders: order not found: %v", event.CreateOrder.Order)
 						}
+
+					} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusPending) {
+						log.Debugf("handleLiveOrders: order pending: %v", event.CreateOrder.Order)
+					} else {
+						log.Fatalf("handleLiveOrders: unknown order status: %v", event.CreateOrder.Order.Status)
 					}
+
 				} else if event.ModifyOrder != nil {
 
 				} else if event.DeleteOrder != nil {
@@ -725,9 +840,12 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 				} else {
 					log.Warnf("handleLiveOrders: unknown event type: %v", event)
 				}
+
+				time.Sleep(1 * time.Second)
 			}
 		}
-	}
+	}()
+
 }
 
 func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], database *gorm.DB) error {
@@ -745,7 +863,7 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 	router.HandleFunc("/{id}/tick", handleTick)
 	router.HandleFunc("/{id}/candles", handleCandles)
 
-	go handleLiveOrders(ctx, ordersUpdateQueue)
+	handleLiveOrders(ctx, ordersUpdateQueue)
 
 	return nil
 }

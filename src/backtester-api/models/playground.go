@@ -30,7 +30,9 @@ type IPlayground interface {
 	GetCurrentTime() time.Time
 	NextOrderID() uint
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
-	CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillPricesMap map[*BacktesterOrder]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error)
+	// CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry, performChecks bool) error
+	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
+	CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 }
 
@@ -45,6 +47,30 @@ type Playground struct {
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Env                PlaygroundEnvironment
+}
+
+func (p *Playground) AddToOrderQueue(order *BacktesterOrder) error {
+	index := -1
+
+	// find order in pending orders
+	for i, o := range p.account.PendingOrders {
+		if o.ID == order.ID {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return fmt.Errorf("order %d not found in pending orders", order.ID)
+	}
+
+	// add order to order queue
+	p.account.Orders = append(p.account.Orders, order)
+
+	// remove order from pending orders
+	p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
+
+	return nil
 }
 
 func (p *Playground) GetId() uuid.UUID {
@@ -71,45 +97,37 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 	return openOrders
 }
 
-// todo: make this public with performChecks.
-func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[*BacktesterOrder]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
-	invalidOrders = []*BacktesterOrder{}
-	pendingCloses := make(map[*BacktesterOrder]float64)
-	var ordersToOpen []*BacktesterOrder
+func (p *Playground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry, performChecks bool) error {
+	if order.Status != BacktesterOrderStatusPending {
+		return fmt.Errorf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
+	}
 
-	for _, order := range p.account.PendingOrders {
-		if order.Status != BacktesterOrderStatusPending {
-			log.Warnf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
-			continue
-		}
+	// check if the order is valid
+	orderQuantity := order.GetQuantity()
+	if performChecks {
+		if orderQuantity == 0 {
+			order.Status = BacktesterOrderStatusRejected
+			rejectReason := ErrInvalidOrderVolumeZero.Error()
+			order.RejectReason = &rejectReason
 
-		// append the order to the queue
-		p.account.Orders = append(p.account.Orders, order)
-
-		// check if the order is valid
-		orderQuantity := order.GetQuantity()
-		if performChecks {
-			if orderQuantity == 0 {
-				invalidOrders = append(invalidOrders, order)
-				order.Status = BacktesterOrderStatusRejected
-				rejectReason := ErrInvalidOrderVolumeZero.Error()
-				order.RejectReason = &rejectReason
-				continue
+			if err := p.AddToOrderQueue(order); err != nil {
+				log.Fatalf("position 1: error adding order to order queue: %v", err)
 			}
-		}
 
-		isCloseOrder := false
-		orderFillEntry, found := orderFillEntryMap[order]
-		if !found {
-			return nil, nil, fmt.Errorf("error finding order filled price: %w", err)
+			return fmt.Errorf("commitPendingOrders: order %d has zero quantity", order.ID)
 		}
+	}
 
+	var freeMargin, initialMargin float64
+	isCloseOrder := false
+	performMarginCheck := performChecks
+
+	if performChecks {
 		// perform margin check
-		freeMargin := p.GetFreeMarginFromPositionMap(startingPositions)
-		initialMargin := calculateInitialMarginRequirement(orderQuantity, orderFillEntry.Price)
+		freeMargin = p.GetFreeMarginFromPositionMap(startingPositions)
+		initialMargin = calculateInitialMarginRequirement(orderQuantity, orderFillEntry.Price)
 		position := startingPositions[order.Symbol]
 
-		performMarginCheck := true
 		if position != nil {
 			if position.Quantity <= 0 && orderQuantity > 0 {
 				if orderQuantity > math.Abs(position.Quantity) {
@@ -117,8 +135,13 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 						order.Status = BacktesterOrderStatusRejected
 						rejectReason := ErrInvalidOrderVolumeLongVolume.Error()
 						order.RejectReason = &rejectReason
-						invalidOrders = append(invalidOrders, order)
-						continue
+
+						// append the order to the queue
+						if err := p.AddToOrderQueue(order); err != nil {
+							log.Fatalf("position 2: error adding order to order queue: %v", err)
+						}
+
+						return fmt.Errorf("commitPendingOrders: order %d volume exceeds long volume", order.ID)
 					}
 				} else {
 					performMarginCheck = false
@@ -130,8 +153,13 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 						order.Status = BacktesterOrderStatusRejected
 						rejectReason := ErrInvalidOrderVolumeShortVolume.Error()
 						order.RejectReason = &rejectReason
-						invalidOrders = append(invalidOrders, order)
-						continue
+
+						// append the order to the queue
+						if err := p.AddToOrderQueue(order); err != nil {
+							log.Fatalf("position 3: error adding order to order queue: %v", err)
+						}
+
+						return fmt.Errorf("commitPendingOrders: order %d volume exceeds short volume", order.ID)
 					}
 				} else {
 					performMarginCheck = false
@@ -139,65 +167,86 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 				}
 			}
 		}
+	}
 
-		// check if the order can be filled
-		if performMarginCheck && freeMargin <= initialMargin {
-			if performChecks {
-				order.Status = BacktesterOrderStatusRejected
-				rejectReason := fmt.Sprintf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin)
-				order.RejectReason = &rejectReason
-				invalidOrders = append(invalidOrders, order)
-			}
+	// check if the order can be filled
+	if performMarginCheck && freeMargin <= initialMargin {
+		order.Status = BacktesterOrderStatusRejected
+		rejectReason := fmt.Sprintf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin)
+		order.RejectReason = &rejectReason
 
-		} else if isCloseOrder {
-			closeVolume := math.Abs(orderQuantity)
-			openOrders := p.GetOpenOrders(order.Symbol)
-			for _, openOrder := range openOrders {
-				if closeVolume <= 0 {
-					break
-				}
-
-				remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
-				if volume, found := pendingCloses[openOrder]; found {
-					remainingOpenQuantity -= volume
-				}
-
-				if remainingOpenQuantity <= 0 {
-					continue
-				}
-
-				volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
-				closeVolume -= volumeToClose
-
-				if _, found := pendingCloses[openOrder]; !found {
-					pendingCloses[openOrder] = 0
-				}
-				pendingCloses[openOrder] += volumeToClose
-
-				order.Closes = append(order.Closes, openOrder)
-			}
+		// append the order to the queue
+		if err := p.AddToOrderQueue(order); err != nil {
+			log.Fatalf("position 4: error adding order to order queue: %v", err)
 		}
 
-		ordersToOpen = append(ordersToOpen, order)
+		return fmt.Errorf("commitPendingOrders: order %d has insufficient margin", order.ID)
+
+	} else if isCloseOrder {
+		closeVolume := math.Abs(orderQuantity)
+		openOrders := p.GetOpenOrders(order.Symbol)
+		pendingCloses := make(map[*BacktesterOrder]float64)
+
+		for _, openOrder := range openOrders {
+			if closeVolume <= 0 {
+				break
+			}
+
+			remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
+			if volume, found := pendingCloses[openOrder]; found {
+				remainingOpenQuantity -= volume
+			}
+
+			if remainingOpenQuantity <= 0 {
+				continue
+			}
+
+			volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
+			closeVolume -= volumeToClose
+
+			if _, found := pendingCloses[openOrder]; !found {
+				pendingCloses[openOrder] = 0
+			}
+			pendingCloses[openOrder] += volumeToClose
+
+			order.Closes = append(order.Closes, openOrder)
+		}
 	}
 
-	// empty the pending orders
-	p.account.PendingOrders = make([]*BacktesterOrder, 0)
-
-	newTrades, err = p.updateTrades(ordersToOpen, startingPositions, orderFillEntryMap, performChecks)
-	if err != nil {
-		err = fmt.Errorf("error updating trades: %w", err)
-		return
+	// append the order to the queue
+	if err := p.AddToOrderQueue(order); err != nil {
+		log.Fatalf("position 4: error adding order to order queue: %v", err)
 	}
 
-	// remove the open orders that were closed in cache
-	p.updateOpenOrdersCache()
+	return nil
+}
 
-	// update the account balance before updating the positions cache
-	p.updateBalance(newTrades, startingPositions)
+func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+	for _, order := range p.account.PendingOrders {
+		orderFillEntry, found := orderFillEntryMap[order.ID]
+		if !found {
+			log.Warnf("error finding order filled entry price for order: %v", order.ID)
+			continue
+		}
 
-	for _, trade := range newTrades {
-		p.updatePositionsCache(trade)
+		err := p.CommitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
+		if err != nil {
+			log.Errorf("error committing pending order: %v", err)
+		}
+
+		newTrade, err := p.FillOrder(order, performChecks, orderFillEntry, startingPositions)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error filling order: %w", err)
+		}
+
+		// remove the open orders that were closed in cache
+		p.updateOpenOrdersCache()
+
+		// update the account balance before updating the positions cache
+		p.updateBalance(newTrades, startingPositions)
+
+		// update the positions cache
+		p.updatePositionsCache(newTrade)
 	}
 
 	return
@@ -276,30 +325,69 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	return nil
 }
 
-func (p *Playground) fillOrder(order *BacktesterOrder, performChecks bool, quantity float64, orderFillEntry OrderFillEntry) (*BacktesterTrade, error) {
-	time := orderFillEntry.Time
-	price := orderFillEntry.Price
-	trade := NewBacktesterTrade(p.account.NextTradeID(), order.Symbol, time, quantity, price)
+func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+	position, ok := positionsMap[order.Symbol]
+	if !ok {
+		position = &Position{Quantity: 0}
+		positionsMap[order.Symbol] = position
+	}
+
+	if performChecks {
+		if !order.GetStatus().IsTradingAllowed() && order.Type == Market {
+			return nil, fmt.Errorf("fillOrder: trading is not allowed for %d", order.ID)
+		}
+
+		if order.Type != Market {
+			return nil, fmt.Errorf("fillOrder: %d is not market, found %s", order.ID, order.Type)
+		}
+
+		if order.Class != BacktesterOrderClassEquity {
+			log.Errorf("fillOrders: only equity orders are supported")
+			return nil, fmt.Errorf("fillOrders: only equity orders are supported")
+		}
+
+		if err := p.isSideAllowed(order.Symbol, order.Side, position.Quantity); err != nil {
+			order.Status = BacktesterOrderStatusRejected
+			return nil, fmt.Errorf("fillOrders: error checking side allowed: %v", err)
+		}
+	}
+
+	trade := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
 	if err := order.Fill(trade, performChecks); err != nil {
-		return nil, fmt.Errorf("updateTrades: error filling order: %v", err)
+		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
 	}
 
-	order.Status = BacktesterOrderStatusFilled
-
-	if order.Side == TradierOrderSideBuy || order.Side == TradierOrderSideSellShort {
-		p.addToOpenOrdersCache(order)
-	}
-
-	// mark the open orders that this trade closes
-	for _, o := range order.Closes {
-		o.ClosedBy = append(o.ClosedBy, trade)
-	}
+	position.Quantity += orderFillEntry.Quantity
 
 	return trade, nil
 }
 
-func (p *Playground) updateTrades(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[*BacktesterOrder]OrderFillEntry, performChecks bool) ([]*BacktesterTrade, error) {
+func (p *Playground) updateTrade(trade *BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
+	position, ok := startingPositions[trade.Symbol]
+	if !ok {
+		position = &Position{}
+	}
+
+	if position.Quantity > 0 {
+		if trade.Quantity < 0 {
+			closeQuantity := math.Min(position.Quantity, math.Abs(trade.Quantity))
+			pl := (trade.Price - position.CostBasis) * closeQuantity
+			position.PL += pl
+		}
+	} else if position.Quantity < 0 {
+		if trade.Quantity > 0 {
+			closeQuantity := math.Min(math.Abs(position.Quantity), trade.Quantity)
+			pl := (position.CostBasis - trade.Price) * closeQuantity
+			position.PL += pl
+		}
+	}
+
+	position.Quantity += trade.Quantity
+	startingPositions[trade.Symbol] = position
+}
+
+func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderFillEntry, performChecks bool) ([]*BacktesterTrade, error) {
 	var trades []*BacktesterTrade
 
 	positionsCopy := make(map[eventmodels.Instrument]*Position)
@@ -310,45 +398,17 @@ func (p *Playground) updateTrades(ordersToOpen []*BacktesterOrder, startingPosit
 	}
 
 	for _, order := range ordersToOpen {
-		orderStatus := order.GetStatus()
-		if orderStatus.IsTradingAllowed() && order.Type == Market {
-			if order.Class != BacktesterOrderClassEquity {
-				log.Errorf("updateTrades: only equity orders are supported")
-				continue
-			}
-
-			position, ok := positionsCopy[order.Symbol]
-			if !ok {
-				position = &Position{Quantity: 0}
-				positionsCopy[order.Symbol] = position
-			}
-
-			if performChecks {
-				if err := p.isSideAllowed(order.Symbol, order.Side, position.Quantity); err != nil {
-					order.Status = BacktesterOrderStatusRejected
-					log.Errorf("updateTrades: error checking side allowed: %v", err)
-					continue
-				}
-			}
-
-			orderFillEntry, found := orderFillEntryMap[order]
-			if !found {
-				log.Errorf("updateTrades: error fetching filled price for : %v", order.ID)
-				continue
-			}
-
-			quantity := order.GetQuantity()
-
-			trade, err := p.fillOrder(order, performChecks, quantity, orderFillEntry)
-			if err != nil {
-				log.Errorf("updateTrades: error filling order: %v", err)
-				continue
-			}
-
-			trades = append(trades, trade)
-
-			position.Quantity += quantity
+		orderFillEntry, found := orderFillEntryMap[order.ID]
+		if !found {
+			return nil, fmt.Errorf("fillOrders: order %d not found in order fill entry map", order.ID)
 		}
+
+		trade, err := p.FillOrder(order, performChecks, orderFillEntry, positionsCopy)
+		if err != nil {
+			return nil, fmt.Errorf("fillOrders: error filling order: %w", err)
+		}
+
+		trades = append(trades, trade)
 	}
 
 	return trades, nil
@@ -398,7 +458,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
-	orderFillPriceMap := map[*BacktesterOrder]OrderFillEntry{}
+	orderFillPriceMap := map[uint]OrderFillEntry{}
 
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
@@ -406,7 +466,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPriceMap[order] = OrderFillEntry{
+		orderFillPriceMap[order.ID] = OrderFillEntry{
 			Price: price,
 			Time:  p.clock.CurrentTime,
 		}
@@ -536,14 +596,14 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
 	}
 
-	orderFillPrices := make(map[*BacktesterOrder]OrderFillEntry)
+	orderFillPrices := make(map[uint]OrderFillEntry)
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPrices[order] = OrderFillEntry{
+		orderFillPrices[order.ID] = OrderFillEntry{
 			Price: price,
 			Time:  p.clock.CurrentTime,
 		}
@@ -950,7 +1010,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -982,23 +1042,26 @@ func NewPlayground(balance float64, clock *Clock, orders []*BacktesterOrder, env
 	}
 
 	meta := &PlaygroundMeta{
-		Symbols:         symbols,
-		StartingBalance: balance,
-		Environment:     env,
-		StartAt:         startAt,
-		EndAt:           endAt,
-		SourceBroker:    source.Broker,
-		SourceAccountId: source.AccountID,
-		SourceApiKey:    source.ApiKeyName,
+		Symbols:          symbols,
+		StartingBalance:  balance,
+		Environment:      env,
+		StartAt:          startAt,
+		EndAt:            endAt,
+		SourceBroker:     source.Broker,
+		SourceAccountId:  source.AccountID,
+		SourceApiKeyName: source.ApiKeyName,
 	}
 
-	// if env == PlaygroundEnvironmentLive {
-	// 	meta.SourceBroker =
-	// }
+	var id uuid.UUID
+	if playgroundId != nil {
+		id = *playgroundId
+	} else {
+		id = uuid.New()
+	}
 
 	return &Playground{
 		Meta:            meta,
-		ID:              uuid.New(),
+		ID:              id,
 		account:         NewBacktesterAccount(balance, orders),
 		clock:           clock,
 		repos:           repos,

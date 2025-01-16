@@ -14,7 +14,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 
 	t.Run("check for delete returns empty list", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil)
+		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil, nil)
 		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
@@ -26,7 +26,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 				ID: 1,
 			},
 		}
-		deletedOrders := worker.CheckForDelete(fetchedOrders)
+		deletedOrders := worker.checkForDelete(fetchedOrders)
 
 		// assert
 		assert.Empty(t, deletedOrders)
@@ -34,7 +34,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 
 	t.Run("check for delete returns list of order IDs", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil)
+		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil, nil)
 		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
@@ -42,7 +42,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 
 		// act
 		fetchedOrders := []*eventmodels.TradierOrderDTO{}
-		deletedOrders := worker.CheckForDelete(fetchedOrders)
+		deletedOrders := worker.checkForDelete(fetchedOrders)
 
 		// assert
 		assert.Equal(t, 1, len(deletedOrders))
@@ -55,7 +55,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 
 	t.Run("check for create order", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil)
+		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil, nil)
 		orders := []*eventmodels.TradierOrderDTO{
 			{
 				ID:              3,
@@ -65,7 +65,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		}
 
 		// act
-		newOrderEvents, updateOrderEvents := worker.CheckForCreateOrUpdate(orders)
+		newOrderEvents, updateOrderEvents := worker.checkForCreateOrUpdate(orders)
 
 		// assert
 		assert.Equal(t, 1, len(newOrderEvents))
@@ -75,7 +75,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 
 	t.Run("check for update order", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil)
+		worker := NewTradierApiWorker(&wg, nil, "", "", "", "", nil, nil, nil)
 		orders1 := []*eventmodels.TradierOrderDTO{
 			{
 				ID:              3,
@@ -84,7 +84,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 				Status:          "open",
 			},
 		}
-		worker.CheckForCreateOrUpdate(orders1)
+		worker.checkForCreateOrUpdate(orders1)
 
 		orders2 := []*eventmodels.TradierOrderDTO{
 			{
@@ -96,7 +96,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		}
 
 		// act
-		newOrderEvents, updateOrderEvents := worker.CheckForCreateOrUpdate(orders2)
+		newOrderEvents, updateOrderEvents := worker.checkForCreateOrUpdate(orders2)
 
 		// assert
 		assert.Equal(t, 0, len(newOrderEvents))
