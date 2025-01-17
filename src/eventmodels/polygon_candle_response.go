@@ -13,9 +13,24 @@ type PolygonCandleDTO struct {
 	Vwap      float64 `json:"vw"`
 }
 
+func (d *PolygonCandleDTO) ToCandle() (*Candle, error) {
+	// convert from Unix Msec timestamp for the start of the aggregate window.
+	timestamp := time.Unix(0, d.Timestamp*int64(time.Millisecond))
+
+	return &Candle{
+		Open:      d.Open,
+		Close:     d.Close,
+		High:      d.High,
+		Low:       d.Low,
+		Volume:    d.Volume,
+		Vwap:      d.Vwap,
+		Timestamp: timestamp,
+	}, nil
+}
+
 func (d *PolygonCandleDTO) ToCandleDTO() (*CandleDTO, error) {
 	// convert from Unix Msec timestamp for the start of the aggregate window.
-	timestamp := time.Unix(0, d.Timestamp*int64(time.Millisecond)).UTC()
+	timestamp := time.Unix(0, d.Timestamp*int64(time.Millisecond))
 
 	return &CandleDTO{
 		Open:   d.Open,

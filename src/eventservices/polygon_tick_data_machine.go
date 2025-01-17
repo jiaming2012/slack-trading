@@ -94,14 +94,9 @@ func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.
 	}
 
 	for _, result := range result.Results {
-		dto, err := result.ToCandleDTO()
+		bar, err := result.ToCandle()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert result to candle dto: %w", err)
-		}
-
-		bar, err := dto.ToCandle(loc)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert dto to model: %w", err)
 		}
 
 		if isInBetween(bar.Timestamp, fromDate, toDate) {
