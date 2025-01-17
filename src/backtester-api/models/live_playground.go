@@ -60,22 +60,22 @@ func (p *LivePlayground) GetFreeMargin() float64 {
 	return p.playground.GetFreeMargin()
 }
 
-func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
 	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
 }
 
-func (p *LivePlayground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry,  performChecks bool) error {
+func (p *LivePlayground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderExecutionRequest, performChecks bool) error {
 	return p.playground.CommitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
 }
 
-func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	newTrades, invalidOrders, err = p.playground.CommitPendingOrders(positions, orderFillPricesMap, performChecks)
 	return
 }
 
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
 	placeOrderChanges, err := p.playground.PlaceOrder(order)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 	}
@@ -160,9 +160,9 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 
 func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
-		Broker: account.Source.GetBroker(),
+		Broker:     account.Source.GetBroker(),
 		ApiKeyName: account.Source.GetApiKeyName(),
-		AccountID: account.Source.GetAccountID(),
+		AccountID:  account.Source.GetAccountID(),
 	}
 
 	playground, err := NewPlayground(playgroundID, account.Balance, nil, orders, PlaygroundEnvironmentLive, source, now, repositories...)

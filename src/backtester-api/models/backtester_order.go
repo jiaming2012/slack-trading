@@ -46,28 +46,26 @@ func (o *BacktesterOrder) GetQuantity() float64 {
 	return o.AbsoluteQuantity
 }
 
-func (o *BacktesterOrder) Fill(trade *BacktesterTrade, performChecks bool) error {
-	if performChecks {
-		if !o.Status.IsTradingAllowed() {
-			return fmt.Errorf("order is not open or partially filled")
-		}
+func (o *BacktesterOrder) Fill(trade *BacktesterTrade) error {
+	if !o.Status.IsTradingAllowed() {
+		return ErrTradingNotAllowed
+	}
 
-		if trade.Price <= 0 {
-			return fmt.Errorf("trade price must be greater than 0")
-		}
+	if trade.Price <= 0 {
+		return fmt.Errorf("trade price must be greater than 0")
+	}
 
-		filledQuantity := 0.0
-		for _, t := range o.Trades {
-			filledQuantity += t.Quantity
-		}
+	filledQuantity := 0.0
+	for _, t := range o.Trades {
+		filledQuantity += t.Quantity
+	}
 
-		if trade.Quantity == 0 {
-			return fmt.Errorf("trade quantity must be non-zero")
-		}
+	if trade.Quantity == 0 {
+		return fmt.Errorf("trade quantity must be non-zero")
+	}
 
-		if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
-			return fmt.Errorf("trade quantity exceeds order quantity")
-		}
+	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
+		return fmt.Errorf("trade quantity exceeds order quantity")
 	}
 
 	o.Trades = append(o.Trades, trade)

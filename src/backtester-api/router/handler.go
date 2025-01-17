@@ -692,18 +692,18 @@ func findOrder(id uint) (models.IPlayground, *models.BacktesterOrder, bool) {
 }
 
 type orderCache struct {
-	container map[uint]models.OrderFillEntry
+	container map[uint]models.OrderExecutionRequest
 	mutex     *sync.Mutex
 }
 
-func (c *orderCache) Add(order *eventmodels.TradierOrder, entry models.OrderFillEntry) {
+func (c *orderCache) Add(order *eventmodels.TradierOrder, entry models.OrderExecutionRequest) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	c.container[order.ID] = entry
 }
 
-func (c *orderCache) Get(order *eventmodels.TradierOrder) (models.OrderFillEntry, bool) {
+func (c *orderCache) Get(order *eventmodels.TradierOrder) (models.OrderExecutionRequest, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -711,7 +711,7 @@ func (c *orderCache) Get(order *eventmodels.TradierOrder) (models.OrderFillEntry
 	return entry, ok
 }
 
-func (c *orderCache) GetMap() (container map[uint]models.OrderFillEntry, unlockFn func()) {
+func (c *orderCache) GetMap() (container map[uint]models.OrderExecutionRequest, unlockFn func()) {
 	c.mutex.Lock()
 	container = c.container
 
@@ -733,7 +733,7 @@ func (c *orderCache) Remove(orderID uint, getMutex bool) {
 
 func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
 	cache := &orderCache{
-		container: make(map[uint]models.OrderFillEntry),
+		container: make(map[uint]models.OrderExecutionRequest),
 		mutex:     &sync.Mutex{},
 	}
 
@@ -756,7 +756,13 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 			trade, err := playground.FillOrder(order, performChecks, orderFillEntry, positions)
 			if err != nil {
 				log.Errorf("handleLiveOrders: failed to commit pending orders: %v", err)
-				return
+
+				if errors.Is(err, models.ErrTradingNotAllowed) {
+					log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
+					cache.Remove(tradierOrder, false)
+				}
+
+				continue
 			}
 
 			if err := saveTradeRecord(playground.GetId(), tradierOrder, trade); err != nil {
@@ -803,10 +809,10 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 
 				if event.CreateOrder != nil {
 					if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusFilled) {
-						cache.Add(event.CreateOrder.Order, models.OrderFillEntry{
+						cache.Add(event.CreateOrder.Order, models.OrderExecutionRequest{
 							Time:     event.CreateOrder.Order.CreateDate,
 							Price:    event.CreateOrder.Order.AvgFillPrice,
-							Quantity: event.CreateOrder.Order.LastFillQuantity,
+							Quantity: event.CreateOrder.Order.GetLastFillQuantity(),
 						})
 
 						log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)

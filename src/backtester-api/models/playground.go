@@ -31,8 +31,8 @@ type IPlayground interface {
 	NextOrderID() uint
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
 	// CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry, performChecks bool) error
-	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
-	CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error)
+	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
+	CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 }
 
@@ -97,7 +97,7 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 	return openOrders
 }
 
-func (p *Playground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderFillEntry, performChecks bool) error {
+func (p *Playground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderExecutionRequest, performChecks bool) error {
 	if order.Status != BacktesterOrderStatusPending {
 		return fmt.Errorf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
 	}
@@ -221,7 +221,7 @@ func (p *Playground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	return nil
 }
 
-func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderFillEntry, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	for _, order := range p.account.PendingOrders {
 		orderFillEntry, found := orderFillEntryMap[order.ID]
 		if !found {
@@ -325,7 +325,7 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	return nil
 }
 
-func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderFillEntry, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
 	position, ok := positionsMap[order.Symbol]
 	if !ok {
 		position = &Position{Quantity: 0}
@@ -354,7 +354,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 	trade := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
-	if err := order.Fill(trade, performChecks); err != nil {
+	if err := order.Fill(trade); err != nil {
 		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
 	}
 
@@ -387,7 +387,7 @@ func (p *Playground) updateTrade(trade *BacktesterTrade, startingPositions map[e
 	startingPositions[trade.Symbol] = position
 }
 
-func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderFillEntry, performChecks bool) ([]*BacktesterTrade, error) {
+func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) ([]*BacktesterTrade, error) {
 	var trades []*BacktesterTrade
 
 	positionsCopy := make(map[eventmodels.Instrument]*Position)
@@ -458,7 +458,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
-	orderFillPriceMap := map[uint]OrderFillEntry{}
+	orderFillPriceMap := map[uint]OrderExecutionRequest{}
 
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
@@ -466,7 +466,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPriceMap[order.ID] = OrderFillEntry{
+		orderFillPriceMap[order.ID] = OrderExecutionRequest{
 			Price: price,
 			Time:  p.clock.CurrentTime,
 		}
@@ -596,21 +596,22 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
 	}
 
-	orderFillPrices := make(map[uint]OrderFillEntry)
+	orderExecutionRequests := make(map[uint]OrderExecutionRequest)
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPrices[order.ID] = OrderFillEntry{
-			Price: price,
-			Time:  p.clock.CurrentTime,
+		orderExecutionRequests[order.ID] = OrderExecutionRequest{
+			Price:    price,
+			Time:     p.clock.CurrentTime,
+			Quantity: order.GetQuantity(),
 		}
 	}
 
 	// Commit pending orders
-	newTrades, invalidOrdersDTO, err := p.CommitPendingOrders(startingPositions, orderFillPrices, true)
+	newTrades, invalidOrdersDTO, err := p.CommitPendingOrders(startingPositions, orderExecutionRequests, true)
 	if err != nil {
 		return nil, fmt.Errorf("error committing pending orders: %w", err)
 	}
@@ -1041,15 +1042,23 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 		startAt = now
 	}
 
+	
 	meta := &PlaygroundMeta{
 		Symbols:          symbols,
 		StartingBalance:  balance,
 		Environment:      env,
 		StartAt:          startAt,
 		EndAt:            endAt,
-		SourceBroker:     source.Broker,
-		SourceAccountId:  source.AccountID,
-		SourceApiKeyName: source.ApiKeyName,
+	}
+
+	if env == PlaygroundEnvironmentLive {
+		if source == nil {
+			return nil, fmt.Errorf("source is required")
+		}
+
+		meta.SourceBroker = source.Broker
+		meta.SourceAccountId = source.AccountID
+		meta.SourceApiKeyName = source.ApiKeyName
 	}
 
 	var id uuid.UUID

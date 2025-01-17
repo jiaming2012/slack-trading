@@ -20,7 +20,7 @@ func TestBacktesterOrderStatus(t *testing.T) {
 	t.Run("PartiallyFilled", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 5, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.NoError(t, err)
 
 		assert.Equal(t, BacktesterOrderStatusPartiallyFilled, order.GetStatus())
@@ -29,14 +29,14 @@ func TestBacktesterOrderStatus(t *testing.T) {
 	t.Run("Filled", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 1)
-		order.Fill(trade, true)
+		order.Fill(trade)
 		assert.Equal(t, BacktesterOrderStatusFilled, order.GetStatus())
 	})
 
 	t.Run("Filled - invalid price", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 0)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.Error(t, err)
 	})
 
@@ -44,28 +44,28 @@ func TestBacktesterOrderStatus(t *testing.T) {
 		quantity := 10.0
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, quantity, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.NoError(t, err)
 
 		trade = NewBacktesterTrade(order.Symbol, now, 1, 1)
-		err = order.Fill(trade, true)
+		err = order.Fill(trade)
 		assert.Error(t, err)
 	})
 
 	t.Run("Filled - invalid quantity", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 0, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.Error(t, err)
 	})
 
 	t.Run("Filled - multiple trades", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 5, 1)
-		order.Fill(trade, true)
+		order.Fill(trade)
 
 		trade = NewBacktesterTrade(order.Symbol, now, 5, 1)
-		order.Fill(trade, true)
+		order.Fill(trade)
 
 		assert.Equal(t, BacktesterOrderStatusFilled, order.GetStatus())
 	})
@@ -80,7 +80,7 @@ func TestBacktesterOrderStatus(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		order.Cancel()
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.Error(t, err)
 	})
 
@@ -94,17 +94,17 @@ func TestBacktesterOrderStatus(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		order.Reject()
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.Error(t, err)
 	})
 
 	t.Run("Fill is rejected after order is filled", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 1)
-		order.Fill(trade, true)
+		order.Fill(trade)
 
 		trade = NewBacktesterTrade(order.Symbol, now, 1, 1)
-		err := order.Fill(trade, true)
+		err := order.Fill(trade)
 		assert.Error(t, err)
 	})
 }

@@ -2,31 +2,44 @@ package eventmodels
 
 import (
 	"fmt"
+	"log"
 	"time"
 )
 
 type TradierOrder struct {
-	ID                uint                 `json:"id"`
-	Type              string               `json:"type"`
-	Symbol            string               `json:"symbol"`
-	Side              string               `json:"side"`
-	Quantity          float64              `json:"quantity"`
-	Status            string               `json:"status"`
-	Duration          string               `json:"duration"`
-	Price             float64              `json:"price"`
-	AvgFillPrice      float64              `json:"avg_fill_price"`
-	ExecQuantity      float64              `json:"exec_quantity"`
-	LastFillPrice     float64              `json:"last_fill_price"`
-	LastFillQuantity  float64              `json:"last_fill_quantity"`
-	RemainingQuantity float64              `json:"remaining_quantity"`
-	CreateDate        time.Time            `json:"create_date"`
-	TransactionDate   time.Time            `json:"transaction_date"`
-	Class             string               `json:"class"`
-	OptionSymbol      *string              `json:"option_symbol"`
-	Leg               []TradierOrderLegDTO `json:"leg"`
-	Strategy          string               `json:"strategy"`
-	ReasonDescription *string               `json:"reason_description"`
-	Tag               string               `json:"tag"`
+	ID                        uint                 `json:"id"`
+	Type                      string               `json:"type"`
+	Symbol                    string               `json:"symbol"`
+	Side                      string               `json:"side"`
+	AbsoluteQuantity          float64              `json:"quantity"`
+	Status                    string               `json:"status"`
+	Duration                  string               `json:"duration"`
+	Price                     float64              `json:"price"`
+	AvgFillPrice              float64              `json:"avg_fill_price"`
+	AbsoluteExecQuantity      float64              `json:"exec_quantity"`
+	LastFillPrice             float64              `json:"last_fill_price"`
+	AbsoluteLastFillQuantity  float64              `json:"last_fill_quantity"`
+	AbsoluteRemainingQuantity float64              `json:"remaining_quantity"`
+	CreateDate                time.Time            `json:"create_date"`
+	TransactionDate           time.Time            `json:"transaction_date"`
+	Class                     string               `json:"class"`
+	OptionSymbol              *string              `json:"option_symbol"`
+	Leg                       []TradierOrderLegDTO `json:"leg"`
+	Strategy                  string               `json:"strategy"`
+	ReasonDescription         *string              `json:"reason_description"`
+	Tag                       string               `json:"tag"`
+}
+
+func (o TradierOrder) GetLastFillQuantity() float64 {
+	if o.Side == "buy" || o.Side == "buy_to_cover" {
+		return o.AbsoluteLastFillQuantity
+	} else if o.Side == "sell" || o.Side == "sell_short" {
+		return -o.AbsoluteLastFillQuantity
+	} else {
+		log.Fatalf("TradierOrder.GetLastFillQuantity: invalid side: %s", o.Side)
+	}
+
+	return 0
 }
 
 func (o TradierOrder) GetLegs(option1 *OptionSymbolComponents, option2 *OptionSymbolComponents) (*TradierOrderLegDTO, *TradierOrderLegDTO, error) {
@@ -58,5 +71,5 @@ func (o TradierOrder) String() string {
 	}
 
 	timestamp := o.CreateDate.Format("2006-01-02 15:04:05")
-	return fmt.Sprintf("ID (%d), Type: %s, Symbol: %s, Side: %s, Status: %s, AvgFillPrice: %.2f, ExecQuantity: %.0f, Class: %s, CreatedAt: %v", o.ID, o.Type, symbol, o.Side, o.Status, o.AvgFillPrice, o.ExecQuantity, o.Class, timestamp)
+	return fmt.Sprintf("ID (%d), Type: %s, Symbol: %s, Side: %s, Status: %s, AvgFillPrice: %.2f, ExecQuantity: %.0f, Class: %s, CreatedAt: %v", o.ID, o.Type, symbol, o.Side, o.Status, o.AvgFillPrice, o.AbsoluteExecQuantity, o.Class, timestamp)
 }
