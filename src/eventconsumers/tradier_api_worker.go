@@ -303,7 +303,7 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 			if err != nil {
 				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: failed to convert order to backtester order: %v", err)
 			}
-			
+
 			w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
 				CreateOrder: &eventmodels.TradierOrderCreateEvent{
 					Order: o,
@@ -368,12 +368,17 @@ func (w *TradierApiWorker) getStartEndDates(now time.Time, period time.Duration)
 
 func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 	now := time.Now()
-	start, end := w.getStartEndDates(now, repo.GetPeriod())
+	period := repo.GetPeriod()
+	periodStr := period.String()
+
+	log.Debugf("updating live repo %s with period %s", repo.GetSymbol(), periodStr)
+
+	start, end := w.getStartEndDates(now, period)
 
 	var candles []eventmodels.ICandle
 	var skipCandles int
 
-	if repo.GetPeriod() <= 15*time.Minute {
+	if period <= 15*time.Minute {
 		tradierCandles, err := w.fetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
 		if err != nil {
 			log.Errorf("failed to fetch candles: %v", err)
@@ -400,10 +405,10 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 		skipCandles = 0
 	}
 
-	cutoffTimestamp := now.Truncate(repo.GetPeriod())
+	cutoffTimestamp := now.Truncate(period)
 
 	startAt := len(candles)
-	var newCandles []eventmodels.ICandle
+
 	lastCandleInRepo := repo.GetLastCandle()
 	if lastCandleInRepo != nil {
 		for i := len(candles) - 1; i >= 0; i-- {
@@ -415,7 +420,7 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 			startAt = i
 		}
 	}
-
+	var newCandles []eventmodels.ICandle
 	for i := startAt; i < len(candles); i++ {
 		if !candles[i].GetTimestamp().Before(cutoffTimestamp) {
 			break
@@ -423,8 +428,8 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 
 		timestamp := candles[i].GetTimestamp()
 		totalMinutes := timestamp.Unix() / 60
-		period := int64(repo.GetPeriod().Minutes())
-		if totalMinutes%period == 0 {
+		periodInMinutes := int64(period.Minutes())
+		if totalMinutes%periodInMinutes == 0 {
 			newCandles = append(newCandles, candles[i])
 		}
 	}

@@ -9,6 +9,10 @@ tasks:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
 
+  stream:connect:
+    cmds:
+      - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
+
   gen:proto:
     cmds:
       - 'source ${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/activate'
