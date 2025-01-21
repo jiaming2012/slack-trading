@@ -50,7 +50,12 @@ func (s LiveAccountSource) FetchEquity() (*eventmodels.FetchAccountEquityRespons
 		return nil, fmt.Errorf("failed to fetch equity: %w", err)
 	}
 
-	if responseDTO.Balances.AccountType != "margin" {
+	switch responseDTO.Balances.AccountType {
+	case "margin":
+		break
+	case "pdt": // Pattern Day Trading account
+		break
+	default:
 		return nil, fmt.Errorf("unsupported account type: %s", responseDTO.Balances.AccountType)
 	}
 

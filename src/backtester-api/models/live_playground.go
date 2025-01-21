@@ -64,15 +64,6 @@ func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, o
 	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
 }
 
-func (p *LivePlayground) CommitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderExecutionRequest, performChecks bool) error {
-	return p.playground.CommitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
-}
-
-func (p *LivePlayground) CommitPendingOrders(positions map[eventmodels.Instrument]*Position, orderFillPricesMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
-	newTrades, invalidOrders, err = p.playground.CommitPendingOrders(positions, orderFillPricesMap, performChecks)
-	return
-}
-
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
 	placeOrderChanges, err := p.playground.PlaceOrder(order)
 
