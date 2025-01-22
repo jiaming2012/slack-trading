@@ -21,11 +21,12 @@ func TestOpenOrdersCache(t *testing.T) {
 		endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
 
 		clock := NewClock(startTime, endTime, nil)
+		t_minus_1 := startTime.Add(-time.Minute)
 		t1 := startTime.Add(time.Minute)
 		t2 := startTime.Add(2 * time.Minute)
 
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1, t2}, []float64{10.0, 20.0, 30.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1, t2}, []float64{110.0, 120.0, 130.0})
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t_minus_1, startTime, t1, t2}, []float64{5.0, 10.0, 20.0, 30.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t_minus_1, startTime, t1, t2}, []float64{100.0, 110.0, 120.0, 130.0})
 
 		balance := 1000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)

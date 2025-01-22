@@ -79,6 +79,18 @@ func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicato
 	return r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
 }
 
+func (r *CandleRepository) SetStartingPosition(currentTime time.Time) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for i, candle := range r.candlesWithIndicators {
+		if currentTime.Equal(candle.Timestamp) || currentTime.After(candle.Timestamp) {
+			r.startingPosition = i
+			r.position = i
+		}
+	}
+}
+
 func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -198,6 +210,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 		nextCandleTimestamp := r.candlesWithIndicators[r.position+1].Timestamp
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
+			r.isInitialTick = false
 			newCandle, err = r.getCurrentCandle()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get current candle: %v", err)

@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -299,7 +300,7 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument, period time.
 	}
 
 	if candle == nil {
-		return 0, fmt.Errorf("getCurrentPrice: current candle is nil")
+		return 0, ErrCurrentPriceNotSet
 	}
 
 	return candle.Close, nil
@@ -610,6 +611,11 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
 		if err != nil {
+			if errors.Is(err, ErrCurrentPriceNotSet) {
+				log.Warn("current price not set")
+				continue
+			}
+
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
@@ -1029,8 +1035,20 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
+	var startAt time.Time
+	var endAt *time.Time
 
+	// set the clock
+	if clock != nil {
+		startAt = clock.CurrentTime
+		endAt = &clock.EndTime
+	} else {
+		startAt = now
+	}
+
+	// set the feeds
 	for _, feed := range feeds {
+		feed.SetStartingPosition(startAt)
 		symbol := feed.GetSymbol()
 
 		if _, found := repos[symbol]; !found {
@@ -1044,16 +1062,6 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
 			minimumPeriod = feed.GetPeriod()
 		}
-	}
-
-	var startAt time.Time
-	var endAt *time.Time
-
-	if clock != nil {
-		startAt = clock.CurrentTime
-		endAt = &clock.EndTime
-	} else {
-		startAt = now
 	}
 
 	meta := &PlaygroundMeta{
@@ -1100,6 +1108,7 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 	var minimumPeriod time.Duration
 
 	for _, feed := range feeds {
+		feed.SetStartingPosition(clock.CurrentTime)
 		symbol := feed.GetSymbol()
 
 		if _, found := repos[symbol]; !found {

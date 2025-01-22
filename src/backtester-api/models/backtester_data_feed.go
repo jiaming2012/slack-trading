@@ -8,6 +8,7 @@ import (
 
 type BacktesterDataFeed interface {
 	GetSymbol() eventmodels.Instrument
+	SetStartingPosition(currentTime time.Time)
 	GetPeriod() time.Duration
 	GetSource() string
 	FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)

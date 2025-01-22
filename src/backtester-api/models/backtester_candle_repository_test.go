@@ -51,6 +51,10 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
+		_, err = repo.Update(tstamp)
+
+		assert.NoError(t, err)
+
 		candle, err := repo.GetCurrentCandle()
 
 		assert.NoError(t, err)

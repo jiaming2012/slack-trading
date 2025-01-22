@@ -12,6 +12,10 @@ type MockBacktesterDataFeed struct {
 	bars   []*eventmodels.AggregateBarWithIndicators
 }
 
+func (feed *MockBacktesterDataFeed) SetStartingPosition(currentTime time.Time) {
+	// do nothing
+}
+
 func (feed *MockBacktesterDataFeed) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	return feed.bars, nil
 }
