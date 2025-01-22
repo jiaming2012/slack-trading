@@ -230,6 +230,7 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 		err := p.commitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
 		if err != nil {
 			log.Errorf("error committing pending order: %v", err)
+			continue
 		}
 
 		newTrade, err := p.FillOrder(order, performChecks, orderFillEntry, startingPositions)
@@ -331,8 +332,9 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	}
 
 	if performChecks {
-		if !order.GetStatus().IsTradingAllowed() && order.Type == Market {
-			return nil, fmt.Errorf("fillOrder: trading is not allowed for %d", order.ID)
+		orderStatus := order.GetStatus()
+		if !orderStatus.IsTradingAllowed() {
+			return nil, fmt.Errorf("fillOrder: trading is not allowed for order with status %s", orderStatus)
 		}
 
 		if order.Type != Market {
@@ -471,6 +473,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 		orderFillPriceMap[order.ID] = OrderExecutionRequest{
 			Price: price,
+			Quantity: order.GetQuantity(),
 			Time:  p.clock.CurrentTime,
 		}
 	}
