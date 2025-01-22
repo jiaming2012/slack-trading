@@ -953,7 +953,7 @@ func (p *Playground) GetFreeMarginFromPositionMap(positions map[eventmodels.Inst
 	freeMargin := (p.account.Balance + pl)
 
 	for _, position := range positions {
-		freeMargin -= calculateInitialMarginRequirement(position.Quantity, position.CostBasis)
+		freeMargin -= calculateMaintenanceRequirement(position.Quantity, position.CostBasis)
 	}
 
 	return freeMargin

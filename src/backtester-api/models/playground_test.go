@@ -607,6 +607,9 @@ func TestPositions(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
+	source := eventmodels.CandleRepositorySource{
+		Type: "test",
+	}
 
 	t.Run("GetPosition", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -1028,6 +1031,7 @@ func TestPositions(t *testing.T) {
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
+		now := startTime
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
@@ -1035,14 +1039,9 @@ func TestPositions(t *testing.T) {
 				Close:     250.0,
 			},
 		}
-		source := eventmodels.CandleRepositorySource{
-			Type: "test",
-		}
 
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
-
-		now := startTime
 
 		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
@@ -1082,13 +1081,21 @@ func TestPositions(t *testing.T) {
 
 	t.Run("GetPosition - Quantity decrease after buy to cover", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{250.0})
-
 		now := startTime
 
-		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     250.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		assert.NoError(t, err)
@@ -1102,8 +1109,6 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 1)
-		// assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
 		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
@@ -1118,9 +1123,6 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, -5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 2)
-		// assert.Equal(t, -10.0, position.OpenTrades[0].Quantity)
-		// assert.Equal(t, 5.0, position.OpenTrades[1].Quantity)
 	})
 }
 
@@ -1131,25 +1133,45 @@ func TestFreeMargin(t *testing.T) {
 	t1 := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 2, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
-
 	now := startTime
+	source := eventmodels.CandleRepositorySource{
+		Type: "test",
+	}
 
-	feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{startTime, t1, endTime}, []float64{100.0, 200.0, 250.0})
+	candles := []*eventmodels.PolygonAggregateBarV2{
+		{
+			Timestamp: startTime,
+			Close:     100.0,
+		},
+		{
+			Timestamp: t1,
+			Close:     200.0,
+		},
+		{
+			Timestamp: endTime,
+			Close:     250.0,
+		},
+	}
+
+	repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+	assert.NoError(t, err)
 
 	t.Run("No positions", func(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		freeMargin := playground.GetFreeMargin()
-		assert.Equal(t, balance*2, freeMargin)
+		assert.Equal(t, balance, freeMargin)
 	})
 
 	t.Run("Adjust with unrealized PnL", func(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order
@@ -1162,24 +1184,31 @@ func TestFreeMargin(t *testing.T) {
 		_, err = playground.Tick(time.Minute, false)
 		assert.NoError(t, err)
 
-		freeMargin := playground.GetFreeMargin()
-		assert.Equal(t, 1000.0, freeMargin)
+		positions := playground.GetPositions()
+		usedMargin := positions[symbol].MaintenanceMargin
+		assert.Equal(t, 500.0, usedMargin)
 
-		// move price: tick went from 100 to 200
+		freeMargin := playground.GetFreeMargin()
+		assert.Equal(t, balance-usedMargin, freeMargin)
+
+		// move price: price change 100 -> 200 => unrealized PnL = 1,000
+		previousFreeMargin := freeMargin
 		_, err = playground.Tick(time.Hour, false)
 		assert.NoError(t, err)
 
 		freeMargin = playground.GetFreeMargin()
-		assert.Equal(t, 3000.0, freeMargin)
+		assert.Equal(t, previousFreeMargin+1000.0, freeMargin)
 	})
 
 	t.Run("Long position reduces free margin", func(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		tradeQty := 1.0
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, tradeQty, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
 		err = changes.Commit()
@@ -1189,35 +1218,43 @@ func TestFreeMargin(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Len(t, delta.NewTrades, 1)
-		assert.Equal(t, 100.0, delta.NewTrades[0].Price)
+		tradePrc := delta.NewTrades[0].Price
+		assert.Equal(t, 100.0, tradePrc)
 
 		freeMargin := playground.GetFreeMargin()
-		assert.Equal(t, 1900.0, freeMargin)
+		assert.Equal(t, balance-(tradePrc*tradeQty*0.5), freeMargin)
 	})
 
 	t.Run("Short position reduces free margin", func(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		tradeQty := 1.0
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, tradeQty, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
 		err = changes.Commit()
 		assert.NoError(t, err)
 
-		_, err = playground.Tick(time.Minute, false)
+		delta, err := playground.Tick(time.Minute, false)
 		assert.NoError(t, err)
 
+		assert.Len(t, delta.NewTrades, 1)
+		tradePrc := delta.NewTrades[0].Price
+		assert.Equal(t, 100.0, tradePrc)
+
 		freeMargin := playground.GetFreeMargin()
-		assert.Equal(t, 1850.0, freeMargin)
+		assert.Equal(t, balance-(tradePrc*tradeQty*1.5), freeMargin)
 	})
 
 	t.Run("Trade rejected if insufficient free margin", func(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order equal to free margin
@@ -1245,7 +1282,7 @@ func TestFreeMargin(t *testing.T) {
 		assert.Len(t, delta.InvalidOrders, 1)
 		assert.Equal(t, BacktesterOrderStatusRejected, delta.InvalidOrders[0].Status)
 		assert.NotNil(t, delta.InvalidOrders[0].RejectReason)
-		assert.Equal(t, ErrInsufficientFreeMargin.Error(), *delta.InvalidOrders[0].RejectReason)
+		assert.Contains(t, *delta.InvalidOrders[0].RejectReason, ErrInsufficientFreeMargin.Error())
 	})
 }
 
