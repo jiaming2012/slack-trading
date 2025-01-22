@@ -17,7 +17,7 @@ func TestSymbol(t *testing.T) {
 			Type: "polygon",
 		}
 
-		repo, err := NewCandleRepository(symbol, period, nil, []string{}, nil, 0, 0, source)
+		repo, err := NewCandleRepository(symbol, period, nil, []string{}, nil, 0, source)
 
 		assert.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestNext(t *testing.T) {
 	}
 
 	t.Run("returns the current candle", func(t *testing.T) {
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, 0, source)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
 		assert.NoError(t, err)
 
@@ -63,7 +63,7 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns the next candle", func(t *testing.T) {
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, 0, source)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
 		assert.NoError(t, err)
 
@@ -83,7 +83,7 @@ func TestNext(t *testing.T) {
 	})
 
 	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, 0, source)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
 		assert.NoError(t, err)
 

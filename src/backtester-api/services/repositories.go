@@ -80,7 +80,7 @@ func CreateRepository(symbol eventmodels.StockSymbol, timespan eventmodels.Polyg
 
 func CreateRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], startingPosition int, historyInDays uint32, source eventmodels.CandleRepositorySource) (*models.CandleRepository, error) {
 	period := timespan.ToDuration()
-	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, startingPosition, historyInDays, source)
+	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, historyInDays, source)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}

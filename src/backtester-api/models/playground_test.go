@@ -1029,11 +1029,22 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{250.0})
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     250.0,
+			},
+		}
+		source := eventmodels.CandleRepositorySource{
+			Type: "test",
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
 
 		now := startTime
 
-		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
+		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)

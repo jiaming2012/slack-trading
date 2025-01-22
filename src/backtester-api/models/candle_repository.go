@@ -20,7 +20,7 @@ type CandleRepository struct {
 	baseCandles           []*eventmodels.PolygonAggregateBarV2
 	indicators            []string
 	position              int
-	startingPosition      int
+	startingPosition      *int
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
 	isInitialTick         bool
 	historyInDays         uint32
@@ -79,16 +79,20 @@ func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicato
 	return r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
 }
 
-func (r *CandleRepository) SetStartingPosition(currentTime time.Time) {
+func (r *CandleRepository) SetStartingPosition(currentTime time.Time) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	for i, candle := range r.candlesWithIndicators {
 		if currentTime.Equal(candle.Timestamp) || currentTime.After(candle.Timestamp) {
-			r.startingPosition = i
-			r.position = i
+			start := i
+			r.startingPosition = &start
+			r.position = start
+			return nil
 		}
 	}
+
+	return fmt.Errorf("failed to set starting position: no candles found at or after %s", currentTime)
 }
 
 func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
@@ -174,11 +178,11 @@ func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndi
 		return nil, fmt.Errorf("no more candles")
 	}
 
-	if r.isInitialTick {
+	if r.startingPosition == nil {
 		return nil, nil
 	}
 
-	if r.position >= r.startingPosition {
+	if r.position >= *r.startingPosition {
 		return r.candlesWithIndicators[r.position], nil
 	}
 
@@ -221,8 +225,6 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 				if err != nil {
 					return nil, fmt.Errorf("failed to get current candle during initial tick: %v", err)
 				}
-			} else {
-				r.position = r.startingPosition - 1
 			}
 
 			r.isInitialTick = false
@@ -235,7 +237,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 	return newCandle, nil
 }
 
-func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], startingPosition int, historyInDays uint32, source eventmodels.CandleRepositorySource) (*CandleRepository, error) {
+func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], historyInDays uint32, source eventmodels.CandleRepositorySource) (*CandleRepository, error) {
 	var interval eventmodels.TradierInterval
 	switch period {
 	case time.Minute:
@@ -268,8 +270,6 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		fetchInterval:         interval,
 		candlesWithIndicators: candlesWithIndicators,
 		baseCandles:           candles,
-		position:              startingPosition,
-		startingPosition:      startingPosition,
 		indicators:            indicators,
 		newCandlesQueue:       newCandlesQueue,
 		polygonTimespan:       polygonTimespan,

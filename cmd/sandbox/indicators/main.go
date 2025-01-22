@@ -79,7 +79,7 @@ func main() {
 		Type: "polygon",
 	}
 	
-	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, len(pastCandlesForIndicators), historyInDays, repoSource)
+	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, historyInDays, repoSource)
 
 	// Print the first candle
 	fmt.Printf("First Candle: %+v\n", candles[0])

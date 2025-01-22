@@ -1048,7 +1048,10 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 
 	// set the feeds
 	for _, feed := range feeds {
-		feed.SetStartingPosition(startAt)
+		if err := feed.SetStartingPosition(startAt); err != nil {
+			return nil, fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
+		}
+
 		symbol := feed.GetSymbol()
 
 		if _, found := repos[symbol]; !found {
@@ -1131,7 +1134,7 @@ func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnviro
 			Type: feed.GetSource(),
 		}
 
-		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0, 0, source)
+		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0, source)
 		if err != nil {
 			return nil, fmt.Errorf("error creating repository: %w", err)
 		}
