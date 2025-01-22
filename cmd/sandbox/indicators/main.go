@@ -84,5 +84,7 @@ func main() {
 	// Print the first candle
 	fmt.Printf("First Candle: %+v\n", candles[0])
 
-	fmt.Printf("Current Candle: +%v", repo.GetCurrentCandle())
+	candle, err := repo.GetCurrentCandle()
+
+	fmt.Printf("Current Candle: +%v", candle)
 }

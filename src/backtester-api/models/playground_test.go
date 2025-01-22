@@ -194,8 +194,8 @@ func TestLiquidation(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
 		t2 := startTime.Add(10 * time.Minute)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1, t2}, []float64{0.0, 10.0, 0.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1, t2}, []float64{0.0, 100.0, 0.0})
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1, t2}, []float64{10.0, 0.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t1, t2}, []float64{100.0, 0.0})
 
 		balance := 1000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
@@ -233,36 +233,38 @@ func TestFeed(t *testing.T) {
 	period := time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
-	t1_appl := startTime
-	t2_appl := startTime.Add(5 * time.Minute)
-	t3_appl := startTime.Add(10 * time.Minute)
-	t1_goog := startTime
-	t2_goog := startTime.Add(10 * time.Minute)
-	t3_goog := startTime.Add(20 * time.Minute)
+
 	env := PlaygroundEnvironmentSimulator
 
 	t.Run("Returns previous candle until new candle is available", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
+		t1_appl := startTime.Add(5 * time.Minute)
+		t2_appl := startTime.Add(10 * time.Minute)
+		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl}, []float64{10.0, 15.0})
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
 		assert.NoError(t, err)
 
-		assert.Equal(t, startTime, candle.Timestamp)
+		assert.Equal(t, t1_appl, candle.Timestamp)
 	})
 
 	t.Run("Skip a candle", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
+
+		t1_appl := startTime.Add(5 * time.Minute)
+		t2_appl := startTime.Add(10 * time.Minute)
+		t3_appl := startTime.Add(15 * time.Minute)
+
+		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{10.0, 15.0, 20.0})
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
 		assert.NoError(t, err)
 
-		assert.Equal(t, startTime, candle.Timestamp)
+		assert.Equal(t, t1_appl, candle.Timestamp)
 
 		delta, err := playground.Tick(20*time.Minute, false)
 		assert.NoError(t, err)
@@ -271,13 +273,19 @@ func TestFeed(t *testing.T) {
 		candle, err = playground.GetCandle(symbol1, period)
 		assert.NoError(t, err)
 		assert.Equal(t, t3_appl, candle.Timestamp)
-		assert.Equal(t, 15.0, candle.Close)
+		assert.Equal(t, 20.0, candle.Close)
 	})
 
 	t.Run("Returns new candle/s on state changes", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{0.0, 10.0, 15.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t1_goog, t2_goog, t3_goog}, []float64{0.0, 100.0, 200.0})
+		t1_appl := startTime.Add(5 * time.Minute)
+		t2_appl := startTime.Add(10 * time.Minute)
+
+		t1_goog := startTime.Add(10 * time.Minute)
+		t2_goog := startTime.Add(20 * time.Minute)
+
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl}, []float64{10.0, 15.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t1_goog, t2_goog}, []float64{100.0, 200.0})
 
 		balance := 1000000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
@@ -288,7 +296,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 1)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t2_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, t1_appl, delta.NewCandles[0].Bar.Timestamp)
 		assert.Equal(t, 10.0, delta.NewCandles[0].Bar.Close)
 
 		// new APPL and GOOG candle
@@ -296,10 +304,10 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t3_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, t2_appl, delta.NewCandles[0].Bar.Timestamp)
 		assert.Equal(t, 15.0, delta.NewCandles[0].Bar.Close)
 		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
-		assert.Equal(t, t2_goog, delta.NewCandles[1].Bar.Timestamp)
+		assert.Equal(t, t1_goog, delta.NewCandles[1].Bar.Timestamp)
 		assert.Equal(t, 100.0, delta.NewCandles[1].Bar.Close)
 
 		// no new candle
@@ -308,17 +316,16 @@ func TestFeed(t *testing.T) {
 		assert.Len(t, delta.NewCandles, 0)
 	})
 
-	t.Run("GetCandle returns the first candle until Tick is called", func(t *testing.T) {
+	t.Run("GetCandle returns nil until Tick is called", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, startTime.Add(5), startTime.Add(10)}, []float64{0.0, 10.0, 15.0})
+		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime.Add(5), startTime.Add(10)}, []float64{10.0, 15.0})
 
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
 		assert.NoError(t, err)
-		assert.Equal(t, startTime, candle.Timestamp)
-		assert.Equal(t, 0.0, candle.Close)
+		assert.Nil(t, candle)
 	})
 }
 
@@ -409,9 +416,9 @@ func TestBalance(t *testing.T) {
 
 		now := startTime
 
-		prices := []float64{0.0, 100.0, 115.0}
+		prices := []float64{100.0, 115.0}
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{startTime, startTime.Add(time.Minute), startTime.Add(2 * time.Minute)}, prices)
+		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{startTime.Add(time.Minute), startTime.Add(2 * time.Minute)}, prices)
 		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
 		assert.NoError(t, err)
 
@@ -447,19 +454,18 @@ func TestBalance(t *testing.T) {
 	t.Run("GetAccountBalance - increase and decrease after profitable and unprofitable trade", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1 := startTime
-		t2 := startTime.Add(time.Minute)
-		t3 := startTime.Add(2 * time.Minute)
-		t4 := startTime.Add(3 * time.Minute)
-		t5 := startTime.Add(4 * time.Minute)
-		t6 := startTime.Add(5 * time.Minute)
+		t1 := startTime.Add(time.Minute)
+		t2 := startTime.Add(2 * time.Minute)
+		t3 := startTime.Add(3 * time.Minute)
+		t4 := startTime.Add(4 * time.Minute)
+		t5 := startTime.Add(5 * time.Minute)
 
-		prices := []float64{0.0, 100.0, 110.0, 90.0, 100.0, 90.0}
+		prices := []float64{100.0, 110.0, 90.0, 100.0, 90.0}
 
 		now := startTime
 
 		balance := 100000.0
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3, t4, t5, t6}, prices)
+		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3, t4, t5}, prices)
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
 		assert.NoError(t, err)
 

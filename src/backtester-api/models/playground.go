@@ -293,9 +293,13 @@ func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument, period time.
 		return 0, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
 	}
 
-	candle := repo.GetCurrentCandle()
+	candle, err := repo.GetCurrentCandle()
+	if err != nil {
+		return 0, fmt.Errorf("getCurrentPrice: error getting current candle: %w", err)
+	}
+
 	if candle == nil {
-		return 0, fmt.Errorf("getCurrentPrice: no more candles")
+		return 0, fmt.Errorf("getCurrentPrice: current candle is nil")
 	}
 
 	return candle.Close, nil
@@ -874,12 +878,16 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 		return nil, fmt.Errorf("GetTick: symbol %s not found in repos", symbol)
 	}
 
-	candle := repo.GetCurrentCandle()
-	if candle == nil {
+	candle, err := repo.GetCurrentCandle()
+	if err != nil {
 		return nil, fmt.Errorf("GetTick: no more candles for %s", symbol)
 	}
 
-	return candle.ToPolygonAggregateBarV2(), nil
+	if candle != nil {
+		return candle.ToPolygonAggregateBarV2(), nil
+	}
+
+	return nil, nil
 }
 
 func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64) error {

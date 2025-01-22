@@ -51,7 +51,9 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		candle := repo.GetCurrentCandle()
+		candle, err := repo.GetCurrentCandle()
+
+		assert.NoError(t, err)
 
 		assert.Equal(t, tstamp, candle.Timestamp)
 	})
@@ -69,7 +71,9 @@ func TestNext(t *testing.T) {
 
 		assert.NotNil(t, c)
 
-		candle := repo.GetCurrentCandle()
+		candle, err := repo.GetCurrentCandle()
+
+		assert.NoError(t, err)
 
 		assert.Equal(t, tstamp, candle.Timestamp)
 	})
@@ -85,7 +89,9 @@ func TestNext(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		candle := repo.GetCurrentCandle()
+		candle, err := repo.GetCurrentCandle()
+
+		assert.NoError(t, err)
 
 		assert.Equal(t, candles[len(candles)-1].Timestamp, candle.Timestamp)
 	})

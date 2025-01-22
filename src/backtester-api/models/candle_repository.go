@@ -157,15 +157,23 @@ func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels
 	return nil, nil
 }
 
-func (r *CandleRepository) getCurrentCandle() *eventmodels.AggregateBarWithIndicators {
+func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
 	if r.position >= len(r.candlesWithIndicators) {
-		return nil
+		return nil, fmt.Errorf("no more candles")
 	}
 
-	return r.candlesWithIndicators[r.position]
+	if r.isInitialTick {
+		return nil, nil
+	}
+
+	if r.position >= r.startingPosition {
+		return r.candlesWithIndicators[r.position], nil
+	}
+
+	return nil, nil
 }
 
-func (r *CandleRepository) GetCurrentCandle() *eventmodels.AggregateBarWithIndicators {
+func (r *CandleRepository) GetCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -181,6 +189,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 	}
 
 	var newCandle *eventmodels.AggregateBarWithIndicators
+	var err error
 	for {
 		if r.position >= len(r.candlesWithIndicators)-1 {
 			break
@@ -189,11 +198,20 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 		nextCandleTimestamp := r.candlesWithIndicators[r.position+1].Timestamp
 		if currentTime.Equal(nextCandleTimestamp) || currentTime.After(nextCandleTimestamp) {
 			r.position++
-			newCandle = r.getCurrentCandle()
+			newCandle, err = r.getCurrentCandle()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get current candle: %v", err)
+			}
 		} else if r.isInitialTick {
 			if !(currentTime.Before(r.candlesWithIndicators[r.position].Timestamp)) {
-				newCandle = r.getCurrentCandle()
+				newCandle, err = r.getCurrentCandle()
+				if err != nil {
+					return nil, fmt.Errorf("failed to get current candle during initial tick: %v", err)
+				}
+			} else {
+				r.position = r.startingPosition - 1
 			}
+
 			r.isInitialTick = false
 			break
 		} else {
