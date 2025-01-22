@@ -4,12 +4,13 @@ import "sync"
 
 type FIFOQueue[T any] struct {
 	queue chan T
-	wg    sync.WaitGroup
+	wg    *sync.WaitGroup
 }
 
 func NewFIFOQueue[T any](size int) *FIFOQueue[T] {
 	return &FIFOQueue[T]{
 		queue: make(chan T, size),
+		wg:    &sync.WaitGroup{},
 	}
 }
 

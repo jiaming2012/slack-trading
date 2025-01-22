@@ -508,7 +508,7 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
 	
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
@@ -647,10 +647,8 @@ func run() {
 
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 
-	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
-
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, db).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, db).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)

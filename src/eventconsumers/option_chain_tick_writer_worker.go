@@ -129,7 +129,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 				eventpubsub.PublishEvent("main", eventmodels.CreateNewOptionChainTickEvent, t)
 			}
 
-			log.Debugf("Recorded %d option contract ticks", len(ticks))
+			// log.Debugf("Recorded %d option contract ticks", len(ticks))
 		case <-ctx.Done():
 			return
 		}

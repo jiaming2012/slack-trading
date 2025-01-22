@@ -317,43 +317,6 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 	}
 }
 
-func (w *TradierApiWorker) executeOrdersQueueUpdateDeprecated(ctx context.Context) {
-	ordersDTO, err := w.fetchOrders()
-	if err != nil {
-		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
-		return
-	}
-
-	// check for delete
-	orderIDs := w.checkForDelete(ordersDTO)
-	for _, orderID := range orderIDs {
-		w.orders.Delete(orderID)
-		event := &eventmodels.TradierOrderDeleteEvent{
-			OrderID: orderID,
-		}
-		// eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderDeleteEventName, event)
-		w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
-			DeleteOrder: event,
-		})
-	}
-
-	// check for add or update
-	createOrderEvents, updateEvents := w.checkForCreateOrUpdate(ordersDTO)
-	for _, orderEvent := range createOrderEvents {
-		// eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderCreateEventName, orderEvent)
-		w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
-			CreateOrder: orderEvent,
-		})
-	}
-
-	for _, updateEvent := range updateEvents {
-		// eventpubsub.PublishEvent("TradierOrdersMonitoringWorker", eventmodels.TradierOrderUpdateEventName, updateEvent)
-		w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
-			ModifyOrder: updateEvent,
-		})
-	}
-}
-
 func (w *TradierApiWorker) getStartEndDates(now time.Time, period time.Duration) (time.Time, time.Time) {
 	startAfter := now.Add(-23 * time.Hour).In(w.location)
 
@@ -449,8 +412,9 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	}
 
 	for _, repo := range repos {
-		log.Debugf("fetching candles for %s", repo.GetSymbol())
-		w.updateLiveRepos(repo)
+		r := repo
+		log.Debugf("fetching candles for %s", r.GetSymbol())
+		go w.updateLiveRepos(r)
 	}
 }
 
@@ -474,7 +438,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, candlesQueue *eventmodels.FIFOQueue[*eventmodels.TradierCandleUpdate], brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], db *gorm.DB) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,

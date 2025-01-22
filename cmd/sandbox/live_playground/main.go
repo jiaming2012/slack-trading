@@ -68,13 +68,13 @@ func main() {
 		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
-	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](1000)
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](1000)
+	liveCandlesUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierCandleUpdate](999)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
 
 	panic("pass in a db contection to the worker")
 
 	// tradier engine
-	worker := eventconsumers.NewTradierApiWorker(&wg, liveCandlesUpdateQueue, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, nil)
+	worker := eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierQuotesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, nil)
 
 	worker.Start(ctx)
 
