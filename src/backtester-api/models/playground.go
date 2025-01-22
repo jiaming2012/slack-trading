@@ -229,6 +229,7 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 
 		err := p.commitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
 		if err != nil {
+			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error committing pending order: %v", err)
 			continue
 		}

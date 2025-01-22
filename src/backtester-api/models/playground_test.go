@@ -140,21 +140,20 @@ func TestLiquidation(t *testing.T) {
 	t.Run("Sell orders - single liquidation", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
-		t2 := startTime.Add(10 * time.Minute)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1, t2}, []float64{0.0, 10.0, 10.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1, t2}, []float64{0.0, 100.0, 200.0})
+		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1}, []float64{10.0, 10.0})
+		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1}, []float64{100.0, 200.0})
 
 		balance := 1000.0
 		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
 		assert.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		assert.NoError(t, err)
 		err = changes.Commit()
 		assert.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 4, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		assert.NoError(t, err)
 		err = changes.Commit()
@@ -184,7 +183,7 @@ func TestLiquidation(t *testing.T) {
 		assert.Contains(t, liquidationOrders[0].Tag, "maintenance margin @")
 
 		assert.Len(t, liquidationOrders[0].Trades, 1)
-		assert.Equal(t, 5.0, liquidationOrders[0].Trades[0].Quantity)
+		assert.Equal(t, 4.0, liquidationOrders[0].Trades[0].Quantity)
 		assert.Equal(t, 200.0, liquidationOrders[0].Trades[0].Price)
 
 		positions = playground.GetPositions()
