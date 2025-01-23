@@ -1285,14 +1285,18 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition - average cost basis", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
-		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
+		t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
 
 		now := startTime
 
 		balance := 1000000.0
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
 			{
 				Timestamp: t1,
 				Close:     600.0,
@@ -1320,7 +1324,8 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		position := playground.GetPosition(symbol)
-		assert.Equal(t, 600.0, position.CostBasis)
+		costBasis := 100.0
+		assert.Equal(t, costBasis, position.CostBasis)
 
 		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
@@ -1333,7 +1338,8 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		position = playground.GetPosition(symbol)
-		assert.Equal(t, 400.0, position.CostBasis)
+		costBasis = ((10 / 30.0) * 100.0) + ((20 / 30.0) * 600.0)
+		assert.Equal(t, costBasis, position.CostBasis)
 	})
 
 	t.Run("GetPosition - Quantity increase after buy", func(t *testing.T) {
@@ -1347,7 +1353,7 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: endTime,
+				Timestamp: startTime,
 				Close:     1000.0,
 			},
 		}
@@ -1384,7 +1390,7 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: endTime,
+				Timestamp: startTime,
 				Close:     250.0,
 			},
 		}
