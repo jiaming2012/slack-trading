@@ -1902,9 +1902,9 @@ func TestTrades(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		assert.Len(t, delta.NewTrades, 1)
-		assert.Equal(t, clock.CurrentTime, delta.NewTrades[0].CreateDate)
+		assert.Equal(t, t1, delta.NewTrades[0].CreateDate)
 		assert.Equal(t, quantity, delta.NewTrades[0].Quantity)
-		assert.Equal(t, prices[1], delta.NewTrades[0].Price)
+		assert.Equal(t, prices[0], delta.NewTrades[0].Price)
 
 		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
@@ -1917,9 +1917,9 @@ func TestTrades(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		assert.Len(t, delta.NewTrades, 1)
-		assert.Equal(t, clock.CurrentTime, delta.NewTrades[0].CreateDate)
+		assert.Equal(t, t2, delta.NewTrades[0].CreateDate)
 		assert.Equal(t, quantity, delta.NewTrades[0].Quantity)
-		assert.Equal(t, prices[2], delta.NewTrades[0].Price)
+		assert.Equal(t, prices[1], delta.NewTrades[0].Price)
 
 		assert.Equal(t, 2, len(playground.GetOrders()))
 	})

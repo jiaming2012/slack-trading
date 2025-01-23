@@ -179,7 +179,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 			log.Fatalf("position 4: error adding order to order queue: %v", err)
 		}
 
-		return fmt.Errorf("commitPendingOrders: order %d has insufficient margin", order.ID)
+		return fmt.Errorf("commitPendingOrders: order %d has insufficient free margin", order.ID)
 
 	} else if order.IsClose {
 		closeVolume := math.Abs(orderQuantity)
