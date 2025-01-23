@@ -488,12 +488,22 @@ func TestFeed(t *testing.T) {
 		delta, err := playground.Tick(0*time.Minute, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
-		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t1_appl, delta.NewCandles[0].Bar.Timestamp)
-		assert.Equal(t, 10.0, delta.NewCandles[0].Bar.Close)
-		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
-		assert.Equal(t, t1_goog, delta.NewCandles[1].Bar.Timestamp)
-		assert.Equal(t, 100.0, delta.NewCandles[1].Bar.Close)
+
+		var applDelta, googDelta *BacktesterCandle
+		for _, d := range delta.NewCandles {
+			if d.Symbol == symbol1 {
+				applDelta = d
+			} else if d.Symbol == symbol2 {
+				googDelta = d
+			}
+		}
+
+		assert.Equal(t, symbol1, applDelta.Symbol)
+		assert.Equal(t, t1_appl, applDelta.Bar.Timestamp)
+		assert.Equal(t, 10.0, applDelta.Bar.Close)
+		assert.Equal(t, symbol2, googDelta.Symbol)
+		assert.Equal(t, t1_goog, googDelta.Bar.Timestamp)
+		assert.Equal(t, 100.0, googDelta.Bar.Close)
 
 		// new APPL candle, but not GOOG
 		delta, err = playground.Tick(5*time.Minute, false)
