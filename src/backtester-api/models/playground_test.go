@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jiaming2012/slack-trading/src/backtester-api/mock"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -15,6 +14,9 @@ func TestOpenOrdersCache(t *testing.T) {
 	symbol2 := eventmodels.StockSymbol("GOOG")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
+	source := eventmodels.CandleRepositorySource{
+		Type: "test",
+	}
 
 	createPlayground := func() (*Playground, error) {
 		period := time.Minute
@@ -25,11 +27,52 @@ func TestOpenOrdersCache(t *testing.T) {
 		t1 := startTime.Add(time.Minute)
 		t2 := startTime.Add(2 * time.Minute)
 
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t_minus_1, startTime, t1, t2}, []float64{5.0, 10.0, 20.0, 30.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t_minus_1, startTime, t1, t2}, []float64{100.0, 110.0, 120.0, 130.0})
+		feed1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t_minus_1,
+				Close:     5.0,
+			},
+			{
+				Timestamp: startTime,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     20.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     30.0,
+			},
+		}
+
+		feed2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t_minus_1,
+				Close:     100.0,
+			},
+			{
+				Timestamp: startTime,
+				Close:     110.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     120.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     130.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, feed1, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		repo2, err := NewCandleRepository(symbol2, period, feed2, []string{}, nil, 0, source)
+		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
 		return playground, err
 	}
 
@@ -78,12 +121,37 @@ func TestLiquidation(t *testing.T) {
 	t.Run("Buy and sell orders - multiple liquidations", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
-		// t2 := startTime.Add(10 * time.Minute)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1}, []float64{10.0, 10.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1}, []float64{100.0, 500.0})
+
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     10.0,
+			},
+		}
+
+		candles2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     500.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -141,12 +209,37 @@ func TestLiquidation(t *testing.T) {
 	t.Run("Sell orders - single liquidation", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime, t1}, []float64{10.0, 10.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{startTime, t1}, []float64{100.0, 200.0})
+
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     10.0,
+			},
+		}
+
+		candles2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     200.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
-		assert.NoError(t, err)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
@@ -193,13 +286,39 @@ func TestLiquidation(t *testing.T) {
 
 	t.Run("Buy orders - no liquidation", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		t1 := startTime.Add(5 * time.Minute)
-		t2 := startTime.Add(10 * time.Minute)
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1, t2}, []float64{10.0, 0.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t1, t2}, []float64{100.0, 0.0})
+		t1 := startTime
+		t2 := startTime.Add(5 * time.Minute)
+
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     0.0,
+			},
+		}
+
+		candles2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     0.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -239,10 +358,25 @@ func TestFeed(t *testing.T) {
 
 	t.Run("Returns previous candle until new candle is available", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		t1_appl := startTime.Add(5 * time.Minute)
-		t2_appl := startTime.Add(10 * time.Minute)
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl}, []float64{10.0, 15.0})
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		t1_appl := startTime
+		t2_appl := startTime.Add(5 * time.Minute)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1_appl,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t2_appl,
+				Close:     15.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -254,12 +388,30 @@ func TestFeed(t *testing.T) {
 	t.Run("Skip a candle", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1_appl := startTime.Add(5 * time.Minute)
-		t2_appl := startTime.Add(10 * time.Minute)
-		t3_appl := startTime.Add(15 * time.Minute)
+		t1_appl := startTime
+		t2_appl := startTime.Add(5 * time.Minute)
+		t3_appl := startTime.Add(10 * time.Minute)
 
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl, t3_appl}, []float64{10.0, 15.0, 20.0})
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1_appl,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t2_appl,
+				Close:     15.0,
+			},
+			{
+				Timestamp: t3_appl,
+				Close:     20.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -279,37 +431,88 @@ func TestFeed(t *testing.T) {
 
 	t.Run("Returns new candle/s on state changes", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		t1_appl := startTime.Add(5 * time.Minute)
-		t2_appl := startTime.Add(10 * time.Minute)
+		t1_appl := startTime
+		t2_appl := startTime.Add(5 * time.Minute)
+		t3_appl := startTime.Add(10 * time.Minute)
+		t4_appl := startTime.Add(20 * time.Minute)
 
-		t1_goog := startTime.Add(10 * time.Minute)
-		t2_goog := startTime.Add(20 * time.Minute)
+		t1_goog := startTime
+		t2_goog := startTime.Add(10 * time.Minute)
+		t3_goog := startTime.Add(20 * time.Minute)
 
-		feed1 := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{t1_appl, t2_appl}, []float64{10.0, 15.0})
-		feed2 := mock.NewMockBacktesterDataFeed(symbol2, period, []time.Time{t1_goog, t2_goog}, []float64{100.0, 200.0})
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1_appl,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t2_appl,
+				Close:     15.0,
+			},
+			{
+				Timestamp: t3_appl,
+				Close:     20.0,
+			},
+			{
+				Timestamp: t4_appl,
+				Close:     25.0,
+			},
+		}
 
-		balance := 1000000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed1, feed2)
+		candles2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1_goog,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t2_goog,
+				Close:     200.0,
+			},
+			{
+				Timestamp: t3_goog,
+				Close:     300.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		// new APPL candle, but not GOOG
-		delta, err := playground.Tick(5*time.Minute, false)
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
-		assert.Len(t, delta.NewCandles, 1)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		assert.NoError(t, err)
+
+		// initial tick: new APPL and GOOG candles
+		delta, err := playground.Tick(0*time.Minute, false)
+		assert.NoError(t, err)
+		assert.Len(t, delta.NewCandles, 2)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
 		assert.Equal(t, t1_appl, delta.NewCandles[0].Bar.Timestamp)
 		assert.Equal(t, 10.0, delta.NewCandles[0].Bar.Close)
+		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
+		assert.Equal(t, t1_goog, delta.NewCandles[1].Bar.Timestamp)
+		assert.Equal(t, 100.0, delta.NewCandles[1].Bar.Close)
+
+		// new APPL candle, but not GOOG
+		delta, err = playground.Tick(5*time.Minute, false)
+		assert.NoError(t, err)
+		assert.Len(t, delta.NewCandles, 1)
+		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
+		assert.Equal(t, t2_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, 15.0, delta.NewCandles[0].Bar.Close)
 
 		// new APPL and GOOG candle
 		delta, err = playground.Tick(5*time.Minute, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
 		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t2_appl, delta.NewCandles[0].Bar.Timestamp)
-		assert.Equal(t, 15.0, delta.NewCandles[0].Bar.Close)
+		assert.Equal(t, t3_appl, delta.NewCandles[0].Bar.Timestamp)
+		assert.Equal(t, 20.0, delta.NewCandles[0].Bar.Close)
 		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
-		assert.Equal(t, t1_goog, delta.NewCandles[1].Bar.Timestamp)
-		assert.Equal(t, 100.0, delta.NewCandles[1].Bar.Close)
+		assert.Equal(t, t2_goog, delta.NewCandles[1].Bar.Timestamp)
+		assert.Equal(t, 200.0, delta.NewCandles[1].Bar.Close)
 
 		// no new candle
 		delta, err = playground.Tick(5*time.Minute, false)
@@ -319,9 +522,23 @@ func TestFeed(t *testing.T) {
 
 	t.Run("GetCandle returns nil until Tick is called", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed := mock.NewMockBacktesterDataFeed(symbol1, period, []time.Time{startTime.Add(5), startTime.Add(10)}, []float64{10.0, 15.0})
 
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime.Add(5 * time.Minute),
+				Close:     10.0,
+			},
+			{
+				Timestamp: startTime.Add(10 * time.Minute),
+				Close:     15.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -341,9 +558,26 @@ func TestClock(t *testing.T) {
 
 		clock := NewClock(startTime, endTime, nil)
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{startTime, startTime.Add(1), startTime.Add(2)}, []float64{100.0, 100.0, 100.0})
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: startTime.Add(1 * time.Minute),
+				Close:     100.0,
+			},
+			{
+				Timestamp: startTime.Add(2 * time.Minute),
+				Close:     100.0,
+			},
+		}
 
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false)
@@ -397,14 +631,18 @@ func TestBalance(t *testing.T) {
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	period := time.Minute
 	env := PlaygroundEnvironmentSimulator
+	source := eventmodels.CandleRepositorySource{Type: "test"}
 
 	t.Run("GetAccountBalance", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, nil, nil)
+		candles := []*eventmodels.PolygonAggregateBarV2{}
 
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
 
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -417,10 +655,22 @@ func TestBalance(t *testing.T) {
 
 		now := startTime
 
-		prices := []float64{100.0, 115.0}
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: startTime.Add(2 * time.Minute),
+				Close:     115.0,
+			},
+		}
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{startTime.Add(time.Minute), startTime.Add(2 * time.Minute)}, prices)
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -466,8 +716,34 @@ func TestBalance(t *testing.T) {
 		now := startTime
 
 		balance := 100000.0
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3, t4, t5}, prices)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     prices[0],
+			},
+			{
+				Timestamp: t2,
+				Close:     prices[1],
+			},
+			{
+				Timestamp: t3,
+				Close:     prices[2],
+			},
+			{
+				Timestamp: t4,
+				Close:     prices[3],
+			},
+			{
+				Timestamp: t5,
+				Close:     prices[4],
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		// open 1st order
@@ -547,8 +823,26 @@ func TestBalance(t *testing.T) {
 		now := startTime
 
 		balance := 1000000.0
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3}, prices)
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     prices[0],
+			},
+			{
+				Timestamp: t2,
+				Close:     prices[1],
+			},
+			{
+				Timestamp: t3,
+				Close:     prices[2],
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -585,12 +879,22 @@ func TestPlaceOrder(t *testing.T) {
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 		clock := NewClock(startTime, endTime, nil)
 		env := PlaygroundEnvironmentSimulator
+		source := eventmodels.CandleRepositorySource{Type: "test"}
 
 		now := startTime
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{100.0})
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: endTime,
+				Close:     100.0,
+			},
+		}
 
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("GOOG"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -607,15 +911,20 @@ func TestPositions(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{
-		Type: "test",
-	}
+	source := eventmodels.CandleRepositorySource{Type: "test"}
 
 	t.Run("GetPosition", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, nil, nil)
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		assert.NoError(t, err)
+
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
@@ -627,11 +936,20 @@ func TestPositions(t *testing.T) {
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 		clock := NewClock(startTime, endTime, nil)
 		now := startTime
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{250.0})
 		balance := 1000000.0
 
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: endTime,
+				Close:     250.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
 		// Create a new playground
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// Place a buy order
@@ -673,11 +991,21 @@ func TestPositions(t *testing.T) {
 
 		now := startTime
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{250.0})
-
 		balance := 1000000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: endTime,
+				Close:     250.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 
 		changes, err := playground.PlaceOrder(order)
@@ -720,12 +1048,34 @@ func TestPositions(t *testing.T) {
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
 		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
 		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3, t4}, []float64{100.0, 200.0, 300.0, 400.0})
 
 		now := startTime
 
 		balance := 1000000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     200.0,
+			},
+			{
+				Timestamp: t3,
+				Close:     300.0,
+			},
+			{
+				Timestamp: t4,
+				Close:     400.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -805,12 +1155,38 @@ func TestPositions(t *testing.T) {
 		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
 		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
 		t5 := time.Date(2021, time.January, 1, 0, 0, 5, 0, time.UTC)
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3, t4, t5}, []float64{100.0, 200.0, 300.0, 400.0, 500.0})
 
 		now := startTime
 
 		balance := 1000000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     200.0,
+			},
+			{
+				Timestamp: t3,
+				Close:     300.0,
+			},
+			{
+				Timestamp: t4,
+				Close:     400.0,
+			},
+			{
+				Timestamp: t5,
+				Close:     500.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -922,13 +1298,28 @@ func TestPositions(t *testing.T) {
 
 		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
 		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2}, []float64{600.0, 300.0})
 
 		now := startTime
 
 		balance := 1000000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: t1,
+				Close:     600.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     300.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		assert.NoError(t, err)
+
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		assert.NoError(t, err)
@@ -941,8 +1332,6 @@ func TestPositions(t *testing.T) {
 
 		position := playground.GetPosition(symbol)
 		assert.Equal(t, 600.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 1)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
@@ -956,9 +1345,6 @@ func TestPositions(t *testing.T) {
 
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 400.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 2)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
-		// assert.Equal(t, 20.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity increase after buy", func(t *testing.T) {
@@ -968,11 +1354,21 @@ func TestPositions(t *testing.T) {
 
 		now := startTime
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{1000.0})
-
 		balance := 100000.0
-		playground, err := NewPlaygroundDeprecated(balance, clock, env, feed)
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: endTime,
+				Close:     1000.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -986,8 +1382,6 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 1000.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 1)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity decrease after sell", func(t *testing.T) {
@@ -997,10 +1391,21 @@ func TestPositions(t *testing.T) {
 
 		now := startTime
 
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{250.0})
+		balance := 100000.0
 
-		playground, err := NewPlaygroundDeprecated(1000000.0, clock, env, feed)
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: endTime,
+				Close:     250.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1024,9 +1429,6 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 2)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
-		// assert.Equal(t, -5.0, position.OpenTrades[1].Quantity)
 	})
 
 	t.Run("GetPosition - Quantity increase after sell short", func(t *testing.T) {
@@ -1293,14 +1695,24 @@ func TestOrders(t *testing.T) {
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	clock := NewClock(startTime, endTime, nil)
 	env := PlaygroundEnvironmentSimulator
+	source := eventmodels.CandleRepositorySource{Type: "test"}
 
 	now := startTime
 
-	feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{endTime}, []float64{100.0})
+	candles := []*eventmodels.PolygonAggregateBarV2{
+		{
+			Timestamp: endTime,
+			Close:     100.0,
+		},
+	}
 
 	t.Run("PlaceOrder - market", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1320,8 +1732,12 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - cannot buy after short sell", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1339,8 +1755,12 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - cannot buy to cover when not short", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1349,8 +1769,12 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - cannot sell before buy", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1359,8 +1783,12 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - invalid class", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		assert.NoError(t, err)
@@ -1369,8 +1797,12 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - invalid price", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		price := float64(0)
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, &price, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
@@ -1380,7 +1812,10 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - invalid id", func(t *testing.T) {
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
 		assert.NoError(t, err)
 
 		id := uint(1)
@@ -1405,17 +1840,35 @@ func TestTrades(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
+	source := eventmodels.CandleRepositorySource{Type: "test"}
 
 	prices := []float64{100.0, 105.0, 110.0}
 	t1 := startTime
 	t2 := startTime.Add(time.Minute)
 	t3 := startTime.Add(2 * time.Minute)
 
+	candles := []*eventmodels.PolygonAggregateBarV2{
+		{
+			Timestamp: t1,
+			Close:     prices[0],
+		},
+		{
+			Timestamp: t2,
+			Close:     prices[1],
+		},
+		{
+			Timestamp: t3,
+			Close:     prices[2],
+		},
+	}
+
 	t.Run("Short order rejected if long position exists", func(t *testing.T) {
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3}, prices)
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlaygroundDeprecated(1000.0, clock, env, feed)
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		now := startTime
@@ -1443,12 +1896,16 @@ func TestTrades(t *testing.T) {
 	})
 
 	t.Run("Tick", func(t *testing.T) {
-		feed := mock.NewMockBacktesterDataFeed(symbol, period, []time.Time{t1, t2, t3}, prices)
 		clock := NewClock(startTime, endTime, nil)
 
 		now := startTime
-		playground, err := NewPlaygroundDeprecated(100000.0, clock, env, feed)
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		assert.NoError(t, err)
+
 		quantity := 10.0
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)

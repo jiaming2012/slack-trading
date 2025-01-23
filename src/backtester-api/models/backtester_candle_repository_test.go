@@ -51,6 +51,8 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
+		repo.SetStartingPosition(tstamp)
+
 		_, err = repo.Update(tstamp)
 
 		assert.NoError(t, err)
@@ -68,6 +70,8 @@ func TestNext(t *testing.T) {
 		assert.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
+
+		repo.SetStartingPosition(tstamp)
 
 		c, err := repo.Update(tstamp)
 
@@ -88,6 +92,8 @@ func TestNext(t *testing.T) {
 		assert.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
+
+		repo.SetStartingPosition(tstamp)
 
 		_, err = repo.Update(tstamp)
 

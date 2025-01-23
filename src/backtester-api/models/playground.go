@@ -478,9 +478,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		}
 
 		orderFillPriceMap[order.ID] = OrderExecutionRequest{
-			Price: price,
+			Price:    price,
 			Quantity: order.GetQuantity(),
-			Time:  p.clock.CurrentTime,
+			Time:     p.clock.CurrentTime,
 		}
 	}
 
@@ -1096,69 +1096,6 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 		Meta:            meta,
 		ID:              id,
 		account:         NewBacktesterAccount(balance, orders),
-		clock:           clock,
-		repos:           repos,
-		positionsCache:  nil,
-		openOrdersCache: make(map[eventmodels.Instrument][]*BacktesterOrder),
-		minimumPeriod:   minimumPeriod,
-	}, nil
-}
-
-// note: this is only here for testing
-func NewPlaygroundDeprecated(balance float64, clock *Clock, env PlaygroundEnvironment, feeds ...BacktesterDataFeed) (*Playground, error) {
-	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
-	var symbols []string
-	var minimumPeriod time.Duration
-
-	for _, feed := range feeds {
-		feed.SetStartingPosition(clock.CurrentTime)
-		symbol := feed.GetSymbol()
-
-		if _, found := repos[symbol]; !found {
-			symbols = append(symbols, symbol.GetTicker())
-			repo := make(map[time.Duration]*CandleRepository)
-			repos[symbol] = repo
-		}
-
-		candles, err := feed.FetchCandles(clock.CurrentTime, clock.EndTime)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching candles: %w", err)
-		}
-
-		var data []*eventmodels.PolygonAggregateBarV2
-		for _, candle := range candles {
-			data = append(data, candle.ToPolygonAggregateBarV2())
-		}
-
-		source := eventmodels.CandleRepositorySource{
-			Type: feed.GetSource(),
-		}
-
-		repos[symbol][feed.GetPeriod()], err = NewCandleRepository(symbol, feed.GetPeriod(), data, []string{}, nil, 0, source)
-		if err != nil {
-			return nil, fmt.Errorf("error creating repository: %w", err)
-		}
-
-		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
-			minimumPeriod = feed.GetPeriod()
-		}
-	}
-
-	var endAt *time.Time
-	if clock != nil {
-		endAt = &clock.EndTime
-	}
-
-	return &Playground{
-		Meta: &PlaygroundMeta{
-			Symbols:         symbols,
-			StartAt:         clock.CurrentTime,
-			EndAt:           endAt,
-			StartingBalance: balance,
-			Environment:     env,
-		},
-		ID:              uuid.New(),
-		account:         NewBacktesterAccount(balance, []*BacktesterOrder{}),
 		clock:           clock,
 		repos:           repos,
 		positionsCache:  nil,
