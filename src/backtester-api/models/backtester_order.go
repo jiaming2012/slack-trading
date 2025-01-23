@@ -26,7 +26,8 @@ type BacktesterOrder struct {
 	Status           BacktesterOrderStatus   `json:"status"`
 	RejectReason     *string                 `json:"reject_reason,omitempty"`
 	CreateDate       time.Time               `json:"create_date"`
-	ClosedBy         []*BacktesterTrade      `json:"closed_by"`
+	IsClose          bool                    `json:"is_close"`
+	ClosedBy         []BacktesterTrade       `json:"closed_by"`
 	Closes           []*BacktesterOrder      `json:"closes"`
 }
 
@@ -176,7 +177,7 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Tim
 		Tag:              tag,
 		Status:           status,
 		Trades:           []*BacktesterTrade{},
-		ClosedBy:         []*BacktesterTrade{},
+		ClosedBy:         []BacktesterTrade{},
 		Closes:           []*BacktesterOrder{},
 	}
 }

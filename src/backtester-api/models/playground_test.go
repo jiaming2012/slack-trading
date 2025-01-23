@@ -520,16 +520,16 @@ func TestFeed(t *testing.T) {
 		assert.Len(t, delta.NewCandles, 0)
 	})
 
-	t.Run("GetCandle returns nil until Tick is called", func(t *testing.T) {
+	t.Run("GetCandle returns first candle", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		candles1 := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: startTime.Add(5 * time.Minute),
+				Timestamp: startTime,
 				Close:     10.0,
 			},
 			{
-				Timestamp: startTime.Add(10 * time.Minute),
+				Timestamp: startTime.Add(5 * time.Minute),
 				Close:     15.0,
 			},
 		}
@@ -543,7 +543,8 @@ func TestFeed(t *testing.T) {
 
 		candle, err := playground.GetCandle(symbol1, period)
 		assert.NoError(t, err)
-		assert.Nil(t, candle)
+		assert.Equal(t, startTime, candle.Timestamp)
+		assert.Equal(t, 10.0, candle.Close)
 	})
 }
 
@@ -636,13 +637,8 @@ func TestBalance(t *testing.T) {
 	t.Run("GetAccountBalance", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		candles := []*eventmodels.PolygonAggregateBarV2{}
-
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
-		assert.NoError(t, err)
-
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime)
 		assert.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -679,7 +675,7 @@ func TestBalance(t *testing.T) {
 		err = changes.Commit()
 		assert.NoError(t, err)
 
-		delta, err := playground.Tick(time.Minute, false)
+		delta, err := playground.Tick(2*time.Minute, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -693,7 +689,7 @@ func TestBalance(t *testing.T) {
 		err = changes.Commit()
 		assert.NoError(t, err)
 
-		delta, err = playground.Tick(time.Minute, false)
+		delta, err = playground.Tick(0, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
@@ -705,11 +701,11 @@ func TestBalance(t *testing.T) {
 	t.Run("GetAccountBalance - increase and decrease after profitable and unprofitable trade", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1 := startTime.Add(time.Minute)
-		t2 := startTime.Add(2 * time.Minute)
-		t3 := startTime.Add(3 * time.Minute)
-		t4 := startTime.Add(4 * time.Minute)
-		t5 := startTime.Add(5 * time.Minute)
+		t1 := startTime
+		t2 := startTime.Add(1 * time.Minute)
+		t3 := startTime.Add(2 * time.Minute)
+		t4 := startTime.Add(3 * time.Minute)
+		t5 := startTime.Add(4 * time.Minute)
 
 		prices := []float64{100.0, 110.0, 90.0, 100.0, 90.0}
 
@@ -818,7 +814,7 @@ func TestBalance(t *testing.T) {
 		t1 := startTime
 		t2 := startTime.Add(time.Minute)
 		t3 := startTime.Add(2 * time.Minute)
-		prices := []float64{0, 100.0, 85.0}
+		prices := []float64{50.0, 100.0, 85.0}
 
 		now := startTime
 
@@ -867,40 +863,27 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		assert.Equal(t, balance-150.0, playground.GetBalance())
+		gain := (prices[1] - prices[0]) * 10
+
+		assert.Equal(t, balance+gain, playground.GetBalance())
 	})
 }
 
 func TestPlaceOrder(t *testing.T) {
 	t.Run("Cannot place order if data feed is not imported", func(t *testing.T) {
-		symbol := eventmodels.StockSymbol("AAPL")
-		period := time.Minute
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 		clock := NewClock(startTime, endTime, nil)
 		env := PlaygroundEnvironmentSimulator
-		source := eventmodels.CandleRepositorySource{Type: "test"}
 
 		now := startTime
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
-			{
-				Timestamp: endTime,
-				Close:     100.0,
-			},
-		}
-
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
-		assert.NoError(t, err)
-
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now)
 		assert.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("GOOG"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
-		changes, err := playground.PlaceOrder(order)
-		assert.NoError(t, err)
-		err = changes.Commit()
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		_, err = playground.PlaceOrder(order)
 		assert.Error(t, err)
 	})
 }
@@ -916,19 +899,13 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		candles := []*eventmodels.PolygonAggregateBarV2{}
-
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
-		assert.NoError(t, err)
-
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime)
 		assert.NoError(t, err)
 
 		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
-		// assert.Nil(t, position.OpenTrades)
 	})
 
 	t.Run("GetPosition - open trades, long", func(t *testing.T) {
@@ -940,8 +917,12 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: endTime,
+				Timestamp: startTime,
 				Close:     250.0,
+			},
+			{
+				Timestamp: startTime.Add(1 * time.Minute),
+				Close:     260.0,
 			},
 		}
 
@@ -995,8 +976,12 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: endTime,
+				Timestamp: startTime,
 				Close:     250.0,
+			},
+			{
+				Timestamp: startTime.Add(1 * time.Minute),
+				Close:     260.0,
 			},
 		}
 
@@ -1019,8 +1004,6 @@ func TestPositions(t *testing.T) {
 
 		// assert single open trade
 		position1 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
-		// assert.Len(t, position1.OpenTrades, 1)
-		// assert.Equal(t, -10.0, position1.OpenTrades[0].Quantity)
 		assert.Equal(t, -10.0, position1.Quantity)
 
 		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1035,19 +1018,16 @@ func TestPositions(t *testing.T) {
 
 		// assert single open trade volume decreased
 		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
-		// assert.Len(t, position2.OpenTrades, 2)
-		// assert.Equal(t, -10.0, position2.OpenTrades[0].Quantity)
-		// assert.Equal(t, 5.0, position2.OpenTrades[1].Quantity)
 		assert.Equal(t, -5.0, position2.Quantity)
 	})
 
 	t.Run("GetPosition - average cost basis - multiple orders - same direction", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
-		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
-		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
-		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
+		t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 3, 0, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 4, 0, 0, time.UTC)
 
 		now := startTime
 
@@ -1055,20 +1035,24 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: t1,
+				Timestamp: startTime,
 				Close:     100.0,
 			},
 			{
-				Timestamp: t2,
+				Timestamp: t1,
 				Close:     200.0,
 			},
 			{
-				Timestamp: t3,
+				Timestamp: t2,
 				Close:     300.0,
 			},
 			{
-				Timestamp: t4,
+				Timestamp: t3,
 				Close:     400.0,
+			},
+			{
+				Timestamp: t4,
+				Close:     500.0,
 			},
 		}
 
@@ -1092,8 +1076,6 @@ func TestPositions(t *testing.T) {
 		position := playground.GetPosition(symbol)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 1)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 
 		// 2nd order
 		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1109,9 +1091,6 @@ func TestPositions(t *testing.T) {
 		position = playground.GetPosition(symbol)
 		assert.Equal(t, 20.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 2)
-		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
-		// assert.Equal(t, 10.0, position.OpenTrades[1].Quantity)
 
 		// close orders
 		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1150,11 +1129,11 @@ func TestPositions(t *testing.T) {
 	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		t1 := time.Date(2021, time.January, 1, 0, 0, 1, 0, time.UTC)
-		t2 := time.Date(2021, time.January, 1, 0, 0, 2, 0, time.UTC)
-		t3 := time.Date(2021, time.January, 1, 0, 0, 3, 0, time.UTC)
-		t4 := time.Date(2021, time.January, 1, 0, 0, 4, 0, time.UTC)
-		t5 := time.Date(2021, time.January, 1, 0, 0, 5, 0, time.UTC)
+		t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 3, 0, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 4, 0, 0, time.UTC)
+		t5 := time.Date(2021, time.January, 1, 0, 5, 0, 0, time.UTC)
 
 		now := startTime
 
@@ -1162,24 +1141,28 @@ func TestPositions(t *testing.T) {
 
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
-				Timestamp: t1,
+				Timestamp: startTime,
 				Close:     100.0,
 			},
 			{
-				Timestamp: t2,
+				Timestamp: t1,
 				Close:     200.0,
 			},
 			{
-				Timestamp: t3,
+				Timestamp: t2,
 				Close:     300.0,
 			},
 			{
-				Timestamp: t4,
+				Timestamp: t3,
 				Close:     400.0,
 			},
 			{
-				Timestamp: t5,
+				Timestamp: t4,
 				Close:     500.0,
+			},
+			{
+				Timestamp: t5,
+				Close:     600.0,
 			},
 		}
 
@@ -1249,10 +1232,16 @@ func TestPositions(t *testing.T) {
 		assert.Len(t, order3.Trades, 1)
 
 		assert.Len(t, order1.ClosedBy, 1)
-		assert.Equal(t, order3.Trades[0], order1.ClosedBy[0])
+		assert.Equal(t, order3.Trades[0].Symbol, order1.ClosedBy[0].Symbol)
+		assert.Equal(t, order3.Trades[0].Price, order1.ClosedBy[0].Price)
+		assert.Equal(t, order3.Trades[0].CreateDate, order1.ClosedBy[0].CreateDate)
+		assert.Equal(t, 10.0, order1.ClosedBy[0].Quantity)
 
 		assert.Len(t, order2.ClosedBy, 1)
-		assert.Equal(t, order3.Trades[0], order2.ClosedBy[0])
+		assert.Equal(t, order3.Trades[0].Symbol, order2.ClosedBy[0].Symbol)
+		assert.Equal(t, order3.Trades[0].Price, order2.ClosedBy[0].Price)
+		assert.Equal(t, order3.Trades[0].CreateDate, order2.ClosedBy[0].CreateDate)
+		assert.Equal(t, 10.0, order2.ClosedBy[0].Quantity)
 
 		// 3rd order - reverse direction
 		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")

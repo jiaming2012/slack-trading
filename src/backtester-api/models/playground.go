@@ -118,7 +118,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	}
 
 	var freeMargin, initialMargin float64
-	isCloseOrder := false
+	order.IsClose = false
 	performMarginCheck := performChecks
 
 	if performChecks {
@@ -144,7 +144,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 					}
 				} else {
 					performMarginCheck = false
-					isCloseOrder = true
+					order.IsClose = true
 				}
 			} else if position.Quantity >= 0 && orderQuantity < 0 {
 				if math.Abs(orderQuantity) > position.Quantity {
@@ -162,7 +162,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 					}
 				} else {
 					performMarginCheck = false
-					isCloseOrder = true
+					order.IsClose = true
 				}
 			}
 		}
@@ -181,7 +181,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 
 		return fmt.Errorf("commitPendingOrders: order %d has insufficient margin", order.ID)
 
-	} else if isCloseOrder {
+	} else if order.IsClose {
 		closeVolume := math.Abs(orderQuantity)
 		openOrders := p.GetOpenOrders(order.Symbol)
 		pendingCloses := make(map[*BacktesterOrder]float64)
@@ -358,10 +358,53 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 		}
 	}
 
+	var closeByRequests []*CloseByRequest
+
+	if order.IsClose {
+		volumeToClose := math.Abs(order.GetQuantity())
+		openOrders := p.GetOpenOrders(order.Symbol)
+
+		// calculate the volume to close
+		for _, o := range openOrders {
+			if volumeToClose <= 0 {
+				break
+			}
+
+			remainingOpenQuantity := math.Abs(o.GetRemainingOpenQuantity())
+			if remainingOpenQuantity <= 0 {
+				continue
+			}
+
+			volume := math.Min(volumeToClose, remainingOpenQuantity)
+			volumeToClose -= volume
+
+			closeByRequests = append(closeByRequests, &CloseByRequest{
+				Order:    o,
+				Quantity: volume,
+			})
+		}
+
+		// check if the volume to close is valid
+		if volumeToClose < 0 {
+			return nil, fmt.Errorf("fillOrder: volume to close cannot be negative")
+		}
+
+		if volumeToClose > 0 {
+			return nil, fmt.Errorf("fillOrder: volume to close exceeds open volume")
+		}
+	}
+
+	// commit the trade
 	trade := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
 	if err := order.Fill(trade); err != nil {
 		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
+	}
+
+	// close the open orders
+	for _, req := range closeByRequests {
+		closeBy := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
+		req.Order.ClosedBy = append(req.Order.ClosedBy, *closeBy)
 	}
 
 	// remove the open orders that were closed in cache

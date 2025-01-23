@@ -180,7 +180,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		ExpirationsInDays:         optionConfig.ExpirationsInDays,
 		OptionsYAML:               optionConfig,
 		Symbol:                    symbol,
-		RiskProfileConstraint:    riskProfileConstraint,
+		RiskProfileConstraint:     riskProfileConstraint,
 		OutDir:                    outDir,
 		GoEnv:                     goEnv,
 	}

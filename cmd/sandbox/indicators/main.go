@@ -78,7 +78,7 @@ func main() {
 	repoSource := eventmodels.CandleRepositorySource{
 		Type: "polygon",
 	}
-	
+
 	repo, err := models.NewCandleRepository(eventmodels.StockSymbol("AAPL"), 15*time.Minute, aggregateCandles, indicators, nil, historyInDays, repoSource)
 
 	// Print the first candle
