@@ -35,7 +35,9 @@ func (o *BacktesterOrder) Cancel() {
 	o.Status = BacktesterOrderStatusCancelled
 }
 
-func (o *BacktesterOrder) Reject() {
+func (o *BacktesterOrder) Reject(err error) {
+	reason := err.Error()
+	o.RejectReason = &reason
 	o.Status = BacktesterOrderStatusRejected
 }
 

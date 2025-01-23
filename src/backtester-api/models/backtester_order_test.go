@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -86,13 +87,13 @@ func TestBacktesterOrderStatus(t *testing.T) {
 
 	t.Run("Rejected", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
-		order.Reject()
+		order.Reject(fmt.Errorf("something happened"))
 		assert.Equal(t, BacktesterOrderStatusRejected, order.GetStatus())
 	})
 
 	t.Run("Fill is rejected after order is rejected", func(t *testing.T) {
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
-		order.Reject()
+		order.Reject(fmt.Errorf("something happened"))
 		trade := NewBacktesterTrade(order.Symbol, now, 10, 1)
 		err := order.Fill(trade)
 		assert.Error(t, err)

@@ -230,6 +230,7 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 
 		err := p.commitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
 		if err != nil {
+			order.Reject(err)
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error committing pending order: %v", err)
 			continue
@@ -237,7 +238,10 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 
 		newTrade, err := p.FillOrder(order, performChecks, orderFillEntry, startingPositions)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error filling order: %w", err)
+			order.Reject(err)
+			invalidOrders = append(invalidOrders, order)
+			log.Errorf("error filling order: %v", err)
+			continue
 		}
 
 		newTrades = append(newTrades, newTrade)
