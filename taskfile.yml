@@ -5,6 +5,16 @@ tasks:
     cmds:
       - 'task --list-all'
 
+  test:
+    cmds:
+      - 'go test ./...'
+    dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
+  
+  commit:
+    cmds:
+      - 'task test'
+      - 'git commit'
+
   db:connect:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
