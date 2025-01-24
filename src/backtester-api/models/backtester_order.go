@@ -145,6 +145,15 @@ func (o *BacktesterOrder) fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.
 	return &orderRec, nil
 }
 
+func fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID, orderId uint) (*OrderRecord, error) {
+	var orderRec OrderRecord
+	if result := db.First(&orderRec, "external_id = ? AND playground_id = ?", orderId, playgroundId); result.Error != nil {
+		return nil, fmt.Errorf("failed to fetch order record from db: %w", result.Error)
+	}
+
+	return &orderRec, nil
+}
+
 func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, []*TradeRecord, error) {
 	var closes []*OrderRecord
 	// todo: this method can be optimized or eliminated using BacktesterOrder as a db model, and removing the OrderRecord model
@@ -177,13 +186,15 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID) (*O
 	}
 
 	var tradeRecs []TradeRecord
+	var tradeRecPtrs []*TradeRecord
 	for _, trade := range o.Trades {
 		tradeRecs = append(tradeRecs, *trade.ToTradeRecord(playgroundId, o.ID))
+		tradeRecPtrs = append(tradeRecPtrs, trade.ToTradeRecord(playgroundId, o.ID))
 	}
 
 	orderRec.Trades = tradeRecs
 
-	return orderRec, nil, nil
+	return orderRec, tradeRecPtrs, nil
 }
 
 func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {

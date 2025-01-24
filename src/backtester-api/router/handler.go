@@ -188,35 +188,31 @@ func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.Backtes
 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
 }
 
-func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) error {
+func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) ([]*models.OrderRecord, []*models.TradeRecord, error) {
+	var allOrderRecords []*models.OrderRecord
+	var allTradeRecords []*models.TradeRecord
+
 	for _, order := range orders {
 		var err error
 
 		oRec, tRecs, err := order.ToOrderRecord(tx, playgroundId)
 		if err != nil {
-			return fmt.Errorf("failed to convert order to order record: %w", err)
+			return nil, nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
 
 		if err = tx.Create(&oRec).Error; err != nil {
-			return fmt.Errorf("failed to save order records: %w", err)
+			return nil, nil, fmt.Errorf("failed to save order records: %w", err)
 		}
 
-		if len(tRecs) > 0 {
-			for _, tRec := range tRecs {
-				tRec.OrderID = oRec.ID
-			}
-
-			if err = tx.Create(&tRecs).Error; err != nil {
-				return fmt.Errorf("failed to save trade records: %w", err)
-			}
-		}
+		allOrderRecords = append(allOrderRecords, oRec)
+		allTradeRecords = append(allTradeRecords, tRecs...)
 	}
 
-	return nil
+	return allOrderRecords, allTradeRecords, nil
 }
 
-func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {	
-	var err error 
+func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {
+	var err error
 
 	orderRecord, tradesRecords, err := order.ToOrderRecord(tx, playgroundId)
 	if err != nil {
@@ -240,15 +236,66 @@ func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) erro
 	return saveOrderRecordTx(db, playgroundId, order)
 }
 
+type closeByRequest struct {
+	OrderID     uint
+	TradeRecord *models.TradeRecord
+}
+
+func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, error) {
+	for _, order := range orders {
+		if order.ID == id {
+			return order, nil
+		}
+	}
+
+	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
+}
+
+func updateClosedByTx(tx *gorm.DB, orderRecords []*models.OrderRecord, tradeRecords []*models.TradeRecord) error {
+	var closeByRequests []*closeByRequest
+
+	for _, orderRecord := range orderRecords {
+		for _, closeRecord := range orderRecord.Closes {
+			// todo: this is technical debt as technically an order that close multiple orders could be composed of multiple trades
+			if len(orderRecord.Trades) != 1 {
+				return fmt.Errorf("updateClosedByTx: expected a single trade record from an order which closes one or more other trades, got %d", len(orderRecord.Trades))
+			}
+
+			closeTrade := orderRecord.Trades[0]
+
+			closeByRequests = append(closeByRequests, &closeByRequest{
+				OrderID:     closeRecord.ID,
+				TradeRecord: &closeTrade,
+			})
+		}
+	}
+
+	for _, req := range closeByRequests {
+		if result := tx.Model(req.TradeRecord).Update("close_id", req.OrderID); result.Error != nil {
+			return fmt.Errorf("updateClosedByTx: failed to update close_id: %w", result.Error)
+		}
+	}
+
+	return nil
+}
+
 func savePlayground(playground models.IPlayground) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := savePlaygroundSessionTx(tx, playground); err != nil {
-			return fmt.Errorf("failed to save playground session: %w", err)
+		var txErr error
+
+		if txErr = savePlaygroundSessionTx(tx, playground); txErr != nil {
+			return fmt.Errorf("failed to save playground session: %w", txErr)
 		}
 
+		var orderRecords []*models.OrderRecord
+		var tradeRecords []*models.TradeRecord
 		playgroundId := playground.GetId()
-		if err := saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); err != nil {
-			return fmt.Errorf("failed to save order records: %w", err)
+		if orderRecords, tradeRecords, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
+			return fmt.Errorf("failed to save order records: %w", txErr)
+		}
+
+		if txErr = updateClosedByTx(tx, orderRecords, tradeRecords); txErr != nil {
+			return fmt.Errorf("failed to update closed by: %w", txErr)
 		}
 
 		return nil
@@ -477,7 +524,7 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Find(&playgroundsSlice).Error; err != nil {
+	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -486,7 +533,7 @@ func loadPlaygrounds() error {
 	for _, p := range playgroundsSlice {
 		orders := make([]*models.BacktesterOrder, len(p.Orders))
 		allOrders := make(map[uint]*models.BacktesterOrder)
-		
+
 		pIDStr := p.ID.String()
 
 		fmt.Printf("loading playground: %v\n", pIDStr)

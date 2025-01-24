@@ -10,6 +10,7 @@ import (
 
 type BacktesterTrade struct {
 	Symbol     eventmodels.Instrument `json:"symbol"`
+	CloseId    *uint                  `json:"close_id,omitempty"`
 	CreateDate time.Time              `json:"create_date"`
 	Quantity   float64                `json:"quantity"`
 	Price      float64                `json:"price"`

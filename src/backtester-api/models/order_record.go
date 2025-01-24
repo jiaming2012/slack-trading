@@ -29,6 +29,7 @@ type OrderRecord struct {
 	Tag             string            `gorm:"column:tag;type:text"`
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamp;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
+	ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
 	Trades          []TradeRecord     `gorm:"foreignKey:OrderID"`
 }
 
@@ -63,6 +64,16 @@ func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*B
 		closes = append(closes, co)
 	}
 
+	var closedBy []BacktesterTrade
+	for _, c := range o.ClosedBy {
+		ct, err := c.ToBacktesterTrade(symbol)
+		if err != nil {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert closed by trade: %w", err)
+		}
+
+		closedBy = append(closedBy, *ct)
+	}
+
 	return &BacktesterOrder{
 		ID:               o.ExternalOrderID,
 		Class:            BacktesterOrderClass(o.Class),
@@ -80,5 +91,6 @@ func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*B
 		RejectReason:     o.RejectReason,
 		CreateDate:       o.Timestamp,
 		Closes:           closes,
+		ClosedBy:         closedBy,
 	}, nil
 }

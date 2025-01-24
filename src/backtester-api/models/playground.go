@@ -379,12 +379,17 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 				continue
 			}
 
-			volume := math.Min(volumeToClose, remainingOpenQuantity)
-			volumeToClose -= volume
+			quantity := math.Min(volumeToClose, remainingOpenQuantity)
+			volumeToClose -= quantity
+
+			sign := 1.0
+			if o.Side == TradierOrderSideBuy {
+				sign = -1.0
+			}
 
 			closeByRequests = append(closeByRequests, &CloseByRequest{
 				Order:    o,
-				Quantity: volume,
+				Quantity: quantity * sign,
 			})
 		}
 
