@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -135,7 +136,27 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) (*OrderRecord, []*TradeRecord) {
+func (o *BacktesterOrder) fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, error) {
+	var orderRec OrderRecord
+	if result := db.First(&orderRec, "external_id = ? AND playground_id = ?", o.ID, playgroundId); result.Error != nil {
+		return nil, fmt.Errorf("failed to fetch order record from db: %w", result.Error)
+	}
+
+	return &orderRec, nil
+}
+
+func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, []*TradeRecord, error) {
+	var closes []*OrderRecord
+	// todo: this method can be optimized or eliminated using BacktesterOrder as a db model, and removing the OrderRecord model
+	for _, close := range o.Closes {
+		orderRec, err := close.fetchOrderRecordFromDB(tx, playgroundId)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to fetch close order record from db: %w", err)
+		}
+
+		closes = append(closes, orderRec)
+	}
+
 	orderRec := &OrderRecord{
 		PlaygroundID:    playgroundId,
 		ExternalOrderID: o.ID,
@@ -152,6 +173,7 @@ func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) (*OrderRecord, [
 		Status:          string(o.Status),
 		Tag:             o.Tag,
 		Timestamp:       o.CreateDate,
+		Closes:          closes,
 	}
 
 	var tradeRecs []TradeRecord
@@ -161,7 +183,7 @@ func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID) (*OrderRecord, [
 
 	orderRec.Trades = tradeRecs
 
-	return orderRec, nil
+	return orderRec, nil, nil
 }
 
 func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {

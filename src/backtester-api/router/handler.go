@@ -190,9 +190,14 @@ func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.Backtes
 
 func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) error {
 	for _, order := range orders {
-		oRec, tRecs := order.ToOrderRecord(playgroundId)
+		var err error
 
-		if err := tx.Create(&oRec).Error; err != nil {
+		oRec, tRecs, err := order.ToOrderRecord(tx, playgroundId)
+		if err != nil {
+			return fmt.Errorf("failed to convert order to order record: %w", err)
+		}
+
+		if err = tx.Create(&oRec).Error; err != nil {
 			return fmt.Errorf("failed to save order records: %w", err)
 		}
 
@@ -201,7 +206,7 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 				tRec.OrderID = oRec.ID
 			}
 
-			if err := tx.Create(&tRecs).Error; err != nil {
+			if err = tx.Create(&tRecs).Error; err != nil {
 				return fmt.Errorf("failed to save trade records: %w", err)
 			}
 		}
@@ -210,14 +215,20 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 	return nil
 }
 
-func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {
-	orderRecord, tradesRecords := order.ToOrderRecord(playgroundId)
-	if err := tx.Create(orderRecord).Error; err != nil {
+func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {	
+	var err error 
+
+	orderRecord, tradesRecords, err := order.ToOrderRecord(tx, playgroundId)
+	if err != nil {
+		return fmt.Errorf("failed to convert order to order record: %w", err)
+	}
+
+	if err = tx.Create(orderRecord).Error; err != nil {
 		return fmt.Errorf("failed to save order record: %w", err)
 	}
 
 	for _, tradeRecord := range tradesRecords {
-		if err := tx.Create(tradeRecord).Error; err != nil {
+		if err = tx.Create(tradeRecord).Error; err != nil {
 			return fmt.Errorf("failed to save trade record: %w", err)
 		}
 	}
@@ -466,7 +477,7 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Find(&playgroundsSlice).Error; err != nil {
+	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -474,13 +485,20 @@ func loadPlaygrounds() error {
 
 	for _, p := range playgroundsSlice {
 		orders := make([]*models.BacktesterOrder, len(p.Orders))
+		allOrders := make(map[uint]*models.BacktesterOrder)
+		
+		pIDStr := p.ID.String()
+
+		fmt.Printf("loading playground: %v\n", pIDStr)
 
 		var err error
 		for i, o := range p.Orders {
-			orders[i], err = o.ToBacktesterOrder()
+			orders[i], err = o.ToBacktesterOrder(allOrders)
 			if err != nil {
 				return fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
 			}
+
+			allOrders[orders[i].ID] = orders[i]
 		}
 
 		var source *CreateAccountRequestSource

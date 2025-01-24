@@ -28,10 +28,11 @@ type OrderRecord struct {
 	RejectReason    *string           `gorm:"column:reject_reason;type:text"`
 	Tag             string            `gorm:"column:tag;type:text"`
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamp;not null"`
+	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
 	Trades          []TradeRecord     `gorm:"foreignKey:OrderID"`
 }
 
-func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
+func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*BacktesterOrder, error) {
 	class := BacktesterOrderClass(o.Class)
 	var symbol eventmodels.Instrument
 
@@ -52,6 +53,16 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		trades = append(trades, tr)
 	}
 
+	var closes []*BacktesterOrder
+	for _, c := range o.Closes {
+		co, found := allOrders[c.ExternalOrderID]
+		if !found {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): close order not found: %d", c.ID)
+		}
+
+		closes = append(closes, co)
+	}
+
 	return &BacktesterOrder{
 		ID:               o.ExternalOrderID,
 		Class:            BacktesterOrderClass(o.Class),
@@ -68,5 +79,6 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		Trades:           trades,
 		RejectReason:     o.RejectReason,
 		CreateDate:       o.Timestamp,
+		Closes:           closes,
 	}, nil
 }
