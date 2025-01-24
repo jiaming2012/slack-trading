@@ -98,16 +98,21 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 
 func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderExecutionRequest, performChecks bool) error {
 	if order.Status != BacktesterOrderStatusPending {
-		return fmt.Errorf("commitPendingOrders: order %d status is %s, not pending", order.ID, order.Status)
+		err := fmt.Errorf("order %d status is %s, not pending", order.ID, order.Status)
+		order.Reject(err)
+
+		if err := p.AddToOrderQueue(order); err != nil {
+			log.Fatalf("position 0: error adding order to order queue: %v", err)
+		}
+
+		return fmt.Errorf("commitPendingOrders: %w", err)
 	}
 
 	// check if the order is valid
 	orderQuantity := order.GetQuantity()
 	if performChecks {
 		if orderQuantity == 0 {
-			order.Status = BacktesterOrderStatusRejected
-			rejectReason := ErrInvalidOrderVolumeZero.Error()
-			order.RejectReason = &rejectReason
+			order.Reject(ErrInvalidOrderVolumeZero)
 
 			if err := p.AddToOrderQueue(order); err != nil {
 				log.Fatalf("position 1: error adding order to order queue: %v", err)
@@ -131,11 +136,8 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 			if position.Quantity <= 0 && orderQuantity > 0 {
 				if orderQuantity > math.Abs(position.Quantity) {
 					if performChecks {
-						order.Status = BacktesterOrderStatusRejected
-						rejectReason := ErrInvalidOrderVolumeLongVolume.Error()
-						order.RejectReason = &rejectReason
+						order.Reject(ErrInvalidOrderVolumeLongVolume)
 
-						// append the order to the queue
 						if err := p.AddToOrderQueue(order); err != nil {
 							log.Fatalf("position 2: error adding order to order queue: %v", err)
 						}
@@ -149,10 +151,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 			} else if position.Quantity >= 0 && orderQuantity < 0 {
 				if math.Abs(orderQuantity) > position.Quantity {
 					if performChecks {
-						order.Status = BacktesterOrderStatusRejected
-						rejectReason := ErrInvalidOrderVolumeShortVolume.Error()
-						order.RejectReason = &rejectReason
-
+						order.Reject(ErrInvalidOrderVolumeShortVolume)
 						// append the order to the queue
 						if err := p.AddToOrderQueue(order); err != nil {
 							log.Fatalf("position 3: error adding order to order queue: %v", err)
@@ -170,9 +169,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 
 	// check if the order can be filled
 	if performMarginCheck && freeMargin <= initialMargin {
-		order.Status = BacktesterOrderStatusRejected
-		rejectReason := fmt.Sprintf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin)
-		order.RejectReason = &rejectReason
+		order.Reject(fmt.Errorf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin))
 
 		// append the order to the queue
 		if err := p.AddToOrderQueue(order); err != nil {
@@ -212,7 +209,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 		}
 	}
 
-	// append the order to the queue
 	if err := p.AddToOrderQueue(order); err != nil {
 		log.Fatalf("position 4: error adding order to order queue: %v", err)
 	}
@@ -221,7 +217,11 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 }
 
 func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
-	for _, order := range p.account.PendingOrders {
+	pendingOrders := make([]*BacktesterOrder, len(p.account.PendingOrders))
+	
+	copy(pendingOrders, p.account.PendingOrders)
+
+	for _, order := range pendingOrders {
 		orderFillEntry, found := orderFillEntryMap[order.ID]
 		if !found {
 			log.Warnf("error finding order filled entry price for order: %v", order.ID)
@@ -328,8 +328,8 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 		return fmt.Errorf("order is not pending")
 	}
 
-	order.Status = BacktesterOrderStatusRejected
-	order.RejectReason = &reason
+	err := fmt.Errorf(reason)
+	order.Reject(err)
 
 	return nil
 }
