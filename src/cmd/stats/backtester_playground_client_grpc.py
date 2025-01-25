@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, CreateRepositoryRequest, Bar
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 

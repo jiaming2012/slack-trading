@@ -327,6 +327,18 @@
             "env": {
                 "GO_ENV": "development"
             }
-        }
+        },
+        {
+            "name": "playground metrics",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/playground_metrics.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "args": [
+                "--playground-id", "8a1b154e-4eee-4316-a80d-c8de52613a7c",
+                "--twirp-host", "http://localhost:5051"
+            ]
+        },
     ]
 }
