@@ -528,8 +528,6 @@ func loadPlaygrounds() error {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
-	fmt.Printf("loaded playgrounds: %v\n", playgroundsSlice)
-
 	for _, p := range playgroundsSlice {
 		orders := make([]*models.BacktesterOrder, len(p.Orders))
 		allOrders := make(map[uint]*models.BacktesterOrder)

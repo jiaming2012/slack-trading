@@ -15,6 +15,11 @@ tasks:
       - 'task test'
       - 'git commit'
 
+  run:dev:
+    cmds:
+      - './run-dev.sh'
+    dir: ${PROJECTS_DIR}/slack-trading/src/eventmain
+
   db:connect:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
