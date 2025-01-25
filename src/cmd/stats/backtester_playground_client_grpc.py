@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, Repository
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -457,7 +457,7 @@ class BacktesterPlaygroundClient:
 
     
     def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> str:
-        ltf_repo = CreateRepositoryRequest(
+        ltf_repo = Repository(
             symbol=symbol,
             timespan_multiplier=5,
             timespan_unit='minute',
@@ -465,7 +465,7 @@ class BacktesterPlaygroundClient:
             history_in_days=365
         )
         
-        htf_repo = CreateRepositoryRequest(
+        htf_repo = Repository(
             symbol=symbol,
             timespan_multiplier=60,
             timespan_unit='minute',
