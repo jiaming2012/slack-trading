@@ -1,6 +1,6 @@
 from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from simple_close_strategy import SimpleCloseStrategy
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
 import os
 
@@ -84,6 +84,32 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         
     return sl_target, tp_target
 
+def create_playground_request(balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> CreatePolygonPlaygroundRequest:
+    ltf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=5,
+        timespan_unit='minute',
+        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+        history_in_days=365
+    )
+        
+    htf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=60,
+        timespan_unit='minute',
+        indicators=["supertrend"],
+        history_in_days=365
+    )
+    
+    return CreatePolygonPlaygroundRequest(
+        balance=balance,
+        start_date=start_date,
+        stop_date=stop_date,
+        repositories=[ltf_repo, htf_repo],
+        environment=env.value
+    )
+        
+
 if __name__ == "__main__":
     # meta parameters
     playground_tick_in_seconds = 300
@@ -111,7 +137,10 @@ if __name__ == "__main__":
     
     print(f"initializing {symbol} playground from {start_date} to {end_date} ...")
     
-    playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, env, csv_path, grpc_host=grpc_host)
+    req = create_playground_request(balance, symbol, start_date, end_date, env)
+    
+    playground = BacktesterPlaygroundClient(req, repository_source, grpc_host=grpc_host)
+    
     playground.tick(0, raise_exception=False)  # initialize the playground
     
     print(f"playground id: {playground.id}")

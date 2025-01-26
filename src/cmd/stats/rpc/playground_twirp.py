@@ -82,7 +82,14 @@ class PlaygroundServiceServer(TwirpServer):
 				name="SavePlayground",
 				function=getattr(service, "SavePlayground"),
 				input=_sym_db.GetSymbol("playground.SavePlaygroundRequest"),
-				output=_sym_db.GetSymbol("playground.SavePlaygroundResponse"),
+				output=_sym_db.GetSymbol("playground.EmptyResponse"),
+			),
+			"DeletePlayground": Endpoint(
+				service_name="PlaygroundService",
+				name="DeletePlayground",
+				function=getattr(service, "DeletePlayground"),
+				input=_sym_db.GetSymbol("playground.DeletePlaygroundRequest"),
+				output=_sym_db.GetSymbol("playground.EmptyResponse"),
 			),
 		}
 
@@ -165,7 +172,16 @@ class PlaygroundServiceClient(TwirpClient):
 			url=F"{server_path_prefix}/playground.PlaygroundService/SavePlayground",
 			ctx=ctx,
 			request=request,
-			response_obj=_sym_db.GetSymbol("playground.SavePlaygroundResponse"),
+			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+			**kwargs,
+		)
+
+	def DeletePlayground(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/DeletePlayground",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
 			**kwargs,
 		)
 
@@ -258,7 +274,17 @@ if _async_available:
 				url=F"{server_path_prefix}/playground.PlaygroundService/SavePlayground",
 				ctx=ctx,
 				request=request,
-				response_obj=_sym_db.GetSymbol("playground.SavePlaygroundResponse"),
+				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def DeletePlayground(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/DeletePlayground",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
 				session=session,
 				**kwargs,
 			)

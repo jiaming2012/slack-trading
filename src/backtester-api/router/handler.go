@@ -279,6 +279,18 @@ func updateClosedByTx(tx *gorm.DB, orderRecords []*models.OrderRecord, tradeReco
 	return nil
 }
 
+func deletePlaygroundSession(playground models.IPlayground) error {
+	session := &models.PlaygroundSession{
+		ID: playground.GetId(),
+	}
+
+	if err := db.Delete(&session).Error; err != nil {
+		return fmt.Errorf("deletePlayground: failed to delete playground: %w", err)
+	}
+
+	return nil
+}
+
 func savePlayground(playground models.IPlayground) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var txErr error

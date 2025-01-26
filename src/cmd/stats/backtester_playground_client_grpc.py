@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, Repository
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar
+from src.cmd.stats.playground_types import RepositorySource, OrderSide
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -81,16 +82,6 @@ class Account:
         if position:
             pl = position.pl
         return pl
-
-class OrderSide(Enum):
-    BUY = 'buy'
-    SELL = 'sell'
-    SELL_SHORT = 'sell_short'
-    BUY_TO_COVER = 'buy_to_cover'
-    
-class RepositorySource(Enum):
-    CSV = 'csv'
-    POLYGON = 'polygon'
     
 class PlaygroundNotFoundException(Exception):
     pass
@@ -127,29 +118,41 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
 
 
 class BacktesterPlaygroundClient:
-    def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, env: PlaygroundEnvironment = PlaygroundEnvironment.SIMULATOR, filename: str = None, host: str = 'http://localhost:8080', grpc_host: str = 'http://localhost:50051'):
-        self.symbol = symbol
-        self.host = host
+    def __init__(self, req: CreatePolygonPlaygroundRequest, source: RepositorySource, host: str = 'http://localhost:5051', grpc_host: str = 'http://localhost:5051'):
+        if len(grpc_host) > 0:
+            self.host = grpc_host
+        else:      
+            self.host = host
+            
+        self.symbol = None
+        for repo in req.repositories:
+            self.symbol = repo.symbol
+            if self.symbol is not None and repo.symbol != self.symbol:
+                raise Exception('Multiple symbols found in repository')
+            
+        if self.symbol is None:
+            raise Exception('Symbol not found in repository')
 
-        self.client = PlaygroundServiceClient(grpc_host, timeout=60)
-        
+        self.client = PlaygroundServiceClient(self.host, timeout=60)
+
         if source == RepositorySource.CSV:
-            self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
+            # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
+            raise Exception('CSV source not supported')
         elif source == RepositorySource.POLYGON:
-            self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date, env)
+            self.id = self.create_playground_polygon(req)
         else:
             raise Exception('Invalid source')
 
         self.position = None
 
-        self.account = self.fetch_and_update_account_state()
+        self.account = self._fetch_and_update_account_state()
         self.current_candles = {}
         self._is_backtest_complete = False
         self._initial_timestamp = None
         self.timestamp = None
         self.trade_timestamps = []
         self._new_state_buffer: List[TickDelta] = []
-        self.environment = env
+        self.environment = req.environment
         
     def flush_new_state_buffer(self) -> List[TickDelta]:
         buffer = self._new_state_buffer
@@ -181,7 +184,7 @@ class BacktesterPlaygroundClient:
         
         return response.orders
         
-    def fetch_and_update_account_state(self) -> Account:
+    def _fetch_and_update_account_state(self) -> Account:
         request = GetAccountRequest(
             playground_id=self.id,
             fetch_orders=False
@@ -381,7 +384,7 @@ class BacktesterPlaygroundClient:
                 
         self._is_backtest_complete = new_state.is_backtest_complete
         
-        self.account = self.fetch_and_update_account_state()
+        self.account = self._fetch_and_update_account_state()
         
         self._new_state_buffer.append(new_state)
                                     
@@ -456,33 +459,9 @@ class BacktesterPlaygroundClient:
         return response.json()['playground_id']
 
     
-    def create_playground_polygon(self, balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> str:
-        ltf_repo = Repository(
-            symbol=symbol,
-            timespan_multiplier=5,
-            timespan_unit='minute',
-            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-            history_in_days=365
-        )
-        
-        htf_repo = Repository(
-            symbol=symbol,
-            timespan_multiplier=60,
-            timespan_unit='minute',
-            indicators=["supertrend"],
-            history_in_days=365
-        )
-        
-        request = CreatePolygonPlaygroundRequest(
-            balance=balance,
-            start_date=start_date,
-            stop_date=stop_date,
-            repositories=[ltf_repo, htf_repo],
-            environment=env.value
-        )
-
+    def create_playground_polygon(self, req: CreatePolygonPlaygroundRequest) -> str:
         try:
-            response = network_call_with_retry(self.client.CreatePlayground, request)            
+            response = network_call_with_retry(self.client.CreatePlayground, req)            
             return response.id
         except Exception as e:
             raise("Failed to create playground:", e)
@@ -514,7 +493,7 @@ if __name__ == '__main__':
         
         print('L1: found_insufficient_free_margin: ', found_insufficient_free_margin)
         
-        account = playground_client.fetch_and_update_account_state()
+        account = playground_client._fetch_and_update_account_state()
         
         print('L1: account: ', account)
         
@@ -544,7 +523,7 @@ if __name__ == '__main__':
                 
         print('L2: found_liquidation: ', found_liquidation)
 
-        account = playground_client.fetch_and_update_account_state()
+        account = playground_client._fetch_and_update_account_state()
         
         print('L2: account: ', account)
         
@@ -558,7 +537,7 @@ if __name__ == '__main__':
         
         print('tick_delta #3: ', tick_delta)
         
-        account = playground_client.fetch_and_update_account_state()
+        account = playground_client._fetch_and_update_account_state()
         
         print('L3: account: ', account)
         
@@ -604,7 +583,7 @@ if __name__ == '__main__':
         
         print('tick_delta #3.4: ', tick_delta)
                 
-        account = playground_client.fetch_and_update_account_state()
+        account = playground_client._fetch_and_update_account_state()
         
         print('L4: account: ', account)
         

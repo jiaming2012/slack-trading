@@ -1136,6 +1136,252 @@ func TestPositions(t *testing.T) {
 		// assert.Equal(t, 10.0, position.OpenTrades[0].Quantity)
 	})
 
+	t.Run("GetPosition - average cost basis - partial closes", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+
+		t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 3, 0, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 4, 0, 0, time.UTC)
+		t5 := time.Date(2021, time.January, 1, 0, 5, 0, 0, time.UTC)
+
+		now := startTime
+
+		balance := 1000000.0
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     200.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     300.0,
+			},
+			{
+				Timestamp: t3,
+				Close:     400.0,
+			},
+			{
+				Timestamp: t4,
+				Close:     500.0,
+			},
+			{
+				Timestamp: t5,
+				Close:     600.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		assert.NoError(t, err)
+
+		// 1st order
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err := playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err := playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position := playground.GetPosition(symbol)
+		assert.Equal(t, -15.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		openOrders := playground.GetOpenOrders(symbol)
+		assert.Len(t, openOrders, 1)
+		assert.Equal(t, order1, openOrders[0])
+
+		// close 1st partial
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order3)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, -10.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		// close 2nd partial
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order4)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, -5.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		// close 3nd partial
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order5)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 0.0, position.Quantity)
+		assert.Equal(t, 0.0, position.CostBasis)
+	})
+
+	t.Run("GetPosition - average cost basis - partial closes LONG", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+
+		t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
+		t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
+		t3 := time.Date(2021, time.January, 1, 0, 3, 0, 0, time.UTC)
+		t4 := time.Date(2021, time.January, 1, 0, 4, 0, 0, time.UTC)
+		t5 := time.Date(2021, time.January, 1, 0, 5, 0, 0, time.UTC)
+
+		now := startTime
+
+		balance := 1000000.0
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     100.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     200.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     300.0,
+			},
+			{
+				Timestamp: t3,
+				Close:     400.0,
+			},
+			{
+				Timestamp: t4,
+				Close:     500.0,
+			},
+			{
+				Timestamp: t5,
+				Close:     600.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		assert.NoError(t, err)
+
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		assert.NoError(t, err)
+
+		// open 1st order
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err := playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err := playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position := playground.GetPosition(symbol)
+		assert.Equal(t, 15.0, position.Quantity)
+		assert.Equal(t, 100.0, position.CostBasis)
+
+		openOrders := playground.GetOpenOrders(symbol)
+		assert.Len(t, openOrders, 1)
+		assert.Equal(t, order1, openOrders[0])
+
+		// open 2nd order
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order2)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		assert.Len(t, delta.NewTrades, 1)
+		newTrade := delta.NewTrades[0]
+		assert.Equal(t, 200.0, newTrade.Price)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 30.0, position.Quantity)
+		assert.Equal(t, 150.0, position.CostBasis)
+
+		openOrders = playground.GetOpenOrders(symbol)
+		assert.Len(t, openOrders, 2)
+		assert.Equal(t, order1, openOrders[0])
+		assert.Equal(t, order2, openOrders[1])
+
+		// close 1st partial
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order3)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 25.0, position.Quantity)
+		assert.Equal(t, 150.0, position.CostBasis)
+
+		// close 2nd partial
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order4)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 10.0, position.Quantity)
+		assert.Equal(t, 150.0, position.CostBasis)
+
+		// close 3nd partial
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err = playground.PlaceOrder(order5)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		delta, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, delta)
+
+		position = playground.GetPosition(symbol)
+		assert.Equal(t, 0.0, position.Quantity)
+		assert.Equal(t, 0.0, position.CostBasis)
+	})
+
 	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 

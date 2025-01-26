@@ -287,7 +287,7 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 		return
 	}
 
-	log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
+	// log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
 
 	for _, order := range pendingOrders {
 		orderDTO, err := w.fetchOrder(order.ExternalOrderID)

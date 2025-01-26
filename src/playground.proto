@@ -16,7 +16,8 @@ service PlaygroundService {
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
     rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
-    rpc SavePlayground(SavePlaygroundRequest) returns (SavePlaygroundResponse);
+    rpc SavePlayground(SavePlaygroundRequest) returns (EmptyResponse);
+    rpc DeletePlayground(DeletePlaygroundRequest) returns (EmptyResponse);
 }
 
 message GetPlaygroundsRequest {}
@@ -53,7 +54,7 @@ message SavePlaygroundRequest {
     string playground_id = 1;
 }
 
-message SavePlaygroundResponse {}
+message EmptyResponse {}
 
 message Clock {
     string current_time = 1;
@@ -75,6 +76,10 @@ message CreatePolygonPlaygroundRequest {
     string stop_date = 3;
     repeated Repository repositories = 4;
     string environment = 5;
+}
+
+message DeletePlaygroundRequest {
+    string playground_id = 1;
 }
 
 message CreateLivePlaygroundRequest {

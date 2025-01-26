@@ -340,5 +340,13 @@
                 "--twirp-host", "http://localhost:5051"
             ]
         },
+        {
+            "name": "backtester api integration test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_integration_test.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python"
+        }
     ]
 }

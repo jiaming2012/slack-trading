@@ -73,6 +73,17 @@ func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
 	return playground, nil
 }
 
+func deletePlayground(playgroundID uuid.UUID) error {
+	_, ok := playgrounds[playgroundID]
+	if !ok {
+		return eventmodels.NewWebError(404, "playground not found")
+	}
+
+	delete(playgrounds, playgroundID)
+
+	return nil
+}
+
 func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountResponse, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {

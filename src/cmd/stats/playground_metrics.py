@@ -92,7 +92,8 @@ def calc_total_trades(orders) -> int:
 
     return trade_count
 
-def calc_net_profit(profits: List[float]) -> float:
+def calc_realized_profit(profits: List[float]) -> float:
+    print(f"summing profits: {profits}")
     return sum(profits)
 
 def calc_avg_profit(profits: List[float]) -> float:
@@ -112,48 +113,49 @@ def calc_losers_count(profits: List[float]) -> int:
 def calc_breakeven_count(profits: List[float]) -> int:
     return len([profit for profit in profits if profit == 0])
 
-args = argparse.ArgumentParser()
-args.add_argument('--playground-id', type=str, required=True, help="Playground ID")
-args.add_argument('--twirp-host', type=str, default='http://localhost:5051', help="twirp rpc host")
+def collect_data(host: str, playground_id: str) -> dict:
+    client = PlaygroundServiceClient(host, timeout=60)
 
-args = args.parse_args()
+    acc = client.GetAccount(
+        ctx=Context(),
+        request=GetAccountRequest(playground_id=playground_id, fetch_orders=True)
+    )
 
-print(f'fetching metrics from playground id: {args.playground_id}')
+    profit_list = _calc_realized_profit_list(acc.orders)
+    trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(acc.orders)
 
-client = PlaygroundServiceClient(args.twirp_host, timeout=60)
+    gross_data = {}
+    gross_data['total_orders'] = calc_total_orders(acc.orders)
+    gross_data['total_trades'] = calc_total_trades(acc.orders)
+    gross_data['gross_profit'] = calc_gross_profit(profit_list)
+    gross_data['gross_loss'] = calc_gross_loss(profit_list)
+    gross_data['winners_count'] = calc_winners_count(profit_list)
+    gross_data['losers_count'] = calc_losers_count(profit_list)
+    gross_data['breakeven_count'] = calc_breakeven_count(profit_list)
+    gross_data['avg_profit'] = calc_avg_profit(profit_list)
+    gross_data['avg_loss'] = calc_avg_loss(profit_list)
+    gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
+    gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
 
-acc = client.GetAccount(
-    ctx=Context(),
-    request=GetAccountRequest(playground_id=args.playground_id, fetch_orders=True)
-)
+    agg_data = {}
+    agg_data['profit_factor'] = gross_data['gross_profit'] / abs(gross_data['gross_loss']) if gross_data['gross_loss'] != 0 else 'n/a'
+    agg_data['realized_profit'] = calc_realized_profit(profit_list)
+    agg_data['win_rate'] = gross_data['winners_count'] / gross_data['total_trades'] if gross_data['total_trades'] != 0 else 'n/a'
+    agg_data['avg_trade_duration_in_minutes'] = sum(trade_duration_list_in_seconds) / len(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
 
-profit_list = _calc_realized_profit_list(acc.orders)
-trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(acc.orders)
+    return {'gross_data': gross_data, 'agg_data': agg_data}
 
-gross_data = {}
-# gross_data['total_orders'] = calc_total_orders(acc.orders)
-gross_data['total_trades'] = calc_total_trades(acc.orders)
-gross_data['gross_profit'] = calc_gross_profit(profit_list)
-gross_data['gross_loss'] = calc_gross_loss(profit_list)
-gross_data['winners_count'] = calc_winners_count(profit_list)
-gross_data['losers_count'] = calc_losers_count(profit_list)
-gross_data['breakeven_count'] = calc_breakeven_count(profit_list)
-gross_data['avg_profit'] = calc_avg_profit(profit_list)
-gross_data['avg_loss'] = calc_avg_loss(profit_list)
-gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
-gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
+if __name__ == '__main__':
+    args = argparse.ArgumentParser()
+    args.add_argument('--playground-id', type=str, required=True, help="Playground ID")
+    args.add_argument('--twirp-host', type=str, default='http://localhost:5051', help="twirp rpc host")
 
-agg_data = {}
-agg_data['profit_factor'] = gross_data['gross_profit'] / abs(gross_data['gross_loss']) if gross_data['gross_loss'] != 0 else 'n/a'
-agg_data['net_profit'] = calc_net_profit(profit_list)
-agg_data['win_rate'] = gross_data['winners_count'] / gross_data['total_trades'] if gross_data['total_trades'] != 0 else 'n/a'
-agg_data['avg_trade_duration_in_minutes'] = sum(trade_duration_list_in_seconds) / len(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
+    args = args.parse_args()
 
-print('gross data:')
-pprint(gross_data)
+    data = collect_data(args.twirp_host, args.playground_id)
 
-print('agg data:')
-pprint(agg_data)
+    print('gross data:')
+    pprint(data['gross_data'])
 
-print(f'profit_list: {_calc_realized_profit_list(acc.orders)}')
-print(f'trade_duration_list_in_seconds: {_calc_trade_duration_list_in_seconds(acc.orders)}')
+    print('agg data:')
+    pprint(data['gross_data'])

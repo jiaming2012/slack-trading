@@ -132,7 +132,29 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 	}, nil
 }
 
-func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.SavePlaygroundResponse, error) {
+func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundRequest) (*pb.EmptyResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete playground: %v", err)
+	}
+
+	playground, err := getPlayground(playgroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete playground: %v", err)
+	}
+
+	if err := deletePlaygroundSession(playground); err != nil {
+		return nil, fmt.Errorf("failed to delete playground session: %v", err)
+	}
+
+	if err := deletePlayground(playgroundId); err != nil {
+		return nil, fmt.Errorf("failed to delete playground: %v", err)
+	}
+
+	return &pb.EmptyResponse{}, nil
+}
+
+func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.EmptyResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
@@ -147,7 +169,7 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	return &pb.SavePlaygroundResponse{}, nil
+	return &pb.EmptyResponse{}, nil
 }
 
 func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest) (*pb.GetOpenOrdersResponse, error) {

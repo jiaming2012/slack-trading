@@ -268,7 +268,24 @@ func (p *Playground) updateOpenOrdersCache(newOrder *BacktesterOrder) {
 	}
 }
 
-func (p *Playground) updatePositionsCache(trade *BacktesterTrade) {
+func calcVwap(orders []*BacktesterOrder) float64 {
+	var totalQuantity float64
+	var totalValue float64
+
+	for _, order := range orders {
+		vol := order.GetFilledVolume()
+		totalQuantity += vol
+		totalValue += order.GetAvgFillPrice() * vol
+	}
+
+	if totalQuantity == 0 {
+		return 0
+	}
+
+	return totalValue / totalQuantity
+}
+
+func (p *Playground) updatePositionsCache(trade *BacktesterTrade, isClose bool) {
 	position, ok := p.positionsCache[trade.Symbol]
 	if !ok {
 		position = &Position{}
@@ -280,7 +297,9 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade) {
 	if totalQuantity == 0 {
 		delete(p.positionsCache, trade.Symbol)
 	} else {
-		position.CostBasis = (position.CostBasis*position.Quantity + trade.Price*trade.Quantity) / totalQuantity
+		if !isClose {
+			position.CostBasis = calcVwap(p.GetOpenOrders(trade.Symbol))
+		}
 
 		// update the quantity
 		position.Quantity = totalQuantity
@@ -423,7 +442,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	p.updateBalance(trade, positionsMap)
 
 	// update the positions cache
-	p.updatePositionsCache(trade)
+	p.updatePositionsCache(trade, order.IsClose)
 
 	return trade, nil
 }
@@ -489,12 +508,14 @@ func (p *Playground) updateBalance(trade *BacktesterTrade, startingPositions map
 		if trade.Quantity < 0 {
 			closeQuantity := math.Min(currentPosition.Quantity, math.Abs(trade.Quantity))
 			pl := (trade.Price - currentPosition.CostBasis) * closeQuantity
+			log.Debugf("(%.2f, %.2f, %.2f) [SELL] pl: %.2f, balance %f -> %f", trade.Price, currentPosition.CostBasis, closeQuantity, pl, p.account.Balance, p.account.Balance+pl)
 			p.account.Balance += pl
 		}
 	} else if currentPosition.Quantity < 0 {
 		if trade.Quantity > 0 {
 			closeQuantity := math.Min(math.Abs(currentPosition.Quantity), trade.Quantity)
 			pl := (currentPosition.CostBasis - trade.Price) * closeQuantity
+			log.Debugf("(%.2f, %.2f, %.2f) [COVER] pl: %.2f, balance %f -> %f", trade.Price, currentPosition.CostBasis, closeQuantity, pl, p.account.Balance, p.account.Balance+pl)
 			p.account.Balance += pl
 		}
 	}
