@@ -341,10 +341,18 @@
             ]
         },
         {
-            "name": "backtester api integration test",
+            "name": "backtester api realized profits integration test",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_integration_test.py",
+            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_realized_profits_integration_test.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python"
+        },
+        {
+            "name": "backtester api positions integration test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_positions_integration_test.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/src/cmd/stats/env/bin/python"
         }

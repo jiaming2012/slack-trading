@@ -3,7 +3,7 @@ from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import GetAccountRequest, Order, Trade, AccountMeta, Bar
 from twirp.context import Context
 from pprint import pprint
-from typing import List
+from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass
 
@@ -72,6 +72,34 @@ def _calc_realized_profit_list(orders) -> List[float]:
         
     return realized_profits
 
+def calc_positions(orders) -> Dict[str, TradePosition]:
+    positions = {}
+
+    for order in orders:
+        pos = positions.get(order.symbol, TradePosition(vwap=0, quantity=0))
+        trades = _calc_trade_position(order.trades)
+        
+        if pos.quantity > 0:
+            if trades.quantity > 0:
+                pos.vwap = (pos.vwap * pos.quantity + trades.vwap * trades.quantity) / (pos.quantity + trades.quantity)
+            
+            pos.quantity += trades.quantity
+        elif pos.quantity < 0:
+            if trades.quantity < 0:
+                pos.vwap = (pos.vwap * pos.quantity + trades.vwap * trades.quantity) / (pos.quantity + trades.quantity)
+            
+            pos.quantity += trades.quantity
+        else:
+            pos.vwap = trades.vwap
+            pos.quantity = trades.quantity
+            
+        if pos.quantity == 0:
+            pos.vwap = 0
+            
+        positions[order.symbol] = pos
+
+    return positions
+
 def calc_gross_profit(profits : List[float]) -> float:
     return sum([profit for profit in profits if profit > 0])
 
@@ -135,6 +163,7 @@ def collect_data(host: str, playground_id: str) -> dict:
     gross_data['avg_loss'] = calc_avg_loss(profit_list)
     gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
     gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
+    gross_data['positions'] = calc_positions(acc.orders)
 
     agg_data = {}
     agg_data['profit_factor'] = gross_data['gross_profit'] / abs(gross_data['gross_loss']) if gross_data['gross_loss'] != 0 else 'n/a'
