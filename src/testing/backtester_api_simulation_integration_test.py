@@ -28,13 +28,24 @@ playground_client = BacktesterPlaygroundClient(request, RepositorySource.POLYGON
 
 print(f"performing integration test on playground id: {playground_client.id}")
 
+i = 0
 while not playground_client.is_backtest_complete():
-    playground_client.place_order('AAPL', 10, OrderSide.BUY)
-    playground_client.tick(100, raise_exception=True)
-    playground_client.place_order('AAPL', 5, OrderSide.SELL)
-    playground_client.tick(100, raise_exception=True)
-    playground_client.place_order('AAPL', 5, OrderSide.SELL)
-    playground_client.tick(100, raise_exception=True)
+    if i % 2 == 0:
+        playground_client.place_order('AAPL', 10, OrderSide.BUY)
+        playground_client.tick(100, raise_exception=True)
+        playground_client.place_order('AAPL', 5, OrderSide.SELL)
+        playground_client.tick(100, raise_exception=True)
+        playground_client.place_order('AAPL', 5, OrderSide.SELL)
+        playground_client.tick(100, raise_exception=True)
+    else:
+        playground_client.place_order('AAPL', 5, OrderSide.SELL_SHORT)
+        playground_client.tick(100, raise_exception=True)
+        playground_client.place_order('AAPL', 2, OrderSide.BUY_TO_COVER)
+        playground_client.tick(100, raise_exception=True)
+        playground_client.place_order('AAPL', 1, OrderSide.BUY_TO_COVER)
+        playground_client.tick(100, raise_exception=True)
+        playground_client.place_order('AAPL', 2, OrderSide.BUY_TO_COVER)
+        playground_client.tick(100, raise_exception=True)
     
     account = playground_client.account
     realized_profit = account.balance - initial_balance
@@ -42,8 +53,12 @@ while not playground_client.is_backtest_complete():
     data = collect_data(twirp_host, playground_client.id)
     expected_realized_profit = data['agg_data']['realized_profit']    
     
-    print(f"realized profit: {realized_profit}, expected realized profit: {expected_realized_profit} @ {playground_client.timestamp}")
+    # Show progress
+    if i % 50 == 0:
+        print(f"{i}: realized profit: {realized_profit}, expected realized profit: {expected_realized_profit} @ {playground_client.timestamp}")
     
-    assert realized_profit == expected_realized_profit, f"realized profit mismatch: {realized_profit} != {expected_realized_profit} @ {playground_client.timestamp}"
+    i += 1
+    
+    assert abs(realized_profit - expected_realized_profit) < 0.001, f"realized profit mismatch: {realized_profit} != {expected_realized_profit} @ {playground_client.timestamp}"
 
 print("integration test passed")

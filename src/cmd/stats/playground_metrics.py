@@ -93,7 +93,6 @@ def calc_total_trades(orders) -> int:
     return trade_count
 
 def calc_realized_profit(profits: List[float]) -> float:
-    print(f"summing profits: {profits}")
     return sum(profits)
 
 def calc_avg_profit(profits: List[float]) -> float:
