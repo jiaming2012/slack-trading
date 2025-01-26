@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type LivePlayground struct {
@@ -64,6 +65,10 @@ func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, o
 	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
 }
 
+func (p *LivePlayground) GetEquityPlot() []*pb.EquityPlot {
+	return p.playground.GetEquityPlot()
+}
+
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
 	placeOrderChanges, err := p.playground.PlaceOrder(order)
 
@@ -116,6 +121,8 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 
 		break
 	}
+
+	p.playground.updateAccountStats()
 
 	return &TickDelta{
 		NewCandles:         newCandles,

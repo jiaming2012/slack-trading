@@ -18,6 +18,7 @@ service PlaygroundService {
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
     rpc SavePlayground(SavePlaygroundRequest) returns (EmptyResponse);
     rpc DeletePlayground(DeletePlaygroundRequest) returns (EmptyResponse);
+    rpc GetAccountStats(GetAccountStatsRequest) returns (GetAccountStatsResponse);
 }
 
 message GetPlaygroundsRequest {}
@@ -25,6 +26,20 @@ message GetPlaygroundsRequest {}
 message Meta {
     double initial_balance = 1;
     string environment = 2;
+}
+
+message GetAccountStatsRequest {
+    string playground_id = 1;
+    bool equity_plot = 2;
+}
+
+message EquityPlot {
+    string created_at = 1;
+    double equity = 2;
+}
+
+message GetAccountStatsResponse {
+    repeated EquityPlot equity_plot = 1;
 }
 
 message PlaygroundSession {

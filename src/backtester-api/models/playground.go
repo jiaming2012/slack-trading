@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type IPlayground interface {
@@ -18,6 +19,7 @@ type IPlayground interface {
 	GetId() uuid.UUID
 	GetBalance() float64
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
+	GetEquityPlot() []*pb.EquityPlot
 	GetOrders() []*BacktesterOrder
 	GetPosition(symbol eventmodels.Instrument) Position
 	GetPositions() map[eventmodels.Instrument]*Position
@@ -46,6 +48,19 @@ type Playground struct {
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Env                PlaygroundEnvironment
+}
+
+func (p *Playground) GetEquityPlot() []*pb.EquityPlot {
+	return p.account.EquityPlot
+}
+
+func (p *Playground) appendStat(currentPositions map[eventmodels.Instrument]*Position) error {
+	p.account.EquityPlot = append(p.account.EquityPlot, &pb.EquityPlot{
+		CreatedAt: p.GetCurrentTime().Format(time.RFC3339),
+		Equity:    p.GetEquity(currentPositions),
+	})
+
+	return nil
 }
 
 func (p *Playground) AddToOrderQueue(order *BacktesterOrder) error {
@@ -218,7 +233,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 
 func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
 	pendingOrders := make([]*BacktesterOrder, len(p.account.PendingOrders))
-	
+
 	copy(pendingOrders, p.account.PendingOrders)
 
 	for _, order := range pendingOrders {
@@ -630,6 +645,10 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 	return candles, nil
 }
 
+func (p *Playground) updateAccountStats() {
+	p.appendStat(p.GetPositions())
+}
+
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	if isPreview {
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
@@ -743,6 +762,8 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 			}
 		}
 	}
+
+	p.updateAccountStats()
 
 	return &TickDelta{
 		NewTrades:     newTrades,

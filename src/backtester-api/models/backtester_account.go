@@ -1,6 +1,10 @@
 package models
 
-import "sync"
+import (
+	"sync"
+
+	pb "github.com/jiaming2012/slack-trading/src/playground"
+)
 
 type BacktesterAccount struct {
 	mutex         *sync.Mutex
@@ -9,6 +13,7 @@ type BacktesterAccount struct {
 	Balance       float64
 	Orders        []*BacktesterOrder
 	PendingOrders []*BacktesterOrder
+	EquityPlot    []*pb.EquityPlot
 }
 
 func (a *BacktesterAccount) NextOrderID() uint {
@@ -37,11 +42,11 @@ func NewBacktesterAccount(balance float64, orders []*BacktesterOrder) *Backteste
 			activeOrders = append(activeOrders, order)
 		}
 	}
-	
+
 	return &BacktesterAccount{
-		mutex:   &sync.Mutex{},
-		Balance: balance,
-		Orders:  activeOrders,
+		mutex:         &sync.Mutex{},
+		Balance:       balance,
+		Orders:        activeOrders,
 		PendingOrders: pendingOrders,
 	}
 }

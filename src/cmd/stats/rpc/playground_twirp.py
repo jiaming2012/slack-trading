@@ -91,6 +91,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.DeletePlaygroundRequest"),
 				output=_sym_db.GetSymbol("playground.EmptyResponse"),
 			),
+			"GetAccountStats": Endpoint(
+				service_name="PlaygroundService",
+				name="GetAccountStats",
+				function=getattr(service, "GetAccountStats"),
+				input=_sym_db.GetSymbol("playground.GetAccountStatsRequest"),
+				output=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -182,6 +189,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+			**kwargs,
+		)
+
+	def GetAccountStats(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetAccountStats",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
 			**kwargs,
 		)
 
@@ -285,6 +301,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetAccountStats(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetAccountStats",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
 				session=session,
 				**kwargs,
 			)

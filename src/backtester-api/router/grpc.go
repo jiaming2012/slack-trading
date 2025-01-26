@@ -81,6 +81,25 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
+func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsRequest) (*pb.GetAccountStatsResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
+	}
+
+	var equityPlot []*pb.EquityPlot
+	if req.EquityPlot {
+		equityPlot, err = getAccountStatsEquity(playgroundId)
+		if err != nil {
+			return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
+		}
+	}
+
+	return &pb.GetAccountStatsResponse{
+		EquityPlot: equityPlot,
+	}, nil
+}
+
 func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
 	playgrounds := getPlaygrounds()
 
