@@ -410,6 +410,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			CostBasis:         v.CostBasis,
 			Pl:                v.PL,
 			MaintenanceMargin: v.MaintenanceMargin,
+			CurrentPrice:      v.CurrentPrice,
 		}
 	}
 

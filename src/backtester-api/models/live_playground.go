@@ -14,6 +14,11 @@ type LivePlayground struct {
 	playground      *Playground
 	account         *LiveAccount
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
+	newTradesQueue  *eventmodels.FIFOQueue[*BacktesterTrade]
+}
+
+func (p *LivePlayground) GetNewTradeQueue() *eventmodels.FIFOQueue[*BacktesterTrade] {
+	return p.newTradesQueue
 }
 
 func (p *LivePlayground) GetAccount() *LiveAccount {
@@ -125,6 +130,18 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 		break
 	}
 
+	var newTrades []*BacktesterTrade
+
+	for {
+		trade, ok := p.newTradesQueue.Dequeue()
+		if ok {
+			newTrades = append(newTrades, trade)
+			continue
+		}
+
+		break
+	}
+
 	currentTime := p.GetCurrentTime()
 
 	equityPlot, err := p.playground.updateAccountStats(currentTime)
@@ -134,6 +151,7 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 
 	return &TickDelta{
 		NewCandles:         newCandles,
+		NewTrades: newTrades,
 		Events:             nil,
 		CurrentTime:        currentTime.Format(time.RFC3339),
 		IsBacktestComplete: false,
@@ -165,7 +183,7 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker:     account.Source.GetBroker(),
 		ApiKeyName: account.Source.GetApiKeyName(),
@@ -181,5 +199,6 @@ func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositori
 		playground:      playground,
 		account:         account,
 		newCandlesQueue: newCandlesQueue,
+		newTradesQueue:  newTradesQueue,
 	}, nil
 }

@@ -149,6 +149,7 @@ message Position {
     double cost_basis = 2;
     double pl = 3;
     double maintenance_margin = 4;
+    double current_price = 5;
 }
  
 message PlaceOrderRequest {

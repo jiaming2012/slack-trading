@@ -889,6 +889,8 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
 				p.positionsCache[symbol].PL = 0
 			}
+
+			p.positionsCache[symbol].CurrentPrice = close
 		}
 
 		return p.positionsCache

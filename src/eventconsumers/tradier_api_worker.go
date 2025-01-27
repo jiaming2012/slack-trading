@@ -296,7 +296,7 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 			continue
 		}
 
-		fmt.Printf("orderDTO: %v\n", orderDTO)
+		log.Debugf("orderDTO: %v", orderDTO)
 
 		if orderDTO.Status == string(models.BacktesterOrderStatusFilled) {
 			o, err := orderDTO.ToTradierOrder()

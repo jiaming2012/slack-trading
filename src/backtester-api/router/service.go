@@ -198,6 +198,8 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// fetch or create live repositories
 		newCandlesQueue := eventmodels.NewFIFOQueue[*models.BacktesterCandle](999)
 
+		newTradesFilledQueue := eventmodels.NewFIFOQueue[*models.BacktesterTrade](999)
+
 		repos, webErr := createRepos(req.Repositories, from, nil, newCandlesQueue)
 		if webErr != nil {
 			return nil, webErr
@@ -216,7 +218,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, liveAccount, repos, newCandlesQueue, req.BackfillOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(req.ID, liveAccount, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}

@@ -851,7 +851,7 @@ func (c *orderCache) Remove(orderID uint, getMutex bool) {
 	delete(c.container, orderID)
 }
 
-func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
+func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]) {
 	cache := &orderCache{
 		container: make(map[uint]models.OrderExecutionRequest),
 		mutex:     &sync.Mutex{},
@@ -892,7 +892,14 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 					cache.Remove(tradierOrder, false)
 					continue
 				}
+				
 				log.Fatalf("handleLiveOrders: failed to save trade record: %v", err)
+			}
+
+			if livePlayground, ok := playground.(*models.LivePlayground); ok {
+				livePlayground.GetNewTradeQueue().Enqueue(trade)
+			} else {
+				log.Errorf("handleLiveOrders: playground is not live: %v", playground)
 			}
 
 			log.Infof("handleLiveOrders: opened trade: %v", trade)
@@ -922,7 +929,7 @@ func handleLiveOrders(ctx context.Context, queue *eventmodels.FIFOQueue[*eventmo
 				log.Debug("handleLiveOrders: context done")
 				return
 			default:
-				event, ok := queue.Dequeue()
+				event, ok := orderUpdateQueue.Dequeue()
 				if !ok {
 					continue
 				}
