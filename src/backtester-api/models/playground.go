@@ -58,13 +58,15 @@ func (p *Playground) GetEquityPlot() []*eventmodels.EquityPlot {
 	return p.account.EquityPlot
 }
 
-func (p *Playground) appendStat(currentPositions map[eventmodels.Instrument]*Position) error {
-	p.account.EquityPlot = append(p.account.EquityPlot, &eventmodels.EquityPlot{
-		Timestamp: p.GetCurrentTime(),
+func (p *Playground) appendStat(currentTime time.Time, currentPositions map[eventmodels.Instrument]*Position) (*eventmodels.EquityPlot, error) {
+	plot := &eventmodels.EquityPlot{
+		Timestamp: currentTime,
 		Value:     p.GetEquity(currentPositions),
-	})
+	}
 
-	return nil
+	p.account.EquityPlot = append(p.account.EquityPlot, plot)
+
+	return plot, nil
 }
 
 func (p *Playground) AddToOrderQueue(order *BacktesterOrder) error {
@@ -649,8 +651,8 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 	return candles, nil
 }
 
-func (p *Playground) updateAccountStats() {
-	p.appendStat(p.GetPositions())
+func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.EquityPlot, error) {
+	return p.appendStat(currentTime, p.GetPositions())
 }
 
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
@@ -767,7 +769,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		}
 	}
 
-	p.updateAccountStats()
+	p.updateAccountStats(p.GetCurrentTime())
 
 	return &TickDelta{
 		NewTrades:     newTrades,

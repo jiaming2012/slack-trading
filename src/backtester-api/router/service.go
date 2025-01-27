@@ -34,12 +34,18 @@ func nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*
 		return nil, fmt.Errorf("playground not found")
 	}
 
-	tick, err := playground.Tick(duration, isPreview)
+	tickDelta, err := playground.Tick(duration, isPreview)
 	if err != nil {
 		return nil, fmt.Errorf("failed to tick: %v", err)
 	}
 
-	return tick, nil
+	if playground.GetMeta().Environment == models.PlaygroundEnvironmentLive {
+		if err := saveEquityPlotRecord(playgroundID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
+			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
+		}
+	}
+
+	return tickDelta, nil
 }
 
 func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.BacktesterOrder, error) {

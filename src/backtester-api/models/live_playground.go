@@ -125,13 +125,19 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 		break
 	}
 
-	p.playground.updateAccountStats()
+	currentTime := p.GetCurrentTime()
+
+	equityPlot, err := p.playground.updateAccountStats(currentTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update account stats: %w", err)
+	}
 
 	return &TickDelta{
 		NewCandles:         newCandles,
 		Events:             nil,
-		CurrentTime:        p.GetCurrentTime().Format(time.RFC3339),
+		CurrentTime:        currentTime.Format(time.RFC3339),
 		IsBacktestComplete: false,
+		EquityPlot:         equityPlot,
 	}, nil
 }
 
