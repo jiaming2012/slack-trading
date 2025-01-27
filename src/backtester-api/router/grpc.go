@@ -89,9 +89,17 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 
 	var equityPlot []*pb.EquityPlot
 	if req.EquityPlot {
-		equityPlot, err = getAccountStatsEquity(playgroundId)
+		plots, err := getAccountStatsEquity(playgroundId)
 		if err != nil {
 			return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
+		}
+
+		equityPlot = make([]*pb.EquityPlot, 0)
+		for _, p := range plots {
+			equityPlot = append(equityPlot, &pb.EquityPlot{
+				CreatedAt: p.Timestamp.Format(time.RFC3339),
+				Equity:    p.Value,
+			})
 		}
 	}
 

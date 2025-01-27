@@ -3,7 +3,7 @@ package models
 import (
 	"sync"
 
-	pb "github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type BacktesterAccount struct {
@@ -13,7 +13,7 @@ type BacktesterAccount struct {
 	Balance       float64
 	Orders        []*BacktesterOrder
 	PendingOrders []*BacktesterOrder
-	EquityPlot    []*pb.EquityPlot
+	EquityPlot    []*eventmodels.EquityPlot
 }
 
 func (a *BacktesterAccount) NextOrderID() uint {

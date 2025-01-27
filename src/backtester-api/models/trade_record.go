@@ -14,7 +14,7 @@ type TradeRecord struct {
 	Order     OrderRecord `gorm:"foreignKey:OrderID;references:ID"`
 	OrderID   uint        `gorm:"column:order_id;not null;index:idx_order_id"`
 	CloseID   *uint       `gorm:"column:close_id"`
-	Timestamp time.Time   `gorm:"column:timestamp;type:timestamp;not null"`
+	Timestamp time.Time   `gorm:"column:timestamp;type:timestamptz;not null"`
 	Quantity  float64     `gorm:"column:quantity;type:numeric;not null"`
 	Price     float64     `gorm:"column:price;type:numeric;not null"`
 }

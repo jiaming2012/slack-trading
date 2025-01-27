@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
-	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type IPlayground interface {
@@ -19,7 +18,7 @@ type IPlayground interface {
 	GetId() uuid.UUID
 	GetBalance() float64
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
-	GetEquityPlot() []*pb.EquityPlot
+	GetEquityPlot() []*eventmodels.EquityPlot
 	GetOrders() []*BacktesterOrder
 	GetPosition(symbol eventmodels.Instrument) Position
 	GetPositions() map[eventmodels.Instrument]*Position
@@ -35,6 +34,7 @@ type IPlayground interface {
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
 	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
 	RejectOrder(order *BacktesterOrder, reason string) error
+	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
 }
 
 type Playground struct {
@@ -50,14 +50,18 @@ type Playground struct {
 	Env                PlaygroundEnvironment
 }
 
-func (p *Playground) GetEquityPlot() []*pb.EquityPlot {
+func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
+	p.account.EquityPlot = equityPlot
+}
+
+func (p *Playground) GetEquityPlot() []*eventmodels.EquityPlot {
 	return p.account.EquityPlot
 }
 
 func (p *Playground) appendStat(currentPositions map[eventmodels.Instrument]*Position) error {
-	p.account.EquityPlot = append(p.account.EquityPlot, &pb.EquityPlot{
-		CreatedAt: p.GetCurrentTime().Format(time.RFC3339),
-		Equity:    p.GetEquity(currentPositions),
+	p.account.EquityPlot = append(p.account.EquityPlot, &eventmodels.EquityPlot{
+		Timestamp: p.GetCurrentTime(),
+		Value:     p.GetEquity(currentPositions),
 	})
 
 	return nil

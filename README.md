@@ -133,8 +133,10 @@ In order to use the app locally, you will need to port-forward the connection:
 kubectl port-forward svc/postgres 5432:5432 -n database
 ```
 
-Run the following commands in a SQL editor:
+## Create Playground Database
+In a sql editor, run:
 ``` bash
+CREATE database playground;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE SEQUENCE IF NOT EXISTS order_id_seq START 1;
 ```

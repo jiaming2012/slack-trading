@@ -27,7 +27,7 @@ type OrderRecord struct {
 	Status          string            `gorm:"column:status;type:text;not null"`
 	RejectReason    *string           `gorm:"column:reject_reason;type:text"`
 	Tag             string            `gorm:"column:tag;type:text"`
-	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamp;not null"`
+	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
 	ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
 	Trades          []TradeRecord     `gorm:"foreignKey:OrderID"`

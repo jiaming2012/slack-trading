@@ -85,14 +85,15 @@ type CreateAccountRequest struct {
 }
 
 type CreatePlaygroundRequest struct {
-	ID             *uuid.UUID                            `json:"playground_id"`
-	Env            string                                `json:"environment"`
-	Account        CreateAccountRequest                  `json:"account"`
-	Clock          CreateClockRequest                    `json:"clock"`
-	Repositories   []eventmodels.CreateRepositoryRequest `json:"repositories"`
-	BackfillOrders []*models.BacktesterOrder             `json:"orders"`
-	CreatedAt      time.Time                             `json:"created_at"`
-	SaveToDB       bool                                  `json:"-"`
+	ID                *uuid.UUID                            `json:"playground_id"`
+	Env               string                                `json:"environment"`
+	Account           CreateAccountRequest                  `json:"account"`
+	Clock             CreateClockRequest                    `json:"clock"`
+	Repositories      []eventmodels.CreateRepositoryRequest `json:"repositories"`
+	BackfillOrders    []*models.BacktesterOrder             `json:"orders"`
+	EquityPlotRecords []*eventmodels.EquityPlot             `json:"equity_plot_records"`
+	CreatedAt         time.Time                             `json:"created_at"`
+	SaveToDB          bool                                  `json:"-"`
 }
 
 type CreateClockRequest struct {
@@ -251,7 +252,7 @@ func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, e
 	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
 }
 
-func updateClosedByTx(tx *gorm.DB, orderRecords []*models.OrderRecord, tradeRecords []*models.TradeRecord) error {
+func updateClosedByTx(tx *gorm.DB, orderRecords []*models.OrderRecord) error {
 	var closeByRequests []*closeByRequest
 
 	for _, orderRecord := range orderRecords {
@@ -300,14 +301,17 @@ func savePlayground(playground models.IPlayground) error {
 		}
 
 		var orderRecords []*models.OrderRecord
-		var tradeRecords []*models.TradeRecord
 		playgroundId := playground.GetId()
-		if orderRecords, tradeRecords, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
+		if orderRecords, _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 
-		if txErr = updateClosedByTx(tx, orderRecords, tradeRecords); txErr != nil {
+		if txErr = updateClosedByTx(tx, orderRecords); txErr != nil {
 			return fmt.Errorf("failed to update closed by: %w", txErr)
+		}
+
+		if txErr = saveEquityPlotRecords(tx, playgroundId, playground.GetEquityPlot()); txErr != nil {
+			return fmt.Errorf("failed to save equity plot records: %w", txErr)
 		}
 
 		return nil
@@ -315,6 +319,38 @@ func savePlayground(playground models.IPlayground) error {
 
 	if err != nil {
 		return fmt.Errorf("savePlayground: failed to save playground: %w", err)
+	}
+
+	return nil
+}
+
+func saveEquityPlotRecords(tx *gorm.DB, playgroundId uuid.UUID, records []*eventmodels.EquityPlot) error {
+	var equityPlotRecords []*models.EquityPlotRecord
+
+	for _, record := range records {
+		equityPlotRecords = append(equityPlotRecords, &models.EquityPlotRecord{
+			PlaygroundID: playgroundId,
+			Timestamp:    record.Timestamp,
+			Equity:       record.Value,
+		})
+	}
+
+	if err := tx.CreateInBatches(equityPlotRecords, 100).Error; err != nil {
+		return fmt.Errorf("saveEquityPlotRecords: failed to save equity plot records: %w", err)
+	}
+
+	return nil
+}
+
+func saveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
+	rec := &models.EquityPlotRecord{
+		PlaygroundID: playgroundId,
+		Timestamp:    timestamp,
+		Equity:       equity,
+	}
+
+	if err := db.Create(rec).Error; err != nil {
+		return fmt.Errorf("saveEquityPlotRecord: failed to save equity plot record: %w", err)
 	}
 
 	return nil
@@ -536,7 +572,7 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Find(&playgroundsSlice).Error; err != nil {
+	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -599,6 +635,14 @@ func loadPlaygrounds() error {
 			createRepoRequests = append(createRepoRequests, req)
 		}
 
+		var plot []*eventmodels.EquityPlot
+		for _, r := range p.EquityPlotRecords {
+			plot = append(plot, &eventmodels.EquityPlot{
+				Timestamp: r.Timestamp,
+				Value:     r.Equity,
+			})
+		}
+
 		playground, err := CreatePlayground(&CreatePlaygroundRequest{
 			ID:  &p.ID,
 			Env: p.Env,
@@ -606,11 +650,12 @@ func loadPlaygrounds() error {
 				Balance: p.StartingBalance,
 				Source:  source,
 			},
-			Clock:          clockRequest,
-			Repositories:   createRepoRequests,
-			BackfillOrders: orders,
-			CreatedAt:      p.CreatedAt,
-			SaveToDB:       false,
+			Clock:             clockRequest,
+			Repositories:      createRepoRequests,
+			BackfillOrders:    orders,
+			CreatedAt:         p.CreatedAt,
+			EquityPlotRecords: plot,
+			SaveToDB:          false,
 		})
 
 		if err != nil {

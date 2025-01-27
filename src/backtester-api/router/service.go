@@ -11,7 +11,6 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
-	pb "github.com/jiaming2012/slack-trading/src/playground"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
@@ -85,7 +84,7 @@ func deletePlayground(playgroundID uuid.UUID) error {
 	return nil
 }
 
-func getAccountStatsEquity(playgroundID uuid.UUID) ([]*pb.EquityPlot, error) {
+func getAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
 		return nil, eventmodels.NewWebError(404, "playground not found")
@@ -256,6 +255,8 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 	} else {
 		return nil, eventmodels.NewWebError(400, "invalid playground environment")
 	}
+
+	playground.SetEquityPlot(req.EquityPlotRecords)
 
 	playgrounds[playground.GetId()] = playground
 

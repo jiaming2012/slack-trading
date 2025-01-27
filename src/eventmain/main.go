@@ -300,6 +300,10 @@ func initDB(host, user, password, dbName string) error {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
+	if err := db.AutoMigrate(&models.EquityPlotRecord{}); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
 	return nil
 }
 
