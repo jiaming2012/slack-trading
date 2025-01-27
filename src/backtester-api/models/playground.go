@@ -144,7 +144,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	}
 
 	var freeMargin, initialMargin float64
-	order.IsClose = false
 	performMarginCheck := performChecks
 
 	if performChecks {
@@ -167,7 +166,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 					}
 				} else {
 					performMarginCheck = false
-					order.IsClose = true
 				}
 			} else if position.Quantity >= 0 && orderQuantity < 0 {
 				if math.Abs(orderQuantity) > position.Quantity {
@@ -182,7 +180,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 					}
 				} else {
 					performMarginCheck = false
-					order.IsClose = true
 				}
 			}
 		}
@@ -199,35 +196,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 
 		return fmt.Errorf("commitPendingOrders: order %d has insufficient free margin", order.ID)
 
-	} else if order.IsClose {
-		closeVolume := math.Abs(orderQuantity)
-		openOrders := p.GetOpenOrders(order.Symbol)
-		pendingCloses := make(map[*BacktesterOrder]float64)
-
-		for _, openOrder := range openOrders {
-			if closeVolume <= 0 {
-				break
-			}
-
-			remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
-			if volume, found := pendingCloses[openOrder]; found {
-				remainingOpenQuantity -= volume
-			}
-
-			if remainingOpenQuantity <= 0 {
-				continue
-			}
-
-			volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
-			closeVolume -= volumeToClose
-
-			if _, found := pendingCloses[openOrder]; !found {
-				pendingCloses[openOrder] = 0
-			}
-			pendingCloses[openOrder] += volumeToClose
-
-			order.Closes = append(order.Closes, openOrder)
-		}
 	}
 
 	if err := p.AddToOrderQueue(order); err != nil {
@@ -374,6 +342,52 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	return nil
 }
 
+func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Position) {
+	orderQty := order.GetQuantity()
+
+	// check if the order is a close order
+	order.IsClose = false
+	if position != nil {
+		if position.Quantity > 0 && orderQty < 0 {
+			order.IsClose = true
+		} else if position.Quantity < 0 && orderQty > 0 {
+			order.IsClose = true
+		}
+	}
+
+	// add the order to the closes list of the open order
+	if order.IsClose {
+		closeVolume := math.Abs(orderQty)
+		openOrders := p.GetOpenOrders(order.Symbol)
+		pendingCloses := make(map[*BacktesterOrder]float64)
+
+		for _, openOrder := range openOrders {
+			if closeVolume <= 0 {
+				break
+			}
+
+			remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
+			if volume, found := pendingCloses[openOrder]; found {
+				remainingOpenQuantity -= volume
+			}
+
+			if remainingOpenQuantity <= 0 {
+				continue
+			}
+
+			volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
+			closeVolume -= volumeToClose
+
+			if _, found := pendingCloses[openOrder]; !found {
+				pendingCloses[openOrder] = 0
+			}
+			pendingCloses[openOrder] += volumeToClose
+
+			order.Closes = append(order.Closes, openOrder)
+		}
+	}
+}
+
 func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
 	position, ok := positionsMap[order.Symbol]
 	if !ok {
@@ -403,6 +417,9 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	}
 
 	var closeByRequests []*CloseByRequest
+
+	// mutates the order to add closes info
+	p.addClosesInfoToOrder(order, position)
 
 	if order.IsClose {
 		volumeToClose := math.Abs(order.GetQuantity())
