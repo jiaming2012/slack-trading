@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
 from src.cmd.stats.playground_types import RepositorySource, OrderSide
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
@@ -138,10 +138,12 @@ class BacktesterPlaygroundClient:
         if source == RepositorySource.CSV:
             # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
             raise Exception('CSV source not supported')
-        elif source == RepositorySource.POLYGON:
+        elif source == RepositorySource.POLYGON and req.environment == PlaygroundEnvironment.SIMULATOR.value:
             self.id = self.create_playground_polygon(req)
+        elif req.environment == PlaygroundEnvironment.LIVE.value:
+            self.id = self.create_live_playground(req)
         else:
-            raise Exception('Invalid source')
+            raise Exception(f'Invalid source {source} and environment {req.environment}')
 
         self.position = None
 
@@ -431,32 +433,21 @@ class BacktesterPlaygroundClient:
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')
         
-        response = requests.post(
-            f'{self.host}/playground',
-            json={
-                'balance': balance,
-                'clock': {
-                    'start': start_date,
-                    'stop': stop_date
-                },
-                'repository': {
-                    'symbol': symbol,
-                    'timespan': {
-                        'multiplier': 1,
-                        'unit': 'minute'
-                    },
-                    'source': {
-                        'type': 'csv',
-                        'filename': filename
-                    }
-                }
-            }
-        )
-        
-        if response.status_code != 200:
-            raise Exception(response.text)
-        
-        return response.json()['playground_id']
+    def create_live_playground(self, req: CreatePolygonPlaygroundRequest) -> str:
+        try:
+            liveRequest = CreateLivePlaygroundRequest(
+                balance=req.balance,
+                source_broker='tradier',
+                source_account_id='VA12962195',
+                source_api_key_name='TRADIER_TRADES_BEARER_TOKEN',
+                repositories=req.repositories,
+                environment='live'
+            )
+            
+            response = network_call_with_retry(self.client.CreateLivePlayground, liveRequest)            
+            return response.id
+        except Exception as e:
+            raise("Failed to create live playground:", e)
 
     
     def create_playground_polygon(self, req: CreatePolygonPlaygroundRequest) -> str:

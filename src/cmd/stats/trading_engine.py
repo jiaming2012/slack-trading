@@ -120,6 +120,7 @@ if __name__ == "__main__":
     balance = float(os.getenv("BALANCE"))
     symbol = os.getenv("SYMBOL")
     grpc_host = os.getenv("GRPC_HOST")
+    playground_env = os.getenv("PLAYGROUND_ENV")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -128,14 +129,24 @@ if __name__ == "__main__":
         raise ValueError("Environment variable SYMBOL is not set")
     if grpc_host is None:
         raise ValueError("Environment variable GRPC_HOST is not set")
+    if playground_env is None:
+        raise ValueError("Environment variable PLAYGROUND_ENV is not set")
     
-    start_date = '2024-01-02'
-    end_date = '2024-12-31'
-    repository_source = RepositorySource.POLYGON
-    csv_path = None
-    env = PlaygroundEnvironment.SIMULATOR
+    if playground_env.lower() == "simulator":
+        start_date = '2024-01-02'
+        end_date = '2024-12-31'
+        repository_source = RepositorySource.POLYGON
+        csv_path = None
+        env = PlaygroundEnvironment.SIMULATOR
     
-    print(f"initializing {symbol} playground from {start_date} to {end_date} ...")
+        print(f"initializing {env} environment: {symbol} playground from {start_date} to {end_date} ...")
+    elif playground_env.lower() == "live":
+        start_date = None
+        end_date = None
+        repository_source = None
+        env = PlaygroundEnvironment.LIVE
+    else:
+        raise ValueError(f"Invalid environment: {playground_env}")
     
     req = create_playground_request(balance, symbol, start_date, end_date, env)
     

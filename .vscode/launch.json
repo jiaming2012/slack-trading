@@ -300,7 +300,12 @@
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
-            "args": []
+            "env": {
+                "BALANCE": "10000",
+                "SYMBOL": "AAPL",
+                "GRPC_HOST": "http://45.77.223.21",
+                "PLAYGROUND_ENV": "live"
+            }
         },
         {
             "name": "backtester playground client",
