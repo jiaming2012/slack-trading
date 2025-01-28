@@ -14,6 +14,7 @@ type PlaygroundSession struct {
 	StartAt           time.Time              `gorm:"column:start_at;type:timestamptz;not null"`
 	EndAt             *time.Time             `gorm:"column:end_at;type:timestamptz"`
 	CurrentTime       time.Time              `gorm:"column:current_time;type:timestamptz;not null"`
+	Balance           float64                `gorm:"column:balance;type:numeric;not null"`
 	StartingBalance   float64                `gorm:"column:starting_balance;type:numeric;not null"`
 	Env               string                 `gorm:"column:environment;type:text;not null"`
 	Broker            *string                `gorm:"column:broker;type:text"`

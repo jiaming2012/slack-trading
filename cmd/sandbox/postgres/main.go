@@ -106,6 +106,7 @@ func main() {
 				ApiKeyName: "TRADIER_TRADES_BEARER_TOKEN",
 			},
 		},
+		StartingBalance: 10000.0,
 		Repositories: []eventmodels.CreateRepositoryRequest{
 			{
 				Symbol: "AAPL",

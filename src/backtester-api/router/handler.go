@@ -88,6 +88,7 @@ type CreatePlaygroundRequest struct {
 	ID                *uuid.UUID                            `json:"playground_id"`
 	Env               string                                `json:"environment"`
 	Account           CreateAccountRequest                  `json:"account"`
+	StartingBalance   float64                               `json:"starting_balance"`
 	Clock             CreateClockRequest                    `json:"clock"`
 	Repositories      []eventmodels.CreateRepositoryRequest `json:"repositories"`
 	BackfillOrders    []*models.BacktesterOrder             `json:"orders"`
@@ -229,10 +230,31 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 	return allOrderRecords, nil
 }
 
-func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
-	_, err := saveOrderRecordsTx(db, playgroundId, []*models.BacktesterOrder{order})
+func saveBalance(tx *gorm.DB, playgroundId uuid.UUID, balance float64) error {
+	if result := tx.Model(&models.PlaygroundSession{}).Where("id = ?", playgroundId).Update("balance", balance); result.Error != nil {
+		return fmt.Errorf("saveBalance: failed to save balance: %w", result.Error)
+	}
+
+	return nil
+}
+
+func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}); err != nil {
+			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", err)
+		}
+
+		if newBalance != nil {
+			if err := saveBalance(tx, playgroundId, *newBalance); err != nil {
+				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", err)
+			}
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("saveOrderRecord: failed to save order record: %w", err)
+		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
 	}
 
 	return nil
@@ -370,6 +392,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		CurrentTime:     playground.GetCurrentTime(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
+		Balance:         playground.GetBalance(),
 		StartingBalance: meta.StartingBalance,
 		Repositories:    models.CandleRepositoryRecord(repoDTOs),
 		Env:             string(meta.Environment),
@@ -422,7 +445,7 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 
 	switch playground.(type) {
 	case *models.LivePlayground:
-		if err := saveOrderRecord(playground.GetId(), order); err != nil {
+		if err := saveOrderRecord(playground.GetId(), order, nil); err != nil {
 			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
 		}
 	}
@@ -643,9 +666,10 @@ func loadPlaygrounds() error {
 			ID:  &p.ID,
 			Env: p.Env,
 			Account: CreateAccountRequest{
-				Balance: p.StartingBalance,
+				Balance: p.Balance,
 				Source:  source,
 			},
+			StartingBalance:   p.StartingBalance,
 			Clock:             clockRequest,
 			Repositories:      createRepoRequests,
 			BackfillOrders:    orders,
@@ -886,7 +910,8 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 			}
 
 			// Resave the order to update the status and close_id
-			if err := saveOrderRecord(playground.GetId(), order); err != nil {
+			balance := playground.GetBalance()
+			if err := saveOrderRecord(playground.GetId(), order, &balance); err != nil {
 				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 

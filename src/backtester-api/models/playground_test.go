@@ -72,7 +72,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		return playground, err
 	}
 
@@ -151,7 +151,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -241,7 +241,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
@@ -323,7 +323,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -381,7 +381,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -416,7 +416,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -486,7 +486,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		// initial tick: new APPL and GOOG candles
@@ -553,7 +553,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -593,7 +593,7 @@ func TestClock(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false)
@@ -653,7 +653,7 @@ func TestBalance(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime)
 		assert.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -681,7 +681,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -754,7 +754,7 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// open 1st order
@@ -853,7 +853,7 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -894,7 +894,7 @@ func TestPlaceOrder(t *testing.T) {
 		now := startTime
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -915,7 +915,7 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime)
 		assert.NoError(t, err)
 
 		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
@@ -946,7 +946,7 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Create a new playground
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// Place a buy order
@@ -1007,7 +1007,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1080,7 +1080,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1193,7 +1193,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1308,7 +1308,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// open 1st order
@@ -1448,7 +1448,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1594,7 +1594,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1647,7 +1647,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1685,7 +1685,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1728,7 +1728,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
@@ -1780,7 +1780,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1849,7 +1849,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		freeMargin, err := playground.GetFreeMargin()
@@ -1861,7 +1861,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order
@@ -1899,7 +1899,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		tradeQty := 1.0
@@ -1926,7 +1926,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		tradeQty := 1.0
@@ -1953,7 +1953,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order equal to free margin
@@ -2007,7 +2007,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2032,7 +2032,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 10000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 10000.0, 10000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2054,7 +2054,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2066,7 +2066,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2078,7 +2078,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2090,7 +2090,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		price := float64(0)
@@ -2103,7 +2103,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		id := uint(1)
@@ -2154,7 +2154,7 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		now := startTime
@@ -2189,7 +2189,7 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		quantity := 10.0

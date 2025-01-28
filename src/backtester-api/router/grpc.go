@@ -505,6 +505,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 				ApiKeyName: req.SourceApiKeyName,
 			},
 		},
+		StartingBalance: float64(req.Balance),
 		Repositories: repositoryRequests,
 		SaveToDB:     true,
 		CreatedAt:    time.Now(),
