@@ -152,89 +152,76 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
-	err := parentTx.Transaction(func(tx *gorm.DB) error {
-		var orderRecord models.OrderRecord
+// func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+// 	err := parentTx.Transaction(func(tx *gorm.DB) error {
+// 		var orderRecord models.OrderRecord
 
-		if result := tx.First(&orderRecord, "external_id = ?", orderID); result.Error != nil {
-			return fmt.Errorf("saveTradeRecordTx: failed to find order record: %w", result.Error)
-		}
+// 		if result := tx.First(&orderRecord, "external_id = ?", orderID); result.Error != nil {
+// 			return fmt.Errorf("saveTradeRecordTx: failed to find order record: %w", result.Error)
+// 		}
 
-		if orderRecord.Status != string(models.BacktesterOrderStatusOpen) && orderRecord.Status != string(models.BacktesterOrderStatusPending) {
-			return fmt.Errorf("saveTradeRecordTx: %w", models.ErrDbOrderIsNotOpenOrPending)
-		}
+// 		if orderRecord.Status != string(models.BacktesterOrderStatusOpen) && orderRecord.Status != string(models.BacktesterOrderStatusPending) {
+// 			return fmt.Errorf("saveTradeRecordTx: %w", models.ErrDbOrderIsNotOpenOrPending)
+// 		}
 
-		record := trade.ToTradeRecord(playgroundId, orderRecord.ID)
-		if err := tx.Create(&record).Error; err != nil {
-			return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-		}
+// 		record := trade.ToTradeRecord(playgroundId, orderRecord.ID)
+// 		if err := tx.Create(&record).Error; err != nil {
+// 			return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
+// 		}
 
-		orderRecord.Status = string(models.BacktesterOrderStatusFilled)
+// 		orderRecord.Status = string(models.BacktesterOrderStatusFilled)
 
-		if err := tx.Save(&orderRecord).Error; err != nil {
-			return fmt.Errorf("saveTradeRecordTx: failed to update order record: %w", err)
-		}
+// 		if err := tx.Save(&orderRecord).Error; err != nil {
+// 			return fmt.Errorf("saveTradeRecordTx: failed to update order record: %w", err)
+// 		}
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	if err != nil {
-		return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
-	return saveTradeRecordTx(db, playgroundId, orderID, trade)
-}
+// func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+// 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
+// }
 
-func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) ([]*models.OrderRecord, []*models.TradeRecord, error) {
+func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) ([]*models.OrderRecord, error) {
 	var allOrderRecords []*models.OrderRecord
-	var allTradeRecords []*models.TradeRecord
 
 	for _, order := range orders {
 		var err error
 
-		oRec, tRecs, err := order.ToOrderRecord(tx, playgroundId)
+		oRec, _, err := order.ToOrderRecord(tx, playgroundId)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert order to order record: %w", err)
+			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
 
 		if err = tx.Create(&oRec).Error; err != nil {
-			return nil, nil, fmt.Errorf("failed to save order records: %w", err)
+			return nil, fmt.Errorf("failed to save order records: %w", err)
 		}
 
 		allOrderRecords = append(allOrderRecords, oRec)
-		allTradeRecords = append(allTradeRecords, tRecs...)
 	}
 
-	return allOrderRecords, allTradeRecords, nil
+	if err := updateClosedByTx(tx, allOrderRecords); err != nil {
+		return nil, fmt.Errorf("failed to update closed by: %w", err)
+	}
+
+	return allOrderRecords, nil
 }
 
-func saveOrderRecordTx(tx *gorm.DB, playgroundId uuid.UUID, order *models.BacktesterOrder) error {
-	var err error
-
-	orderRecord, tradesRecords, err := order.ToOrderRecord(tx, playgroundId)
-	if err != nil {
-		return fmt.Errorf("failed to convert order to order record: %w", err)
-	}
-
-	if err = tx.Create(orderRecord).Error; err != nil {
-		return fmt.Errorf("failed to save order record: %w", err)
-	}
-
-	for _, tradeRecord := range tradesRecords {
-		if err = tx.Create(tradeRecord).Error; err != nil {
-			return fmt.Errorf("failed to save trade record: %w", err)
-		}
-	}
-
-	return nil
-}
 
 func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
-	return saveOrderRecordTx(db, playgroundId, order)
+	_, err := saveOrderRecordsTx(db, playgroundId, []*models.BacktesterOrder{order})
+	if err != nil {
+		return fmt.Errorf("saveOrderRecord: failed to save order record: %w", err)
+	}
+	
+	return nil
 }
 
 type closeByRequest struct {
@@ -300,14 +287,9 @@ func savePlayground(playground models.IPlayground) error {
 			return fmt.Errorf("failed to save playground session: %w", txErr)
 		}
 
-		var orderRecords []*models.OrderRecord
 		playgroundId := playground.GetId()
-		if orderRecords, _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
+		if _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
-		}
-
-		if txErr = updateClosedByTx(tx, orderRecords); txErr != nil {
-			return fmt.Errorf("failed to update closed by: %w", txErr)
 		}
 
 		if txErr = saveEquityPlotRecords(tx, playgroundId, playground.GetEquityPlot()); txErr != nil {
@@ -885,15 +867,16 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 				continue
 			}
 
-			if err := saveTradeRecord(playground.GetId(), tradierOrder, trade); err != nil {
+			// Resave the order to update the status and close_id
+			if err := saveOrderRecord(playground.GetId(), order); err != nil {
 				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 
 					cache.Remove(tradierOrder, false)
 					continue
 				}
-				
-				log.Fatalf("handleLiveOrders: failed to save trade record: %v", err)
+
+				log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 			}
 
 			if livePlayground, ok := playground.(*models.LivePlayground); ok {
