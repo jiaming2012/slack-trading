@@ -106,7 +106,10 @@ func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountRespon
 		return nil, eventmodels.NewWebError(404, "playground not found")
 	}
 
-	positions := playground.GetPositions()
+	positions, err := playground.GetPositions()
+	if err != nil {
+		return nil, eventmodels.NewWebError(500, "failed to get positions")
+	}
 
 	positionsKV := map[string]*models.Position{}
 	for k, v := range positions {
@@ -256,7 +259,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.ID, req.Account.Balance, clock, req.BackfillOrders, env, nil, now, repos...)
+		playground, err = models.NewPlayground(req.ID, req.Account.Balance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

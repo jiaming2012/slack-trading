@@ -851,7 +851,11 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 				continue
 			}
 
-			positions := playground.GetPositions()
+			positions, err := playground.GetPositions()
+			if err != nil {
+				log.Errorf("handleLiveOrders: failed to get positions: %v", err)
+				continue
+			}
 
 			performChecks := false
 

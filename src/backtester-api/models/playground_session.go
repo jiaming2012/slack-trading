@@ -26,10 +26,8 @@ type PlaygroundSession struct {
 
 func (s PlaygroundSession) ToPlayground() (IPlayground, error) {
 	if s.Env == "simulator" {
-
 		return &Playground{}, nil
 	} else if s.Env == "live" {
-
 		return &LivePlayground{}, nil
 	} else {
 		return nil, fmt.Errorf("unknown environment: %s", s.Env)

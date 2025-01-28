@@ -18,6 +18,10 @@ type TradierBroker struct {
 }
 
 func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("no symbols provided")
+	}
+	
 	dto, err := FetchQuotes(ctx, b.quotesUrl, b.token, symbols)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch quotes: %w", err)

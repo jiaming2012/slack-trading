@@ -72,7 +72,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		return playground, err
 	}
 
@@ -151,7 +151,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -174,7 +174,8 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
 		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		positions := playground.GetPositions()
+		positions, err := playground.GetPositions()
+		assert.NoError(t, err)
 		assert.Len(t, positions, 2)
 
 		delta, err = playground.Tick(5*time.Minute, false)
@@ -202,7 +203,8 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, -30.0, liquidationOrders[1].Trades[0].Quantity)
 		assert.Equal(t, 10.0, liquidationOrders[1].Trades[0].Price)
 
-		positions = playground.GetPositions()
+		positions, err = playground.GetPositions()
+		assert.NoError(t, err)
 		assert.Len(t, positions, 0)
 	})
 
@@ -239,7 +241,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
@@ -261,7 +263,8 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, symbol2, delta.NewTrades[1].Symbol)
 		assert.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		positions := playground.GetPositions()
+		positions, err := playground.GetPositions()
+		assert.NoError(t, err)
 		assert.Len(t, positions, 2)
 
 		delta, err = playground.Tick(5*time.Minute, false)
@@ -280,7 +283,9 @@ func TestLiquidation(t *testing.T) {
 		assert.Equal(t, 4.0, liquidationOrders[0].Trades[0].Quantity)
 		assert.Equal(t, 200.0, liquidationOrders[0].Trades[0].Price)
 
-		positions = playground.GetPositions()
+		positions, err = playground.GetPositions()
+		assert.NoError(t, err)
+
 		assert.Len(t, positions, 1)
 	})
 
@@ -318,7 +323,7 @@ func TestLiquidation(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -376,7 +381,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -411,7 +416,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -481,7 +486,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
 		assert.NoError(t, err)
 
 		// initial tick: new APPL and GOOG candles
@@ -548,7 +553,7 @@ func TestFeed(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo1)
 		assert.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -588,7 +593,7 @@ func TestClock(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false)
@@ -648,7 +653,7 @@ func TestBalance(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime)
 		assert.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -676,7 +681,7 @@ func TestBalance(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -749,7 +754,7 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// open 1st order
@@ -848,7 +853,7 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -889,7 +894,7 @@ func TestPlaceOrder(t *testing.T) {
 		now := startTime
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -910,10 +915,11 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime)
 		assert.NoError(t, err)
 
-		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.ErrorContains(t, err, "position not found")
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
 	})
@@ -940,7 +946,7 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Create a new playground
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// Place a buy order
@@ -956,7 +962,9 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		// assert single open trade
-		position1 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
+
 		assert.Equal(t, 10.0, position1.Quantity)
 
 		// Place a sell order
@@ -971,7 +979,8 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		// assert single open trade volume decreased
-		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, 5.0, position2.Quantity)
 	})
 
@@ -998,7 +1007,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1013,7 +1022,8 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		// assert single open trade
-		position1 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -10.0, position1.Quantity)
 
 		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1027,7 +1037,8 @@ func TestPositions(t *testing.T) {
 		assert.NotNil(t, delta)
 
 		// assert single open trade volume decreased
-		position2 := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -5.0, position2.Quantity)
 	})
 
@@ -1069,7 +1080,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1083,7 +1094,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(symbol)
+		position, err := playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1098,7 +1110,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 20.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
 
@@ -1113,10 +1126,10 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.ErrorContains(t, err, "position not found")
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
-		// assert.Len(t, position.OpenTrades, 0)
 
 		// 3rd order - original direction
 		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1129,7 +1142,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 400.0, position.CostBasis)
 		// assert.Len(t, position.OpenTrades, 1)
@@ -1179,7 +1193,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1193,7 +1207,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(symbol)
+		position, err := playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, -15.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1212,7 +1227,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1227,7 +1243,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, -5.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1242,7 +1259,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.ErrorContains(t, err, "position not found")
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
 	})
@@ -1290,7 +1308,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// open 1st order
@@ -1304,7 +1322,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(symbol)
+		position, err := playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 15.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1327,7 +1346,8 @@ func TestPositions(t *testing.T) {
 		newTrade := delta.NewTrades[0]
 		assert.Equal(t, 200.0, newTrade.Price)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 30.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
 
@@ -1347,7 +1367,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 25.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
 
@@ -1362,7 +1383,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
 
@@ -1377,7 +1399,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.ErrorContains(t, err, "position not found")
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
 	})
@@ -1425,7 +1448,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		// 1st order
@@ -1439,7 +1462,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(symbol)
+		position, err := playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 100.0, position.CostBasis)
 
@@ -1458,7 +1482,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, -20.0, position.Quantity)
 		assert.Equal(t, 150.0, position.CostBasis)
 
@@ -1477,7 +1502,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.ErrorContains(t, err, "position not found")
 		assert.Equal(t, 0.0, position.Quantity)
 		assert.Equal(t, 0.0, position.CostBasis)
 
@@ -1510,7 +1536,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 400.0, position.CostBasis)
 
@@ -1529,7 +1556,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		assert.Equal(t, 20.0, position.Quantity)
 		assert.Equal(t, 450.0, position.CostBasis)
 
@@ -1566,7 +1594,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1579,7 +1607,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(symbol)
+		position, err := playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		costBasis := 100.0
 		assert.Equal(t, costBasis, position.CostBasis)
 
@@ -1593,7 +1622,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(symbol)
+		position, err = playground.GetPosition(symbol)
+		assert.NoError(t, err)
 		costBasis = ((10 / 30.0) * 100.0) + ((20 / 30.0) * 600.0)
 		assert.Equal(t, costBasis, position.CostBasis)
 	})
@@ -1617,7 +1647,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1630,7 +1660,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, 10.0, position.Quantity)
 		assert.Equal(t, 1000.0, position.CostBasis)
 	})
@@ -1654,7 +1685,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1677,7 +1708,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, 5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
 	})
@@ -1696,7 +1728,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
@@ -1708,7 +1740,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
 		// assert.Len(t, position.OpenTrades, 1)
@@ -1724,7 +1757,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -15.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
 		// assert.Len(t, position.OpenTrades, 2)
@@ -1746,7 +1780,7 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 100000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1759,7 +1793,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -10.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
 
@@ -1773,7 +1808,8 @@ func TestPositions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, delta)
 
-		position = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		position, err = playground.GetPosition(eventmodels.StockSymbol("AAPL"))
+		assert.NoError(t, err)
 		assert.Equal(t, -5.0, position.Quantity)
 		assert.Equal(t, 250.0, position.CostBasis)
 	})
@@ -1813,10 +1849,11 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
-		freeMargin := playground.GetFreeMargin()
+		freeMargin, err := playground.GetFreeMargin()
+		assert.NoError(t, err)
 		assert.Equal(t, balance, freeMargin)
 	})
 
@@ -1824,7 +1861,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order
@@ -1837,11 +1874,14 @@ func TestFreeMargin(t *testing.T) {
 		_, err = playground.Tick(time.Minute, false)
 		assert.NoError(t, err)
 
-		positions := playground.GetPositions()
+		positions, err := playground.GetPositions()
+		assert.NoError(t, err)
 		usedMargin := positions[symbol].MaintenanceMargin
 		assert.Equal(t, 500.0, usedMargin)
 
-		freeMargin := playground.GetFreeMargin()
+		freeMargin, err := playground.GetFreeMargin()
+		assert.NoError(t, err)
+
 		assert.Equal(t, balance-usedMargin, freeMargin)
 
 		// move price: price change 100 -> 200 => unrealized PnL = 1,000
@@ -1849,7 +1889,9 @@ func TestFreeMargin(t *testing.T) {
 		_, err = playground.Tick(time.Hour, false)
 		assert.NoError(t, err)
 
-		freeMargin = playground.GetFreeMargin()
+		freeMargin, err = playground.GetFreeMargin()
+		assert.NoError(t, err)
+
 		assert.Equal(t, previousFreeMargin+1000.0, freeMargin)
 	})
 
@@ -1857,7 +1899,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		tradeQty := 1.0
@@ -1874,7 +1916,9 @@ func TestFreeMargin(t *testing.T) {
 		tradePrc := delta.NewTrades[0].Price
 		assert.Equal(t, 100.0, tradePrc)
 
-		freeMargin := playground.GetFreeMargin()
+		freeMargin, err := playground.GetFreeMargin()
+		assert.NoError(t, err)
+
 		assert.Equal(t, balance-(tradePrc*tradeQty*0.5), freeMargin)
 	})
 
@@ -1882,7 +1926,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		tradeQty := 1.0
@@ -1899,7 +1943,9 @@ func TestFreeMargin(t *testing.T) {
 		tradePrc := delta.NewTrades[0].Price
 		assert.Equal(t, 100.0, tradePrc)
 
-		freeMargin := playground.GetFreeMargin()
+		freeMargin, err := playground.GetFreeMargin()
+		assert.NoError(t, err)
+
 		assert.Equal(t, balance-(tradePrc*tradeQty*1.5), freeMargin)
 	})
 
@@ -1907,7 +1953,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, balance, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		// place order equal to free margin
@@ -1961,7 +2007,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -1986,7 +2032,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 10000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 10000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2008,7 +2054,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2020,7 +2066,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2032,7 +2078,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
@@ -2044,7 +2090,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		price := float64(0)
@@ -2057,7 +2103,7 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		id := uint(1)
@@ -2108,7 +2154,7 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, startTime, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, startTime, repo)
 		assert.NoError(t, err)
 
 		now := startTime
@@ -2143,7 +2189,7 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		assert.NoError(t, err)
 
-		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, now, repo)
+		playground, err := NewPlayground(nil, 1000.0, clock, nil, env, nil, nil, now, repo)
 		assert.NoError(t, err)
 
 		quantity := 10.0

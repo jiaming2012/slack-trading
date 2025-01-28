@@ -114,10 +114,17 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
 	for _, p := range playgrounds {
 		meta := p.GetMeta()
-		positions := p.GetPositions()
+		positions, err := p.GetPositions()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get playground positions: %v", err)
+		}
+
 		balance := p.GetBalance()
 		equity := p.GetEquity(positions)
-		freeMargin := p.GetFreeMargin()
+		freeMargin, err := p.GetFreeMargin()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get playground free margin: %v", err)
+		}
 
 		var clockStop *string
 		if meta.EndAt != nil {

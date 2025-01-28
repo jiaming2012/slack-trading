@@ -20,11 +20,11 @@ type IPlayground interface {
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
 	GetEquityPlot() []*eventmodels.EquityPlot
 	GetOrders() []*BacktesterOrder
-	GetPosition(symbol eventmodels.Instrument) Position
-	GetPositions() map[eventmodels.Instrument]*Position
+	GetPosition(symbol eventmodels.Instrument) (Position, error)
+	GetPositions() (map[eventmodels.Instrument]*Position, error)
 	GetRepositories() []*CandleRepository
 	GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error)
-	GetFreeMargin() float64
+	GetFreeMargin() (float64, error)
 	PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error)
 	Tick(d time.Duration, isPreview bool) (*TickDelta, error)
 	GetFreeMarginFromPositionMap(positions map[eventmodels.Instrument]*Position) float64
@@ -47,7 +47,15 @@ type Playground struct {
 	positionsCache     map[eventmodels.Instrument]*Position
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
-	Env                PlaygroundEnvironment
+	Broker             IBroker
+}
+
+func (p *Playground) GetEnvironment() PlaygroundEnvironment {
+	if p.Meta == nil {
+		log.Fatal("GetEnvironment: playground meta is nil")
+	}
+
+	return p.Meta.Environment
 }
 
 func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
@@ -300,22 +308,68 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade, isClose bool) 
 	}
 }
 
-func (p *Playground) getCurrentPrice(symbol eventmodels.Instrument, period time.Duration) (float64, error) {
-	repo, ok := p.repos[symbol][period]
-	if !ok {
-		return 0, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
-	}
+func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eventmodels.Instrument]*Tick, error) {
+	result := make(map[eventmodels.Instrument]*Tick)
 
-	candle, err := repo.GetCurrentCandle()
-	if err != nil {
-		return 0, fmt.Errorf("getCurrentPrice: error getting current candle: %w", err)
-	}
+	switch p.GetEnvironment() {
+	case PlaygroundEnvironmentLive:
+		if len(symbols) == 0 {
+			return map[eventmodels.Instrument]*Tick{}, nil
+		}
 
-	if candle == nil {
-		return 0, ErrCurrentPriceNotSet
-	}
+		quotes, err := p.Broker.FetchQuotes(context.Background(), symbols)
+		if err != nil {
+			return nil, fmt.Errorf("getCurrentPrice: error fetching quotes: %w", err)
+		}
 
-	return candle.Close, nil
+		for _, q := range quotes {
+			var symbol eventmodels.Instrument
+
+			switch q.Type {
+			case "stock":
+				symbol = eventmodels.NewStockSymbol(q.Symbol)
+			default:
+				return nil, fmt.Errorf("getCurrentPrice: unknown quote type: %s", q.Type)
+			}
+
+			ts := time.Unix(q.TradeDate, 0)
+
+			result[symbol] = &Tick{
+				Symbol:    symbol,
+				Timestamp: ts,
+				Value:     q.Last,
+			}
+		}
+
+		return result, nil
+
+	case PlaygroundEnvironmentSimulator:
+		for _, symbol := range symbols {
+			repo, ok := p.repos[symbol][p.minimumPeriod]
+			if !ok {
+				return nil, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
+			}
+
+			candle, err := repo.GetCurrentCandle()
+			if err != nil {
+				return nil, fmt.Errorf("getCurrentPrice: error getting current candle: %w", err)
+			}
+
+			if candle == nil {
+				return nil, ErrCurrentPriceNotSet
+			}
+
+			result[symbol] = &Tick{
+				Symbol:    symbol,
+				Timestamp: candle.Timestamp,
+				Value:     candle.Close,
+			}
+		}
+
+		return result, nil
+	default:
+		return nil, fmt.Errorf("getCurrentPrice: unknown environment: %s", p.GetEnvironment())
+	}
 }
 
 func (p *Playground) addToOpenOrdersCache(order *BacktesterOrder) {
@@ -564,7 +618,17 @@ func (p *Playground) GetCurrentTime() time.Time {
 }
 
 func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
-	return p.getCurrentPrice(symbol, p.minimumPeriod)
+	result, err := p.getCurrentPrices([]eventmodels.Instrument{symbol})
+	if err != nil {
+		return 0, fmt.Errorf("error fetching current price: %w", err)
+	}
+
+	tick, found := result[symbol]
+	if !found {
+		return 0, fmt.Errorf("symbol %s not found in result", symbol)
+	}
+
+	return tick.Value, nil
 }
 
 func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*BacktesterOrder, error) {
@@ -634,7 +698,11 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 			liquidatedOrders = append(liquidatedOrders, order)
 		}
 
-		positions = p.GetPositions()
+		positions, err = p.GetPositions()
+		if err != nil {
+			return nil, fmt.Errorf("error getting positions: %w", err)
+		}
+
 		maintenanceMargin = p.getMaintenanceMargin(positions)
 	}
 
@@ -669,7 +737,12 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 }
 
 func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.EquityPlot, error) {
-	return p.appendStat(currentTime, p.GetPositions())
+	positions, err := p.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("error getting positions: %w", err)
+	}
+
+	return p.appendStat(currentTime, positions)
 }
 
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
@@ -711,7 +784,10 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	// Check for liquidations
 	var tickDeltaEvents []*TickDeltaEvent
 
-	startingPositions := p.GetPositions()
+	startingPositions, err := p.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("error getting positions: %w", err)
+	}
 
 	liquidationEvents, err := p.checkForLiquidations(startingPositions)
 	if err != nil {
@@ -826,13 +902,18 @@ func (p *Playground) GetOrders() []*BacktesterOrder {
 	return result
 }
 
-func (p *Playground) GetPosition(symbol eventmodels.Instrument) Position {
-	position, ok := p.GetPositions()[symbol]
-	if !ok {
-		return Position{}
+func (p *Playground) GetPosition(symbol eventmodels.Instrument) (Position, error) {
+	positions, err := p.GetPositions()
+	if err != nil {
+		return Position{}, fmt.Errorf("error getting positions: %w", err)
 	}
 
-	return *position
+	position, ok := positions[symbol]
+	if !ok {
+		return Position{}, fmt.Errorf("position not found for symbol %s", symbol)
+	}
+
+	return *position, nil
 }
 
 func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade {
@@ -895,22 +976,40 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 	return netTrades
 }
 
-func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
+func getKeysFromMap(m map[eventmodels.Instrument]*Position) []eventmodels.Instrument {
+	keys := make([]eventmodels.Instrument, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error) {
 	if p.positionsCache != nil {
 		// update pl
+		symbols := getKeysFromMap(p.positionsCache)
+		currentPrices, err := p.getCurrentPrices(symbols)
+		if err != nil {
+			return nil, fmt.Errorf("getCurrentPrice: %w", err)
+		}
+
 		for symbol, position := range p.positionsCache {
-			close, err := p.getCurrentPrice(symbol, p.minimumPeriod)
+			currentPrice, found := currentPrices[symbol]
+			if !found {
+				return nil, fmt.Errorf("current price not found for symbol %s", symbol)
+			}
+
 			if err == nil {
-				p.positionsCache[symbol].PL = (close - position.CostBasis) * position.Quantity
+				p.positionsCache[symbol].PL = (currentPrice.Value - position.CostBasis) * position.Quantity
 			} else {
 				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
 				p.positionsCache[symbol].PL = 0
 			}
 
-			p.positionsCache[symbol].CurrentPrice = close
+			p.positionsCache[symbol].CurrentPrice = currentPrice.Value
 		}
 
-		return p.positionsCache
+		return p.positionsCache, nil
 	}
 
 	positions := make(map[eventmodels.Instrument]*Position)
@@ -963,6 +1062,13 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		}
 	}
 
+	// calculate positions
+	symbols := getKeysFromMap(positions)
+	currentPrices, err := p.getCurrentPrices(symbols)
+	if err != nil {
+		return nil, fmt.Errorf("getCurrentPrice: %w", err)
+	}
+
 	for symbol, vwap := range vwapMap {
 		var costBasis float64
 		totalQuantity := totalQuantityMap[symbol]
@@ -982,11 +1088,11 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 		positions[symbol].MaintenanceMargin = calculateMaintenanceRequirement(totalQuantity, costBasis)
 
 		// calculate pl
-		close, err := p.getCurrentPrice(symbol, p.minimumPeriod)
-		if err == nil {
-			positions[symbol].PL = (close - costBasis) * positions[symbol].Quantity
+		tick, found := currentPrices[symbol]
+		if found {
+			positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
 		} else {
-			log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
+			log.Warnf("getCurrentPrice [%s]: not found", symbol)
 			positions[symbol].PL = 0
 		}
 	}
@@ -994,7 +1100,7 @@ func (p *Playground) GetPositions() map[eventmodels.Instrument]*Position {
 	// set the cache
 	p.positionsCache = positions
 
-	return positions
+	return positions, nil
 }
 
 func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error) {
@@ -1078,9 +1184,13 @@ func (p *Playground) GetFreeMarginFromPositionMap(positions map[eventmodels.Inst
 	return freeMargin
 }
 
-func (p *Playground) GetFreeMargin() float64 {
-	positions := p.GetPositions()
-	return p.GetFreeMarginFromPositionMap(positions)
+func (p *Playground) GetFreeMargin() (float64, error) {
+	positions, err := p.GetPositions()
+	if err != nil {
+		return 0, fmt.Errorf("error getting positions: %w", err)
+	}
+
+	return p.GetFreeMarginFromPositionMap(positions), nil
 }
 
 type PlaceOrderChanges struct {
@@ -1096,7 +1206,11 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 		return nil, fmt.Errorf("symbol %s not found in repos", order.Symbol)
 	}
 
-	positions := p.GetPositions()
+	positions, err := p.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("error getting positions: %w", err)
+	}
+
 	positionQty := 0.0
 	if position, ok := positions[order.Symbol]; ok {
 		positionQty = position.Quantity
@@ -1150,7 +1264,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1220,5 +1334,6 @@ func NewPlayground(playgroundId *uuid.UUID, balance float64, clock *Clock, order
 		positionsCache:  nil,
 		openOrdersCache: make(map[eventmodels.Instrument][]*BacktesterOrder),
 		minimumPeriod:   minimumPeriod,
+		Broker:          broker,
 	}, nil
 }

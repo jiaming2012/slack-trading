@@ -49,11 +49,11 @@ func (p *LivePlayground) GetOrders() []*BacktesterOrder {
 	return p.playground.GetOrders()
 }
 
-func (p *LivePlayground) GetPosition(symbol eventmodels.Instrument) Position {
+func (p *LivePlayground) GetPosition(symbol eventmodels.Instrument) (Position, error) {
 	return p.playground.GetPosition(symbol)
 }
 
-func (p *LivePlayground) GetPositions() map[eventmodels.Instrument]*Position {
+func (p *LivePlayground) GetPositions() (map[eventmodels.Instrument]*Position, error) {
 	return p.playground.GetPositions()
 }
 
@@ -61,7 +61,7 @@ func (p *LivePlayground) GetCandle(symbol eventmodels.Instrument, period time.Du
 	return p.playground.GetCandle(symbol, period)
 }
 
-func (p *LivePlayground) GetFreeMargin() float64 {
+func (p *LivePlayground) GetFreeMargin() (float64, error) {
 	return p.playground.GetFreeMargin()
 }
 
@@ -190,7 +190,7 @@ func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, repositori
 		AccountID:  account.Source.GetAccountID(),
 	}
 
-	playground, err := NewPlayground(playgroundID, account.Balance, nil, orders, PlaygroundEnvironmentLive, source, now, repositories...)
+	playground, err := NewPlayground(playgroundID, account.Balance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

@@ -46,13 +46,20 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("FetchQuotes: failed to fetch option prices: %w", err)
+		return nil, fmt.Errorf("FetchQuotes: query failed: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("FetchQuotes: failed to fetch option prices: %s", res.Status)
+		errBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("FetchQuotes: failed to read response body: %w", err)
+		}
+
+		log.Errorf("FetchQuotes: failed to fetch quotes: %s", string(errBytes))
+		
+		return nil, fmt.Errorf("FetchQuotes: invalid status code: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
