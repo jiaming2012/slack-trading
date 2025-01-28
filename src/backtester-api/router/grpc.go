@@ -83,7 +83,7 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	return order
 }
 
-func (s *Server) GetVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
+func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
 		Version: eventservices.GetAppVersion(),
 	}, nil
