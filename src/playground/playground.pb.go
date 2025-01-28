@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/known/durationpb"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	_ "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -58,6 +59,51 @@ func (*GetPlaygroundsRequest) Descriptor() ([]byte, []int) {
 	return file_playground_proto_rawDescGZIP(), []int{0}
 }
 
+type GetAppVersionResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+}
+
+func (x *GetAppVersionResponse) Reset() {
+	*x = GetAppVersionResponse{}
+	mi := &file_playground_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAppVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAppVersionResponse) ProtoMessage() {}
+
+func (x *GetAppVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_playground_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAppVersionResponse.ProtoReflect.Descriptor instead.
+func (*GetAppVersionResponse) Descriptor() ([]byte, []int) {
+	return file_playground_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetAppVersionResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
 type Meta struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -69,7 +115,7 @@ type Meta struct {
 
 func (x *Meta) Reset() {
 	*x = Meta{}
-	mi := &file_playground_proto_msgTypes[1]
+	mi := &file_playground_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -81,7 +127,7 @@ func (x *Meta) String() string {
 func (*Meta) ProtoMessage() {}
 
 func (x *Meta) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[1]
+	mi := &file_playground_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -94,7 +140,7 @@ func (x *Meta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Meta.ProtoReflect.Descriptor instead.
 func (*Meta) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{1}
+	return file_playground_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Meta) GetInitialBalance() float64 {
@@ -122,7 +168,7 @@ type GetAccountStatsRequest struct {
 
 func (x *GetAccountStatsRequest) Reset() {
 	*x = GetAccountStatsRequest{}
-	mi := &file_playground_proto_msgTypes[2]
+	mi := &file_playground_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +180,7 @@ func (x *GetAccountStatsRequest) String() string {
 func (*GetAccountStatsRequest) ProtoMessage() {}
 
 func (x *GetAccountStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[2]
+	mi := &file_playground_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +193,7 @@ func (x *GetAccountStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountStatsRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{2}
+	return file_playground_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetAccountStatsRequest) GetPlaygroundId() string {
@@ -175,7 +221,7 @@ type EquityPlot struct {
 
 func (x *EquityPlot) Reset() {
 	*x = EquityPlot{}
-	mi := &file_playground_proto_msgTypes[3]
+	mi := &file_playground_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +233,7 @@ func (x *EquityPlot) String() string {
 func (*EquityPlot) ProtoMessage() {}
 
 func (x *EquityPlot) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[3]
+	mi := &file_playground_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +246,7 @@ func (x *EquityPlot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EquityPlot.ProtoReflect.Descriptor instead.
 func (*EquityPlot) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{3}
+	return file_playground_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EquityPlot) GetCreatedAt() string {
@@ -227,7 +273,7 @@ type GetAccountStatsResponse struct {
 
 func (x *GetAccountStatsResponse) Reset() {
 	*x = GetAccountStatsResponse{}
-	mi := &file_playground_proto_msgTypes[4]
+	mi := &file_playground_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -239,7 +285,7 @@ func (x *GetAccountStatsResponse) String() string {
 func (*GetAccountStatsResponse) ProtoMessage() {}
 
 func (x *GetAccountStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[4]
+	mi := &file_playground_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -252,7 +298,7 @@ func (x *GetAccountStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountStatsResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{4}
+	return file_playground_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetAccountStatsResponse) GetEquityPlot() []*EquityPlot {
@@ -278,7 +324,7 @@ type PlaygroundSession struct {
 
 func (x *PlaygroundSession) Reset() {
 	*x = PlaygroundSession{}
-	mi := &file_playground_proto_msgTypes[5]
+	mi := &file_playground_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -290,7 +336,7 @@ func (x *PlaygroundSession) String() string {
 func (*PlaygroundSession) ProtoMessage() {}
 
 func (x *PlaygroundSession) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[5]
+	mi := &file_playground_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +349,7 @@ func (x *PlaygroundSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaygroundSession.ProtoReflect.Descriptor instead.
 func (*PlaygroundSession) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{5}
+	return file_playground_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlaygroundSession) GetPlaygroundId() string {
@@ -365,7 +411,7 @@ type GetPlaygroundsResponse struct {
 
 func (x *GetPlaygroundsResponse) Reset() {
 	*x = GetPlaygroundsResponse{}
-	mi := &file_playground_proto_msgTypes[6]
+	mi := &file_playground_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +423,7 @@ func (x *GetPlaygroundsResponse) String() string {
 func (*GetPlaygroundsResponse) ProtoMessage() {}
 
 func (x *GetPlaygroundsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[6]
+	mi := &file_playground_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +436,7 @@ func (x *GetPlaygroundsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlaygroundsResponse.ProtoReflect.Descriptor instead.
 func (*GetPlaygroundsResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{6}
+	return file_playground_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetPlaygroundsResponse) GetPlaygrounds() []*PlaygroundSession {
@@ -410,7 +456,7 @@ type GetOpenOrdersResponse struct {
 
 func (x *GetOpenOrdersResponse) Reset() {
 	*x = GetOpenOrdersResponse{}
-	mi := &file_playground_proto_msgTypes[7]
+	mi := &file_playground_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +468,7 @@ func (x *GetOpenOrdersResponse) String() string {
 func (*GetOpenOrdersResponse) ProtoMessage() {}
 
 func (x *GetOpenOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[7]
+	mi := &file_playground_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +481,7 @@ func (x *GetOpenOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenOrdersResponse.ProtoReflect.Descriptor instead.
 func (*GetOpenOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{7}
+	return file_playground_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetOpenOrdersResponse) GetOrders() []*Order {
@@ -456,7 +502,7 @@ type GetOpenOrdersRequest struct {
 
 func (x *GetOpenOrdersRequest) Reset() {
 	*x = GetOpenOrdersRequest{}
-	mi := &file_playground_proto_msgTypes[8]
+	mi := &file_playground_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -468,7 +514,7 @@ func (x *GetOpenOrdersRequest) String() string {
 func (*GetOpenOrdersRequest) ProtoMessage() {}
 
 func (x *GetOpenOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[8]
+	mi := &file_playground_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -481,7 +527,7 @@ func (x *GetOpenOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenOrdersRequest.ProtoReflect.Descriptor instead.
 func (*GetOpenOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{8}
+	return file_playground_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetOpenOrdersRequest) GetPlaygroundId() string {
@@ -508,7 +554,7 @@ type SavePlaygroundRequest struct {
 
 func (x *SavePlaygroundRequest) Reset() {
 	*x = SavePlaygroundRequest{}
-	mi := &file_playground_proto_msgTypes[9]
+	mi := &file_playground_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +566,7 @@ func (x *SavePlaygroundRequest) String() string {
 func (*SavePlaygroundRequest) ProtoMessage() {}
 
 func (x *SavePlaygroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[9]
+	mi := &file_playground_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +579,7 @@ func (x *SavePlaygroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SavePlaygroundRequest.ProtoReflect.Descriptor instead.
 func (*SavePlaygroundRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{9}
+	return file_playground_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SavePlaygroundRequest) GetPlaygroundId() string {
@@ -551,7 +597,7 @@ type EmptyResponse struct {
 
 func (x *EmptyResponse) Reset() {
 	*x = EmptyResponse{}
-	mi := &file_playground_proto_msgTypes[10]
+	mi := &file_playground_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +609,7 @@ func (x *EmptyResponse) String() string {
 func (*EmptyResponse) ProtoMessage() {}
 
 func (x *EmptyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[10]
+	mi := &file_playground_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +622,7 @@ func (x *EmptyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmptyResponse.ProtoReflect.Descriptor instead.
 func (*EmptyResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{10}
+	return file_playground_proto_rawDescGZIP(), []int{11}
 }
 
 type Clock struct {
@@ -591,7 +637,7 @@ type Clock struct {
 
 func (x *Clock) Reset() {
 	*x = Clock{}
-	mi := &file_playground_proto_msgTypes[11]
+	mi := &file_playground_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +649,7 @@ func (x *Clock) String() string {
 func (*Clock) ProtoMessage() {}
 
 func (x *Clock) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[11]
+	mi := &file_playground_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +662,7 @@ func (x *Clock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Clock.ProtoReflect.Descriptor instead.
 func (*Clock) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{11}
+	return file_playground_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Clock) GetCurrentTime() string {
@@ -654,7 +700,7 @@ type Repository struct {
 
 func (x *Repository) Reset() {
 	*x = Repository{}
-	mi := &file_playground_proto_msgTypes[12]
+	mi := &file_playground_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +712,7 @@ func (x *Repository) String() string {
 func (*Repository) ProtoMessage() {}
 
 func (x *Repository) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[12]
+	mi := &file_playground_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +725,7 @@ func (x *Repository) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Repository.ProtoReflect.Descriptor instead.
 func (*Repository) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{12}
+	return file_playground_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Repository) GetSymbol() string {
@@ -731,7 +777,7 @@ type CreatePolygonPlaygroundRequest struct {
 
 func (x *CreatePolygonPlaygroundRequest) Reset() {
 	*x = CreatePolygonPlaygroundRequest{}
-	mi := &file_playground_proto_msgTypes[13]
+	mi := &file_playground_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +789,7 @@ func (x *CreatePolygonPlaygroundRequest) String() string {
 func (*CreatePolygonPlaygroundRequest) ProtoMessage() {}
 
 func (x *CreatePolygonPlaygroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[13]
+	mi := &file_playground_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,7 +802,7 @@ func (x *CreatePolygonPlaygroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePolygonPlaygroundRequest.ProtoReflect.Descriptor instead.
 func (*CreatePolygonPlaygroundRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{13}
+	return file_playground_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreatePolygonPlaygroundRequest) GetBalance() float64 {
@@ -804,7 +850,7 @@ type DeletePlaygroundRequest struct {
 
 func (x *DeletePlaygroundRequest) Reset() {
 	*x = DeletePlaygroundRequest{}
-	mi := &file_playground_proto_msgTypes[14]
+	mi := &file_playground_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -816,7 +862,7 @@ func (x *DeletePlaygroundRequest) String() string {
 func (*DeletePlaygroundRequest) ProtoMessage() {}
 
 func (x *DeletePlaygroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[14]
+	mi := &file_playground_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +875,7 @@ func (x *DeletePlaygroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePlaygroundRequest.ProtoReflect.Descriptor instead.
 func (*DeletePlaygroundRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{14}
+	return file_playground_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeletePlaygroundRequest) GetPlaygroundId() string {
@@ -854,7 +900,7 @@ type CreateLivePlaygroundRequest struct {
 
 func (x *CreateLivePlaygroundRequest) Reset() {
 	*x = CreateLivePlaygroundRequest{}
-	mi := &file_playground_proto_msgTypes[15]
+	mi := &file_playground_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +912,7 @@ func (x *CreateLivePlaygroundRequest) String() string {
 func (*CreateLivePlaygroundRequest) ProtoMessage() {}
 
 func (x *CreateLivePlaygroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[15]
+	mi := &file_playground_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +925,7 @@ func (x *CreateLivePlaygroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateLivePlaygroundRequest.ProtoReflect.Descriptor instead.
 func (*CreateLivePlaygroundRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{15}
+	return file_playground_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateLivePlaygroundRequest) GetBalance() float64 {
@@ -938,7 +984,7 @@ type GetCandlesRequest struct {
 
 func (x *GetCandlesRequest) Reset() {
 	*x = GetCandlesRequest{}
-	mi := &file_playground_proto_msgTypes[16]
+	mi := &file_playground_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +996,7 @@ func (x *GetCandlesRequest) String() string {
 func (*GetCandlesRequest) ProtoMessage() {}
 
 func (x *GetCandlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[16]
+	mi := &file_playground_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +1009,7 @@ func (x *GetCandlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesRequest.ProtoReflect.Descriptor instead.
 func (*GetCandlesRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{16}
+	return file_playground_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetCandlesRequest) GetPlaygroundId() string {
@@ -1011,7 +1057,7 @@ type GetCandlesResponse struct {
 
 func (x *GetCandlesResponse) Reset() {
 	*x = GetCandlesResponse{}
-	mi := &file_playground_proto_msgTypes[17]
+	mi := &file_playground_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1023,7 +1069,7 @@ func (x *GetCandlesResponse) String() string {
 func (*GetCandlesResponse) ProtoMessage() {}
 
 func (x *GetCandlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[17]
+	mi := &file_playground_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1036,7 +1082,7 @@ func (x *GetCandlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesResponse.ProtoReflect.Descriptor instead.
 func (*GetCandlesResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{17}
+	return file_playground_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetCandlesResponse) GetBars() []*Bar {
@@ -1056,7 +1102,7 @@ type CreatePlaygroundResponse struct {
 
 func (x *CreatePlaygroundResponse) Reset() {
 	*x = CreatePlaygroundResponse{}
-	mi := &file_playground_proto_msgTypes[18]
+	mi := &file_playground_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1068,7 +1114,7 @@ func (x *CreatePlaygroundResponse) String() string {
 func (*CreatePlaygroundResponse) ProtoMessage() {}
 
 func (x *CreatePlaygroundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[18]
+	mi := &file_playground_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1081,7 +1127,7 @@ func (x *CreatePlaygroundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlaygroundResponse.ProtoReflect.Descriptor instead.
 func (*CreatePlaygroundResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{18}
+	return file_playground_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreatePlaygroundResponse) GetId() string {
@@ -1105,7 +1151,7 @@ type AccountMeta struct {
 
 func (x *AccountMeta) Reset() {
 	*x = AccountMeta{}
-	mi := &file_playground_proto_msgTypes[19]
+	mi := &file_playground_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1117,7 +1163,7 @@ func (x *AccountMeta) String() string {
 func (*AccountMeta) ProtoMessage() {}
 
 func (x *AccountMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[19]
+	mi := &file_playground_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1176,7 @@ func (x *AccountMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountMeta.ProtoReflect.Descriptor instead.
 func (*AccountMeta) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{19}
+	return file_playground_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *AccountMeta) GetStartDate() string {
@@ -1179,7 +1225,7 @@ type GetAccountRequest struct {
 
 func (x *GetAccountRequest) Reset() {
 	*x = GetAccountRequest{}
-	mi := &file_playground_proto_msgTypes[20]
+	mi := &file_playground_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1237,7 @@ func (x *GetAccountRequest) String() string {
 func (*GetAccountRequest) ProtoMessage() {}
 
 func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[20]
+	mi := &file_playground_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1250,7 @@ func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{20}
+	return file_playground_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetAccountRequest) GetPlaygroundId() string {
@@ -1236,7 +1282,7 @@ type GetAccountResponse struct {
 
 func (x *GetAccountResponse) Reset() {
 	*x = GetAccountResponse{}
-	mi := &file_playground_proto_msgTypes[21]
+	mi := &file_playground_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1248,7 +1294,7 @@ func (x *GetAccountResponse) String() string {
 func (*GetAccountResponse) ProtoMessage() {}
 
 func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[21]
+	mi := &file_playground_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1261,7 +1307,7 @@ func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountResponse) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{21}
+	return file_playground_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetAccountResponse) GetMeta() *AccountMeta {
@@ -1320,7 +1366,7 @@ type Position struct {
 
 func (x *Position) Reset() {
 	*x = Position{}
-	mi := &file_playground_proto_msgTypes[22]
+	mi := &file_playground_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1378,7 @@ func (x *Position) String() string {
 func (*Position) ProtoMessage() {}
 
 func (x *Position) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[22]
+	mi := &file_playground_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1391,7 @@ func (x *Position) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Position.ProtoReflect.Descriptor instead.
 func (*Position) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{22}
+	return file_playground_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Position) GetQuantity() float64 {
@@ -1401,7 +1447,7 @@ type PlaceOrderRequest struct {
 
 func (x *PlaceOrderRequest) Reset() {
 	*x = PlaceOrderRequest{}
-	mi := &file_playground_proto_msgTypes[23]
+	mi := &file_playground_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1413,7 +1459,7 @@ func (x *PlaceOrderRequest) String() string {
 func (*PlaceOrderRequest) ProtoMessage() {}
 
 func (x *PlaceOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[23]
+	mi := &file_playground_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1426,7 +1472,7 @@ func (x *PlaceOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceOrderRequest.ProtoReflect.Descriptor instead.
 func (*PlaceOrderRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{23}
+	return file_playground_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PlaceOrderRequest) GetPlaygroundId() string {
@@ -1504,7 +1550,7 @@ type NextTickRequest struct {
 
 func (x *NextTickRequest) Reset() {
 	*x = NextTickRequest{}
-	mi := &file_playground_proto_msgTypes[24]
+	mi := &file_playground_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1516,7 +1562,7 @@ func (x *NextTickRequest) String() string {
 func (*NextTickRequest) ProtoMessage() {}
 
 func (x *NextTickRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[24]
+	mi := &file_playground_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1529,7 +1575,7 @@ func (x *NextTickRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextTickRequest.ProtoReflect.Descriptor instead.
 func (*NextTickRequest) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{24}
+	return file_playground_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *NextTickRequest) GetPlaygroundId() string {
@@ -1568,7 +1614,7 @@ type TickDelta struct {
 
 func (x *TickDelta) Reset() {
 	*x = TickDelta{}
-	mi := &file_playground_proto_msgTypes[25]
+	mi := &file_playground_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1580,7 +1626,7 @@ func (x *TickDelta) String() string {
 func (*TickDelta) ProtoMessage() {}
 
 func (x *TickDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[25]
+	mi := &file_playground_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1593,7 +1639,7 @@ func (x *TickDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TickDelta.ProtoReflect.Descriptor instead.
 func (*TickDelta) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{25}
+	return file_playground_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *TickDelta) GetNewTrades() []*Trade {
@@ -1648,7 +1694,7 @@ type LiquidationEvent struct {
 
 func (x *LiquidationEvent) Reset() {
 	*x = LiquidationEvent{}
-	mi := &file_playground_proto_msgTypes[26]
+	mi := &file_playground_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1660,7 +1706,7 @@ func (x *LiquidationEvent) String() string {
 func (*LiquidationEvent) ProtoMessage() {}
 
 func (x *LiquidationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[26]
+	mi := &file_playground_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1673,7 +1719,7 @@ func (x *LiquidationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LiquidationEvent.ProtoReflect.Descriptor instead.
 func (*LiquidationEvent) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{26}
+	return file_playground_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *LiquidationEvent) GetOrdersPlaced() []*Order {
@@ -1694,7 +1740,7 @@ type TickDeltaEvent struct {
 
 func (x *TickDeltaEvent) Reset() {
 	*x = TickDeltaEvent{}
-	mi := &file_playground_proto_msgTypes[27]
+	mi := &file_playground_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1706,7 +1752,7 @@ func (x *TickDeltaEvent) String() string {
 func (*TickDeltaEvent) ProtoMessage() {}
 
 func (x *TickDeltaEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[27]
+	mi := &file_playground_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1719,7 +1765,7 @@ func (x *TickDeltaEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TickDeltaEvent.ProtoReflect.Descriptor instead.
 func (*TickDeltaEvent) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{27}
+	return file_playground_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *TickDeltaEvent) GetType() string {
@@ -1783,7 +1829,7 @@ type Bar struct {
 
 func (x *Bar) Reset() {
 	*x = Bar{}
-	mi := &file_playground_proto_msgTypes[28]
+	mi := &file_playground_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1795,7 +1841,7 @@ func (x *Bar) String() string {
 func (*Bar) ProtoMessage() {}
 
 func (x *Bar) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[28]
+	mi := &file_playground_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1808,7 +1854,7 @@ func (x *Bar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bar.ProtoReflect.Descriptor instead.
 func (*Bar) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{28}
+	return file_playground_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Bar) GetVolume() float64 {
@@ -2089,7 +2135,7 @@ type Candle struct {
 
 func (x *Candle) Reset() {
 	*x = Candle{}
-	mi := &file_playground_proto_msgTypes[29]
+	mi := &file_playground_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2101,7 +2147,7 @@ func (x *Candle) String() string {
 func (*Candle) ProtoMessage() {}
 
 func (x *Candle) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[29]
+	mi := &file_playground_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2114,7 +2160,7 @@ func (x *Candle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Candle.ProtoReflect.Descriptor instead.
 func (*Candle) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{29}
+	return file_playground_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Candle) GetSymbol() string {
@@ -2151,7 +2197,7 @@ type Trade struct {
 
 func (x *Trade) Reset() {
 	*x = Trade{}
-	mi := &file_playground_proto_msgTypes[30]
+	mi := &file_playground_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2163,7 +2209,7 @@ func (x *Trade) String() string {
 func (*Trade) ProtoMessage() {}
 
 func (x *Trade) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[30]
+	mi := &file_playground_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2176,7 +2222,7 @@ func (x *Trade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trade.ProtoReflect.Descriptor instead.
 func (*Trade) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{30}
+	return file_playground_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Trade) GetSymbol() string {
@@ -2233,7 +2279,7 @@ type Order struct {
 
 func (x *Order) Reset() {
 	*x = Order{}
-	mi := &file_playground_proto_msgTypes[31]
+	mi := &file_playground_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2245,7 +2291,7 @@ func (x *Order) String() string {
 func (*Order) ProtoMessage() {}
 
 func (x *Order) ProtoReflect() protoreflect.Message {
-	mi := &file_playground_proto_msgTypes[31]
+	mi := &file_playground_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2258,7 +2304,7 @@ func (x *Order) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Order.ProtoReflect.Descriptor instead.
 func (*Order) Descriptor() ([]byte, []int) {
-	return file_playground_proto_rawDescGZIP(), []int{31}
+	return file_playground_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *Order) GetId() uint64 {
@@ -2388,9 +2434,14 @@ var file_playground_proto_rawDesc = []byte{
 	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f,
 	0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a,
 	0x1e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
-	0x2f, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22,
-	0x17, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x50, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64,
-	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x51, 0x0a, 0x04, 0x4d, 0x65, 0x74, 0x61,
+	0x2f, 0x64, 0x75, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a,
+	0x1b, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
+	0x2f, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x17, 0x0a, 0x15,
+	0x47, 0x65, 0x74, 0x50, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x31, 0x0a, 0x15, 0x47, 0x65, 0x74, 0x41, 0x70, 0x70, 0x56,
+	0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18,
+	0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x51, 0x0a, 0x04, 0x4d, 0x65, 0x74, 0x61,
 	0x12, 0x27, 0x0a, 0x0f, 0x69, 0x6e, 0x69, 0x74, 0x69, 0x61, 0x6c, 0x5f, 0x62, 0x61, 0x6c, 0x61,
 	0x6e, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x0e, 0x69, 0x6e, 0x69, 0x74, 0x69,
 	0x61, 0x6c, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x12, 0x20, 0x0a, 0x0b, 0x65, 0x6e, 0x76,
@@ -2748,7 +2799,7 @@ var file_playground_proto_rawDesc = []byte{
 	0x6e, 0x64, 0x2e, 0x54, 0x72, 0x61, 0x64, 0x65, 0x52, 0x08, 0x63, 0x6c, 0x6f, 0x73, 0x65, 0x64,
 	0x42, 0x79, 0x12, 0x29, 0x0a, 0x06, 0x63, 0x6c, 0x6f, 0x73, 0x65, 0x73, 0x18, 0x11, 0x20, 0x03,
 	0x28, 0x0b, 0x32, 0x11, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x2e,
-	0x4f, 0x72, 0x64, 0x65, 0x72, 0x52, 0x06, 0x63, 0x6c, 0x6f, 0x73, 0x65, 0x73, 0x32, 0xa9, 0x07,
+	0x4f, 0x72, 0x64, 0x65, 0x72, 0x52, 0x06, 0x63, 0x6c, 0x6f, 0x73, 0x65, 0x73, 0x32, 0xf5, 0x07,
 	0x0a, 0x11, 0x50, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x53, 0x65, 0x72, 0x76,
 	0x69, 0x63, 0x65, 0x12, 0x64, 0x0a, 0x10, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x50, 0x6c, 0x61,
 	0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x12, 0x2a, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x67, 0x72,
@@ -2807,9 +2858,13 @@ var file_playground_proto_rawDesc = []byte{
 	0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e,
 	0x64, 0x2e, 0x47, 0x65, 0x74, 0x41, 0x63, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x53, 0x74, 0x61, 0x74,
-	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0e, 0x5a, 0x0c, 0x2e, 0x2f, 0x70,
-	0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x4a, 0x0a, 0x0d, 0x47, 0x65, 0x74,
+	0x41, 0x70, 0x70, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x16, 0x2e, 0x67, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x1a, 0x21, 0x2e, 0x70, 0x6c, 0x61, 0x79, 0x67, 0x72, 0x6f, 0x75, 0x6e, 0x64, 0x2e,
+	0x47, 0x65, 0x74, 0x41, 0x70, 0x70, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0e, 0x5a, 0x0c, 0x2e, 0x2f, 0x70, 0x6c, 0x61, 0x79, 0x67,
+	0x72, 0x6f, 0x75, 0x6e, 0x64, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2824,90 +2879,94 @@ func file_playground_proto_rawDescGZIP() []byte {
 	return file_playground_proto_rawDescData
 }
 
-var file_playground_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_playground_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_playground_proto_goTypes = []any{
 	(*GetPlaygroundsRequest)(nil),          // 0: playground.GetPlaygroundsRequest
-	(*Meta)(nil),                           // 1: playground.Meta
-	(*GetAccountStatsRequest)(nil),         // 2: playground.GetAccountStatsRequest
-	(*EquityPlot)(nil),                     // 3: playground.EquityPlot
-	(*GetAccountStatsResponse)(nil),        // 4: playground.GetAccountStatsResponse
-	(*PlaygroundSession)(nil),              // 5: playground.PlaygroundSession
-	(*GetPlaygroundsResponse)(nil),         // 6: playground.GetPlaygroundsResponse
-	(*GetOpenOrdersResponse)(nil),          // 7: playground.GetOpenOrdersResponse
-	(*GetOpenOrdersRequest)(nil),           // 8: playground.GetOpenOrdersRequest
-	(*SavePlaygroundRequest)(nil),          // 9: playground.SavePlaygroundRequest
-	(*EmptyResponse)(nil),                  // 10: playground.EmptyResponse
-	(*Clock)(nil),                          // 11: playground.Clock
-	(*Repository)(nil),                     // 12: playground.Repository
-	(*CreatePolygonPlaygroundRequest)(nil), // 13: playground.CreatePolygonPlaygroundRequest
-	(*DeletePlaygroundRequest)(nil),        // 14: playground.DeletePlaygroundRequest
-	(*CreateLivePlaygroundRequest)(nil),    // 15: playground.CreateLivePlaygroundRequest
-	(*GetCandlesRequest)(nil),              // 16: playground.GetCandlesRequest
-	(*GetCandlesResponse)(nil),             // 17: playground.GetCandlesResponse
-	(*CreatePlaygroundResponse)(nil),       // 18: playground.CreatePlaygroundResponse
-	(*AccountMeta)(nil),                    // 19: playground.AccountMeta
-	(*GetAccountRequest)(nil),              // 20: playground.GetAccountRequest
-	(*GetAccountResponse)(nil),             // 21: playground.GetAccountResponse
-	(*Position)(nil),                       // 22: playground.Position
-	(*PlaceOrderRequest)(nil),              // 23: playground.PlaceOrderRequest
-	(*NextTickRequest)(nil),                // 24: playground.NextTickRequest
-	(*TickDelta)(nil),                      // 25: playground.TickDelta
-	(*LiquidationEvent)(nil),               // 26: playground.LiquidationEvent
-	(*TickDeltaEvent)(nil),                 // 27: playground.TickDeltaEvent
-	(*Bar)(nil),                            // 28: playground.Bar
-	(*Candle)(nil),                         // 29: playground.Candle
-	(*Trade)(nil),                          // 30: playground.Trade
-	(*Order)(nil),                          // 31: playground.Order
-	nil,                                    // 32: playground.GetAccountResponse.PositionsEntry
+	(*GetAppVersionResponse)(nil),          // 1: playground.GetAppVersionResponse
+	(*Meta)(nil),                           // 2: playground.Meta
+	(*GetAccountStatsRequest)(nil),         // 3: playground.GetAccountStatsRequest
+	(*EquityPlot)(nil),                     // 4: playground.EquityPlot
+	(*GetAccountStatsResponse)(nil),        // 5: playground.GetAccountStatsResponse
+	(*PlaygroundSession)(nil),              // 6: playground.PlaygroundSession
+	(*GetPlaygroundsResponse)(nil),         // 7: playground.GetPlaygroundsResponse
+	(*GetOpenOrdersResponse)(nil),          // 8: playground.GetOpenOrdersResponse
+	(*GetOpenOrdersRequest)(nil),           // 9: playground.GetOpenOrdersRequest
+	(*SavePlaygroundRequest)(nil),          // 10: playground.SavePlaygroundRequest
+	(*EmptyResponse)(nil),                  // 11: playground.EmptyResponse
+	(*Clock)(nil),                          // 12: playground.Clock
+	(*Repository)(nil),                     // 13: playground.Repository
+	(*CreatePolygonPlaygroundRequest)(nil), // 14: playground.CreatePolygonPlaygroundRequest
+	(*DeletePlaygroundRequest)(nil),        // 15: playground.DeletePlaygroundRequest
+	(*CreateLivePlaygroundRequest)(nil),    // 16: playground.CreateLivePlaygroundRequest
+	(*GetCandlesRequest)(nil),              // 17: playground.GetCandlesRequest
+	(*GetCandlesResponse)(nil),             // 18: playground.GetCandlesResponse
+	(*CreatePlaygroundResponse)(nil),       // 19: playground.CreatePlaygroundResponse
+	(*AccountMeta)(nil),                    // 20: playground.AccountMeta
+	(*GetAccountRequest)(nil),              // 21: playground.GetAccountRequest
+	(*GetAccountResponse)(nil),             // 22: playground.GetAccountResponse
+	(*Position)(nil),                       // 23: playground.Position
+	(*PlaceOrderRequest)(nil),              // 24: playground.PlaceOrderRequest
+	(*NextTickRequest)(nil),                // 25: playground.NextTickRequest
+	(*TickDelta)(nil),                      // 26: playground.TickDelta
+	(*LiquidationEvent)(nil),               // 27: playground.LiquidationEvent
+	(*TickDeltaEvent)(nil),                 // 28: playground.TickDeltaEvent
+	(*Bar)(nil),                            // 29: playground.Bar
+	(*Candle)(nil),                         // 30: playground.Candle
+	(*Trade)(nil),                          // 31: playground.Trade
+	(*Order)(nil),                          // 32: playground.Order
+	nil,                                    // 33: playground.GetAccountResponse.PositionsEntry
+	(*emptypb.Empty)(nil),                  // 34: google.protobuf.Empty
 }
 var file_playground_proto_depIdxs = []int32{
-	3,  // 0: playground.GetAccountStatsResponse.equity_plot:type_name -> playground.EquityPlot
-	1,  // 1: playground.PlaygroundSession.meta:type_name -> playground.Meta
-	11, // 2: playground.PlaygroundSession.clock:type_name -> playground.Clock
-	12, // 3: playground.PlaygroundSession.repositories:type_name -> playground.Repository
-	5,  // 4: playground.GetPlaygroundsResponse.playgrounds:type_name -> playground.PlaygroundSession
-	31, // 5: playground.GetOpenOrdersResponse.orders:type_name -> playground.Order
-	12, // 6: playground.CreatePolygonPlaygroundRequest.repositories:type_name -> playground.Repository
-	12, // 7: playground.CreateLivePlaygroundRequest.repositories:type_name -> playground.Repository
-	28, // 8: playground.GetCandlesResponse.bars:type_name -> playground.Bar
-	19, // 9: playground.GetAccountResponse.meta:type_name -> playground.AccountMeta
-	31, // 10: playground.GetAccountResponse.orders:type_name -> playground.Order
-	32, // 11: playground.GetAccountResponse.positions:type_name -> playground.GetAccountResponse.PositionsEntry
-	30, // 12: playground.TickDelta.new_trades:type_name -> playground.Trade
-	29, // 13: playground.TickDelta.new_candles:type_name -> playground.Candle
-	31, // 14: playground.TickDelta.invalid_orders:type_name -> playground.Order
-	27, // 15: playground.TickDelta.events:type_name -> playground.TickDeltaEvent
-	31, // 16: playground.LiquidationEvent.orders_placed:type_name -> playground.Order
-	26, // 17: playground.TickDeltaEvent.liquidation_event:type_name -> playground.LiquidationEvent
-	28, // 18: playground.Candle.bar:type_name -> playground.Bar
-	30, // 19: playground.Order.trades:type_name -> playground.Trade
-	30, // 20: playground.Order.closed_by:type_name -> playground.Trade
-	31, // 21: playground.Order.closes:type_name -> playground.Order
-	22, // 22: playground.GetAccountResponse.PositionsEntry.value:type_name -> playground.Position
-	13, // 23: playground.PlaygroundService.CreatePlayground:input_type -> playground.CreatePolygonPlaygroundRequest
-	15, // 24: playground.PlaygroundService.CreateLivePlayground:input_type -> playground.CreateLivePlaygroundRequest
+	4,  // 0: playground.GetAccountStatsResponse.equity_plot:type_name -> playground.EquityPlot
+	2,  // 1: playground.PlaygroundSession.meta:type_name -> playground.Meta
+	12, // 2: playground.PlaygroundSession.clock:type_name -> playground.Clock
+	13, // 3: playground.PlaygroundSession.repositories:type_name -> playground.Repository
+	6,  // 4: playground.GetPlaygroundsResponse.playgrounds:type_name -> playground.PlaygroundSession
+	32, // 5: playground.GetOpenOrdersResponse.orders:type_name -> playground.Order
+	13, // 6: playground.CreatePolygonPlaygroundRequest.repositories:type_name -> playground.Repository
+	13, // 7: playground.CreateLivePlaygroundRequest.repositories:type_name -> playground.Repository
+	29, // 8: playground.GetCandlesResponse.bars:type_name -> playground.Bar
+	20, // 9: playground.GetAccountResponse.meta:type_name -> playground.AccountMeta
+	32, // 10: playground.GetAccountResponse.orders:type_name -> playground.Order
+	33, // 11: playground.GetAccountResponse.positions:type_name -> playground.GetAccountResponse.PositionsEntry
+	31, // 12: playground.TickDelta.new_trades:type_name -> playground.Trade
+	30, // 13: playground.TickDelta.new_candles:type_name -> playground.Candle
+	32, // 14: playground.TickDelta.invalid_orders:type_name -> playground.Order
+	28, // 15: playground.TickDelta.events:type_name -> playground.TickDeltaEvent
+	32, // 16: playground.LiquidationEvent.orders_placed:type_name -> playground.Order
+	27, // 17: playground.TickDeltaEvent.liquidation_event:type_name -> playground.LiquidationEvent
+	29, // 18: playground.Candle.bar:type_name -> playground.Bar
+	31, // 19: playground.Order.trades:type_name -> playground.Trade
+	31, // 20: playground.Order.closed_by:type_name -> playground.Trade
+	32, // 21: playground.Order.closes:type_name -> playground.Order
+	23, // 22: playground.GetAccountResponse.PositionsEntry.value:type_name -> playground.Position
+	14, // 23: playground.PlaygroundService.CreatePlayground:input_type -> playground.CreatePolygonPlaygroundRequest
+	16, // 24: playground.PlaygroundService.CreateLivePlayground:input_type -> playground.CreateLivePlaygroundRequest
 	0,  // 25: playground.PlaygroundService.GetPlaygrounds:input_type -> playground.GetPlaygroundsRequest
-	24, // 26: playground.PlaygroundService.NextTick:input_type -> playground.NextTickRequest
-	23, // 27: playground.PlaygroundService.PlaceOrder:input_type -> playground.PlaceOrderRequest
-	20, // 28: playground.PlaygroundService.GetAccount:input_type -> playground.GetAccountRequest
-	16, // 29: playground.PlaygroundService.GetCandles:input_type -> playground.GetCandlesRequest
-	8,  // 30: playground.PlaygroundService.GetOpenOrders:input_type -> playground.GetOpenOrdersRequest
-	9,  // 31: playground.PlaygroundService.SavePlayground:input_type -> playground.SavePlaygroundRequest
-	14, // 32: playground.PlaygroundService.DeletePlayground:input_type -> playground.DeletePlaygroundRequest
-	2,  // 33: playground.PlaygroundService.GetAccountStats:input_type -> playground.GetAccountStatsRequest
-	18, // 34: playground.PlaygroundService.CreatePlayground:output_type -> playground.CreatePlaygroundResponse
-	18, // 35: playground.PlaygroundService.CreateLivePlayground:output_type -> playground.CreatePlaygroundResponse
-	6,  // 36: playground.PlaygroundService.GetPlaygrounds:output_type -> playground.GetPlaygroundsResponse
-	25, // 37: playground.PlaygroundService.NextTick:output_type -> playground.TickDelta
-	31, // 38: playground.PlaygroundService.PlaceOrder:output_type -> playground.Order
-	21, // 39: playground.PlaygroundService.GetAccount:output_type -> playground.GetAccountResponse
-	17, // 40: playground.PlaygroundService.GetCandles:output_type -> playground.GetCandlesResponse
-	7,  // 41: playground.PlaygroundService.GetOpenOrders:output_type -> playground.GetOpenOrdersResponse
-	10, // 42: playground.PlaygroundService.SavePlayground:output_type -> playground.EmptyResponse
-	10, // 43: playground.PlaygroundService.DeletePlayground:output_type -> playground.EmptyResponse
-	4,  // 44: playground.PlaygroundService.GetAccountStats:output_type -> playground.GetAccountStatsResponse
-	34, // [34:45] is the sub-list for method output_type
-	23, // [23:34] is the sub-list for method input_type
+	25, // 26: playground.PlaygroundService.NextTick:input_type -> playground.NextTickRequest
+	24, // 27: playground.PlaygroundService.PlaceOrder:input_type -> playground.PlaceOrderRequest
+	21, // 28: playground.PlaygroundService.GetAccount:input_type -> playground.GetAccountRequest
+	17, // 29: playground.PlaygroundService.GetCandles:input_type -> playground.GetCandlesRequest
+	9,  // 30: playground.PlaygroundService.GetOpenOrders:input_type -> playground.GetOpenOrdersRequest
+	10, // 31: playground.PlaygroundService.SavePlayground:input_type -> playground.SavePlaygroundRequest
+	15, // 32: playground.PlaygroundService.DeletePlayground:input_type -> playground.DeletePlaygroundRequest
+	3,  // 33: playground.PlaygroundService.GetAccountStats:input_type -> playground.GetAccountStatsRequest
+	34, // 34: playground.PlaygroundService.GetAppVersion:input_type -> google.protobuf.Empty
+	19, // 35: playground.PlaygroundService.CreatePlayground:output_type -> playground.CreatePlaygroundResponse
+	19, // 36: playground.PlaygroundService.CreateLivePlayground:output_type -> playground.CreatePlaygroundResponse
+	7,  // 37: playground.PlaygroundService.GetPlaygrounds:output_type -> playground.GetPlaygroundsResponse
+	26, // 38: playground.PlaygroundService.NextTick:output_type -> playground.TickDelta
+	32, // 39: playground.PlaygroundService.PlaceOrder:output_type -> playground.Order
+	22, // 40: playground.PlaygroundService.GetAccount:output_type -> playground.GetAccountResponse
+	18, // 41: playground.PlaygroundService.GetCandles:output_type -> playground.GetCandlesResponse
+	8,  // 42: playground.PlaygroundService.GetOpenOrders:output_type -> playground.GetOpenOrdersResponse
+	11, // 43: playground.PlaygroundService.SavePlayground:output_type -> playground.EmptyResponse
+	11, // 44: playground.PlaygroundService.DeletePlayground:output_type -> playground.EmptyResponse
+	5,  // 45: playground.PlaygroundService.GetAccountStats:output_type -> playground.GetAccountStatsResponse
+	1,  // 46: playground.PlaygroundService.GetAppVersion:output_type -> playground.GetAppVersionResponse
+	35, // [35:47] is the sub-list for method output_type
+	23, // [23:35] is the sub-list for method input_type
 	23, // [23:23] is the sub-list for extension type_name
 	23, // [23:23] is the sub-list for extension extendee
 	0,  // [0:23] is the sub-list for field type_name
@@ -2918,15 +2977,15 @@ func file_playground_proto_init() {
 	if File_playground_proto != nil {
 		return
 	}
-	file_playground_proto_msgTypes[11].OneofWrappers = []any{}
-	file_playground_proto_msgTypes[19].OneofWrappers = []any{}
+	file_playground_proto_msgTypes[12].OneofWrappers = []any{}
+	file_playground_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_playground_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

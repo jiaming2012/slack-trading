@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
@@ -79,6 +81,12 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	}
 
 	return order
+}
+
+func (s *Server) GetVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
+	return &pb.GetAppVersionResponse{
+		Version: eventservices.GetAppVersion(),
+	}, nil
 }
 
 func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsRequest) (*pb.GetAccountStatsResponse, error) {
@@ -506,9 +514,9 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 			},
 		},
 		StartingBalance: float64(req.Balance),
-		Repositories: repositoryRequests,
-		SaveToDB:     true,
-		CreatedAt:    time.Now(),
+		Repositories:    repositoryRequests,
+		SaveToDB:        true,
+		CreatedAt:       time.Now(),
 	})
 
 	if err != nil {

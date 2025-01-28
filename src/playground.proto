@@ -4,6 +4,7 @@ package playground;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "./playground";
 
@@ -19,9 +20,14 @@ service PlaygroundService {
     rpc SavePlayground(SavePlaygroundRequest) returns (EmptyResponse);
     rpc DeletePlayground(DeletePlaygroundRequest) returns (EmptyResponse);
     rpc GetAccountStats(GetAccountStatsRequest) returns (GetAccountStatsResponse);
+    rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
 }
 
 message GetPlaygroundsRequest {}
+
+message GetAppVersionResponse {
+    string version = 1;
+}
 
 message Meta {
     double initial_balance = 1;

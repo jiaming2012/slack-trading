@@ -98,6 +98,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetAccountStatsRequest"),
 				output=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
 			),
+			"GetAppVersion": Endpoint(
+				service_name="PlaygroundService",
+				name="GetAppVersion",
+				function=getattr(service, "GetAppVersion"),
+				input=_sym_db.GetSymbol("google.protobuf.Empty"),
+				output=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -198,6 +205,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
+			**kwargs,
+		)
+
+	def GetAppVersion(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetAppVersion",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
 			**kwargs,
 		)
 
@@ -311,6 +327,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetAccountStatsResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetAppVersion(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetAppVersion",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
 				session=session,
 				**kwargs,
 			)
