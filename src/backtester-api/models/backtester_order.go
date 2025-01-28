@@ -99,18 +99,18 @@ func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
 	return BacktesterOrderStatusPartiallyFilled
 }
 
-func (o *BacktesterOrder) GetRemainingOpenQuantity() float64 {
+func (o *BacktesterOrder) GetRemainingOpenQuantity() (float64, error) {
 	closedQty := 0.0
 	for _, trade := range o.ClosedBy {
 		closedQty += trade.Quantity
 	}
 
 	if o.Side == TradierOrderSideBuy {
-		return math.Max(0, o.GetFilledVolume()+closedQty)
+		return math.Max(0, o.GetFilledVolume()+closedQty), nil
 	} else if o.Side == TradierOrderSideSellShort {
-		return math.Min(0, o.GetFilledVolume()+closedQty)
+		return math.Min(0, o.GetFilledVolume()+closedQty), nil
 	} else {
-		panic("unsupported order side")
+		return 0, fmt.Errorf("GetRemainingOpenQuantity: unsupported order side")
 	}
 }
 

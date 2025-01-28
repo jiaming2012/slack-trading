@@ -17,6 +17,10 @@ type LivePlayground struct {
 	newTradesQueue  *eventmodels.FIFOQueue[*BacktesterTrade]
 }
 
+func (p *LivePlayground) SetOpenOrdersCache() error {
+	return p.playground.SetOpenOrdersCache()
+}
+
 func (p *LivePlayground) GetNewTradeQueue() *eventmodels.FIFOQueue[*BacktesterTrade] {
 	return p.newTradesQueue
 }
@@ -151,7 +155,7 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 
 	return &TickDelta{
 		NewCandles:         newCandles,
-		NewTrades: newTrades,
+		NewTrades:          newTrades,
 		Events:             nil,
 		CurrentTime:        currentTime.Format(time.RFC3339),
 		IsBacktestComplete: false,

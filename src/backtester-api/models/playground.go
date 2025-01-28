@@ -35,6 +35,7 @@ type IPlayground interface {
 	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
+	SetOpenOrdersCache() error
 }
 
 type Playground struct {
@@ -247,11 +248,16 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 	return
 }
 
-func (p *Playground) updateOpenOrdersCache(newOrder *BacktesterOrder) {
+func (p *Playground) updateOpenOrdersCache(newOrder *BacktesterOrder) error {
 	// check for close of open orders
 	for symbol, orders := range p.openOrdersCache {
 		for i := len(orders) - 1; i >= 0; i-- {
-			remaining_open_qty := math.Abs(orders[i].GetRemainingOpenQuantity())
+			qty, err := orders[i].GetRemainingOpenQuantity()
+			if err != nil {
+				return fmt.Errorf("updateOpenOrdersCache: error getting remaining open quantity: %w", err)
+			}
+
+			remaining_open_qty := math.Abs(qty)
 			if remaining_open_qty <= 0 {
 				p.deleteFromOpenOrdersCache(symbol, i)
 			}
@@ -263,6 +269,8 @@ func (p *Playground) updateOpenOrdersCache(newOrder *BacktesterOrder) {
 	if isOpen {
 		p.addToOpenOrdersCache(newOrder)
 	}
+
+	return nil
 }
 
 func calcVwap(orders []*BacktesterOrder) float64 {
@@ -372,13 +380,33 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 	}
 }
 
+func (p *Playground) SetOpenOrdersCache() error {
+	p.openOrdersCache = make(map[eventmodels.Instrument][]*BacktesterOrder)
+	for _, o := range p.account.Orders {
+		qty, err := o.GetRemainingOpenQuantity()
+		if err != nil {
+			continue
+		}
+
+		if math.Abs(qty) > 0 {
+			p.addToOpenOrdersCache(o)
+		}
+	}
+
+	return nil
+}
+
 func (p *Playground) addToOpenOrdersCache(order *BacktesterOrder) {
-	openOrders, found := p.openOrdersCache[order.Symbol]
+	p.addToCache(p.openOrdersCache, order)
+}
+
+func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*BacktesterOrder, order *BacktesterOrder) {
+	openOrders, found := cache[order.Symbol]
 	if !found {
 		openOrders = []*BacktesterOrder{}
 	}
 
-	p.openOrdersCache[order.Symbol] = append(openOrders, order)
+	cache[order.Symbol] = append(openOrders, order)
 }
 
 func (p *Playground) deleteFromOpenOrdersCache(symbol eventmodels.Instrument, index int) {
@@ -396,7 +424,7 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	return nil
 }
 
-func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Position) {
+func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Position) error {
 	orderQty := order.GetQuantity()
 
 	// check if the order is a close order
@@ -420,7 +448,12 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 				break
 			}
 
-			remainingOpenQuantity := math.Abs(openOrder.GetRemainingOpenQuantity())
+			qty, err := openOrder.GetRemainingOpenQuantity()
+			if err != nil {
+				return fmt.Errorf("addClosesInfoToOrder: error getting remaining open quantity: %w", err)
+			}
+
+			remainingOpenQuantity := math.Abs(qty)
 			if volume, found := pendingCloses[openOrder]; found {
 				remainingOpenQuantity -= volume
 			}
@@ -440,6 +473,8 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 			order.Closes = append(order.Closes, openOrder)
 		}
 	}
+
+	return nil
 }
 
 func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
@@ -485,7 +520,12 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 				break
 			}
 
-			remainingOpenQuantity := math.Abs(o.GetRemainingOpenQuantity())
+			qty, err := o.GetRemainingOpenQuantity()
+			if err != nil {
+				return nil, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
+			}
+
+			remainingOpenQuantity := math.Abs(qty)
 			if remainingOpenQuantity <= 0 {
 				continue
 			}

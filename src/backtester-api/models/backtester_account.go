@@ -24,7 +24,8 @@ func (a *BacktesterAccount) NextOrderID() uint {
 func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
 	result := make([]*BacktesterOrder, 0)
 	for _, order := range a.Orders {
-		if order.GetStatus() == BacktesterOrderStatusOpen {
+		status := order.GetStatus()
+		if status == BacktesterOrderStatusOpen || status == BacktesterOrderStatusPartiallyFilled {
 			result = append(result, order)
 		}
 	}

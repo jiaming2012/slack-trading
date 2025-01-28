@@ -269,6 +269,8 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 	playground.SetEquityPlot(req.EquityPlotRecords)
 
+	playground.SetOpenOrdersCache()
+
 	playgrounds[playground.GetId()] = playground
 
 	return playground, nil

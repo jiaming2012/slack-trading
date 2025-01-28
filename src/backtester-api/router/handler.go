@@ -189,6 +189,16 @@ func (req *CreateOrderRequest) Validate() error {
 // 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
 // }
 
+func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
+	var orderRecord models.OrderRecord
+
+	if result := db.First(&orderRecord, "external_id = ?", externalOrderID); result.Error != nil {
+		return 0, false
+	}
+
+	return orderRecord.ID, true
+}
+
 func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) ([]*models.OrderRecord, error) {
 	var allOrderRecords []*models.OrderRecord
 
@@ -200,7 +210,12 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
 
-		if err = tx.Create(&oRec).Error; err != nil {
+		oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
+		if found {
+			oRec.ID = oID
+		}
+
+		if err = tx.Save(&oRec).Error; err != nil {
 			return nil, fmt.Errorf("failed to save order records: %w", err)
 		}
 
@@ -214,13 +229,12 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 	return allOrderRecords, nil
 }
 
-
 func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder) error {
 	_, err := saveOrderRecordsTx(db, playgroundId, []*models.BacktesterOrder{order})
 	if err != nil {
 		return fmt.Errorf("saveOrderRecord: failed to save order record: %w", err)
 	}
-	
+
 	return nil
 }
 
