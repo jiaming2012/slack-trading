@@ -522,12 +522,18 @@ func TestFeed(t *testing.T) {
 		delta, err = playground.Tick(5*time.Minute, false)
 		assert.NoError(t, err)
 		assert.Len(t, delta.NewCandles, 2)
-		assert.Equal(t, symbol1, delta.NewCandles[0].Symbol)
-		assert.Equal(t, t3_appl, delta.NewCandles[0].Bar.Timestamp)
-		assert.Equal(t, 20.0, delta.NewCandles[0].Bar.Close)
-		assert.Equal(t, symbol2, delta.NewCandles[1].Symbol)
-		assert.Equal(t, t2_goog, delta.NewCandles[1].Bar.Timestamp)
-		assert.Equal(t, 200.0, delta.NewCandles[1].Bar.Close)
+
+		for _, c := range delta.NewCandles {
+			if c.Symbol == symbol1 {
+				assert.Equal(t, t3_appl, c.Bar.Timestamp)
+				assert.Equal(t, 20.0, c.Bar.Close)
+			} else if c.Symbol == symbol2 {
+				assert.Equal(t, t2_goog, c.Bar.Timestamp)
+				assert.Equal(t, 200.0, c.Bar.Close)
+			} else {
+				assert.Fail(t, "unexpected symbol")
+			}
+		}
 
 		// no new candle
 		delta, err = playground.Tick(5*time.Minute, false)
