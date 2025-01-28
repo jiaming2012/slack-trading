@@ -11,7 +11,7 @@ import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
-from src.cmd.stats.playground_types import RepositorySource, OrderSide
+from src.cmd.stats.playground_types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
@@ -118,7 +118,7 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
 
 
 class BacktesterPlaygroundClient:
-    def __init__(self, req: CreatePolygonPlaygroundRequest, source: RepositorySource, host: str = 'http://localhost:5051', grpc_host: str = 'http://localhost:5051'):
+    def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, host: str = 'http://localhost:5051', grpc_host: str = 'http://localhost:5051'):
         if len(grpc_host) > 0:
             self.host = grpc_host
         else:      
@@ -141,7 +141,7 @@ class BacktesterPlaygroundClient:
         elif source == RepositorySource.POLYGON and req.environment == PlaygroundEnvironment.SIMULATOR.value:
             self.id = self.create_playground_polygon(req)
         elif req.environment == PlaygroundEnvironment.LIVE.value:
-            self.id = self.create_live_playground(req)
+            self.id = self.create_live_playground(req, live_account_type)
         else:
             raise Exception(f'Invalid source {source} and environment {req.environment}')
 
@@ -433,13 +433,12 @@ class BacktesterPlaygroundClient:
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')
         
-    def create_live_playground(self, req: CreatePolygonPlaygroundRequest) -> str:
+    def create_live_playground(self, req: CreatePolygonPlaygroundRequest, account_type: LiveAccountType) -> str:
         try:
             liveRequest = CreateLivePlaygroundRequest(
                 balance=req.balance,
-                source_broker='tradier',
-                source_account_id='VA12962195',
-                source_api_key_name='TRADIER_TRADES_BEARER_TOKEN',
+                broker='tradier',
+                account_type=account_type,
                 repositories=req.repositories,
                 environment='live'
             )

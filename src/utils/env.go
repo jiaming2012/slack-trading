@@ -24,6 +24,8 @@ func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return []byte(log), nil
 }
 
+
+
 func GetEnv(key string) (string, error) {
 	envVar := os.Getenv(key)
 	if len(envVar) == 0 {
@@ -53,16 +55,15 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 
 	log.Infof("Using go environment: %s", goEnvironment)
 
-	// Determine which .env file to load
-	envFile := filepath.Join(envDir, DEV_ENV_FILENAME) // default to development environment
-	if goEnvironment == "production" {
-		// load secrets file
-		if err := godotenv.Load(filepath.Join(envDir, PROD_ENV_SECRETS_FILENAME)); err != nil {
-			return fmt.Errorf("failed to load secrets file: %v", err)
-		}
+	envFile := filepath.Join(envDir, ".env")
+	// if goEnvironment == "production" {
+	// 	// load secrets file
+	// 	if err := godotenv.Load(filepath.Join(envDir, PROD_ENV_SECRETS_FILENAME)); err != nil {
+	// 		return fmt.Errorf("failed to load secrets file: %v", err)
+	// 	}
 
-		envFile = filepath.Join(envDir, PROD_ENV_FILENAME)
-	}
+	// 	envFile = filepath.Join(envDir, PROD_ENV_FILENAME)
+	// }
 
 	// Load the specified .env file
 	if err := godotenv.Load(envFile); err != nil {

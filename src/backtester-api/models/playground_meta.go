@@ -7,14 +7,14 @@ import (
 
 // todo: refactor source into struct
 type PlaygroundMeta struct {
-	StartAt          time.Time             `json:"start_at"`
-	EndAt            *time.Time            `json:"end_at"`
-	Symbols          []string              `json:"symbols"`
-	StartingBalance  float64               `json:"starting_balance"`
-	SourceBroker     string                `json:"source_broker"`
-	SourceAccountId  string                `json:"source_account_id"`
-	SourceApiKeyName string                `json:"source_api"`
-	Environment      PlaygroundEnvironment `json:"environment"`
+	StartAt         time.Time             `json:"start_at"`
+	EndAt           *time.Time            `json:"end_at"`
+	Symbols         []string              `json:"symbols"`
+	InitialBalance  float64               `json:"starting_balance"`
+	SourceBroker    string                `json:"source_broker"`
+	SourceAccountId string                `json:"source_account_id"`
+	LiveAccountType *LiveAccountType      `json:"live_account_type"`
+	Environment     PlaygroundEnvironment `json:"environment"`
 }
 
 func (p *PlaygroundMeta) Validate() error {
@@ -35,8 +35,8 @@ func (p *PlaygroundMeta) Validate() error {
 			return fmt.Errorf("PlaygroundMeta.Validate: source account id is not set")
 		}
 
-		if p.SourceApiKeyName == "" {
-			return fmt.Errorf("PlaygroundMeta.Validate: source api key is not set")
+		if p.LiveAccountType == nil {
+			return fmt.Errorf("PlaygroundMeta.Validate: live account type is not set")
 		}
 	} else {
 		if p.StartAt.IsZero() {
@@ -56,7 +56,7 @@ func (p *PlaygroundMeta) Validate() error {
 		}
 	}
 
-	if p.StartingBalance <= 0 {
+	if p.InitialBalance <= 0 {
 		return fmt.Errorf("PlaygroundMeta.Validate: invalid starting balance")
 	}
 
@@ -64,14 +64,20 @@ func (p *PlaygroundMeta) Validate() error {
 }
 
 func (p *PlaygroundMeta) ToDTO() *PlaygroundMetaDTO {
+	var liveAccountType *string
+	if p.LiveAccountType != nil {
+		liveAccountType = new(string)
+		*liveAccountType = string(*p.LiveAccountType)
+	}
+
 	return &PlaygroundMetaDTO{
-		StartDate:       p.StartAt.Format(time.RFC3339),
-		EndDate:         p.EndAt.Format(time.RFC3339),
-		Symbols:         p.Symbols,
-		StartingBalance: p.StartingBalance,
-		Environment:     string(p.Environment),
-		SourceBroker:    p.SourceBroker,
-		SourceAccountId: p.SourceAccountId,
-		SourceApiKey:    p.SourceApiKeyName,
+		StartDate:             p.StartAt.Format(time.RFC3339),
+		EndDate:               p.EndAt.Format(time.RFC3339),
+		Symbols:               p.Symbols,
+		InitialBalance:        p.InitialBalance,
+		Environment:           string(p.Environment),
+		SourceBroker:          p.SourceBroker,
+		SourceAccountId:       p.SourceAccountId,
+		SourceLiveAccountType: liveAccountType,
 	}
 }

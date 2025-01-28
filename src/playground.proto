@@ -29,9 +29,19 @@ message GetAppVersionResponse {
     string version = 1;
 }
 
+message AccountMeta {
+    string start_date = 1;
+    optional string end_date = 2;
+    repeated string symbols = 3;
+    double initial_balance = 4;
+    string environment = 5;
+    optional string live_account_type = 6;
+}
+
 message Meta {
     double initial_balance = 1;
     string environment = 2;
+    optional string live_account_type = 3;
 }
 
 message GetAccountStatsRequest {
@@ -105,11 +115,10 @@ message DeletePlaygroundRequest {
 
 message CreateLivePlaygroundRequest {
     double balance = 1;
-    string source_broker = 2;
-    string source_account_id = 3;
-    string source_api_key_name = 4;
-    repeated Repository repositories = 5;
-    string environment = 6;
+    string broker = 2;
+    repeated Repository repositories = 3;
+    string environment = 4;
+    string account_type = 5;
 }
 
 message GetCandlesRequest {
@@ -126,14 +135,6 @@ message GetCandlesResponse {
 
 message CreatePlaygroundResponse {
     string id = 1;
-}
-
-message AccountMeta {
-    string start_date = 1;
-    optional string end_date = 2;
-    repeated string symbols = 3;
-    double starting_balance = 4;
-    string environment = 5;
 }
 
 message GetAccountRequest {

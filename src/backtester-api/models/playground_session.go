@@ -19,7 +19,7 @@ type PlaygroundSession struct {
 	Env               string                 `gorm:"column:environment;type:text;not null"`
 	Broker            *string                `gorm:"column:broker;type:text"`
 	AccountID         *string                `gorm:"column:account_id;type:text"`
-	ApiKeyName        *string                `gorm:"column:api_key;type:text"`
+	LiveAccountType   *string                `gorm:"column:live_account_type;type:text"`
 	Orders            []OrderRecord          `gorm:"foreignKey:PlaygroundID"`
 	EquityPlotRecords []EquityPlotRecord     `gorm:"foreignKey:PlaygroundID;references:ID"`
 	Repositories      CandleRepositoryRecord `gorm:"type:json;not null"`

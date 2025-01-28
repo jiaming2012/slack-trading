@@ -149,8 +149,8 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	tradesAccountID := os.Getenv("TRADIER_TRADES_ACCOUNT_ID")
 	brokerBearerToken := os.Getenv("TRADIER_BEARER_TOKEN")
 	eventStoreDbURL := os.Getenv("EVENTSTOREDB_URL")
-	optionsExpirationURL := os.Getenv("OPTION_EXPIRATIONS_URL")
-	optionChainURL := os.Getenv("OPTION_CHAIN_URL")
+	optionsExpirationURL := os.Getenv("TRADIER_OPTION_EXPIRATIONS_URL")
+	optionChainURL := os.Getenv("TRADIER_OPTION_CHAIN_URL")
 	polygonAPIKey := os.Getenv("POLYGON_API_KEY")
 
 	optionConfig, err := optionsConfig.GetOption(symbol)
@@ -160,7 +160,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 		}
 	}
 
-	stockQuotesURL := os.Getenv("STOCK_QUOTES_URL")
+	stockQuotesURL := os.Getenv("TRADIER_STOCK_QUOTES_URL")
 
 	if optionConfig.MinDistanceBetweenStrikes == nil {
 		return ExecResult{

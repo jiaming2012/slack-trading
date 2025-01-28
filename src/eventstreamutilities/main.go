@@ -81,9 +81,9 @@ func main() {
 	eventStoreDBURL := os.Getenv("EVENTSTOREDB_URL")
 	brokerCreds := BrokerCredentials{
 		BearerToken:          os.Getenv("TRADIER_BEARER_TOKEN"),
-		StockQuotesURL:       os.Getenv("STOCK_QUOTES_URL"),
-		OptionChainURL:       os.Getenv("OPTION_CHAIN_URL"),
-		OptionsExpirationURL: os.Getenv("OPTION_EXPIRATIONS_URL"),
+		StockQuotesURL:       os.Getenv("TRADIER_STOCK_QUOTES_URL"),
+		OptionChainURL:       os.Getenv("TRADIER_OPTION_CHAIN_URL"),
+		OptionsExpirationURL: os.Getenv("TRADIER_OPTION_EXPIRATIONS_URL"),
 	}
 
 	// Log connection details

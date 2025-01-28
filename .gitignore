@@ -13,9 +13,8 @@ src/env.txt
 run*.sh
 **__debug**
 main
-.env.development
-.env.production
-.env.production-secrets
+.env
+.env.*
 src/cmd/backtester-sandbox 
 env/
 *.csv

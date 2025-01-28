@@ -190,8 +190,8 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker:     account.Source.GetBroker(),
-		ApiKeyName: account.Source.GetApiKeyName(),
 		AccountID:  account.Source.GetAccountID(),
+		AccountType: account.Source.GetAccountType(),
 	}
 
 	playground, err := NewPlayground(playgroundID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, repositories...)

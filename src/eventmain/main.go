@@ -337,19 +337,19 @@ func run() {
 	log.Infof("Main: you da boss...")
 
 	// Get env
-	stockQuotesURL, err := utils.GetEnv("STOCK_QUOTES_URL")
+	stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
 	if err != nil {
-		log.Fatalf("$STOCK_QUOTES_URL not set: %v", err)
+		log.Fatalf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
 	}
 
-	calendarURL, err := utils.GetEnv("MARKET_CALENDAR_URL")
+	calendarURL, err := utils.GetEnv("TRADIER_MARKET_CALENDAR_URL")
 	if err != nil {
-		log.Fatalf("$MARKET_CALENDAR_URL not set: %v", err)
+		log.Fatalf("$TRADIER_MARKET_CALENDAR_URL not set: %v", err)
 	}
 
-	optionChainURL, err := utils.GetEnv("OPTION_CHAIN_URL")
+	optionChainURL, err := utils.GetEnv("TRADIER_OPTION_CHAIN_URL")
 	if err != nil {
-		log.Fatalf("$OPTION_CHAIN_URL not set: %v", err)
+		log.Fatalf("$TRADIER_OPTION_CHAIN_URL not set: %v", err)
 	}
 
 	brokerBearerToken, err := utils.GetEnv("TRADIER_BEARER_TOKEN")
@@ -367,28 +367,35 @@ func run() {
 		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
 	}
 
-	// quotesAccountID := utils.GetEnv("TRADIER_ACCOUNT_ID")
+	var liveAccountType models.LiveAccountType
+	if goEnv == "production" {
+		liveAccountType = models.LiveAccountTypeMargin
+	} else {
+		liveAccountType = models.LiveAccountTypePaper
+	}
 
-	tradesAccountID, err := utils.GetEnv("TRADIER_TRADES_ACCOUNT_ID")
+	vars := models.NewLiveAccountVariables(liveAccountType)
+
+	tradesAccountID, err := vars.GetTradierTradesAccountID()
 	if err != nil {
 		log.Fatalf("$TRADIER_TRADES_ACCOUNT_ID not set: %v", err)
 	}
 
-	tradierTradesUrlTemplate, err := utils.GetEnv("TRADIER_TRADES_URL_TEMPLATE")
+	tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
 	if err != nil {
 		log.Fatalf("$TRADIER_TRADES_URL_TEMPLATE not set: %v", err)
 	}
 
 	tradierTradesOrderURL := fmt.Sprintf(tradierTradesUrlTemplate, tradesAccountID)
 
-	tradierPositionsUrlTemplate, err := utils.GetEnv("TRADIER_POSITIONS_URL_TEMPLATE")
+	tradierPositionsUrlTemplate, err := vars.GetTradierPositionsUrlTemplate()
 	if err != nil {
 		log.Fatalf("$TRADIER_POSITIONS_URL_TEMPLATE not set: %v", err)
 	}
 
 	tradierPositionsURL := fmt.Sprintf(tradierPositionsUrlTemplate, tradesAccountID)
 
-	tradierTradesBearerToken, err := utils.GetEnv("TRADIER_TRADES_BEARER_TOKEN")
+	tradierTradesBearerToken, err := vars.GetTradierTradesBearerToken()
 	if err != nil {
 		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
 	}
@@ -413,9 +420,9 @@ func run() {
 		log.Fatalf("$OANDA_BEARER_TOKEN not set: %v", err)
 	}
 
-	optionsExpirationURL, err := utils.GetEnv("OPTION_EXPIRATIONS_URL")
+	optionsExpirationURL, err := utils.GetEnv("TRADIER_OPTION_EXPIRATIONS_URL")
 	if err != nil {
-		log.Fatalf("$OPTION_EXPIRATIONS_URL not set: %v", err)
+		log.Fatalf("$TRADIER_OPTION_EXPIRATIONS_URL not set: %v", err)
 	}
 
 	optionsConfigFile, err := utils.GetEnv("OPTIONS_CONFIG_FILE")
@@ -513,7 +520,7 @@ func run() {
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
 	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
-	
+
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}

@@ -1304,7 +1304,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, balance, startingBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1341,11 +1341,11 @@ func NewPlayground(playgroundId *uuid.UUID, balance, startingBalance float64, cl
 	}
 
 	meta := &PlaygroundMeta{
-		Symbols:         symbols,
-		StartingBalance: startingBalance,
-		Environment:     env,
-		StartAt:         startAt,
-		EndAt:           endAt,
+		Symbols:        symbols,
+		InitialBalance: initialBalance,
+		Environment:    env,
+		StartAt:        startAt,
+		EndAt:          endAt,
 	}
 
 	if env == PlaygroundEnvironmentLive {
@@ -1355,7 +1355,7 @@ func NewPlayground(playgroundId *uuid.UUID, balance, startingBalance float64, cl
 
 		meta.SourceBroker = source.Broker
 		meta.SourceAccountId = source.AccountID
-		meta.SourceApiKeyName = source.ApiKeyName
+		meta.LiveAccountType = &source.AccountType
 	}
 
 	var id uuid.UUID

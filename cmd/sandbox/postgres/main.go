@@ -51,15 +51,21 @@ func savePlaygroundSession(playground models.IPlayground) error {
 		ID:              playground.GetId(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
-		StartingBalance: meta.StartingBalance,
+		StartingBalance: meta.InitialBalance,
 		Repositories:    repoDTOs,
 		Env:             string(meta.Environment),
+	}
+
+	var liveAccountType *string
+	if meta.LiveAccountType != nil {
+		liveAccountType = new(string)
+		*liveAccountType = string(*meta.LiveAccountType)
 	}
 
 	if meta.Environment == models.PlaygroundEnvironmentLive {
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
-		store.ApiKeyName = &meta.SourceApiKeyName
+		store.LiveAccountType = liveAccountType
 	}
 
 	if err := db.Create(store).Error; err != nil {
@@ -101,12 +107,10 @@ func main() {
 		Account: r.CreateAccountRequest{
 			Balance: 10000.0,
 			Source: &r.CreateAccountRequestSource{
-				Broker:     "tradier",
-				AccountID:  "VA12962195",
-				ApiKeyName: "TRADIER_TRADES_BEARER_TOKEN",
+				Broker: "tradier",
 			},
 		},
-		StartingBalance: 10000.0,
+		InitialBalance: 10000.0,
 		Repositories: []eventmodels.CreateRepositoryRequest{
 			{
 				Symbol: "AAPL",
@@ -122,7 +126,7 @@ func main() {
 			},
 		},
 		Env:       "live",
-		SaveToDB: false,
+		SaveToDB:  false,
 		CreatedAt: time.Now(),
 	}
 

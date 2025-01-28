@@ -11,8 +11,8 @@ type ILiveAccountSource interface {
 	GetBroker() string
 	GetAccountID() string
 	GetApiKey() string
-	GetApiKeyName() string
 	GetBrokerUrl() string
+	GetAccountType() LiveAccountType
 	Validate() error
 	FetchEquity() (*eventmodels.FetchAccountEquityResponse, error)
 }

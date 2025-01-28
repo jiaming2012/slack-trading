@@ -121,6 +121,7 @@ if __name__ == "__main__":
     symbol = os.getenv("SYMBOL")
     grpc_host = os.getenv("GRPC_HOST")
     playground_env = os.getenv("PLAYGROUND_ENV")
+    live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -131,6 +132,8 @@ if __name__ == "__main__":
         raise ValueError("Environment variable GRPC_HOST is not set")
     if playground_env is None:
         raise ValueError("Environment variable PLAYGROUND_ENV is not set")
+    if playground_env.lower() == "live" and live_account_type is None:
+        raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
     
     if playground_env.lower() == "simulator":
         start_date = '2024-01-02'
@@ -150,7 +153,7 @@ if __name__ == "__main__":
     
     req = create_playground_request(balance, symbol, start_date, end_date, env)
     
-    playground = BacktesterPlaygroundClient(req, repository_source, grpc_host=grpc_host)
+    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
     
     playground.tick(0, raise_exception=False)  # initialize the playground
     

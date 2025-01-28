@@ -182,7 +182,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 	if env == models.PlaygroundEnvironmentLive {
 		// create live account
-		liveAccount, err := services.CreateLiveAccount(req.Account.Balance, req.Account.Source.AccountID, req.Account.Source.Broker, req.Account.Source.ApiKeyName)
+		liveAccount, err := services.CreateLiveAccount(req.Account.Balance, req.Account.Source.Broker, req.Account.Source.AccountType)
 		if err != nil {
 			log.Errorf("failed to create live account: %v", err)
 			return nil, err
@@ -221,7 +221,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.StartingBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
@@ -259,7 +259,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.ID, req.Account.Balance, req.StartingBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
+		playground, err = models.NewPlayground(req.ID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground")
 		}

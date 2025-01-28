@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -11,18 +10,18 @@ import (
 )
 
 type TradierBroker struct {
-	ordersUrl   string
-	quotesUrl   string
-	token       string
-	tradesToken string
+	ordersUrl      string
+	quotesUrl      string
+	nonTradesToken string
+	tradesToken    string
 }
 
 func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("no symbols provided")
 	}
-	
-	dto, err := FetchQuotes(ctx, b.quotesUrl, b.token, symbols)
+
+	dto, err := FetchQuotes(ctx, b.quotesUrl, b.nonTradesToken, symbols)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch quotes: %w", err)
 	}
@@ -59,38 +58,49 @@ func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityT
 	return resp, nil
 }
 
-func NewTradierBroker(ordersUrl, quotesUrl, token, tradesToken string) *TradierBroker {
+func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) *TradierBroker {
 	return &TradierBroker{
-		ordersUrl:   ordersUrl,
-		quotesUrl:   quotesUrl,
-		token:       token,
-		tradesToken: tradesToken,
+		ordersUrl:      ordersUrl,
+		quotesUrl:      quotesUrl,
+		nonTradesToken: nonTradesToken,
+		tradesToken:    tradesToken,
 	}
 }
 
-func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string) (*models.LiveAccount, error) {
+func CreateLiveAccount(balance float64, brokerName string, accountType models.LiveAccountType) (*models.LiveAccount, error) {
+	if brokerName != "tradier" {
+		return nil, fmt.Errorf("unsupported broker: %s", brokerName)
+	}
+
 	if balance < 0 {
 		return nil, fmt.Errorf("balance cannot be negative")
 	}
 
-	apiKey := os.Getenv(apiKeyName)
-	if apiKey == "" {
-		return nil, fmt.Errorf("cannot find apiKey with apiKeyName: %s", apiKeyName)
-	}
+	vars := models.NewLiveAccountVariables(accountType)
 
-	tradierBalancesUrlTemplate, err := utils.GetEnv("TRADIER_BALANCES_URL_TEMPLATE")
+	tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
 	if err != nil {
-		return nil, fmt.Errorf("$TRADIER_BALANCES_URL_TEMPLATE not set: %v", err)
+		return nil, fmt.Errorf("failed to get tradier balances url template: %w", err)
 	}
 
-	url := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
+	accountID, err := vars.GetTradierTradesAccountID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier account id: %w", err)
+	}
+
+	balancesUrl := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
+
+	tradierTradesBearerToken, err := vars.GetTradierTradesBearerToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
+	}
 
 	source := LiveAccountSource{
-		Broker:     brokerName,
-		AccountID:  accountID,
-		ApiKey:     apiKey,
-		ApiKeyName: apiKeyName,
-		Url:        url,
+		Broker:       brokerName,
+		AccountID:    accountID,
+		AccountType:  accountType,
+		BalancesUrl:  balancesUrl,
+		TradesApiKey: tradierTradesBearerToken,
 	}
 
 	if err := source.Validate(); err != nil {
@@ -107,24 +117,24 @@ func CreateLiveAccount(balance float64, accountID, brokerName, apiKeyName string
 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
 	}
 
-	tradierTradesUrlTemplate, err := utils.GetEnv("TRADIER_TRADES_URL_TEMPLATE")
+	tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
 	if err != nil {
-		return nil, fmt.Errorf("$TRADIER_TRADES_URL_TEMPLATE not set: %v", err)
+		return nil, fmt.Errorf("failed to get tradier trades url template: %w", err)
 	}
 
 	tradesUrl := fmt.Sprintf(tradierTradesUrlTemplate, accountID)
 
-	stockQuotesURL, err := utils.GetEnv("STOCK_QUOTES_URL")
+	stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
 	if err != nil {
-		return nil, fmt.Errorf("$STOCK_QUOTES_URL not set: %v", err)
+		return nil, fmt.Errorf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
 	}
 
-	tradierBearerToken, err := utils.GetEnv("TRADIER_BEARER_TOKEN")
+	tradierNonTradesBearerToken, err := vars.GetTradierNonTradesBearerToken()
 	if err != nil {
-		return nil, fmt.Errorf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
+		return nil, fmt.Errorf("failed to get tradier non trades bearer token: %w", err)
 	}
 
-	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierBearerToken, apiKey)
+	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken)
 
 	account := models.NewLiveAccount(balance, source, broker)
 

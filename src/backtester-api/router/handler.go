@@ -74,9 +74,9 @@ type GetAccountResponse struct {
 }
 
 type CreateAccountRequestSource struct {
-	Broker     string `json:"broker"`
-	AccountID  string `json:"account_id"`
-	ApiKeyName string `json:"api_key_name"`
+	Broker      string                 `json:"broker"`
+	AccountID   string                 `json:"account_id"`
+	AccountType models.LiveAccountType `json:"account_type"`
 }
 
 type CreateAccountRequest struct {
@@ -88,7 +88,7 @@ type CreatePlaygroundRequest struct {
 	ID                *uuid.UUID                            `json:"playground_id"`
 	Env               string                                `json:"environment"`
 	Account           CreateAccountRequest                  `json:"account"`
-	StartingBalance   float64                               `json:"starting_balance"`
+	InitialBalance    float64                               `json:"starting_balance"`
 	Clock             CreateClockRequest                    `json:"clock"`
 	Repositories      []eventmodels.CreateRepositoryRequest `json:"repositories"`
 	BackfillOrders    []*models.BacktesterOrder             `json:"orders"`
@@ -393,15 +393,21 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
 		Balance:         playground.GetBalance(),
-		StartingBalance: meta.StartingBalance,
+		StartingBalance: meta.InitialBalance,
 		Repositories:    models.CandleRepositoryRecord(repoDTOs),
 		Env:             string(meta.Environment),
+	}
+
+	var liveAccountType *string
+	if meta.LiveAccountType != nil {
+		liveAccountType = new(string)
+		*liveAccountType = string(*meta.LiveAccountType)
 	}
 
 	if meta.Environment == models.PlaygroundEnvironmentLive {
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
-		store.ApiKeyName = &meta.SourceApiKeyName
+		store.LiveAccountType = liveAccountType
 	}
 
 	if err := tx.Create(store).Error; err != nil {
@@ -626,14 +632,19 @@ func loadPlaygrounds() error {
 			}
 
 		} else if p.Env == "live" {
-			if p.Broker == nil || p.AccountID == nil || p.ApiKeyName == nil {
+			if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
 				return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
 			}
 
+			liveAccountType := models.LiveAccountType(*p.LiveAccountType)
+			if err := liveAccountType.Validate(); err != nil {
+				return fmt.Errorf("loadPlaygrounds: invalid live account type: %w", err)
+			}
+
 			source = &CreateAccountRequestSource{
-				Broker:     *p.Broker,
-				AccountID:  *p.AccountID,
-				ApiKeyName: *p.ApiKeyName,
+				Broker:      *p.Broker,
+				AccountID:   *p.AccountID,
+				AccountType: liveAccountType,
 			}
 
 			clockRequest = CreateClockRequest{
@@ -669,7 +680,7 @@ func loadPlaygrounds() error {
 				Balance: p.Balance,
 				Source:  source,
 			},
-			StartingBalance:   p.StartingBalance,
+			InitialBalance:    p.StartingBalance,
 			Clock:             clockRequest,
 			Repositories:      createRepoRequests,
 			BackfillOrders:    orders,

@@ -151,11 +151,17 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			})
 		}
 
+		var liveAccountType *string
+		if meta.LiveAccountType != nil {
+			liveAccountType = meta.LiveAccountType.StringPtr()
+		}
+
 		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
 			PlaygroundId: p.GetId().String(),
 			Meta: &pb.Meta{
-				InitialBalance: meta.StartingBalance,
-				Environment:    string(meta.Environment),
+				InitialBalance:  meta.InitialBalance,
+				Environment:     string(meta.Environment),
+				LiveAccountType: liveAccountType,
 			},
 			Clock: &pb.Clock{
 				Start:       meta.StartAt.Format(time.RFC3339),
@@ -437,13 +443,19 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 
 	ordersDTO := convertOrders(account.Orders)
 
+	var liveAccountType *string
+	if account.Meta.LiveAccountType != nil {
+		liveAccountType = account.Meta.LiveAccountType.StringPtr()
+	}
+
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
-			StartingBalance: account.Meta.StartingBalance,
+			InitialBalance:  account.Meta.InitialBalance,
 			StartDate:       account.Meta.StartAt.Format(time.RFC3339),
 			EndDate:         endAt,
 			Symbols:         account.Meta.Symbols,
 			Environment:     string(account.Meta.Environment),
+			LiveAccountType: liveAccountType,
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,
@@ -508,15 +520,14 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		Account: CreateAccountRequest{
 			Balance: float64(req.Balance),
 			Source: &CreateAccountRequestSource{
-				AccountID:  req.SourceAccountId,
-				Broker:     req.SourceBroker,
-				ApiKeyName: req.SourceApiKeyName,
+				Broker:      req.Broker,
+				AccountType: models.LiveAccountType(req.AccountType),
 			},
 		},
-		StartingBalance: float64(req.Balance),
-		Repositories:    repositoryRequests,
-		SaveToDB:        true,
-		CreatedAt:       time.Now(),
+		InitialBalance: float64(req.Balance),
+		Repositories:   repositoryRequests,
+		SaveToDB:       true,
+		CreatedAt:      time.Now(),
 	})
 
 	if err != nil {
@@ -551,6 +562,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		Account: CreateAccountRequest{
 			Balance: float64(req.Balance),
 		},
+		InitialBalance: float64(req.Balance),
 		Clock: CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
