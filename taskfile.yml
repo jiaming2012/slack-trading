@@ -27,11 +27,18 @@ tasks:
     var:
       playgroundId: ""
 
-  db:connect:
+  deploy:app:
+    cmds:
+      - './deploy-app.sh {{.version}}'
+    dir: ${PROJECTS_DIR}/slack-trading
+    var:
+      version: ""
+
+  pg:connect:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
 
-  stream:connect:
+  esdb:connect:
     cmds:
       - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
 
