@@ -44,7 +44,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")
 
-	log.Infof("fetching from %v", req.URL.String())
+	log.Debugf("fetching from %v", req.URL.String())
 
 	client := http.Client{
 		Timeout: 10 * time.Second,

@@ -108,6 +108,8 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         for c in new_candles:
             self.update_price_feed(c)
             
+            print(f"debug: new candle - {c.period} @ {c.bar.datetime}")
+            
             if c.period == 300:
                 open_signal, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
                 if open_signal:
@@ -143,14 +145,20 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
                         )
                     )
                     
-        if self.is_new_month():
+        if self.is_new_month() or self.factory is None:
             if self.feature_set is None:
                 print("Skipping model training: feature set is empty")
                 return open_signals
             
-            print("-" * 40)
-            print(f"New month: {self.playground.timestamp}")
-            print("-" * 40)
+            if self.factory is None:
+                print("-" * 40)
+                print(f"Initializing factory @ {self.playground.timestamp}")
+                print("-" * 40)
+            else:
+                print("-" * 40)
+                print(f"Reinitializing factory for new month @ {self.playground.timestamp}")
+                print("-" * 40)
+                
             target_set = add_supertrend_momentum_signal_target_set(self.feature_set, self.min_max_window_in_hours)
             self.factory = new_supertrend_momentum_signal_factory(target_set)
                     

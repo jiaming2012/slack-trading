@@ -305,8 +305,10 @@
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "AAPL",
-                "GRPC_HOST": "http://45.77.223.21",
-                "PLAYGROUND_ENV": "live"
+                // "GRPC_HOST": "http://45.77.223.21",
+                "GRPC_HOST": "http://localhost:5051",
+                "PLAYGROUND_ENV": "live",
+                "LIVE_ACCOUNT_TYPE": "paper"
             }
         },
         {

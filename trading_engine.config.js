@@ -10,8 +10,9 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'AAPL',
-      GRPC_HOST: 'http://localhost:5051',
-      ENV: 'development'
+      GRPC_HOST: 'http://45.77.223.21',
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper'
     },
     env_production : {
       ENV: 'production'
@@ -28,8 +29,9 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://localhost:5051',
-      ENV: 'development'
+      GRPC_HOST: 'http://45.77.223.21',
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
       ENV: 'production'

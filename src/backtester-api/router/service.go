@@ -22,7 +22,7 @@ func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period
 
 	candles, err := playground.FetchCandles(symbol, period, from, to)
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, "handleCandles: failed to fetch candles")
+		return nil, eventmodels.NewWebError(500, fmt.Sprintf("handleCandles: failed to fetch candles: %v", err))
 	}
 
 	return candles, nil

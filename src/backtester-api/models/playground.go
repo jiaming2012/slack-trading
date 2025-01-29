@@ -763,9 +763,14 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 }
 
 func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
-	repo, ok := p.repos[symbol][period]
+	symbolsRepo, ok := p.repos[symbol]
 	if !ok {
 		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
+	}
+
+	repo, ok := symbolsRepo[period]
+	if !ok {
+		return nil, fmt.Errorf("period %s not found in repos", period)
 	}
 
 	candles, err := repo.FetchCandles(from, to)

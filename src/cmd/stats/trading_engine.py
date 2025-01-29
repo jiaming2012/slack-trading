@@ -2,6 +2,7 @@ from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from simple_close_strategy import SimpleCloseStrategy
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
+import time
 import os
 
 # todo:
@@ -83,36 +84,10 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         raise ValueError("Invalid side")
         
     return sl_target, tp_target
-
-def create_playground_request(balance: float, symbol: str, start_date: str, stop_date: str, env: PlaygroundEnvironment) -> CreatePolygonPlaygroundRequest:
-    ltf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=5,
-        timespan_unit='minute',
-        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-        history_in_days=365
-    )
-        
-    htf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=60,
-        timespan_unit='minute',
-        indicators=["supertrend"],
-        history_in_days=365
-    )
     
-    return CreatePolygonPlaygroundRequest(
-        balance=balance,
-        start_date=start_date,
-        stop_date=stop_date,
-        repositories=[ltf_repo, htf_repo],
-        environment=env.value
-    )
         
-
 if __name__ == "__main__":
     # meta parameters
-    playground_tick_in_seconds = 300
     model_training_period_in_months = 12
     
     # input parameters
@@ -136,22 +111,48 @@ if __name__ == "__main__":
         raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
     
     if playground_env.lower() == "simulator":
+        playground_tick_in_seconds = 300
         start_date = '2024-01-02'
-        end_date = '2024-12-31'
+        stop_date = '2024-12-31'
         repository_source = RepositorySource.POLYGON
         csv_path = None
         env = PlaygroundEnvironment.SIMULATOR
     
-        print(f"initializing {env} environment: {symbol} playground from {start_date} to {end_date} ...")
+        print(f"initializing {env} environment: {symbol} playground from {start_date} to {stop_date} ...")
     elif playground_env.lower() == "live":
+        playground_tick_in_seconds = 5
         start_date = None
-        end_date = None
+        stop_date = None
         repository_source = None
         env = PlaygroundEnvironment.LIVE
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
-    req = create_playground_request(balance, symbol, start_date, end_date, env)
+    ltf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=5,
+        timespan_unit='minute',
+        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+        history_in_days=365
+    )
+        
+    ltf_period = ltf_repo.timespan_multiplier * 60
+    
+    htf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=60,
+        timespan_unit='minute',
+        indicators=["supertrend"],
+        history_in_days=365
+    )
+    
+    req = CreatePolygonPlaygroundRequest(
+        balance=balance,
+        start_date=start_date,
+        stop_date=stop_date,
+        repositories=[ltf_repo, htf_repo],
+        environment=env.value
+    )
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
     
@@ -164,17 +165,16 @@ if __name__ == "__main__":
     
     while not open_strategy.is_complete():
         try:
-            current_price = playground.get_current_candle(symbol, period=playground_tick_in_seconds).close
+            current_price = playground.get_current_candle(symbol, period=ltf_period).close
         except Exception as e:
             current_price = None
-            print(f"Error getting current price: {e}")
+            print(f"error: failed to get current price: {e}")
             
         # check for close signals
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=False)
+            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=False, with_tick=True)
             print(f"Placed close order: {resp}")
-            playground.tick(0, raise_exception=False)
 
         # check for open signals
         tick_delta = playground.flush_new_state_buffer()
@@ -198,18 +198,16 @@ if __name__ == "__main__":
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False, with_tick=True)
                     print(f"Placed close order: {resp}")
-                    playground.tick(0, raise_exception=False)
 
                 side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False, with_tick=True)
                     print(f"Placed close order: {resp}")
-                    playground.tick(0, raise_exception=False)
                     
                 side = OrderSide.SELL_SHORT
             else:

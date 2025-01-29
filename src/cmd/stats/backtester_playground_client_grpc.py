@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from dataclasses import dataclass
 from typing import List, Dict
 from zoneinfo import ZoneInfo
+from dateutil.parser import isoparse
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
@@ -142,6 +143,7 @@ class BacktesterPlaygroundClient:
             self.id = self.create_playground_polygon(req)
         elif req.environment == PlaygroundEnvironment.LIVE.value:
             self.id = self.create_live_playground(req, live_account_type)
+            self.next_tick_at = datetime.now()
         else:
             raise Exception(f'Invalid source {source} and environment {req.environment}')
 
@@ -270,7 +272,7 @@ class BacktesterPlaygroundClient:
                         symbol=trade['symbol'],
                         quantity=trade['quantity'],
                         price=prc,
-                        create_date=datetime.fromisoformat(trade['create_date'])
+                        create_date=isoparse(trade['create_date'])
                     ),
                     sl_prc,
                     tp_prc
@@ -358,6 +360,14 @@ class BacktesterPlaygroundClient:
         return response
         
     def tick(self, seconds: int, raise_exception=True):
+        if self.environment == PlaygroundEnvironment.LIVE.value:
+            now = datetime.now()
+            if now < self.next_tick_at:
+                wait_period = (self.next_tick_at - now).total_seconds()
+                time.sleep(wait_period)
+            
+            self.next_tick_at = now + timedelta(seconds=seconds)
+            
         request = NextTickRequest(
             playground_id=self.id,
             seconds=seconds,
@@ -380,9 +390,9 @@ class BacktesterPlaygroundClient:
         timestamp = new_state.current_time
         if timestamp:
             if self._initial_timestamp is None:
-                self._initial_timestamp = datetime.fromisoformat(timestamp)
+                self._initial_timestamp = isoparse(timestamp)
                 
-            self.timestamp = datetime.fromisoformat(timestamp)
+            self.timestamp = isoparse(timestamp)
                 
         self._is_backtest_complete = new_state.is_backtest_complete
         
@@ -399,7 +409,7 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", raise_exception=True) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", raise_exception=True, with_tick=False) -> object:
         if quantity == 0:
             return
             
@@ -424,6 +434,10 @@ class BacktesterPlaygroundClient:
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request, max_retries=1)
             self.trade_timestamps.append(self.timestamp)
+            
+            if self.environment == PlaygroundEnvironment.SIMULATOR and with_tick:
+                self.playground.tick(0, raise_exception=False)
+            
             return response
         except Exception as e:
             if raise_exception:
@@ -579,7 +593,7 @@ if __name__ == '__main__':
         
         print('L4: position: ', playground_client.position)
         
-        candles = playground_client.fetch_candles(datetime.fromisoformat('2021-01-04T09:30:00-05:00'), datetime.fromisoformat('2021-01-04T10:31:00-05:00'))
+        candles = playground_client.fetch_candles(isoparse('2021-01-04T09:30:00-05:00'), isoparse('2021-01-04T10:31:00-05:00'))
         
         print('candles: ', candles)
                 
