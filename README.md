@@ -7,9 +7,14 @@ We use python's bump2version for managing the app version.
 ## Taskfile
 We use taskfile as our build tool.
 
-#### Install
+#### On Mac
 ``` bash
 brew install go-task
+```
+
+#### On Linux
+``` bash
+sudo snap install task --classic
 ```
 
 You can list all commands with:
