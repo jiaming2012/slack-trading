@@ -318,11 +318,14 @@ If installing on ubuntu:
 sudo apt-get install python3.10-venv
 ```
 
+## Set your PythonPath
+``` bash
+export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/cmd/stats:${PYTHONPATH}
+```
+
 ## Initiate your python env
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
-python3.10 -m venv $PROJECTS_DIR/slack-trading/src/cmd/stats/env
-$PROJECTS_DIR/slack-trading/src/cmd/stats/env/bin/pip install -r requirements.txt
+task python:install
 ```
 
 # Dockerfile

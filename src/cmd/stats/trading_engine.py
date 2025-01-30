@@ -86,7 +86,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         
     return sl_target, tp_target
     
-def objective(sl_shift = 0.0, tp_shift = 0.0) -> float:
+def objective(sl_shift = 0.0, tp_shift = 0.0) -> (float, str):
     # meta parameters
     model_training_period_in_months = 12
     
@@ -241,7 +241,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> float:
         
     profit = playground.account.equity - balance
     print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift) of ({sl_shift}, {tp_shift})")
-    return profit
+    return -profit
 
 if __name__ == "__main__":
     sl_shift = 0.0

@@ -9,10 +9,10 @@ tasks:
     cmds:
       - 'rm -rf env'
       - 'python3.10 -m venv env'
-      - 'task python:update'
+      - 'task python:upgrade'
     dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
 
-  python:update:
+  python:upgrade:
     cmds:
       - 'pip install --upgrade pip'
       - 'pip install -r requirements.txt'
