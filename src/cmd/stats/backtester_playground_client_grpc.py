@@ -113,8 +113,10 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
                 time.sleep(backoff)
                 backoff *= 2  # Exponential backoff
             else:
+                print(f"no more retries: final error: {e}")
                 break
 
+    print(f"failed request: {request}")
     raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
 
 
