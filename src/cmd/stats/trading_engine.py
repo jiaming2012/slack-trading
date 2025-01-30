@@ -2,6 +2,7 @@ from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from simple_close_strategy import SimpleCloseStrategy
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
+from datetime import datetime
 import time
 import os
 
@@ -44,16 +45,16 @@ def calculate_new_trade_quantity(equity: float, free_margin: float, current_pric
 
 def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     """
-        Builds a tag on the order in the format sl__{sl}__tp__{tp}, e.g. sl__100_50__tp__200_00
+        Builds a tag on the order in the format sl--{sl}--tp--{tp}, e.g. sl--100-50--tp--200-00
     """
         
     if side == OrderSide.BUY or side == OrderSide.SELL_SHORT:   
-        sl_str = str(round(sl, 2)).replace('.', '_')
-        tp_str = str(round(tp, 2)).replace('.', '_')
+        sl_str = str(round(sl, 2)).replace('.', '-')
+        tp_str = str(round(tp, 2)).replace('.', '-')
     else:
         raise ValueError("Invalid side")
     
-    return f"sl__{sl_str}__tp__{tp_str}"
+    return f"sl--{sl_str}--tp--{tp_str}"
 
 def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd) -> Tuple[float, float]:
     """ Builds a tag for the order based on the current price and the min and max values.
@@ -87,6 +88,12 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
     
         
 if __name__ == "__main__":
+    import os
+
+    print("HTTP_PROXY:", os.getenv("HTTP_PROXY"))
+    print("HTTPS_PROXY:", os.getenv("HTTPS_PROXY"))
+    print("NO_PROXY:", os.getenv("NO_PROXY"))
+
     # meta parameters
     model_training_period_in_months = 12
     
@@ -109,6 +116,11 @@ if __name__ == "__main__":
         raise ValueError("Environment variable PLAYGROUND_ENV is not set")
     if playground_env.lower() == "live" and live_account_type is None:
         raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
+    
+    if live_account_type is not None:
+        print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
+    else:
+        print(f'info: starting {playground_env} playgound for {symbol}')
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300

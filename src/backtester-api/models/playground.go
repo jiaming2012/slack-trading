@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type IPlayground interface {
@@ -1271,6 +1272,10 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 
 	if order.AbsoluteQuantity <= 0 {
 		return nil, fmt.Errorf("quantity must be greater than 0")
+	}
+
+	if err := utils.ValidateTag(order.Tag); err != nil {
+		return nil, fmt.Errorf("invalid tag: %w", err)
 	}
 
 	p.account.mutex.Lock()

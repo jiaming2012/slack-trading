@@ -108,6 +108,8 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
         except TwirpServerException as e:
             retries += 1
             
+            print(f"Network call failed: {e.message}. Retrying in {backoff} seconds...")
+            
             if retries < max_retries:
                 print(f"Network call failed: {e}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)
@@ -116,7 +118,7 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
                 print(f"no more retries: final error: {e}")
                 break
 
-    print(f"failed request: {request}")
+    print(f"Failed network request: {request}")
     raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
 
 
@@ -432,6 +434,8 @@ class BacktesterPlaygroundClient:
             tag=tag,
             requested_price=price
         )
+        
+        print(f"tag: {tag}, quantity: {quantity}, side: {side.value}")
         
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request, max_retries=1)

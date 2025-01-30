@@ -67,7 +67,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	}
 
 	if dto.NextURL != nil {
-		log.Warnf("fetchPolygonStockChart: next url: %v", *dto.NextURL)
+		log.Debugf("fetchPolygonStockChart: next url: %v", *dto.NextURL)
 	}
 
 	return &dto, nil
@@ -131,7 +131,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 		}
 
 		if len(aggregateResult.Results) == 0 {
-			return nil, fmt.Errorf("FetchPolygonStockChart: no results found")
+			return nil, fmt.Errorf("FetchPolygonStockChart: no results found from %v to %v", fromDate, toDate)
 		}
 
 		if isDone {

@@ -70,6 +70,19 @@ func getPlaygrounds() []models.IPlayground {
 	return playgroundsSlice
 }
 
+func getPlaygroundByHash(reqHash string) models.IPlayground {
+	for _, playground := range playgrounds {
+		if livePlayground, ok := playground.(*models.LivePlayground); ok {
+			h := livePlayground.GetRequestHash()
+			if h != nil && *h == reqHash {
+				return playground
+			}
+		}
+	}
+
+	return nil
+}
+
 func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
@@ -165,7 +178,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 }
 
 // todo: this should be refactored to a service
-func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
+func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPlayground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
 	// validations
@@ -221,7 +234,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, reqHash)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground")
 		}
