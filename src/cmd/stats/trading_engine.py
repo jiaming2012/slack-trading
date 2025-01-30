@@ -45,16 +45,16 @@ def calculate_new_trade_quantity(equity: float, free_margin: float, current_pric
 
 def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     """
-        Builds a tag on the order in the format sl__{sl}__tp__{tp}, e.g. sl__100_50__tp__200_00
+        Builds a tag on the order in the format sl--{sl}--tp--{tp}, e.g. sl--100-50--tp--200-00
     """
         
     if side == OrderSide.BUY or side == OrderSide.SELL_SHORT:   
-        sl_str = str(round(sl, 2)).replace('.', '_')
-        tp_str = str(round(tp, 2)).replace('.', '_')
+        sl_str = str(round(sl, 2)).replace('.', '-')
+        tp_str = str(round(tp, 2)).replace('.', '-')
     else:
         raise ValueError("Invalid side")
     
-    return f"sl__{sl_str}__tp__{tp_str}"
+    return f"sl--{sl_str}--tp--{tp_str}"
 
 def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd) -> Tuple[float, float]:
     """ Builds a tag for the order based on the current price and the min and max values.

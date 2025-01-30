@@ -8,6 +8,22 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func ValidateTag(tag string) error {
+	// Maximum lenght of 255 characters.
+	// Valid characters are letters, numbers and -
+	if len(tag) > 255 {
+		return fmt.Errorf("tag is too long: %d", len(tag))
+	}
+
+	for _, c := range tag {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+			return fmt.Errorf("invalid character in tag: %c", c)
+		}
+	}
+
+	return nil
+}
+
 func EncodeTag(signal eventmodels.SignalName, expectedProfit float64, requestedPrc float64) string {
 	signal_part := strings.Replace(string(signal), "-", "--", -1)
 	signal_part = strings.Replace(signal_part, "_", "-", -1)

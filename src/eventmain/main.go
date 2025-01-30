@@ -283,6 +283,9 @@ var db *gorm.DB
 func initDB(host, user, password, dbName string) error {
 	var err error
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=UTC", host, user, password, dbName)
+	
+	log.Infof("connecting to postgres @ ", dsn)
+	
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
