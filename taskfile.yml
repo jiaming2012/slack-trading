@@ -7,8 +7,8 @@ tasks:
 
   optimize:
     cmds:
-      - 'python trading_engine_optimizer.py'
-    dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
+      - 'env/bin/python trading_engine_optimizer.py'
+    dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
     env:
       BALANCE: "10000"
       SYMBOL: "TSLA"
