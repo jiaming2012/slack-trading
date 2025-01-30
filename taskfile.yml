@@ -48,7 +48,7 @@ tasks:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
 
-  db:connect:
+  db:start:
     cmds:
       - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
 

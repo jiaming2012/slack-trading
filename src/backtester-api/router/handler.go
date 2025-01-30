@@ -398,16 +398,14 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
-	var liveAccountType *string
-	if meta.LiveAccountType != nil {
-		liveAccountType = new(string)
-		*liveAccountType = string(*meta.LiveAccountType)
-	}
-
-	if meta.Environment == models.PlaygroundEnvironmentLive {
+	if livePlayground, ok := playground.(*models.LivePlayground); ok {			
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
-		store.LiveAccountType = liveAccountType
+
+		liveAccountType := string(*meta.LiveAccountType)
+		store.LiveAccountType = &liveAccountType
+
+		store.RequestHash = livePlayground.GetRequestHash()
 	}
 
 	if err := tx.Create(store).Error; err != nil {
@@ -492,41 +490,41 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
-	var req CreatePlaygroundRequest
+// func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
+// 	var req CreatePlaygroundRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		setErrorResponse("createClock: failed to decode request", 400, err, w)
-		return
-	}
+// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 		setErrorResponse("createClock: failed to decode request", 400, err, w)
+// 		return
+// 	}
 
-	if req.Env == "live" {
-		req.CreatedAt = time.Now()
-		req.SaveToDB = true
-	}
+// 	if req.Env == "live" {
+// 		req.CreatedAt = time.Now()
+// 		req.SaveToDB = true
+// 	}
 
-	playground, err := CreatePlayground(&req)
-	if err != nil {
-		webError, ok := err.(*eventmodels.WebError)
-		if ok {
-			setErrorResponse("createPlayground: failed to create playground", webError.StatusCode, err, w)
-		} else {
-			log.Warnf("failed to get status code from error: %v", err)
-			setErrorResponse("createPlayground: failed to create playground", 500, err, w)
-		}
+// 	playground, err := CreatePlayground(&req)
+// 	if err != nil {
+// 		webError, ok := err.(*eventmodels.WebError)
+// 		if ok {
+// 			setErrorResponse("createPlayground: failed to create playground", webError.StatusCode, err, w)
+// 		} else {
+// 			log.Warnf("failed to get status code from error: %v", err)
+// 			setErrorResponse("createPlayground: failed to create playground", 500, err, w)
+// 		}
 
-		return
-	}
+// 		return
+// 	}
 
-	response := map[string]interface{}{
-		"playground_id": playground.GetId(),
-	}
+// 	response := map[string]interface{}{
+// 		"playground_id": playground.GetId(),
+// 	}
 
-	if err := setResponse(response, w); err != nil {
-		setErrorResponse("createPlayground: failed to set response", 500, err, w)
-		return
-	}
-}
+// 	if err := setResponse(response, w); err != nil {
+// 		setErrorResponse("createPlayground: failed to set response", 500, err, w)
+// 		return
+// 	}
+// }
 
 func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
@@ -687,7 +685,7 @@ func loadPlaygrounds() error {
 			CreatedAt:         p.CreatedAt,
 			EquityPlotRecords: plot,
 			SaveToDB:          false,
-		})
+		}, p.RequestHash)
 
 		if err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
@@ -771,7 +769,8 @@ func handlePlayground(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		w.WriteHeader(404)
 	} else if r.Method == "POST" {
-		handleCreatePlayground(w, r)
+		// handleCreatePlayground(w, r)
+		w.WriteHeader(404)
 	} else {
 		w.WriteHeader(404)
 	}

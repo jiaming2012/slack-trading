@@ -15,6 +15,7 @@ type LivePlayground struct {
 	account         *LiveAccount
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
 	newTradesQueue  *eventmodels.FIFOQueue[*BacktesterTrade]
+	requestHash     *string
 }
 
 func (p *LivePlayground) SetOpenOrdersCache() error {
@@ -23,6 +24,10 @@ func (p *LivePlayground) SetOpenOrdersCache() error {
 
 func (p *LivePlayground) GetNewTradeQueue() *eventmodels.FIFOQueue[*BacktesterTrade] {
 	return p.newTradesQueue
+}
+
+func (p *LivePlayground) GetRequestHash() *string {
+	return p.requestHash
 }
 
 func (p *LivePlayground) GetAccount() *LiveAccount {
@@ -187,10 +192,10 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time, requestHash *string) (*LivePlayground, error) {
 	source := &PlaygroundSource{
-		Broker:     account.Source.GetBroker(),
-		AccountID:  account.Source.GetAccountID(),
+		Broker:      account.Source.GetBroker(),
+		AccountID:   account.Source.GetAccountID(),
 		AccountType: account.Source.GetAccountType(),
 	}
 
@@ -204,5 +209,6 @@ func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBa
 		account:         account,
 		newCandlesQueue: newCandlesQueue,
 		newTradesQueue:  newTradesQueue,
+		requestHash:     requestHash,
 	}, nil
 }

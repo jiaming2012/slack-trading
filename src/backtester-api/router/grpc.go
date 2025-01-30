@@ -12,6 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type Server struct{}
@@ -515,7 +516,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		})
 	}
 
-	playground, err := CreatePlayground(&CreatePlaygroundRequest{
+	createPlaygroundReq := &CreatePlaygroundRequest{
 		Env: req.GetEnvironment(),
 		Account: CreateAccountRequest{
 			Balance: float64(req.Balance),
@@ -527,8 +528,22 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		InitialBalance: float64(req.Balance),
 		Repositories:   repositoryRequests,
 		SaveToDB:       true,
-		CreatedAt:      time.Now(),
-	})
+	}
+
+	createPlaygroundHash, err := utils.HashStruct(createPlaygroundReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create playground hash: %v", err)
+	}
+
+	if playground := getPlaygroundByHash(createPlaygroundHash); playground != nil {
+		return &pb.CreatePlaygroundResponse{
+			Id: playground.GetId().String(),
+		}, nil
+	}
+
+	createPlaygroundReq.CreatedAt = time.Now()
+
+	playground, err := CreatePlayground(createPlaygroundReq, &createPlaygroundHash)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
@@ -569,7 +584,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		},
 		Repositories: repositoryRequests,
 		SaveToDB:     false,
-	})
+	}, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)

@@ -130,7 +130,7 @@ func main() {
 		CreatedAt: time.Now(),
 	}
 
-	playground, webErr := r.CreatePlayground(req)
+	playground, webErr := r.CreatePlayground(req, nil)
 	if webErr != nil {
 		log.Fatalf("failed to create playground: %v", webErr)
 	}
