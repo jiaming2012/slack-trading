@@ -56,7 +56,7 @@ def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     
     return f"sl--{sl_str}--tp--{tp_str}"
 
-def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd) -> Tuple[float, float]:
+def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd: float, sl_shift: float, tp_shift: float) -> Tuple[float, float]:
     """ Builds a tag for the order based on the current price and the min and max values.
         min_value and max_value are the min and max values of the price prediction.
         min_value_sd and max_value_sd are the standard deviations of the min and max values.
@@ -68,32 +68,25 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
     max_value = max(max_value, current_price)
         
     if side == OrderSide.BUY:
-        tp_target = max_value
+        tp_target = max_value + tp_shift
         if tp_target <= current_price:
-            raise ValueError(f"Invalid target price: tp_target of {tp_target} < current price of {current_price}")
+            raise ValueError(f"Invalid target price: tp_target of {tp_target} <= current price of {current_price}")
         
-        sl_target = min_value
+        sl_target = min_value - sl_shift
         
     elif side == OrderSide.SELL_SHORT:
-        tp_target = min_value
+        tp_target = min_value - tp_shift
         if tp_target >= current_price:
-            raise ValueError(f"Invalid target price: tp_target of {tp_target} > current price of {current_price}")
+            raise ValueError(f"Invalid target price: tp_target of {tp_target} >= current price of {current_price}")
         
-        sl_target = max_value
+        sl_target = max_value + sl_shift
         
     else:
         raise ValueError("Invalid side")
         
     return sl_target, tp_target
     
-        
-if __name__ == "__main__":
-    import os
-
-    print("HTTP_PROXY:", os.getenv("HTTP_PROXY"))
-    print("HTTPS_PROXY:", os.getenv("HTTPS_PROXY"))
-    print("NO_PROXY:", os.getenv("NO_PROXY"))
-
+def objective(sl_shift = 0.0, tp_shift = 0.0) -> float:
     # meta parameters
     model_training_period_in_months = 12
     
@@ -124,19 +117,20 @@ if __name__ == "__main__":
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
-        start_date = '2024-01-02'
-        stop_date = '2024-12-31'
+        start_date = '2025-01-23'
+        stop_date = '2025-01-30'
         repository_source = RepositorySource.POLYGON
-        csv_path = None
         env = PlaygroundEnvironment.SIMULATOR
     
-        print(f"initializing {env} environment: {symbol} playground from {start_date} to {stop_date} ...")
+        print(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
     elif playground_env.lower() == "live":
         playground_tick_in_seconds = 5
         start_date = None
         stop_date = None
         repository_source = None
         env = PlaygroundEnvironment.LIVE
+        
+        print(f"initializing {env}: {symbol} playground")
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
@@ -172,7 +166,7 @@ if __name__ == "__main__":
     
     print(f"playground id: {playground.id}")
     
-    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months)
+    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift)
     close_strategy = SimpleCloseStrategy(playground)
     
     while not open_strategy.is_complete():
@@ -210,7 +204,7 @@ if __name__ == "__main__":
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False, with_tick=True)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
                     print(f"Placed close order: {resp}")
 
                 side = OrderSide.BUY
@@ -218,7 +212,7 @@ if __name__ == "__main__":
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close_all', raise_exception=False, with_tick=True)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
                     print(f"Placed close order: {resp}")
                     
                 side = OrderSide.SELL_SHORT
@@ -227,7 +221,7 @@ if __name__ == "__main__":
                 continue
             
             try:
-                sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.min_price_prediction_std_dev, s.max_price_prediction, s.max_price_prediction_std_dev)
+                sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.min_price_prediction_std_dev, s.max_price_prediction, s.max_price_prediction_std_dev, s.sl_shift, s.tp_shift)
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
                 quantity = int(round(quantity - 0.5, 0))
                 tag = build_tag(sl, tp, side)
@@ -244,6 +238,15 @@ if __name__ == "__main__":
             print(f"Placed open order: {resp}")
             
         playground.tick(playground_tick_in_seconds, raise_exception=False)
+        
+    profit = playground.account.equity - balance
+    print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift) of ({sl_shift}, {tp_shift})")
+    return profit
+
+if __name__ == "__main__":
+    sl_shift = 0.0
+    tp_shift = 0.0
+    
+    objective(sl_shift, tp_shift)
             
-    print(f"Playground: {playground.id}")
-    print("Done")
+    

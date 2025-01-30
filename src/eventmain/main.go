@@ -340,6 +340,15 @@ func run() {
 	log.Infof("Main: you da boss...")
 
 	// Get env
+	var liveAccountType models.LiveAccountType
+	if goEnv == "production" {
+		liveAccountType = models.LiveAccountTypeMargin
+	} else {
+		liveAccountType = models.LiveAccountTypePaper
+	}
+
+	vars := models.NewLiveAccountVariables(liveAccountType)
+
 	stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
 	if err != nil {
 		log.Fatalf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
@@ -355,11 +364,6 @@ func run() {
 		log.Fatalf("$TRADIER_OPTION_CHAIN_URL not set: %v", err)
 	}
 
-	brokerBearerToken, err := utils.GetEnv("TRADIER_BEARER_TOKEN")
-	if err != nil {
-		log.Fatalf("$TRADIER_BEARER_TOKEN not set: %v", err)
-	}
-
 	slackWebhookURL, err := utils.GetEnv("SLACK_OPTION_ALERTS_WEBHOOK_URL")
 	if err != nil {
 		log.Fatalf("$SLACK_OPTION_ALERTS_WEBHOOK_URL not set: %v", err)
@@ -369,15 +373,6 @@ func run() {
 	if err != nil {
 		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
 	}
-
-	var liveAccountType models.LiveAccountType
-	if goEnv == "production" {
-		liveAccountType = models.LiveAccountTypeMargin
-	} else {
-		liveAccountType = models.LiveAccountTypePaper
-	}
-
-	vars := models.NewLiveAccountVariables(liveAccountType)
 
 	tradesAccountID, err := vars.GetTradierTradesAccountID()
 	if err != nil {
@@ -401,6 +396,11 @@ func run() {
 	tradierTradesBearerToken, err := vars.GetTradierTradesBearerToken()
 	if err != nil {
 		log.Fatalf("$TRADIER_TRADES_BEARER_TOKEN not set: %v", err)
+	}
+
+	tradierNonTradesBearerToken, err := vars.GetTradierNonTradesBearerToken()
+	if err != nil {
+		log.Fatalf("$TRADIER_NON_TRADES_BEARER_TOKEN not set: %v", err)
 	}
 
 	tradierMarketTimesalesURL, err := utils.GetEnv("TRADIER_MARKET_TIMESALES_URL")
@@ -524,10 +524,6 @@ func run() {
 
 	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
 
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
-		log.Fatalf("failed to setup backtester router: %v", err)
-	}
-
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
 	pprofRouter.HandleFunc("/", http.HandlerFunc(pprof.Index))
@@ -548,7 +544,7 @@ func run() {
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
-		BearerToken:            brokerBearerToken,
+		BearerToken:            tradierNonTradesBearerToken,
 		GoEnv:                  goEnv,
 		OptionsDataFetcher:     optionsDataFetcher,
 	}
@@ -576,6 +572,53 @@ func run() {
 	// Setup ESDB producer
 	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
 
+	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
+	go func(eventCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
+		loc, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			log.Panicf("failed to load location: %v", err)
+		}
+
+		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun, func() ([]eventmodels.TradierPositionDTO, error) {
+			return eventservices.FetchTradierPositions(tradierPositionsURL, tradierTradesBearerToken)
+		})
+
+		for event := range eventCh {
+			if err := processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, projectsDir, config, riskProfileConstraint, loc, goEnv); err != nil {
+				log.Errorf("failed to process signal triggered event: %v", err)
+			}
+		}
+	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
+
+	trackerV3OptionEVConsumer.Start(ctx, false)
+
+	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
+
+	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
+
+	// Start event clients
+	// eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
+
+	// fxTicksCh := make(chan *eventmodels.FxTick)
+	// eventconsumers.NewOandaFxTickWriter(&wg, trackersClient, oandaFxQuotesURLBase, oandaBearerToken).Start(ctx, fxTicksCh)
+
+	//eventproducers.NewReportClient(&wg).Start(ctx)
+	eventproducers.NewSlackClient(&wg, router).Start(ctx)
+	// eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
+	// eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
+	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
+	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
+	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
+	//eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
+	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
+	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
+	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
+	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
+	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
+
+	
+
 	// signals router
 	signalsGetStateExecutor := signalapi.NewGetStateExecutor(trackerV3OptionEVConsumer)
 	processSignalExecutor := signalapi.NewProcessSignalExecutor(esdbProducer)
@@ -592,6 +635,11 @@ func run() {
 	appVersion := &eventservices.AppVersion{}
 	a := NewRouterSetup("/version", router)
 	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
+
+	// Setup backtester router playground
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
+		log.Fatalf("failed to setup backtester router: %v", err)
+	}
 
 	// options router
 	// r := NewRouterSetup("/options", router)
@@ -638,52 +686,6 @@ func run() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	signal.Notify(stop, syscall.SIGTERM)
-
-	// todo: move this, has to be before trackerV3OptionEVConsumer.Start(ctx)
-	go func(eventCh <-chan eventmodels.SignalTriggeredEvent, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config eventmodels.OptionsConfigYAML, isDryRun bool) {
-		loc, err := time.LoadLocation("America/New_York")
-		if err != nil {
-			log.Panicf("failed to load location: %v", err)
-		}
-
-		tradierOrderExecuter := eventmodels.NewTradierOrderExecuter(tradierTradesOrderURL, tradierTradesBearerToken, isDryRun, func() ([]eventmodels.TradierPositionDTO, error) {
-			return eventservices.FetchTradierPositions(tradierPositionsURL, tradierTradesBearerToken)
-		})
-
-		for event := range eventCh {
-			if err := processSignalTriggeredEvent(event, tradierOrderExecuter, optionsRequestExecutor, projectsDir, config, riskProfileConstraint, loc, goEnv); err != nil {
-				log.Errorf("failed to process signal triggered event: %v", err)
-			}
-		}
-	}(trackerV3OptionEVConsumer.GetSignalTriggeredCh(), optionChainRequestExector, optionsConfig, isDryRun)
-
-	trackerV3OptionEVConsumer.Start(ctx, false)
-
-	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
-
-	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, brokerBearerToken, db).Start(ctx)
-
-	// Start event clients
-	// eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
-
-	// fxTicksCh := make(chan *eventmodels.FxTick)
-	// eventconsumers.NewOandaFxTickWriter(&wg, trackersClient, oandaFxQuotesURLBase, oandaBearerToken).Start(ctx, fxTicksCh)
-
-	//eventproducers.NewReportClient(&wg).Start(ctx)
-	eventproducers.NewSlackClient(&wg, router).Start(ctx)
-	// eventproducers.NewCoinbaseClient(&wg, router).Start(ctx)
-	// eventproducers.NewIBClient(&wg, iBServerURL).Start(ctx, "CL")
-	//eventconsumers.NewTradeExecutorClient(&wg).Start(ctx)
-	//eventconsumers.NewGoogleSheetsClient(ctx, &wg).Start()
-	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
-	//eventconsumers.NewBalanceWorkerClient(&wg).Start(ctx)
-	//eventconsumers.NewCandleWorkerClient(&wg).Start(ctx)
-	//eventconsumers.NewRsiBotClient(&wg).Start(ctx)
-	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
-	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-	esdbProducer.Start(ctx, nil)
 
 	// todo: add back in
 	// for _, streamParam := range streamParams {

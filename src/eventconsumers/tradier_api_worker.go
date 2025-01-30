@@ -32,7 +32,6 @@ type TradierApiWorker struct {
 	polygonClient     *eventservices.PolygonTickDataMachine
 	tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]
 	calendarURL       string
-	brokerBearerToken string
 }
 
 func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
@@ -423,7 +422,7 @@ func (w *TradierApiWorker) IsMarketOpen() bool {
 	nowEST := now.In(w.location)
 	nowUTC := now.UTC()
 
-	calendar, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
+	calendar, err := eventservices.FetchMarketCalendar(w.calendarURL, w.quotesBearerToken, nowUTC)
 	if err != nil {
 		log.Errorf("Failed to fetch market calendar: %v", err)
 		return false
@@ -464,7 +463,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL, brokerBearerToken string, db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,
@@ -476,7 +475,6 @@ func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBear
 		polygonClient:     polygonClient,
 		tradesUpdateQueue: tradesUpdateQueue,
 		calendarURL:       calendarURL,
-		brokerBearerToken: brokerBearerToken,
 	}
 
 	var err error

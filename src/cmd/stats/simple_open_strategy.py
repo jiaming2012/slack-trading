@@ -24,9 +24,11 @@ class OpenSignal:
     min_price_prediction: float
     max_price_prediction_std_dev: float
     min_price_prediction_std_dev: float
+    sl_shift: float
+    tp_shift: float
     
 class SimpleOpenStrategy(SimpleBaseStrategy):
-    def __init__(self, playground, model_training_period_in_months):
+    def __init__(self, playground, model_training_period_in_months, sl_shift=0.0, tp_shift=0.0):
         super().__init__(playground)
         
         if not model_training_period_in_months:
@@ -51,6 +53,8 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         self.model_training_period_in_months = model_training_period_in_months
         self.feature_set = None
         self.min_max_window_in_hours = 4
+        self.sl_shift = sl_shift
+        self.tp_shift = tp_shift
         
     def is_new_month(self):
         current_month = self.playground.timestamp.month
@@ -145,7 +149,9 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
                             max_price_prediction, 
                             min_price_prediction, 
                             self.factory.max_price_prediction_std_dev, 
-                            self.factory.min_price_prediction_std_dev
+                            self.factory.min_price_prediction_std_dev,
+                            self.sl_shift,
+                            self.tp_shift
                         )
                     )
                     
