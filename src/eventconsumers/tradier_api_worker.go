@@ -31,6 +31,8 @@ type TradierApiWorker struct {
 	location          *time.Location
 	polygonClient     *eventservices.PolygonTickDataMachine
 	tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]
+	calendarURL       string
+	brokerBearerToken string
 }
 
 func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
@@ -392,8 +394,6 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 		}
 	}
 
-	_ = skipCandles
-
 	repo.AppendBars(newCandles)
 }
 
@@ -406,11 +406,36 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 		return
 	}
 
+	now := time.Now()
 	for _, repo := range repos {
 		r := repo
-		log.Debugf("fetching candles for %s", r.GetSymbol())
-		go w.updateLiveRepos(r)
+		log.Debugf("live repo %s: fetching candles for %s", r.GetPeriodStr(), r.GetSymbol())
+
+		nextUpdateAt := r.GetNextUpdateAt()
+		if nextUpdateAt == nil || now.After(*nextUpdateAt) {
+			go w.updateLiveRepos(r)
+		}
 	}
+}
+
+func (w *TradierApiWorker) IsMarketOpen() bool {
+	now := time.Now()
+	nowEST := now.In(w.location)
+	nowUTC := now.UTC()
+
+	calendar, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
+	if err != nil {
+		log.Errorf("Failed to fetch market calendar: %v", err)
+		return false
+	}
+
+	open, err := eventservices.IsMarketOpen(calendar, nowEST)
+	if err != nil {
+		log.Errorf("Failed to check if market is open: %v", err)
+		return false
+	}
+
+	return open
 }
 
 func (w *TradierApiWorker) Start(ctx context.Context) {
@@ -427,13 +452,19 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				return
 			case <-timer.C:
 				w.executeOrdersQueueUpdate(ctx)
+
+				if !w.IsMarketOpen() {
+					log.Debug("Market is closed: skipping live repos update")
+					continue
+				}
+
 				w.ExecuteLiveReposUpdate()
 			}
 		}
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL, brokerBearerToken string, db *gorm.DB) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,
@@ -444,6 +475,8 @@ func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBear
 		tradesBearerToken: tradesBearerToken,
 		polygonClient:     polygonClient,
 		tradesUpdateQueue: tradesUpdateQueue,
+		calendarURL:       calendarURL,
+		brokerBearerToken: brokerBearerToken,
 	}
 
 	var err error

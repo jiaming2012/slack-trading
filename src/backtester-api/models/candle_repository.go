@@ -14,6 +14,7 @@ import (
 type CandleRepository struct {
 	symbol                eventmodels.Instrument
 	period                time.Duration
+	periodStr             string
 	fetchInterval         eventmodels.TradierInterval
 	polygonTimespan       eventmodels.PolygonTimespan
 	candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
@@ -24,8 +25,21 @@ type CandleRepository struct {
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
 	isInitialTick         bool
 	historyInDays         uint32
+	nextUpdateAt          *time.Time
 	source                eventmodels.CandleRepositorySource
 	mutex                 sync.Mutex
+}
+
+func (r *CandleRepository) setNextUpdateAt(tstamp time.Time) {
+	updateAt := tstamp.Add(2 * r.period)
+	r.nextUpdateAt = &updateAt
+}
+
+func (r *CandleRepository) GetNextUpdateAt() *time.Time {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	return r.nextUpdateAt
 }
 
 func (r *CandleRepository) ToDTO() CandleRepositoryDTO {
@@ -54,6 +68,10 @@ func (r *CandleRepository) GetIndicators() []string {
 
 func (r *CandleRepository) GetPeriod() time.Duration {
 	return r.period
+}
+
+func (r *CandleRepository) GetPeriodStr() string {
+	return r.periodStr
 }
 
 func (r *CandleRepository) GetPolygonTimespan() eventmodels.PolygonTimespan {
@@ -103,6 +121,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
 		return nil
 	}
 
+	maxTimestamp := time.Time{}
 	for i, bar := range bars {
 		if !r.candlesWithIndicators[len(r.candlesWithIndicators)-1].Timestamp.Before(bar.GetTimestamp()) {
 			return fmt.Errorf("new bar[%d] is not after the last bar", i)
@@ -116,7 +135,14 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
 			Close:     bar.GetClose(),
 			Volume:    bar.GetVolume(),
 		})
+
+		if bar.GetTimestamp().After(maxTimestamp) {
+			maxTimestamp = bar.GetTimestamp()
+		}
 	}
+
+	// update next update time
+	r.setNextUpdateAt(maxTimestamp)
 
 	var err error
 	previousIndex := len(r.candlesWithIndicators) - 1
@@ -267,6 +293,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 	return &CandleRepository{
 		symbol:                symbol,
 		period:                period,
+		periodStr:             period.String(),
 		fetchInterval:         interval,
 		candlesWithIndicators: candlesWithIndicators,
 		baseCandles:           candles,

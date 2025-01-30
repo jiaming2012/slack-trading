@@ -659,7 +659,7 @@ func run() {
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, db).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, brokerBearerToken, db).Start(ctx)
 
 	// Start event clients
 	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
