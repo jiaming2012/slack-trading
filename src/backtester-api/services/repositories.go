@@ -52,6 +52,39 @@ func FetchAllLiveRepositories() (repositories []*models.CandleRepository, releas
 	}, nil
 }
 
+func RemoveLiveRepository(repo *models.CandleRepository) error {
+	databaseMutex.Lock()
+	defer databaseMutex.Unlock()
+
+	symbolRepo, ok := liveRepositories[repo.GetSymbol()]
+	if !ok {
+		return fmt.Errorf("DeleteLiveRepository: symbol %s not found", repo.GetSymbol())
+	}
+
+	periodRepos, ok := symbolRepo[repo.GetPeriod()]
+	if !ok {
+		return fmt.Errorf("DeleteLiveRepository: period %s not found", repo.GetPeriod())
+	}
+
+	foundRepo := false
+	for i, r := range periodRepos {
+		if r == repo {
+			periodRepos = append(periodRepos[:i], periodRepos[i+1:]...)
+			foundRepo = true
+			break
+		}
+	}
+
+	if !foundRepo {
+		return fmt.Errorf("DeleteLiveRepository: repository not found")
+	}
+
+	symbolRepo[repo.GetPeriod()] = periodRepos
+	liveRepositories[repo.GetSymbol()] = symbolRepo
+
+	return nil
+}
+
 func SaveLiveRepository(repo *models.CandleRepository) error {
 	databaseMutex.Lock()
 	defer databaseMutex.Unlock()

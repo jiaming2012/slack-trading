@@ -8,6 +8,7 @@ from rpc.playground_pb2 import Candle, TickDelta
 from utils import fetch_polygon_stock_chart_aggregated_as_list
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 import pandas as pd
 
@@ -34,8 +35,10 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         if model_training_period_in_months < 1:
             raise Exception("model_training_period_in_months must be greater than 1")
         
-        historical_start_date, historical_end_date = self.get_previous_year_date_range()
+        historical_start_date, historical_end_date = self.get_previous_year_date_range(300)
         candles_5m = playground.fetch_candles_v2(300, historical_start_date, historical_end_date)
+        
+        historical_start_date, historical_end_date = self.get_previous_year_date_range(3600)
         candles_1h = playground.fetch_candles_v2(3600, historical_start_date, historical_end_date)
         
         candles_5m_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_5m]
@@ -55,15 +58,16 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         self.previous_month = current_month
         return result
     
-    def get_previous_year_date_range(self) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    def get_previous_year_date_range(self, period_in_seconds: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
         current_date = self.playground.timestamp
-        first_day_of_current_month = current_date.replace(day=1)
-        first_day_of_previous_month = first_day_of_current_month - relativedelta(months=12)
         
-        start_date = first_day_of_previous_month
-        end_date = first_day_of_current_month - relativedelta(days=1)
+        # Align the start time to the nearest period boundary
+        aligned_start = current_date - timedelta(seconds=current_date.timestamp() % period_in_seconds)
         
-        return start_date, end_date
+        previous_year_end = aligned_start
+        previous_year_start = aligned_start - relativedelta(months=12)
+        
+        return previous_year_start, previous_year_end
     
     def update_price_feed(self, new_candle: Candle):
          # Convert the Protocol Buffer message to a dictionary

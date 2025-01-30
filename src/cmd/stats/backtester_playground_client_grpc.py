@@ -117,6 +117,7 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
             else:
                 break
 
+    print(f"Failed network request: {request}")
     raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
 
 
@@ -432,6 +433,8 @@ class BacktesterPlaygroundClient:
             tag=tag,
             requested_price=price
         )
+        
+        print(f"tag: {tag}, quantity: {quantity}, side: {side.value}")
         
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request, max_retries=1)
