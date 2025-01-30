@@ -311,11 +311,11 @@ Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac47
 
 # Running locally
 ## Install golang and python
-Both golang:1.20 and python:3.7.9 are required.
+Both golang:1.20 and python3.10 are required.
 
 If installing on ubuntu:
 ``` bash
-sudo apt-get install python3.8-venv
+sudo apt-get install python3.10-venv
 ```
 
 ## Initiate your python env

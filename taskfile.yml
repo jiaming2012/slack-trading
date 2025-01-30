@@ -5,7 +5,15 @@ tasks:
     cmds:
       - 'task --list-all'
 
-  update:python:
+  python:install:
+    cmds:
+      - 'rm -rf env'
+      - 'python3.10 -m venv env
+      - 'task python:update'
+'
+    dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+
+  python:update:
     cmds:
       - 'pip install --upgrade pip'
       - 'pip install -r requirements.txt'
