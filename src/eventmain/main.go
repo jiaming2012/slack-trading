@@ -410,15 +410,15 @@ func run() {
 		log.Fatalf("$EVENTSTOREDB_URL not set: %v", err)
 	}
 
-	oandaFxQuotesURLBase, err := utils.GetEnv("OANDA_FX_QUOTES_URL_BASE")
-	if err != nil {
-		log.Fatalf("$OANDA_FX_QUOTES_URL_BASE not set: %v", err)
-	}
+	// oandaFxQuotesURLBase, err := utils.GetEnv("OANDA_FX_QUOTES_URL_BASE")
+	// if err != nil {
+	// 	log.Fatalf("$OANDA_FX_QUOTES_URL_BASE not set: %v", err)
+	// }
 
-	oandaBearerToken, err := utils.GetEnv("OANDA_BEARER_TOKEN")
-	if err != nil {
-		log.Fatalf("$OANDA_BEARER_TOKEN not set: %v", err)
-	}
+	// oandaBearerToken, err := utils.GetEnv("OANDA_BEARER_TOKEN")
+	// if err != nil {
+	// 	log.Fatalf("$OANDA_BEARER_TOKEN not set: %v", err)
+	// }
 
 	optionsExpirationURL, err := utils.GetEnv("TRADIER_OPTION_EXPIRATIONS_URL")
 	if err != nil {
@@ -467,15 +467,15 @@ func run() {
 	)))
 
 	// Set up OpenTelemetry.
-	otelShutdown, err := setupOTelSDK(ctx)
-	if err != nil {
-		log.Fatalf("failed to setup otel sdk: %v", err)
-	}
+	// otelShutdown, err := setupOTelSDK(ctx)
+	// if err != nil {
+	// 	log.Fatalf("failed to setup otel sdk: %v", err)
+	// }
 
 	// Handle shutdown properly so nothing leaks.
-	defer func() {
-		err = errors.Join(err, otelShutdown(context.Background()))
-	}()
+	// defer func() {
+	// 	err = errors.Join(err, otelShutdown(context.Background()))
+	// }()
 
 	// Setup postgres
 	if err := initDB(postgresHost, postgresUser, postgresPassword, postgresDb); err != nil {
@@ -662,10 +662,10 @@ func run() {
 	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, brokerBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, brokerBearerToken, db).Start(ctx)
 
 	// Start event clients
-	eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
+	// eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
 
-	fxTicksCh := make(chan *eventmodels.FxTick)
-	eventconsumers.NewOandaFxTickWriter(&wg, trackersClient, oandaFxQuotesURLBase, oandaBearerToken).Start(ctx, fxTicksCh)
+	// fxTicksCh := make(chan *eventmodels.FxTick)
+	// eventconsumers.NewOandaFxTickWriter(&wg, trackersClient, oandaFxQuotesURLBase, oandaBearerToken).Start(ctx, fxTicksCh)
 
 	//eventproducers.NewReportClient(&wg).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
@@ -680,14 +680,14 @@ func run() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-	esdbProducer.Start(ctx, fxTicksCh)
+	esdbProducer.Start(ctx, nil)
 
 	// todo: add back in
 	// for _, streamParam := range streamParams {
 	// 	eventconsumers.NewESDBConsumer(&wg, eventStoreDbURL, []eventmodels.StreamParameter{streamParam}).Start(ctx)
 	// }
 
-	eventconsumers.NewOptionAlertWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
+	// eventconsumers.NewOptionAlertWorker(&wg, tradierTradesOrderURL, tradierTradesBearerToken).Start(ctx)
 
 	log.Info("Main: init complete")
 
