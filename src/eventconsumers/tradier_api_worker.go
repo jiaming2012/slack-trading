@@ -450,13 +450,12 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				log.Info("stopping TradierOrdersMonitoringWorker consumer")
 				return
 			case <-timer.C:
-				w.executeOrdersQueueUpdate(ctx)
-
 				if !w.IsMarketOpen() {
 					log.Debug("Market is closed: skipping live repos update")
 					continue
 				}
 
+				w.executeOrdersQueueUpdate(ctx)
 				w.ExecuteLiveReposUpdate()
 			}
 		}
