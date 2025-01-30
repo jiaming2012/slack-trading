@@ -5,6 +5,12 @@ tasks:
     cmds:
       - 'task --list-all'
 
+  update:python:
+    cmds:
+      - 'pip install --upgrade pip'
+      - 'pip install -r requirements.txt'
+    dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+
   optimize:
     cmds:
       - 'env/bin/python trading_engine_optimizer.py'
