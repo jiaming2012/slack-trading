@@ -8,7 +8,7 @@ tasks:
   python:install:
     cmds:
       - 'rm -rf env'
-      - 'python3.10 -m venv env
+      - 'python3.10 -m venv env'
       - 'task python:update'
     dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
 
