@@ -3,11 +3,11 @@ module.exports = {
     name: 'supertrend-momentum-aapl',
     cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
     args: '',
-    autorestart: false,
+    autorestart: true,
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env: {
+    env_dev: {
       BALANCE: '10000',
       SYMBOL: 'AAPL',
       GRPC_HOST: 'http://45.77.223.21',
@@ -22,11 +22,11 @@ module.exports = {
     name: 'supertrend-momentum-coin',
     cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
     args: '',
-    autorestart: false,
+    autorestart: true,
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env: {
+    env_dev: {
       BALANCE: '10000',
       SYMBOL: 'COIN',
       GRPC_HOST: 'http://45.77.223.21',

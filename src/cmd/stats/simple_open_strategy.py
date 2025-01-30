@@ -108,7 +108,7 @@ class SimpleOpenStrategy(SimpleBaseStrategy):
         for c in new_candles:
             self.update_price_feed(c)
             
-            print(f"debug: new candle - {c.period} @ {c.bar.datetime}")
+            print(f"debug: new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if c.period == 300:
                 open_signal, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)

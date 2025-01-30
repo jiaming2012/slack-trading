@@ -317,12 +317,12 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 	}
 }
 
-func (w *TradierApiWorker) getStartEndDates(now time.Time, period time.Duration) (time.Time, time.Time) {
-	startAfter := now.Add(-23 * time.Hour).In(w.location)
+func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period time.Duration) (time.Time, time.Time) {
+	startAfter := lastTimestamp.In(w.location)
 
 	start := startAfter.Truncate(period)
 
-	endAfter := now.Add(24 * time.Hour).In(w.location)
+	endAfter := now.In(w.location)
 
 	end := endAfter.Truncate(period)
 
@@ -336,10 +336,11 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 
 	log.Debugf("updating live repo %s with period %s", repo.GetSymbol(), periodStr)
 
-	start, end := w.getStartEndDates(now, period)
+	lastCandleInRepo := repo.GetLastCandle()
+
+	start, end := w.getStartEndDates(lastCandleInRepo.Timestamp, now, period)
 
 	var candles []eventmodels.ICandle
-	var skipCandles int
 
 	if period <= 15*time.Minute {
 		tradierCandles, err := w.fetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
@@ -351,9 +352,6 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 		for _, candle := range tradierCandles {
 			candles = append(candles, candle)
 		}
-
-		skipCandles = 1
-
 	} else {
 		polygonCandles, err := w.polygonClient.FetchAggregateBarsWithDates(repo.GetSymbol(), repo.GetPolygonTimespan(), start, end, w.location)
 		if err != nil {
@@ -364,15 +362,12 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 		for _, candle := range polygonCandles {
 			candles = append(candles, candle)
 		}
-
-		skipCandles = 0
 	}
 
 	cutoffTimestamp := now.Truncate(period)
 
 	startAt := len(candles)
 
-	lastCandleInRepo := repo.GetLastCandle()
 	if lastCandleInRepo != nil {
 		for i := len(candles) - 1; i >= 0; i-- {
 			tstamp := candles[i].GetTimestamp()

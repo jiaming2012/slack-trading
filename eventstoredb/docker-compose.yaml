@@ -22,6 +22,20 @@ services:
         source: eventstore-volume-logs
         target: /var/log/eventstore
 
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=playground
+      - POSTGRES_USER=grodt
+      - POSTGRES_PASSWORD=test747
+    ports:
+      - "5432:5432"
+    volumes:
+      - type: volume
+        source: postgres-volume-data
+        target: /var/lib/postgresql/data
+
 volumes:
   eventstore-volume-data:
   eventstore-volume-logs:
+  postgres-volume-data:

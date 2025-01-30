@@ -25,7 +25,7 @@ data:
   TRADIER_SANDBOX_BALANCES_URL_TEMPLATE: "https://sandbox.tradier.com/v1/accounts/%s/balances"
   EVENTSTOREDB_URL: "esdb://admin:changeit@eventstoredb.eventstoredb.svc.cluster.local:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000"
   OANDA_FX_QUOTES_URL_BASE: "https://api-fxtrade.oanda.com/v3/instruments/%s/candles"
-  LOG_LEVEL: "debug"
+  LOG_LEVEL: "info"
   DRY_RUN: "false"
   OPTIONS_CONFIG_FILE: "options-config-prod.yaml"
   PORT: "8080"

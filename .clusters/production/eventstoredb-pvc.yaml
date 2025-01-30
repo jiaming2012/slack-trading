@@ -8,4 +8,5 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 512Gi
+      storage: 32Gi
+  storageClassName: vultr-block-storage

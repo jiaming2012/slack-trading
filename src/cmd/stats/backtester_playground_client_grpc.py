@@ -108,6 +108,8 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
         except TwirpServerException as e:
             retries += 1
             
+            print(f"Network call failed: {e.message}. Retrying in {backoff} seconds...")
+            
             if retries < max_retries:
                 print(f"Network call failed: {e}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)

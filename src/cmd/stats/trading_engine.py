@@ -87,6 +87,12 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
     
         
 if __name__ == "__main__":
+    import os
+
+    print("HTTP_PROXY:", os.getenv("HTTP_PROXY"))
+    print("HTTPS_PROXY:", os.getenv("HTTPS_PROXY"))
+    print("NO_PROXY:", os.getenv("NO_PROXY"))
+
     # meta parameters
     model_training_period_in_months = 12
     
@@ -109,6 +115,11 @@ if __name__ == "__main__":
         raise ValueError("Environment variable PLAYGROUND_ENV is not set")
     if playground_env.lower() == "live" and live_account_type is None:
         raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
+    
+    if live_account_type is not None:
+        print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
+    else:
+        print(f'info: starting {playground_env} playgound for {symbol}')
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300

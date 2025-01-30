@@ -17,6 +17,44 @@ You can list all commands with:
 task list
 ```
 
+# Kubernetes issue
+Here were some problems that needed to overcome when running in prod:
+1. disk space full
+solution:
+ssh onto each node, run:
+``` bash
+crictl rmi --prune
+```
+
+2. Removing pvc
+solution:
+a. Remove the finializers first
+``` bash
+kubectl patch pvc <pvc-name> -n <namespace> --type=json -p '[{"op": "remove", "path": "/metadata/finalizers"}]'
+```
+
+3. Add the metrics server
+``` bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-", "value":"--kubelet-insecure-tls"}]'
+
+```
+
+4. Removed the cpu limits on grodt deployment. You cannot add any deployment that you wish.
+
+5. Create kube dashboard
+``` bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+kubectl create serviceaccount dashboard-admin -n kubernetes-dashboard
+kubectl create clusterrolebinding dashboard-admin-binding \
+  --clusterrole=cluster-admin \
+  --serviceaccount=kubernetes-dashboard:dashboard-admin
+```
+Get the admin token to log in:
+``` bash
+kubectl -n kubernetes-dashboard create token dashboard-admin
+```
+
 # Twirp
 We use twirp for grpc communication over http.
 

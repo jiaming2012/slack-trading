@@ -30,3 +30,9 @@ spec:
             name: postgres-configmap
         - secretRef:
             name: postgres-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
