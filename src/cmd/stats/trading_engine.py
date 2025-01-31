@@ -267,6 +267,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
         from simple_open_strategy_v2 import SimpleOpenStrategy
         
     else:
+        print(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
     open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift)
