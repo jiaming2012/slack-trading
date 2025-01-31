@@ -283,9 +283,9 @@ var db *gorm.DB
 func initDB(host, user, password, dbName string) error {
 	var err error
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=UTC", host, user, password, dbName)
-	
+
 	log.Infof("connecting to postgres @ ", dsn)
-	
+
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
@@ -347,6 +347,7 @@ func run() {
 		liveAccountType = models.LiveAccountTypePaper
 	}
 
+	// todo: this needs to be updated to be dynamic: a live trade can be paper or margin
 	vars := models.NewLiveAccountVariables(liveAccountType)
 
 	stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
@@ -374,21 +375,19 @@ func run() {
 		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
 	}
 
-	tradesAccountID, err := vars.GetTradierTradesAccountID()
+	tradierTradesOrderURL, err := vars.GetTradierTradesOrderURL()
 	if err != nil {
-		log.Fatalf("$TRADIER_TRADES_ACCOUNT_ID not set: %v", err)
+		log.Fatalf("tradierTradesOrderURL could not be set: %v", err)
 	}
-
-	tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
-	if err != nil {
-		log.Fatalf("$TRADIER_TRADES_URL_TEMPLATE not set: %v", err)
-	}
-
-	tradierTradesOrderURL := fmt.Sprintf(tradierTradesUrlTemplate, tradesAccountID)
 
 	tradierPositionsUrlTemplate, err := vars.GetTradierPositionsUrlTemplate()
 	if err != nil {
 		log.Fatalf("$TRADIER_POSITIONS_URL_TEMPLATE not set: %v", err)
+	}
+
+	tradesAccountID, err := vars.GetTradierTradesAccountID()
+	if err != nil {
+		log.Fatalf("$TRADIER_TRADES_ACCOUNT_ID not set: %v", err)
 	}
 
 	tradierPositionsURL := fmt.Sprintf(tradierPositionsUrlTemplate, tradesAccountID)
@@ -595,7 +594,7 @@ func run() {
 	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	eventconsumers.NewTradierApiWorker(&wg, tradierTradesOrderURL, tradierMarketTimesalesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
 
 	// Start event clients
 	// eventconsumers.NewOptionChainTickWriterWorker(&wg, stockQuotesURL, optionChainURL, brokerBearerToken, calendarURL).Start(ctx, optionContractClient, trackersClient)
@@ -616,8 +615,6 @@ func run() {
 	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
 	// eventproducers.NewTrendSpiderClient(&wg, router).Start(ctx)
-
-	
 
 	// signals router
 	signalsGetStateExecutor := signalapi.NewGetStateExecutor(trackerV3OptionEVConsumer)

@@ -17,17 +17,14 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
-	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 type TradierApiWorker struct {
 	wg                *sync.WaitGroup
 	db                *gorm.DB
 	orders            eventmodels.TradierOrderDataStore
-	brokerURL         string
 	timeSalesURL      string
 	quotesBearerToken string
-	tradesBearerToken string
 	location          *time.Location
 	polygonClient     *eventservices.PolygonTickDataMachine
 	tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]
@@ -137,7 +134,7 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 	return results, nil
 }
 
-func (w *TradierApiWorker) fetchOrder(orderID uint) (*eventmodels.TradierOrderDTO, error) {
+func (w *TradierApiWorker) fetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -145,18 +142,34 @@ func (w *TradierApiWorker) fetchOrder(orderID uint) (*eventmodels.TradierOrderDT
 	queryParams := url.Values{}
 	queryParams.Add("includeTags", "true")
 
-	url := fmt.Sprintf("%s/%d?%s", w.brokerURL, orderID, queryParams.Encode())
+	if err := liveAccountType.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate live account type: %w", err)
+	}
+
+	vars := models.NewLiveAccountVariables(liveAccountType)
+
+	brokerURL, err := vars.GetTradierTradesOrderURL()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier trades order URL: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/%d?%s", brokerURL, orderID, queryParams.Encode())
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to create request: %w", err)
 	}
 
+	bearerToken, err := vars.GetTradierTradesBearerToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
+	}
+
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.tradesBearerToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 
 	log.Warnf("fetching order from %s", req.URL.String())
-	log.Warnf("t: %s", w.tradesBearerToken)
+	log.Warnf("t: %s", bearerToken)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -183,49 +196,49 @@ func (w *TradierApiWorker) fetchOrder(orderID uint) (*eventmodels.TradierOrderDT
 	return resp.Order, nil
 }
 
-func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
+// func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
+// 	client := http.Client{
+// 		Timeout: 10 * time.Second,
+// 	}
 
-	queryParams := url.Values{}
-	queryParams.Add("includeTags", "true")
+// 	queryParams := url.Values{}
+// 	queryParams.Add("includeTags", "true")
 
-	url := fmt.Sprintf("%s?%s", w.brokerURL, queryParams.Encode())
+// 	url := fmt.Sprintf("%s?%s", w.paperBrokerURL, queryParams.Encode())
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to create request: %w", err)
-	}
+// 	req, err := http.NewRequest(http.MethodGet, url, nil)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to create request: %w", err)
+// 	}
 
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.tradesBearerToken))
+// 	req.Header.Add("Accept", "application/json")
+// 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.paperTradesBearerToken))
 
-	log.Debugf("fetching orders from %s", req.URL.String())
+// 	log.Debugf("fetching orders from %s", req.URL.String())
 
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %w", err)
-	}
+// 	res, err := client.Do(req)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %w", err)
+// 	}
 
-	defer res.Body.Close()
+// 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %s", res.Status)
-	}
+// 	if res.StatusCode != http.StatusOK {
+// 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %s", res.Status)
+// 	}
 
-	bytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to read response body: %w", err)
-	}
+// 	bytes, err := io.ReadAll(res.Body)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to read response body: %w", err)
+// 	}
 
-	orders, err := utils.ParseTradierResponse[*eventmodels.TradierOrderDTO](bytes)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to parse response body: %w", err)
-	}
+// 	orders, err := utils.ParseTradierResponse[*eventmodels.TradierOrderDTO](bytes)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to parse response body: %w", err)
+// 	}
 
-	return orders, nil
-}
+// 	return orders, nil
+// }
 
 func (w *TradierApiWorker) checkForDelete(ordersDTO []*eventmodels.TradierOrderDTO) []uint {
 	result := []uint{}
@@ -292,7 +305,17 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 	// log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
 
 	for _, order := range pendingOrders {
-		orderDTO, err := w.fetchOrder(order.ExternalOrderID)
+		var liveAccountType models.LiveAccountType
+		if order.AccountType == string(models.LiveAccountTypePaper) {
+			liveAccountType = models.LiveAccountTypePaper
+		} else if order.AccountType == string(models.LiveAccountTypeMargin) {
+			liveAccountType = models.LiveAccountTypeMargin
+		} else {
+			log.Errorf("TradierOrdersMonitoringWorker.Start: invalid account type: %s", order.AccountType)
+			continue
+		}
+
+		orderDTO, err := w.fetchOrder(order.ExternalOrderID, liveAccountType)
 		if err != nil {
 			log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch order: %v", err)
 			continue
@@ -313,6 +336,20 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 			})
 
 			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
+		} else if orderDTO.Status == string(models.BacktesterOrderStatusRejected) {
+			reason := "rejected by broker"
+			if orderDTO.ReasonDescription != nil {
+				reason = *orderDTO.ReasonDescription
+			}
+
+			w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
+
+				ModifyOrder: &eventmodels.TradierOrderModifyEvent{
+					OrderID: order.ExternalOrderID,
+					Field:   "status",
+					New:     reason,
+				},
+			})
 		}
 
 		time.Sleep(10 * time.Millisecond)
@@ -463,15 +500,13 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, brokerURL, timeSalesURL, quotesBearerToken, tradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,
 		orders:            make(map[uint]*eventmodels.TradierOrder),
-		brokerURL:         brokerURL,
 		timeSalesURL:      timeSalesURL,
-		quotesBearerToken: quotesBearerToken,
-		tradesBearerToken: tradesBearerToken,
+		quotesBearerToken: tradierNonTradesBearerToken,
 		polygonClient:     polygonClient,
 		tradesUpdateQueue: tradesUpdateQueue,
 		calendarURL:       calendarURL,

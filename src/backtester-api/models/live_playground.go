@@ -18,6 +18,10 @@ type LivePlayground struct {
 	requestHash     *string
 }
 
+func (p *LivePlayground) GetLiveAccountType() *LiveAccountType {
+	return p.account.Source.GetAccountType()
+}
+
 func (p *LivePlayground) SetOpenOrdersCache() error {
 	return p.playground.SetOpenOrdersCache()
 }

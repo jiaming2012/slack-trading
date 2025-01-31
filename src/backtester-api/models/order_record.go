@@ -14,6 +14,7 @@ type OrderRecord struct {
 	gorm.Model
 	PlaygroundID    uuid.UUID         `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
 	Playground      PlaygroundSession `gorm:"foreignKey:PlaygroundID;references:ID"`
+	AccountType     string            `gorm:"column:account_type;type:text"`
 	ExternalOrderID uint              `gorm:"column:external_id;not null;index:idx_external_order_id"`
 	Class           string            `gorm:"column:class;type:text;not null"`
 	Symbol          string            `gorm:"column:symbol;type:text;not null"`

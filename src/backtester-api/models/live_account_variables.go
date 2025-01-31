@@ -24,6 +24,25 @@ func (v LiveAccountVariables) GetTradierBalancesUrlTemplate() (tradierBalancesUr
 	return
 }
 
+func (v LiveAccountVariables) GetTradierTradesOrderURL() (tradierTradesOrderURL string, err error) {
+	tradierTradesOrderURL = ""
+
+	tradesAccountID, e := v.GetTradierTradesAccountID()
+	if e != nil {
+		err = fmt.Errorf("LiveAccountVariables.GetTradierTradesOrderURL() failed: %w", e)
+		return
+	}
+
+	tradierTradesUrlTemplate, e := v.GetTradierTradesUrlTemplate()
+	if err != nil {
+		err = fmt.Errorf("LiveAccountVariables.GetTradierTradesOrderURL() failed: %w", e)
+		return
+	}
+
+	tradierTradesOrderURL = fmt.Sprintf(tradierTradesUrlTemplate, tradesAccountID)
+	return
+}
+
 func (v LiveAccountVariables) GetTradierTradesUrlTemplate() (tradierTradesUrlTemplate string, err error) {
 	switch v.AccountType {
 	case LiveAccountTypePaper:

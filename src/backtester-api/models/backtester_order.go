@@ -154,7 +154,7 @@ func fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID, orderId uint) (
 	return &orderRec, nil
 }
 
-func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, []*TradeRecord, error) {
+func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*TradeRecord, error) {
 	var closes []*OrderRecord
 	// todo: this method can be optimized or eliminated using BacktesterOrder as a db model, and removing the OrderRecord model
 	for _, close := range o.Closes {
@@ -166,10 +166,16 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID) (*O
 		closes = append(closes, orderRec)
 	}
 
+	account_type := "simulation"
+	if liveAccountType != nil {
+		account_type = string(*liveAccountType)
+	}
+
 	orderRec := &OrderRecord{
 		PlaygroundID:    playgroundId,
 		ExternalOrderID: o.ID,
 		Class:           string(o.Class),
+		AccountType:     account_type,
 		Symbol:          o.Symbol.GetTicker(),
 		Side:            string(o.Side),
 		Quantity:        o.AbsoluteQuantity,

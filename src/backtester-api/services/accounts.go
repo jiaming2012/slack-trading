@@ -98,7 +98,7 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 	source := LiveAccountSource{
 		Broker:       brokerName,
 		AccountID:    accountID,
-		AccountType:  accountType,
+		AccountType:  &accountType,
 		BalancesUrl:  balancesUrl,
 		TradesApiKey: tradierTradesBearerToken,
 	}

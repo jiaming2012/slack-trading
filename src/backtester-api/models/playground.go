@@ -36,6 +36,7 @@ type IPlayground interface {
 	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
+	GetLiveAccountType() *LiveAccountType
 	SetOpenOrdersCache() error
 }
 
@@ -58,6 +59,10 @@ func (p *Playground) GetEnvironment() PlaygroundEnvironment {
 	}
 
 	return p.Meta.Environment
+}
+
+func (p *Playground) GetLiveAccountType() *LiveAccountType {
+	return nil
 }
 
 func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
@@ -415,6 +420,10 @@ func (p *Playground) deleteFromOpenOrdersCache(symbol eventmodels.Instrument, in
 }
 
 func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
+	if order.Status == BacktesterOrderStatusRejected {
+		return nil
+	}
+	
 	if order.Status != BacktesterOrderStatusPending {
 		return fmt.Errorf("order is not pending")
 	}
@@ -1365,7 +1374,7 @@ func NewPlayground(playgroundId *uuid.UUID, balance, initialBalance float64, clo
 
 		meta.SourceBroker = source.Broker
 		meta.SourceAccountId = source.AccountID
-		meta.LiveAccountType = &source.AccountType
+		meta.LiveAccountType = source.AccountType
 	}
 
 	var id uuid.UUID

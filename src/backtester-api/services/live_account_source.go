@@ -10,14 +10,14 @@ import (
 )
 
 type LiveAccountSource struct {
-	Broker       string                 `json:"broker"`
-	AccountID    string                 `json:"account_id"`
-	AccountType  models.LiveAccountType `json:"account_type"`
-	BalancesUrl  string                 `json:"-"`
-	TradesApiKey string                 `json:"-"`
+	Broker       string                  `json:"broker"`
+	AccountID    string                  `json:"account_id"`
+	AccountType  *models.LiveAccountType `json:"account_type"`
+	BalancesUrl  string                  `json:"-"`
+	TradesApiKey string                  `json:"-"`
 }
 
-func (s LiveAccountSource) GetAccountType() models.LiveAccountType {
+func (s LiveAccountSource) GetAccountType() *models.LiveAccountType {
 	return s.AccountType
 }
 

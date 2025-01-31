@@ -200,13 +200,13 @@ func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID
 	return orderRecord.ID, true
 }
 
-func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder) ([]*models.OrderRecord, error) {
+func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder, liveAccountType *models.LiveAccountType) ([]*models.OrderRecord, error) {
 	var allOrderRecords []*models.OrderRecord
 
 	for _, order := range orders {
 		var err error
 
-		oRec, _, err := order.ToOrderRecord(tx, playgroundId)
+		oRec, _, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
@@ -238,9 +238,9 @@ func saveBalance(tx *gorm.DB, playgroundId uuid.UUID, balance float64) error {
 	return nil
 }
 
-func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64) error {
+func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType *models.LiveAccountType) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}); err != nil {
+		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, liveAccountType); err != nil {
 			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", err)
 		}
 
@@ -324,7 +324,12 @@ func savePlayground(playground models.IPlayground) error {
 		}
 
 		playgroundId := playground.GetId()
-		if _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders()); txErr != nil {
+		meta := playground.GetMeta()
+		if meta == nil {
+			return errors.New("savePlayground: missing playground meta")
+		}
+
+		if _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders(), meta.LiveAccountType); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 
@@ -398,7 +403,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
-	if livePlayground, ok := playground.(*models.LivePlayground); ok {			
+	if livePlayground, ok := playground.(*models.LivePlayground); ok {
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
 
@@ -449,7 +454,7 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 
 	switch playground.(type) {
 	case *models.LivePlayground:
-		if err := saveOrderRecord(playground.GetId(), order, nil); err != nil {
+		if err := saveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
 			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
 		}
 	}
@@ -887,7 +892,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 		mutex:     &sync.Mutex{},
 	}
 
-	commitPendingOrder := func() {
+	commitPendingOrders := func() {
 		orderCache, unlockFn := cache.GetMap()
 
 		defer unlockFn()
@@ -921,7 +926,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 
 			// Resave the order to update the status and close_id
 			balance := playground.GetBalance()
-			if err := saveOrderRecord(playground.GetId(), order, &balance); err != nil {
+			if err := saveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
 				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 
@@ -951,7 +956,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 			case <-ctx.Done():
 				return
 			default:
-				commitPendingOrder()
+				commitPendingOrders()
 				time.Sleep(10 * time.Second)
 			}
 		}
@@ -979,23 +984,6 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 						})
 
 						log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)
-					} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusRejected) {
-
-						playground, order, found := findOrder(event.CreateOrder.Order.ID)
-
-						if found {
-							reason := "rejected by broker"
-							if event.CreateOrder.Order.ReasonDescription != nil {
-								reason = *event.CreateOrder.Order.ReasonDescription
-							}
-
-							if err := playground.RejectOrder(order, reason); err != nil {
-								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
-							}
-						} else {
-							log.Warnf("handleLiveOrders: order not found: %v", event.CreateOrder.Order)
-						}
-
 					} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusPending) {
 						log.Debugf("handleLiveOrders: order pending: %v", event.CreateOrder.Order)
 					} else {
@@ -1003,18 +991,37 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 					}
 
 				} else if event.ModifyOrder != nil {
+					if event.ModifyOrder.Field == "status" {
+						playground, order, found := findOrder(event.ModifyOrder.OrderID)
 
+						if found {
+							reason, ok := event.ModifyOrder.New.(string)
+							if !ok {
+								log.Errorf("handleLiveOrders: failed to convert reason to string: %v", event.ModifyOrder.New)
+								continue
+							}
+
+							if err := playground.RejectOrder(order, reason); err != nil {
+								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
+							}
+
+							if err := saveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
+								log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
+							}
+						} else {
+							log.Warnf("handleLiveOrders: order not found: %v", event.CreateOrder.Order)
+						}
+					}
 				} else if event.DeleteOrder != nil {
 					// pass
 				} else {
 					log.Warnf("handleLiveOrders: unknown event type: %v", event)
 				}
 
-				time.Sleep(1 * time.Second)
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 	}()
-
 }
 
 func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], database *gorm.DB) error {
