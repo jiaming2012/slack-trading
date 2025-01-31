@@ -1,5 +1,7 @@
-from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
+from base_open_strategy import BaseOpenStrategy
+from simple_open_strategy_v1 import SimpleOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
+from trading_engine_types import OpenSignal, OpenSignalName
 from playground_metrics import collect_data
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
@@ -87,90 +89,8 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         raise ValueError("Invalid side")
         
     return sl_target, tp_target
-    
-def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
-    # meta parameters
-    model_training_period_in_months = 12
-    
-    # input parameters
-    # Read environment variables
-    balance = float(os.getenv("BALANCE"))
-    symbol = os.getenv("SYMBOL")
-    grpc_host = os.getenv("GRPC_HOST")
-    playground_env = os.getenv("PLAYGROUND_ENV")
-    live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
 
-    # Check if the required environment variables are set
-    if balance is None:
-        raise ValueError("Environment variable BALANCE is not set")
-    if symbol is None:
-        raise ValueError("Environment variable SYMBOL is not set")
-    if grpc_host is None:
-        raise ValueError("Environment variable GRPC_HOST is not set")
-    if playground_env is None:
-        raise ValueError("Environment variable PLAYGROUND_ENV is not set")
-    if playground_env.lower() == "live" and live_account_type is None:
-        raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
-    
-    if live_account_type is not None:
-        print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
-    else:
-        print(f'info: starting {playground_env} playgound for {symbol}')
-    
-    if playground_env.lower() == "simulator":
-        playground_tick_in_seconds = 300
-        start_date = '2025-01-23'
-        stop_date = '2025-01-30'
-        repository_source = RepositorySource.POLYGON
-        env = PlaygroundEnvironment.SIMULATOR
-    
-        print(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
-    elif playground_env.lower() == "live":
-        playground_tick_in_seconds = 5
-        start_date = None
-        stop_date = None
-        repository_source = None
-        env = PlaygroundEnvironment.LIVE
-        
-        print(f"initializing {env}: {symbol} playground")
-    else:
-        raise ValueError(f"Invalid environment: {playground_env}")
-    
-    ltf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=5,
-        timespan_unit='minute',
-        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-        history_in_days=365
-    )
-        
-    ltf_period = ltf_repo.timespan_multiplier * 60
-    
-    htf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=60,
-        timespan_unit='minute',
-        indicators=["supertrend"],
-        history_in_days=365
-    )
-    
-    req = CreatePolygonPlaygroundRequest(
-        balance=balance,
-        start_date=start_date,
-        stop_date=stop_date,
-        repositories=[ltf_repo, htf_repo],
-        environment=env.value
-    )
-    
-    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
-    
-    playground.tick(0, raise_exception=False)  # initialize the playground
-    
-    print(f"playground id: {playground.id}")
-    
-    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift)
-    close_strategy = SimpleCloseStrategy(playground)
-    
+def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, sl_shift, tp_shift, grpc_host) -> Tuple[float, dict]:
     while not open_strategy.is_complete():
         try:
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
@@ -241,7 +161,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
             
         playground.tick(playground_tick_in_seconds, raise_exception=False)
         
-    profit = playground.account.equity - balance
+    profit = playground.account.equity - initial_balance
     print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift) of ({sl_shift}, {tp_shift})")
     
     # fetch stats
@@ -258,6 +178,101 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
     playground.remove_from_server()
     
     return -profit, meta
+    
+def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
+    # meta parameters
+    model_training_period_in_months = 12
+    
+    # input parameters
+    # Read environment variables
+    balance = float(os.getenv("BALANCE"))
+    symbol = os.getenv("SYMBOL")
+    grpc_host = os.getenv("GRPC_HOST")
+    playground_env = os.getenv("PLAYGROUND_ENV")
+    live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
+    open_strategy_input = os.getenv("OPEN_STRATEGY")
+
+    # Check if the required environment variables are set
+    if balance is None:
+        raise ValueError("Environment variable BALANCE is not set")
+    if symbol is None:
+        raise ValueError("Environment variable SYMBOL is not set")
+    if grpc_host is None:
+        raise ValueError("Environment variable GRPC_HOST is not set")
+    if playground_env is None:
+        raise ValueError("Environment variable PLAYGROUND_ENV is not set")
+    if playground_env.lower() == "live" and live_account_type is None:
+        raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
+    
+    if live_account_type is not None:
+        print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
+    else:
+        print(f'info: starting {playground_env} playgound for {symbol}')
+    
+    if playground_env.lower() == "simulator":
+        playground_tick_in_seconds = 300
+        start_date = '2025-01-23'
+        stop_date = '2025-01-30'
+        repository_source = RepositorySource.POLYGON
+        env = PlaygroundEnvironment.SIMULATOR
+    
+        print(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
+    elif playground_env.lower() == "live":
+        playground_tick_in_seconds = 5
+        start_date = None
+        stop_date = None
+        repository_source = None
+        env = PlaygroundEnvironment.LIVE
+        
+        print(f"initializing {env}: {symbol} playground")
+    else:
+        raise ValueError(f"Invalid environment: {playground_env}")
+    
+    ltf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=5,
+        timespan_unit='minute',
+        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+        history_in_days=365
+    )
+        
+    ltf_period = ltf_repo.timespan_multiplier * 60
+    
+    htf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=60,
+        timespan_unit='minute',
+        indicators=["supertrend"],
+        history_in_days=365
+    )
+    
+    req = CreatePolygonPlaygroundRequest(
+        balance=balance,
+        start_date=start_date,
+        stop_date=stop_date,
+        repositories=[ltf_repo, htf_repo],
+        environment=env.value
+    )
+    
+    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
+    
+    playground.tick(0, raise_exception=False)  # initialize the playground
+    
+    print(f"playground id: {playground.id}")
+    
+    if open_strategy_input == 'simple_open_strategy_v1':
+        from simple_open_strategy_v1 import SimpleOpenStrategy
+        
+    elif open_strategy_input == 'simple_open_strategy_v2':
+        from simple_open_strategy_v2 import SimpleOpenStrategy
+        
+    else:
+        raise ValueError(f"Invalid open strategy: {open_strategy_input}")
+    
+    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift)
+    close_strategy = SimpleCloseStrategy(playground)
+    
+    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, grpc_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()

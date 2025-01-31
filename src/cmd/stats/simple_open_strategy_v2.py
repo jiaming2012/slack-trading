@@ -1,7 +1,7 @@
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource
 from google.protobuf.json_format import MessageToDict
-from simple_base_strategy import SimpleBaseStrategy
-from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
+from base_open_strategy import BaseOpenStrategy
+from generate_signals_2 import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
 from dateutil.relativedelta import relativedelta
 from typing import List, Tuple
 from rpc.playground_pb2 import Candle, TickDelta
@@ -10,24 +10,10 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from trading_engine_types import OpenSignal, OpenSignalName
 import pandas as pd
-
-class OpenSignalName(Enum):
-    CROSS_ABOVE_20 = 1
-    CROSS_BELOW_80 = 2
     
-@dataclass
-class OpenSignal:
-    name: OpenSignalName
-    date: pd.Timestamp
-    max_price_prediction: float
-    min_price_prediction: float
-    max_price_prediction_std_dev: float
-    min_price_prediction_std_dev: float
-    sl_shift: float
-    tp_shift: float
-    
-class SimpleOpenStrategy(SimpleBaseStrategy):
+class SimpleOpenStrategy(BaseOpenStrategy):
     def __init__(self, playground, model_training_period_in_months, sl_shift=0.0, tp_shift=0.0):
         super().__init__(playground)
         
