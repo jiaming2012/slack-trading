@@ -177,7 +177,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     playground.remove_from_server()
     
-    return -profit, meta
+    return profit, meta
     
 def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
     # meta parameters
@@ -281,8 +281,8 @@ if __name__ == "__main__":
     args.add_argument("--tp-shift", type=float, default=0.0)
     args = args.parse_args()
     
-    neg_profit, meta = objective(args.sl_shift, args.tp_shift)
+    profit, meta = objective(args.sl_shift, args.tp_shift)
     
-    print(f"profit: {neg_profit}, meta: {meta}")
+    print(f"profit: {profit}, meta: {meta}")
             
     

@@ -17,7 +17,7 @@ def fn(sl_shift, tp_shift):
     meta_label = f"{sl_shift}_{tp_shift}"
     aggregate_meta[meta_label] = meta
     
-    return value
+    return -value
 
 if __name__ == '__main__':
     # Run Bayesian optimization

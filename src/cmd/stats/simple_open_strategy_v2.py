@@ -63,21 +63,23 @@ class SimpleOpenStrategy(BaseOpenStrategy):
          # Convert the Protocol Buffer message to a dictionary
         new_candle_dict = MessageToDict(new_candle.bar, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
         
-        # Add the new field
-        timestamp_utc = pd.Timestamp(new_candle.bar.datetime)
-        new_candle_dict['date'] = timestamp_utc.tz_convert('America/New_York')
+        new_candle_timestamp_utc = pd.Timestamp(new_candle.bar.datetime)
         
         if new_candle.period == 300:
+            prev_candle_timestamp_utc = pd.Timestamp(self.candles_5m[-1]['datetime'])
+            
             # append only if sorted by timestamp
-            if len(self.candles_5m) > 0 and self.candles_5m[-1]['date'] > new_candle_dict['date']:
-                print(f'error: {self.candles_5m[-1]["date"]} > {new_candle_dict["date"]}')
+            if len(self.candles_5m) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                print(f'error: {prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
                 raise Exception("Candles (5m) are not sorted by timestamp")
             
             self.candles_5m.append(new_candle_dict)
         elif new_candle.period == 3600:
+            prev_candle_timestamp_utc = pd.Timestamp(self.candles_1h[-1]['datetime'])
+            
             # append only if sorted by timestamp
-            if len(self.candles_1h) > 0 and self.candles_1h[-1]['date'] > new_candle_dict['date']:
-                print(f'error: {self.candles_1h[-1]["date"]} > {new_candle_dict["date"]}')
+            if len(self.candles_1h) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                print(f'error: {prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
                 raise Exception("Candles (1h) are not sorted by timestamp")
             
             self.candles_1h.append(new_candle_dict)
