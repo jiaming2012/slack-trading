@@ -26,9 +26,7 @@ def parse_order_tag(tag):
         raise ValueError("Invalid tag format")
     
 class SimpleCloseStrategy():
-    def __init__(self, playground):
-        super().__init__(playground)
-        
+    def __init__(self, playground):        
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         
