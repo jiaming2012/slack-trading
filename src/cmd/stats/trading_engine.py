@@ -1,5 +1,6 @@
 from simple_open_strategy import SimpleOpenStrategy, OpenSignal, OpenSignalName
 from simple_close_strategy import SimpleCloseStrategy
+from playground_metrics import collect_data
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
 from datetime import datetime
@@ -86,7 +87,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         
     return sl_target, tp_target
     
-def objective(sl_shift = 0.0, tp_shift = 0.0) -> (float, str):
+def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
     # meta parameters
     model_training_period_in_months = 12
     
@@ -241,12 +242,28 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> (float, str):
         
     profit = playground.account.equity - balance
     print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift) of ({sl_shift}, {tp_shift})")
-    return -profit
+    
+    # fetch stats
+    stats = collect_data(grpc_host, playground.id)
+    
+    meta = {
+        'profit': profit,
+        'sl_shift': sl_shift,
+        'tp_shift': tp_shift,
+        'equity': playground.account.equity,
+        'stats': stats
+    }
+    
+    playground.remove_from_server()
+    
+    return -profit, meta
 
 if __name__ == "__main__":
     sl_shift = 0.0
     tp_shift = 0.0
     
-    objective(sl_shift, tp_shift)
+    neg_profit, meta = objective(sl_shift, tp_shift)
+    
+    print(f"profit: {neg_profit}, meta: {meta}")
             
     
