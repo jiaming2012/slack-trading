@@ -96,7 +96,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
         except Exception as e:
             current_price = None
-            print(f"error: failed to get current price: {e}")
+            print(f"warn: failed to get current price: {e}")
             
         # check for close signals
         close_signals = close_strategy.tick(current_price)

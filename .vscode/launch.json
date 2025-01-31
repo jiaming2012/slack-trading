@@ -304,7 +304,7 @@
             "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
             "env": {
                 "BALANCE": "10000",
-                "SYMBOL": "AAPL",
+                "SYMBOL": "GS",
                 "GRPC_HOST": "http://45.77.223.21",
                 // "GRPC_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "live",
