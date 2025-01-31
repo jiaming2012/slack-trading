@@ -108,12 +108,15 @@ class SimpleOpenStrategy(BaseOpenStrategy):
         ltf_data = pd.DataFrame(self.candles_5m)
         htf_data = pd.DataFrame(self.candles_1h)
         
+        if self.feature_set is None:
+            _, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
+        
         open_signals = []
         for c in new_candles:
             try:
                 self.update_price_feed(c)
             except Exception as e:
-                print(f"error: {e}")
+                print(f"error updating price feed: {e}")
                 continue
             
             print(f"debug: new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
