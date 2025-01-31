@@ -71,13 +71,13 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch option prices: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch candles: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch candles: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
@@ -155,17 +155,18 @@ func (w *TradierApiWorker) fetchOrder(orderID uint) (*eventmodels.TradierOrderDT
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.tradesBearerToken))
 
-	log.Debugf("fetching order from %s", req.URL.String())
+	log.Warnf("fetching order from %s", req.URL.String())
+	log.Warnf("t: %s", w.tradesBearerToken)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch option prices: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
@@ -204,13 +205,13 @@ func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch option prices: %w", err)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch option prices: %s", res.Status)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrders(): failed to fetch orders: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
