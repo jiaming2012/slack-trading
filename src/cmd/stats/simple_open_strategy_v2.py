@@ -68,8 +68,18 @@ class SimpleOpenStrategy(BaseOpenStrategy):
         new_candle_dict['date'] = timestamp_utc.tz_convert('America/New_York')
         
         if new_candle.period == 300:
+            # append only if sorted by timestamp
+            if len(self.candles_5m) > 0 and self.candles_5m[-1]['date'] > new_candle_dict['date']:
+                print(f'error: {self.candles_5m[-1]["date"]} > {new_candle_dict["date"]}')
+                raise Exception("Candles (5m) are not sorted by timestamp")
+            
             self.candles_5m.append(new_candle_dict)
         elif new_candle.period == 3600:
+            # append only if sorted by timestamp
+            if len(self.candles_1h) > 0 and self.candles_1h[-1]['date'] > new_candle_dict['date']:
+                print(f'error: {self.candles_1h[-1]["date"]} > {new_candle_dict["date"]}')
+                raise Exception("Candles (1h) are not sorted by timestamp")
+            
             self.candles_1h.append(new_candle_dict)
         else:
             raise Exception(f"Unsupported period: {new_candle})")
