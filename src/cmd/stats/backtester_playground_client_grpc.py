@@ -164,7 +164,7 @@ class BacktesterPlaygroundClient:
         
     def remove_from_server(self):
         request = DeletePlaygroundRequest(
-            id=self.id
+            playground_id=self.id
         )
         
         try:
