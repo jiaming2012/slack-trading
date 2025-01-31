@@ -1,4 +1,4 @@
-from trading_engine import objective
+from trading_engine_2 import objective
 from skopt import gp_minimize
 from skopt.space import Real
 from skopt.utils import use_named_args

@@ -147,13 +147,15 @@ def collect_data(host: str, playground_id: str) -> dict:
         ctx=Context(),
         request=GetAccountRequest(playground_id=playground_id, fetch_orders=True)
     )
+    
+    orders = [o for o in acc.orders if o.status == 'filled']
 
-    profit_list = _calc_realized_profit_list(acc.orders)
-    trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(acc.orders)
+    profit_list = _calc_realized_profit_list(orders)
+    trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(orders)
 
     gross_data = {}
-    gross_data['total_orders'] = calc_total_orders(acc.orders)
-    gross_data['total_trades'] = calc_total_trades(acc.orders)
+    gross_data['total_orders'] = calc_total_orders(orders)
+    gross_data['total_trades'] = calc_total_trades(orders)
     gross_data['gross_profit'] = calc_gross_profit(profit_list)
     gross_data['gross_loss'] = calc_gross_loss(profit_list)
     gross_data['winners_count'] = calc_winners_count(profit_list)
@@ -163,7 +165,7 @@ def collect_data(host: str, playground_id: str) -> dict:
     gross_data['avg_loss'] = calc_avg_loss(profit_list)
     gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
     gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
-    gross_data['positions'] = calc_positions(acc.orders)
+    gross_data['positions'] = calc_positions(orders)
 
     agg_data = {}
     agg_data['profit_factor'] = gross_data['gross_profit'] / abs(gross_data['gross_loss']) if gross_data['gross_loss'] != 0 else 'n/a'
@@ -186,4 +188,4 @@ if __name__ == '__main__':
     pprint(data['gross_data'])
 
     print('agg data:')
-    pprint(data['gross_data'])
+    pprint(data['agg_data'])

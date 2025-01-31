@@ -7,9 +7,14 @@ We use python's bump2version for managing the app version.
 ## Taskfile
 We use taskfile as our build tool.
 
-#### Install
+#### On Mac
 ``` bash
 brew install go-task
+```
+
+#### On Linux
+``` bash
+sudo snap install task --classic
 ```
 
 You can list all commands with:
@@ -306,18 +311,21 @@ Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac47
 
 # Running locally
 ## Install golang and python
-Both golang:1.20 and python:3.7.9 are required.
+Both golang:1.20 and python3.10 are required.
 
 If installing on ubuntu:
 ``` bash
-sudo apt-get install python3.8-venv
+sudo apt-get install python3.10-venv
+```
+
+## Set your PythonPath
+``` bash
+export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/cmd/stats:${PYTHONPATH}
 ```
 
 ## Initiate your python env
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
-python3.10 -m venv $PROJECTS_DIR/slack-trading/src/cmd/stats/env
-$PROJECTS_DIR/slack-trading/src/cmd/stats/env/bin/pip install -r requirements.txt
+task python:install
 ```
 
 # Dockerfile

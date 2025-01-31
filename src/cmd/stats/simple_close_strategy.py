@@ -1,4 +1,3 @@
-from simple_base_strategy import SimpleBaseStrategy
 from backtester_playground_client_grpc import OrderSide
 from dataclasses import dataclass
 from typing import List
@@ -26,10 +25,8 @@ def parse_order_tag(tag):
     else:
         raise ValueError("Invalid tag format")
     
-class SimpleCloseStrategy(SimpleBaseStrategy):
-    def __init__(self, playground):
-        super().__init__(playground)
-        
+class SimpleCloseStrategy():
+    def __init__(self, playground):        
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         

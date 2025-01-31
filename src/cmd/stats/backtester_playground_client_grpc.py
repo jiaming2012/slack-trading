@@ -11,7 +11,7 @@ from dateutil.parser import isoparse
 import time
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
 from src.cmd.stats.playground_types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
@@ -162,6 +162,17 @@ class BacktesterPlaygroundClient:
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
         
+    def remove_from_server(self):
+        request = DeletePlaygroundRequest(
+            playground_id=self.id
+        )
+        
+        try:
+            network_call_with_retry(self.client.DeletePlayground, request)
+        except Exception as e:
+            print("Failed to connect to gRPC service (remove_on_server):", e)
+            raise e
+    
     def flush_new_state_buffer(self) -> List[TickDelta]:
         buffer = self._new_state_buffer
         self._new_state_buffer = []

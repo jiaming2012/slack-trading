@@ -12,7 +12,8 @@ module.exports = {
       SYMBOL: 'AAPL',
       GRPC_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper'
+      LIVE_ACCOUNT_TYPE: 'paper',
+      OPEN_STRATEGY: 'simple_open_strategy_v1',
     },
     env_production : {
       ENV: 'production'
@@ -32,6 +33,7 @@ module.exports = {
       GRPC_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'paper',
+      OPEN_STRATEGY: 'simple_open_strategy_v1',
     },
     env_production : {
       ENV: 'production'
@@ -51,6 +53,7 @@ module.exports = {
       GRPC_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'paper',
+      OPEN_STRATEGY: 'simple_open_strategy_v1',
     },
     env_production : {
       ENV: 'production'
