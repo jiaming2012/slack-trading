@@ -5,6 +5,7 @@ from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderS
 from typing import List, Tuple
 from datetime import datetime
 import time
+import argparse
 import os
 
 # todo:
@@ -259,10 +260,12 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
     return -profit, meta
 
 if __name__ == "__main__":
-    sl_shift = 0.0
-    tp_shift = 0.0
+    args = argparse.ArgumentParser()
+    args.add_argument("--sl-shift", type=float, default=0.0)
+    args.add_argument("--tp-shift", type=float, default=0.0)
+    args = args.parse_args()
     
-    neg_profit, meta = objective(sl_shift, tp_shift)
+    neg_profit, meta = objective(args.sl_shift, args.tp_shift)
     
     print(f"profit: {neg_profit}, meta: {meta}")
             
