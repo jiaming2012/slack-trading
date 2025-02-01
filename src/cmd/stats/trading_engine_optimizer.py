@@ -29,5 +29,4 @@ if __name__ == '__main__':
     pprint(aggregate_meta)
     
     # Print best parameters
-    best_sl_shift, best_tp_shift = result.x
-    print(f"Best sl_shift: {best_sl_shift}, Best tp_shift: {best_tp_shift}")
+    print(f"Best results: {result.x}")
