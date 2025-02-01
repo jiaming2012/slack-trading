@@ -226,6 +226,19 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 	copy(pendingOrders, p.account.PendingOrders)
 
 	for _, order := range pendingOrders {
+		// commented out bc the program already skips till the next market open before placing a trade, hence
+		// this check is not reqired
+		
+		// calendar := p.clock.GetCalendar(p.GetCurrentTime())
+		// if calendar == nil {
+		// 	return nil, nil, fmt.Errorf("calendar not found for time %s", p.GetCurrentTime())
+		// }
+
+		// if !calendar.IsBetweenMarketHours(p.GetCurrentTime()) {
+		// 	log.Debugf("order %d not filled because it is not between market hours", order.ID)
+		// 	continue
+		// }
+
 		orderFillEntry, found := orderFillEntryMap[order.ID]
 		if !found {
 			log.Warnf("error finding order filled entry price for order: %v", order.ID)
@@ -423,7 +436,7 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	if order.Status == BacktesterOrderStatusRejected {
 		return nil
 	}
-	
+
 	if order.Status != BacktesterOrderStatusPending {
 		return fmt.Errorf("order is not pending")
 	}

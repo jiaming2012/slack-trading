@@ -60,6 +60,105 @@ func TestCalendar(t *testing.T) {
 		assert.Equal(t, nextMarketOpen, clock.CurrentTime)
 	})
 
+	createPlayground := func(symbol eventmodels.Instrument, clock *Clock, feed []*eventmodels.PolygonAggregateBarV2) (*Playground, error) {
+		period := time.Minute
+		env := PlaygroundEnvironmentSimulator
+		source := eventmodels.CandleRepositorySource{
+			Type: "test",
+		}
+
+		repo, err := NewCandleRepository(symbol, period, feed, []string{}, nil, 0, source)
+		assert.NoError(t, err)
+
+		balance := 1000.0
+		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, repo)
+		return playground, err
+	}
+
+	t.Run("orders placed outside of market hours are filled at next open", func(t *testing.T) {
+		symbol := eventmodels.StockSymbol("AAPL")
+
+		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
+		endTime := time.Date(2021, time.January, 14, 0, 0, 0, 0, time.UTC)
+
+		t1 := startTime.Add(time.Minute)
+		t2 := startTime.Add(2 * time.Minute)
+
+		marketOpenTime := time.Date(2021, time.January, 12, 14, 30, 0, 0, time.UTC)
+		s1 := marketOpenTime.Add(1 * time.Minute)
+
+		marketCloseTime := time.Date(2021, time.January, 12, 21, 0, 0, 0, time.UTC)
+		u1 := marketCloseTime.Add(1 * time.Minute)
+
+		feed := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     10.0,
+			},
+			{
+				Timestamp: t1,
+				Close:     20.0,
+			},
+			{
+				Timestamp: t2,
+				Close:     30.0,
+			},
+			{
+				Timestamp: marketOpenTime,
+				Close:     40.0,
+			},
+			{
+				Timestamp: s1,
+				Close:     50.0,
+			},
+			{
+				Timestamp: marketCloseTime,
+				Close:     60.0,
+			},
+			{
+				Timestamp: u1,
+				Close:     70.0,
+			},
+		}
+
+		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
+			Year:  startTime.Year(),
+			Month: int(startTime.Month()),
+			Day:   startTime.Day(),
+		}, eventmodels.PolygonDate{
+			Year:  endTime.Year(),
+			Month: int(endTime.Month()),
+			Day:   endTime.Day(),
+		})
+
+		assert.NoError(t, err)
+
+		clock := NewClock(startTime, endTime, calendar)
+
+		playground, err := createPlayground(symbol, clock, feed)
+		assert.NoError(t, err)
+
+		// place order before market open
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		changes, err := playground.PlaceOrder(order1)
+		assert.NoError(t, err)
+		err = changes.Commit()
+		assert.NoError(t, err)
+
+		assert.Equal(t, startTime, order1.CreateDate)
+
+		// tick
+		_, err = playground.Tick(time.Minute, false)
+		assert.NoError(t, err)
+
+		// expect: order is filled at market open
+		assert.Equal(t, 1, len(playground.account.Orders))
+
+		assert.Equal(t, 1, len(order1.Trades))
+
+		assert.Equal(t, marketOpenTime.UTC(), order1.Trades[0].CreateDate.UTC())
+	})
+
 	t.Run("advances to next market open", func(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)

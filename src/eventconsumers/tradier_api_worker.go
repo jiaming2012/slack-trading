@@ -168,9 +168,6 @@ func (w *TradierApiWorker) fetchOrder(orderID uint, liveAccountType models.LiveA
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 
-	log.Warnf("fetching order from %s", req.URL.String())
-	log.Warnf("t: %s", bearerToken)
-
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %w", err)

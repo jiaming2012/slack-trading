@@ -179,7 +179,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     return profit, meta
     
-def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
+def objective(sl_shift = 0.0, tp_shift = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
     # meta parameters
     model_training_period_in_months = 12
     
@@ -270,7 +270,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0) -> Tuple[float, dict]:
         print(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
-    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift)
+    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift, min_max_window_in_hours)
     close_strategy = SimpleCloseStrategy(playground)
     
     return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, grpc_host)
@@ -279,9 +279,10 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--sl-shift", type=float, default=0.0)
     args.add_argument("--tp-shift", type=float, default=0.0)
+    args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
     
-    profit, meta = objective(args.sl_shift, args.tp_shift)
+    profit, meta = objective(args.sl_shift, args.tp_shift, args.min_max_window_in_hours)
     
     print(f"profit: {profit}, meta: {meta}")
             

@@ -15,6 +15,14 @@ type Clock struct {
 	location    *time.Location
 }
 
+func (c *Clock) GetCalendar(t time.Time) *eventmodels.Calendar {
+	if c.Calendar == nil {
+		return nil
+	}
+
+	return c.Calendar[t.Format("2006-01-02")]
+}
+
 func (c *Clock) GetNext(currentTime time.Time, timeToAdd time.Duration) time.Time {
 	currentTime = currentTime.Add(timeToAdd)
 
