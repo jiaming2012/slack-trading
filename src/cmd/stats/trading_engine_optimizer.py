@@ -1,13 +1,13 @@
 from trading_engine import objective
 from skopt import gp_minimize
-from skopt.space import Real, Int
+from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 from pprint import pprint
 
 search_space = [
     Real(-10.0, 10.0, name='sl_shift'),
     Real(-10.0, 10.0, name='tp_shift'),
-    Int(1, 10, name='min_max_window_in_hours')
+    Integer(1, 10, name='min_max_window_in_hours')
 ]
 
 aggregate_meta = {}
