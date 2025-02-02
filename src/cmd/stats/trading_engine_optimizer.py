@@ -7,7 +7,9 @@ from pprint import pprint
 search_space = [
     Real(-10.0, 10.0, name='sl_shift'),
     Real(-10.0, 10.0, name='tp_shift'),
-    Integer(1, 10, name='min_max_window_in_hours')
+    Real(0, 5, name='sl_buffer'),
+    Real(0, 5, name='tp_buffer'),
+    Integer(5, 24, name='min_max_window_in_hours')
 ]
 
 aggregate_meta = {}

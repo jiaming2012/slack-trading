@@ -60,7 +60,7 @@ def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     
     return f"sl--{sl_str}--tp--{tp_str}"
 
-def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_value_sd: float, max_value: float, max_value_sd: float, sl_shift: float, tp_shift: float) -> Tuple[float, float]:
+def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max_value: float, sl_shift: float, tp_shift: float, sl_buffer: float, tp_buffer: float) -> Tuple[float, float]:
     """ Builds a tag for the order based on the current price and the min and max values.
         min_value and max_value are the min and max values of the price prediction.
         min_value_sd and max_value_sd are the standard deviations of the min and max values.
@@ -73,24 +73,28 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value:float, min_
         
     if side == OrderSide.BUY:
         tp_target = max_value + tp_shift
-        if tp_target <= current_price:
-            raise ValueError(f"Invalid target price: tp_target of {tp_target} <= current price of {current_price}")
+        if tp_target <= current_price + tp_buffer:
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} <= current price of {current_price}")
         
         sl_target = min_value - sl_shift
+        if sl_target >= current_price - sl_buffer:
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} >= current price of {current_price}")
         
     elif side == OrderSide.SELL_SHORT:
         tp_target = min_value - tp_shift
-        if tp_target >= current_price:
-            raise ValueError(f"Invalid target price: tp_target of {tp_target} >= current price of {current_price}")
+        if tp_target >= current_price - tp_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} >= current price of {current_price}")
         
         sl_target = max_value + sl_shift
+        if sl_target <= current_price + sl_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} <= current price of {current_price}")
         
     else:
         raise ValueError("Invalid side")
         
     return sl_target, tp_target
 
-def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, sl_shift, tp_shift, grpc_host) -> Tuple[float, dict]:
+def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, sl_shift, tp_shift, sl_buffer, tp_buffer, grpc_host) -> Tuple[float, dict]:
     while not open_strategy.is_complete():
         try:
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
@@ -143,7 +147,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 continue
             
             try:
-                sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.min_price_prediction_std_dev, s.max_price_prediction, s.max_price_prediction_std_dev, s.sl_shift, s.tp_shift)
+                sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.max_price_prediction, sl_shift, tp_shift, sl_buffer, tp_buffer)
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
                 quantity = int(round(quantity - 0.5, 0))
                 tag = build_tag(sl, tp, side)
@@ -179,7 +183,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     return profit, meta
     
-def objective(sl_shift = 0.0, tp_shift = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
+def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
     # meta parameters
     model_training_period_in_months = 12
     
@@ -273,17 +277,18 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, min_max_window_in_hours=4) -> Tupl
     open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift, min_max_window_in_hours)
     close_strategy = SimpleCloseStrategy(playground)
     
-    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, grpc_host)
+    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, sl_buffer, tp_buffer, grpc_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--sl-shift", type=float, default=0.0)
     args.add_argument("--tp-shift", type=float, default=0.0)
+    args.add_argument("--sl-buffer", type=float, default=0.0)
+    args.add_argument("--tp-buffer", type=float, default=0.0)
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
     
-    profit, meta = objective(args.sl_shift, args.tp_shift, args.min_max_window_in_hours)
+    profit, meta = objective(args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
     
     print(f"profit: {profit}, meta: {meta}")
-            
     
