@@ -184,9 +184,6 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     return profit, meta
     
 def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
-    # meta parameters
-    model_training_period_in_months = 12
-    
     # input parameters
     # Read environment variables
     balance = float(os.getenv("BALANCE"))
@@ -195,6 +192,9 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     playground_env = os.getenv("PLAYGROUND_ENV")
     live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
     open_strategy_input = os.getenv("OPEN_STRATEGY")
+    start_date = os.getenv("START_DATE")
+    stop_date = os.getenv("STOP_DATE")
+    model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -205,8 +205,17 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         raise ValueError("Environment variable GRPC_HOST is not set")
     if playground_env is None:
         raise ValueError("Environment variable PLAYGROUND_ENV is not set")
-    if playground_env.lower() == "live" and live_account_type is None:
-        raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
+    if playground_env.lower() == "live":
+        if live_account_type is None:
+            raise ValueError("Environment variable LIVE_ACCOUNT_TYPE is not set")
+    else:
+        if start_date is None:
+            raise ValueError("Environment variable START_DATE is not set")
+        if stop_date is None:
+            raise ValueError("Environment variable STOP_DATE is not set")
+        
+    if model_update_frequency is None:
+        raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
     
     if live_account_type is not None:
         print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
@@ -215,8 +224,8 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
-        start_date = '2025-01-23'
-        stop_date = '2025-01-30'
+        start_date = start_date
+        stop_date = stop_date
         repository_source = RepositorySource.POLYGON
         env = PlaygroundEnvironment.SIMULATOR
     
@@ -274,7 +283,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         print(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
-    open_strategy = SimpleOpenStrategy(playground, model_training_period_in_months, sl_shift, tp_shift, min_max_window_in_hours)
+    open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, min_max_window_in_hours)
     close_strategy = SimpleCloseStrategy(playground)
     
     return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, sl_buffer, tp_buffer, grpc_host)

@@ -14,14 +14,8 @@ import pandas as pd
 from trading_engine_types import OpenSignal, OpenSignalName
     
 class SimpleOpenStrategy(BaseOpenStrategy):
-    def __init__(self, playground, model_training_period_in_months, sl_shift=0.0, tp_shift=0.0, min_max_window_in_hours=4):
+    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, min_max_window_in_hours=4):
         super().__init__(playground)
-        
-        if not model_training_period_in_months:
-            raise Exception("model_training_period_in_months is required")
-        
-        if model_training_period_in_months < 1:
-            raise Exception("model_training_period_in_months must be greater than 1")
         
         historical_start_date, historical_end_date = self.get_previous_year_date_range(300)
         candles_5m = playground.fetch_candles_v2(300, historical_start_date, historical_end_date)
@@ -35,18 +29,43 @@ class SimpleOpenStrategy(BaseOpenStrategy):
         self.candles_5m = deque(candles_5m_dicts, maxlen=len(candles_5m_dicts))
         self.candles_1h = deque(candles_1h_dicts, maxlen=len(candles_1h_dicts))  
         self.previous_month = None
+        self.previous_week = None
+        self.previous_day = None
         self.factory = None
-        self.model_training_period_in_months = model_training_period_in_months
         self.feature_set = None
         self.min_max_window_in_hours = min_max_window_in_hours
         self.sl_shift = sl_shift
         self.tp_shift = tp_shift
+        
+        if updateFrequency == 'daily':
+            self.previous_day = self.playground.timestamp.day
+            self.should_update_model = self.is_new_day
+        elif updateFrequency == 'weekly':
+            self.previous_week = self.playground.timestamp.isocalendar().week
+            self.should_update_model = self.is_new_week
+        elif updateFrequency == 'monthly':
+            self.previous_month = self.playground.timestamp.month
+            self.should_update_model = self.is_new_month
+        else:
+            raise Exception(f"Unsupported update frequency: {updateFrequency}")
         
     def is_new_month(self):
         current_month = self.playground.timestamp.month
         result = current_month != self.previous_month
         self.previous_month = current_month
         return result
+    
+    def is_new_week(self):
+        current_week = self.playground.timestamp.isocalendar().week
+        result = current_week != self.previous_week
+        self.previous_week = current_week
+        return result
+    
+    def is_new_day(self):
+        current_day = self.playground.timestamp.day
+        result = current_day != self.previous_day
+        self.previous_day = current_day
+        return result        
     
     def get_previous_year_date_range(self, period_in_seconds: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
         current_date = self.playground.timestamp
@@ -160,7 +179,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                         )
                     )
                     
-        if self.is_new_month() or self.factory is None:
+        if self.should_update_model() or self.factory is None:
             if self.feature_set is None:
                 print("Skipping model training: feature set is empty")
                 return open_signals
@@ -188,10 +207,11 @@ if __name__ == "__main__":
     repository_source = RepositorySource.POLYGON
     csv_path = None
     grpc_host = 'http://localhost:5051'
+    updateFrequency = 'weekly'
     
     playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, csv_path, grpc_host=grpc_host)
     
-    strategy = SimpleOpenStrategy(playground)
+    strategy = SimpleOpenStrategy(playground, updateFrequency)
     
     while not strategy.is_complete():
         strategy.tick()

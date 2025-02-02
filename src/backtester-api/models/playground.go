@@ -177,7 +177,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 							log.Fatalf("position 2: error adding order to order queue: %v", err)
 						}
 
-						return fmt.Errorf("commitPendingOrders: order %d volume exceeds long volume", order.ID)
+						return fmt.Errorf("commitPendingOrders: order quantity exceeds short position of %.2f", position.Quantity)
 					}
 				} else {
 					performMarginCheck = false
@@ -191,7 +191,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 							log.Fatalf("position 3: error adding order to order queue: %v", err)
 						}
 
-						return fmt.Errorf("commitPendingOrders: order %d volume exceeds short volume", order.ID)
+						return fmt.Errorf("commitPendingOrders: order quantity exceeds long position of %.2f", position.Quantity)
 					}
 				} else {
 					performMarginCheck = false

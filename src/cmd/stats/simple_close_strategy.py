@@ -1,5 +1,6 @@
 from backtester_playground_client_grpc import OrderSide
 from dataclasses import dataclass
+from rpc.playground_pb2 import Order
 from typing import List
 import re
 
@@ -24,7 +25,19 @@ def parse_order_tag(tag):
         return float(sl), float(tp)
     else:
         raise ValueError("Invalid tag format")
-    
+
+def calc_open_quantity(order: Order) -> float:
+    qty = 0
+    for t in order.trades:
+        qty += t.quantity
+    return qty
+
+def calc_remaining_open_quantity(order: Order) -> float:
+    qty = calc_open_quantity(order)
+    for t in order.closed_by:
+        qty += t.quantity
+    return qty
+
 class SimpleCloseStrategy():
     def __init__(self, playground):        
         self.symbols = playground.account.meta.symbols
@@ -47,14 +60,18 @@ class SimpleCloseStrategy():
                 
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
-                        signals.append(CloseSignal(symbol, OrderSide.SELL, open_order.quantity, 'sl'))
+                        qty = calc_remaining_open_quantity(open_order)
+                        signals.append(CloseSignal(symbol, OrderSide.SELL, abs(qty), 'sl'))
                     elif current_price >= tp:
-                        signals.append(CloseSignal(symbol, OrderSide.SELL, open_order.quantity, 'tp'))
+                        qty = calc_remaining_open_quantity(open_order)
+                        signals.append(CloseSignal(symbol, OrderSide.SELL, abs(qty), 'tp'))
                 elif open_order.side == OrderSide.SELL_SHORT.value:
                     if current_price >= sl:
-                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, open_order.quantity, 'sl'))
+                        qty = calc_remaining_open_quantity(open_order)
+                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
                     elif current_price <= tp:
-                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, open_order.quantity, 'tp'))
+                        qty = calc_remaining_open_quantity(open_order)
+                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, abs(qty), 'tp'))
                 else:
                     raise ValueError("Invalid side")
                 

@@ -309,7 +309,10 @@
                 // "GRPC_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "live",
                 "LIVE_ACCOUNT_TYPE": "paper",
-                "OPEN_STRATEGY": "simple_open_strategy_v1"
+                "OPEN_STRATEGY": "simple_open_strategy_v1",
+                "START_DATE": "2024-10-21",
+                "STOP_DATE": "2025-01-24",
+                "MODEL_UPDATE_FREQUENCY": "weekly",
             }
         },
         {
@@ -363,7 +366,10 @@
                 // "GRPC_HOST": "http://45.77.223.21",
                 "GRPC_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_open_strategy_v1"
+                "OPEN_STRATEGY": "simple_open_strategy_v1",
+                "START_DATE": "2024-10-21",
+                "STOP_DATE": "2025-01-24",
+                "MODEL_UPDATE_FREQUENCY": "weekly",
             }
         },
         {
