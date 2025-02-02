@@ -14,7 +14,7 @@ search_space = [
 
 aggregate_meta = {}
 counter = 0
-n_calls = 60
+n_calls = 50
 
 @use_named_args(search_space)
 def fn(sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours):
