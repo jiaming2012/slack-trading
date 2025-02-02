@@ -13,6 +13,8 @@ search_space = [
 ]
 
 aggregate_meta = {}
+counter = 0
+n_calls = 60
 
 @use_named_args(search_space)
 def fn(sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours):
@@ -20,11 +22,13 @@ def fn(sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours):
     meta_label = f"{sl_shift}_{tp_shift}_{sl_buffer}_{tp_buffer}_{min_max_window_in_hours}"
     aggregate_meta[meta_label] = meta
     
+    print(f"Completed run: {counter} / {n_calls}")
+    
     return -value
 
 if __name__ == '__main__':
     # Run Bayesian optimization
-    result = gp_minimize(fn, search_space, n_calls=60, random_state=99)
+    result = gp_minimize(fn, search_space, n_calls=n_calls, random_state=99)
     
     # Pretty-print the aggregate_meta dictionary
     print("Aggregate Meta:")
