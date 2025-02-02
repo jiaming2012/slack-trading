@@ -429,7 +429,7 @@ class BacktesterPlaygroundClient:
             return
         
         free_margin_over_equity = self.get_free_margin_over_equity()
-        if free_margin_over_equity < 0.25:
+        if free_margin_over_equity < 0.2:
             if quantity > 0 and side == OrderSide.BUY:
                 raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new long order')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
