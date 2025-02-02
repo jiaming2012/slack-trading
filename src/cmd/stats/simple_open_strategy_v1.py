@@ -40,12 +40,15 @@ class SimpleOpenStrategy(BaseOpenStrategy):
         if updateFrequency == 'daily':
             self.previous_day = self.playground.timestamp.day
             self.should_update_model = self.is_new_day
+            self.update_model_reason = 'new day'
         elif updateFrequency == 'weekly':
             self.previous_week = self.playground.timestamp.isocalendar().week
             self.should_update_model = self.is_new_week
+            self.update_model_reason = 'new week'
         elif updateFrequency == 'monthly':
             self.previous_month = self.playground.timestamp.month
             self.should_update_model = self.is_new_month
+            self.update_model_reason = 'new month'
         else:
             raise Exception(f"Unsupported update frequency: {updateFrequency}")
         
@@ -190,7 +193,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                 print("-" * 40)
             else:
                 print("-" * 40)
-                print(f"Reinitializing factory for new month @ {self.playground.timestamp}")
+                print(f"Reinitializing factory for {self.update_model_reason} @ {self.playground.timestamp}")
                 print("-" * 40)
                 
             target_set = add_supertrend_momentum_signal_target_set(self.feature_set, self.min_max_window_in_hours)
