@@ -750,7 +750,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 	for equity < maintenanceMargin && len(positions) > 0 {
 		sortedSymbols, sortedPositions := sortPositionsByQuantityDesc(positions)
 
-		tag := fmt.Sprintf("liquidation - equity @ %.2f < maintenance margin @ %.2f", equity, maintenanceMargin)
+		tag := fmt.Sprintf("liquidation - equity of %.2f < %.2f (maintenance margin)", equity, maintenanceMargin)
 
 		order, err := p.performLiquidations(sortedSymbols[0], sortedPositions[0], tag)
 		if err != nil {
@@ -849,21 +849,9 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	// Check for liquidations
-	var tickDeltaEvents []*TickDeltaEvent
-
 	startingPositions, err := p.GetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
-	}
-
-	liquidationEvents, err := p.checkForLiquidations(startingPositions)
-	if err != nil {
-		return nil, fmt.Errorf("error checking for liquidations: %w", err)
-	}
-
-	if liquidationEvents != nil {
-		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
 	}
 
 	orderExecutionRequests := make(map[uint]OrderExecutionRequest)
@@ -889,6 +877,23 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	newTrades, invalidOrdersDTO, err := p.CommitPendingOrders(startingPositions, orderExecutionRequests, true)
 	if err != nil {
 		return nil, fmt.Errorf("error committing pending orders: %w", err)
+	}
+
+	// Check for liquidations
+	var tickDeltaEvents []*TickDeltaEvent
+
+	startingPositions, err = p.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("error getting positions: %w", err)
+	}
+
+	liquidationEvents, err := p.checkForLiquidations(startingPositions)
+	if err != nil {
+		return nil, fmt.Errorf("error checking for liquidations: %w", err)
+	}
+
+	if liquidationEvents != nil {
+		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
 	}
 
 	// Update the clock

@@ -427,12 +427,13 @@ class BacktesterPlaygroundClient:
     def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", raise_exception=True, with_tick=False) -> object:
         if quantity == 0:
             return
-            
-        if self.get_free_margin_over_equity() < 0.1:
+        
+        free_margin_over_equity = self.get_free_margin_over_equity()
+        if free_margin_over_equity < 0.25:
             if quantity > 0 and side == OrderSide.BUY:
-                raise InvalidParametersException('Insufficient free margin')
+                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new long order')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
-                raise InvalidParametersException('Insufficient free margin')
+                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new short order')
   
         request = PlaceOrderRequest(
             playground_id=self.id,
