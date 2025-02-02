@@ -30,7 +30,7 @@ tasks:
       OPEN_STRATEGY: "simple_open_strategy_v1"
       START_DATE: "2024-10-21"
       STOP_DATE: "2025-01-24"
-      MODEL_UPDATE_FREQUENCY: "monthtly"
+      MODEL_UPDATE_FREQUENCY: "monthly"
 
   optimize:weekly:
     cmds:
