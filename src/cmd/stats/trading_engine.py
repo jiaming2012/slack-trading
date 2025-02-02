@@ -44,6 +44,11 @@ def calculate_new_trade_quantity(equity: float, free_margin: float, current_pric
         _quantity = max_allowable_margin / calculate_required_margin(current_price, 1, side)
         print(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}")
         quantity = _quantity
+        
+    # round stock quantity to nearest whole number
+    quantity = int(round(quantity - 0.5, 0))
+    if quantity < 1:
+        raise ValueError(f"Invalid quantity: {quantity}")
     
     return quantity
 
@@ -149,10 +154,9 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             try:
                 sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.max_price_prediction, sl_shift, tp_shift, sl_buffer, tp_buffer)
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
-                quantity = int(round(quantity - 0.5, 0))
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
-                print(f"Error building tag: {e}. Skipping order ...")
+                print(f"warn: failed to build tag: {e}. Skipping order ...")
                 continue
             
             try:
