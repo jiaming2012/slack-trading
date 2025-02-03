@@ -29,7 +29,7 @@ tasks:
       PLAYGROUND_ENV: "simulator"
       OPEN_STRATEGY: "simple_open_strategy_v1"
       START_DATE: "2024-12-15"
-      STOP_DATE: "2025-01-30"
+      STOP_DATE: "2025-01-24"
       MODEL_UPDATE_FREQUENCY: "monthly"
     var:
       symbol: ""
@@ -45,7 +45,7 @@ tasks:
       PLAYGROUND_ENV: "simulator"
       OPEN_STRATEGY: "simple_open_strategy_v1"
       START_DATE: "2024-12-15"
-      STOP_DATE: "2025-01-30"
+      STOP_DATE: "2025-01-24"
       MODEL_UPDATE_FREQUENCY: "weekly"
     var:
       symbol: ""
@@ -61,7 +61,7 @@ tasks:
       PLAYGROUND_ENV: "simulator"
       OPEN_STRATEGY: "simple_open_strategy_v1"
       START_DATE: "2024-12-15"
-      STOP_DATE: "2025-01-30"
+      STOP_DATE: "2025-01-24"
       MODEL_UPDATE_FREQUENCY: "daily"
     var:
       symbol: ""
