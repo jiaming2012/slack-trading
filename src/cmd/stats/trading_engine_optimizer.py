@@ -3,6 +3,7 @@ from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 from pprint import pprint
+import os
 
 search_space = [
     Real(-10.0, 10.0, name='sl_shift'),
@@ -14,7 +15,7 @@ search_space = [
 
 aggregate_meta = {}
 counter = 0
-n_calls = 10
+n_calls = os.getenv('N_CALLS', None)
 
 def compute_average_hyperparameters(sorted_meta: list) -> dict:
     avg_hyperparameters = {}
