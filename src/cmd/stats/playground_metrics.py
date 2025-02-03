@@ -6,7 +6,8 @@ from pprint import pprint
 from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass
-from dateutil.parser import parse
+from dateutil.parser import parse, ParserError
+import re
 
 @dataclass
 class TradePosition:
@@ -20,7 +21,12 @@ def _calc_trade_position(trades: List[Trade]) -> TradePosition:
     return TradePosition(vwap=vwap, quantity=total_quantity)
 
 def _parse_timestamp(timestamp: str) -> datetime:
-    parsed_date = parse(timestamp)
+    try:
+        parsed_date = parse(timestamp)
+    except ParserError:
+        timestamp = re.sub(r' [A-Z]{3}$', '', timestamp)
+        parsed_date = parse(timestamp)
+        
     return parsed_date
 
 def _calc_trade_duration_list_in_seconds(orders) -> List[int]:
