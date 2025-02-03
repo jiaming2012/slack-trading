@@ -52,11 +52,11 @@ tasks:
 
   run:optimizer:
     cmds:
-      - 'task:optimize:weekly -v symbol=COIN'
-      - 'task:optimize:weekly -v symbol=TSLA'
-      - 'task:optimize:weekly -v symbol=META'
-      - 'task:optimize:weekly -v symbol=NVDA'
-      - 'task:optimize:weekly -v symbol=AAPL'
+      - task optimize:weekly -v symbol=COIN
+      - task optimize:weekly -v symbol=TSLA
+      - task optimize:weekly -v symbol=META
+      - task optimize:weekly -v symbol=NVDA
+      - task optimize:weekly -v symbol=AAPL
     parallel: true
 
   optimize:daily:
