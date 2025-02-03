@@ -20,7 +20,7 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-coin',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
@@ -42,7 +42,7 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-tsla',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
@@ -64,7 +64,7 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-meta',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
@@ -86,7 +86,7 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-nvda',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
@@ -108,6 +108,6 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   }]
 };
