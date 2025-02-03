@@ -25,7 +25,7 @@ wget https://www.python.org/ftp/python/3.10.0/Python-3.10.0.tgz && \
 ```
 3. Install node
 ``` bash
-curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash
 sudo apt-get install -y nodejs
 ```
 4. Install dependencies

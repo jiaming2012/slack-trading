@@ -85,6 +85,14 @@ pip install -r requirements.txt
 sudo snap install task --classic
 ```
 
+### Install pm2: Production Process Manager
+``` bash
+curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash
+sudo apt-get install -y nodejs
+sudo npm install pm2 -g
+pm2 completion install
+```
+
 ## Set environment variables
 ``` bash
 nano ~/.bashrc
