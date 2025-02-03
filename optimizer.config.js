@@ -16,7 +16,7 @@ module.exports = {
       START_DATE: '2024-12-15',
       STOP_DATE: '2025-01-24',
       MODEL_UPDATE_FREQUENCY: 'weekly',
-      N_CALLS: '50',
+      N_CALLS: '30',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -36,7 +36,7 @@ module.exports = {
       START_DATE: '2024-12-15',
       STOP_DATE: '2025-01-24',
       MODEL_UPDATE_FREQUENCY: 'weekly',
-      N_CALLS: '50',
+      N_CALLS: '30',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -56,7 +56,7 @@ module.exports = {
       START_DATE: '2024-12-15',
       STOP_DATE: '2025-01-24',
       MODEL_UPDATE_FREQUENCY: 'weekly',
-      N_CALLS: '50',
+      N_CALLS: '30',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -76,7 +76,7 @@ module.exports = {
       START_DATE: '2024-12-15',
       STOP_DATE: '2025-01-24',
       MODEL_UPDATE_FREQUENCY: 'weekly',
-      N_CALLS: '50',
+      N_CALLS: '30',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -96,7 +96,7 @@ module.exports = {
       START_DATE: '2024-12-15',
       STOP_DATE: '2025-01-24',
       MODEL_UPDATE_FREQUENCY: 'weekly',
-      N_CALLS: '50',
+      N_CALLS: '30',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   }]

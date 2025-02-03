@@ -6,6 +6,7 @@ from pprint import pprint
 from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass
+from dateutil.parser import parse
 
 @dataclass
 class TradePosition:
@@ -19,8 +20,7 @@ def _calc_trade_position(trades: List[Trade]) -> TradePosition:
     return TradePosition(vwap=vwap, quantity=total_quantity)
 
 def _parse_timestamp(timestamp: str) -> datetime:
-    date_format = "%Y-%m-%d %H:%M:%S %z %Z"
-    parsed_date = datetime.strptime(timestamp, date_format)
+    parsed_date = parse(timestamp)
     return parsed_date
 
 def _calc_trade_duration_list_in_seconds(orders) -> List[int]:
