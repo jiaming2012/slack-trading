@@ -69,6 +69,7 @@ scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id
 ```
 ### Pull the Source
 ``` bash
+git clone git@github.com:jiaming2012/slack-trading.git
 ```
 
 ### Build the Source
@@ -76,32 +77,30 @@ scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id
 add-apt-repository ppa:deadsnakes/ppa
 apt update
 apt install -y python3.10 python3.10-venv python3.10-dev
-cd /root/slack-trading/cmd/backtester
-python3.10 -m venv venv
+cd /root/slack-trading/src/cmd/stats
+python3.10 -m venv env
 source venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
+sudo snap install task --classic
 ```
 
-### Run the App
+## Set environment variables
+``` bash
+nano ~/.bashrc
+```
+
+### Add the following lines
 ``` bash
 export PROJECTS_DIR="/root"
-```
-
-### Build the Protobufs
-Backtester-api uses protobufs to speed up client server communication
-
-## Build
-``` bash
-cd ${PROJECTS_DIR}/slack-trading/cmd/backtester
-python -m grpc_tools.protoc --python_out=. --grpc_python_out=. --proto_path=${PROJECTS_DIR}/slack-trading/src/backtester-api playground.proto
+export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/cmd/stats:${PYTHONPATH}
 ```
 
 #### In Background
 To run in the background:
 ``` bash
 tmux
-/root/slack-trading/cmd/backtester/venv/bin/python /root/slack-trading/cmd/backtester/proximal_policy_optimization_v3_5.py
+task optimize:daily
 ```
 Detach the session with Ctrl+B followed by D
 
