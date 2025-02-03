@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name: 'optimizer-aapl',
-    cmd: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/trading_engine_optimizer.py',
+    cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
     watch: false,
@@ -23,7 +23,7 @@ module.exports = {
     interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-coin',
-    cmd: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/trading_engine_optimizer.py',
+    cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
     watch: false,
@@ -45,7 +45,7 @@ module.exports = {
     interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-tsla',
-    cmd: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/trading_engine_optimizer.py',
+    cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
     watch: false,
@@ -67,7 +67,7 @@ module.exports = {
     interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-meta',
-    cmd: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/trading_engine_optimizer.py',
+    cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
     watch: false,
@@ -89,7 +89,7 @@ module.exports = {
     interpreter: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-nvda',
-    cmd: '${PROJECTS_DIR}/slack-trading/src/cmd/stats/trading_engine_optimizer.py',
+    cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
     watch: false,
