@@ -15,7 +15,7 @@ search_space = [
 
 aggregate_meta = {}
 counter = 0
-n_calls = os.getenv('N_CALLS', None)
+n_calls = int(os.getenv('N_CALLS', None))
 
 def compute_average_hyperparameters(sorted_meta: list) -> dict:
     avg_hyperparameters = {}
