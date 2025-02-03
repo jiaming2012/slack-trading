@@ -22,7 +22,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-coin',
+    name: 'optimizer-coin',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
@@ -44,7 +44,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-tsla',
+    name: 'optimizer-tsla',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
@@ -66,7 +66,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-meta',
+    name: 'optimizer-meta',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
@@ -88,7 +88,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-nvda',
+    name: 'optimizer-nvda',
     cmd: 'src/cmd/stats/trading_engine_optimizer.py',
     args: '',
     autorestart: false,
