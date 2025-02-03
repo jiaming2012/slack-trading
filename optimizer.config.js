@@ -7,7 +7,7 @@ module.exports = {
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       BALANCE: '10000',
       SYMBOL: 'AAPL',
       GRPC_HOST: 'http://45.77.223.21',
@@ -26,7 +26,7 @@ module.exports = {
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       BALANCE: '10000',
       SYMBOL: 'COIN',
       GRPC_HOST: 'http://45.77.223.21',
@@ -45,7 +45,7 @@ module.exports = {
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       BALANCE: '10000',
       SYMBOL: 'TSLA',
       GRPC_HOST: 'http://45.77.223.21',
@@ -64,7 +64,7 @@ module.exports = {
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       BALANCE: '10000',
       SYMBOL: 'META',
       GRPC_HOST: 'http://45.77.223.21',
@@ -83,7 +83,7 @@ module.exports = {
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
-    env_production: {
+    env: {
       BALANCE: '10000',
       SYMBOL: 'NVDA',
       GRPC_HOST: 'http://45.77.223.21',
