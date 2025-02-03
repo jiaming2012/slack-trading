@@ -301,6 +301,8 @@ if __name__ == "__main__":
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
     
+    print(f"starting trading engine with sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
+    
     profit, meta = objective(args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
     
     print(f"profit: {profit}, meta: {meta}")
