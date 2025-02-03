@@ -1,7 +1,7 @@
 module.exports = {
   apps : [{
     name: 'supertrend1-aapl',
-    cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
+    cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -8.35 --tp-shift 10.0 --sl-buffer 4.11 --tp-buffer 4.78 --min-max-window-in-hours 6',
     autorestart: true,
     watch: true,
@@ -19,10 +19,10 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '/Users/jamal/projects/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-coin',
-    cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
+    cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -4.84 --tp-shift 2.88 --sl-buffer 1.49 --tp-buffer 2.18 --min-max-window-in-hours 16',
     autorestart: true,
     watch: true,
@@ -40,10 +40,10 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '/Users/jamal/projects/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-meta',
-    cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
+    cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift 8.96 --tp-shift 10.0 --sl-buffer 2.69 --tp-buffer 5.0 --min-max-window-in-hours 5',
     autorestart: true,
     watch: true,
@@ -61,10 +61,10 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '/Users/jamal/projects/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-nvda',
-    cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
+    cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift 9.54 --tp-shift 1.54 --sl-buffer 2.34 --tp-buffer 4.27 --min-max-window-in-hours 12',
     autorestart: true,
     watch: true,
@@ -82,10 +82,10 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '/Users/jamal/projects/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-tsla',
-    cmd: '/Users/jamal/projects/slack-trading/src/cmd/stats/trading_engine.py',
+    cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -3.05 --tp-shift -3.8 --sl-buffer 3.1 --tp-buffer 4.76 --min-max-window-in-hours 11',
     autorestart: true,
     watch: true,
@@ -103,6 +103,6 @@ module.exports = {
     env_production : {
       ENV: 'production'
     },
-    interpreter: '/Users/jamal/projects/slack-trading/src/cmd/stats/env/bin/python',
+    interpreter: 'src/cmd/stats/env/bin/python',
   }]
 };
