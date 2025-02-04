@@ -17,12 +17,12 @@ import (
 func fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found")
+		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found", nil)
 	}
 
 	candles, err := playground.FetchCandles(symbol, period, from, to)
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, fmt.Sprintf("handleCandles: failed to fetch candles: %v", err))
+		return nil, eventmodels.NewWebError(500, "failed to fetch candles", err)
 	}
 
 	return candles, nil
@@ -51,7 +51,7 @@ func nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*
 func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.BacktesterOrder, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "playground not found")
+		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	// todo: add mutex for playground
@@ -86,7 +86,7 @@ func getPlaygroundByHash(reqHash string) models.IPlayground {
 func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "playground not found")
+		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	return playground, nil
@@ -95,7 +95,7 @@ func getPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
 func deletePlayground(playgroundID uuid.UUID) error {
 	_, ok := playgrounds[playgroundID]
 	if !ok {
-		return eventmodels.NewWebError(404, "playground not found")
+		return eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	delete(playgrounds, playgroundID)
@@ -106,7 +106,7 @@ func deletePlayground(playgroundID uuid.UUID) error {
 func getAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "playground not found")
+		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	plot := playground.GetEquityPlot()
@@ -116,12 +116,12 @@ func getAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, e
 func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountResponse, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "playground not found")
+		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	positions, err := playground.GetPositions()
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to get positions")
+		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
 	}
 
 	positionsKV := map[string]*models.Position{}
@@ -147,11 +147,11 @@ func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountRespon
 func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.BacktesterOrder, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
-		return nil, eventmodels.NewWebError(404, "playground not found")
+		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
 	if err := req.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid request")
+		return nil, eventmodels.NewWebError(400, "invalid request", err)
 	}
 
 	createdOn := playground.GetCurrentTime()
@@ -161,7 +161,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 	if playgroundMeta != nil {
 		playgroundEnv = playgroundMeta.Environment
 	} else {
-		return nil, eventmodels.NewWebError(500, "failed to get playground environment")
+		return nil, eventmodels.NewWebError(500, "failed to get playground environment", nil)
 	}
 
 	liveOrderTempId := uint(0)
@@ -171,7 +171,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 
 	order, err := makeBacktesterOrder(playground, req, createdOn)
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, fmt.Sprintf("failed to place order: %v", err))
+		return nil, eventmodels.NewWebError(500, "failed to place order", err)
 	}
 
 	return order, nil
@@ -183,11 +183,11 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 
 	// validations
 	if err := env.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid playground environment")
+		return nil, eventmodels.NewWebError(400, "invalid playground environment", err)
 	}
 
 	if len(req.Repositories) == 0 {
-		return nil, eventmodels.NewWebError(400, "missing repositories")
+		return nil, eventmodels.NewWebError(400, "missing repositories", nil)
 	}
 
 	// create playground
@@ -208,7 +208,7 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 		tomorrowStr := tomorrow.Format("2006-01-02")
 		from, err := eventmodels.NewPolygonDate(tomorrowStr)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
+			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
 		// fetch or create live repositories
@@ -236,7 +236,7 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 		// create live playground
 		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, reqHash)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create live playground")
+			return nil, eventmodels.NewWebError(500, "failed to create live playground", err)
 		}
 
 		// always save live playgrounds if flag is set
@@ -250,18 +250,18 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 		// validations
 		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate")
+			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
 		to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate")
+			return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate", err)
 		}
 
 		// create clock
 		clock, err := createClock(from, to)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create clock")
+			return nil, eventmodels.NewWebError(500, "failed to create clock", err)
 		}
 
 		// create backtester repositories
@@ -274,10 +274,10 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 		now := clock.CurrentTime
 		playground, err = models.NewPlayground(req.ID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create playground")
+			return nil, eventmodels.NewWebError(500, "failed to create playground", err)
 		}
 	} else {
-		return nil, eventmodels.NewWebError(400, "invalid playground environment")
+		return nil, eventmodels.NewWebError(400, "invalid playground environment", nil)
 	}
 
 	playground.SetEquityPlot(req.EquityPlotRecords)
@@ -312,7 +312,7 @@ func fetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.Polyg
 		return pastBars, nil
 	}
 
-	return nil, eventmodels.NewWebError(500, errMsg)
+	return nil, eventmodels.NewWebError(500, errMsg, nil)
 }
 
 func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {
@@ -331,27 +331,27 @@ func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *e
 		} else if repo.Source.Type == eventmodels.RepositorySourcePolygon {
 			bars, err = client.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars")
+				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars", err)
 			}
 		} else if repo.Source.Type == eventmodels.RepositorySourceCSV {
 			if repo.Source.CSVFilename == nil {
-				return nil, eventmodels.NewWebError(400, "missing CSV filename")
+				return nil, eventmodels.NewWebError(400, "missing CSV filename", nil)
 			}
 
 			sourceDir := path.Join(projectsDirectory, "slack-trading", "src", "backtester-api", "data", *repo.Source.CSVFilename)
 
 			bars, err = utils.ImportCandlesFromCsv(sourceDir)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to import candles from CSV")
+				return nil, eventmodels.NewWebError(500, "failed to import candles from CSV", err)
 			}
 		} else {
-			return nil, eventmodels.NewWebError(400, "invalid repository source")
+			return nil, eventmodels.NewWebError(400, "invalid repository source", nil)
 		}
 
 		if len(repo.Indicators) > 0 {
 			pastBars, err = fetchPastCandles(eventmodels.StockSymbol(repo.Symbol), timespan, int(repo.HistoryInDays), from)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to fetch past candles")
+				return nil, eventmodels.NewWebError(500, "failed to fetch past candles", err)
 			}
 		}
 
@@ -365,7 +365,7 @@ func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *e
 		repository, err := services.CreateRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition, repo.HistoryInDays, source)
 		if err != nil {
 			log.Errorf("failed to create repository: %v", err)
-			return nil, eventmodels.NewWebError(500, "failed to create repository")
+			return nil, eventmodels.NewWebError(500, "failed to create repository", err)
 		}
 
 		feeds = append(feeds, repository)

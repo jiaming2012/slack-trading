@@ -14,7 +14,7 @@ import pandas as pd
 from trading_engine_types import OpenSignal, OpenSignalName
     
 class SimpleOpenStrategy(BaseOpenStrategy):
-    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, min_max_window_in_hours=4):
+    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
         super().__init__(playground)
         
         historical_start_date, historical_end_date = self.get_previous_year_date_range(300)
@@ -34,6 +34,8 @@ class SimpleOpenStrategy(BaseOpenStrategy):
         self.factory = None
         self.feature_set = None
         self.min_max_window_in_hours = min_max_window_in_hours
+        self.sl_buffer = sl_buffer
+        self.tp_buffer = tp_buffer
         self.sl_shift = sl_shift
         self.tp_shift = tp_shift
         
@@ -51,7 +53,19 @@ class SimpleOpenStrategy(BaseOpenStrategy):
             self.update_model_reason = 'new month'
         else:
             raise Exception(f"Unsupported update frequency: {updateFrequency}")
-        
+    
+    def get_sl_shift(self):
+        return self.sl_shift
+    
+    def get_tp_shift(self):
+        return self.tp_shift
+    
+    def get_sl_buffer(self):
+        return self.sl_buffer
+    
+    def get_tp_buffer(self):
+        return self.tp_buffer
+    
     def is_new_month(self):
         current_month = self.playground.timestamp.month
         result = current_month != self.previous_month
@@ -174,11 +188,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                             open_signal, 
                             date, 
                             max_price_prediction, 
-                            min_price_prediction, 
-                            self.factory.max_price_prediction_std_dev, 
-                            self.factory.min_price_prediction_std_dev,
-                            self.sl_shift,
-                            self.tp_shift
+                            min_price_prediction,
                         )
                     )
                     

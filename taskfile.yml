@@ -5,6 +5,10 @@ tasks:
     cmds:
       - 'task --list-all'
 
+  rc:
+    cmds:
+      - 'mosh root@149.28.225.5'
+
   python:install:
     cmds:
       - 'rm -rf env'

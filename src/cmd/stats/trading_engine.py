@@ -1,5 +1,4 @@
 from base_open_strategy import BaseOpenStrategy
-from simple_open_strategy_v1 import SimpleOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
 from trading_engine_types import OpenSignal, OpenSignalName
 from playground_metrics import collect_data
@@ -99,7 +98,12 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max
         
     return sl_target, tp_target
 
-def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, sl_shift, tp_shift, sl_buffer, tp_buffer, grpc_host) -> Tuple[float, dict]:
+def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, grpc_host) -> Tuple[float, dict]:
+    sl_shift = open_strategy.get_sl_shift()
+    tp_shift = open_strategy.get_tp_shift()
+    sl_buffer = open_strategy.get_sl_buffer()
+    tp_buffer = open_strategy.get_tp_buffer()
+    
     while not open_strategy.is_complete():
         try:
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
@@ -170,7 +174,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         playground.tick(playground_tick_in_seconds, raise_exception=False)
         
     profit = playground.account.equity - initial_balance
-    print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift) of ({sl_shift}, {tp_shift})")
+    print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
     
     # fetch stats
     stats = collect_data(grpc_host, playground.id)
@@ -179,6 +183,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         'profit': profit,
         'sl_shift': sl_shift,
         'tp_shift': tp_shift,
+        'sl_buffer': sl_buffer,
+        'tp_buffer': tp_buffer,
         'equity': playground.account.equity,
         'stats': stats
     }
@@ -234,6 +240,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         env = PlaygroundEnvironment.SIMULATOR
     
         print(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
+        
     elif playground_env.lower() == "live":
         playground_tick_in_seconds = 5
         start_date = None
@@ -242,6 +249,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         env = PlaygroundEnvironment.LIVE
         
         print(f"initializing {env}: {symbol} playground")
+        
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
@@ -279,18 +287,19 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     if open_strategy_input == 'simple_open_strategy_v1':
         from simple_open_strategy_v1 import SimpleOpenStrategy
+        open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
     elif open_strategy_input == 'simple_open_strategy_v2':
-        from simple_open_strategy_v2 import SimpleOpenStrategy
+        from simple_open_strategy_v2 import OptimizedOpenStrategy
+        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency)
         
     else:
         print(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
-    open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, min_max_window_in_hours)
     close_strategy = SimpleCloseStrategy(playground)
     
-    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, sl_shift, tp_shift, sl_buffer, tp_buffer, grpc_host)
+    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, grpc_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
@@ -301,7 +310,7 @@ if __name__ == "__main__":
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
     
-    print(f"starting trading engine with sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
+    print(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
     
     profit, meta = objective(args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
     

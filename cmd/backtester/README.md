@@ -72,6 +72,19 @@ scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id
 git clone git@github.com:jiaming2012/slack-trading.git
 ```
 
+### Managing the server
+Mosh allow better connecting handling to the server, improving reconnects.
+``` bash
+sudo apt-get install -y mosh
+sudo ufw allow 60000:61000/udp
+sudo ufw reload
+```
+
+Mosh also needs to be installed on your local machine:
+``` bash
+brew install mosh
+```
+
 ### Build the Source
 ``` bash
 add-apt-repository ppa:deadsnakes/ppa

@@ -597,7 +597,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}, nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create playground: %v", err)
+		return nil, fmt.Errorf("failed to create playground: %w", err)
 	}
 
 	return &pb.CreatePlaygroundResponse{

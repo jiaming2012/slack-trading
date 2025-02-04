@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -30,13 +32,15 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("FetchCalendar: error running main.py: %v", err)
+		return nil, fmt.Errorf("FetchCalendar: error running main.py: %w", err)
 	}
+
+	fmt.Println(string(output))
 
 	// Unmarshal CSV data
 	schedules, err := unmarshalCSV(output)
 	if err != nil {
-		return nil, fmt.Errorf("FetchCalendar: error unmarshalling CSV: %v", err)
+		return nil, fmt.Errorf("FetchCalendar: error unmarshalling CSV: %w", err)
 	}
 
 	var result []*eventmodels.Calendar
@@ -52,7 +56,7 @@ func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (map[string]*e
 
 	schedules, err := FetchCalendar(startDate, endDate)
 	if err != nil {
-		return nil, fmt.Errorf("FetchCalendarMap: error fetching calendar: %v", err)
+		return nil, fmt.Errorf("FetchCalendarMap: error fetching calendar: %w", err)
 	}
 
 	for _, schedule := range schedules {
@@ -103,7 +107,7 @@ func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
 	}
 
 	if len(schedules) == 0 {
-		return nil, fmt.Errorf("unmarshalCSV: no schedules found")
+		log.Warn("unmarshalCSV: no schedules found")
 	}
 
 	return schedules, nil

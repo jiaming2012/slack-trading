@@ -12,7 +12,3 @@ class OpenSignal:
     date: pd.Timestamp
     max_price_prediction: float
     min_price_prediction: float
-    max_price_prediction_std_dev: float
-    min_price_prediction_std_dev: float
-    sl_shift: float
-    tp_shift: float
