@@ -1,3 +1,4 @@
+from loguru import logger
 from base_open_strategy import BaseOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
 from trading_engine_types import OpenSignal, OpenSignalName
@@ -8,10 +9,14 @@ from datetime import datetime
 import time
 import argparse
 import os
+import sys
 
 # todo:
 # refactor open_strategy to parameterize short and long periods
-# use a logger
+
+logger.remove()
+
+logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
 
 def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
@@ -41,7 +46,7 @@ def calculate_new_trade_quantity(equity: float, free_margin: float, current_pric
     required_margin = calculate_required_margin(current_price, quantity, side)
     if required_margin > max_allowable_margin:
         _quantity = max_allowable_margin / calculate_required_margin(current_price, 1, side)
-        print(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}")
+        logger.debug(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}")
         quantity = _quantity
         
     # round stock quantity to nearest whole number
@@ -109,21 +114,21 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
         except Exception as e:
             current_price = None
-            print(f"warn: failed to get current price: {e}")
+            logger.debug(f"warn: failed to get current price: {e}")
             
         # check for close signals
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=False, with_tick=True)
-            print(f"Placed close order: {resp}")
+            logger.info(f"Placed close order: {resp}")
 
         # check for open signals
         tick_delta = playground.flush_new_state_buffer()
         for event in tick_delta:
             for trade in event.new_trades:
-                print('-' * 40)
-                print(f"{trade.symbol} placed: {trade.quantity} @ {trade.price} on {trade.create_date}")
-                print('-' * 40)
+                logger.info('-' * 40)
+                logger.info(f"{trade.symbol} placed: {trade.quantity} @ {trade.price} on {trade.create_date}")
+                logger.info('-' * 40)
         
         signals = open_strategy.tick(tick_delta)
         position = None
@@ -132,7 +137,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             position = pos.quantity if pos else 0
                 
         if len(signals) > 1:
-            print(f"[ERROR] Multiple signals detected: {signals}")
+            logger.error(f"Multiple signals detected: {signals}")
             
         for s in signals:            
             if s.name == OpenSignalName.CROSS_ABOVE_20:
@@ -140,7 +145,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
-                    print(f"Placed close order: {resp}")
+                    logger.info(f"Placed close order: {resp}")
 
                 side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
@@ -148,11 +153,11 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = position
                     side = OrderSide.SELL
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
-                    print(f"Placed close order: {resp}")
+                    logger.info(f"Placed close order: {resp}")
                     
                 side = OrderSide.SELL_SHORT
             else:
-                print(f"Unknown signal: {s.name}")
+                logger.error(f"Unknown signal: {s.name}")
                 continue
             
             try:
@@ -160,21 +165,21 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
-                print(f"warn: failed to build tag: {e}. Skipping order ...")
+                logger.warning(f"failed to build tag: {e}. Skipping order ...")
                 continue
             
             try:
                 resp = playground.place_order(symbol, quantity, side, current_price, tag)
             except Exception as e:
-                print(f"Error placing order: {e}")
+                logger.error(f"Error placing order: {e}")
                 continue
             
-            print(f"Placed open order: {resp}")
+            logger.info(f"Placed open order: {resp}")
             
         playground.tick(playground_tick_in_seconds, raise_exception=False)
         
     profit = playground.account.equity - initial_balance
-    print(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
+    logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
     
     # fetch stats
     stats = collect_data(grpc_host, playground.id)
@@ -190,6 +195,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     }
     
     playground.remove_from_server()
+    
+    logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
     
@@ -228,9 +235,9 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
     
     if live_account_type is not None:
-        print(f'info: starting {playground_env} playgound for {symbol} with account type {live_account_type}')
+        logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
     else:
-        print(f'info: starting {playground_env} playgound for {symbol}')
+        logger.info(f'starting {playground_env} playgound for {symbol}')
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
@@ -239,7 +246,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         repository_source = RepositorySource.POLYGON
         env = PlaygroundEnvironment.SIMULATOR
     
-        print(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
+        logger.info(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
         
     elif playground_env.lower() == "live":
         playground_tick_in_seconds = 5
@@ -248,7 +255,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         repository_source = None
         env = PlaygroundEnvironment.LIVE
         
-        print(f"initializing {env}: {symbol} playground")
+        logger.info(f"initializing {env}: {symbol} playground")
         
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
@@ -283,7 +290,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     playground.tick(0, raise_exception=False)  # initialize the playground
     
-    print(f"playground id: {playground.id}")
+    logger.info(f"created playground with id: {playground.id}")
     
     if open_strategy_input == 'simple_open_strategy_v1':
         from simple_open_strategy_v1 import SimpleOpenStrategy
@@ -294,7 +301,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         open_strategy = OptimizedOpenStrategy(playground, model_update_frequency)
         
     else:
-        print(f"Invalid open strategy: {open_strategy_input}")
+        logger.error(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
     close_strategy = SimpleCloseStrategy(playground)
@@ -310,9 +317,9 @@ if __name__ == "__main__":
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
     
-    print(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
+    logger.info(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
     
     profit, meta = objective(args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
     
-    print(f"profit: {profit}, meta: {meta}")
+    logger.info(f"profit: {profit}, meta: {meta}")
     

@@ -1,3 +1,4 @@
+from loguru import logger
 import argparse
 import datetime
 import pandas as pd
@@ -45,52 +46,12 @@ def train_random_forest_models(df, feature_columns, target_columns):
         # Evaluate the model
         mse = mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        print(f"Model for {target}:")
-        print(f"Mean Squared Error: {mse}")
-        print(f"R2 Score: {r2}")
-        print("-" * 40)
+        logger.debug(f"Model for {target}:")
+        logger.info(f"Mean Squared Error: {mse}")
+        logger.info(f"R2 Score: {r2}")
 
     return models, predictions
 
-def train_gradient_boosting_models(df, feature_columns, target_columns):
-    """
-    Train Gradient Boosting models to predict max_price_prediction and min_price_prediction.
-
-    Args:
-        df (pd.DataFrame): The DataFrame containing the data.
-        feature_columns (list): List of feature column names.
-        target_columns (list): List of target column names ('max_price_prediction', 'min_price_prediction').
-
-    Returns:
-        dict: Trained Gradient Boosting models and their predictions.
-    """
-    models = {}
-    predictions = {}
-
-    for target in target_columns:
-        # Split the data
-        X = df[feature_columns]
-        y = df[target]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Train Gradient Boosting Regressor
-        model = GradientBoostingRegressor(n_estimators=150, random_state=42)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        
-        # Store the model and predictions
-        models[target] = model
-        predictions[target] = (X_test, y_test, y_pred)
-
-        # Evaluate the model
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        print(f"Gradient Boosting Model for {target}:")
-        print(f"Mean Squared Error: {mse}")
-        print(f"R2 Score: {r2}")
-        print("-" * 40)
-
-    return models, predictions
 
 def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -241,33 +202,6 @@ def add_supertrend_momentum_signal_feature_set_v1(ltf_data, htf_data) -> pd.Data
 
     return ltf_df
     
-def analyze_data(title, y_test, y_pred) -> Dict[str, float]:    
-    # Create a DataFrame with predictions and actual values
-    df = pd.DataFrame({
-        'Actual': y_test,
-        'Predicted': y_pred
-    })
-
-    # Print the DataFrame
-    print(f"Results for RandomForest - {title}:")
-    print(df.head(20))
-
-    # Calculate the standard deviation of the residuals for max_price_prediction
-    residuals_max = y_test - y_pred
-    std_dev_max = np.std(residuals_max)
-    print(f"Standard Deviation of Residuals for RandomForest - {title}: {std_dev_max}")
-    
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f"Mean Squared Error: {mse}")
-    print(f"R2 Score: {r2}")
-    print("-" * 40)
-    
-    return {
-        f'{title}_std_dev': std_dev_max,
-    }
-    
 @dataclass
 class SuperTrendMomentumSignalFactory:
     lag_features: int = 20
@@ -289,28 +223,9 @@ def new_supertrend_momentum_signal_factory(df: pd.DataFrame) -> SuperTrendMoment
     factory = SuperTrendMomentumSignalFactory()
     
     # Train Random Forest models
-    print("Training Random Forest models...")
+    logger.info("Training Random Forest models...")
     factory.models, rf_predictions = train_random_forest_models(df, factory.feature_columns, factory.target_columns)
-    print("Training complete.")
-        
-    # Analyze Random Forest predictions
-    for target in factory.target_columns:
-        X_test, y_test, y_pred = rf_predictions[target]
-        results = analyze_data(target, y_test, y_pred)
-        setattr(factory, f'{target}_std_dev', results[f'{target}_std_dev'])
-        
-    
-    # Train Gradient Boosting models
-    # print("Training Gradient Boosting models...")
-    # gb_models, gb_predictions = train_gradient_boosting_models(filtered_df, factory.feature_columns, factory.target_columns)
-    # print("Training complete.")
-    
-    # Analyze Gradient Boosting predictions
-    # for target in factory.target_columns:
-    #     X_test, y_test, y_pred = gb_predictions[target]
-    #     analyze_data(f"GradientBoosting - {target}", y_test, y_pred)
-        
-    # Todo: create criteria for rejecting the model
+    logger.info("Training complete.")
     
     return factory
 
@@ -332,7 +247,7 @@ if __name__ == '__main__':
     end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d')
     
     filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, start_date, end_date, min_max_window_in_hours=4)
-    print(f"generated {len(filtered_df)} {args.symbol} signals - from {start_date} to {end_date}")
+    logger.info(f"generated {len(filtered_df)} {args.symbol} signals - from {start_date} to {end_date}")
     
     factory = new_supertrend_momentum_signal_factory(filtered_df)
 
@@ -346,6 +261,3 @@ if __name__ == '__main__':
     # Apply the trained models to the future data
     future_predictions_max = factory.models['max_price_prediction'].predict(future_df_features)
     future_predictions_min = factory.models['min_price_prediction'].predict(future_df_features)
-
-    analyze_data('max_price_prediction', future_df['max_price_prediction'], future_predictions_max)
-    analyze_data('min_price_prediction', future_df['min_price_prediction'], future_predictions_min)

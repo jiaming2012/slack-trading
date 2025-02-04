@@ -1,3 +1,4 @@
+from loguru import logger
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource
 from simple_open_strategy_v1 import SimpleOpenStrategy
 from google.protobuf.json_format import MessageToDict
@@ -35,6 +36,8 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         os.environ['STOP_DATE'] = opt_stop_date_str
         os.environ['OPEN_STRATEGY'] = 'simple_open_strategy_v1'
         
+        logger.info(f"Optimizing hyperparameters from {opt_start_date_str} to {opt_stop_date_str}")
+        
         optimizer = TradingEngineOptimizer(self.n_calls)
         optimizer.optimize()
         average_hyperparameters = optimizer.compute_average_hyperparameters(0.1)
@@ -51,11 +54,13 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         
         params = self.get_optimized_hyperparameters(start_date)
         
-        sl_shift = params['sl_shift']
-        tp_shift = params['tp_shift']
-        sl_buffer = params['sl_buffer']
-        tp_buffer = params['tp_buffer']
+        sl_shift = round(params['sl_shift'], 2)
+        tp_shift = round(params['tp_shift'], 2)
+        sl_buffer = round(params['sl_buffer'], 2)
+        tp_buffer = round(params['tp_buffer'], 2)
         min_max_window_in_hours = params['min_max_window_in_hours']
+        
+        logger.success(f"Optimized hyperparameters: sl_shift={sl_shift}, tp_shift={tp_shift}, sl_buffer={sl_buffer}, tp_buffer={tp_buffer}, min_max_window_in_hours={min_max_window_in_hours}")
         
         return SimpleOpenStrategy(self.playground, self.updateFrequency, sl_shift=sl_shift, tp_shift=tp_shift, sl_buffer=sl_buffer, tp_buffer=tp_buffer, min_max_window_in_hours=min_max_window_in_hours) 
         
@@ -97,4 +102,4 @@ if __name__ == "__main__":
     while not strategy.is_complete():
         strategy.tick()
         
-    print("Done")
+    logger.info("Done")

@@ -1,3 +1,4 @@
+from loguru import logger
 from trading_engine import objective
 from skopt import gp_minimize
 from skopt.space import Real, Integer
@@ -49,7 +50,7 @@ class TradingEngineOptimizer:
         self.aggregate_meta[meta_label] = meta
         self.counter += 1
     
-        print(f"Completed run: {self.counter} / {self.n_calls}")
+        logger.info(f"Completed run: {self.counter} / {self.n_calls}")
     
         return -value
     

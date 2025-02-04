@@ -1,3 +1,4 @@
+from loguru import logger
 import requests
 from collections import deque
 from enum import Enum
@@ -108,18 +109,18 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
         except TwirpServerException as e:
             retries += 1
             
-            print(f"Network call failed: {e.message}. Retrying in {backoff} seconds...")
+            logger.warning(f"Network call failed: {e.message}. Retrying in {backoff} seconds...")
             
             if retries < max_retries:
-                print(f"Network call failed: {e}. Retrying in {backoff} seconds...")
+                logger.warning(f"Network call failed: {e}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)
                 backoff *= 2  # Exponential backoff
             else:
-                print(f"no more retries: final error: {e}")
+                logger.exception(f"no more retries left, raising exception")
                 break
 
-    print(f"Failed network request: {request}")
-    raise Exception("Maximum retries reached, could not reconnect to gRPC service.")
+    logger.error(f"failed network request: {request}")
+    raise Exception("maximum retries reached, could not reconnect to gRPC service.")
 
 
 class BacktesterPlaygroundClient:
@@ -170,7 +171,7 @@ class BacktesterPlaygroundClient:
         try:
             network_call_with_retry(self.client.DeletePlayground, request)
         except Exception as e:
-            print("Failed to connect to gRPC service (remove_on_server):", e)
+            logger.exception("Failed to connect to gRPC service (remove_on_server)")
             raise e
     
     def flush_new_state_buffer(self) -> List[TickDelta]:
@@ -198,7 +199,7 @@ class BacktesterPlaygroundClient:
         try:
             response = network_call_with_retry(self.client.GetOpenOrders, request)
         except Exception as e:
-            print("Failed to connect to gRPC service (fetch_open_orders):", e)
+            logger.exception("failed to connect to gRPC service (fetch_open_orders)")
             raise e
         
         return response.orders
@@ -212,7 +213,7 @@ class BacktesterPlaygroundClient:
         try:
             response = network_call_with_retry(self.client.GetAccount, request)
         except Exception as e:
-            print("Failed to connect to gRPC service (fetch_and_update_account_state):", e)
+            logger.exception("Failed to connect to gRPC service (fetch_and_update_account_state)")
             raise e
         
         acc = Account(
@@ -316,7 +317,7 @@ class BacktesterPlaygroundClient:
             ))
         
         except Exception as e:
-            print("Failed to connect to gRPC service (fetch_candles):", e)
+            logger.exception("Failed to connect to gRPC service (fetch_candles)")
             raise e
         
         return response.bars
@@ -339,7 +340,7 @@ class BacktesterPlaygroundClient:
             ))
         
         except Exception as e:
-            print("Failed to connect to gRPC service (fetch_candles):", e)
+            logger.exception("Failed to connect to gRPC service (fetch_candles)")
             raise e
         
         candles_data = response.bars
@@ -369,7 +370,7 @@ class BacktesterPlaygroundClient:
         try:
             response = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
-            print("Failed to connect to gRPC service (preview_tick):", e)
+            logger.exception("Failed to connect to gRPC service (preview_tick)")
             raise e
                 
         return response
@@ -392,7 +393,7 @@ class BacktesterPlaygroundClient:
         try:
             new_state: TickDelta = network_call_with_retry(self.client.NextTick, request)
         except Exception as e:
-            print("Failed to connect to gRPC service (tick):", e)
+            logger.exception("Failed to connect to gRPC service (tick)")
             if raise_exception:
                 raise e
             return None
@@ -446,9 +447,7 @@ class BacktesterPlaygroundClient:
             tag=tag,
             requested_price=price
         )
-        
-        print(f"tag: {tag}, quantity: {quantity}, side: {side.value}")
-        
+                
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request, max_retries=1)
             self.trade_timestamps.append(self.timestamp)

@@ -1,3 +1,4 @@
+from loguru import logger
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource
 from google.protobuf.json_format import MessageToDict
 from base_open_strategy import BaseOpenStrategy
@@ -106,7 +107,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
             
             # append only if sorted by timestamp
             if len(self.candles_5m) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                print(f'error: {prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
                 raise Exception("Candles (5m) are not sorted by timestamp")
             
             self.candles_5m.append(new_candle_dict)
@@ -115,7 +116,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
             
             # append only if sorted by timestamp
             if len(self.candles_1h) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                print(f'error: {prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
                 raise Exception("Candles (1h) are not sorted by timestamp")
             
             self.candles_1h.append(new_candle_dict)
@@ -154,18 +155,19 @@ class SimpleOpenStrategy(BaseOpenStrategy):
             try:
                 self.update_price_feed(c)
             except Exception as e:
-                print(f"error updating price feed: {e}")
+                logger.error(f"updating price feed: {e}")
                 continue
             
-            print(f"debug: new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
+            # todo: move this to a debug log. Move other debug logs to trace.
+            logger.info(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if c.period == 300:
                 open_signal, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
                 if open_signal:
-                    print(f"New signal: {open_signal.name}")
+                    logger.debug(f"new signal: {open_signal.name}")
                     
                     if not self.factory:
-                        print("Skipping signal creation: factory not initialized")
+                        logger.debug("Skipping signal creation: factory not initialized")
                         continue
                 
                     formatted_feature_set = self.feature_set.iloc[[-1]][self.factory.feature_columns]
@@ -175,13 +177,11 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                     
                     timestamp_utc = pd.Timestamp(c.bar.datetime)
                     date = timestamp_utc.tz_convert('America/New_York')
-                    print(f"Date: {date}")
-                    print(f"Current bar close: {c.bar.close}")
-                    print(f"Max price prediction: {max_price_prediction}")
-                    print(f"Min price prediction: {min_price_prediction}")
-                    print(f"Max price standard deviation: {self.factory.max_price_prediction_std_dev}")
-                    print(f"Min price standard deviation: {self.factory.min_price_prediction_std_dev}")
-                    print("-" * 40)
+                    logger.debug(f"Date: {date}")
+                    logger.debug(f"Current bar close: {c.bar.close}")
+                    logger.debug(f"Max price prediction: {max_price_prediction}")
+                    logger.debug(f"Min price prediction: {min_price_prediction}")
+                    logger.debug("-" * 40)
                     
                     open_signals.append(
                         OpenSignal(
@@ -194,17 +194,13 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                     
         if self.should_update_model() or self.factory is None:
             if self.feature_set is None:
-                print("Skipping model training: feature set is empty")
+                logger.debug("Skipping model training: feature set is empty")
                 return open_signals
             
             if self.factory is None:
-                print("-" * 40)
-                print(f"Initializing factory @ {self.playground.timestamp}")
-                print("-" * 40)
+                logger.info(f"initializing factory @ {self.playground.timestamp}")
             else:
-                print("-" * 40)
-                print(f"Reinitializing factory for {self.update_model_reason} @ {self.playground.timestamp}")
-                print("-" * 40)
+                logger.info(f"reinitializing factory for {self.update_model_reason} @ {self.playground.timestamp}")
                 
             target_set = add_supertrend_momentum_signal_target_set(self.feature_set, self.min_max_window_in_hours)
             self.factory = new_supertrend_momentum_signal_factory(target_set)
@@ -229,4 +225,4 @@ if __name__ == "__main__":
     while not strategy.is_complete():
         strategy.tick()
         
-    print("Done")
+    logger.info("Done")

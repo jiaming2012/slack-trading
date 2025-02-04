@@ -2,22 +2,30 @@ module.exports = {
   apps : [{
     name: 'supertrend1-aapl',
     cmd: 'src/cmd/stats/trading_engine.py',
-    args: '--sl-shift -8.35 --tp-shift 10.0 --sl-buffer 4.11 --tp-buffer 4.78 --min-max-window-in-hours 6',
+    args: '--sl-shift -4.35 --tp-shift 5.0 --sl-buffer 2.11 --tp-buffer 2.78 --min-max-window-in-hours 12',
     autorestart: true,
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env_dev: {
+    env: {
       BALANCE: '3000',
       SYMBOL: 'AAPL',
       GRPC_HOST: 'http://45.77.223.21',
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
     },
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '',
+      STOP_DATE: '',
+    },
+    env_paper: {
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
+    },
     env_production : {
-      ENV: 'production'
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -32,19 +40,27 @@ module.exports = {
       BALANCE: '3000',
       SYMBOL: 'COIN',
       GRPC_HOST: 'http://45.77.223.21',
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
     },
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '',
+      STOP_DATE: '',
+    },
+    env_paper: {
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
+    },
     env_production : {
-      ENV: 'production'
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-meta',
     cmd: 'src/cmd/stats/trading_engine.py',
-    args: '--sl-shift 8.96 --tp-shift 10.0 --sl-buffer 2.69 --tp-buffer 5.0 --min-max-window-in-hours 5',
+    args: '--sl-shift 6.96 --tp-shift 8.0 --sl-buffer 2.69 --tp-buffer 3.0 --min-max-window-in-hours 11',
     autorestart: true,
     watch: true,
     instances: 1,
@@ -53,13 +69,21 @@ module.exports = {
       BALANCE: '3000',
       SYMBOL: 'META',
       GRPC_HOST: 'http://45.77.223.21',
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
     },
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '',
+      STOP_DATE: '',
+    },
+    env_paper: {
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
+    },
     env_production : {
-      ENV: 'production'
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -74,13 +98,21 @@ module.exports = {
       BALANCE: '3000',
       SYMBOL: 'NVDA',
       GRPC_HOST: 'http://45.77.223.21',
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
     },
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '',
+      STOP_DATE: '',
+    },
+    env_paper: {
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
+    },
     env_production : {
-      ENV: 'production'
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -95,13 +127,21 @@ module.exports = {
       BALANCE: '3000',
       SYMBOL: 'TSLA',
       GRPC_HOST: 'http://45.77.223.21',
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
     },
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '',
+      STOP_DATE: '',
+    },
+    env_paper: {
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'paper',
+    },
     env_production : {
-      ENV: 'production'
+      PLAYGROUND_ENV: 'live',
+      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   }]
