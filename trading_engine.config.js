@@ -36,7 +36,7 @@ module.exports = {
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env_dev: {
+    env: {
       BALANCE: '3000',
       SYMBOL: 'COIN',
       GRPC_HOST: 'http://45.77.223.21',
@@ -65,7 +65,7 @@ module.exports = {
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env_dev: {
+    env: {
       BALANCE: '3000',
       SYMBOL: 'META',
       GRPC_HOST: 'http://45.77.223.21',
@@ -94,7 +94,7 @@ module.exports = {
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env_dev: {
+    env: {
       BALANCE: '3000',
       SYMBOL: 'NVDA',
       GRPC_HOST: 'http://45.77.223.21',
@@ -123,7 +123,7 @@ module.exports = {
     watch: true,
     instances: 1,
     max_memory_restart: '1G',
-    env_dev: {
+    env: {
       BALANCE: '3000',
       SYMBOL: 'TSLA',
       GRPC_HOST: 'http://45.77.223.21',
