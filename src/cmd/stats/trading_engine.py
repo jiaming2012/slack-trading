@@ -36,7 +36,7 @@ def configure_logger():
 
     # Add a file sink
     logger.add(
-        f"app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+        f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
         rotation="10 MB",  # Rotate when file size reaches 10MB
         retention="7 days",  # Keep logs for 7 days
         level=level,
