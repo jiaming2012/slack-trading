@@ -14,6 +14,7 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
+      N_CALLS: '30',
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
@@ -44,6 +45,7 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
+      N_CALLS: '30',
     },
     env_paper: {
       PLAYGROUND_ENV: 'live',
@@ -69,6 +71,7 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
+      N_CALLS: '30',
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
@@ -99,6 +102,7 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
+      N_CALLS: '30',
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
@@ -129,6 +133,7 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
+      N_CALLS: '30',
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
