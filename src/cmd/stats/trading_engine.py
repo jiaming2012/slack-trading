@@ -18,6 +18,22 @@ logger.remove()
 
 logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
 
+# Add a console sink
+logger.add(
+    sink=lambda msg: print(msg, end=""),  # Print to console
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    level="INFO"
+)
+
+# Add a file sink
+logger.add(
+    f"app-{os.getenv("SYMBOL")}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+    rotation="10 MB",  # Rotate when file size reaches 10MB
+    retention="7 days",  # Keep logs for 7 days
+    level="DEBUG",
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+)
+
 def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
     tp = signal.max_price_prediction
