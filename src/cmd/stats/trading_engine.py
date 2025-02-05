@@ -14,25 +14,28 @@ import sys
 # todo:
 # refactor open_strategy to parameterize short and long periods
 
-logger.remove()
 
-logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
 
-# Add a console sink
-logger.add(
-    sink=lambda msg: print(msg, end=""),  # Print to console
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-    level="INFO"
-)
+def configure_logger():
+    logger.remove()
 
-# Add a file sink
-logger.add(
-    f"app-{os.getenv("SYMBOL")}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
-    rotation="10 MB",  # Rotate when file size reaches 10MB
-    retention="7 days",  # Keep logs for 7 days
-    level="DEBUG",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
-)
+    logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
+
+    # Add a console sink
+    logger.add(
+        sink=lambda msg: print(msg, end=""),  # Print to console
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+        level="INFO"
+    )
+
+    # Add a file sink
+    logger.add(
+        f"app-{os.getenv("SYMBOL")}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+        rotation="10 MB",  # Rotate when file size reaches 10MB
+        retention="7 days",  # Keep logs for 7 days
+        level="DEBUG",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+    )
 
 def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
@@ -336,6 +339,8 @@ if __name__ == "__main__":
     args.add_argument("--tp-buffer", type=float, default=0.0)
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
+    
+    configure_logger()
     
     logger.info(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
     
