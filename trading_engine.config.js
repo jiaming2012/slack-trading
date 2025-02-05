@@ -30,7 +30,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-coin',
+    name: 'supertrend1-coin-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -4.84 --tp-shift 2.88 --sl-buffer 1.49 --tp-buffer 2.18 --min-max-window-in-hours 16',
     autorestart: true,
@@ -49,6 +49,23 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2205-01-31',
+    },
+    interpreter: 'src/cmd/stats/env/bin/python',
+  },{
+    name: 'supertrend1-coin',
+    cmd: 'src/cmd/stats/trading_engine.py',
+    args: '--sl-shift -4.84 --tp-shift 2.88 --sl-buffer 1.49 --tp-buffer 2.18 --min-max-window-in-hours 16',
+    autorestart: true,
+    watch: true,
+    instances: 1,
+    max_memory_restart: '1G',
+    env: {
+      BALANCE: '3000',
+      SYMBOL: 'COIN',
+      GRPC_HOST: 'http://45.77.223.21',
+      OPEN_STRATEGY: 'simple_open_strategy_v1',
+      MODEL_UPDATE_FREQUENCY: 'daily',
+      OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
     },
     env_paper: {
       PLAYGROUND_ENV: 'live',
