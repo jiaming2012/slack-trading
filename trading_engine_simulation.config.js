@@ -20,14 +20,6 @@ module.exports = {
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
-    env_paper: {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
-    },
-    env_production : {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'margin',
-    },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-coin',
@@ -45,13 +37,10 @@ module.exports = {
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
     },
-    env_paper: {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
-    },
-    env_production : {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'margin',
+    env_simulation: {
+      PLAYGROUND_ENV: 'simulator',
+      START_DATE: '2024-11-01',
+      STOP_DATE: '2025-01-31',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -75,14 +64,6 @@ module.exports = {
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
-    env_paper: {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
-    },
-    env_production : {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'margin',
-    },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-nvda',
@@ -105,14 +86,6 @@ module.exports = {
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
-    env_paper: {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
-    },
-    env_production : {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'margin',
-    },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
     name: 'supertrend1-tsla',
@@ -134,14 +107,6 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
-    },
-    env_paper: {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'paper',
-    },
-    env_production : {
-      PLAYGROUND_ENV: 'live',
-      LIVE_ACCOUNT_TYPE: 'margin',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   }]

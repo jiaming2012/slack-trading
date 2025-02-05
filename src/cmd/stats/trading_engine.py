@@ -14,30 +14,32 @@ import sys
 # todo:
 # refactor open_strategy to parameterize short and long periods
 
-
-
 def configure_logger():
     logger.remove()
 
     logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
+    
+    env = os.getenv("PLAYGROUND_ENV")
+    if env == "live":
+        level = "DEBUG"
+    else:
+        level = "INFO"
 
     # Add a console sink
     logger.add(
         sink=lambda msg: print(msg, end=""),  # Print to console
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-        level="INFO"
+        level=level
     )
     
     s = os.getenv("SYMBOL")
-    
-    print(s)
 
     # Add a file sink
     logger.add(
         f"app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
         rotation="10 MB",  # Rotate when file size reaches 10MB
         retention="7 days",  # Keep logs for 7 days
-        level="DEBUG",
+        level=level,
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
     )
 

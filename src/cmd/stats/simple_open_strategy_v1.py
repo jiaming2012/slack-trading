@@ -159,7 +159,7 @@ class SimpleOpenStrategy(BaseOpenStrategy):
                 continue
             
             # todo: move this to a debug log. Move other debug logs to trace.
-            logger.debug(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
+            logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if c.period == 300:
                 open_signal, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
