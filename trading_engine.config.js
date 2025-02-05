@@ -33,8 +33,8 @@ module.exports = {
     name: 'supertrend1-coin-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -4.84 --tp-shift 2.88 --sl-buffer 1.49 --tp-buffer 2.18 --min-max-window-in-hours 16',
-    autorestart: true,
-    watch: true,
+    autorestart: false,
+    watch: false,
     instances: 1,
     max_memory_restart: '1G',
     env: {
