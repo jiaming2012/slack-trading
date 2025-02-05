@@ -1,6 +1,6 @@
 module.exports = {
   apps : [{
-    name: 'supertrend1-aapl',
+    name: 'supertrend1-aapl-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -4.35 --tp-shift 5.0 --sl-buffer 2.11 --tp-buffer 2.78 --min-max-window-in-hours 12',
     autorestart: true,
@@ -14,15 +14,13 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
-    },
-    env_simulation: {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-coin',
+    name: 'supertrend1-coin-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -4.84 --tp-shift 2.88 --sl-buffer 1.49 --tp-buffer 2.18 --min-max-window-in-hours 16',
     autorestart: true,
@@ -36,15 +34,13 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
-    },
-    env_simulation: {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-meta',
+    name: 'supertrend1-meta-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift 6.96 --tp-shift 8.0 --sl-buffer 2.69 --tp-buffer 3.0 --min-max-window-in-hours 11',
     autorestart: true,
@@ -58,15 +54,13 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
-    },
-    env_simulation: {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-nvda',
+    name: 'supertrend1-nvda-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift 9.54 --tp-shift 1.54 --sl-buffer 2.34 --tp-buffer 4.27 --min-max-window-in-hours 12',
     autorestart: true,
@@ -80,15 +74,13 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
-    },
-    env_simulation: {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-tsla',
+    name: 'supertrend1-tsla-simulation',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift -3.05 --tp-shift -3.8 --sl-buffer 3.1 --tp-buffer 4.76 --min-max-window-in-hours 11',
     autorestart: true,
@@ -102,8 +94,6 @@ module.exports = {
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
-    },
-    env_simulation: {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
