@@ -17,6 +17,7 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
+      N_CALLS: '40',
     },
     env_prod: {
       GRPC_HOST: 'http://45.77.223.21',
@@ -64,6 +65,7 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
+      N_CALLS: '40',
     },
     env_prod: {
       GRPC_HOST: 'http://45.77.223.21',
