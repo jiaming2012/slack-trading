@@ -96,7 +96,7 @@ def set_nested_value(d, key1, key2, value):
         d[key1] = {}
     d[key1][key2] = value
 
-def network_call_with_retry(client, request, max_retries=10, backoff=2):
+def network_call_with_retry(client, request, backoff=2, max_backoff=60):
     retries = 0
     while True:
         try:
@@ -108,20 +108,13 @@ def network_call_with_retry(client, request, max_retries=10, backoff=2):
             return response
         except TwirpServerException as e:
             retries += 1
+                        
+            logger.warning(f"Network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
+            time.sleep(backoff)
             
-            logger.warning(f"Network call failed: {e.message}. Retrying in {backoff} seconds...")
-            
-            if retries < max_retries:
-                logger.warning(f"Network call failed: {e}. Retrying in {backoff} seconds...")
-                time.sleep(backoff)
-                backoff *= 2  # Exponential backoff
-            else:
-                logger.exception(f"no more retries left, raising exception")
-                break
-
-    logger.error(f"failed network request: {request}")
-    raise Exception("maximum retries reached, could not reconnect to gRPC service.")
-
+            if backoff < max_backoff:
+                backoff = min(max_backoff, backoff * 2)  # Exponential backoff
+                
 
 class BacktesterPlaygroundClient:
     def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, host: str = 'http://localhost:5051', grpc_host: str = 'http://localhost:5051'):
