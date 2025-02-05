@@ -38,8 +38,7 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         return result   
     
     def get_optimized_hyperparameters(self, start_date_obj: datetime) -> dict:
-        # opt_start_date = start_date_obj - relativedelta(months=1) CHANGE THIS BACK
-        opt_start_date = start_date_obj - relativedelta(days=5)
+        opt_start_date = start_date_obj - relativedelta(weeks=1)
         opt_stop_date = start_date_obj - relativedelta(days=1)
         opt_start_date_str = opt_start_date.strftime("%Y-%m-%d")
         opt_stop_date_str = opt_stop_date.strftime("%Y-%m-%d")

@@ -238,6 +238,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     stop_date = os.getenv("STOP_DATE")
     model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
     optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
+    n_calls = os.getenv("N_CALLS")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -267,6 +268,10 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
     else:
         logger.info(f'starting {playground_env} playgound for {symbol}')
+        
+    if n_calls is None:
+        raise ValueError("Environment variable N_CALLS is not set")
+    n_calls = int(n_calls)
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
@@ -327,7 +332,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         
     elif open_strategy_input == 'simple_open_strategy_v2':
         from simple_open_strategy_v2 import OptimizedOpenStrategy
-        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency)
+        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
         
     else:
         logger.error(f"Invalid open strategy: {open_strategy_input}")

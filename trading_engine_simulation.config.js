@@ -37,6 +37,7 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
+      N_CALLS: '40',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -77,6 +78,7 @@ module.exports = {
       PLAYGROUND_ENV: 'simulator',
       START_DATE: '2024-11-01',
       STOP_DATE: '2025-01-31',
+      N_CALLS: '40',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   }]
