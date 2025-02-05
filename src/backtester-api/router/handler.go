@@ -1029,6 +1029,8 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 	db = database
 	projectsDirectory = projectsDir
 
+	// needs to be async
+	// how would i distribute the load?
 	if err := loadPlaygrounds(); err != nil {
 		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
 	}

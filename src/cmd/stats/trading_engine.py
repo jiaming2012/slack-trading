@@ -21,7 +21,7 @@ def configure_logger():
     
     env = os.getenv("PLAYGROUND_ENV")
     if env == "live":
-        level = "DEBUG"
+        level = "TRACE"
     else:
         level = "INFO"
 
