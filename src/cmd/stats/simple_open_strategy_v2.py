@@ -83,6 +83,8 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         self.updateModelFrequency = updateModelFrequency
         self.strategy = self.new_optimized_open_strategy()
         
+        logger.info(f"updateOptimizerFrequency: {updateOptimizerFrequency}, n_calls: {n_calls}")
+        
         if updateOptimizerFrequency == 'monthly':
             self.should_update_optimizer = self.is_new_month
         elif updateOptimizerFrequency == 'weekly':
