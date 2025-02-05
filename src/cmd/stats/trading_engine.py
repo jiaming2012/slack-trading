@@ -212,6 +212,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     start_date = os.getenv("START_DATE")
     stop_date = os.getenv("STOP_DATE")
     model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+    optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -233,6 +234,9 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         
     if model_update_frequency is None:
         raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
+
+    if optimizer_update_frequency is None:
+        raise ValueError("Environment variable OPTIMIZER_UPDATE_FREQUENCY is not set")
     
     if live_account_type is not None:
         logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
@@ -298,7 +302,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         
     elif open_strategy_input == 'simple_open_strategy_v2':
         from simple_open_strategy_v2 import OptimizedOpenStrategy
-        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency)
+        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency)
         
     else:
         logger.error(f"Invalid open strategy: {open_strategy_input}")

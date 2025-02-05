@@ -41,12 +41,13 @@ module.exports = {
       SYMBOL: 'COIN',
       GRPC_HOST: 'http://45.77.223.21',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
-      MODEL_UPDATE_FREQUENCY: 'weekly',
+      MODEL_UPDATE_FREQUENCY: 'daily',
+      OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
-      START_DATE: '',
-      STOP_DATE: '',
+      START_DATE: '2024-11-01',
+      STOP_DATE: '2205-01-31',
     },
     env_paper: {
       PLAYGROUND_ENV: 'live',

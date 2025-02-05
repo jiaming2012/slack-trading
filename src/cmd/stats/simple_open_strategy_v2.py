@@ -25,6 +25,18 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         self.previous_month = current_month
         return result
     
+    def is_new_week(self):
+        current_week = self.playground.timestamp.isocalendar().week
+        result = current_week != self.previous_week
+        self.previous_week = current_week
+        return result
+    
+    def is_new_day(self):
+        current_day = self.playground.timestamp.day
+        result = current_day != self.previous_day
+        self.previous_day = current_day
+        return result   
+    
     def get_optimized_hyperparameters(self, start_date_obj: datetime) -> dict:
         # opt_start_date = start_date_obj - relativedelta(months=1) CHANGE THIS BACK
         opt_start_date = start_date_obj - relativedelta(days=5)
@@ -44,7 +56,7 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         return average_hyperparameters
 
     def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignal]:
-        if self.is_new_month():
+        if self.should_update_optimizer():
             self.strategy = self.new_optimized_open_strategy()
         
         return self.strategy.tick(tick_delta)
@@ -62,15 +74,24 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         
         logger.success(f"Optimized hyperparameters: sl_shift={sl_shift}, tp_shift={tp_shift}, sl_buffer={sl_buffer}, tp_buffer={tp_buffer}, min_max_window_in_hours={min_max_window_in_hours}")
         
-        return SimpleOpenStrategy(self.playground, self.updateFrequency, sl_shift=sl_shift, tp_shift=tp_shift, sl_buffer=sl_buffer, tp_buffer=tp_buffer, min_max_window_in_hours=min_max_window_in_hours) 
+        return SimpleOpenStrategy(self.playground, self.updateModelFrequency, sl_shift=sl_shift, tp_shift=tp_shift, sl_buffer=sl_buffer, tp_buffer=tp_buffer, min_max_window_in_hours=min_max_window_in_hours) 
         
-    def __init__(self, playground, updateFrequency, n_calls=10):
+    def __init__(self, playground, updateModelFrequency, updateOptimizerFrequency, n_calls=10):
         super().__init__(playground)
         
         self.n_calls = n_calls
         self.previous_month = self.playground.timestamp.month
-        self.updateFrequency = updateFrequency
+        self.updateModelFrequency = updateModelFrequency
         self.strategy = self.new_optimized_open_strategy()
+        
+        if updateOptimizerFrequency == 'monthly':
+            self.should_update_optimizer = self.is_new_month
+        elif updateOptimizerFrequency == 'weekly':
+            self.should_update_optimizer = self.is_new_week
+        elif updateOptimizerFrequency == 'daily':
+            self.should_update_optimizer = self.is_new_day
+        else:
+            raise ValueError(f"Invalid updateOptimizerFrequency: {updateOptimizerFrequency}")
         
     def get_sl_shift(self):
         return self.strategy.get_sl_shift()
