@@ -96,7 +96,7 @@ def set_nested_value(d, key1, key2, value):
         d[key1] = {}
     d[key1][key2] = value
 
-def network_call_with_retry(client, request, is_simulation, backoff=2, max_backoff=60):
+def network_call_with_retry(client, request, backoff=2, max_backoff=60):
     retries = 0
     while True:
         try:
