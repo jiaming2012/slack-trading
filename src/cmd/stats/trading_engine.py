@@ -142,7 +142,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         # check for close signals
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=False, with_tick=True)
+            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=True, with_tick=True)
             logger.info(f"Placed close order: {resp}")
 
         # check for open signals
@@ -167,7 +167,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
                     logger.info(f"Placed close order: {resp}")
 
                 side = OrderSide.BUY
@@ -175,7 +175,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
                     logger.info(f"Placed close order: {resp}") 
                     
                 side = OrderSide.SELL_SHORT
@@ -205,7 +205,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
             logger.info(f"Placed open order: {resp}")
             
-        playground.tick(playground_tick_in_seconds, raise_exception=False)
+        playground.tick(playground_tick_in_seconds, raise_exception=True)
         
     profit = playground.account.equity - initial_balance
     logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
@@ -326,7 +326,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
     
-    playground.tick(0, raise_exception=False)  # initialize the playground
+    playground.tick(0, raise_exception=True)  # initialize the playground
     
     logger.info(f"created playground with id: {playground.id}")
     

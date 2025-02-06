@@ -64,7 +64,7 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.quotesBearerToken))
-	log.Debugf("fetching candles from %s", req.URL.String())
+	log.Tracef("fetching tradier candles from %s", req.URL.String())
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -371,7 +371,8 @@ func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleReposit
 	periodStr := period.String()
 
 	symbol := repo.GetSymbol().GetTicker()
-	log.Debugf("updating live repo %s with period %s", symbol, periodStr)
+	log.Debugf("live repo #%d: %s - %s: fetching candles", index, symbol, periodStr)
+
 
 	lastCandleInRepo := repo.GetLastCandle()
 
@@ -435,11 +436,12 @@ func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleReposit
 		return
 	}
 
-	if !maxTimestamp.IsZero() {
-		repo.SetNextUpdateAt(maxTimestamp)
-	}
+	log.Debugf("live repo #%d: %s - %s: updated %d candles", index, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
 
-	log.Debugf("live %s repo %s: updated %d candles", repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
+	if !maxTimestamp.IsZero() {
+		nextUpdateAt := repo.SetNextUpdateAt(maxTimestamp)
+		log.Infof("live repo #%d: %s - %s: nextupdate at %s", index, symbol, periodStr, nextUpdateAt)
+	}
 }
 
 func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
@@ -457,7 +459,6 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 
 		nextUpdateAt := r.GetNextUpdateAt()
 		if nextUpdateAt == nil || now.After(*nextUpdateAt) {
-			log.Debugf("live repo %s: fetching candles for %s", r.GetPeriodStr(), r.GetSymbol())
 			go w.updateLiveRepos(index, r)
 		}
 	}

@@ -30,10 +30,10 @@ type CandleRepository struct {
 	mutex                 sync.Mutex
 }
 
-func (r *CandleRepository) SetNextUpdateAt(lastTstamp time.Time) {
+func (r *CandleRepository) SetNextUpdateAt(lastTstamp time.Time) time.Time {
 	updateAt := lastTstamp.Add(2 * r.period)
 	r.nextUpdateAt = &updateAt
-	log.Infof("Next live update at %s", r.nextUpdateAt)
+	return *r.nextUpdateAt
 }
 
 func (r *CandleRepository) GetNextUpdateAt() *time.Time {
