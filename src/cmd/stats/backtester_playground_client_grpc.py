@@ -445,7 +445,7 @@ class BacktesterPlaygroundClient:
             response = network_call_with_retry(self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
-            if self.environment == PlaygroundEnvironment.SIMULATOR and with_tick:
+            if self.environment == PlaygroundEnvironment.SIMULATOR.value and with_tick:
                 self.playground.tick(0, raise_exception=False)
             
             return response

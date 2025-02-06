@@ -152,7 +152,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         for event in tick_delta:
             for trade in event.new_trades:
                 logger.info('-' * 40)
-                logger.info(f"{trade.symbol} placed: {trade.quantity} @ {trade.price} on {trade.create_date}")
+                logger.info(f"New {trade.symbol} trade found: {trade.quantity} @ {trade.price} on {trade.create_date}")
                 logger.info('-' * 40)
         
         signals = open_strategy.tick(tick_delta)
@@ -283,7 +283,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         logger.info(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
         
     elif playground_env.lower() == "live":
-        playground_tick_in_seconds = 5
+        playground_tick_in_seconds = 20  # too fast until we update position with pending orders that have not yet filled at broker
         start_date = None
         stop_date = None
         repository_source = None

@@ -331,7 +331,7 @@
                 "OPEN_STRATEGY": "simple_open_strategy_v1",
                 "START_DATE": "2024-11-01",
                 "STOP_DATE": "2025-01-31",
-                "MODEL_UPDATE_FREQUENCY": "daily",
+                "MODEL_UPDATE_FREQUENCY": "weekly",
                 "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
                 "N_CALLS": "40"
             }
