@@ -26,6 +26,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
+      PLAYGROUND_CLIENT_ID: 'supertrend1-aapl-margin',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
@@ -52,6 +53,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
+      PLAYGROUND_CLIENT_ID: 'supertrend1-coin-margin',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
@@ -83,6 +85,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
+      PLAYGROUND_CLIENT_ID: 'supertrend1-meta-margin',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
@@ -114,6 +117,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
+      PLAYGROUND_CLIENT_ID: 'supertrend1-nvda-margin',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
@@ -145,6 +149,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
+      PLAYGROUND_CLIENT_ID: 'supertrend1-tsla-margin',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
