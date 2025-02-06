@@ -80,6 +80,8 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         
         self.n_calls = n_calls
         self.previous_month = self.playground.timestamp.month
+        self.previous_week = self.playground.timestamp.isocalendar().week
+        self.previous_day = self.playground.timestamp.day
         self.updateModelFrequency = updateModelFrequency
         self.strategy = self.new_optimized_open_strategy()
         
