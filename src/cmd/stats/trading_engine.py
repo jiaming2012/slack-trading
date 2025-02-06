@@ -243,6 +243,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
     optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
     n_calls = os.getenv("N_CALLS")
+    playground_client_id = os.getenv("PLAYGROUND_CLIENT_ID")
 
     # Check if the required environment variables are set
     if balance is None:
@@ -323,6 +324,10 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         repositories=[ltf_repo, htf_repo],
         environment=env.value
     )
+    
+    if playground_client_id is not None:
+        req.client_id = playground_client_id
+        logger.info(f"using existing playground with id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
     

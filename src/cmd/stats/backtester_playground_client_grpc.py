@@ -474,6 +474,7 @@ class BacktesterPlaygroundClient:
         try:
             liveRequest = CreateLivePlaygroundRequest(
                 balance=req.balance,
+                client_id=req.client_id,
                 broker='tradier',
                 account_type=account_type,
                 repositories=req.repositories,
