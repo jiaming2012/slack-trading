@@ -108,20 +108,20 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max
     if side == OrderSide.BUY:
         tp_target = max_value + tp_shift
         if tp_target <= current_price + tp_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} <= current price of {current_price}")
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} <= {current_price + tp_buffer} = {current_price} + {tp_buffer}")
         
         sl_target = min_value - sl_shift
         if sl_target >= current_price - sl_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} >= current price of {current_price}")
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} >= {current_price - sl_buffer} = {current_price} - {sl_buffer}")
         
     elif side == OrderSide.SELL_SHORT:
         tp_target = min_value - tp_shift
         if tp_target >= current_price - tp_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} >= current price of {current_price}")
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} >= {current_price - tp_buffer} = {current_price} - {tp_buffer}")
         
         sl_target = max_value + sl_shift
         if sl_target <= current_price + sl_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} <= current price of {current_price}")
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} <= {current_price + sl_buffer} = {current_price} + {sl_buffer}")
         
     else:
         raise ValueError("Invalid side")
@@ -178,7 +178,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = position
                     side = OrderSide.SELL
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=False, with_tick=True)
-                    logger.info(f"Placed close order: {resp}")
+                    logger.info(f"Placed close order: {resp}") 
                     
                 side = OrderSide.SELL_SHORT
             else:
