@@ -1,5 +1,6 @@
 __pycache__/
 profile_output.prof
+cmd/stats-sandbox/myenv
 *.log
 *.html
 *.pyc

@@ -35,7 +35,7 @@ def _fetch_polygon_stock_chart(url: str, api_key: str) -> Optional[PolygonCandle
             'Accept': 'application/json'
         }
 
-        logger.info(f"fetching from {url}")
+        logger.trace(f"fetching from {url}")
 
         response = requests.get(url, params=params, headers=headers, timeout=10)
         response.raise_for_status()

@@ -156,6 +156,10 @@ class BacktesterPlaygroundClient:
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
         
+    def get_realized_profit(self) -> float:
+        initial_balance = self.account.meta.initial_balance
+        return self.account.balance - initial_balance
+        
     def remove_from_server(self):
         request = DeletePlaygroundRequest(
             playground_id=self.id

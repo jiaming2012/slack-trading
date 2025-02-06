@@ -12,3 +12,11 @@ class OpenSignal:
     date: pd.Timestamp
     max_price_prediction: float
     min_price_prediction: float
+    
+@dataclass
+class OpenSignalV2:
+    name: OpenSignalName
+    date: pd.Timestamp
+    max_price_prediction: float
+    min_price_prediction: float
+    additional_equity_risk: float

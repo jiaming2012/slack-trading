@@ -1,7 +1,7 @@
 from loguru import logger
 from base_open_strategy import BaseOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
-from trading_engine_types import OpenSignal, OpenSignalName
+from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalName
 from playground_metrics import collect_data
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
@@ -61,9 +61,10 @@ def calculate_required_margin(price: float, qty: float, side: OrderSide) -> floa
         raise ValueError("Invalid side")
         
 
-def calculate_new_trade_quantity(equity: float, free_margin: float, current_price: float, side: OrderSide, stop_loss: float, max_per_trade_risk_percentage: float) -> float:
-    max_allowable_margin = free_margin * 0.99  # Change back to 25%
+def calculate_new_trade_quantity(equity: float, free_margin: float, current_price: float, side: OrderSide, stop_loss: float, max_per_trade_risk_percentage: float, max_allowable_free_margin_percentage: float, additional_equity_at_risk: float) -> float:
+    max_allowable_margin = free_margin * max_allowable_free_margin_percentage
     max_per_trade_risk = equity * max_per_trade_risk_percentage
+    max_per_trade_risk += additional_equity_at_risk
     
     sl_distance = abs(current_price - stop_loss)
     quantity = max_per_trade_risk / sl_distance
@@ -101,27 +102,24 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max
     """
     if not current_price:
         raise ValueError("current_price not found")
-    
-    min_value = min(min_value, current_price)
-    max_value = max(max_value, current_price)
         
     if side == OrderSide.BUY:
         tp_target = max_value + tp_shift
-        if tp_target <= current_price + tp_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} <= {current_price + tp_buffer} = {current_price} + {tp_buffer}")
+        if tp_target < current_price + tp_buffer:
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} < {current_price + tp_buffer} = {current_price} + {tp_buffer}")
         
         sl_target = min_value - sl_shift
-        if sl_target >= current_price - sl_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} >= {current_price - sl_buffer} = {current_price} - {sl_buffer}")
+        if sl_target > current_price - sl_buffer:
+            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} > {current_price - sl_buffer} = {current_price} - {sl_buffer}")
         
     elif side == OrderSide.SELL_SHORT:
         tp_target = min_value - tp_shift
-        if tp_target >= current_price - tp_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} >= {current_price - tp_buffer} = {current_price} - {tp_buffer}")
+        if tp_target > current_price - tp_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} > {current_price - tp_buffer} = {current_price} - {tp_buffer}")
         
         sl_target = max_value + sl_shift
-        if sl_target <= current_price + sl_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} <= {current_price + sl_buffer} = {current_price} + {sl_buffer}")
+        if sl_target < current_price + sl_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} < {current_price + sl_buffer} = {current_price} + {sl_buffer}")
         
     else:
         raise ValueError("Invalid side")
@@ -187,7 +185,13 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
             try:
                 sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.max_price_prediction, sl_shift, tp_shift, sl_buffer, tp_buffer)
-                quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, 0.03)
+                additional_equity_at_risk = 0
+                if isinstance(s, OpenSignalV2):
+                    additional_equity_at_risk = s.additional_equity_risk
+                
+                max_per_trade_risk_percentage = 0.03
+                max_allowable_free_margin_percentage = 0.65
+                quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
                 logger.warning(f"failed to build tag: {e}. Skipping order ...")
@@ -333,6 +337,11 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     elif open_strategy_input == 'simple_open_strategy_v2':
         from simple_open_strategy_v2 import OptimizedOpenStrategy
         open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
+        
+    elif open_strategy_input == 'simple_open_strategy_v3':
+        from simple_open_strategy_v3 import SimpleOpenStrategyV3
+        additional_profit_risk_percentage = 0.25
+        open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
     else:
         logger.error(f"Invalid open strategy: {open_strategy_input}")
