@@ -436,7 +436,7 @@ func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleReposit
 		return
 	}
 
-	log.Debugf("live repo #%d: %s - %s: updated %d candles", index, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
+	log.Infof("live repo #%d: %s - %s: updated %d candles", index, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
 
 	if !maxTimestamp.IsZero() {
 		nextUpdateAt := repo.SetNextUpdateAt(maxTimestamp)

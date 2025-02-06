@@ -70,13 +70,11 @@ func getPlaygrounds() []models.IPlayground {
 	return playgroundsSlice
 }
 
-func getPlaygroundByHash(reqHash string) models.IPlayground {
+func getPlaygroundByClientId(clientId string) models.IPlayground {
 	for _, playground := range playgrounds {
-		if livePlayground, ok := playground.(*models.LivePlayground); ok {
-			h := livePlayground.GetRequestHash()
-			if h != nil && *h == reqHash {
-				return playground
-			}
+		cId := playground.GetClientId()
+		if cId != nil && *cId == clientId {
+			return playground
 		}
 	}
 
@@ -178,7 +176,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 }
 
 // todo: this should be refactored to a service
-func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPlayground, error) {
+func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
 	// validations
@@ -234,7 +232,7 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, reqHash)
+		playground, err = models.NewLivePlayground(req.ID, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground", err)
 		}
@@ -272,7 +270,7 @@ func CreatePlayground(req *CreatePlaygroundRequest, reqHash *string) (models.IPl
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.ID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
+		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground", err)
 		}

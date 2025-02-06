@@ -35,8 +35,6 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 		return nil, fmt.Errorf("FetchCalendar: error running main.py: %w", err)
 	}
 
-	fmt.Println(string(output))
-
 	// Unmarshal CSV data
 	schedules, err := unmarshalCSV(output)
 	if err != nil {

@@ -18,6 +18,10 @@ type LivePlayground struct {
 	requestHash     *string
 }
 
+func (p *LivePlayground) GetClientId() *string {
+	return p.playground.GetClientId()
+}
+
 func (p *LivePlayground) GetLiveAccountType() *LiveAccountType {
 	return p.account.Source.GetAccountType()
 }
@@ -196,14 +200,14 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time, requestHash *string) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker:      account.Source.GetBroker(),
 		AccountID:   account.Source.GetAccountID(),
 		AccountType: account.Source.GetAccountType(),
 	}
 
-	playground, err := NewPlayground(playgroundID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, repositories...)
+	playground, err := NewPlayground(playgroundID, clientID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
@@ -213,6 +217,5 @@ func NewLivePlayground(playgroundID *uuid.UUID, account *LiveAccount, startingBa
 		account:         account,
 		newCandlesQueue: newCandlesQueue,
 		newTradesQueue:  newTradesQueue,
-		requestHash:     requestHash,
 	}, nil
 }

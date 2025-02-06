@@ -17,6 +17,7 @@ import (
 type IPlayground interface {
 	GetMeta() *PlaygroundMeta
 	GetId() uuid.UUID
+	GetClientId() *string
 	GetBalance() float64
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
 	GetEquityPlot() []*eventmodels.EquityPlot
@@ -43,6 +44,7 @@ type IPlayground interface {
 type Playground struct {
 	Meta               *PlaygroundMeta
 	ID                 uuid.UUID
+	ClientID           *string
 	account            *BacktesterAccount
 	clock              *Clock
 	repos              map[eventmodels.Instrument]map[time.Duration]*CandleRepository
@@ -51,6 +53,10 @@ type Playground struct {
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Broker             IBroker
+}
+
+func (p *Playground) GetClientId() *string {
+	return p.ClientID
 }
 
 func (p *Playground) GetEnvironment() PlaygroundEnvironment {
@@ -228,7 +234,7 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 	for _, order := range pendingOrders {
 		// commented out bc the program already skips till the next market open before placing a trade, hence
 		// this check is not reqired
-		
+
 		// calendar := p.clock.GetCalendar(p.GetCurrentTime())
 		// if calendar == nil {
 		// 	return nil, nil, fmt.Errorf("calendar not found for time %s", p.GetCurrentTime())
@@ -1341,7 +1347,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1405,6 +1411,7 @@ func NewPlayground(playgroundId *uuid.UUID, balance, initialBalance float64, clo
 	return &Playground{
 		Meta:            meta,
 		ID:              id,
+		ClientID:        clientID,
 		account:         NewBacktesterAccount(balance, orders),
 		clock:           clock,
 		repos:           repos,

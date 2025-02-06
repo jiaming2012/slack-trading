@@ -11,6 +11,7 @@ import (
 type PlaygroundSession struct {
 	gorm.Model
 	ID                uuid.UUID              `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ClientID          *string                `gorm:"column:client_id;type:text;unique"`
 	StartAt           time.Time              `gorm:"column:start_at;type:timestamptz;not null"`
 	EndAt             *time.Time             `gorm:"column:end_at;type:timestamptz"`
 	CurrentTime       time.Time              `gorm:"column:current_time;type:timestamptz;not null"`
@@ -20,7 +21,6 @@ type PlaygroundSession struct {
 	Broker            *string                `gorm:"column:broker;type:text"`
 	AccountID         *string                `gorm:"column:account_id;type:text"`
 	LiveAccountType   *string                `gorm:"column:live_account_type;type:text"`
-	RequestHash       *string                `gorm:"column:request_hash;type:text"`
 	Orders            []OrderRecord          `gorm:"foreignKey:PlaygroundID"`
 	EquityPlotRecords []EquityPlotRecord     `gorm:"foreignKey:PlaygroundID;references:ID"`
 	Repositories      CandleRepositoryRecord `gorm:"type:json;not null"`

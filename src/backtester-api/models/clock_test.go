@@ -71,7 +71,7 @@ func TestCalendar(t *testing.T) {
 		assert.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, repo)
 		return playground, err
 	}
 

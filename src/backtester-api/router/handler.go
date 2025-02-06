@@ -86,6 +86,7 @@ type CreateAccountRequest struct {
 
 type CreatePlaygroundRequest struct {
 	ID                *uuid.UUID                            `json:"playground_id"`
+	ClientID          *string                               `json:"client_id"`
 	Env               string                                `json:"environment"`
 	Account           CreateAccountRequest                  `json:"account"`
 	InitialBalance    float64                               `json:"starting_balance"`
@@ -394,6 +395,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 
 	store := &models.PlaygroundSession{
 		ID:              playground.GetId(),
+		ClientID:        playground.GetClientId(),
 		CurrentTime:     playground.GetCurrentTime(),
 		StartAt:         meta.StartAt,
 		EndAt:           meta.EndAt,
@@ -403,16 +405,14 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
-	if livePlayground, ok := playground.(*models.LivePlayground); ok {
+	if meta.Environment == models.PlaygroundEnvironmentLive {
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
 
 		liveAccountType := string(*meta.LiveAccountType)
 		store.LiveAccountType = &liveAccountType
-
-		store.RequestHash = livePlayground.GetRequestHash()
 	}
-
+	
 	if err := tx.Create(store).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
 	}
@@ -678,6 +678,7 @@ func loadPlaygrounds() error {
 
 		playground, err := CreatePlayground(&CreatePlaygroundRequest{
 			ID:  &p.ID,
+			ClientID: p.ClientID,
 			Env: p.Env,
 			Account: CreateAccountRequest{
 				Balance: p.Balance,
@@ -690,7 +691,7 @@ func loadPlaygrounds() error {
 			CreatedAt:         p.CreatedAt,
 			EquityPlotRecords: plot,
 			SaveToDB:          false,
-		}, p.RequestHash)
+		})
 
 		if err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)

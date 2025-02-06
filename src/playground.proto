@@ -107,6 +107,7 @@ message CreatePolygonPlaygroundRequest {
     string stop_date = 3;
     repeated Repository repositories = 4;
     string environment = 5;
+    optional string client_id = 6;
 }
 
 message DeletePlaygroundRequest {
@@ -119,6 +120,7 @@ message CreateLivePlaygroundRequest {
     repeated Repository repositories = 3;
     string environment = 4;
     string account_type = 5;
+    optional string client_id = 6;
 }
 
 message GetCandlesRequest {
