@@ -96,7 +96,7 @@ def set_nested_value(d, key1, key2, value):
         d[key1] = {}
     d[key1][key2] = value
 
-def network_call_with_retry(client, request, backoff=2, max_backoff=60):
+def network_call_with_retry(client, request, is_simulation, backoff=2, max_backoff=60):
     retries = 0
     while True:
         try:
@@ -114,6 +114,8 @@ def network_call_with_retry(client, request, backoff=2, max_backoff=60):
             
             if backoff < max_backoff:
                 backoff = min(max_backoff, backoff * 2)  # Exponential backoff
+                
+            
                 
 
 class BacktesterPlaygroundClient:
@@ -453,7 +455,7 @@ class BacktesterPlaygroundClient:
             
             if self.environment == PlaygroundEnvironment.SIMULATOR.value and with_tick:
                 logger.info(f"Placing order with tick: {request}")
-                self.playground.tick(0, raise_exception=True)
+                self.tick(0, raise_exception=True)
             else:
                 logger.info(f"Placing order without tick: {self.environment} | {with_tick}")
                 logger.info(f"Placing order without tick: {request}")
