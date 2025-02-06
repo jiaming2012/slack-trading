@@ -44,7 +44,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")
 
-	log.Debugf("fetching from %v", req.URL.String())
+	log.Tracef("fetching from %v", req.URL.String())
 
 	client := http.Client{
 		Timeout: 10 * time.Second,
@@ -67,7 +67,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	}
 
 	if dto.NextURL != nil {
-		log.Debugf("fetchPolygonStockChart: next url: %v", *dto.NextURL)
+		log.Tracef("fetchPolygonStockChart: next url: %v", *dto.NextURL)
 	}
 
 	return &dto, nil

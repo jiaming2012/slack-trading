@@ -444,13 +444,20 @@ class BacktesterPlaygroundClient:
             tag=tag,
             requested_price=price
         )
+        
+        logger.info(f"Placing order: {request}")
                 
         try:
             response = network_call_with_retry(self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
             if self.environment == PlaygroundEnvironment.SIMULATOR.value and with_tick:
-                self.playground.tick(0, raise_exception=False)
+                logger.info(f"Placing order with tick: {request}")
+                self.playground.tick(0, raise_exception=True)
+            else:
+                logger.info(f"Placing order without tick: {self.environment} | {with_tick}")
+                logger.info(f"Placing order without tick: {request}")
+                
             
             return response
         except Exception as e:

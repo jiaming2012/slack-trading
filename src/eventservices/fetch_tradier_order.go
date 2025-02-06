@@ -41,7 +41,7 @@ func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.T
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 
-	log.Debugf("fetching from %v", req.URL.String())
+	log.Tracef("fetching from %v", req.URL.String())
 
 	res, err := client.Do(req)
 	if err != nil {

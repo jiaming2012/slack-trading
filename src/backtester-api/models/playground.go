@@ -1197,19 +1197,19 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64) error {
 	if positionQuantity > 0 {
 		if side == TradierOrderSideBuyToCover {
-			return fmt.Errorf("cannot buy to cover when long position exists: must sell to close")
+			return fmt.Errorf("cannot buy to cover when long position of %.2f exists: must sell to close", positionQuantity)
 		}
 
 		if side == TradierOrderSideSellShort {
-			return fmt.Errorf("cannot sell short when long position exists: must sell to close")
+			return fmt.Errorf("cannot sell short when long position of %.2f exists: must sell to close", positionQuantity)
 		}
 	} else if positionQuantity < 0 {
 		if side == TradierOrderSideBuy {
-			return fmt.Errorf("cannot buy when short position exists: must sell to close")
+			return fmt.Errorf("cannot buy when short position of %.2f exists: must sell to close", positionQuantity)
 		}
 
 		if side == TradierOrderSideSell {
-			return fmt.Errorf("cannot sell to close when short position exists: must buy to cover")
+			return fmt.Errorf("cannot sell to close when short position of %.2f exists: must buy to cover", positionQuantity)
 		}
 	} else {
 		if side == TradierOrderSideSell {

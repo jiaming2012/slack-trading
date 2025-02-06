@@ -30,9 +30,10 @@ type CandleRepository struct {
 	mutex                 sync.Mutex
 }
 
-func (r *CandleRepository) setNextUpdateAt(tstamp time.Time) {
-	updateAt := tstamp.Add(2 * r.period)
+func (r *CandleRepository) SetNextUpdateAt(lastTstamp time.Time) {
+	updateAt := lastTstamp.Add(2 * r.period)
 	r.nextUpdateAt = &updateAt
+	log.Infof("Next live update at %s", r.nextUpdateAt)
 }
 
 func (r *CandleRepository) GetNextUpdateAt() *time.Time {
@@ -113,18 +114,18 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time) error {
 	return fmt.Errorf("failed to set starting position: no candles found at or after %s", currentTime)
 }
 
-func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
+func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	if len(bars) == 0 {
-		return nil
+		return time.Time{}, nil
 	}
 
 	maxTimestamp := time.Time{}
 	for i, bar := range bars {
 		if !r.candlesWithIndicators[len(r.candlesWithIndicators)-1].Timestamp.Before(bar.GetTimestamp()) {
-			return fmt.Errorf("new bar[%d] is not after the last bar", i)
+			return time.Time{}, fmt.Errorf("new bar[%d] is not after the last bar", i)
 		}
 
 		r.baseCandles = append(r.baseCandles, &eventmodels.PolygonAggregateBarV2{
@@ -141,15 +142,12 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
 		}
 	}
 
-	// update next update time
-	r.setNextUpdateAt(maxTimestamp)
-
 	var err error
 	previousIndex := len(r.candlesWithIndicators) - 1
 
 	r.candlesWithIndicators, err = eventservices.AddIndicatorsToCandles(r.baseCandles, r.indicators)
 	if err != nil {
-		return fmt.Errorf("failed to aggregate bars with indicators: %v", err)
+		return time.Time{}, fmt.Errorf("failed to aggregate bars with indicators: %v", err)
 	}
 
 	// send new bars to the queue
@@ -163,7 +161,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) error {
 		}
 	}
 
-	return nil
+	return maxTimestamp, nil
 }
 
 func (r *CandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {

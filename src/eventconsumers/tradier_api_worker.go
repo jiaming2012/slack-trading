@@ -365,12 +365,13 @@ func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period
 	return start, end
 }
 
-func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
+func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleRepository) {
 	now := time.Now()
 	period := repo.GetPeriod()
 	periodStr := period.String()
 
-	log.Debugf("updating live repo %s with period %s", repo.GetSymbol(), periodStr)
+	symbol := repo.GetSymbol().GetTicker()
+	log.Debugf("updating live repo %s with period %s", symbol, periodStr)
 
 	lastCandleInRepo := repo.GetLastCandle()
 
@@ -428,7 +429,17 @@ func (w *TradierApiWorker) updateLiveRepos(repo *models.CandleRepository) {
 		}
 	}
 
-	repo.AppendBars(newCandles)
+	maxTimestamp, err := repo.AppendBars(newCandles)
+	if err != nil {
+		log.Errorf("failed to append bars: %v", err)
+		return
+	}
+
+	if !maxTimestamp.IsZero() {
+		repo.SetNextUpdateAt(maxTimestamp)
+	}
+
+	log.Debugf("live %s repo %s: updated %d candles", repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
 }
 
 func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
@@ -441,13 +452,13 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	}
 
 	now := time.Now()
-	for _, repo := range repos {
+	for index, repo := range repos {
 		r := repo
-		log.Debugf("live repo %s: fetching candles for %s", r.GetPeriodStr(), r.GetSymbol())
 
 		nextUpdateAt := r.GetNextUpdateAt()
 		if nextUpdateAt == nil || now.After(*nextUpdateAt) {
-			go w.updateLiveRepos(r)
+			log.Debugf("live repo %s: fetching candles for %s", r.GetPeriodStr(), r.GetSymbol())
+			go w.updateLiveRepos(index, r)
 		}
 	}
 }
