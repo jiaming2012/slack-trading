@@ -15,6 +15,7 @@ import pandas as pd
 from trading_engine_types import OpenSignalV2, OpenSignalName
     
 # V3: Added additional_equity_risk to OpenSignalV2
+# Flexible per trade % risk
 class SimpleOpenStrategyV3(BaseOpenStrategy):
     def __init__(self, playground, additional_profit_risk_percentage, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
         super().__init__(playground)

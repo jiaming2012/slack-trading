@@ -1,7 +1,7 @@
 import numpy as np
 import pymc as pm
 import arviz as az
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 
 random_state = 42
@@ -21,7 +21,7 @@ rf = RandomForestRegressor(n_estimators=100, random_state=random_state)
 rf.fit(X, y)
 
 # Make a prediction for a new data point
-new_X = np.array([[0.5, 0.5], [0.25, 0.75]])
+new_X = np.array([[4.5, 0.5], [0.25, 0.75]])
 rf_pred = rf.predict(new_X)
 
 print('Prediction:', rf_pred)
@@ -87,4 +87,4 @@ for i in range(5):  # 5 iterations
     
     # Plotting the updated posterior distribution
     az.plot_posterior(trace, var_names=['parameter'], round_to=2)
-    plt.show()
+    # plt.show()

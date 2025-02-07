@@ -189,7 +189,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if isinstance(s, OpenSignalV2):
                     additional_equity_at_risk = s.additional_equity_risk
                 
-                max_per_trade_risk_percentage = 0.03
+                max_per_trade_risk_percentage = 0.06
                 max_allowable_free_margin_percentage = 0.65
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
                 tag = build_tag(sl, tp, side)
