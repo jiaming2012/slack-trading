@@ -24,7 +24,7 @@ module.exports = {
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
-    name: 'supertrend1-tsla-simulation-v1',
+    name: 'supertrend1-coin-simulation-v1',
     cmd: 'src/cmd/stats/trading_engine.py',
     args: '--sl-shift 0.0 --tp-shift 0.0 --sl-buffer 1.0 --tp-buffer 1.0 --min-max-window-in-hours 11',
     autorestart: false,
@@ -33,7 +33,7 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       BALANCE: '5000',
-      SYMBOL: 'TSLA',
+      SYMBOL: 'COIN',
       GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
