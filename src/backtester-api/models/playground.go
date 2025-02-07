@@ -1370,6 +1370,7 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 
 		symbol := feed.GetSymbol()
 
+		// todo: remove antipattern of using map for repo. use a list instead
 		if _, found := repos[symbol]; !found {
 			symbols = append(symbols, symbol.GetTicker())
 			repo := make(map[time.Duration]*CandleRepository)

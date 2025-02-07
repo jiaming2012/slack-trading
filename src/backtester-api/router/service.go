@@ -61,7 +61,7 @@ func getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*mo
 	return orders, nil
 }
 
-func getPlaygrounds() []models.IPlayground {
+func GetPlaygrounds() []models.IPlayground {
 	var playgroundsSlice []models.IPlayground
 	for _, playground := range playgrounds {
 		playgroundsSlice = append(playgroundsSlice, playground)

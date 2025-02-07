@@ -118,7 +118,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 }
 
 func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
-	playgrounds := getPlaygrounds()
+	playgrounds := GetPlaygrounds()
 
 	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
 	for _, p := range playgrounds {
@@ -568,7 +568,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 			}, nil
 		}
 	}
-	
+
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
 	for _, repo := range req.Repositories {
 		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
@@ -586,7 +586,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}
 
 	playground, err := CreatePlayground(&CreatePlaygroundRequest{
-		Env: req.GetEnvironment(),
+		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
 		Account: CreateAccountRequest{
 			Balance: float64(req.Balance),

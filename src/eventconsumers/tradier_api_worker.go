@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -365,14 +366,13 @@ func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period
 	return start, end
 }
 
-func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleRepository) {
+func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.CandleRepository) {
 	now := time.Now()
 	period := repo.GetPeriod()
 	periodStr := period.String()
 
 	symbol := repo.GetSymbol().GetTicker()
-	log.Debugf("live repo #%d: %s - %s: fetching candles", index, symbol, periodStr)
-
+	log.Debugf("Playground id %s live repo update: fetching %s - %s candles", playgroundId, symbol, periodStr)
 
 	lastCandleInRepo := repo.GetLastCandle()
 
@@ -436,30 +436,29 @@ func (w *TradierApiWorker) updateLiveRepos(index int, repo *models.CandleReposit
 		return
 	}
 
-	log.Infof("live repo #%d: %s - %s: updated %d candles", index, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
+	log.Infof("Playground id %s: %s - %s: updated %d candles", playgroundId, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
 
 	if !maxTimestamp.IsZero() {
 		nextUpdateAt := repo.SetNextUpdateAt(maxTimestamp)
-		log.Infof("live repo #%d: %s - %s: nextupdate at %s", index, symbol, periodStr, nextUpdateAt)
+		log.Infof("Playground id %s: %s - %s: nextupdate at %s", playgroundId, symbol, periodStr, nextUpdateAt)
 	}
 }
 
 func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
-	repos, unlockFn, err := services.FetchAllLiveRepositories()
-	defer unlockFn()
-
-	if err != nil {
-		log.Errorf("failed to fetch all live repositories: %v", err)
-		return
-	}
-
 	now := time.Now()
-	for index, repo := range repos {
-		r := repo
+	playgrounds := router.GetPlaygrounds()
 
-		nextUpdateAt := r.GetNextUpdateAt()
-		if nextUpdateAt == nil || now.After(*nextUpdateAt) {
-			go w.updateLiveRepos(index, r)
+	for _, playground := range playgrounds {
+		if playground.GetLiveAccountType() != nil {
+			repos := playground.GetRepositories()
+			for _, repo := range repos {
+				r := repo
+
+				nextUpdateAt := r.GetNextUpdateAt()
+				if nextUpdateAt == nil || now.After(*nextUpdateAt) {
+					go w.updateLiveRepos(playground.GetId(), r)
+				}
+			}
 		}
 	}
 }
