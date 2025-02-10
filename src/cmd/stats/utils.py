@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 from polygon import RESTClient
 import logging
 import time
@@ -35,7 +34,7 @@ def _fetch_polygon_stock_chart(url: str, api_key: str) -> Optional[PolygonCandle
             'Accept': 'application/json'
         }
 
-        logger.trace(f"fetching from {url}")
+        logger.info(f"fetching from {url}")
 
         response = requests.get(url, params=params, headers=headers, timeout=10)
         response.raise_for_status()
@@ -56,14 +55,15 @@ def _fetch_polygon_stock_chart(url: str, api_key: str) -> Optional[PolygonCandle
         logger.error(f"fetchPolygonStockChart: failed to decode json: {e}")
         return None
     
-def fetch_polygon_stock_chart_aggregated(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime) -> pd.DataFrame:
-    rows = fetch_polygon_stock_chart_aggregated_as_list(symbol, timeframe_value, timeframe_unit, from_date, to_date)
+def fetch_polygon_stock_chart_aggregated(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime, api_key = None) -> pd.DataFrame:
+    rows = fetch_polygon_stock_chart_aggregated_as_list(symbol, timeframe_value, timeframe_unit, from_date, to_date, api_key)
     df = pd.DataFrame(rows)
     return df
 
-def fetch_polygon_stock_chart_aggregated_as_list(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime) -> pd.DataFrame:
+def fetch_polygon_stock_chart_aggregated_as_list(symbol: str, timeframe_value: int, timeframe_unit: str, from_date: datetime, to_date: datetime, api_key: str) -> pd.DataFrame:
     # Fetch stock data
-    api_key = _fetch_api_key()
+    if api_key is None:
+        api_key = _fetch_api_key()
     
     back_off = [1, 2, 4, 8, 16, 32, 64, 128]
     aggregate_result = PolygonCandleResponse()
@@ -116,17 +116,19 @@ def fetch_polygon_stock_chart_aggregated_as_list(symbol: str, timeframe_value: i
     rows = []
     for a in aggregate_result.results:
         rows.append({
-            'Date': pd.to_datetime(a['t'], unit='ms').tz_localize('UTC').tz_convert(exchange_tz),
-            'Open': a['o'],
-            'High': a['h'],
-            'Low': a['l'],
-            'Close': a['c'],
-            'Volume': a['v']
+            'date': pd.to_datetime(a['t'], unit='ms').tz_localize('UTC').tz_convert(exchange_tz),
+            'open': a['o'],
+            'high': a['h'],
+            'low': a['l'],
+            'close': a['c'],
+            'volume': a['v']
         })
         
     return rows
 
 def _fetch_api_key() -> str:
+    from dotenv import load_dotenv
+
     projectsDir = os.getenv('PROJECTS_DIR')
     if projectsDir is None:
         raise ValueError('PROJECTS_DIR environment variable is not set')
@@ -139,7 +141,9 @@ def _fetch_api_key() -> str:
     
     return api_key
 
-def build_polygon_client() -> RESTClient:
-    api_key = _fetch_api_key()
+def build_polygon_client(api_key = None) -> RESTClient:
+    if api_key is None:
+        api_key = _fetch_api_key()
+        
     client = RESTClient(api_key)
     return client

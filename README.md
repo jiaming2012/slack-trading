@@ -63,6 +63,19 @@ kubectl -n kubernetes-dashboard create token dashboard-admin
 # Twirp
 We use twirp for grpc communication over http.
 
+# Indicators
+We use pandas-ta for indicators
+
+## Installation
+Mac
+``` bash
+conda create --name myenv python=3.10
+brew install ta-lib  
+conda install --file conda_requirements.txt
+conda install -c conda-forge ta-lib
+
+```
+
 ## Run the ML client
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading

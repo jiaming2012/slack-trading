@@ -301,18 +301,19 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "python": "/Users/jamal/miniconda3/envs/trading_env/bin/python",
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "COIN",
                 // "GRPC_HOST": "http://45.77.223.21",
                 "GRPC_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_open_strategy_v2",
+                "OPEN_STRATEGY": "candlestick_open_strategy_v1",
                 "START_DATE": "2024-10-21",
                 "STOP_DATE": "2024-11-15",
                 "MODEL_UPDATE_FREQUENCY": "weekly",
                 "OPTIMIZER_UPDATE_FREQUENCY": "monthly",
+                "N_CALLS": "40"
             }
         },
         {

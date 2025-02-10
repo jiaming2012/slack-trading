@@ -31,7 +31,12 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	}
 
 	// Run create_indicators.py and pass candles as JSON via standard input
-	pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	// pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+
+	// Use anaconda python
+	homeDir := os.Getenv("HOME")
+	pythonInterp := path.Join(homeDir, "miniconda3", "envs", "trading_env", "bin", "python3")
+
 	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
 	var cmdArgs []string
 	if len(indicators) > 0 {
@@ -39,7 +44,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	} else {
 		cmdArgs = []string{fileDir}
 	}
-	
+
 	cmd := exec.Command(pythonInterp, cmdArgs...)
 	cmd.Stdin = bytes.NewReader(candlesJSON)
 
@@ -54,6 +59,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 
 	// Unmarshall the json output from create_indicators.py
 	var data []*eventmodels.AggregateBarWithIndicators
+
 	if err = json.Unmarshal(out.Bytes(), &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON output from create_indicators.py: %v", err)
 	}
