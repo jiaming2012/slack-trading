@@ -117,7 +117,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'paper',
     },
     env_production : {
-      PLAYGROUND_CLIENT_ID: 'supertrend1-nvda-margin',
+      PLAYGROUND_CLIENT_ID: 'supertrend1-nvda-margin-2',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
