@@ -30,8 +30,9 @@ type OrderRecord struct {
 	Tag             string            `gorm:"column:tag;type:text"`
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
-	ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
-	Trades          []TradeRecord     `gorm:"foreignKey:OrderID"`
+	ClosedBy        []TradeRecord     `gorm:"many2many:trade_closed_by"`
+	// ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
+	Trades []TradeRecord `gorm:"foreignKey:OrderID"`
 }
 
 func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*BacktesterOrder, error) {

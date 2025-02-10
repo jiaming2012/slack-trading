@@ -166,6 +166,8 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 		closes = append(closes, orderRec)
 	}
 
+	var closedBy []TradeRecord
+
 	account_type := "simulation"
 	if liveAccountType != nil {
 		account_type = string(*liveAccountType)
@@ -189,6 +191,7 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 		Tag:             o.Tag,
 		Timestamp:       o.CreateDate,
 		Closes:          closes,
+		ClosedBy:        closedBy,
 	}
 
 	var tradeRecs []TradeRecord
