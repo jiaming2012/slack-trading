@@ -1,4 +1,4 @@
-# version="1.0.23"
+# version="1.0.24"
 
 # Start from the latest Ubuntu base image
 FROM ubuntu:20.04
