@@ -1,7 +1,7 @@
 # version="3.9.1"
 
 # Start from the latest Debian base image
-FROM ewr.vultrcr.com/grodt/grodt-base-image-2:3.8.2
+FROM ewr.vultrcr.com/grodt/grodt-base-image-2:3.9.0
 
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading

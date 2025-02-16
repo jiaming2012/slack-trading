@@ -84,7 +84,7 @@ tasks:
       - 'go test ./...'
     dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
 
-  test:functional:
+  test:e2e:
     cmds:
       - 'go test ./...'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
