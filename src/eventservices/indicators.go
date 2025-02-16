@@ -4,19 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	// Get the PROJECTS_DIR environment variable
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		return nil, fmt.Errorf("missing PROJECTS_DIR environment variable")
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PROJECTS_DIR: %v", err)
+	}
+
+	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ANACONDA_HOME: %v", err)
 	}
 
 	// Marshal candles to JSON
@@ -34,8 +39,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	// pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 
 	// Use anaconda python
-	homeDir := os.Getenv("HOME")
-	pythonInterp := path.Join(homeDir, "miniconda3", "envs", "trading_env", "bin", "python3")
+	pythonInterp := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
 
 	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
 	var cmdArgs []string

@@ -7,9 +7,18 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func TestSymbol(t *testing.T) {
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	assert.NoError(t, err)
+
+	goEnv := "test"
+
+	err = utils.InitEnvironmentVariables(projectsDir, goEnv)
+	assert.NoError(t, err)
+
 	t.Run("returns the symbol", func(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
 		period := time.Minute

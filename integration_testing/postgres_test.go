@@ -150,6 +150,7 @@ func TestWithPostgres(t *testing.T) {
 			"DRY_RUN":          "false",
 			"POSTGRES_HOST":    "postgres",
 			"POSTGRES_PORT":    "5432",
+			"ANACONDA_HOME":    "/opt/conda",
 			"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
 		},
 		WaitingFor: wait.ForAll(

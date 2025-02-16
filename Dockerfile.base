@@ -90,16 +90,23 @@ WORKDIR /app/slack-trading
 RUN python3.10 -m ensurepip && python3.10 -m pip install --upgrade pip setuptools wheel && python3.10 -m pip install virtualenv
 
 # Create a virtual environment with Python 3.10
-RUN python3.10 -m venv /app/slack-trading/src/cmd/stats/env
+# RUN python3.10 -m venv /app/slack-trading/src/cmd/stats/env
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
+# RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install --upgrade pip
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install --upgrade pip
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install Pillow
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install Pillow
 
-# Copy the source from the current directory to the Working Directory inside the container
-COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirements.txt
+# # Copy the source from the current directory to the Working Directory inside the container
+# COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirements.txt
+COPY conda-env.yaml /app/slack-trading/conda-env.yaml
 
 # Activate the virtual environment and install the Python dependencies
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
+
+# /opt/conda/bin/conda create --name grodt python=3.10 -y
+# /opt/conda/bin/conda install -y -n grodt -c conda-forge ta-lib
+# /opt/conda/bin/conda install -y -n grodt --file /app/slack-trading/conda_requirements.txt
+
+RUN /opt/conda/bin/conda env create -f /app/slack-trading/conda-env.yaml
