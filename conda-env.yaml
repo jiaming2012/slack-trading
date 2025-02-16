@@ -19,3 +19,4 @@ dependencies:
   - tzdata
   - urllib3
   - websockets
+  - pandas_market_calendars
