@@ -7,6 +7,6 @@
 !requirements.txt
 !go.mod
 !go.sum
+!conda-env.yaml
 
 src/cmd/stats/env
-conda-env.yaml
