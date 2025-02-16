@@ -26,13 +26,13 @@ func findPercentChange(candles []*eventmodels.TradingViewCandle, index, lookahea
 	return (candles[index+lookahead].Close - candles[index].Close) / candles[index].Close * 100
 }
 
-func convertTimestampToNewYorkTime(timestamp time.Time) time.Time {
+func convertTimestampToNewYorkTime(timestamp time.Time) (time.Time, error) {
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		log.Panicf("convertTimestampToNewYorkTime: error loading location: %v", err)
+		return time.Time{}, fmt.Errorf("convertTimestampToNewYorkTime: error loading location: %v", err)
 	}
 
-	return timestamp.In(loc)
+	return timestamp.In(loc), nil
 }
 
 func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, error) {
@@ -58,7 +58,7 @@ func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, er
 			return nil, fmt.Errorf("ImportCandlesFromCsv: error converting DTO to model: %w", err)
 		}
 
-		candles[i].Timestamp = convertTimestampToNewYorkTime(candles[i].Timestamp)
+		candles[i].Timestamp, err = convertTimestampToNewYorkTime(candles[i].Timestamp)
 		if err != nil {
 			return nil, fmt.Errorf("ImportCandlesFromCsv: failed converting timestamp to NY time: %w", err)
 		}

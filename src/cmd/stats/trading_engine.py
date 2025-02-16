@@ -336,7 +336,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     if playground_client_id is not None:
         req.client_id = playground_client_id
-        logger.info(f"using existing playground with id: {playground_client_id}")
+        logger.info(f"using playground client id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
     playground.tick(0, raise_exception=True)  # initialize the playground

@@ -24,8 +24,6 @@ func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return []byte(log), nil
 }
 
-
-
 func GetEnv(key string) (string, error) {
 	envVar := os.Getenv(key)
 	if len(envVar) == 0 {
@@ -65,9 +63,28 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	// 	envFile = filepath.Join(envDir, PROD_ENV_FILENAME)
 	// }
 
+	var originalEnv map[string]string
+	fmt.Printf("goEnvironment: %s\n", goEnvironment)
+	if goEnvironment == "test" {
+		// store environment variables to use testconainer ports
+		originalEnv = make(map[string]string)
+		originalEnv["POSTGRES_HOST"] = os.Getenv("POSTGRES_HOST")
+		originalEnv["POSTGRES_PORT"] = os.Getenv("POSTGRES_PORT")
+		originalEnv["EVENTSTOREDB_URL"] = os.Getenv("EVENTSTOREDB_URL")
+
+		fmt.Printf("originalEnv: %v\n", originalEnv)
+	}
+
 	// Load the specified .env file
 	if err := godotenv.Load(envFile); err != nil {
 		return fmt.Errorf("failed to load %s file: %v", envFile, err)
+	}
+
+	if goEnvironment == "test" {
+		// override environment variables to use testconainer ports
+		os.Setenv("POSTGRES_HOST", originalEnv["POSTGRES_HOST"])
+		os.Setenv("POSTGRES_PORT", originalEnv["POSTGRES_PORT"])
+		os.Setenv("EVENTSTOREDB_URL", originalEnv["EVENTSTOREDB_URL"])
 	}
 
 	// Set logger

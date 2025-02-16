@@ -7,3 +7,4 @@ data:
   POSTGRES_DB: "playground"
   POSTGRES_USER: "grodt"
   POSTGRES_HOST: "postgres.database.svc.cluster.local"
+  POSTGRES_PORT: "5432"

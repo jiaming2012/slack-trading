@@ -31,11 +31,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/rpc"
+	"github.com/jiaming2012/slack-trading/src/dbutils"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventproducers"
@@ -46,7 +47,6 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventproducers/tradeapi"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
-	"github.com/jiaming2012/slack-trading/src/playground"
 	"github.com/jiaming2012/slack-trading/src/sheets"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -280,36 +280,6 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 
 var db *gorm.DB
 
-func initDB(host, user, password, dbName string) error {
-	var err error
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable TimeZone=UTC", host, user, password, dbName)
-
-	log.Infof("connecting to postgres @ ", dsn)
-
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to connect database: %w", err)
-	}
-
-	if err := db.AutoMigrate(&models.PlaygroundSession{}); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	if err := db.AutoMigrate(&models.OrderRecord{}); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	if err := db.AutoMigrate(&models.TradeRecord{}); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	if err := db.AutoMigrate(&models.EquityPlotRecord{}); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	return nil
-}
-
 func run() {
 	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
 	if err != nil {
@@ -437,6 +407,11 @@ func run() {
 		log.Fatalf("$POSTGRES_HOST not set: %v", err)
 	}
 
+	postgresPort, err := utils.GetEnv("POSTGRES_PORT")
+	if err != nil {
+		log.Fatalf("$POSTGRES_PORT not set: %v", err)
+	}
+
 	postgresUser, err := utils.GetEnv("POSTGRES_USER")
 	if err != nil {
 		log.Fatalf("$POSTGRES_USER not set: %v", err)
@@ -480,7 +455,7 @@ func run() {
 	// }()
 
 	// Setup postgres
-	if err := initDB(postgresHost, postgresUser, postgresPassword, postgresDb); err != nil {
+	if db, err = dbutils.InitPostgres(postgresHost, postgresPort, postgresUser, postgresPassword, postgresDb); err != nil {
 		log.Fatalf("failed to init db: %v", err)
 	}
 
@@ -662,21 +637,9 @@ func run() {
 		}
 	}()
 
-	// start the grpc server
+	// start the twirp server
 	go func() {
-		// 	grpcServer := grpc.NewServer()
-		// 	pb.RegisterPlaygroundServiceServer(grpcServer, &backtester_router.TwirpServer{})
-		server := &backtester_router.Server{}
-		twirpHandler := playground.NewPlaygroundServiceServer(server)
-		port := 5051
-
-		mux := http.NewServeMux()
-		mux.Handle(twirpHandler.PathPrefix(), twirpHandler)
-
-		log.Infof("Twirp server listening on :%d", port)
-		log.Infof("Path prefix: %v", twirpHandler.PathPrefix())
-
-		http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
+		rpc.SetupTwirpServer()
 	}()
 
 	// Create channel for shutdown signals.

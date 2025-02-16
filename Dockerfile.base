@@ -48,6 +48,41 @@ RUN wget https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tgz && \
     ./configure --enable-optimizations && \
     make altinstall
 
+# Install required dependencies for anaconda
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Anaconda GPG key
+RUN curl -fsSL https://repo.anaconda.com/pkgs/misc/gpgkeys/anaconda.asc | gpg --dearmor -o /usr/share/keyrings/conda-archive-keyring.gpg
+
+# Verify fingerprint
+RUN gpg --keyring /usr/share/keyrings/conda-archive-keyring.gpg --no-default-keyring --fingerprint 34161F5BF5EB1D4BFBBB8F0A8AEB4F8B29D82806
+
+# Add the Anaconda Debian repository
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/conda-archive-keyring.gpg] https://repo.anaconda.com/pkgs/misc/debrepo/conda stable main" > /etc/apt/sources.list.d/conda.list
+
+# Update package lists
+RUN apt-get update
+RUN apt-get install build-essential
+
+# Install TA-Lib
+RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -O /tmp/ta-lib.tar.gz && \
+    tar -xzf /tmp/ta-lib.tar.gz -C /tmp && \
+    cd /tmp/ta-lib && \
+    ./configure --prefix=/usr && \
+    make && \
+    make install && \
+    rm -rf /tmp/ta-lib /tmp/ta-lib.tar.gz
+
+# Verify installation
+RUN ldconfig && ta-lib-config --version
+
+# Install Anaconda
+RUN apt-get install -y conda
+
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading
 
