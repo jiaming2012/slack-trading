@@ -44,7 +44,7 @@ docker build -t ewr.vultrcr.com/grodt/app:$VERSION -f Dockerfile .
 docker push ewr.vultrcr.com/grodt/app:$VERSION
 
 # Update the latest tag
-docker tag ewr.vultrcr.com/grodt/app:$VERSION  
+docker tag ewr.vultrcr.com/grodt/app:$VERSION ewr.vultrcr.com/grodt/app:latest
 
 # Update deployment.yaml with the new image version
 sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
