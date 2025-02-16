@@ -100,7 +100,7 @@ RUN python3.10 -m ensurepip && python3.10 -m pip install --upgrade pip setuptool
 
 # # Copy the source from the current directory to the Working Directory inside the container
 # COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirements.txt
-COPY /Users/jamal/projects/slack-trading/conda-env.yaml /app/slack-trading/conda-env.yaml
+COPY conda-env.yaml /app/slack-trading/conda-env.yaml
 
 # Activate the virtual environment and install the Python dependencies
 # RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
