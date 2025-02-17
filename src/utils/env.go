@@ -64,15 +64,12 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 	// }
 
 	var originalEnv map[string]string
-	fmt.Printf("goEnvironment: %s\n", goEnvironment)
 	if goEnvironment == "test" {
 		// store environment variables to use testconainer ports
 		originalEnv = make(map[string]string)
 		originalEnv["POSTGRES_HOST"] = os.Getenv("POSTGRES_HOST")
 		originalEnv["POSTGRES_PORT"] = os.Getenv("POSTGRES_PORT")
 		originalEnv["EVENTSTOREDB_URL"] = os.Getenv("EVENTSTOREDB_URL")
-
-		fmt.Printf("originalEnv: %v\n", originalEnv)
 	}
 
 	// Load the specified .env file

@@ -86,7 +86,7 @@ tasks:
 
   test:e2e:
     cmds:
-      - 'go test ./...'
+      - 'go test -count=1 ./...'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
   
   metrics:token:

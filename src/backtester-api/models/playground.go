@@ -584,7 +584,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	}
 
 	// commit the trade
-	trade := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
+	trade := NewBacktesterTrade(order.ID, order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
 	if err := order.Fill(trade); err != nil {
 		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
@@ -592,7 +592,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 	// close the open orders
 	for _, req := range closeByRequests {
-		closeBy := NewBacktesterTrade(order.Symbol, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
+		closeBy := NewBacktesterTrade(order.ID, order.Symbol, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
 		req.Order.ClosedBy = append(req.Order.ClosedBy, *closeBy)
 	}
 
@@ -1078,13 +1078,7 @@ func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error
 				return nil, fmt.Errorf("current price not found for symbol %s", symbol)
 			}
 
-			if err == nil {
-				p.positionsCache[symbol].PL = (currentPrice.Value - position.CostBasis) * position.Quantity
-			} else {
-				log.Warnf("getCurrentPrice [%s]: %v", symbol, err)
-				p.positionsCache[symbol].PL = 0
-			}
-
+			p.positionsCache[symbol].PL = (currentPrice.Value - position.CostBasis) * position.Quantity
 			p.positionsCache[symbol].CurrentPrice = currentPrice.Value
 		}
 

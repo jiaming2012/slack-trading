@@ -136,7 +136,7 @@ func (o *BacktesterOrder) GetAvgFillPrice() float64 {
 	return total / float64(len(o.Trades))
 }
 
-func (o *BacktesterOrder) fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, error) {
+func (o *BacktesterOrder) FetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, error) {
 	var orderRec OrderRecord
 	if result := db.First(&orderRec, "external_id = ? AND playground_id = ?", o.ID, playgroundId); result.Error != nil {
 		return nil, fmt.Errorf("failed to fetch order record from db: %w", result.Error)
@@ -154,20 +154,15 @@ func fetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID, orderId uint) (
 	return &orderRec, nil
 }
 
-func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*TradeRecord, error) {
-	var closes []*OrderRecord
-	// todo: this method can be optimized or eliminated using BacktesterOrder as a db model, and removing the OrderRecord model
-	for _, close := range o.Closes {
-		orderRec, err := close.fetchOrderRecordFromDB(tx, playgroundId)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to fetch close order record from db: %w", err)
-		}
+type UpdateOrderRecordRequest struct {
+	Field        string
+	OrderRecord  *OrderRecord
+	Closes       []*BacktesterOrder
+	PlaygroundId *uuid.UUID
+	CloseBy      []*TradeRecord
+}
 
-		closes = append(closes, orderRec)
-	}
-
-	var closedBy []TradeRecord
-
+func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*TradeRecord, []*UpdateOrderRecordRequest, error) {
 	account_type := "simulation"
 	if liveAccountType != nil {
 		account_type = string(*liveAccountType)
@@ -190,20 +185,43 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 		Status:          string(o.Status),
 		Tag:             o.Tag,
 		Timestamp:       o.CreateDate,
-		Closes:          closes,
-		ClosedBy:        closedBy,
 	}
 
-	var tradeRecs []TradeRecord
-	var tradeRecPtrs []*TradeRecord
+	// append trades
+	var tradeRecs []*TradeRecord
 	for _, trade := range o.Trades {
-		tradeRecs = append(tradeRecs, *trade.ToTradeRecord(playgroundId, o.ID))
-		tradeRecPtrs = append(tradeRecPtrs, trade.ToTradeRecord(playgroundId, o.ID))
+		tradeRecs = append(tradeRecs, trade.ToTradeRecord())
 	}
 
 	orderRec.Trades = tradeRecs
 
-	return orderRec, tradeRecPtrs, nil
+	// create update order request for update closes
+	var updateOrderRequests []*UpdateOrderRecordRequest
+	if len(o.Closes) > 0 {
+		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+			Field:        "closes",
+			OrderRecord:  orderRec,
+			Closes:       o.Closes,
+			PlaygroundId: &playgroundId,
+		})
+	}
+
+	// create update order request for update closed by
+	if len(o.ClosedBy) > 0 {
+		var closedBy []*TradeRecord
+		for _, trade := range o.ClosedBy {
+			tRec := trade.ToTradeRecord()
+			closedBy = append(closedBy, tRec)
+		}
+
+		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+			Field:       "closed_by",
+			OrderRecord: orderRec,
+			CloseBy:     closedBy,
+		})
+	}
+
+	return orderRec, tradeRecs, updateOrderRequests, nil
 }
 
 func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {

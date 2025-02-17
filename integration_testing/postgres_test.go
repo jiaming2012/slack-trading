@@ -18,6 +18,98 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
+// LogConsumerCfg is a configuration for a log consumer
+type LogConsumer struct{}
+
+func (c *LogConsumer) Accept(l testcontainers.Log) {
+	// if l.LogType == testcontainers.StdoutLog {
+	fmt.Println(string(l.Content))
+	// }
+}
+
+func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectsDir, networkName string) playground.PlaygroundService {
+	logConsumer := &LogConsumer{}
+
+	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "ewr.vultrcr.com/grodt/app:latest",
+			ExposedPorts: []string{"5051/tcp"},
+			Env: map[string]string{
+				"PROJECTS_DIR":     "/app",
+				"GO_ENV":           "test",
+				"DRY_RUN":          "false",
+				"POSTGRES_HOST":    "postgres",
+				"POSTGRES_PORT":    "5432",
+				"ANACONDA_HOME":    "/opt/conda",
+				"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
+			},
+			WaitingFor: wait.ForAll(
+				wait.ForExposedPort(),
+				wait.ForListeningPort("5051/tcp").WithStartupTimeout(30*time.Second),
+				wait.ForLog("Main: init complete"),
+			),
+			Files: []testcontainers.ContainerFile{
+				{
+					HostFilePath:      filepath.Join(projectsDir, "slack-trading", ".env"),
+					ContainerFilePath: "/app/slack-trading/.env",
+					FileMode:          0644,
+				},
+			},
+			Networks:       []string{networkName},
+			LogConsumerCfg: &testcontainers.LogConsumerConfig{Consumers: []testcontainers.LogConsumer{logConsumer}},
+		},
+		Started: true,
+	})
+	testcontainers.CleanupContainer(t, appContainer)
+
+	require.NoError(t, err)
+
+	// Create a Playground
+	appContainerHost, err := appContainer.Host(ctx)
+	require.NoError(t, err)
+
+	appContainerPort, err := appContainer.MappedPort(ctx, "5051/tcp")
+	require.NoError(t, err)
+
+	twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)
+
+	return playgroundClient
+}
+
+func validateOrders(ctx context.Context, t *testing.T, playgroundClient playground.PlaygroundService, playgroundId string, orders []*playground.Order) {
+	// Fetch orders
+	accountsResp, err := playgroundClient.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: playgroundId,
+		FetchOrders:  true,
+	})
+
+	require.NoError(t, err)
+
+	require.Len(t, accountsResp.Orders, 3)
+
+	// Inspect the open order
+	require.Equal(t, orders[0].Id, accountsResp.Orders[0].Id)
+	require.Len(t, accountsResp.Orders[0].ClosedBy, 2)
+
+	// Inspect the 1st partial close order
+	require.Equal(t, orders[1].Id, accountsResp.Orders[1].Id)
+	require.Len(t, accountsResp.Orders[1].ClosedBy, 0)
+	require.Len(t, accountsResp.Orders[1].Closes, 1)
+	require.Equal(t, orders[0].Id, accountsResp.Orders[1].Closes[0].Id)
+
+	// Inspect the 2nd partial close order
+	require.Equal(t, orders[2].Id, accountsResp.Orders[2].Id)
+	require.Len(t, accountsResp.Orders[2].ClosedBy, 0)
+	require.Len(t, accountsResp.Orders[2].Closes, 1)
+	require.Equal(t, orders[0].Id, accountsResp.Orders[2].Closes[0].Id)
+}
+
 func TestWithPostgres(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
@@ -141,71 +233,23 @@ func TestWithPostgres(t *testing.T) {
 	postgresStarted = true
 
 	// Start main app container
-	appReq := testcontainers.ContainerRequest{
-		Image:        "ewr.vultrcr.com/grodt/app:latest",
-		ExposedPorts: []string{"5051/tcp"},
-		Env: map[string]string{
-			"PROJECTS_DIR":     "/app",
-			"GO_ENV":           "test",
-			"DRY_RUN":          "false",
-			"POSTGRES_HOST":    "postgres",
-			"POSTGRES_PORT":    "5432",
-			"ANACONDA_HOME":    "/opt/conda",
-			"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
-		},
-		WaitingFor: wait.ForAll(
-			wait.ForExposedPort(),
-			wait.ForListeningPort("5051/tcp").WithStartupTimeout(30*time.Second),
-			wait.ForLog("Main: init complete"),
-		),
-		Files: []testcontainers.ContainerFile{
-			{
-				HostFilePath:      filepath.Join(projectsDir, "slack-trading", ".env"),
-				ContainerFilePath: "/app/slack-trading/.env",
-				FileMode:          0644,
-			},
-		},
-		Networks: []string{networkName},
-	}
+	playgroundClient := createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
 
-	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: appReq,
-		Started:          true,
-	})
-	testcontainers.CleanupContainer(t, appContainer)
-
-	defer func() {
-		// Capture and print the Docker logs before terminating the container
-		logs, err := appContainer.Logs(ctx)
-		require.NoError(t, err)
-
-		if t.Failed() {
-			bytes, err := io.ReadAll(logs)
-			require.NoError(t, err)
-
-			fmt.Println("App logs:")
-			fmt.Println(string(bytes))
+	fetchPlaygrounds := func() ([]*playground.PlaygroundSession, error) {
+		resp, err := playgroundClient.GetPlaygrounds(ctx, &playground.GetPlaygroundsRequest{})
+		if err != nil {
+			return nil, err
 		}
-	}()
 
-	require.NoError(t, err)
-
-	// Create a Playground
-	appContainerHost, err := appContainer.Host(ctx)
-	require.NoError(t, err)
-
-	appContainerPort, err := appContainer.MappedPort(ctx, "5051/tcp")
-	require.NoError(t, err)
-
-	twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
-
-	client := http.Client{
-		Timeout: 10 * time.Second,
+		return resp.Playgrounds, nil
 	}
 
-	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)
+	allPlaygrounds, err := fetchPlaygrounds()
+	require.NoError(t, err)
 
-	resp, err := playgroundClient.CreatePlayground(ctx, &playground.CreatePolygonPlaygroundRequest{
+	require.Len(t, allPlaygrounds, 0)
+
+	playgroundResp, err := playgroundClient.CreatePlayground(ctx, &playground.CreatePolygonPlaygroundRequest{
 		Balance:   10000,
 		StartDate: "2021-01-04",
 		StopDate:  "2021-01-05",
@@ -223,17 +267,86 @@ func TestWithPostgres(t *testing.T) {
 
 	require.NoError(t, err)
 
-	fmt.Printf("Playground Id: %s\n", resp.Id)
+	require.Greater(t, len(playgroundResp.Id), 0)
 
-	// // Connect to the Postgres container
-	// db, err := dbutils.InitPostgres(host, port.Port(), postgresUser, postgresPassword, postgresDb)
-	// require.NoError(t, err)
+	allPlaygrounds, err = fetchPlaygrounds()
+	require.NoError(t, err)
 
-	// // Check if the database is connected
-	// router := mux.NewRouter()
-	// liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
-	// backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db)
+	require.Len(t, allPlaygrounds, 1)
 
-	// // Create a playground
-	// playground, err := db.CreatePlayground("test-playground")
+	// Place open order
+	order1, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+		PlaygroundId: playgroundResp.Id,
+		Symbol:       "AAPL",
+		AssetClass:   "equity",
+		Quantity:     10,
+		Side:         "buy",
+		Type:         "market",
+		Duration:     "day",
+	})
+
+	require.NoError(t, err)
+
+	// Send tick
+	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
+		PlaygroundId: playgroundResp.Id,
+		Seconds:      60,
+	})
+
+	require.NoError(t, err)
+
+	// Place 1st partial close order
+	order2, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+		PlaygroundId: playgroundResp.Id,
+		Symbol:       "AAPL",
+		AssetClass:   "equity",
+		Quantity:     5,
+		Side:         "sell",
+		Type:         "market",
+		Duration:     "day",
+	})
+
+	require.NoError(t, err)
+
+	// Place 2nd partial close order
+	order3, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+		PlaygroundId: playgroundResp.Id,
+		Symbol:       "AAPL",
+		AssetClass:   "equity",
+		Quantity:     5,
+		Side:         "sell",
+		Type:         "market",
+		Duration:     "day",
+	})
+
+	require.NoError(t, err)
+
+	// Send tick
+	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
+		PlaygroundId: playgroundResp.Id,
+		Seconds:      60,
+	})
+
+	require.NoError(t, err)
+
+	// Fetch and validate orders
+	validateOrders(ctx, t, playgroundClient, playgroundResp.Id, []*playground.Order{order1, order2, order3})
+
+	// Save the playground
+	_, err = playgroundClient.SavePlayground(ctx, &playground.SavePlaygroundRequest{
+		PlaygroundId: playgroundResp.Id,
+	})
+
+	require.NoError(t, err)
+
+	// Restart the app container
+	playgroundClient = createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
+
+	allPlaygrounds, err = fetchPlaygrounds()
+	require.NoError(t, err)
+
+	require.Len(t, allPlaygrounds, 1)
+
+	// Fetch and validate orders
+	validateOrders(ctx, t, playgroundClient, playgroundResp.Id, []*playground.Order{order1, order2, order3})
 }

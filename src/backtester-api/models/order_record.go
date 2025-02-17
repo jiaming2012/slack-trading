@@ -30,12 +30,11 @@ type OrderRecord struct {
 	Tag             string            `gorm:"column:tag;type:text"`
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
-	ClosedBy        []TradeRecord     `gorm:"many2many:trade_closed_by"`
-	// ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
-	Trades []TradeRecord `gorm:"foreignKey:OrderID"`
+	ClosedBy        []*TradeRecord     `gorm:"many2many:trade_closed_by"`
+	Trades          []*TradeRecord     `gorm:"foreignKey:OrderID"`
 }
 
-func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*BacktesterOrder, error) {
+func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 	class := BacktesterOrderClass(o.Class)
 	var symbol eventmodels.Instrument
 
@@ -58,9 +57,9 @@ func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*B
 
 	var closes []*BacktesterOrder
 	for _, c := range o.Closes {
-		co, found := allOrders[c.ExternalOrderID]
-		if !found {
-			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): close order not found: %d", c.ID)
+		co, err := c.ToBacktesterOrder()
+		if err != nil {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert close order: %w", err)
 		}
 
 		closes = append(closes, co)
