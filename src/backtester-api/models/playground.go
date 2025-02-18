@@ -592,8 +592,9 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 	// close the open orders
 	for _, req := range closeByRequests {
-		closeBy := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
-		req.Order.ClosedBy = append(req.Order.ClosedBy, closeBy)
+		// todo: used to reflect req.Quantity, but it should be trade.Quantity
+		// closeBy := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
+		req.Order.ClosedBy = append(req.Order.ClosedBy, trade)
 	}
 
 	// remove the open orders that were closed in cache

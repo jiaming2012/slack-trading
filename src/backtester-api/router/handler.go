@@ -154,47 +154,10 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-// func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.TradeRecord) error {
-// 	err := parentTx.Transaction(func(tx *gorm.DB) error {
-// 		var orderRecord models.OrderRecord
-
-// 		if result := tx.First(&orderRecord, "external_id = ?", orderID); result.Error != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to find order record: %w", result.Error)
-// 		}
-
-// 		if orderRecord.Status != string(models.BacktesterOrderStatusOpen) && orderRecord.Status != string(models.BacktesterOrderStatusPending) {
-// 			return fmt.Errorf("saveTradeRecordTx: %w", models.ErrDbOrderIsNotOpenOrPending)
-// 		}
-
-// 		record := trade.ToTradeRecord(playgroundId, orderRecord.ID)
-// 		if err := tx.Create(&record).Error; err != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-// 		}
-
-// 		orderRecord.Status = string(models.BacktesterOrderStatusFilled)
-
-// 		if err := tx.Save(&orderRecord).Error; err != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to update order record: %w", err)
-// 		}
-
-// 		return nil
-// 	})
-
-// 	if err != nil {
-// 		return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-// 	}
-
-// 	return nil
-// }
-
-// func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.TradeRecord) error {
-// 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
-// }
-
 func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
 	var orderRecord models.OrderRecord
 
-	if result := db.First(&orderRecord, "external_id = ?", externalOrderID); result.Error != nil {
+	if result := db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
 		return 0, false
 	}
 
@@ -251,7 +214,7 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 			}
 
 		case "closed_by":
-			updateReq.OrderRecord.ClosedBy = updateReq.CloseBy
+			updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
 			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
 				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
 			}
@@ -500,42 +463,6 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
-// 	var req CreatePlaygroundRequest
-
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		setErrorResponse("createClock: failed to decode request", 400, err, w)
-// 		return
-// 	}
-
-// 	if req.Env == "live" {
-// 		req.CreatedAt = time.Now()
-// 		req.SaveToDB = true
-// 	}
-
-// 	playground, err := CreatePlayground(&req)
-// 	if err != nil {
-// 		webError, ok := err.(*eventmodels.WebError)
-// 		if ok {
-// 			setErrorResponse("createPlayground: failed to create playground", webError.StatusCode, err, w)
-// 		} else {
-// 			log.Warnf("failed to get status code from error: %v", err)
-// 			setErrorResponse("createPlayground: failed to create playground", 500, err, w)
-// 		}
-
-// 		return
-// 	}
-
-// 	response := map[string]interface{}{
-// 		"playground_id": playground.GetId(),
-// 	}
-
-// 	if err := setResponse(response, w); err != nil {
-// 		setErrorResponse("createPlayground: failed to set response", 500, err, w)
-// 		return
-// 	}
-// }
-
 func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
@@ -605,7 +532,7 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 

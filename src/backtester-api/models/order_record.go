@@ -45,6 +45,14 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		closes = append(closes, co)
 	}
 
+	for _, t := range o.Trades {
+		t.OrderRecord = o
+	}
+
+	for _, c := range o.ClosedBy {
+		c.OrderRecord = o
+	}
+
 	return &BacktesterOrder{
 		ID:               o.ExternalOrderID,
 		Class:            BacktesterOrderClass(o.Class),

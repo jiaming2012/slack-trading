@@ -159,7 +159,7 @@ type UpdateOrderRecordRequest struct {
 	OrderRecord  *OrderRecord
 	Closes       []*BacktesterOrder
 	PlaygroundId *uuid.UUID
-	CloseBy      []*TradeRecord
+	ClosedBy     []*TradeRecord
 }
 
 func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
@@ -201,12 +201,10 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 
 	// create update order request for update closed by
 	if len(o.ClosedBy) > 0 {
-		var closedBy []*TradeRecord
-
 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
 			Field:       "closed_by",
 			OrderRecord: orderRec,
-			CloseBy:     closedBy,
+			ClosedBy:    o.ClosedBy,
 		})
 	}
 

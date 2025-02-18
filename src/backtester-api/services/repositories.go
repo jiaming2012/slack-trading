@@ -14,29 +14,6 @@ var (
 	liveRepositories = map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository{}
 )
 
-// func AppendToLiveRepository(symbol eventmodels.StockSymbol, interval eventmodels.TradierInterval, bars []*eventmodels.AggregateBarWithIndicators) error {
-// 	databaseMutex.Lock()
-// 	defer databaseMutex.Unlock()
-
-// 	// query the liveRepository
-// 	symbolRepo, ok := liveRepositories[symbol]
-// 	if !ok {
-// 		return fmt.Errorf("UpdateLiveRepository: symbol %s not found", symbol)
-// 	}
-
-// 	repo, ok := symbolRepo[interval]
-// 	if !ok {
-// 		return fmt.Errorf("UpdateLiveRepository: interval %s not found", interval)
-// 	}
-
-// 	// append the bars to the repository
-// 	if err := repo.AppendBars(bars); err != nil {
-// 		return fmt.Errorf("UpdateLiveRepository: failed to append bars: %w", err)
-// 	}
-
-// 	return nil
-// }
-
 func FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
 	databaseMutex.Lock()
 
