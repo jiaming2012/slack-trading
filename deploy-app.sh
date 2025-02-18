@@ -17,7 +17,7 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Find the latest version of the Docker image
-VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | sort -V | tail -n 1)
+VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
 
 if [ -z "$VERSION" ]; then
   echo "Error: Unable to find the latest version of the Docker image"
