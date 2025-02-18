@@ -1,9 +1,10 @@
 package models
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestTrendLineBreakSignal(t *testing.T) {
@@ -17,7 +18,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 		trades := Trades{}
 		intitialTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
-		assert.False(t, s.IsSatisfied(prices, trades))
+		require.False(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime,
@@ -25,7 +26,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       1.1,
 		})
 
-		assert.False(t, s.IsSatisfied(prices, trades))
+		require.False(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime.Add(1 * time.Minute),
@@ -33,7 +34,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       1.6,
 		})
 
-		assert.True(t, s.IsSatisfied(prices, trades))
+		require.True(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime.Add(2 * time.Minute),
@@ -41,7 +42,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       1.4,
 		})
 
-		assert.True(t, s.IsSatisfied(prices, trades))
+		require.True(t, s.IsSatisfied(prices, trades))
 	})
 
 	t.Run("signals when down trend line is touched", func(t *testing.T) {
@@ -54,7 +55,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 		trades := Trades{}
 		intitialTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 
-		assert.False(t, s.IsSatisfied(prices, trades))
+		require.False(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime,
@@ -62,7 +63,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       1.6,
 		})
 
-		assert.False(t, s.IsSatisfied(prices, trades))
+		require.False(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime.Add(1 * time.Minute),
@@ -70,7 +71,7 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       1.3,
 		})
 
-		assert.True(t, s.IsSatisfied(prices, trades))
+		require.True(t, s.IsSatisfied(prices, trades))
 
 		prices = append(prices, Tick{
 			Timestamp: intitialTime.Add(2 * time.Minute),
@@ -78,6 +79,6 @@ func TestTrendLineBreakSignal(t *testing.T) {
 			Ask:       2.4,
 		})
 
-		assert.True(t, s.IsSatisfied(prices, trades))
+		require.True(t, s.IsSatisfied(prices, trades))
 	})
 }

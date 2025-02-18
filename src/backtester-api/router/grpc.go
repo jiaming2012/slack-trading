@@ -31,8 +31,8 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.Trades {
 		trades = append(trades, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
@@ -46,8 +46,8 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
@@ -274,47 +274,7 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 
 	barsDTO := make([]*pb.Bar, 0)
 	for _, c := range candles {
-		barsDTO = append(barsDTO, &pb.Bar{
-			Open:                  c.Open,
-			High:                  c.High,
-			Low:                   c.Low,
-			Close:                 c.Close,
-			Volume:                c.Volume,
-			Datetime:              c.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
-			SuperT_50_3:           c.SuperT_50_3,
-			SuperD_50_3:           int32(c.SuperD_50_3),
-			SuperL_50_3:           c.SuperL_50_3,
-			SuperS_50_3:           c.SuperS_50_3,
-			StochrsiK_14_14_3_3:   c.StochRsiK_14_14_3_3,
-			StochrsiD_14_14_3_3:   c.StochRsiD_14_14_3_3,
-			Atr_14:                c.ATRr_14,
-			Sma_50:                c.Sma50,
-			Sma_100:               c.Sma100,
-			Sma_200:               c.Sma200,
-			StochrsiCrossAbove_20: c.StochRsiCrossAbove20,
-			StochrsiCrossBelow_80: c.StochRsiCrossBelow80,
-			CloseLag_1:            c.CloseLag1,
-			CloseLag_2:            c.CloseLag2,
-			CloseLag_3:            c.CloseLag3,
-			CloseLag_4:            c.CloseLag4,
-			CloseLag_5:            c.CloseLag5,
-			CloseLag_6:            c.CloseLag6,
-			CloseLag_7:            c.CloseLag7,
-			CloseLag_8:            c.CloseLag8,
-			CloseLag_9:            c.CloseLag9,
-			CloseLag_10:           c.CloseLag10,
-			CloseLag_11:           c.CloseLag11,
-			CloseLag_12:           c.CloseLag12,
-			CloseLag_13:           c.CloseLag13,
-			CloseLag_14:           c.CloseLag14,
-			CloseLag_15:           c.CloseLag15,
-			CloseLag_16:           c.CloseLag16,
-			CloseLag_17:           c.CloseLag17,
-			CloseLag_18:           c.CloseLag18,
-			CloseLag_19:           c.CloseLag19,
-			CloseLag_20:           c.CloseLag20,
-		},
-		)
+		barsDTO = append(barsDTO, c.ToProto())
 	}
 
 	return &pb.GetCandlesResponse{
@@ -338,8 +298,8 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
 		newTrades = append(newTrades, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
@@ -350,46 +310,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		newCandles = append(newCandles, &pb.Candle{
 			Symbol: c.Symbol.GetTicker(),
 			Period: int32(c.Period.Seconds()),
-			Bar: &pb.Bar{
-				Open:                  c.Bar.Open,
-				High:                  c.Bar.High,
-				Low:                   c.Bar.Low,
-				Close:                 c.Bar.Close,
-				Volume:                c.Bar.Volume,
-				Datetime:              c.Bar.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
-				SuperT_50_3:           c.Bar.SuperT_50_3,
-				SuperD_50_3:           int32(c.Bar.SuperD_50_3),
-				SuperL_50_3:           c.Bar.SuperL_50_3,
-				SuperS_50_3:           c.Bar.SuperS_50_3,
-				StochrsiK_14_14_3_3:   c.Bar.StochRsiK_14_14_3_3,
-				StochrsiD_14_14_3_3:   c.Bar.StochRsiD_14_14_3_3,
-				Atr_14:                c.Bar.ATRr_14,
-				Sma_50:                c.Bar.Sma50,
-				Sma_100:               c.Bar.Sma100,
-				Sma_200:               c.Bar.Sma200,
-				StochrsiCrossAbove_20: c.Bar.StochRsiCrossAbove20,
-				StochrsiCrossBelow_80: c.Bar.StochRsiCrossBelow80,
-				CloseLag_1:            c.Bar.CloseLag1,
-				CloseLag_2:            c.Bar.CloseLag2,
-				CloseLag_3:            c.Bar.CloseLag3,
-				CloseLag_4:            c.Bar.CloseLag4,
-				CloseLag_5:            c.Bar.CloseLag5,
-				CloseLag_6:            c.Bar.CloseLag6,
-				CloseLag_7:            c.Bar.CloseLag7,
-				CloseLag_8:            c.Bar.CloseLag8,
-				CloseLag_9:            c.Bar.CloseLag9,
-				CloseLag_10:           c.Bar.CloseLag10,
-				CloseLag_11:           c.Bar.CloseLag11,
-				CloseLag_12:           c.Bar.CloseLag12,
-				CloseLag_13:           c.Bar.CloseLag13,
-				CloseLag_14:           c.Bar.CloseLag14,
-				CloseLag_15:           c.Bar.CloseLag15,
-				CloseLag_16:           c.Bar.CloseLag16,
-				CloseLag_17:           c.Bar.CloseLag17,
-				CloseLag_18:           c.Bar.CloseLag18,
-				CloseLag_19:           c.Bar.CloseLag19,
-				CloseLag_20:           c.Bar.CloseLag20,
-			},
+			Bar:    c.Bar.ToProto(),
 		})
 	}
 

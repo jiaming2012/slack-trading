@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignalConstraints_Validate(t *testing.T) {
@@ -14,11 +14,11 @@ func TestSignalConstraints_Validate(t *testing.T) {
 		c1 := NewExitSignalConstraint("c1", nil)
 		c2 := NewExitSignalConstraint("c2", nil)
 		constraints := SignalConstraints{c1, c2}
-		assert.NoError(t, constraints.Validate())
+		require.NoError(t, constraints.Validate())
 
 		c3 := NewExitSignalConstraint("c1", nil)
 		constraints = SignalConstraints{c1, c2, c3}
-		assert.Error(t, constraints.Validate())
+		require.Error(t, constraints.Validate())
 	})
 }
 
@@ -46,7 +46,7 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 
 		err = priceLevel.Add(t1, reqPrice, reqVol)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		params := map[string]interface{}{
 			"tick": Tick{
@@ -57,8 +57,8 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 		}
 
 		res, err := PriceLevelProfitLossAboveZeroConstraint(&priceLevel, nil, params)
-		assert.NoError(t, err)
-		assert.False(t, res)
+		require.NoError(t, err)
+		require.False(t, res)
 
 		params["tick"] = Tick{
 			Bid: reqPrice + 100.0,
@@ -66,8 +66,8 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 		}
 
 		res, err = PriceLevelProfitLossAboveZeroConstraint(&priceLevel, nil, params)
-		assert.NoError(t, err)
-		assert.True(t, res)
+		require.NoError(t, err)
+		require.True(t, res)
 	})
 
 	t.Run("false when no trades have been placed", func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestPriceLevelProfitLossAboveZeroConstraint(t *testing.T) {
 		}
 
 		res, err := PriceLevelProfitLossAboveZeroConstraint(&priceLevel, &exitCondition, params)
-		assert.NoError(t, err)
-		assert.False(t, res)
+		require.NoError(t, err)
+		require.False(t, res)
 	})
 }

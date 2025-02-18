@@ -1,0 +1,15 @@
+certifi==2025.1.31
+charset-normalizer==3.4.1
+idna==3.10
+numpy==1.22.4
+pandas==2.2.3
+pandas_ta==0.3.14b0
+polygon-api-client==1.14.3
+python-dateutil==2.9.0.post0
+pytz==2025.1
+requests==2.32.3
+six==1.17.0
+ta-lib @ file:///Users/runner/miniforge3/conda-bld/ta-lib_1731944887113/work
+tzdata==2025.1
+urllib3==2.3.0
+websockets==14.2

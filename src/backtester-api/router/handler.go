@@ -154,47 +154,10 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-// func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
-// 	err := parentTx.Transaction(func(tx *gorm.DB) error {
-// 		var orderRecord models.OrderRecord
-
-// 		if result := tx.First(&orderRecord, "external_id = ?", orderID); result.Error != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to find order record: %w", result.Error)
-// 		}
-
-// 		if orderRecord.Status != string(models.BacktesterOrderStatusOpen) && orderRecord.Status != string(models.BacktesterOrderStatusPending) {
-// 			return fmt.Errorf("saveTradeRecordTx: %w", models.ErrDbOrderIsNotOpenOrPending)
-// 		}
-
-// 		record := trade.ToTradeRecord(playgroundId, orderRecord.ID)
-// 		if err := tx.Create(&record).Error; err != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-// 		}
-
-// 		orderRecord.Status = string(models.BacktesterOrderStatusFilled)
-
-// 		if err := tx.Save(&orderRecord).Error; err != nil {
-// 			return fmt.Errorf("saveTradeRecordTx: failed to update order record: %w", err)
-// 		}
-
-// 		return nil
-// 	})
-
-// 	if err != nil {
-// 		return fmt.Errorf("saveTradeRecordTx: failed to save trade record: %w", err)
-// 	}
-
-// 	return nil
-// }
-
-// func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
-// 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
-// }
-
 func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
 	var orderRecord models.OrderRecord
 
-	if result := db.First(&orderRecord, "external_id = ?", externalOrderID); result.Error != nil {
+	if result := db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
 		return 0, false
 	}
 
@@ -203,14 +166,17 @@ func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID
 
 func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder, liveAccountType *models.LiveAccountType) ([]*models.OrderRecord, error) {
 	var allOrderRecords []*models.OrderRecord
+	var updateOrderRequests []*models.UpdateOrderRecordRequest
 
 	for _, order := range orders {
 		var err error
 
-		oRec, _, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
+		oRec, updateOrderReq, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
+
+		updateOrderRequests = append(updateOrderRequests, updateOrderReq...)
 
 		oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
 		if found {
@@ -224,8 +190,38 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 		allOrderRecords = append(allOrderRecords, oRec)
 	}
 
-	if err := updateClosedByTx(tx, allOrderRecords); err != nil {
-		return nil, fmt.Errorf("failed to update closed by: %w", err)
+	// wait for all orders to be saved before updating the closes
+	for _, updateReq := range updateOrderRequests {
+		if updateReq == nil {
+			continue
+		}
+
+		switch updateReq.Field {
+		case "closes":
+			var closes []*models.OrderRecord
+			for _, order := range updateReq.Closes {
+				orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
+				if err != nil {
+					return nil, fmt.Errorf("updateOrderRequests: failed to fetch close order record from db: %w", err)
+				}
+
+				closes = append(closes, orderRec)
+			}
+
+			updateReq.OrderRecord.Closes = closes
+			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
+			}
+
+		case "closed_by":
+			updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
+			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
+			}
+
+		default:
+			return nil, fmt.Errorf("updateOrderRequests: field %s not implemented", updateReq.Field)
+		}
 	}
 
 	return allOrderRecords, nil
@@ -274,34 +270,6 @@ func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, e
 	}
 
 	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
-}
-
-func updateClosedByTx(tx *gorm.DB, orderRecords []*models.OrderRecord) error {
-	var closeByRequests []*closeByRequest
-
-	for _, orderRecord := range orderRecords {
-		for _, closeRecord := range orderRecord.Closes {
-			// todo: this is technical debt as technically an order that close multiple orders could be composed of multiple trades
-			if len(orderRecord.Trades) != 1 {
-				return fmt.Errorf("updateClosedByTx: expected a single trade record from an order which closes one or more other trades, got %d", len(orderRecord.Trades))
-			}
-
-			closeTrade := orderRecord.Trades[0]
-
-			closeByRequests = append(closeByRequests, &closeByRequest{
-				OrderID:     closeRecord.ID,
-				TradeRecord: &closeTrade,
-			})
-		}
-	}
-
-	for _, req := range closeByRequests {
-		if result := tx.Model(req.TradeRecord).Update("close_id", req.OrderID); result.Error != nil {
-			return fmt.Errorf("updateClosedByTx: failed to update close_id: %w", result.Error)
-		}
-	}
-
-	return nil
 }
 
 func deletePlaygroundSession(playground models.IPlayground) error {
@@ -412,7 +380,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		liveAccountType := string(*meta.LiveAccountType)
 		store.LiveAccountType = &liveAccountType
 	}
-	
+
 	if err := tx.Create(store).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
 	}
@@ -495,42 +463,6 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func handleCreatePlayground(w http.ResponseWriter, r *http.Request) {
-// 	var req CreatePlaygroundRequest
-
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		setErrorResponse("createClock: failed to decode request", 400, err, w)
-// 		return
-// 	}
-
-// 	if req.Env == "live" {
-// 		req.CreatedAt = time.Now()
-// 		req.SaveToDB = true
-// 	}
-
-// 	playground, err := CreatePlayground(&req)
-// 	if err != nil {
-// 		webError, ok := err.(*eventmodels.WebError)
-// 		if ok {
-// 			setErrorResponse("createPlayground: failed to create playground", webError.StatusCode, err, w)
-// 		} else {
-// 			log.Warnf("failed to get status code from error: %v", err)
-// 			setErrorResponse("createPlayground: failed to create playground", 500, err, w)
-// 		}
-
-// 		return
-// 	}
-
-// 	response := map[string]interface{}{
-// 		"playground_id": playground.GetId(),
-// 	}
-
-// 	if err := setResponse(response, w); err != nil {
-// 		setErrorResponse("createPlayground: failed to set response", 500, err, w)
-// 		return
-// 	}
-// }
-
 func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
@@ -600,13 +532,12 @@ func handleAccount(w http.ResponseWriter, r *http.Request) {
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
 	for _, p := range playgroundsSlice {
 		orders := make([]*models.BacktesterOrder, len(p.Orders))
-		allOrders := make(map[uint]*models.BacktesterOrder)
 
 		pIDStr := p.ID.String()
 
@@ -614,12 +545,10 @@ func loadPlaygrounds() error {
 
 		var err error
 		for i, o := range p.Orders {
-			orders[i], err = o.ToBacktesterOrder(allOrders)
+			orders[i], err = o.ToBacktesterOrder()
 			if err != nil {
 				return fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
 			}
-
-			allOrders[orders[i].ID] = orders[i]
 		}
 
 		var source *CreateAccountRequestSource
@@ -677,9 +606,9 @@ func loadPlaygrounds() error {
 		}
 
 		playground, err := CreatePlayground(&CreatePlaygroundRequest{
-			ID:  &p.ID,
+			ID:       &p.ID,
 			ClientID: p.ClientID,
-			Env: p.Env,
+			Env:      p.Env,
 			Account: CreateAccountRequest{
 				Balance: p.Balance,
 				Source:  source,

@@ -4,19 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	// Get the PROJECTS_DIR environment variable
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		return nil, fmt.Errorf("missing PROJECTS_DIR environment variable")
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PROJECTS_DIR: %v", err)
+	}
+
+	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ANACONDA_HOME: %v", err)
 	}
 
 	// Marshal candles to JSON
@@ -31,7 +36,11 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	}
 
 	// Run create_indicators.py and pass candles as JSON via standard input
-	pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	// pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+
+	// Use anaconda python
+	pythonInterp := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
+
 	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
 	var cmdArgs []string
 	if len(indicators) > 0 {
@@ -39,7 +48,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	} else {
 		cmdArgs = []string{fileDir}
 	}
-	
+
 	cmd := exec.Command(pythonInterp, cmdArgs...)
 	cmd.Stdin = bytes.NewReader(candlesJSON)
 
@@ -54,6 +63,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 
 	// Unmarshall the json output from create_indicators.py
 	var data []*eventmodels.AggregateBarWithIndicators
+
 	if err = json.Unmarshal(out.Bytes(), &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON output from create_indicators.py: %v", err)
 	}

@@ -1,6 +1,10 @@
 package eventmodels
 
-import "time"
+import (
+	"time"
+
+	pb "github.com/jiaming2012/slack-trading/src/playground"
+)
 
 type AggregateBarWithIndicators struct {
 	Timestamp            time.Time `json:"datetime"`
@@ -41,6 +45,53 @@ type AggregateBarWithIndicators struct {
 	CloseLag18           float64   `json:"close_lag_18"`
 	CloseLag19           float64   `json:"close_lag_19"`
 	CloseLag20           float64   `json:"close_lag_20"`
+	Hammer               float64   `json:"CDL_HAMMER"`
+	Doji                 float64   `json:"CDL_DOJI_10_0.1"`
+}
+
+func (a *AggregateBarWithIndicators) ToProto() *pb.Bar {
+	return &pb.Bar{
+		Open:                  a.Open,
+		High:                  a.High,
+		Low:                   a.Low,
+		Close:                 a.Close,
+		Volume:                a.Volume,
+		Datetime:              a.Timestamp.UTC().Format("2006-01-02T15:04:05Z"),
+		SuperT_50_3:           a.SuperT_50_3,
+		SuperD_50_3:           int32(a.SuperD_50_3),
+		SuperL_50_3:           a.SuperL_50_3,
+		SuperS_50_3:           a.SuperS_50_3,
+		StochrsiK_14_14_3_3:   a.StochRsiK_14_14_3_3,
+		StochrsiD_14_14_3_3:   a.StochRsiD_14_14_3_3,
+		Atr_14:                a.ATRr_14,
+		Sma_50:                a.Sma50,
+		Sma_100:               a.Sma100,
+		Sma_200:               a.Sma200,
+		StochrsiCrossAbove_20: a.StochRsiCrossAbove20,
+		StochrsiCrossBelow_80: a.StochRsiCrossBelow80,
+		CloseLag_1:            a.CloseLag1,
+		CloseLag_2:            a.CloseLag2,
+		CloseLag_3:            a.CloseLag3,
+		CloseLag_4:            a.CloseLag4,
+		CloseLag_5:            a.CloseLag5,
+		CloseLag_6:            a.CloseLag6,
+		CloseLag_7:            a.CloseLag7,
+		CloseLag_8:            a.CloseLag8,
+		CloseLag_9:            a.CloseLag9,
+		CloseLag_10:           a.CloseLag10,
+		CloseLag_11:           a.CloseLag11,
+		CloseLag_12:           a.CloseLag12,
+		CloseLag_13:           a.CloseLag13,
+		CloseLag_14:           a.CloseLag14,
+		CloseLag_15:           a.CloseLag15,
+		CloseLag_16:           a.CloseLag16,
+		CloseLag_17:           a.CloseLag17,
+		CloseLag_18:           a.CloseLag18,
+		CloseLag_19:           a.CloseLag19,
+		CloseLag_20:           a.CloseLag20,
+		CdlHammer:             a.Hammer,
+		CdlDoji_10_0_1:        a.Doji,
+	}
 }
 
 func (a *AggregateBarWithIndicators) ToPolygonAggregateBarV2() *PolygonAggregateBarV2 {

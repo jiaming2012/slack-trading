@@ -14,7 +14,7 @@ type LivePlayground struct {
 	playground      *Playground
 	account         *LiveAccount
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
-	newTradesQueue  *eventmodels.FIFOQueue[*BacktesterTrade]
+	newTradesQueue  *eventmodels.FIFOQueue[*TradeRecord]
 	requestHash     *string
 }
 
@@ -30,7 +30,7 @@ func (p *LivePlayground) SetOpenOrdersCache() error {
 	return p.playground.SetOpenOrdersCache()
 }
 
-func (p *LivePlayground) GetNewTradeQueue() *eventmodels.FIFOQueue[*BacktesterTrade] {
+func (p *LivePlayground) GetNewTradeQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 	return p.newTradesQueue
 }
 
@@ -82,7 +82,7 @@ func (p *LivePlayground) GetFreeMargin() (float64, error) {
 	return p.playground.GetFreeMargin()
 }
 
-func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
 	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
 }
 
@@ -147,7 +147,7 @@ func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelt
 		break
 	}
 
-	var newTrades []*BacktesterTrade
+	var newTrades []*TradeRecord
 
 	for {
 		trade, ok := p.newTradesQueue.Dequeue()
@@ -200,7 +200,7 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*BacktesterTrade], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker:      account.Source.GetBroker(),
 		AccountID:   account.Source.GetAccountID(),

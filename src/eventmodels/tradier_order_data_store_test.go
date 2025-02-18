@@ -3,7 +3,7 @@ package eventmodels
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_TradierOrderDataStore(t *testing.T) {
@@ -18,8 +18,8 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		orders.Add(order)
 
 		// assert
-		assert.Equal(t, 1, len(orders))
-		assert.Equal(t, order, orders[order.ID])
+		require.Equal(t, 1, len(orders))
+		require.Equal(t, order, orders[order.ID])
 	})
 
 	t.Run("delete an order", func(t *testing.T) {
@@ -34,7 +34,7 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		orders.Delete(order.ID)
 
 		// assert
-		assert.Equal(t, 0, len(orders))
+		require.Equal(t, 0, len(orders))
 	})
 
 	t.Run("update an order", func(t *testing.T) {
@@ -55,11 +55,11 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		updates := orders.Update(update)
 
 		// assert
-		assert.Equal(t, 1, len(updates))
-		assert.Equal(t, "status", updates[0].Field)
-		assert.Equal(t, "open", updates[0].Old)
-		assert.Equal(t, "filled", updates[0].New)
-		assert.Equal(t, "filled", orders[order.ID].Status)
+		require.Equal(t, 1, len(updates))
+		require.Equal(t, "status", updates[0].Field)
+		require.Equal(t, "open", updates[0].Old)
+		require.Equal(t, "filled", updates[0].New)
+		require.Equal(t, "filled", orders[order.ID].Status)
 	})
 
 	t.Run("update an order that does not exist", func(t *testing.T) {
@@ -75,7 +75,7 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		updates := orders.Update(update)
 
 		// assert
-		assert.Equal(t, 0, len(updates))
+		require.Equal(t, 0, len(updates))
 	})
 
 	t.Run("fail to update an order with mismatch ID", func(t *testing.T) {
@@ -96,8 +96,8 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		updates := orders.Update(update)
 
 		// assert
-		assert.Equal(t, 0, len(updates))
-		assert.Equal(t, len(orders), 1)
-		assert.Equal(t, "open", orders[order.ID].Status)
+		require.Equal(t, 0, len(updates))
+		require.Equal(t, len(orders), 1)
+		require.Equal(t, "open", orders[order.ID].Status)
 	})
 }

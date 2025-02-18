@@ -299,13 +299,22 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
-    ltf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=5,
-        timespan_unit='minute',
-        indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-        history_in_days=365
-    )
+    if open_strategy_input == 'candlestick_open_strategy_v1':
+        ltf_repo = Repository(
+            symbol=symbol,
+            timespan_multiplier=5,
+            timespan_unit='minute',
+            indicators=["supertrend", "doji", "hammer"],
+            history_in_days=10 # Change back to 365
+        )
+    else:
+        ltf_repo = Repository(
+            symbol=symbol,
+            timespan_multiplier=5,
+            timespan_unit='minute',
+            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+            history_in_days=10
+        )
         
     ltf_period = ltf_repo.timespan_multiplier * 60
     
@@ -327,12 +336,10 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     if playground_client_id is not None:
         req.client_id = playground_client_id
-        logger.info(f"using existing playground with id: {playground_client_id}")
+        logger.info(f"using playground client id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
-    
     playground.tick(0, raise_exception=True)  # initialize the playground
-    
     logger.info(f"created playground with id: {playground.id}")
     
     if open_strategy_input == 'simple_open_strategy_v1':
@@ -347,6 +354,11 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         from simple_open_strategy_v3 import SimpleOpenStrategyV3
         additional_profit_risk_percentage = 0.25
         open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+        
+    elif open_strategy_input == 'candlestick_open_strategy_v1':
+        from candlestick_open_strategy_v1 import CandlestickOpenStrategy
+        min_max_window_in_hours = 24
+        open_strategy = CandlestickOpenStrategy(playground, model_update_frequency, min_max_window_in_hours)
         
     else:
         logger.error(f"Invalid open strategy: {open_strategy_input}")

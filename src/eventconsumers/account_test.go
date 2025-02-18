@@ -4,9 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/models"
+	"github.com/stretchr/testify/require"
 )
 
 func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel, datafeed *models.Datafeed) ([]*models.Account, error) {
@@ -65,8 +64,8 @@ func TestStopOut(t *testing.T) {
 		c := NewAccountWorkerClient(&wg)
 		strategy, _, err := c.checkTradeCloseParameters()
 
-		assert.NoError(t, err)
-		assert.Nil(t, strategy)
+		require.NoError(t, err)
+		require.Nil(t, strategy)
 	})
 
 	t.Run("stop out return strategy to be closed", func(t *testing.T) {
@@ -78,8 +77,8 @@ func TestStopOut(t *testing.T) {
 		datafeed := models.NewDatafeed(models.ManualDatafeed)
 
 		accounts, err := createAccountFixtures(accountName, symbol, direction, strategyName, balance, priceLevels, datafeed)
-		assert.NoError(t, err)
-		assert.Len(t, accounts, 1)
+		require.NoError(t, err)
+		require.Len(t, accounts, 1)
 
 		//c := NewAccountWorkerClientFromFixtures(&wg, accounts)
 

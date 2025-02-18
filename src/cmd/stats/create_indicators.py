@@ -3,6 +3,7 @@ import sys
 import json
 import pandas as pd
 import pandas_ta as ta
+from typing import List
 
 def calculate_supertrend(df) -> pd.DataFrame:
     supertrend = ta.supertrend(df['high'], df['low'], df['close'], length=50, multiplier=3)
@@ -43,6 +44,11 @@ def calculate_stochrsi_cross_below_80(df) -> pd.DataFrame:
     df['stochrsi_cross_below_80'] = (df['STOCHRSId_14_14_3_3'] > 80) & (df['STOCHRSIk_14_14_3_3'].shift(1) >= df['STOCHRSId_14_14_3_3'].shift(1)) & (df['STOCHRSIk_14_14_3_3'] < df['STOCHRSId_14_14_3_3'])
     return df
 
+def calculate_candlestick_patterns(df, names: List[str]) -> pd.DataFrame:
+    indis = df.ta.cdl_pattern(name=names)
+    df = pd.concat([df, indis], axis=1)
+    return df
+
 def main():
     args = argparse.ArgumentParser()
     args.add_argument('--indicators', type=str, nargs='+', required=False, default=[], help="List of indicators to calculate")
@@ -52,11 +58,11 @@ def main():
     # Read candles from standard input
     input_data = sys.stdin.read()
     candles = json.loads(input_data)
-    
     df = pd.DataFrame(candles)
-    
+               
     # Make a list of indicators to calculate
     derived_indicators = []
+    candlestick_indicators = []
     for indicator in args.indicators:    
         if indicator == 'supertrend':
             df = calculate_supertrend(df)
@@ -72,6 +78,10 @@ def main():
             derived_indicators.append('stochrsi_cross_above_20')
         elif indicator == 'stochrsi_cross_below_80':
             derived_indicators.append('stochrsi_cross_below_80')
+        elif indicator == 'doji':
+            candlestick_indicators.append('doji')
+        elif indicator == 'hammer':
+            candlestick_indicators.append('hammer')
         else:
             raise Exception(f"Unsupported indicator: {indicator}")
     
@@ -85,6 +95,9 @@ def main():
             df = calculate_stochrsi_cross_below_80(df)
         else:
             raise Exception(f"Unsupported derived indicator: {indicator}")
+        
+    if len(candlestick_indicators) > 0:
+        df = calculate_candlestick_patterns(df, candlestick_indicators)
     
     # Convert DataFrame to JSON and print to standard output
     df_json = df.to_json(orient='records')

@@ -3,7 +3,7 @@ package models
 import "github.com/jiaming2012/slack-trading/src/eventmodels"
 
 type TickDelta struct {
-	NewTrades          []*BacktesterTrade      `json:"new_trades,omitempty"`
+	NewTrades          []*TradeRecord          `json:"new_trades,omitempty"`
 	NewCandles         []*BacktesterCandle     `json:"new_candles,omitempty"`
 	InvalidOrders      []*BacktesterOrder      `json:"invalid_orders,omitempty"`
 	Events             []*TickDeltaEvent       `json:"events,omitempty"`

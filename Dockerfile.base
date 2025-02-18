@@ -1,4 +1,4 @@
-# version="1.0.14"
+# version="1.0.24"
 
 # Start from the latest Ubuntu base image
 FROM ubuntu:20.04
@@ -48,6 +48,41 @@ RUN wget https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tgz && \
     ./configure --enable-optimizations && \
     make altinstall
 
+# Install required dependencies for anaconda
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Anaconda GPG key
+RUN curl -fsSL https://repo.anaconda.com/pkgs/misc/gpgkeys/anaconda.asc | gpg --dearmor -o /usr/share/keyrings/conda-archive-keyring.gpg
+
+# Verify fingerprint
+RUN gpg --keyring /usr/share/keyrings/conda-archive-keyring.gpg --no-default-keyring --fingerprint 34161F5BF5EB1D4BFBBB8F0A8AEB4F8B29D82806
+
+# Add the Anaconda Debian repository
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/conda-archive-keyring.gpg] https://repo.anaconda.com/pkgs/misc/debrepo/conda stable main" > /etc/apt/sources.list.d/conda.list
+
+# Update package lists
+RUN apt-get update
+RUN apt-get install build-essential
+
+# Install TA-Lib
+RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz -O /tmp/ta-lib.tar.gz && \
+    tar -xzf /tmp/ta-lib.tar.gz -C /tmp && \
+    cd /tmp/ta-lib && \
+    ./configure --prefix=/usr && \
+    make && \
+    make install && \
+    rm -rf /tmp/ta-lib /tmp/ta-lib.tar.gz
+
+# Verify installation
+RUN ldconfig && ta-lib-config --version
+
+# Install Anaconda
+RUN apt-get install -y conda
+
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading
 
@@ -55,16 +90,23 @@ WORKDIR /app/slack-trading
 RUN python3.10 -m ensurepip && python3.10 -m pip install --upgrade pip setuptools wheel && python3.10 -m pip install virtualenv
 
 # Create a virtual environment with Python 3.10
-RUN python3.10 -m venv /app/slack-trading/src/cmd/stats/env
+# RUN python3.10 -m venv /app/slack-trading/src/cmd/stats/env
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
+# RUN /app/slack-trading/src/cmd/stats/env/bin/python3 -m pip install wheel
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install --upgrade pip
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install --upgrade pip
 
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install Pillow
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install Pillow
 
-# Copy the source from the current directory to the Working Directory inside the container
-COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirements.txt
+# # Copy the source from the current directory to the Working Directory inside the container
+# COPY src/cmd/stats/requirements.txt /app/slack-trading/src/cmd/stats/requirements.txt
+COPY conda-env.yaml /app/slack-trading/conda-env.yaml
 
 # Activate the virtual environment and install the Python dependencies
-RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
+# RUN /app/slack-trading/src/cmd/stats/env/bin/pip install -r /app/slack-trading/src/cmd/stats/requirements.txt
+
+# /opt/conda/bin/conda create --name grodt python=3.10 -y
+# /opt/conda/bin/conda install -y -n grodt -c conda-forge ta-lib
+# /opt/conda/bin/conda install -y -n grodt --file /app/slack-trading/conda_requirements.txt
+
+RUN /opt/conda/bin/conda env create -f /app/slack-trading/conda-env.yaml

@@ -4,9 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
@@ -29,7 +28,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 		deletedOrders := worker.checkForDelete(fetchedOrders)
 
 		// assert
-		assert.Empty(t, deletedOrders)
+		require.Empty(t, deletedOrders)
 	})
 
 	t.Run("check for delete returns list of order IDs", func(t *testing.T) {
@@ -45,8 +44,8 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 		deletedOrders := worker.checkForDelete(fetchedOrders)
 
 		// assert
-		assert.Equal(t, 1, len(deletedOrders))
-		assert.Equal(t, uint64(1), deletedOrders[0])
+		require.Equal(t, 1, len(deletedOrders))
+		require.Equal(t, uint64(1), deletedOrders[0])
 	})
 }
 
@@ -68,9 +67,9 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		newOrderEvents, updateOrderEvents := worker.checkForCreateOrUpdate(orders)
 
 		// assert
-		assert.Equal(t, 1, len(newOrderEvents))
-		assert.Equal(t, uint64(3), newOrderEvents[0].Order.ID)
-		assert.Equal(t, 0, len(updateOrderEvents))
+		require.Equal(t, 1, len(newOrderEvents))
+		require.Equal(t, uint64(3), newOrderEvents[0].Order.ID)
+		require.Equal(t, 0, len(updateOrderEvents))
 	})
 
 	t.Run("check for update order", func(t *testing.T) {
@@ -99,11 +98,11 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		newOrderEvents, updateOrderEvents := worker.checkForCreateOrUpdate(orders2)
 
 		// assert
-		assert.Equal(t, 0, len(newOrderEvents))
-		assert.Equal(t, 1, len(updateOrderEvents))
-		assert.Equal(t, uint64(3), updateOrderEvents[0].OrderID)
-		assert.Equal(t, "status", updateOrderEvents[0].Field)
-		assert.Equal(t, "open", updateOrderEvents[0].Old)
-		assert.Equal(t, "filled", updateOrderEvents[0].New)
+		require.Equal(t, 0, len(newOrderEvents))
+		require.Equal(t, 1, len(updateOrderEvents))
+		require.Equal(t, uint64(3), updateOrderEvents[0].OrderID)
+		require.Equal(t, "status", updateOrderEvents[0].Field)
+		require.Equal(t, "open", updateOrderEvents[0].Old)
+		require.Equal(t, "filled", updateOrderEvents[0].New)
 	})
 }

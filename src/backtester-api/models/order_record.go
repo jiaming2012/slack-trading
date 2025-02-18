@@ -30,49 +30,27 @@ type OrderRecord struct {
 	Tag             string            `gorm:"column:tag;type:text"`
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
-	ClosedBy        []TradeRecord     `gorm:"foreignKey:CloseID"`
-	Trades          []TradeRecord     `gorm:"foreignKey:OrderID"`
+	ClosedBy        []*TradeRecord    `gorm:"many2many:trade_closed_by"`
+	Trades          []*TradeRecord    `gorm:"foreignKey:OrderID"`
 }
 
-func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*BacktesterOrder, error) {
-	class := BacktesterOrderClass(o.Class)
-	var symbol eventmodels.Instrument
-
-	switch class {
-	case BacktesterOrderClassEquity:
-		symbol = eventmodels.NewStockSymbol(o.Symbol)
-	default:
-		return nil, fmt.Errorf("invalid order class: %s", class)
-	}
-
-	var trades []*BacktesterTrade
-	for _, t := range o.Trades {
-		tr, err := t.ToBacktesterTrade(symbol)
-		if err != nil {
-			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert trade: %w", err)
-		}
-
-		trades = append(trades, tr)
-	}
-
+func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 	var closes []*BacktesterOrder
 	for _, c := range o.Closes {
-		co, found := allOrders[c.ExternalOrderID]
-		if !found {
-			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): close order not found: %d", c.ID)
+		co, err := c.ToBacktesterOrder()
+		if err != nil {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert close order: %w", err)
 		}
 
 		closes = append(closes, co)
 	}
 
-	var closedBy []BacktesterTrade
-	for _, c := range o.ClosedBy {
-		ct, err := c.ToBacktesterTrade(symbol)
-		if err != nil {
-			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert closed by trade: %w", err)
-		}
+	for _, t := range o.Trades {
+		t.OrderRecord = o
+	}
 
-		closedBy = append(closedBy, *ct)
+	for _, c := range o.ClosedBy {
+		c.OrderRecord = o
 	}
 
 	return &BacktesterOrder{
@@ -88,10 +66,10 @@ func (o *OrderRecord) ToBacktesterOrder(allOrders map[uint]*BacktesterOrder) (*B
 		StopPrice:        o.StopPrice,
 		Tag:              o.Tag,
 		Status:           BacktesterOrderStatus(o.Status),
-		Trades:           trades,
+		Trades:           o.Trades,
 		RejectReason:     o.RejectReason,
 		CreateDate:       o.Timestamp,
 		Closes:           closes,
-		ClosedBy:         closedBy,
+		ClosedBy:         o.ClosedBy,
 	}, nil
 }

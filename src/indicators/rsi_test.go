@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jiaming2012/slack-trading/src/models"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const equalityThreshold = 1e-2
@@ -65,11 +65,11 @@ func TestRsi(t *testing.T) {
 		for i, c := range candles {
 			val := rsi.Update(c)
 			if i < len(candles)-1 {
-				assert.Equal(t, 0.0, val)
+				require.Equal(t, 0.0, val)
 			} else {
 				expected := 55.37
 				diff := math.Abs(val - expected)
-				assert.Less(t, diff, equalityThreshold)
+				require.Less(t, diff, equalityThreshold)
 			}
 		}
 
@@ -80,7 +80,7 @@ func TestRsi(t *testing.T) {
 
 		expected := 50.07
 		diff := math.Abs(val - expected)
-		assert.Less(t, diff, equalityThreshold)
+		require.Less(t, diff, equalityThreshold)
 
 		// add another new candle
 		val = rsi.Update(models.Candle{
@@ -89,7 +89,7 @@ func TestRsi(t *testing.T) {
 
 		expected = 51.55
 		diff = math.Abs(val - expected)
-		assert.Less(t, diff, equalityThreshold)
+		require.Less(t, diff, equalityThreshold)
 
 		// add yet another new candle
 		val = rsi.Update(models.Candle{
@@ -98,13 +98,13 @@ func TestRsi(t *testing.T) {
 
 		expected = 50.20
 		diff = math.Abs(val - expected)
-		assert.Less(t, diff, equalityThreshold)
+		require.Less(t, diff, equalityThreshold)
 	})
 
 	t.Run("too few candles", func(t *testing.T) {
 		rsi := NewRsi(14)
 		val := rsi.Update(models.Candle{Close: 100.0})
-		assert.Equal(t, val, 0.0)
+		require.Equal(t, val, 0.0)
 	})
 
 	t.Run("all losers", func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRsi(t *testing.T) {
 			val = rsi.Update(c)
 		}
 
-		assert.Equal(t, 0.0, val)
+		require.Equal(t, 0.0, val)
 	})
 
 	t.Run("all winners", func(t *testing.T) {
@@ -150,6 +150,6 @@ func TestRsi(t *testing.T) {
 
 		expected := 99.0
 		diff := math.Abs(val - expected)
-		assert.Less(t, diff, equalityThreshold)
+		require.Less(t, diff, equalityThreshold)
 	})
 }

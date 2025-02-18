@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 // MockFetchCalendarMap returns the mock calendar data
@@ -29,6 +30,12 @@ func MockFetchCalendarMap(start, end eventmodels.PolygonDate) (map[string]*event
 }
 
 func TestCalendar(t *testing.T) {
+	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	require.NoError(t, err)
+
+	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	require.NoError(t, err)
+
 	t.Run("starts at market open", func(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
@@ -43,21 +50,21 @@ func TestCalendar(t *testing.T) {
 			Day:   endTime.Day(),
 		})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		cJSON, err := json.Marshal(calendar)
 
 		print(string(cJSON))
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		clock := NewClock(startTime, endTime, calendar)
 
 		loc, err := time.LoadLocation("America/New_York")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		nextMarketOpen := time.Date(2021, time.January, 12, 9, 30, 0, 0, loc)
 
-		assert.Equal(t, nextMarketOpen, clock.CurrentTime)
+		require.Equal(t, nextMarketOpen, clock.CurrentTime)
 	})
 
 	createPlayground := func(symbol eventmodels.Instrument, clock *Clock, feed []*eventmodels.PolygonAggregateBarV2) (*Playground, error) {
@@ -68,7 +75,7 @@ func TestCalendar(t *testing.T) {
 		}
 
 		repo, err := NewCandleRepository(symbol, period, feed, []string{}, nil, 0, source)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		balance := 1000.0
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, repo)
@@ -131,32 +138,32 @@ func TestCalendar(t *testing.T) {
 			Day:   endTime.Day(),
 		})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		clock := NewClock(startTime, endTime, calendar)
 
 		playground, err := createPlayground(symbol, clock, feed)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// place order before market open
 		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = changes.Commit()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, startTime, order1.CreateDate)
+		require.Equal(t, startTime, order1.CreateDate)
 
 		// tick
 		_, err = playground.Tick(time.Minute, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// expect: order is filled at market open
-		assert.Equal(t, 1, len(playground.account.Orders))
+		require.Equal(t, 1, len(playground.account.Orders))
 
-		assert.Equal(t, 1, len(order1.Trades))
+		require.Equal(t, 1, len(order1.Trades))
 
-		assert.Equal(t, marketOpenTime.UTC(), order1.Trades[0].CreateDate.UTC())
+		require.Equal(t, marketOpenTime.UTC(), order1.Trades[0].Timestamp.UTC())
 	})
 
 	t.Run("advances to next market open", func(t *testing.T) {
@@ -173,25 +180,25 @@ func TestCalendar(t *testing.T) {
 			Day:   endTime.Day(),
 		})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		clock := NewClock(startTime, endTime, calendar)
 
 		loc, err := time.LoadLocation("America/New_York")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		nextMarketOpen := time.Date(2021, time.January, 12, 9, 30, 0, 0, loc)
 
-		assert.Equal(t, nextMarketOpen, clock.CurrentTime)
+		require.Equal(t, nextMarketOpen, clock.CurrentTime)
 
 		// advance to market close
 		clock.Add(6 * time.Hour)
 		clock.Add(29 * time.Minute)
 
-		assert.Equal(t, time.Date(2021, time.January, 12, 15, 59, 0, 0, loc), clock.CurrentTime)
+		require.Equal(t, time.Date(2021, time.January, 12, 15, 59, 0, 0, loc), clock.CurrentTime)
 
 		// expect: next tick should be next market open
 		clock.Add(1 * time.Minute)
 
-		assert.Equal(t, time.Date(2021, time.January, 13, 9, 30, 0, 0, loc), clock.CurrentTime)
+		require.Equal(t, time.Date(2021, time.January, 13, 9, 30, 0, 0, loc), clock.CurrentTime)
 	})
 }

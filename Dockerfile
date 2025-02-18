@@ -1,10 +1,7 @@
-# version="3.6.1"
+# version="3.12.0"
 
 # Start from the latest Debian base image
-FROM ewr.vultrcr.com/grodt/grodt-base-image-2:2.6.2
-
-# Install git
-RUN apt-get update && apt-get install -y git
+FROM ewr.vultrcr.com/grodt/grodt-base-image-2:3.9.0
 
 # Set the Current Working Directory inside the container
 WORKDIR /app/slack-trading

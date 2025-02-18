@@ -3,7 +3,7 @@ package eventmodels
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTradesRemaining(t *testing.T) {
@@ -28,8 +28,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		}
 
 		tradesRemaining, side := priceLevel.NewTradesRemaining()
-		assert.Equal(t, 1, tradesRemaining)
-		assert.Equal(t, TradeTypeNone, side)
+		require.Equal(t, 1, tradesRemaining)
+		require.Equal(t, TradeTypeNone, side)
 
 		tr2 := &Trade{
 			Type:           TradeTypeBuy,
@@ -38,8 +38,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		priceLevel.Trades.Add(tr2)
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 0, tradesRemaining)
-		assert.Equal(t, TradeTypeBuy, side)
+		require.Equal(t, 0, tradesRemaining)
+		require.Equal(t, TradeTypeBuy, side)
 
 		tr3 := &Trade{
 			Type:           TradeTypeBuy,
@@ -48,8 +48,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		priceLevel.Trades.Add(tr3)
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 0, tradesRemaining)
-		assert.Equal(t, TradeTypeBuy, side)
+		require.Equal(t, 0, tradesRemaining)
+		require.Equal(t, TradeTypeBuy, side)
 
 		priceLevel.Trades.Add(&Trade{
 			Type:           TradeTypeClose,
@@ -60,8 +60,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 0, tradesRemaining)
-		assert.Equal(t, TradeTypeBuy, side)
+		require.Equal(t, 0, tradesRemaining)
+		require.Equal(t, TradeTypeBuy, side)
 
 		priceLevel.Trades.Add(&Trade{
 			Type:           TradeTypeClose,
@@ -72,8 +72,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 1, tradesRemaining)
-		assert.Equal(t, TradeTypeNone, side)
+		require.Equal(t, 1, tradesRemaining)
+		require.Equal(t, TradeTypeNone, side)
 	})
 
 	t.Run("test trades remaining for buy", func(t *testing.T) {
@@ -97,8 +97,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		}
 
 		tradesRemaining, side := priceLevel.NewTradesRemaining()
-		assert.Equal(t, 2, tradesRemaining)
-		assert.Equal(t, TradeTypeNone, side)
+		require.Equal(t, 2, tradesRemaining)
+		require.Equal(t, TradeTypeNone, side)
 
 		priceLevel.Trades.Add(&Trade{
 			Type:           TradeTypeSell,
@@ -106,8 +106,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 1, tradesRemaining)
-		assert.Equal(t, TradeTypeSell, side)
+		require.Equal(t, 1, tradesRemaining)
+		require.Equal(t, TradeTypeSell, side)
 
 		priceLevel.Trades.Add(&Trade{
 			Type:           TradeTypeSell,
@@ -115,8 +115,8 @@ func TestNewTradesRemaining(t *testing.T) {
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 0, tradesRemaining)
-		assert.Equal(t, TradeTypeSell, side)
+		require.Equal(t, 0, tradesRemaining)
+		require.Equal(t, TradeTypeSell, side)
 
 		priceLevel.Trades.Add(&Trade{
 			Type:           TradeTypeSell,
@@ -124,7 +124,7 @@ func TestNewTradesRemaining(t *testing.T) {
 		})
 
 		tradesRemaining, side = priceLevel.NewTradesRemaining()
-		assert.Equal(t, 0, tradesRemaining)
-		assert.Equal(t, TradeTypeSell, side)
+		require.Equal(t, 0, tradesRemaining)
+		require.Equal(t, TradeTypeSell, side)
 	})
 }

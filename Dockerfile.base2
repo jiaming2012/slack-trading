@@ -1,12 +1,15 @@
-# version="1.0.3"
+# version="1.0.6"
 
 # Start from the latest Debian base image
-FROM ewr.vultrcr.com/grodt/grodt-base-image:2.6.2
+FROM ewr.vultrcr.com/grodt/grodt-base-image:3.7.0
 
 # Download and install Go 1.22.4
 RUN wget https://golang.org/dl/go1.22.4.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.22.4.linux-amd64.tar.gz && \
     rm go1.22.4.linux-amd64.tar.gz
+
+# Install git
+RUN apt-get update && apt-get install -y git
 
 # Set up Go environment variables
 ENV PATH="/usr/local/go/bin:${PATH}"
@@ -22,3 +25,9 @@ COPY go.mod go.sum ./
 
 # Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
+
+# Copy python dependencies
+COPY conda-env.yaml /app/slack-trading/conda-env.yaml
+
+# Update python dependencies
+RUN /opt/conda/bin/conda env update -f conda-env.yaml

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jiaming2012/slack-trading/src/models"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBollingerBands(t *testing.T) {
@@ -135,12 +135,12 @@ func TestBollingerBands(t *testing.T) {
 		bollinger := NewBollingerBands(20, 2.0)
 		for _, c := range candles.Data {
 			_, _stats, err := bollinger.Update(c)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			stats = _stats
 		}
 
-		assert.Equal(t, 91.0, math.Floor(stats.MovingAverage*10)/10)
-		assert.Equal(t, 94.1, math.Floor(stats.Upper*10)/10)
-		assert.Equal(t, 87.9, math.Floor(stats.Lower*10)/10)
+		require.Equal(t, 91.0, math.Floor(stats.MovingAverage*10)/10)
+		require.Equal(t, 94.1, math.Floor(stats.Upper*10)/10)
+		require.Equal(t, 87.9, math.Floor(stats.Lower*10)/10)
 	})
 }

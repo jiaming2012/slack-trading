@@ -1,0 +1,22 @@
+name: grodt
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - certifi
+  - charset-normalizer
+  - idna
+  - numpy=1.21.6
+  - pandas=1.3.5
+  - pandas-ta
+  - polygon-api-client
+  - python-dateutil
+  - pytz
+  - requests
+  - six
+  - ta-lib
+  - tzdata
+  - urllib3
+  - websockets
+  - pandas_market_calendars

@@ -6,9 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
 )
 
 type GlobalDispatchWorker struct {
@@ -45,7 +44,7 @@ func (w *GlobalDispatchWorker) Start(ctx context.Context) {
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ExecuteCloseTradesResultEventName, w.dispatchResult)
 	pubsub.Subscribe("GlobalDispatchWorker", eventmodels.ProcessRequestCompleteEventName, w.dispatchResult)
 
-	// fixed: too many places to add
+	// todo: fix: too many places to add
 
 	go func() {
 		defer w.wg.Done()

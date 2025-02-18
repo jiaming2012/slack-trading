@@ -11,5 +11,3 @@ type BacktesterCandle struct {
 	Period time.Duration                           `json:"period"`
 	Bar    *eventmodels.AggregateBarWithIndicators `json:"candle"`
 }
-
-

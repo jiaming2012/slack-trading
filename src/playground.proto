@@ -236,6 +236,8 @@ message Bar {
     double close_lag_18 = 36;
     double close_lag_19 = 37;
     double close_lag_20 = 38;
+    double cdl_hammer = 39;
+    double cdl_doji_10_0_1 = 40;
 }
 
 message Candle {
