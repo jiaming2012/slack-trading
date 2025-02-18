@@ -34,7 +34,7 @@ type IPlayground interface {
 	GetCurrentTime() time.Time
 	NextOrderID() uint
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
-	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error)
+	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
 	GetLiveAccountType() *LiveAccountType
@@ -226,7 +226,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	return nil
 }
 
-func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*BacktesterTrade, invalidOrders []*BacktesterOrder, err error) {
+func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
 	pendingOrders := make([]*BacktesterOrder, len(p.account.PendingOrders))
 
 	copy(pendingOrders, p.account.PendingOrders)
@@ -315,8 +315,8 @@ func calcVwap(orders []*BacktesterOrder) float64 {
 	return totalValue / totalQuantity
 }
 
-func (p *Playground) updatePositionsCache(trade *BacktesterTrade, isClose bool) {
-	position, ok := p.positionsCache[trade.Symbol]
+func (p *Playground) updatePositionsCache(symbol eventmodels.Instrument, trade *TradeRecord, isClose bool) {
+	position, ok := p.positionsCache[symbol]
 	if !ok {
 		position = &Position{}
 	}
@@ -325,10 +325,10 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade, isClose bool) 
 
 	// update the cost basis
 	if totalQuantity == 0 {
-		delete(p.positionsCache, trade.Symbol)
+		delete(p.positionsCache, symbol)
 	} else {
 		if !isClose {
-			position.CostBasis = calcVwap(p.GetOpenOrders(trade.Symbol))
+			position.CostBasis = calcVwap(p.GetOpenOrders(symbol))
 		}
 
 		// update the quantity
@@ -337,7 +337,7 @@ func (p *Playground) updatePositionsCache(trade *BacktesterTrade, isClose bool) 
 		// update the maintenance margin
 		position.MaintenanceMargin = calculateMaintenanceRequirement(position.Quantity, position.CostBasis)
 
-		p.positionsCache[trade.Symbol] = position
+		p.positionsCache[symbol] = position
 	}
 }
 
@@ -506,7 +506,7 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 	return nil
 }
 
-func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*BacktesterTrade, error) {
+func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
 	position, ok := positionsMap[order.Symbol]
 	if !ok {
 		position = &Position{Quantity: 0}
@@ -584,7 +584,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	}
 
 	// commit the trade
-	trade := NewBacktesterTrade(order.ID, order.Symbol, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
+	trade := NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
 	if err := order.Fill(trade); err != nil {
 		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
@@ -592,24 +592,24 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 	// close the open orders
 	for _, req := range closeByRequests {
-		closeBy := NewBacktesterTrade(order.ID, order.Symbol, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
-		req.Order.ClosedBy = append(req.Order.ClosedBy, *closeBy)
+		closeBy := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
+		req.Order.ClosedBy = append(req.Order.ClosedBy, closeBy)
 	}
 
 	// remove the open orders that were closed in cache
 	p.updateOpenOrdersCache(order)
 
 	// update the account balance before updating the positions cache
-	p.updateBalance(trade, positionsMap)
+	p.updateBalance(order.Symbol, trade, positionsMap)
 
 	// update the positions cache
-	p.updatePositionsCache(trade, order.IsClose)
+	p.updatePositionsCache(order.Symbol, trade, order.IsClose)
 
 	return trade, nil
 }
 
-func (p *Playground) updateTrade(trade *BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
-	position, ok := startingPositions[trade.Symbol]
+func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
+	position, ok := startingPositions[trade.GetSymbol()]
 	if !ok {
 		position = &Position{}
 	}
@@ -629,11 +629,11 @@ func (p *Playground) updateTrade(trade *BacktesterTrade, startingPositions map[e
 	}
 
 	position.Quantity += trade.Quantity
-	startingPositions[trade.Symbol] = position
+	startingPositions[trade.GetSymbol()] = position
 }
 
-func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) ([]*BacktesterTrade, error) {
-	var trades []*BacktesterTrade
+func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) ([]*TradeRecord, error) {
+	var trades []*TradeRecord
 
 	positionsCopy := make(map[eventmodels.Instrument]*Position)
 	for symbol, position := range startingPositions {
@@ -659,8 +659,8 @@ func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, start
 	return trades, nil
 }
 
-func (p *Playground) updateBalance(trade *BacktesterTrade, startingPositions map[eventmodels.Instrument]*Position) {
-	currentPosition, ok := startingPositions[trade.Symbol]
+func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
+	currentPosition, ok := startingPositions[symbol]
 	if !ok {
 		currentPosition = &Position{}
 	}
@@ -995,15 +995,15 @@ func (p *Playground) GetPosition(symbol eventmodels.Instrument) (Position, error
 	return *position, nil
 }
 
-func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade {
-	netTrades := []*BacktesterTrade{}
+func (p *Playground) getNetTrades(trades []*TradeRecord) []*TradeRecord {
+	netTrades := []*TradeRecord{}
 	direction := 0
 	totalQuantity := 0.0
 
 	for _, trade := range trades {
 		if direction > 0 {
 			if totalQuantity+trade.Quantity < 0 {
-				netTrades = []*BacktesterTrade{
+				netTrades = []*TradeRecord{
 					netTrades[len(netTrades)-1],
 					trade,
 				}
@@ -1014,7 +1014,7 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 				continue
 			} else if totalQuantity+trade.Quantity == 0 {
 				direction = 0
-				netTrades = []*BacktesterTrade{}
+				netTrades = []*TradeRecord{}
 
 				continue
 			}
@@ -1022,7 +1022,7 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 			totalQuantity += trade.Quantity
 		} else if direction < 0 {
 			if totalQuantity+trade.Quantity > 0 {
-				netTrades = []*BacktesterTrade{
+				netTrades = []*TradeRecord{
 					netTrades[len(netTrades)-1],
 					trade,
 				}
@@ -1033,7 +1033,7 @@ func (p *Playground) getNetTrades(trades []*BacktesterTrade) []*BacktesterTrade 
 				continue
 			} else if totalQuantity+trade.Quantity == 0 {
 				direction = 0
-				netTrades = []*BacktesterTrade{}
+				netTrades = []*TradeRecord{}
 
 				continue
 			}
@@ -1087,7 +1087,7 @@ func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error
 
 	positions := make(map[eventmodels.Instrument]*Position)
 
-	allTrades := make(map[eventmodels.Instrument][]*BacktesterTrade)
+	allTrades := make(map[eventmodels.Instrument][]*TradeRecord)
 	for _, order := range p.account.Orders {
 		_, ok := positions[order.Symbol]
 		if !ok {

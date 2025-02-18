@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	"github.com/jiaming2012/slack-trading/src/utils"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPolygonClient(t *testing.T) {
@@ -17,17 +16,17 @@ func TestPolygonClient(t *testing.T) {
 	goEnv := "development"
 
 	err := utils.InitEnvironmentVariables(projectsDir, goEnv)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	polygonApiKey, err := utils.GetEnv("POLYGON_API_KEY")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Run("fetch candles", func(t *testing.T) {
 
 		polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 
 		tz, err := time.LoadLocation("America/New_York")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		ts := eventmodels.PolygonTimespan{
 			Multiplier: 30,
@@ -40,10 +39,10 @@ func TestPolygonClient(t *testing.T) {
 		end := time.Date(2025, 1, 29, 23, 0, 0, 0, time.UTC)
 
 		candles, err := polygonClient.FetchAggregateBarsWithDates(ticker, ts, start, end, tz)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		fmt.Printf("+%v\n", candles)
 
-		assert.Fail(t, "finish the test")
+		require.Fail(t, "finish the test")
 	})
 }

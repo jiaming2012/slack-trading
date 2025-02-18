@@ -4,9 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculateOptionOrderSpreadResult(t *testing.T) {
@@ -25,12 +24,12 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 		}
 
 		_, err := CalculateOptionOrderSpreadResult(order, data, optionMultiplier)
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 	})
 
 	t.Run("data is empty", func(t *testing.T) {
 		createdTstamp, err := time.Parse("2006-01-02", "2021-01-01")
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		order := eventmodels.OptionSpreadAnalysisRequest{
 			ID:            1,
@@ -60,12 +59,12 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 
 		_, err = CalculateOptionOrderSpreadResult(order, data, optionMultiplier)
 
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 	})
 
 	t.Run("call spread: both options expire out of the money", func(t *testing.T) {
 		createdTstamp, err := time.Parse("2006-01-02T15:04:05", "2021-05-03T09:30:00")
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
 		order := eventmodels.OptionSpreadAnalysisRequest{
 			ID:            1,
@@ -109,11 +108,11 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 		}
 
 		result, err := CalculateOptionOrderSpreadResult(order, data, optionMultiplier)
-		assert.Nil(t, err)
-		assert.Equal(t, -210.0, result.Profit1)
-		assert.True(t, result.InTheMoney1)
-		assert.Equal(t, 340.0, result.Profit2)
-		assert.True(t, result.InTheMoney2)
+		require.Nil(t, err)
+		require.Equal(t, -210.0, result.Profit1)
+		require.True(t, result.InTheMoney1)
+		require.Equal(t, 340.0, result.Profit2)
+		require.True(t, result.InTheMoney2)
 	})
 }
 
@@ -130,10 +129,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		optionPremium2 := 0.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, 0, 0)
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 
-		assert.Equal(t, OptionProfit{}, optionProfit1)
-		assert.Equal(t, OptionProfit{}, optionProfit2)
+		require.Equal(t, OptionProfit{}, optionProfit1)
+		require.Equal(t, OptionProfit{}, optionProfit2)
 	})
 
 	t.Run("call spread: both options expire out of the money", func(t *testing.T) {
@@ -154,10 +153,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 90.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0, IsInMoney: false}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0, IsInMoney: false}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
 	})
 
 	t.Run("call spread: both options expire in the money", func(t *testing.T) {
@@ -178,10 +177,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 130.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0 - 3000.0, IsInMoney: true}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0 + 1000.0, IsInMoney: true}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0 - 3000.0, IsInMoney: true}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0 + 1000.0, IsInMoney: true}, optionProfit2)
 	})
 
 	t.Run("call spread: short option expires in the money", func(t *testing.T) {
@@ -202,10 +201,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 110.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
 	})
 
 	t.Run("put spread: both options expire out of the money", func(t *testing.T) {
@@ -226,10 +225,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 110.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0, IsInMoney: false}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0, IsInMoney: false}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
 	})
 
 	t.Run("put spread: both options expire in the money", func(t *testing.T) {
@@ -250,10 +249,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 70.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0 - 3000.0, IsInMoney: true}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0 + 1000.0, IsInMoney: true}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0 - 3000.0, IsInMoney: true}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0 + 1000.0, IsInMoney: true}, optionProfit2)
 	})
 
 	t.Run("put spread: short option expires in the money", func(t *testing.T) {
@@ -274,10 +273,10 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		underlyingPriceAtExpiry := 90.0
 
 		optionProfit1, optionProfit2, err := calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
 
 		// flip the options
 		option1 = eventmodels.OptionSymbolComponents{
@@ -297,9 +296,9 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		optionPremium2 = 1.0
 
 		optionProfit1, optionProfit2, err = calculateSpreadProfitAtExpiry(option1, side1, optionPremium1, option2, side2, optionPremium2, underlyingPriceAtExpiry, optionMultiplier)
-		assert.Nil(t, err)
+		require.Nil(t, err)
 
-		assert.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit1)
-		assert.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit2)
+		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit1)
+		require.Equal(t, OptionProfit{Profit: 100.0 - 1000.0, IsInMoney: true}, optionProfit2)
 	})
 }

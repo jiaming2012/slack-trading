@@ -31,8 +31,8 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.Trades {
 		trades = append(trades, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
@@ -46,8 +46,8 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
@@ -298,8 +298,8 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
 		newTrades = append(newTrades, &pb.Trade{
-			Symbol:     trade.Symbol.GetTicker(),
-			CreateDate: trade.CreateDate.String(),
+			Symbol:     trade.GetSymbol().GetTicker(),
+			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})

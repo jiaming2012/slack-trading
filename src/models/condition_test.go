@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newUpPriceLevels() []*PriceLevel {
@@ -40,12 +40,12 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 
 	t.Run("returns false when no signals are set", func(t *testing.T) {
 		c, err := NewExitCondition(name, 0, nil, nil, nil, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		params := map[string]interface{}{"tick": Tick{Bid: 1.0, Ask: 1.0}}
 		isSatisfied, err := c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 	})
 
 	t.Run("1 signal", func(t *testing.T) {
@@ -54,14 +54,14 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 
 		signals := []*ExitSignal{NewExitSignal(s1, r1)}
 		c, err := NewExitCondition(name, 0, signals, newResetConditions(), nil, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		s1.isSatisfied = true
 		params := map[string]interface{}{"tick": Tick{Bid: 1.0, Ask: 1.0}}
 		isSatisfied, err := c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.True(t, isSatisfied)
+		require.True(t, isSatisfied)
 	})
 
 	t.Run("2 signal", func(t *testing.T) {
@@ -73,20 +73,20 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		signals := []*ExitSignal{NewExitSignal(s2, r2), NewExitSignal(s1, r1)}
 
 		c, err := NewExitCondition(name, 0, signals, newResetConditions(), nil, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		isSatisfied, err := c.IsSatisfied(levels[0], nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		s1.isSatisfied = true
-		assert.False(t, isSatisfied)
+		require.False(t, isSatisfied)
 
 		s2.isSatisfied = true
 
 		isSatisfied, err = c.IsSatisfied(levels[0], nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.True(t, isSatisfied)
+		require.True(t, isSatisfied)
 	})
 
 	t.Run("not satisfied when one constraint is false", func(t *testing.T) {
@@ -103,21 +103,21 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		constraints := []*ExitSignalConstraint{c1}
 
 		c, err := NewExitCondition(name, 0, signals, resetSignals, constraints, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		params := map[string]interface{}{"tick": Tick{Bid: 1.0, Ask: 1.0}}
 		isSatisfied, err := c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		s1.isSatisfied = true
-		assert.False(t, isSatisfied)
+		require.False(t, isSatisfied)
 
 		constraintReturnValue = true
 
 		isSatisfied, err = c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.True(t, isSatisfied)
+		require.True(t, isSatisfied)
 	})
 
 	t.Run("satisfied when both constraints are true", func(t *testing.T) {
@@ -137,26 +137,26 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		constraints := []*ExitSignalConstraint{c1, c2}
 
 		c, err := NewExitCondition(name, 0, signals, newResetConditions(), constraints, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		params := map[string]interface{}{"tick": Tick{Bid: 1.0, Ask: 1.0}}
 		s1.isSatisfied = true
 
 		isSatisfied, err := c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 
 		constraintReturnValue1 = true
 
 		isSatisfied, err = c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 
 		constraintReturnValue2 = true
 
 		isSatisfied, err = c.IsSatisfied(levels[0], params)
-		assert.NoError(t, err)
-		assert.True(t, isSatisfied)
+		require.NoError(t, err)
+		require.True(t, isSatisfied)
 	})
 
 	t.Run("reset signals", func(t *testing.T) {
@@ -167,39 +167,39 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 		resetConditions := newResetConditions()
 
 		c, err := NewExitCondition(name, 0, signals, resetConditions, nil, 1, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		isSatisfied, err := c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 
 		s1.isSatisfied = true
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.True(t, isSatisfied)
+		require.NoError(t, err)
+		require.True(t, isSatisfied)
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied) // state should change automatically
+		require.NoError(t, err)
+		require.False(t, isSatisfied) // state should change automatically
 
 		s1.isSatisfied = false
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 
 		s1.isSatisfied = true
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied) // reset condition still not satisfied
+		require.NoError(t, err)
+		require.False(t, isSatisfied) // reset condition still not satisfied
 
 		resetConditions[0].isSatisfied = true // reset condition is satisfied
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.True(t, isSatisfied)
+		require.NoError(t, err)
+		require.True(t, isSatisfied)
 	})
 
 	t.Run("max number of triggers", func(t *testing.T) {
@@ -211,44 +211,44 @@ func TestExitCondition_IsSatisfied(t *testing.T) {
 
 		maxTriggerCount := 2
 		c, err := NewExitCondition(name, 0, signals, resetConditions, nil, 1, &maxTriggerCount)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, 0, c.TriggerCount)
+		require.Equal(t, 0, c.TriggerCount)
 
 		s1.isSatisfied = true
 
 		isSatisfied, err := c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.True(t, isSatisfied)
+		require.NoError(t, err)
+		require.True(t, isSatisfied)
 
-		assert.Equal(t, 1, c.TriggerCount)
+		require.Equal(t, 1, c.TriggerCount)
 
 		// reset: count = 1
 		s1.isSatisfied = false
 
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
-		assert.Equal(t, 1, c.TriggerCount)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
+		require.Equal(t, 1, c.TriggerCount)
 
 		s1.isSatisfied = true
 		resetConditions[0].isSatisfied = true
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.True(t, isSatisfied)
+		require.NoError(t, err)
+		require.True(t, isSatisfied)
 
 		// reset: count = 2
 		s1.isSatisfied = false
 		resetConditions[0].isSatisfied = true
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
-		assert.Equal(t, 2, c.TriggerCount)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
+		require.Equal(t, 2, c.TriggerCount)
 
 		s1.isSatisfied = true
 		resetConditions[0].isSatisfied = true
 		isSatisfied, err = c.IsSatisfied(nil, nil)
-		assert.NoError(t, err)
-		assert.False(t, isSatisfied)
+		require.NoError(t, err)
+		require.False(t, isSatisfied)
 	})
 }

@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertCandles(t *testing.T) {
@@ -13,7 +14,7 @@ func TestConvertCandles(t *testing.T) {
 
 		_, err := candles.ConvertTo(7)
 
-		assert.NotEmpty(t, err)
+		require.NotEmpty(t, err)
 	})
 
 	t.Run("error when convert period is lower than base candles period", func(t *testing.T) {
@@ -23,7 +24,7 @@ func TestConvertCandles(t *testing.T) {
 
 		_, err := candles.ConvertTo(0)
 
-		assert.NotEmpty(t, err)
+		require.NotEmpty(t, err)
 	})
 
 	t.Run("convert even period of candles. new candle size = 1", func(t *testing.T) {
@@ -52,14 +53,14 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, 15, newCandles.Period)
-		assert.Len(t, newCandles.Data, 1)
-		assert.Equal(t, 2.0, newCandles.Data[0].Open)
-		assert.Equal(t, 6.0, newCandles.Data[0].High)
-		assert.Equal(t, 0.5, newCandles.Data[0].Low)
-		assert.Equal(t, 8.0, newCandles.Data[0].Close)
+		require.Equal(t, 15, newCandles.Period)
+		require.Len(t, newCandles.Data, 1)
+		require.Equal(t, 2.0, newCandles.Data[0].Open)
+		require.Equal(t, 6.0, newCandles.Data[0].High)
+		require.Equal(t, 0.5, newCandles.Data[0].Low)
+		require.Equal(t, 8.0, newCandles.Data[0].Close)
 	})
 
 	t.Run("convert even period of candles. new candle size = 2", func(t *testing.T) {
@@ -106,19 +107,19 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, 15, newCandles.Period)
-		assert.Len(t, newCandles.Data, 2)
-		assert.Equal(t, 2.0, newCandles.Data[0].Open)
-		assert.Equal(t, 6.0, newCandles.Data[0].High)
-		assert.Equal(t, 0.5, newCandles.Data[0].Low)
-		assert.Equal(t, 8.0, newCandles.Data[0].Close)
+		require.Equal(t, 15, newCandles.Period)
+		require.Len(t, newCandles.Data, 2)
+		require.Equal(t, 2.0, newCandles.Data[0].Open)
+		require.Equal(t, 6.0, newCandles.Data[0].High)
+		require.Equal(t, 0.5, newCandles.Data[0].Low)
+		require.Equal(t, 8.0, newCandles.Data[0].Close)
 
-		assert.Equal(t, 8.0, newCandles.Data[1].Open)
-		assert.Equal(t, 10.0, newCandles.Data[1].High)
-		assert.Equal(t, 1.0, newCandles.Data[1].Low)
-		assert.Equal(t, 6.0, newCandles.Data[1].Close)
+		require.Equal(t, 8.0, newCandles.Data[1].Open)
+		require.Equal(t, 10.0, newCandles.Data[1].High)
+		require.Equal(t, 1.0, newCandles.Data[1].Low)
+		require.Equal(t, 6.0, newCandles.Data[1].Close)
 	})
 
 	t.Run("convert non-even period of candles", func(t *testing.T) {
@@ -177,23 +178,23 @@ func TestConvertCandles(t *testing.T) {
 		}
 
 		newCandles, err := candles.ConvertTo(15)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, 15, newCandles.Period)
-		assert.Len(t, newCandles.Data, 3)
-		assert.Equal(t, 2.0, newCandles.Data[0].Open)
-		assert.Equal(t, 6.0, newCandles.Data[0].High)
-		assert.Equal(t, 0.5, newCandles.Data[0].Low)
-		assert.Equal(t, 8.0, newCandles.Data[0].Close)
+		require.Equal(t, 15, newCandles.Period)
+		require.Len(t, newCandles.Data, 3)
+		require.Equal(t, 2.0, newCandles.Data[0].Open)
+		require.Equal(t, 6.0, newCandles.Data[0].High)
+		require.Equal(t, 0.5, newCandles.Data[0].Low)
+		require.Equal(t, 8.0, newCandles.Data[0].Close)
 
-		assert.Equal(t, 8.0, newCandles.Data[1].Open)
-		assert.Equal(t, 10.0, newCandles.Data[1].High)
-		assert.Equal(t, 1.0, newCandles.Data[1].Low)
-		assert.Equal(t, 6.0, newCandles.Data[1].Close)
+		require.Equal(t, 8.0, newCandles.Data[1].Open)
+		require.Equal(t, 10.0, newCandles.Data[1].High)
+		require.Equal(t, 1.0, newCandles.Data[1].Low)
+		require.Equal(t, 6.0, newCandles.Data[1].Close)
 
-		assert.Equal(t, 6.0, newCandles.Data[2].Open)
-		assert.Equal(t, 6.0, newCandles.Data[2].High)
-		assert.Equal(t, 1.0, newCandles.Data[2].Low)
-		assert.Equal(t, 1.0, newCandles.Data[2].Close)
+		require.Equal(t, 6.0, newCandles.Data[2].Open)
+		require.Equal(t, 6.0, newCandles.Data[2].High)
+		require.Equal(t, 1.0, newCandles.Data[2].Low)
+		require.Equal(t, 1.0, newCandles.Data[2].Close)
 	})
 }

@@ -3,9 +3,8 @@ package utils
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/stretchr/testify/require"
 )
 
 const noPostionsJSONResponse = `
@@ -335,37 +334,37 @@ func TestParseTradierResponse(t *testing.T) {
 	t.Run("no positions", func(t *testing.T) {
 		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(noPostionsJSONResponse))
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Len(t, dto, 0)
+		require.Len(t, dto, 0)
 	})
 
 	t.Run("single position", func(t *testing.T) {
 		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(singlePositionJSONResponse))
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Len(t, dto, 1)
+		require.Len(t, dto, 1)
 
-		assert.Equal(t, 695.00, dto[0].CostBasis)
-		assert.Equal(t, "2024-08-12T14:56:31.371Z", dto[0].DateAcquired)
-		assert.Equal(t, 995716, dto[0].ID)
-		assert.Equal(t, 1.00000000, dto[0].Quantity)
-		assert.Equal(t, "COIN240816C00197500", dto[0].Symbol)
+		require.Equal(t, 695.00, dto[0].CostBasis)
+		require.Equal(t, "2024-08-12T14:56:31.371Z", dto[0].DateAcquired)
+		require.Equal(t, 995716, dto[0].ID)
+		require.Equal(t, 1.00000000, dto[0].Quantity)
+		require.Equal(t, "COIN240816C00197500", dto[0].Symbol)
 	})
 
 	t.Run("multiple positions", func(t *testing.T) {
 		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(multiplePositionsJSONResponse))
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Len(t, dto, 42)
+		require.Len(t, dto, 42)
 
-		assert.Equal(t, -6365.00, dto[41].CostBasis)
-		assert.Equal(t, "2024-08-12T18:48:03.083Z", dto[41].DateAcquired)
-		assert.Equal(t, 996480, dto[41].ID)
-		assert.Equal(t, -2.00000000, dto[41].Quantity)
-		assert.Equal(t, "TSLA240816P00230000", dto[41].Symbol)
+		require.Equal(t, -6365.00, dto[41].CostBasis)
+		require.Equal(t, "2024-08-12T18:48:03.083Z", dto[41].DateAcquired)
+		require.Equal(t, 996480, dto[41].ID)
+		require.Equal(t, -2.00000000, dto[41].Quantity)
+		require.Equal(t, "TSLA240816P00230000", dto[41].Symbol)
 	})
 }
 
@@ -373,15 +372,15 @@ func TestCreateTag(t *testing.T) {
 	t.Run("Encode Tag", func(t *testing.T) {
 		signal := eventmodels.SignalName("supertrend-4h-1h_stoch_rsi_15m_up")
 		tag := EncodeTag(signal, 9.53, 21.45)
-		assert.Equal(t, tag, "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45")
+		require.Equal(t, tag, "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45")
 	})
 
 	t.Run("Decode tag", func(t *testing.T) {
 		tag := "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45"
 		signal, expectedProfit, requestedPrc, err := DecodeTag(tag)
-		assert.NoError(t, err)
-		assert.Equal(t, eventmodels.SignalName("supertrend-4h-1h_stoch_rsi_15m_up"), signal)
-		assert.Equal(t, 9.53, expectedProfit)
-		assert.Equal(t, 21.45, requestedPrc)
+		require.NoError(t, err)
+		require.Equal(t, eventmodels.SignalName("supertrend-4h-1h_stoch_rsi_15m_up"), signal)
+		require.Equal(t, 9.53, expectedProfit)
+		require.Equal(t, 21.45, requestedPrc)
 	})
 }

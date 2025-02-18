@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPriceLevels(t *testing.T) {
@@ -33,7 +34,7 @@ func TestNewPriceLevels(t *testing.T) {
 		}
 
 		_, err := NewPriceLevels(levels, Up, nil)
-		assert.ErrorIs(t, err, PriceLevelsNotSortedErr)
+		require.ErrorIs(t, err, PriceLevelsNotSortedErr)
 	})
 
 	t.Run("stop loss must be outside of price band", func(t *testing.T) {
@@ -56,7 +57,7 @@ func TestNewPriceLevels(t *testing.T) {
 		}
 
 		_, err := NewPriceLevels(levels, Down, nil)
-		assert.ErrorIs(t, err, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
+		require.ErrorIs(t, err, PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr)
 	})
 
 	t.Run("up price levels with gaps", func(t *testing.T) {

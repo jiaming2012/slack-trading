@@ -4,20 +4,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/utils"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSymbol(t *testing.T) {
 	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	goEnv := "test"
 
 	err = utils.InitEnvironmentVariables(projectsDir, goEnv)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Run("returns the symbol", func(t *testing.T) {
 		symbol := eventmodels.StockSymbol("AAPL")
@@ -28,9 +27,9 @@ func TestSymbol(t *testing.T) {
 
 		repo, err := NewCandleRepository(symbol, period, nil, []string{}, nil, 0, source)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, symbol, repo.GetSymbol())
+		require.Equal(t, symbol, repo.GetSymbol())
 	})
 }
 
@@ -56,7 +55,7 @@ func TestNext(t *testing.T) {
 	t.Run("returns the current candle", func(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -64,19 +63,19 @@ func TestNext(t *testing.T) {
 
 		_, err = repo.Update(tstamp)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		candle, err := repo.GetCurrentCandle()
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, tstamp, candle.Timestamp)
+		require.Equal(t, tstamp, candle.Timestamp)
 	})
 
 	t.Run("returns the next candle", func(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
@@ -84,21 +83,21 @@ func TestNext(t *testing.T) {
 
 		c, err := repo.Update(tstamp)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.NotNil(t, c)
+		require.NotNil(t, c)
 
 		candle, err := repo.GetCurrentCandle()
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, tstamp, candle.Timestamp)
+		require.Equal(t, tstamp, candle.Timestamp)
 	})
 
 	t.Run("returns last candle if there are no more candles", func(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 
@@ -106,12 +105,12 @@ func TestNext(t *testing.T) {
 
 		_, err = repo.Update(tstamp)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		candle, err := repo.GetCurrentCandle()
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, candles[len(candles)-1].Timestamp, candle.Timestamp)
+		require.Equal(t, candles[len(candles)-1].Timestamp, candle.Timestamp)
 	})
 }

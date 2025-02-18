@@ -154,7 +154,7 @@ func (req *CreateOrderRequest) Validate() error {
 	return nil
 }
 
-// func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+// func saveTradeRecordTx(parentTx *gorm.DB, playgroundId uuid.UUID, orderID uint, trade *models.TradeRecord) error {
 // 	err := parentTx.Transaction(func(tx *gorm.DB) error {
 // 		var orderRecord models.OrderRecord
 
@@ -187,7 +187,7 @@ func (req *CreateOrderRequest) Validate() error {
 // 	return nil
 // }
 
-// func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.BacktesterTrade) error {
+// func saveTradeRecord(playgroundId uuid.UUID, orderID uint, trade *models.TradeRecord) error {
 // 	return saveTradeRecordTx(db, playgroundId, orderID, trade)
 // }
 
@@ -208,7 +208,7 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 	for _, order := range orders {
 		var err error
 
-		oRec, _, updateOrderReq, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
+		oRec, updateOrderReq, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}

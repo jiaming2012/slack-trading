@@ -212,7 +212,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// fetch or create live repositories
 		newCandlesQueue := eventmodels.NewFIFOQueue[*models.BacktesterCandle](999)
 
-		newTradesFilledQueue := eventmodels.NewFIFOQueue[*models.BacktesterTrade](999)
+		newTradesFilledQueue := eventmodels.NewFIFOQueue[*models.TradeRecord](999)
 
 		repos, webErr := createRepos(req.Repositories, from, nil, newCandlesQueue)
 		if webErr != nil {
