@@ -209,6 +209,18 @@
             "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         },
         {
+            "name": "migration - closed_by",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/migrations/closed_by.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/migrations/env/bin/python",
+            "args": [
+                "--playground-id", "27a2ae48-e157-4c85-bed9-ee710281ad23",
+                "--symbol", "COIN",
+            ]
+        },
+        {
             "name": "proximal policy optimization",
             "type": "debugpy",
             "request": "launch",

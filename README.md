@@ -4,6 +4,57 @@ A mock trading platform.
 # Development
 We use python's bump2version for managing the app version.
 
+## Anaconda
+We use anaconda for managing dependencies, instead of pip:
+``` bash
+conda deactivate
+conda activate base
+```
+
+## Migrations
+Currently, no migrations framework has been chosen an scripts are used if database migrations are needed. The script does a dry-run by default. Running a second time with `--live-run` will apply the migrations.
+
+See examples running `closed_by.py` below:
+
+``` bash
+(env) ➜  migrations git:(main) ✗ python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a"  
+```
+
+OUTPUT:
+```
+Adjustment: Order 465 -> Trade 145
+Adjustment: Order 464 -> Trade 146
+Adjustment: Order 458 -> Trade 142
+Adjustment: Order 427 -> Trade 117
+Adjustment: Order 404 -> Trade 101
+Adjustment: Order 396 -> Trade 98
+Adjustment: Order 377 -> Trade 86
+Adjustment: Order 376 -> Trade 85
+Adjustment: Order 365 -> Trade 70
+Adjustment: Order 337 -> Trade 59
+Live run disabled. No database changes were made.
+```
+
+Run live:
+``` bash
+(env) ➜  migrations git:(main) ✗ python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a" --live-run
+```
+
+OUTPUT:
+```
+Adjustment: Order 465 -> Trade 145
+Adjustment: Order 464 -> Trade 146
+Adjustment: Order 458 -> Trade 142
+Adjustment: Order 427 -> Trade 117
+Adjustment: Order 404 -> Trade 101
+Adjustment: Order 396 -> Trade 98
+Adjustment: Order 377 -> Trade 86
+Adjustment: Order 376 -> Trade 85
+Adjustment: Order 365 -> Trade 70
+Adjustment: Order 337 -> Trade 59
+Adjustments have been committed to the database.
+```
+
 ## Taskfile
 We use taskfile as our build tool.
 
