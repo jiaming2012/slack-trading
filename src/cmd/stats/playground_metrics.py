@@ -1,6 +1,6 @@
 import argparse
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import GetAccountRequest, Order, Trade, AccountMeta, Bar
+from rpc.playground_pb2 import GetAccountRequest, GetPlaygroundsRequest, Order, Trade, AccountMeta, Bar
 from twirp.context import Context
 from pprint import pprint
 from typing import List, Dict
@@ -13,6 +13,16 @@ import re
 class TradePosition:
     vwap: float
     quantity: float
+    
+def fetch_playground_ids(client: PlaygroundServiceClient, tags: List[str]) -> List[str]:
+    req = GetPlaygroundsRequest(tags=tags)
+    
+    resp = client.GetPlaygrounds(
+        ctx=Context(),
+        request=req
+    )
+    
+    return [p.playground_id for p in resp.playgrounds]
 
 def _calc_trade_position(trades: List[Trade]) -> TradePosition:
     total_quantity = sum([trade.quantity for trade in trades])
@@ -196,9 +206,7 @@ def calc_losers_count(profits: List[float]) -> int:
 def calc_breakeven_count(profits: List[float]) -> int:
     return len([profit for profit in profits if profit == 0])
 
-def collect_data(host: str, playground_id: str, from_date: str = None, to_date: str = None) -> dict:
-    client = PlaygroundServiceClient(host, timeout=60)
-
+def fetch_orders(client: PlaygroundServiceClient, playground_id: str, from_date: str = None, to_date: str = None) -> List[Order]:
     req = GetAccountRequest(
             playground_id=playground_id, 
             fetch_orders=True,
@@ -216,9 +224,9 @@ def collect_data(host: str, playground_id: str, from_date: str = None, to_date: 
         request=req
     )
     
-    # orders = acc.orders
-    orders = [o for o in acc.orders if o.status == 'filled']
+    return acc.orders
 
+def collect_data(orders: List[Order]) -> dict:
     profit_list = _calc_realized_profit_list(orders)
     trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(orders)
 
@@ -247,17 +255,63 @@ def collect_data(host: str, playground_id: str, from_date: str = None, to_date: 
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
-    args.add_argument('--playground-id', type=str, required=True, help="Playground ID")
+    args.add_argument('--playground-id', type=str, required=False, help="Playground ID")
+    args.add_argument('--tags', type=str, nargs='+')
     args.add_argument('--twirp-host', type=str, default='http://localhost:5051', help="twirp rpc host")
     args.add_argument('--from-date', type=str, default=None, help="start date")
     args.add_argument('--to-date', type=str, default=None, help="end date")
 
     args = args.parse_args()
 
-    data = collect_data(args.twirp_host, args.playground_id, args.from_date, args.to_date)
+    client = PlaygroundServiceClient(args.twirp_host, timeout=60)
 
-    print('gross data:')
-    pprint(data['gross_data'])
+    if args.playground_id:
+        if args.tags:
+            print('playground_id and tags are mutually exclusive')
+            exit(1)
+            
+        orders = fetch_orders(client, args.playground_id, args.from_date, args.to_date)
+        data = collect_data(orders)
+        
+        print('gross data:')
+        pprint(data['gross_data'])
 
-    print('agg data:')
-    pprint(data['agg_data'])
+        print('agg data:')
+        pprint(data['agg_data'])
+    else:
+        if len(args.tags) == 0:
+            print('playground_id or tags is required')
+            exit(1)
+            
+        playground_ids = fetch_playground_ids(client, args.tags)
+        
+        all_orders = []
+        all_data = []
+        for playground_id in playground_ids:
+            orders = fetch_orders(client, playground_id, args.from_date, args.to_date)
+            data = collect_data(orders)
+            all_data.append(data)
+            all_orders.extend(orders)
+            
+        if len(all_data) > 1:
+            aggregate_data = collect_data(all_orders)
+            print('gross data (all playgrounds):')
+            pprint(aggregate_data['gross_data'])
+            
+            print('agg data (all playgrounds):')
+            pprint(aggregate_data['agg_data'])
+        
+            
+        for data in all_data:
+            print('gross data:')
+            pprint(data['gross_data'])
+
+            print('agg data:')
+            pprint(data['agg_data'])
+            print('---------------------------------')
+            
+        
+
+    
+
+    

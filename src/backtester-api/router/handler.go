@@ -377,6 +377,25 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 	}
 
 	if meta.Environment == models.PlaygroundEnvironmentLive {
+		if meta.SourceBroker == "" || meta.SourceAccountId == "" || meta.LiveAccountType == nil {
+			return errors.New("savePlaygroundSession: missing broker, account id, or account type for live playground")
+		}
+
+		liveAccount := models.LiveAccount{
+			BrokerName:  meta.SourceBroker,
+			AccountId:   meta.SourceAccountId,
+			AccountType: string(*meta.LiveAccountType),
+		}
+
+		if err := tx.FirstOrCreate(&liveAccount,  models.LiveAccount{
+            BrokerName:  meta.SourceBroker,
+            AccountId:   meta.SourceAccountId,
+            AccountType: string(*meta.LiveAccountType),
+        }).Error; err != nil {
+			return fmt.Errorf("failed to fetch or create live account: %w", err)
+		}
+
+		store.LiveAccount = &liveAccount
 		store.Broker = &meta.SourceBroker
 		store.AccountID = &meta.SourceAccountId
 

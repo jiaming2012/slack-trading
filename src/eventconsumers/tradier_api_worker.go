@@ -16,6 +16,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -483,6 +484,60 @@ func (w *TradierApiWorker) IsMarketOpen() bool {
 	return open
 }
 
+func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
+	now := time.Now()
+	nowEST := now.In(w.location)
+	todayAt1615 := time.Date(nowEST.Year(), nowEST.Month(), nowEST.Day(), 16, 15, 0, 0, w.location)
+
+	var liveAccounts []*models.LiveAccount
+	if err := w.db.Where("plot_updated_at IS NULL OR plot_updated_at <= ?", todayAt1615).Find(&liveAccounts).Error; err != nil {
+		log.Errorf("failed to fetch live accounts: %v", err)
+		return
+	}
+
+	for _, liveAccount := range liveAccounts {
+		if liveAccount.BrokerName != "tradier" {
+			log.Debugf("skipping account %d: unsupported broker %s", liveAccount.ID, liveAccount.BrokerName)
+			continue
+		}
+
+		account, err := services.CreateLiveAccount(-1, liveAccount.BrokerName, models.LiveAccountType(liveAccount.AccountType))
+		if err != nil {
+			log.Errorf("failed to create live account: %v", err)
+			continue
+		}
+
+		if account.AccountType != string(models.LiveAccountTypePaper) {
+			resp, err := account.Source.FetchEquity()
+			if err != nil {
+				log.Errorf("failed to fetch equity for (%v, %v): %v", account.AccountId, account.AccountType, err)
+				continue
+			}
+
+			equity := resp.Equity
+
+			if err := w.db.Transaction(func(tx *gorm.DB) error {
+				if err := w.db.Create(&models.LiveAccountPlot{
+					Timestamp:     now,
+					LiveAccountID: account.ID,
+					Equity:        &equity,
+				}).Error; err != nil {
+					return fmt.Errorf("failed to create live account plot: %w", err)
+				}
+
+				if err := w.db.Model(&liveAccount).Update("plot_updated_at", now).Error; err != nil {
+					return fmt.Errorf("failed to update live account: %w", err)
+				}
+
+				return nil
+			}); err != nil {
+				log.Errorf("failed to create live account equity: %v", err)
+				continue
+			}
+		}
+	}
+}
+
 func (w *TradierApiWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
@@ -497,6 +552,8 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				return
 			case <-timer.C:
 				if !w.IsMarketOpen() {
+					w.ExecuteLiveAccountPlotUpdate()
+
 					log.Debug("Market is closed: skipping live repos update")
 					continue
 				}

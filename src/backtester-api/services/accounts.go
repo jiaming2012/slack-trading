@@ -72,9 +72,9 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 		return nil, fmt.Errorf("unsupported broker: %s", brokerName)
 	}
 
-	if balance < 0 {
-		return nil, fmt.Errorf("balance cannot be negative")
-	}
+	// if balance < 0 {
+	// 	return nil, fmt.Errorf("balance cannot be negative")
+	// }
 
 	vars := models.NewLiveAccountVariables(accountType)
 
@@ -107,14 +107,16 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 		return nil, fmt.Errorf("invalid source: %w", err)
 	}
 
-	// fetch account stats from broker
-	balances, err := source.FetchEquity()
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch equity: %w", err)
-	}
-
-	if balances.Equity < balance {
-		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
+	// balance check
+	if balance > 0 {
+		balances, err := source.FetchEquity()
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch equity: %w", err)
+		}
+	
+		if balances.Equity < balance {
+			return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
+		}
 	}
 
 	tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
@@ -136,7 +138,7 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 
 	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken)
 
-	account := models.NewLiveAccount(balance, source, broker)
+	account := models.NewLiveAccount(source, broker)
 
 	return account, nil
 }

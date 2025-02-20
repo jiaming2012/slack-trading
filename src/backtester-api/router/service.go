@@ -244,8 +244,6 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 			return nil, err
 		}
 
-		fmt.Printf("liveAccount: %v\n", liveAccount)
-
 		// capture all candles up to tomorrow
 		tomorrow := req.CreatedAt.AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")

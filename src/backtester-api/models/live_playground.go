@@ -207,7 +207,7 @@ func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveA
 		AccountType: account.Source.GetAccountType(),
 	}
 
-	playground, err := NewPlayground(playgroundID, clientID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, tags, repositories...)
+	playground, err := NewPlayground(playgroundID, clientID, startingBalance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, tags, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

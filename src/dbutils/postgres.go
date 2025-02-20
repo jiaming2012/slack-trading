@@ -18,6 +18,14 @@ func InitPostgresWithUrl(url string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	if err := db.AutoMigrate(&models.LiveAccount{}); err != nil {
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	if err := db.AutoMigrate(&models.LiveAccountPlot{}); err != nil {
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
 	if err := db.AutoMigrate(&models.PlaygroundSession{}); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}

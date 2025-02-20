@@ -3,6 +3,9 @@ package models
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -18,9 +21,13 @@ type ILiveAccountSource interface {
 }
 
 type LiveAccount struct {
-	Balance float64            `json:"balance"`
-	Source  ILiveAccountSource `json:"source"`
-	Broker  IBroker            `json:"-"`
+	gorm.Model
+	Source        ILiveAccountSource `json:"source" gorm:"-"`
+	Broker        IBroker            `json:"-" gorm:"-"`
+	BrokerName    string             `gorm:"column:broker;type:text"`
+	AccountId     string             `gorm:"column:account_id;type:text"`
+	AccountType   string             `gorm:"column:account_type;type:text"`
+	PlotUpdatedAt time.Time          `gorm:"column:plot_updated_at;type:timestamptz"`
 }
 
 func (a LiveAccount) FetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
@@ -36,10 +43,9 @@ func (a LiveAccount) FetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 	return quotes[0].Last, nil
 }
 
-func NewLiveAccount(balance float64, source ILiveAccountSource, broker IBroker) *LiveAccount {
+func NewLiveAccount(source ILiveAccountSource, broker IBroker) *LiveAccount {
 	return &LiveAccount{
-		Balance: balance,
-		Source:  source,
-		Broker:  broker,
+		Source: source,
+		Broker: broker,
 	}
 }

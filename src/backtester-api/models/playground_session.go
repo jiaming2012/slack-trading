@@ -19,6 +19,8 @@ type PlaygroundSession struct {
 	Balance           float64                `gorm:"column:balance;type:numeric;not null"`
 	StartingBalance   float64                `gorm:"column:starting_balance;type:numeric;not null"`
 	Env               string                 `gorm:"column:environment;type:text;not null"`
+	LiveAccount       *LiveAccount           `gorm:"foreignKey:LiveAccountID"`
+	LiveAccountID     *uint                  `gorm:"column:live_account_id;index:idx_live_account_id"`
 	Broker            *string                `gorm:"column:broker;type:text"`
 	AccountID         *string                `gorm:"column:account_id;type:text"`
 	LiveAccountType   *string                `gorm:"column:live_account_type;type:text"`
