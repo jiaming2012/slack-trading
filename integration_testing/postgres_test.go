@@ -276,14 +276,14 @@ func TestWithPostgres(t *testing.T) {
 
 	// Place open order
 	order1, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId: playgroundResp.Id,
-		Symbol:       "AAPL",
-		AssetClass:   "equity",
-		Quantity:     10,
+		PlaygroundId:   playgroundResp.Id,
+		Symbol:         "AAPL",
+		AssetClass:     "equity",
+		Quantity:       10,
 		RequestedPrice: 100,
-		Side:         "buy",
-		Type:         "market",
-		Duration:     "day",
+		Side:           "buy",
+		Type:           "market",
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
@@ -298,13 +298,14 @@ func TestWithPostgres(t *testing.T) {
 
 	// Place 1st partial close order
 	order2, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId: playgroundResp.Id,
-		Symbol:       "AAPL",
-		AssetClass:   "equity",
-		Quantity:     5,
-		Side:         "sell",
-		Type:         "market",
-		Duration:     "day",
+		PlaygroundId:   playgroundResp.Id,
+		Symbol:         "AAPL",
+		RequestedPrice: 100,
+		AssetClass:     "equity",
+		Quantity:       5,
+		Side:           "sell",
+		Type:           "market",
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
@@ -315,6 +316,7 @@ func TestWithPostgres(t *testing.T) {
 		Symbol:       "AAPL",
 		AssetClass:   "equity",
 		Quantity:     5,
+		RequestedPrice: 100,
 		Side:         "sell",
 		Type:         "market",
 		Duration:     "day",
