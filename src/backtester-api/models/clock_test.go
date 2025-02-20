@@ -78,7 +78,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, []string{}, repo)
 		return playground, err
 	}
 
@@ -146,7 +146,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order before market open
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()

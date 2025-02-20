@@ -704,10 +704,15 @@ func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*BacktesterOrder, error) {
 	var order *BacktesterOrder
 
+	requestedPrice, err := p.fetchCurrentPrice(context.Background(), symbol)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching price: %w", err)
+	}
+
 	if position.Quantity > 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
 	} else if position.Quantity < 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
 	} else {
 		return nil, nil
 	}
@@ -1294,6 +1299,10 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 		return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 	}
 
+	if order.RequestedPrice <= 0 {
+		return nil, fmt.Errorf("requested price must be greater than 0")
+	}
+
 	if order.Price != nil && *order.Price <= 0 {
 		return nil, fmt.Errorf("price must be greater than 0")
 	}
@@ -1342,7 +1351,7 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1381,6 +1390,7 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 
 	meta := &PlaygroundMeta{
 		Symbols:        symbols,
+		Tags:           tags,
 		InitialBalance: initialBalance,
 		Environment:    env,
 		StartAt:        startAt,

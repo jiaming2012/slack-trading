@@ -95,6 +95,7 @@ type CreatePlaygroundRequest struct {
 	BackfillOrders    []*models.BacktesterOrder             `json:"orders"`
 	EquityPlotRecords []*eventmodels.EquityPlot             `json:"equity_plot_records"`
 	CreatedAt         time.Time                             `json:"created_at"`
+	Tags              []string                              `json:"tags"`
 	SaveToDB          bool                                  `json:"-"`
 }
 
@@ -104,16 +105,17 @@ type CreateClockRequest struct {
 }
 
 type CreateOrderRequest struct {
-	Id        *uint                          `json:"id"`
-	Symbol    string                         `json:"symbol"`
-	Class     models.BacktesterOrderClass    `json:"class"`
-	Quantity  float64                        `json:"quantity"`
-	Side      models.TradierOrderSide        `json:"side"`
-	OrderType models.BacktesterOrderType     `json:"type"`
-	Duration  models.BacktesterOrderDuration `json:"duration"`
-	Price     *float64                       `json:"price"`
-	StopPrice *float64                       `json:"stop_price"`
-	Tag       string                         `json:"tag"`
+	Id             *uint                          `json:"id"`
+	Symbol         string                         `json:"symbol"`
+	Class          models.BacktesterOrderClass    `json:"class"`
+	Quantity       float64                        `json:"quantity"`
+	Side           models.TradierOrderSide        `json:"side"`
+	OrderType      models.BacktesterOrderType     `json:"type"`
+	Duration       models.BacktesterOrderDuration `json:"duration"`
+	RequestedPrice float64                        `json:"requested_price"`
+	Price          *float64                       `json:"price"`
+	StopPrice      *float64                       `json:"stop_price"`
+	Tag            string                         `json:"tag"`
 }
 
 type FetchCandlesRequest struct {
@@ -370,6 +372,7 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Balance:         playground.GetBalance(),
 		StartingBalance: meta.InitialBalance,
 		Repositories:    models.CandleRepositoryRecord(repoDTOs),
+		Tags:            meta.Tags,
 		Env:             string(meta.Environment),
 	}
 
@@ -409,6 +412,7 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 		req.Quantity,
 		req.OrderType,
 		req.Duration,
+		req.RequestedPrice,
 		req.Price,
 		req.StopPrice,
 		models.BacktesterOrderStatusPending,
@@ -500,35 +504,35 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	return clock, nil
 }
 
-func handleAccount(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		w.WriteHeader(404)
-		return
-	}
+// func handleAccount(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != "GET" {
+// 		w.WriteHeader(404)
+// 		return
+// 	}
 
-	vars := mux.Vars(r)
-	playgroundID, err := uuid.Parse(vars["id"])
-	if err != nil {
-		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
-		return
-	}
+// 	vars := mux.Vars(r)
+// 	playgroundID, err := uuid.Parse(vars["id"])
+// 	if err != nil {
+// 		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
+// 		return
+// 	}
 
-	fetchOrders := true
-	if r.URL.Query().Get("orders") == "false" {
-		fetchOrders = false
-	}
+// 	fetchOrders := true
+// 	if r.URL.Query().Get("orders") == "false" {
+// 		fetchOrders = false
+// 	}
 
-	accountInfo, err := getAccountInfo(playgroundID, fetchOrders)
-	if err != nil {
-		setErrorResponse("handleAccount: failed to get account info", 500, err, w)
-		return
-	}
+// 	accountInfo, err := getAccountInfo(playgroundID, fetchOrders)
+// 	if err != nil {
+// 		setErrorResponse("handleAccount: failed to get account info", 500, err, w)
+// 		return
+// 	}
 
-	if err := setResponse(accountInfo, w); err != nil {
-		setErrorResponse("handleAccount: failed to set response", 500, err, w)
-		return
-	}
-}
+// 	if err := setResponse(accountInfo, w); err != nil {
+// 		setErrorResponse("handleAccount: failed to set response", 500, err, w)
+// 		return
+// 	}
+// }
 
 func loadPlaygrounds() error {
 	var playgroundsSlice []models.PlaygroundSession
@@ -619,6 +623,7 @@ func loadPlaygrounds() error {
 			BackfillOrders:    orders,
 			CreatedAt:         p.CreatedAt,
 			EquityPlotRecords: plot,
+			Tags:              p.Tags,
 			SaveToDB:          false,
 		})
 
@@ -966,7 +971,7 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 	}
 
 	router.HandleFunc("", handlePlayground)
-	router.HandleFunc("/{id}/account", handleAccount)
+	// router.HandleFunc("/{id}/account", handleAccount)
 	router.HandleFunc("/{id}/order", handleOrder)
 	router.HandleFunc("/{id}/tick", handleTick)
 	router.HandleFunc("/{id}/candles", handleCandles)

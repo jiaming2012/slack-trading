@@ -23,7 +23,9 @@ service PlaygroundService {
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
 }
 
-message GetPlaygroundsRequest {}
+message GetPlaygroundsRequest {
+    repeated string tags = 1;
+}
 
 message GetAppVersionResponse {
     string version = 1;
@@ -36,12 +38,14 @@ message AccountMeta {
     double initial_balance = 4;
     string environment = 5;
     optional string live_account_type = 6;
+    repeated string tags = 7;
 }
 
 message Meta {
     double initial_balance = 1;
     string environment = 2;
     optional string live_account_type = 3;
+    repeated string tags = 4;
 }
 
 message GetAccountStatsRequest {
@@ -66,6 +70,7 @@ message PlaygroundSession {
     double balance = 5;
     double equity = 6;
     double free_margin = 7;
+    map<string, Position> positions = 8;
 }
 
 message GetPlaygroundsResponse {
@@ -108,6 +113,7 @@ message CreatePolygonPlaygroundRequest {
     repeated Repository repositories = 4;
     string environment = 5;
     optional string client_id = 6;
+    repeated string tags = 7;
 }
 
 message DeletePlaygroundRequest {
@@ -121,6 +127,7 @@ message CreateLivePlaygroundRequest {
     string environment = 4;
     string account_type = 5;
     optional string client_id = 6;
+    repeated string tags = 7;
 }
 
 message GetCandlesRequest {
@@ -142,6 +149,10 @@ message CreatePlaygroundResponse {
 message GetAccountRequest {
     string playground_id = 1;
     bool fetch_orders = 2;
+    optional string fromRTF3339 = 3;
+    optional string toRTF3339 = 4;
+    repeated string status = 5;
+    repeated string sides = 6;
 }
 
 message GetAccountResponse {
@@ -171,6 +182,7 @@ message PlaceOrderRequest {
     string duration = 7;
     string tag = 8;
     double requested_price = 9;
+    optional double price = 10;
 }
 
 message NextTickRequest {

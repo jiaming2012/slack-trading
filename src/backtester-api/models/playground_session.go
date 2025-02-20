@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +24,7 @@ type PlaygroundSession struct {
 	LiveAccountType   *string                `gorm:"column:live_account_type;type:text"`
 	Orders            []OrderRecord          `gorm:"foreignKey:PlaygroundID"`
 	EquityPlotRecords []EquityPlotRecord     `gorm:"foreignKey:PlaygroundID;references:ID"`
+	Tags              pq.StringArray         `gorm:"type:text[]"`
 	Repositories      CandleRepositoryRecord `gorm:"type:json;not null"`
 }
 

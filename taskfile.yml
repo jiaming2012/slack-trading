@@ -1,6 +1,24 @@
 version: '3'
 
 tasks:
+  conda:list:
+    cmds:
+      - 'conda env list'
+
+  conda:update:grodt:
+    cmds:
+      - 'conda update conda'
+      - 'conda update --all'
+      - 'conda env export > conda-env.yaml'
+    dir: ${PROJECTS_DIR}/slack-trading
+
+  conda:update:trading:
+    cmds:
+      - 'conda update conda'
+      - 'conda update --all'
+      - 'conda env export > conda-env-trading.yaml'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   list:
     cmds:
       - 'task --list-all'

@@ -211,7 +211,7 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 	return orderRec, updateOrderRequests, nil
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, requestedPrice float64, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
 		Class:            class,
@@ -221,6 +221,7 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Tim
 		AbsoluteQuantity: quantity,
 		Type:             orderType,
 		Duration:         duration,
+		RequestedPrice:   requestedPrice,
 		Price:            price,
 		StopPrice:        stopPrice,
 		Tag:              tag,

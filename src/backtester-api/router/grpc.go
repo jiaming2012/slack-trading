@@ -122,6 +122,13 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 
 	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
 	for _, p := range playgrounds {
+		if len(req.Tags) > 0 {
+			meta := p.GetMeta()
+			if !meta.HasTags(req.Tags) {
+				continue
+			}
+		}
+
 		meta := p.GetMeta()
 		positions, err := p.GetPositions()
 		if err != nil {
@@ -133,6 +140,17 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		freeMargin, err := p.GetFreeMargin()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get playground free margin: %v", err)
+		}
+
+		positionsDTO := make(map[string]*pb.Position)
+		for k, v := range positions {
+			positionsDTO[k.GetTicker()] = &pb.Position{
+				Quantity:          v.Quantity,
+				CostBasis:         v.CostBasis,
+				Pl:                v.PL,
+				MaintenanceMargin: v.MaintenanceMargin,
+				CurrentPrice:      v.CurrentPrice,
+			}
 		}
 
 		var clockStop *string
@@ -163,6 +181,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 				InitialBalance:  meta.InitialBalance,
 				Environment:     string(meta.Environment),
 				LiveAccountType: liveAccountType,
+				Tags:            meta.Tags,
 			},
 			Clock: &pb.Clock{
 				Start:       meta.StartAt.Format(time.RFC3339),
@@ -173,6 +192,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			Balance:      balance,
 			Equity:       equity,
 			FreeMargin:   freeMargin,
+			Positions:    positionsDTO,
 		})
 	}
 
@@ -350,7 +370,38 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
 
-	account, err := getAccountInfo(playgroundId, req.FetchOrders)
+	var from, to *time.Time
+	if req.FromRTF3339 != nil {
+		_from, err := time.Parse(time.RFC3339, *req.FromRTF3339)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get account info while parsing from timestamp: %v", err)
+		}
+		from = &_from
+	}
+
+	if req.ToRTF3339 != nil {
+		_to, err := time.Parse(time.RFC3339, *req.ToRTF3339)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get account info while parsing to timestamp: %v", err)
+		}
+		to = &_to
+	}
+
+	var sides []models.TradierOrderSide
+	if req.Sides != nil {
+		for _, side := range req.Sides {
+			sides = append(sides, models.TradierOrderSide(side))
+		}
+	}
+
+	var status []models.BacktesterOrderStatus
+	if req.Status != nil {
+		for _, s := range req.Status {
+			status = append(status, models.BacktesterOrderStatus(s))
+		}
+	}
+
+	account, err := getAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
@@ -387,6 +438,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			Symbols:         account.Meta.Symbols,
 			Environment:     string(account.Meta.Environment),
 			LiveAccountType: liveAccountType,
+			Tags:            account.Meta.Tags,
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,
@@ -402,21 +454,17 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
-	var price *float64
-	if req.RequestedPrice != 0 {
-		price = &req.RequestedPrice
-	}
-
 	order, webErr := placeOrder(playgroundID, &CreateOrderRequest{
-		Symbol:    req.Symbol,
-		Class:     models.BacktesterOrderClass(req.AssetClass),
-		Quantity:  req.Quantity,
-		Side:      models.TradierOrderSide(req.Side),
-		OrderType: models.BacktesterOrderType(req.Type),
-		Price:     price,
-		StopPrice: nil,
-		Duration:  models.BacktesterOrderDuration(req.Duration),
-		Tag:       req.Tag,
+		Symbol:         req.Symbol,
+		Class:          models.BacktesterOrderClass(req.AssetClass),
+		Quantity:       req.Quantity,
+		Side:           models.TradierOrderSide(req.Side),
+		OrderType:      models.BacktesterOrderType(req.Type),
+		RequestedPrice: req.RequestedPrice,
+		Price:          req.Price,
+		StopPrice:      nil,
+		Duration:       models.BacktesterOrderDuration(req.Duration),
+		Tag:            req.Tag,
 	})
 
 	if webErr != nil {
@@ -465,6 +513,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		},
 		InitialBalance: float64(req.Balance),
 		Repositories:   repositoryRequests,
+		Tags:           req.Tags,
 		SaveToDB:       true,
 	}
 
@@ -518,6 +567,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 			StopDate:  req.StopDate,
 		},
 		Repositories: repositoryRequests,
+		Tags:         req.Tags,
 		SaveToDB:     false,
 	})
 

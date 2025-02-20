@@ -10,11 +10,30 @@ type PlaygroundMeta struct {
 	StartAt         time.Time             `json:"start_at"`
 	EndAt           *time.Time            `json:"end_at"`
 	Symbols         []string              `json:"symbols"`
+	Tags            []string              `json:"tags"`
 	InitialBalance  float64               `json:"starting_balance"`
 	SourceBroker    string                `json:"source_broker"`
 	SourceAccountId string                `json:"source_account_id"`
 	LiveAccountType *LiveAccountType      `json:"live_account_type"`
 	Environment     PlaygroundEnvironment `json:"environment"`
+}
+
+func (p *PlaygroundMeta) HasTags(tags []string) bool {
+	for _, tag := range tags {
+		found := false
+		for _, t := range p.Tags {
+			if tag == t {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (p *PlaygroundMeta) Validate() error {

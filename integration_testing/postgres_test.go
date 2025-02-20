@@ -280,6 +280,7 @@ func TestWithPostgres(t *testing.T) {
 		Symbol:       "AAPL",
 		AssetClass:   "equity",
 		Quantity:     10,
+		RequestedPrice: 100,
 		Side:         "buy",
 		Type:         "market",
 		Duration:     "day",

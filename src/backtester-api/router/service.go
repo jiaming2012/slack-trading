@@ -111,7 +111,7 @@ func getAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, e
 	return plot, nil
 }
 
-func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountResponse, error) {
+func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.BacktesterOrderStatus, sides []models.TradierOrderSide) (*GetAccountResponse, error) {
 	playground, ok := playgrounds[playgroundID]
 	if !ok {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
@@ -137,6 +137,51 @@ func getAccountInfo(playgroundID uuid.UUID, fetchOrders bool) (*GetAccountRespon
 
 	if fetchOrders {
 		response.Orders = playground.GetOrders()
+		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0
+		if filterOrders {
+			filteredOrders := []*models.BacktesterOrder{}
+			for _, order := range response.Orders {
+				if from != nil && order.CreateDate.Before(*from) {
+					continue
+				}
+
+				if to != nil && order.CreateDate.After(*to) {
+					continue
+				}
+
+				if len(status) > 0 {
+					found := false
+					for _, s := range status {
+						if order.Status == s {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						continue
+					}
+				}
+
+				if len(sides) > 0 {
+					found := false
+					for _, s := range sides {
+						if order.Side == s {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						continue
+					}
+				}
+
+				filteredOrders = append(filteredOrders, order)
+			}
+
+			response.Orders = filteredOrders
+		}
 	}
 
 	return &response, nil
@@ -232,7 +277,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt)
+		playground, err = models.NewLivePlayground(req.ID, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, req.Tags)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create live playground", err)
 		}
@@ -270,7 +315,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, repos...)
+		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, req.Tags, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground", err)
 		}

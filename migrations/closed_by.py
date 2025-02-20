@@ -1,13 +1,18 @@
 import psycopg2
 import argparse
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv(dotenv_path=os.path.join(os.getenv('PROJECTS_DIR'), 'slack-trading', '.env'))
 
 # Database connection parameters (modify accordingly)
 DB_PARAMS = {
-    "dbname": "playground",
-    "user": "grodt",
-    "password": "test747",
-    "host": "localhost",
-    "port": "5432",
+    "dbname": os.getenv('POSTGRES_DB'),
+    "user": os.getenv('POSTGRES_USER'),
+    "password": os.getenv('POSTGRES_PASSWORD'),
+    "host": os.getenv('POSTGRES_HOST'),
+    "port": os.getenv('POSTGRES_PORT'),
 }
 
 def process_orders(symbol, playground_id, live_run=False):

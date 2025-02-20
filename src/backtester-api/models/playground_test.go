@@ -79,7 +79,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1, repo2)
 		return playground, err
 	}
 
@@ -87,7 +87,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		playground, err := createPlayground()
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -164,16 +164,16 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1, repo2)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -254,15 +254,15 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1, repo2)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 4, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -336,16 +336,16 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1, repo2)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -400,7 +400,7 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1)
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -435,7 +435,7 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1)
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -505,7 +505,7 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1, repo2)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1, repo2)
 		require.NoError(t, err)
 
 		// initial tick: new APPL and GOOG candles
@@ -578,7 +578,7 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo1)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{}, repo1)
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -624,7 +624,7 @@ func TestClock(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false)
@@ -690,7 +690,7 @@ func TestBalance(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{})
 		require.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -718,10 +718,10 @@ func TestBalance(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -735,7 +735,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, 100.0, delta.NewTrades[0].Price)
 		require.Equal(t, 1000.0, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -791,11 +791,11 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		// open 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -808,7 +808,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// open 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -821,7 +821,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -834,7 +834,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// open 3rd order
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -847,7 +847,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// close order
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -890,10 +890,10 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -905,7 +905,7 @@ func TestBalance(t *testing.T) {
 
 		require.Equal(t, balance, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -931,10 +931,10 @@ func TestPlaceOrder(t *testing.T) {
 		now := startTime
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, []string{})
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -958,7 +958,7 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, []string{})
 		require.NoError(t, err)
 
 		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"))
@@ -989,11 +989,11 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a new playground
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		// Place a buy order
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1011,7 +1011,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, position1.Quantity)
 
 		// Place a sell order
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1050,10 +1050,10 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -1069,7 +1069,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position1.Quantity)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1123,11 +1123,11 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1143,7 +1143,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1159,7 +1159,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 150.0, position.CostBasis)
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1175,7 +1175,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 0.0, position.CostBasis)
 
 		// 3rd order - original direction
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1242,11 +1242,11 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1266,7 +1266,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// close 1st partial
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1282,7 +1282,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 2nd partial
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1298,7 +1298,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 3nd partial
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1359,11 +1359,11 @@ func TestPositions(t *testing.T) {
 	// 	repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 	// 	require.NoError(t, err)
 
-	// 	playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+	// 	playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 	// 	require.NoError(t, err)
 
 	// 	// open 1st order
-	// 	order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err := playground.PlaceOrder(order1)
 	// 	require.NoError(t, err)
 	// 	err = changes.Commit()
@@ -1383,7 +1383,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, order1, openOrders[0])
 
 	// 	// open 2nd order
-	// 	order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order2)
 	// 	require.NoError(t, err)
 	// 	err = changes.Commit()
@@ -1408,7 +1408,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, order2, openOrders[1])
 
 	// 	// close 1st partial
-	// 	order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order3)
 	// 	require.NoError(t, err)
 	// 	err = changes.Commit()
@@ -1424,7 +1424,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, 150.0, position.CostBasis)
 
 	// 	// close 2nd partial
-	// 	order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 15, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order4)
 	// 	require.NoError(t, err)
 	// 	err = changes.Commit()
@@ -1440,7 +1440,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, 150.0, position.CostBasis)
 
 	// 	// close 3nd partial
-	// 	order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order5)
 	// 	require.NoError(t, err)
 	// 	err = changes.Commit()
@@ -1499,11 +1499,11 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1523,7 +1523,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1543,7 +1543,7 @@ func TestPositions(t *testing.T) {
 		require.ElementsMatch(t, openOrders, []*BacktesterOrder{order1, order2})
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1577,7 +1577,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, order2.ClosedBy[0].Quantity)
 
 		// 3rd order - reverse direction
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1597,7 +1597,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order4, openOrders[0])
 
 		// 4th order - continue in same direction
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1645,10 +1645,10 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1663,7 +1663,7 @@ func TestPositions(t *testing.T) {
 		costBasis := 100.0
 		require.Equal(t, costBasis, position.CostBasis)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1698,10 +1698,10 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1736,10 +1736,10 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1749,7 +1749,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1779,9 +1779,9 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1798,7 +1798,7 @@ func TestPositions(t *testing.T) {
 		// require.Len(t, position.OpenTrades, 1)
 		// require.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1831,10 +1831,10 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1849,7 +1849,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, -10.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1906,7 +1906,7 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		freeMargin, err := playground.GetFreeMargin()
@@ -1918,11 +1918,11 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		// place order
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1956,11 +1956,11 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, tradeQty, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -1983,11 +1983,11 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, tradeQty, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2010,11 +2010,11 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		// place order equal to free margin
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 19, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 19, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2026,7 +2026,7 @@ func TestFreeMargin(t *testing.T) {
 		require.Len(t, delta.InvalidOrders, 0)
 
 		// place order above free margin
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2070,10 +2070,10 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2095,10 +2095,10 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 10000.0, 10000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 10000.0, 10000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2108,7 +2108,7 @@ func TestOrders(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.InvalidOrders, 0)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2117,10 +2117,10 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2129,10 +2129,10 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2141,10 +2141,10 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2153,11 +2153,11 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		price := float64(0)
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, &price, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, &price, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2166,18 +2166,18 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		id := uint(1)
 
-		order1 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		require.Error(t, err)
 	})
@@ -2223,18 +2223,18 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, startTime, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, startTime,[]string{} , repo)
 		require.NoError(t, err)
 
 		now := startTime
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2258,11 +2258,11 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now, repo)
+		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, nil, nil, now,[]string{} , repo)
 		require.NoError(t, err)
 
 		quantity := 10.0
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		err = changes.Commit()
@@ -2277,7 +2277,7 @@ func TestTrades(t *testing.T) {
 		require.Equal(t, quantity, delta.NewTrades[0].Quantity)
 		require.Equal(t, prices[0], delta.NewTrades[0].Price)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		err = changes.Commit()

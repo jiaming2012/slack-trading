@@ -200,14 +200,14 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
 	source := &PlaygroundSource{
 		Broker:      account.Source.GetBroker(),
 		AccountID:   account.Source.GetAccountID(),
 		AccountType: account.Source.GetAccountType(),
 	}
 
-	playground, err := NewPlayground(playgroundID, clientID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, repositories...)
+	playground, err := NewPlayground(playgroundID, clientID, account.Balance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, tags, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}

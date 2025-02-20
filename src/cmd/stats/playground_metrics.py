@@ -16,7 +16,7 @@ class TradePosition:
 
 def _calc_trade_position(trades: List[Trade]) -> TradePosition:
     total_quantity = sum([trade.quantity for trade in trades])
-    vwap = sum([trade.price * trade.quantity for trade in trades]) / total_quantity
+    vwap = sum([trade.price * trade.quantity for trade in trades]) / total_quantity if total_quantity > 0 else 0
 
     return TradePosition(vwap=vwap, quantity=total_quantity)
 
@@ -63,13 +63,15 @@ def _calc_realized_profit_list(orders) -> List[float]:
         
         if order.side == 'buy':
             trade_position = _calc_trade_position(order.trades)
-            for trade in order.closed_by:
-                pl += (trade.price - trade_position.vwap) * abs(trade.quantity)
+            if trade_position.vwap > 0:
+                for trade in order.closed_by:
+                    pl += (trade.price - trade_position.vwap) * abs(trade.quantity)
                 
         elif order.side == 'sell_short':
             trade_position = _calc_trade_position(order.trades)
-            for trade in order.closed_by:
-                pl += (trade_position.vwap - trade.price) * trade.quantity
+            if trade_position.vwap > 0:
+                for trade in order.closed_by:
+                    pl += (trade_position.vwap - trade.price) * trade.quantity
                 
         else:
             continue
@@ -115,6 +117,54 @@ def calc_gross_loss(profits : List[float]) -> float:
 def calc_total_orders(orders) -> int:
     return len(orders)
 
+def calc_slippage(orders) -> float:
+    slippage_in_points = []
+    slippage_in_dollars = []
+    max_slippage_order_id = None
+    min_slippage_order_id = None
+    max_slippage = None
+    min_slippage = None
+    
+    for order in orders:
+        val = None
+        
+        if order.side == 'buy':
+            val = order.trades[0].price - order.requested_price
+            slippage_in_points.append(val)
+            
+            valInDollars = val * order.trades[0].quantity
+            slippage_in_dollars.append(valInDollars)
+        elif order.side == 'sell_short':
+            val = order.requested_price - order.trades[0].price
+            slippage_in_points.append(val)
+            
+            valInDollars = val * order.trades[0].quantity
+            slippage_in_dollars.append(valInDollars)
+            
+        if val:
+            if max_slippage is None or valInDollars > max_slippage:
+                max_slippage = valInDollars
+                max_slippage_order_id = order.id
+                
+            if min_slippage is None or valInDollars < min_slippage:
+                min_slippage = valInDollars
+                min_slippage_order_id = order.id
+                
+        
+    results = {}
+    results['total_slippage_in_points'] = sum(slippage_in_points)
+    results['total_slippage_in_dollars'] = sum(slippage_in_dollars)
+    results['avg_slippage_in_dollars'] = sum(slippage_in_dollars) / len(slippage_in_dollars) if len(slippage_in_dollars) > 0 else 'n/a'
+    results['max_slippage_in_dollars'] = max_slippage
+    results['max_slippage_order_id'] = max_slippage_order_id
+    results['min_slippage_in_dollars'] = min_slippage
+    results['min_slippage_order_id'] = min_slippage_order_id
+    
+    standard_deviation = (sum([(s - results['avg_slippage_in_dollars']) ** 2 for s in slippage_in_dollars]) / len(slippage_in_dollars)) ** 0.5
+    results['std_dev_slippage_in_dollars'] = standard_deviation if len(slippage_in_dollars) > 0 else 'n/a'
+
+    return results
+
 def calc_total_trades(orders) -> int:
     trade_count = 0
 
@@ -146,14 +196,27 @@ def calc_losers_count(profits: List[float]) -> int:
 def calc_breakeven_count(profits: List[float]) -> int:
     return len([profit for profit in profits if profit == 0])
 
-def collect_data(host: str, playground_id: str) -> dict:
+def collect_data(host: str, playground_id: str, from_date: str = None, to_date: str = None) -> dict:
     client = PlaygroundServiceClient(host, timeout=60)
 
+    req = GetAccountRequest(
+            playground_id=playground_id, 
+            fetch_orders=True,
+            status=['filled'],   
+        )
+    
+    if from_date:
+        req.fromRTF339 = f'{from_date}T00:00:00Z'
+        
+    if to_date:
+        req.toRTF339 = f'{to_date}T00:00:00Z'
+    
     acc = client.GetAccount(
         ctx=Context(),
-        request=GetAccountRequest(playground_id=playground_id, fetch_orders=True)
+        request=req
     )
     
+    # orders = acc.orders
     orders = [o for o in acc.orders if o.status == 'filled']
 
     profit_list = _calc_realized_profit_list(orders)
@@ -172,6 +235,7 @@ def collect_data(host: str, playground_id: str) -> dict:
     gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
     gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
     gross_data['positions'] = calc_positions(orders)
+    gross_data['slippage'] = calc_slippage(orders)
 
     agg_data = {}
     agg_data['profit_factor'] = gross_data['gross_profit'] / abs(gross_data['gross_loss']) if gross_data['gross_loss'] != 0 else 'n/a'
@@ -185,10 +249,12 @@ if __name__ == '__main__':
     args = argparse.ArgumentParser()
     args.add_argument('--playground-id', type=str, required=True, help="Playground ID")
     args.add_argument('--twirp-host', type=str, default='http://localhost:5051', help="twirp rpc host")
+    args.add_argument('--from-date', type=str, default=None, help="start date")
+    args.add_argument('--to-date', type=str, default=None, help="end date")
 
     args = args.parse_args()
 
-    data = collect_data(args.twirp_host, args.playground_id)
+    data = collect_data(args.twirp_host, args.playground_id, args.from_date, args.to_date)
 
     print('gross data:')
     pprint(data['gross_data'])

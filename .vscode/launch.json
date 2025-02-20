@@ -381,9 +381,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/playground_metrics.py",
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
             "args": [
-                "--playground-id", "9584fe4e-0f26-40d4-96b1-a2fd9bd59502",
+                "--playground-id", "27a2ae48-e157-4c85-bed9-ee710281ad23",
                 "--twirp-host", "http://45.77.223.21"
             ]
         },
