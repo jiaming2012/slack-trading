@@ -132,6 +132,10 @@ tasks:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest -f Dockerfile .'
     dir: ${PROJECTS_DIR}/slack-trading
 
+  app:logs:
+    cmds:
+      - 'stern grodt --container-state running'
+
   stop:app:
     cmds:
       - 'kubectl scale deployment grodt --replicas=0'

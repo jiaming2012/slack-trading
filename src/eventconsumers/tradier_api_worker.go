@@ -449,6 +449,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	now := time.Now()
 	playgrounds := router.GetPlaygrounds()
 
+	count := 0
 	for _, playground := range playgrounds {
 		if playground.GetLiveAccountType() != nil {
 			repos := playground.GetRepositories()
@@ -457,11 +458,14 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 
 				nextUpdateAt := r.GetNextUpdateAt()
 				if nextUpdateAt == nil || now.After(*nextUpdateAt) {
+					count += 1
 					go w.updateLiveRepos(playground.GetId(), r)
 				}
 			}
 		}
 	}
+
+	log.Debugf("TradierApiWorker.ExecuteLiveReposUpdate: updated %d repos", count)
 }
 
 func (w *TradierApiWorker) IsMarketOpen() bool {
