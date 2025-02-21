@@ -21,6 +21,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        readinessProbe:
+          httpPost:
+            path: /twirp/playground.PlaygroundService/GetAppVersion
+            port: 5051
+          initialDelaySeconds: 5
+          periodSeconds: 10
         envFrom:
         - configMapRef:
             name: grodt-configmap

@@ -132,6 +132,14 @@ tasks:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest -f Dockerfile .'
     dir: ${PROJECTS_DIR}/slack-trading
 
+  stop:app:
+    cmds:
+      - 'kubectl scale deployment grodt --replicas=0'
+
+  start:app:
+    cmds:
+      - 'kubectl scale deployment grodt --replicas=1'
+      
   metrics:
     cmds:
       - './env/bin/python playground_metrics.py --playground-id {{.playgroundId}}'
