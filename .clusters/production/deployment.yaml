@@ -22,9 +22,9 @@ spec:
         ports:
         - containerPort: 8080
         readinessProbe:
-          httpPost:
-            path: /twirp/playground.PlaygroundService/GetAppVersion
-            port: 5051
+          httpGet:
+            path: /version/app
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 10
         envFrom:

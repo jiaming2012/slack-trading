@@ -3,7 +3,6 @@ package dbutils
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -11,8 +10,6 @@ import (
 )
 
 func InitPostgresWithUrl(url string) (*gorm.DB, error) {
-	log.Infof("connecting to postgres @ %s", url)
-
 	db, err := gorm.Open(postgres.Open(url), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

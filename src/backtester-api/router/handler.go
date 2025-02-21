@@ -387,11 +387,11 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 			AccountType: string(*meta.LiveAccountType),
 		}
 
-		if err := tx.FirstOrCreate(&liveAccount,  models.LiveAccount{
-            BrokerName:  meta.SourceBroker,
-            AccountId:   meta.SourceAccountId,
-            AccountType: string(*meta.LiveAccountType),
-        }).Error; err != nil {
+		if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
+			BrokerName:  meta.SourceBroker,
+			AccountId:   meta.SourceAccountId,
+			AccountType: string(*meta.LiveAccountType),
+		}).Error; err != nil {
 			return fmt.Errorf("failed to fetch or create live account: %w", err)
 		}
 
@@ -989,11 +989,11 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
 	}
 
-	router.HandleFunc("", handlePlayground)
+	// router.HandleFunc("", handlePlayground)
 	// router.HandleFunc("/{id}/account", handleAccount)
-	router.HandleFunc("/{id}/order", handleOrder)
-	router.HandleFunc("/{id}/tick", handleTick)
-	router.HandleFunc("/{id}/candles", handleCandles)
+	// router.HandleFunc("/{id}/order", handleOrder)
+	// router.HandleFunc("/{id}/tick", handleTick)
+	// router.HandleFunc("/{id}/candles", handleCandles)
 
 	handleLiveOrders(ctx, ordersUpdateQueue)
 

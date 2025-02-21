@@ -51,8 +51,6 @@ git push
 # Update kubernetes cluster
 kubectl apply -f .clusters/production/configmap.yaml
 
-kubectl scale deployment grodt --replicas=2
-
 kubectl apply -f .clusters/production/deployment.yaml
 
 while true; do
