@@ -519,7 +519,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			if err := w.db.Transaction(func(tx *gorm.DB) error {
 				if err := w.db.Create(&models.LiveAccountPlot{
 					Timestamp:     now,
-					LiveAccountID: account.ID,
+					LiveAccountID: liveAccount.ID,
 					Equity:        &equity,
 				}).Error; err != nil {
 					return fmt.Errorf("failed to create live account plot: %w", err)
