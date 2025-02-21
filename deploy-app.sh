@@ -50,6 +50,18 @@ git push
 
 # Update kubernetes cluster
 kubectl apply -f .clusters/production/configmap.yaml
+
+kubectl scale deployment grodt --replicas=2
+
 kubectl apply -f .clusters/production/deployment.yaml
+
+while true; do
+    STATUS=$(kubectl get pods -l app=grodt -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
+    if [ "$STATUS" == "True" ]; then
+        echo "Pod is ready!"
+        break
+    fi
+    sleep 5
+done
 
 echo "Deployment successful! Version $VERSION has been deployed."
