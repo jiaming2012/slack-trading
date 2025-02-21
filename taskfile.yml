@@ -136,6 +136,10 @@ tasks:
     cmds:
       - 'kubectl scale deployment grodt --replicas=0'
 
+  update:app:
+    cmds:
+      - 'kubectl rollout restart deployment grodt'
+
   start:app:
     cmds:
       - 'kubectl scale deployment grodt --replicas=1'
