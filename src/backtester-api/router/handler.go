@@ -564,7 +564,7 @@ func loadPlaygrounds() error {
 
 		pIDStr := p.ID.String()
 
-		fmt.Printf("loading playground: %v\n", pIDStr)
+		log.Infof("loading playground: %s", pIDStr)
 
 		var err error
 		for i, o := range p.Orders {
@@ -652,6 +652,8 @@ func loadPlaygrounds() error {
 
 		playgrounds[playground.GetId()] = playground
 	}
+
+	log.Info("loaded all playgrounds")
 
 	return nil
 }

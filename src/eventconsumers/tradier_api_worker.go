@@ -301,8 +301,6 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 		return
 	}
 
-	// log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
-
 	for _, order := range pendingOrders {
 		var liveAccountType models.LiveAccountType
 		if order.AccountType == string(models.LiveAccountTypePaper) {
@@ -319,8 +317,6 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 			log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch order: %v", err)
 			continue
 		}
-
-		log.Debugf("orderDTO: %v", orderDTO)
 
 		if orderDTO.Status == string(models.BacktesterOrderStatusFilled) {
 			o, err := orderDTO.ToTradierOrder()
@@ -353,6 +349,8 @@ func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
 
 		time.Sleep(10 * time.Millisecond)
 	}
+
+	log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
 }
 
 func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period time.Duration) (time.Time, time.Time) {
@@ -547,12 +545,14 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 
 	timer := time.NewTicker(10 * time.Second)
 
+	log.Info("starting TradierApiWorker consumer")
+
 	go func() {
 		defer w.wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info("stopping TradierOrdersMonitoringWorker consumer")
+				log.Info("stopping TradierApiWorker consumer")
 				return
 			case <-timer.C:
 				if !w.IsMarketOpen() {
