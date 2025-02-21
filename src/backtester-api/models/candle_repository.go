@@ -152,6 +152,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 
 	// send new bars to the queue
 	if r.newCandlesQueue != nil {
+		log.Debugf("sending new (%s, %s) candles to the queue", r.symbol, r.periodStr)
 		for i := previousIndex + 1; i < len(r.candlesWithIndicators); i++ {
 			r.newCandlesQueue.Enqueue(&BacktesterCandle{
 				Symbol: r.symbol,

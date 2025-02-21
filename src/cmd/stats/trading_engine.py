@@ -355,6 +355,11 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         additional_profit_risk_percentage = 0.25
         open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
+    elif open_strategy_input == 'simple_open_strategy_v4':
+        from simple_open_strategy_v4 import SimpleOpenStrategyV4
+        additional_profit_risk_percentage = 0.0
+        open_strategy = SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+    
     elif open_strategy_input == 'candlestick_open_strategy_v1':
         from candlestick_open_strategy_v1 import CandlestickOpenStrategy
         min_max_window_in_hours = 24

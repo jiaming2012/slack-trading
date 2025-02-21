@@ -42,7 +42,7 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	log.Debugf("fetching quotes from %s", req.URL.String())
+	log.Tracef("fetching quotes from %s", req.URL.String())
 
 	res, err := client.Do(req)
 	if err != nil {
