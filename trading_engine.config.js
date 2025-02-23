@@ -10,7 +10,8 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'AAPL',
-      GRPC_HOST: 'http://45.77.223.21',
+      // GRPC_HOST: 'http://45.77.223.21',
+      GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -30,7 +31,7 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'src/cmd/stats/env/bin/python',
+    interpreter: '${ANACONDA_HOME}/envs/trading/bin/python',
   },{
     name: 'supertrend1-coin',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -42,7 +43,8 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://45.77.223.21',
+      // GRPC_HOST: 'http://45.77.223.21',
+      GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -57,7 +59,7 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'src/cmd/stats/env/bin/python',
+    interpreter: '${ANACONDA_HOME}/envs/trading/bin/python',
   },{
     name: 'supertrend1-meta',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -69,7 +71,8 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'META',
-      GRPC_HOST: 'http://45.77.223.21',
+      // GRPC_HOST: 'http://45.77.223.21',
+      GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -89,7 +92,7 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'src/cmd/stats/env/bin/python',
+    interpreter: '${ANACONDA_HOME}/envs/trading/bin/python',
   },{
     name: 'supertrend1-nvda',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -101,7 +104,8 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'NVDA',
-      GRPC_HOST: 'http://45.77.223.21',
+      // GRPC_HOST: 'http://45.77.223.21',
+      GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -121,7 +125,7 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'src/cmd/stats/env/bin/python',
+    interpreter: '${ANACONDA_HOME}/envs/trading/bin/python',
   },{
     name: 'supertrend1-tsla',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -133,7 +137,8 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'TSLA',
-      GRPC_HOST: 'http://45.77.223.21',
+      // GRPC_HOST: 'http://45.77.223.21',
+      GRPC_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -153,6 +158,6 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'src/cmd/stats/env/bin/python',
+    interpreter: '${ANACONDA_HOME}/envs/trading/bin/python',
   }]
 };

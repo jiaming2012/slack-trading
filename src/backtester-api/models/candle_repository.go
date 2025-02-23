@@ -160,6 +160,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 				Bar:    r.candlesWithIndicators[i],
 			})
 		}
+		log.Tracef("sent %d new (%s, %s) candles to the queue", len(r.candlesWithIndicators)-previousIndex-1, r.symbol, r.periodStr)
 	}
 
 	return maxTimestamp, nil

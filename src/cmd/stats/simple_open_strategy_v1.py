@@ -58,8 +58,15 @@ class SimpleOpenStrategy(BaseOpenStrategy):
             try:
                 self.update_price_feed(c)
             except Exception as e:
-                logger.error(f"updating price feed: {e}")
-                continue
+                if str(e) == "Candles (5m) are not sorted by timestamp":
+                    print("Caught the expected exception:", e)
+                    
+                elif str(e) == "Candles (1h) are not sorted by timestamp":
+                    print("Caught the expected exception:", e)
+                    
+                else:
+                    logger.error(f"updating price feed: {e}")
+                    continue
             
             # todo: move this to a debug log. Move other debug logs to trace.
             logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
