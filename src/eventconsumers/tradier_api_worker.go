@@ -492,7 +492,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 	todayAt1615 := time.Date(nowEST.Year(), nowEST.Month(), nowEST.Day(), 16, 15, 0, 0, w.location)
 
 	var liveAccounts []*models.LiveAccount
-	if err := w.db.Where("plot_updated_at IS NULL OR plot_updated_at <= ?", todayAt1615).Find(&liveAccounts).Error; err != nil {
+	if err := w.db.Where("plot_updated_at IS NULL OR plot_updated_at < ?", todayAt1615).Find(&liveAccounts).Error; err != nil {
 		log.Errorf("failed to fetch live accounts: %v", err)
 		return
 	}
@@ -527,7 +527,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 					return fmt.Errorf("failed to create live account plot: %w", err)
 				}
 
-				if err := w.db.Model(&liveAccount).Update("plot_updated_at", now).Error; err != nil {
+				if err := w.db.Model(&liveAccount).Update("plot_updated_at", todayAt1615).Error; err != nil {
 					return fmt.Errorf("failed to update live account: %w", err)
 				}
 
