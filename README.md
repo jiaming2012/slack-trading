@@ -22,9 +22,29 @@ conda info | grep 'base environment'
 export ANACONDA_HOME="path/to/environment"
 ```
 
-3. Set symbolic link for pm2 (on dev machines)
+## Disk Space
+Over time docker images should be cleaned up.
+
+### Local images
+To delete all `ewr.vultrcr.com/grodt/app` images before `3.15.0`:
+
 ``` bash
-ln -s $ANACONDA_HOME anaconda
+task rmi -- 3.15.0
+```
+
+### Vultr
+Vultr’s API returns JSON data, so we’ll use jq to parse it.
+
+#### Installation
+``` bash
+sudo apt install jq  # Ubuntu/Debian
+brew install jq      # macOS
+```
+
+#### Run
+To list all images:
+``` bash
+task vultr:ls
 ```
 
 ## Migrations

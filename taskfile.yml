@@ -1,6 +1,16 @@
 version: '3'
 
 tasks:
+  vultr:ls:
+    cmds:
+      - './vultr_list_images.sh'
+    dir: ${PROJECTS_DIR}/slack-trading
+
+  rmi:
+    cmds:
+      - './delete_old_images.sh {{.CLI_ARGS}}'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   conda:list:
     cmds:
       - 'conda env list'
