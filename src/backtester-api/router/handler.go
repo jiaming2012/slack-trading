@@ -928,7 +928,8 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 			default:
 				event, ok := orderUpdateQueue.Dequeue()
 				if !ok {
-					time.Sleep(8000 * time.Second)
+					time.Sleep(8 * time.Second)
+					log.Tracef("handleLiveOrders: no order update events ... waking up")
 					continue
 				}
 
@@ -966,7 +967,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 								log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 							}
 						} else {
-							log.Warnf("handleLiveOrders: order not found: %v", event.CreateOrder.Order)
+							log.Warnf("handleLiveOrders: order not found: %v", event.ModifyOrder.OrderID)
 						}
 					}
 				} else if event.DeleteOrder != nil {
