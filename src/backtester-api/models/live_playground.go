@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -211,6 +212,8 @@ func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveA
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
+
+	log.Debugf("adding newCandlesQueue(%p) to NewLivePlayground", newCandlesQueue)
 
 	return &LivePlayground{
 		playground:      playground,

@@ -23,6 +23,15 @@ tasks:
     cmds:
       - 'task --list-all'
 
+  commit:
+    cmds:
+      - 'git add .'
+      - 'git commit -m "{{.message}}"'
+      - 'git push'
+    var:
+      message: ""
+    
+
   rc:
     cmds:
       - 'mosh root@149.28.225.5'

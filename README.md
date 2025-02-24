@@ -11,6 +11,22 @@ conda deactivate
 conda activate base
 ```
 
+Setup interpreter
+1. Find anaconda home directory:
+``` bash
+conda info | grep 'base environment'
+```
+
+2. Set env variable
+``` bash
+export ANACONDA_HOME="path/to/environment"
+```
+
+3. Set symbolic link for pm2 (on dev machines)
+``` bash
+ln -s $ANACONDA_HOME anaconda
+```
+
 ## Migrations
 Currently, no migrations framework has been chosen an scripts are used if database migrations are needed. The script does a dry-run by default. Running a second time with `--live-run` will apply the migrations.
 

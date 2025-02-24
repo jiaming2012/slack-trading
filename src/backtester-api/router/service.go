@@ -245,7 +245,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		}
 
 		// capture all candles up to tomorrow
-		tomorrow := req.CreatedAt.AddDate(0, 0, 1)
+		tomorrow := time.Now().AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")
 		from, err := eventmodels.NewPolygonDate(tomorrowStr)
 		if err != nil {
@@ -253,9 +253,9 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		}
 
 		// fetch or create live repositories
-		newCandlesQueue := eventmodels.NewFIFOQueue[*models.BacktesterCandle](999)
+		newCandlesQueue := eventmodels.NewFIFOQueue[*models.BacktesterCandle]("newCandlesQueue", 999)
 
-		newTradesFilledQueue := eventmodels.NewFIFOQueue[*models.TradeRecord](999)
+		newTradesFilledQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 999)
 
 		repos, webErr := createRepos(req.Repositories, from, nil, newCandlesQueue)
 		if webErr != nil {
@@ -389,7 +389,7 @@ func createRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *e
 			return nil, eventmodels.NewWebError(400, "invalid repository source", nil)
 		}
 
-		if len(repo.Indicators) > 0 {
+		if from != nil {
 			pastBars, err = fetchPastCandles(eventmodels.StockSymbol(repo.Symbol), timespan, int(repo.HistoryInDays), from)
 			if err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to fetch past candles", err)

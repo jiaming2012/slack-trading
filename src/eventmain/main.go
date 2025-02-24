@@ -500,7 +500,7 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
