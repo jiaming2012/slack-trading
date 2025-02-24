@@ -42,6 +42,14 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 		return nil, fmt.Errorf("failed to load location America/New_York: %w", err)
 	}
 
+	if from == nil {
+		return nil, fmt.Errorf("from date is nil")
+	}
+
+	if to == nil {
+		return nil, fmt.Errorf("to date is nil")
+	}
+
 	// start at stock market open
 	fromDate := time.Date(from.Year, time.Month(from.Month), from.Day, 9, 30, 0, 0, loc)
 

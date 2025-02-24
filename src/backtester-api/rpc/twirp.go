@@ -11,7 +11,7 @@ import (
 )
 
 func SetupTwirpServer() {
-	server := &backtester_router.Server{}
+	server := backtester_router.NewServer()
 	twirpHandler := playground.NewPlaygroundServiceServer(server)
 	port := 5051
 

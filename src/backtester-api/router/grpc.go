@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
@@ -15,7 +16,15 @@ import (
 	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
-type Server struct{}
+type Server struct {
+	cache *models.RequestCache
+}
+
+func NewServer() *Server {
+	return &Server{
+		cache: models.NewRequestCache(),
+	}
+}
 
 func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
 	out := make([]*pb.Order, 0)
@@ -303,9 +312,36 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 }
 
 func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
+	log.Tracef("%v: NextTick:start", req.RequestId)
+	defer log.Tracef("%v: NextTick:end", req.RequestId)
+
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
+	}
+
+	if len(req.RequestId) == 0 {
+		return nil, fmt.Errorf("failed to get next tick: request id is empty")
+	}
+
+	var tickDelta *pb.TickDelta
+	
+	reqCh := s.cache.GetData(req.RequestId)
+
+	isComplete := false
+	defer func() {
+		log.Tracef("%v: NextTick:isComplete: %v", req.RequestId, isComplete)
+		if !isComplete {
+			if err := s.cache.StoreData(req.RequestId, tickDelta); err != nil {
+				log.Errorf("failed to store tick delta: %v", err)
+			}
+		}
+	}()
+
+	tickDelta = <-reqCh
+	if tickDelta != nil {
+		log.Debugf("Returning cached data for request id: %s", req.RequestId)
+		return tickDelta, nil
 	}
 
 	duration := time.Duration(req.Seconds) * time.Second
@@ -354,14 +390,21 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		}
 	}
 
-	return &pb.TickDelta{
+	tickDelta = &pb.TickDelta{
 		NewTrades:          newTrades,
 		NewCandles:         newCandles,
 		InvalidOrders:      invalidOrdersDTO,
 		Events:             tickDeltaEvents,
 		CurrentTime:        tick.CurrentTime,
 		IsBacktestComplete: tick.IsBacktestComplete,
-	}, nil
+	}
+
+	isComplete = true
+	if err := s.cache.StoreData(req.RequestId, tickDelta); err != nil {
+		log.Errorf("failed to store tick delta: %v", err)
+	}
+
+	return tickDelta, nil
 }
 
 func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {

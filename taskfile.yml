@@ -120,8 +120,10 @@ tasks:
   commit:
     cmds:
       - 'task test'
-      - 'git commit'
-
+      - 'git add .'
+      - 'git commit -m "{{.CLI_ARGS}}"'
+      - 'git push'
+      
   run:dev:
     cmds:
       - './run-dev.sh'
@@ -162,11 +164,11 @@ tasks:
     var:
       version: ""
 
-  esdb:connect:
+  esdb:pf:
     cmds:
       - 'kubectl port-forward svc/eventstoredb 2113:2113 -n eventstoredb'
 
-  pg:connect:
+  pg:pf:
     cmds:
       - 'kubectl port-forward svc/postgres 5432:5432 -n database'
 

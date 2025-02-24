@@ -100,7 +100,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent](999)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 	r.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db)
 
 	req := &r.CreatePlaygroundRequest{

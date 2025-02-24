@@ -189,6 +189,7 @@ message NextTickRequest {
     string playground_id = 1;
     uint64 seconds = 2;
     bool is_preview = 3;
+    string request_id = 4;
 }
 
 message TickDelta {

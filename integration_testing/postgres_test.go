@@ -292,6 +292,7 @@ func TestWithPostgres(t *testing.T) {
 	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
 		PlaygroundId: playgroundResp.Id,
 		Seconds:      60,
+		RequestId:    "postgres_test:1",
 	})
 
 	require.NoError(t, err)
@@ -312,14 +313,14 @@ func TestWithPostgres(t *testing.T) {
 
 	// Place 2nd partial close order
 	order3, err := playgroundClient.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId: playgroundResp.Id,
-		Symbol:       "AAPL",
-		AssetClass:   "equity",
-		Quantity:     5,
+		PlaygroundId:   playgroundResp.Id,
+		Symbol:         "AAPL",
+		AssetClass:     "equity",
+		Quantity:       5,
 		RequestedPrice: 100,
-		Side:         "sell",
-		Type:         "market",
-		Duration:     "day",
+		Side:           "sell",
+		Type:           "market",
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
@@ -328,6 +329,7 @@ func TestWithPostgres(t *testing.T) {
 	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
 		PlaygroundId: playgroundResp.Id,
 		Seconds:      60,
+		RequestId:    "postgres_test:2",
 	})
 
 	require.NoError(t, err)

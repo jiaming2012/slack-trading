@@ -10,6 +10,7 @@ from typing import List, Dict
 from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
 import time
+import uuid
 
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
@@ -96,7 +97,7 @@ def set_nested_value(d, key1, key2, value):
         d[key1] = {}
     d[key1][key2] = value
 
-def network_call_with_retry(client, request, backoff=2, max_backoff=60):
+def network_call_with_retry(caller, client, request, backoff=2, max_backoff=60):
     retries = 0
     while True:
         try:
@@ -109,7 +110,7 @@ def network_call_with_retry(client, request, backoff=2, max_backoff=60):
         except TwirpServerException as e:
             retries += 1
                         
-            logger.warning(f"Network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
+            logger.warning(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
             time.sleep(backoff)
             
             if backoff < max_backoff:
@@ -168,7 +169,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            network_call_with_retry(self.client.DeletePlayground, request)
+            network_call_with_retry('remove_from_server', self.client.DeletePlayground, request)
         except Exception as e:
             logger.exception("Failed to connect to gRPC service (remove_on_server)")
             raise e
@@ -196,7 +197,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = network_call_with_retry(self.client.GetOpenOrders, request)
+            response = network_call_with_retry('fetch_open_orders', self.client.GetOpenOrders, request)
         except Exception as e:
             logger.exception("failed to connect to gRPC service (fetch_open_orders)")
             raise e
@@ -210,7 +211,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = network_call_with_retry(self.client.GetAccount, request)
+            response = network_call_with_retry('_fetch_and_update_account_state', self.client.GetAccount, request)
         except Exception as e:
             logger.exception("Failed to connect to gRPC service (fetch_and_update_account_state)")
             raise e
@@ -307,7 +308,7 @@ class BacktesterPlaygroundClient:
         toStr = toStr[:-2] + ':' + toStr[-2:]
                         
         try:
-            response = network_call_with_retry(self.client.GetCandles, GetCandlesRequest(
+            response = network_call_with_retry('fetch_candles_v2', self.client.GetCandles, GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 period_in_seconds=period_in_seconds,
@@ -330,7 +331,7 @@ class BacktesterPlaygroundClient:
         toStr = toStr[:-2] + ':' + toStr[-2:]
                         
         try:
-            response = network_call_with_retry(self.client.GetCandles, GetCandlesRequest(
+            response = network_call_with_retry('fetch_candles', self.client.GetCandles, GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 period_in_seconds=period_in_seconds,
@@ -367,7 +368,7 @@ class BacktesterPlaygroundClient:
         )
         
         try:
-            response = network_call_with_retry(self.client.NextTick, request)
+            response = network_call_with_retry('preview_tick', self.client.NextTick, request)
         except Exception as e:
             logger.exception("Failed to connect to gRPC service (preview_tick)")
             raise e
@@ -386,11 +387,12 @@ class BacktesterPlaygroundClient:
         request = NextTickRequest(
             playground_id=self.id,
             seconds=seconds,
-            is_preview=False
+            is_preview=False,
+            request_id=str(uuid.uuid4()),
         )
         
         try:
-            new_state: TickDelta = network_call_with_retry(self.client.NextTick, request)
+            new_state: TickDelta = network_call_with_retry('tick', self.client.NextTick, request)
         except Exception as e:
             logger.exception("Failed to connect to gRPC service (tick)")
             if raise_exception:
@@ -450,7 +452,7 @@ class BacktesterPlaygroundClient:
         logger.info(f"Placing order: {request}")
                 
         try:
-            response = network_call_with_retry(self.client.PlaceOrder, request)
+            response = network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
             if self.environment == PlaygroundEnvironment.SIMULATOR.value and with_tick:
@@ -481,7 +483,7 @@ class BacktesterPlaygroundClient:
                 environment='live'
             )
             
-            response = network_call_with_retry(self.client.CreateLivePlayground, liveRequest)            
+            response = network_call_with_retry('create_live_playground', self.client.CreateLivePlayground, liveRequest)            
             return response.id
         except Exception as e:
             raise("Failed to create live playground:", e)
@@ -489,7 +491,7 @@ class BacktesterPlaygroundClient:
     
     def create_playground_polygon(self, req: CreatePolygonPlaygroundRequest) -> str:
         try:
-            response = network_call_with_retry(self.client.CreatePlayground, req)            
+            response = network_call_with_retry('create_playground_polygon', self.client.CreatePlayground, req)            
             return response.id
         except Exception as e:
             raise("Failed to create playground:", e)

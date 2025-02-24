@@ -44,7 +44,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	req.URL.RawQuery = q.Encode()
 	req.Header.Add("Accept", "application/json")
 
-	log.Tracef("fetching from %v", req.URL.String())
+	// log.Tracef("fetching from %v", req.URL.String())
 
 	client := http.Client{
 		Timeout: 10 * time.Second,
@@ -66,9 +66,9 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 		return nil, fmt.Errorf("fetchPolygonStockChart: failed to decode json: %w", err)
 	}
 
-	if dto.NextURL != nil {
-		log.Tracef("fetchPolygonStockChart: next url: %v", *dto.NextURL)
-	}
+	// if dto.NextURL != nil {
+	// 	log.Tracef("fetchPolygonStockChart: next url: %v", *dto.NextURL)
+	// }
 
 	return &dto, nil
 }
@@ -113,8 +113,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 		for {
 			resp, err := fetchPolygonStockChart(url, apiKey)
 			if err != nil {
-				log.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %v", err)
-				break
+				return nil, fmt.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %v", err)
 			}
 
 			aggregateResult.QueryCount += resp.QueryCount

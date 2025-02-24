@@ -928,6 +928,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 			default:
 				event, ok := orderUpdateQueue.Dequeue()
 				if !ok {
+					time.Sleep(8000 * time.Second)
 					continue
 				}
 
@@ -973,8 +974,6 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 				} else {
 					log.Warnf("handleLiveOrders: unknown event type: %v", event)
 				}
-
-				time.Sleep(50 * time.Millisecond)
 			}
 		}
 	}()

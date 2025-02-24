@@ -27,7 +27,7 @@ type CandleRepository struct {
 	historyInDays         uint32
 	nextUpdateAt          *time.Time
 	source                eventmodels.CandleRepositorySource
-	mutex                 sync.Mutex
+	mutex                 *sync.Mutex
 }
 
 func (r *CandleRepository) SetNextUpdateAt(lastTstamp time.Time) time.Time {
@@ -152,7 +152,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 
 	// send new bars to the queue
 	if r.newCandlesQueue != nil {
-		log.Debugf("sending new (%s, %s) candles to the queue", r.symbol, r.periodStr)
+		log.Tracef("sending new (%s, %s) candles to the queue", r.symbol, r.periodStr)
 		for i := previousIndex + 1; i < len(r.candlesWithIndicators); i++ {
 			r.newCandlesQueue.Enqueue(&BacktesterCandle{
 				Symbol: r.symbol,
@@ -160,6 +160,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 				Bar:    r.candlesWithIndicators[i],
 			})
 		}
+		log.Tracef("sent %d new (%s, %s) candles to the queue", len(r.candlesWithIndicators)-previousIndex-1, r.symbol, r.periodStr)
 	}
 
 	return maxTimestamp, nil
@@ -289,6 +290,8 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		return nil, fmt.Errorf("failed to add indicators to candles: %v", err)
 	}
 
+	log.Debugf("adding newCandlesQueue(%p) to CandleRepository (%s, %s)", newCandlesQueue, symbol, period.String())
+
 	return &CandleRepository{
 		symbol:                symbol,
 		period:                period,
@@ -302,6 +305,6 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		isInitialTick:         true,
 		historyInDays:         historyInDays,
 		source:                source,
-		mutex:                 sync.Mutex{},
+		mutex:                 &sync.Mutex{},
 	}, nil
 }
