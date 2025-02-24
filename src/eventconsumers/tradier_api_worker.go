@@ -295,6 +295,9 @@ func (w *TradierApiWorker) fetchPendingOrdersfromDB() ([]*models.OrderRecord, er
 }
 
 func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
+	log.Trace("TradierApiWorker.executeOrdersQueueUpdate: begin ...")
+	defer log.Trace("TradierApiWorker.executeOrdersQueueUpdate: end")
+
 	pendingOrders, err := w.fetchPendingOrdersfromDB()
 	if err != nil {
 		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
@@ -444,6 +447,9 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 }
 
 func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
+	log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: begin ...")
+	defer log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: end")
+
 	now := time.Now()
 	playgrounds := router.GetPlaygrounds()
 
