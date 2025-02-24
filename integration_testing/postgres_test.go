@@ -292,7 +292,7 @@ func TestWithPostgres(t *testing.T) {
 	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
 		PlaygroundId: playgroundResp.Id,
 		Seconds:      60,
-		RequestId:    "postgres_test",
+		RequestId:    "postgres_test:1",
 	})
 
 	require.NoError(t, err)
@@ -329,6 +329,7 @@ func TestWithPostgres(t *testing.T) {
 	_, err = playgroundClient.NextTick(ctx, &playground.NextTickRequest{
 		PlaygroundId: playgroundResp.Id,
 		Seconds:      60,
+		RequestId:    "postgres_test:2",
 	})
 
 	require.NoError(t, err)
