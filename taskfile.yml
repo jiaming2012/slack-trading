@@ -23,15 +23,6 @@ tasks:
     cmds:
       - 'task --list-all'
 
-  commit:
-    cmds:
-      - 'git add .'
-      - 'git commit -m "{{.message}}"'
-      - 'git push'
-    var:
-      message: ""
-    
-
   rc:
     cmds:
       - 'mosh root@149.28.225.5'
@@ -129,8 +120,10 @@ tasks:
   commit:
     cmds:
       - 'task test'
-      - 'git commit'
-
+      - 'git add .'
+      - 'git commit -m "{{.CLI_ARGS}}"'
+      - 'git push'
+      
   run:dev:
     cmds:
       - './run-dev.sh'
