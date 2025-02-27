@@ -26,6 +26,7 @@ type PlaygroundSession struct {
 	LiveAccountType   *string                `gorm:"column:live_account_type;type:text"`
 	Orders            []OrderRecord          `gorm:"foreignKey:PlaygroundID"`
 	EquityPlotRecords []EquityPlotRecord     `gorm:"foreignKey:PlaygroundID;references:ID"`
+	ParentID          *uuid.UUID             `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
 	Tags              pq.StringArray         `gorm:"type:text[]"`
 	Repositories      CandleRepositoryRecord `gorm:"type:json;not null"`
 }

@@ -6,7 +6,7 @@ type PlaygroundEnvironment string
 
 func (e PlaygroundEnvironment) Validate() error {
 	switch e {
-	case PlaygroundEnvironmentSimulator, PlaygroundEnvironmentLive:
+	case PlaygroundEnvironmentSimulator, PlaygroundEnvironmentLive, PlaygroundEnvironmentReconcile:
 		return nil
 	default:
 		return fmt.Errorf("invalid playground environment")
@@ -16,4 +16,5 @@ func (e PlaygroundEnvironment) Validate() error {
 const (
 	PlaygroundEnvironmentSimulator PlaygroundEnvironment = "simulator"
 	PlaygroundEnvironmentLive      PlaygroundEnvironment = "live"
+	PlaygroundEnvironmentReconcile PlaygroundEnvironment = "reconcile"
 )

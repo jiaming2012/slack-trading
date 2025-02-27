@@ -111,7 +111,7 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time) error {
 		}
 	}
 
-	return fmt.Errorf("failed to set starting position: no candles found at or after %s", currentTime)
+	return fmt.Errorf("no candles found at or after %s", currentTime)
 }
 
 func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, error) {
@@ -285,11 +285,25 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		return nil, fmt.Errorf("failed to create polygon timespan: %v", err)
 	}
 
-	candlesWithIndicators, err := eventservices.AddIndicatorsToCandles(candles, indicators)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add indicators to candles: %v", err)
+	var candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
+	if len(indicators) > 0 {
+		candlesWithIndicators, err = eventservices.AddIndicatorsToCandles(candles, indicators)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add indicators to candles: %v", err)
+		}
+	} else {
+		for _, candle := range candles {
+			candlesWithIndicators = append(candlesWithIndicators, &eventmodels.AggregateBarWithIndicators{
+				Volume:   candle.Volume,
+				Open:     candle.Open,
+				High:     candle.High,
+				Low:      candle.Low,
+				Close:    candle.Close,
+				Timestamp: candle.Timestamp,
+			})
+		}
 	}
-
+	
 	log.Debugf("adding newCandlesQueue(%p) to CandleRepository (%s, %s)", newCandlesQueue, symbol, period.String())
 
 	return &CandleRepository{

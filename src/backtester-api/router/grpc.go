@@ -180,8 +180,9 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		}
 
 		var liveAccountType *string
-		if meta.LiveAccountType != nil {
-			liveAccountType = meta.LiveAccountType.StringPtr()
+		if err := meta.LiveAccountType.Validate(); err == nil {
+			liveAccountType = new(string)
+			*liveAccountType = string(meta.LiveAccountType)
 		}
 
 		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
@@ -325,7 +326,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	}
 
 	var tickDelta *pb.TickDelta
-	
+
 	reqCh := s.cache.GetData(req.RequestId)
 
 	isComplete := false
@@ -469,8 +470,9 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	ordersDTO := convertOrders(account.Orders)
 
 	var liveAccountType *string
-	if account.Meta.LiveAccountType != nil {
-		liveAccountType = account.Meta.LiveAccountType.StringPtr()
+	if err := account.Meta.LiveAccountType.Validate(); err == nil {
+		liveAccountType = new(string)
+		*liveAccountType = string(account.Meta.LiveAccountType)
 	}
 
 	return &pb.GetAccountResponse{
@@ -549,7 +551,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		ClientID: req.ClientId,
 		Account: CreateAccountRequest{
 			Balance: float64(req.Balance),
-			Source: &CreateAccountRequestSource{
+			Source: &models.CreateAccountRequestSource{
 				Broker:      req.Broker,
 				AccountType: models.LiveAccountType(req.AccountType),
 			},

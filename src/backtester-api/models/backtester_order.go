@@ -231,3 +231,21 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Tim
 		Closes:           []*BacktesterOrder{},
 	}
 }
+
+func CopyBacktesterOrder(from *BacktesterOrder) *BacktesterOrder {
+	return NewBacktesterOrder(
+		from.ID, 
+		from.Class, 
+		from.CreateDate, 
+		from.Symbol, 
+		from.Side, 
+		from.AbsoluteQuantity, 
+		from.Type, 
+		from.Duration, 
+		from.RequestedPrice, 
+		from.Price, 
+		from.StopPrice, 
+		from.Status, 
+		from.Tag,
+	)
+}

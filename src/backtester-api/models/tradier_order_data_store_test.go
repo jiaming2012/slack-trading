@@ -1,8 +1,9 @@
-package eventmodels
+package models
 
 import (
 	"testing"
 
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/stretchr/testify/require"
 )
 
@@ -10,7 +11,7 @@ func Test_TradierOrderDataStore(t *testing.T) {
 	t.Run("add an order", func(t *testing.T) {
 		// arrange
 		orders := NewTradierOrderDataStore()
-		order := &TradierOrder{
+		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
 
@@ -25,7 +26,7 @@ func Test_TradierOrderDataStore(t *testing.T) {
 	t.Run("delete an order", func(t *testing.T) {
 		// arrange
 		orders := NewTradierOrderDataStore()
-		order := &TradierOrder{
+		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
 		orders.Add(order)
@@ -40,14 +41,14 @@ func Test_TradierOrderDataStore(t *testing.T) {
 	t.Run("update an order", func(t *testing.T) {
 		// arrange
 		orders := NewTradierOrderDataStore()
-		order := &TradierOrder{
+		order := &eventmodels.TradierOrder{
 			ID:     1,
 			Status: "open",
 		}
 		orders.Add(order)
 
 		// act
-		update := &TradierOrder{
+		update := &eventmodels.TradierOrder{
 			ID:     1,
 			Status: "filled",
 		}
@@ -67,7 +68,7 @@ func Test_TradierOrderDataStore(t *testing.T) {
 		orders := NewTradierOrderDataStore()
 
 		// act
-		update := &TradierOrder{
+		update := &eventmodels.TradierOrder{
 			ID:     1,
 			Status: "filled",
 		}
@@ -81,14 +82,14 @@ func Test_TradierOrderDataStore(t *testing.T) {
 	t.Run("fail to update an order with mismatch ID", func(t *testing.T) {
 		// arrange
 		orders := NewTradierOrderDataStore()
-		order := &TradierOrder{
+		order := &eventmodels.TradierOrder{
 			ID:     1,
 			Status: "open",
 		}
 		orders.Add(order)
 
 		// act
-		update := &TradierOrder{
+		update := &eventmodels.TradierOrder{
 			ID:     2,
 			Status: "filled",
 		}

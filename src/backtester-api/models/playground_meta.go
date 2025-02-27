@@ -14,7 +14,7 @@ type PlaygroundMeta struct {
 	InitialBalance  float64               `json:"starting_balance"`
 	SourceBroker    string                `json:"source_broker"`
 	SourceAccountId string                `json:"source_account_id"`
-	LiveAccountType *LiveAccountType      `json:"live_account_type"`
+	LiveAccountType LiveAccountType       `json:"live_account_type"`
 	Environment     PlaygroundEnvironment `json:"environment"`
 }
 
@@ -54,8 +54,8 @@ func (p *PlaygroundMeta) Validate() error {
 			return fmt.Errorf("PlaygroundMeta.Validate: source account id is not set")
 		}
 
-		if p.LiveAccountType == nil {
-			return fmt.Errorf("PlaygroundMeta.Validate: live account type is not set")
+		if err := p.LiveAccountType.Validate(); err != nil {
+			return fmt.Errorf("PlaygroundMeta.Validate: failed to validate live account: %w", err)
 		}
 	} else {
 		if p.StartAt.IsZero() {
@@ -84,9 +84,9 @@ func (p *PlaygroundMeta) Validate() error {
 
 func (p *PlaygroundMeta) ToDTO() *PlaygroundMetaDTO {
 	var liveAccountType *string
-	if p.LiveAccountType != nil {
+	if err := p.LiveAccountType.Validate(); err == nil {
 		liveAccountType = new(string)
-		*liveAccountType = string(*p.LiveAccountType)
+		*liveAccountType = string(p.LiveAccountType)
 	}
 
 	return &PlaygroundMetaDTO{

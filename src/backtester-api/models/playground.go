@@ -22,22 +22,22 @@ type IPlayground interface {
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
 	GetEquityPlot() []*eventmodels.EquityPlot
 	GetOrders() []*BacktesterOrder
-	GetPosition(symbol eventmodels.Instrument) (Position, error)
+	GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error)
 	GetPositions() (map[eventmodels.Instrument]*Position, error)
 	GetRepositories() []*CandleRepository
 	GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error)
 	GetFreeMargin() (float64, error)
-	PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error)
+	PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChanges, error)
 	Tick(d time.Duration, isPreview bool) (*TickDelta, error)
 	GetFreeMarginFromPositionMap(positions map[eventmodels.Instrument]*Position) float64
 	GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterOrder
 	GetCurrentTime() time.Time
 	NextOrderID() uint
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
-	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error)
+	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
-	GetLiveAccountType() *LiveAccountType
+	GetLiveAccountType() LiveAccountType
 	SetOpenOrdersCache() error
 }
 
@@ -55,6 +55,10 @@ type Playground struct {
 	Broker             IBroker
 }
 
+func (p *Playground) SetBroker(broker IBroker) {
+	p.Broker = broker
+}
+
 func (p *Playground) GetClientId() *string {
 	return p.ClientID
 }
@@ -67,8 +71,8 @@ func (p *Playground) GetEnvironment() PlaygroundEnvironment {
 	return p.Meta.Environment
 }
 
-func (p *Playground) GetLiveAccountType() *LiveAccountType {
-	return nil
+func (p *Playground) GetLiveAccountType() LiveAccountType {
+	return ""
 }
 
 func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
@@ -138,7 +142,7 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 	return openOrders
 }
 
-func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry OrderExecutionRequest, performChecks bool) error {
+func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry ExecutionFillRequest, performChecks bool) error {
 	if order.Status != BacktesterOrderStatusPending {
 		err := fmt.Errorf("order %d status is %s, not pending", order.ID, order.Status)
 		order.Reject(err)
@@ -226,7 +230,7 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	return nil
 }
 
-func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
+func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
 	pendingOrders := make([]*BacktesterOrder, len(p.account.PendingOrders))
 
 	copy(pendingOrders, p.account.PendingOrders)
@@ -245,7 +249,7 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 		// 	continue
 		// }
 
-		orderFillEntry, found := orderFillEntryMap[order.ID]
+		orderFillEntry, found := orderFillMap[order.ID]
 		if !found {
 			log.Warnf("error finding order filled entry price for order: %v", order.ID)
 			continue
@@ -345,7 +349,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 	result := make(map[eventmodels.Instrument]*Tick)
 
 	switch p.GetEnvironment() {
-	case PlaygroundEnvironmentLive:
+	case PlaygroundEnvironmentLive, PlaygroundEnvironmentReconcile:
 		if len(symbols) == 0 {
 			return map[eventmodels.Instrument]*Tick{}, nil
 		}
@@ -506,7 +510,7 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 	return nil
 }
 
-func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
+func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
 	position, ok := positionsMap[order.Symbol]
 	if !ok {
 		position = &Position{Quantity: 0}
@@ -633,7 +637,7 @@ func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[event
 	startingPositions[trade.GetSymbol()] = position
 }
 
-func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]OrderExecutionRequest, performChecks bool) ([]*TradeRecord, error) {
+func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]ExecutionFillRequest, performChecks bool) ([]*TradeRecord, error) {
 	var trades []*TradeRecord
 
 	positionsCopy := make(map[eventmodels.Instrument]*Position)
@@ -719,7 +723,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	p.account.PendingOrders = append(p.account.PendingOrders, order)
 
-	orderFillPriceMap := map[uint]OrderExecutionRequest{}
+	orderFillPriceMap := map[uint]ExecutionFillRequest{}
 
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
@@ -727,10 +731,11 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPriceMap[order.ID] = OrderExecutionRequest{
-			Price:    price,
-			Quantity: order.GetQuantity(),
-			Time:     p.clock.CurrentTime,
+		orderFillPriceMap[order.ID] = ExecutionFillRequest{
+			PlaygroundId: p.ID,
+			Price:        price,
+			Quantity:     order.GetQuantity(),
+			Time:         p.clock.CurrentTime,
 		}
 	}
 
@@ -827,6 +832,10 @@ func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.Equ
 
 func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	if isPreview {
+		if p.Meta.Environment != PlaygroundEnvironmentSimulator {
+			return nil, fmt.Errorf("preview tick is only available in simulator environment")
+		}
+
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
@@ -866,7 +875,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
 
-	orderExecutionRequests := make(map[uint]OrderExecutionRequest)
+	orderExecutionRequests := make(map[uint]ExecutionFillRequest)
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.Symbol)
 		if err != nil {
@@ -878,10 +887,11 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderExecutionRequests[order.ID] = OrderExecutionRequest{
-			Price:    price,
-			Time:     p.clock.CurrentTime,
-			Quantity: order.GetQuantity(),
+		orderExecutionRequests[order.ID] = ExecutionFillRequest{
+			PlaygroundId: p.ID,
+			Price:        price,
+			Time:         p.clock.CurrentTime,
+			Quantity:     order.GetQuantity(),
 		}
 	}
 
@@ -987,7 +997,7 @@ func (p *Playground) GetOrders() []*BacktesterOrder {
 	return result
 }
 
-func (p *Playground) GetPosition(symbol eventmodels.Instrument) (Position, error) {
+func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {
 	positions, err := p.GetPositions()
 	if err != nil {
 		return Position{}, fmt.Errorf("error getting positions: %w", err)
@@ -995,7 +1005,11 @@ func (p *Playground) GetPosition(symbol eventmodels.Instrument) (Position, error
 
 	position, ok := positions[symbol]
 	if !ok {
-		return Position{}, fmt.Errorf("position not found for symbol %s", symbol)
+		if checkExists {
+			return Position{}, fmt.Errorf("position not found for symbol %s", symbol)
+		}
+
+		return Position{}, nil
 	}
 
 	return *position, nil
@@ -1276,13 +1290,15 @@ type PlaceOrderChanges struct {
 	Commit func() error
 }
 
-func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
+func (p *Playground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
 	if order.Class != BacktesterOrderClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")
 	}
 
-	if _, ok := p.repos[order.Symbol]; !ok {
-		return nil, fmt.Errorf("symbol %s not found in repos", order.Symbol)
+	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
+		if _, ok := p.repos[order.Symbol]; !ok {
+			return nil, fmt.Errorf("symbol %s not found in repos", order.Symbol)
+		}
 	}
 
 	positions, err := p.GetPositions()
@@ -1295,8 +1311,10 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 		positionQty = position.Quantity
 	}
 
-	if err := p.isSideAllowed(order.Symbol, order.Side, positionQty); err != nil {
-		return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
+	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
+		if err := p.isSideAllowed(order.Symbol, order.Side, positionQty); err != nil {
+			return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
+		}
 	}
 
 	if order.RequestedPrice <= 0 {
@@ -1336,55 +1354,59 @@ func (p *Playground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, err
 		}
 	}
 
-	return &PlaceOrderChanges{
-		Commit: func() error {
-			p.account.mutex.Lock()
-			defer p.account.mutex.Unlock()
+	return []*PlaceOrderChanges{
+		{
+			Commit: func() error {
+				p.account.mutex.Lock()
+				defer p.account.mutex.Unlock()
 
-			order.Status = BacktesterOrderStatusPending
+				order.Status = BacktesterOrderStatusPending
 
-			p.account.PendingOrders = append(p.account.PendingOrders, order)
+				p.account.PendingOrders = append(p.account.PendingOrders, order)
 
-			return nil
+				return nil
+			},
 		},
 	}, nil
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, broker IBroker, source *PlaygroundSource, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*BacktesterOrder, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 	var startAt time.Time
 	var endAt *time.Time
 
-	// set the clock
-	if clock != nil {
-		startAt = clock.CurrentTime
-		endAt = &clock.EndTime
-	} else {
-		startAt = now
-	}
-
-	// set the feeds
-	for _, feed := range feeds {
-		if err := feed.SetStartingPosition(startAt); err != nil {
-			return nil, fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
+	if env != PlaygroundEnvironmentReconcile {
+		// set the clock
+		if clock != nil {
+			startAt = clock.CurrentTime
+			endAt = &clock.EndTime
+		} else {
+			startAt = now
 		}
 
-		symbol := feed.GetSymbol()
+		// set the feeds
+		for _, feed := range feeds {
+			if err := feed.SetStartingPosition(startAt); err != nil {
+				return nil, fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
+			}
 
-		// todo: remove antipattern of using map for repo. use a list instead
-		if _, found := repos[symbol]; !found {
-			symbols = append(symbols, symbol.GetTicker())
-			repo := make(map[time.Duration]*CandleRepository)
-			repos[symbol] = repo
-		}
+			symbol := feed.GetSymbol()
 
-		repos[symbol][feed.GetPeriod()] = feed
+			// todo: remove antipattern of using map for repo. use a list instead
+			if _, found := repos[symbol]; !found {
+				symbols = append(symbols, symbol.GetTicker())
+				repo := make(map[time.Duration]*CandleRepository)
+				repos[symbol] = repo
+			}
 
-		if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
-			minimumPeriod = feed.GetPeriod()
+			repos[symbol][feed.GetPeriod()] = feed
+
+			if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
+				minimumPeriod = feed.GetPeriod()
+			}
 		}
 	}
 
@@ -1395,16 +1417,6 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 		Environment:    env,
 		StartAt:        startAt,
 		EndAt:          endAt,
-	}
-
-	if env == PlaygroundEnvironmentLive {
-		if source == nil {
-			return nil, fmt.Errorf("source is required")
-		}
-
-		meta.SourceBroker = source.Broker
-		meta.SourceAccountId = source.AccountID
-		meta.LiveAccountType = source.AccountType
 	}
 
 	var id uuid.UUID
@@ -1424,6 +1436,5 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 		positionsCache:  nil,
 		openOrdersCache: make(map[eventmodels.Instrument][]*BacktesterOrder),
 		minimumPeriod:   minimumPeriod,
-		Broker:          broker,
 	}, nil
 }

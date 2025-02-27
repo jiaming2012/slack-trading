@@ -221,6 +221,7 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 }
 
 // todo: this should be refactored to a service
+// todo: refactor to use interfaces
 func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
@@ -237,13 +238,6 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 	var playground models.IPlayground
 
 	if env == models.PlaygroundEnvironmentLive {
-		// create live account
-		liveAccount, err := services.CreateLiveAccount(req.Account.Balance, req.Account.Source.Broker, req.Account.Source.AccountType)
-		if err != nil {
-			log.Errorf("failed to create live account: %v", err)
-			return nil, err
-		}
-
 		// capture all candles up to tomorrow
 		tomorrow := time.Now().AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")
@@ -268,6 +262,17 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 				// fatal as partial save is not allowed
 				log.Fatalf("failed to save live repository: %v", err)
 			}
+		}
+
+		// get live account
+		liveAccount, found, err := services.FetchLiveAccount(req.Account.Source)
+		if err != nil {
+			log.Errorf("failed to create live account: %v", err)
+			return nil, err
+		}
+
+		if !found {
+			return nil, eventmodels.NewWebError(404, "live account not found", nil)
 		}
 
 		// fetch live orders
@@ -313,7 +318,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		// create playground
 		now := clock.CurrentTime
-		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, nil, nil, now, req.Tags, repos...)
+		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
 		if err != nil {
 			return nil, eventmodels.NewWebError(500, "failed to create playground", err)
 		}

@@ -12,7 +12,24 @@ import (
 var (
 	databaseMutex    = sync.Mutex{}
 	liveRepositories = map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository{}
+	liveAccounts     = map[models.CreateAccountRequestSource]*models.LiveAccount{}
 )
+
+func FetchLiveAccount(source *models.CreateAccountRequestSource) (*models.LiveAccount, bool, error) {
+	databaseMutex.Lock()
+	defer databaseMutex.Unlock()
+
+	if source == nil {
+		return nil, false, fmt.Errorf("FetchLiveAccount: source is nil")
+	}
+
+	account, ok := liveAccounts[*source]
+	if !ok {
+		return nil, false, nil
+	}
+
+	return account, true, nil
+}
 
 func FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
 	databaseMutex.Lock()

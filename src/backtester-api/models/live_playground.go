@@ -1,7 +1,6 @@
 package models
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 
 type LivePlayground struct {
 	playground      *Playground
-	account         *LiveAccount
+	liveAccount     *LiveAccount
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
 	newTradesQueue  *eventmodels.FIFOQueue[*TradeRecord]
 	requestHash     *string
@@ -23,8 +22,8 @@ func (p *LivePlayground) GetClientId() *string {
 	return p.playground.GetClientId()
 }
 
-func (p *LivePlayground) GetLiveAccountType() *LiveAccountType {
-	return p.account.Source.GetAccountType()
+func (p *LivePlayground) GetLiveAccountType() LiveAccountType {
+	return p.liveAccount.Source.GetAccountType()
 }
 
 func (p *LivePlayground) SetOpenOrdersCache() error {
@@ -39,9 +38,9 @@ func (p *LivePlayground) GetRequestHash() *string {
 	return p.requestHash
 }
 
-func (p *LivePlayground) GetAccount() *LiveAccount {
-	return p.account
-}
+// func (p *LivePlayground) GetAccount() *LiveAccount {
+// 	return p.account
+// }
 
 func (p *LivePlayground) GetRepositories() []*CandleRepository {
 	return p.playground.GetRepositories()
@@ -67,8 +66,8 @@ func (p *LivePlayground) GetOrders() []*BacktesterOrder {
 	return p.playground.GetOrders()
 }
 
-func (p *LivePlayground) GetPosition(symbol eventmodels.Instrument) (Position, error) {
-	return p.playground.GetPosition(symbol)
+func (p *LivePlayground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {
+	return p.playground.GetPosition(symbol, checkExists)
 }
 
 func (p *LivePlayground) GetPositions() (map[eventmodels.Instrument]*Position, error) {
@@ -83,7 +82,7 @@ func (p *LivePlayground) GetFreeMargin() (float64, error) {
 	return p.playground.GetFreeMargin()
 }
 
-func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry OrderExecutionRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
+func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
 	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
 }
 
@@ -95,40 +94,29 @@ func (p *LivePlayground) GetEquityPlot() []*eventmodels.EquityPlot {
 	return p.playground.GetEquityPlot()
 }
 
-func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) (*PlaceOrderChanges, error) {
-	placeOrderChanges, err := p.playground.PlaceOrder(order)
+func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
+	reconcilePlayground := p.liveAccount.GetReconcilePlayground()
+	if reconcilePlayground == nil {
+		return nil, fmt.Errorf("reconcile playground is not set")
+	}
 
+	if reconcilePlayground.GetId() == p.GetId() {
+		return nil, fmt.Errorf("cannot place order in the same playground")
+	}
+
+	playgroundChanges, err := p.playground.PlaceOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 	}
 
-	ticker := order.Symbol.GetTicker()
-	qty := int(order.AbsoluteQuantity)
-	req := NewPlaceEquityOrderRequest(ticker, qty, order.Side, order.Type, order.Tag, false)
-
-	resp, err := p.account.Broker.PlaceOrder(context.Background(), req)
+	reconciliationChanges, err := reconcilePlayground.PlaceOrder(p.liveAccount, order)
 	if err != nil {
-		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
+		return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
 	}
 
-	if orderMap, ok := resp["order"]; ok {
-		result, ok := orderMap.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("LivePlayground.PlaceOrder: failed to cast response to order id map")
-		}
+	changes := append(reconciliationChanges, playgroundChanges...)
 
-		if orderID, ok := result["id"]; ok {
-			if id, ok := orderID.(float64); ok {
-				order.ID = uint(id)
-			} else {
-				return nil, fmt.Errorf("LivePlayground.PlaceOrder: failed to cast order id to int")
-			}
-		} else {
-			return nil, fmt.Errorf("LivePlayground.PlaceOrder: order id not found in response")
-		}
-	}
-
-	return placeOrderChanges, nil
+	return changes, nil
 }
 
 func (p *LivePlayground) Tick(duration time.Duration, isPreview bool) (*TickDelta, error) {
@@ -201,14 +189,9 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
-	source := &PlaygroundSource{
-		Broker:      account.Source.GetBroker(),
-		AccountID:   account.Source.GetAccountID(),
-		AccountType: account.Source.GetAccountType(),
-	}
-
-	playground, err := NewPlayground(playgroundID, clientID, startingBalance, startingBalance, nil, orders, PlaygroundEnvironmentLive, account.Broker, source, now, tags, repositories...)
+func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, liveAccount *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
+	// account.Broker
+	playground, err := NewPlayground(playgroundID, clientID, startingBalance, startingBalance, nil, orders, PlaygroundEnvironmentLive, now, tags, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
@@ -217,7 +200,7 @@ func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, account *LiveA
 
 	return &LivePlayground{
 		playground:      playground,
-		account:         account,
+		liveAccount:     liveAccount,
 		newCandlesQueue: newCandlesQueue,
 		newTradesQueue:  newTradesQueue,
 	}, nil

@@ -1,10 +1,14 @@
-package eventmodels
+package models
 
-import log "github.com/sirupsen/logrus"
+import (
+	log "github.com/sirupsen/logrus"
 
-type TradierOrderDataStore map[uint]*TradierOrder
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+)
 
-func (o TradierOrderDataStore) Update(order *TradierOrder) []*TradierOrderModifyEvent {
+type TradierOrderDataStore map[uint]*eventmodels.TradierOrder
+
+func (o TradierOrderDataStore) Update(order *eventmodels.TradierOrder) []*TradierOrderModifyEvent {
 	var updates []*TradierOrderModifyEvent
 
 	if o, ok := o[order.ID]; ok {
@@ -25,7 +29,7 @@ func (o TradierOrderDataStore) Update(order *TradierOrder) []*TradierOrderModify
 	return updates
 }
 
-func (o TradierOrderDataStore) Add(order *TradierOrder) {
+func (o TradierOrderDataStore) Add(order *eventmodels.TradierOrder) {
 	o[order.ID] = order
 	log.Debugf("TradierOrdersMonitoringWorker.Add: added order with ID: %d", order.ID)
 }
@@ -36,5 +40,5 @@ func (o TradierOrderDataStore) Delete(orderID uint) {
 }
 
 func NewTradierOrderDataStore() TradierOrderDataStore {
-	return make(map[uint]*TradierOrder)
+	return make(map[uint]*eventmodels.TradierOrder)
 }

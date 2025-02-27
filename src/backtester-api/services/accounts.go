@@ -67,7 +67,7 @@ func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) 
 	}
 }
 
-func CreateLiveAccount(balance float64, brokerName string, accountType models.LiveAccountType) (*models.LiveAccount, error) {
+func CreateLiveAccount(brokerName string, accountType models.LiveAccountType, reconcilePlayground *models.ReconcilePlayground) (*models.LiveAccount, error) {
 	if brokerName != "tradier" {
 		return nil, fmt.Errorf("unsupported broker: %s", brokerName)
 	}
@@ -98,7 +98,7 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 	source := LiveAccountSource{
 		Broker:       brokerName,
 		AccountID:    accountID,
-		AccountType:  &accountType,
+		AccountType:  accountType,
 		BalancesUrl:  balancesUrl,
 		TradesApiKey: tradierTradesBearerToken,
 	}
@@ -108,16 +108,16 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 	}
 
 	// balance check
-	if balance > 0 {
-		balances, err := source.FetchEquity()
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch equity: %w", err)
-		}
-	
-		if balances.Equity < balance {
-			return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
-		}
-	}
+	// if balance > 0 {
+	// 	balances, err := source.FetchEquity()
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to fetch equity: %w", err)
+	// 	}
+
+	// 	if balances.Equity < balance {
+	// 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
+	// 	}
+	// }
 
 	tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
 	if err != nil {
@@ -138,7 +138,10 @@ func CreateLiveAccount(balance float64, brokerName string, accountType models.Li
 
 	broker := NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken)
 
-	account := models.NewLiveAccount(source, broker)
+	account, err := models.NewLiveAccount(source, broker, reconcilePlayground)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create live account: %w", err)
+	}
 
 	return account, nil
 }

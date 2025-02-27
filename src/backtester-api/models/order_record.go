@@ -31,6 +31,7 @@ type OrderRecord struct {
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
 	ClosedBy        []*TradeRecord    `gorm:"many2many:trade_closed_by"`
+	Reconciliation  []*OrderRecord    `gorm:"many2many:order_reconciliation"`
 	Trades          []*TradeRecord    `gorm:"foreignKey:OrderID"`
 }
 

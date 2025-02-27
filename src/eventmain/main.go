@@ -500,7 +500,7 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
@@ -616,7 +616,7 @@ func run() {
 	}
 
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	
+
 	// this must be after the backtester router setup
 	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
 
