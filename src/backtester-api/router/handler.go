@@ -23,11 +23,54 @@ import (
 
 // todo: add a mutex playground level
 var (
+	databaseMutex    = sync.Mutex{}
 	client            = new(eventservices.PolygonTickDataMachine)
 	playgrounds       = map[uuid.UUID]models.IPlayground{}
+	liveAccounts      = map[models.CreateAccountRequestSource]models.ILiveAccount{}
 	projectsDirectory string
 	db                *gorm.DB
 )
+
+func FetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAccount, bool, error) {
+	databaseMutex.Lock()
+	defer databaseMutex.Unlock()
+
+	if source == nil {
+		return nil, false, fmt.Errorf("FetchLiveAccount: source is nil")
+	}
+
+	if source.Broker == "" {
+		return nil, false, fmt.Errorf("FetchLiveAccount: broker is empty")
+	}
+
+	if source.AccountID == "" {
+		return nil, false, fmt.Errorf("FetchLiveAccount: account id is empty")
+	}
+
+	if source.AccountType == "" {
+		return nil, false, fmt.Errorf("FetchLiveAccount: account type is empty")
+	}
+
+	account, ok := liveAccounts[*source]
+	if !ok {
+		return nil, false, nil
+	}
+
+	return account, true, nil
+}
+
+func saveLiveAccount(source *models.CreateAccountRequestSource, liveAccount models.ILiveAccount) error {
+	s := *source
+	
+	_, found := liveAccounts[s]
+	if found {
+		return fmt.Errorf("saveLiveAccount: live account already exists with source: %v", s)
+	}
+
+	liveAccounts[s] = liveAccount
+
+	return nil
+}
 
 type errorResponse struct {
 	Type string `json:"type"`
@@ -284,7 +327,7 @@ func savePlayground(playground models.IPlayground) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var txErr error
 
-		if txErr = savePlaygroundSessionTx(tx, playground); txErr != nil {
+		if _, txErr = savePlaygroundSessionTx(tx, playground); txErr != nil {
 			return fmt.Errorf("failed to save playground session: %w", txErr)
 		}
 
@@ -345,11 +388,11 @@ func saveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity fl
 	return nil
 }
 
-func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
+func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) (*models.PlaygroundSession, error) {
 	meta := playground.GetMeta()
 
 	if err := meta.Validate(); err != nil {
-		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
+		return nil, fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
 	}
 
 	repos := playground.GetRepositories()
@@ -371,27 +414,34 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 		Env:             string(meta.Environment),
 	}
 
+	// todo: only needed for reconcile playgrounds.
+	// live playgrounds can be used to reference reconcile playground source
 	if meta.Environment == models.PlaygroundEnvironmentLive {
 		if meta.SourceBroker == "" || meta.SourceAccountId == "" {
-			return errors.New("savePlaygroundSession: missing broker, or account id")
+			return nil, errors.New("savePlaygroundSession: missing broker, or account id")
 		}
 
 		if err := meta.LiveAccountType.Validate(); err != nil {
-			return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
+			return nil, fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
 		}
 
+		reconcilePlayground := playground.GetReconcilePlayground()
+		reconcilePlaygroundID := reconcilePlayground.GetId()
 		liveAccount := models.LiveAccount{
-			BrokerName:  meta.SourceBroker,
-			AccountId:   meta.SourceAccountId,
-			AccountType: meta.LiveAccountType,
+			BrokerName:            meta.SourceBroker,
+			AccountId:             meta.SourceAccountId,
+			AccountType:           meta.LiveAccountType,
+			ReconcilePlayground:   reconcilePlayground,
+			ReconcilePlaygroundID: reconcilePlaygroundID,
 		}
 
 		if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
-			BrokerName:  meta.SourceBroker,
-			AccountId:   meta.SourceAccountId,
-			AccountType: meta.LiveAccountType,
+			BrokerName:            meta.SourceBroker,
+			AccountId:             meta.SourceAccountId,
+			AccountType:           meta.LiveAccountType,
+			ReconcilePlaygroundID: reconcilePlaygroundID,
 		}).Error; err != nil {
-			return fmt.Errorf("failed to fetch or create live account: %w", err)
+			return nil, fmt.Errorf("failed to fetch or create live account: %w", err)
 		}
 
 		store.LiveAccount = &liveAccount
@@ -407,13 +457,13 @@ func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) error {
 	}
 
 	if err := tx.Create(store).Error; err != nil {
-		return fmt.Errorf("failed to save playground: %w", err)
+		return nil, fmt.Errorf("failed to save playground: %w", err)
 	}
 
-	return nil
+	return store, nil
 }
 
-func savePlaygroundSession(playground models.IPlayground) error {
+func savePlaygroundSession(playground models.IPlayground) (*models.PlaygroundSession, error) {
 	return savePlaygroundSessionTx(db, playground)
 }
 
@@ -528,52 +578,28 @@ func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	return clock, nil
 }
 
-// func handleAccount(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != "GET" {
-// 		w.WriteHeader(404)
-// 		return
-// 	}
-
-// 	vars := mux.Vars(r)
-// 	playgroundID, err := uuid.Parse(vars["id"])
-// 	if err != nil {
-// 		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
-// 		return
-// 	}
-
-// 	fetchOrders := true
-// 	if r.URL.Query().Get("orders") == "false" {
-// 		fetchOrders = false
-// 	}
-
-// 	accountInfo, err := getAccountInfo(playgroundID, fetchOrders)
-// 	if err != nil {
-// 		setErrorResponse("handleAccount: failed to get account info", 500, err, w)
-// 		return
-// 	}
-
-// 	if err := setResponse(accountInfo, w); err != nil {
-// 		setErrorResponse("handleAccount: failed to set response", 500, err, w)
-// 		return
-// 	}
-// }
-
 func loadLiveAccounts() error {
 	var liveAccountsRecords []models.LiveAccount
-	if err := db.Preload("ReconcilePlaygroundSession").Find(&liveAccountsRecords).Error; err != nil {
+	var err error
+
+	if err = db.Preload("ReconcilePlaygroundSession").Find(&liveAccountsRecords).Error; err != nil {
 		return fmt.Errorf("loadLiveAccounts: failed to load live accounts: %w", err)
 	}
 
-	var liveAcounts []*models.LiveAccount
 	for _, a := range liveAccountsRecords {
-		iPlayground, found := playgrounds[a.ReconcilePlaygroundID]
+		_playground, found := playgrounds[a.ReconcilePlaygroundID]
 		if !found {
-			return fmt.Errorf("loadLiveAccounts: failed to find reconcile playground using id %s", a.ReconcilePlaygroundID)
+			_playground, err = populatePlayground(a.ReconcilePlaygroundSession)
+			if err != nil {
+				return fmt.Errorf("loadLiveAccounts: failed to populate playground: %w", err)
+			}
+
+			playgrounds[a.ReconcilePlaygroundID] = _playground
 		}
 
-		playground, ok := iPlayground.(*models.Playground)
+		playground, ok := _playground.(*models.Playground)
 		if !ok {
-			return fmt.Errorf("loadLiveAccounts: failed to cast playground to live playground")
+			return fmt.Errorf("loadLiveAccounts: failed to cast playground to playground: %w", err)
 		}
 
 		reconcilePlayground, err := models.NewReconcilePlayground(playground)
@@ -586,12 +612,132 @@ func loadLiveAccounts() error {
 			return fmt.Errorf("loadLiveAccounts: failed to create live account: %w", err)
 		}
 
-		liveAcounts = append(liveAcounts, acc)
+		source := models.CreateAccountRequestSource{
+			Broker:      a.BrokerName,
+			AccountID:   a.AccountId,
+			AccountType: a.AccountType,
+		}
+
+		if _, found := liveAccounts[source]; found {
+			return fmt.Errorf("loadLiveAccounts: duplicate live account source: %v", source)
+		}
+
+		liveAccounts[source] = acc
 	}
 
 	log.Info("loaded all live accounts")
 
 	return nil
+}
+
+func populatePlayground(p models.PlaygroundSession) (models.IPlayground, error) {
+	orders := make([]*models.BacktesterOrder, len(p.Orders))
+
+	pIDStr := p.ID.String()
+
+	log.Infof("loading playground: %s", pIDStr)
+
+	var err error
+	for i, o := range p.Orders {
+		orders[i], err = o.ToBacktesterOrder()
+		if err != nil {
+			return nil, fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
+		}
+	}
+
+	var source *models.CreateAccountRequestSource
+	var clockRequest CreateClockRequest
+	if p.Env == "simulator" {
+		if p.EndAt == nil {
+			return nil, fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
+		}
+
+		clockRequest = CreateClockRequest{
+			StartDate: p.StartAt.Format(time.RFC3339),
+			StopDate:  p.EndAt.Format(time.RFC3339),
+		}
+
+	} else if p.Env == "live" {
+		if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
+			return nil, fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
+		}
+
+		liveAccountType := models.LiveAccountType(*p.LiveAccountType)
+		if err := liveAccountType.Validate(); err != nil {
+			return nil, fmt.Errorf("loadPlaygrounds: invalid live account type for live playground: %w", err)
+		}
+
+		source = &models.CreateAccountRequestSource{
+			Broker:      *p.Broker,
+			AccountID:   *p.AccountID,
+			AccountType: liveAccountType,
+		}
+
+		clockRequest = CreateClockRequest{
+			StartDate: p.StartAt.Format(time.RFC3339),
+		}
+
+	} else if p.Env == "reconcile" {
+		if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
+			return nil, fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for reconcile playground")
+		}
+
+		liveAccountType := models.LiveAccountType(*p.LiveAccountType)
+		if err := liveAccountType.Validate(); err != nil {
+			return nil, fmt.Errorf("loadPlaygrounds: invalid live account type for reconcile playground: %w", err)
+		}
+
+		source = &models.CreateAccountRequestSource{
+			Broker:      *p.Broker,
+			AccountID:   *p.AccountID,
+			AccountType: liveAccountType,
+		}
+
+	} else {
+		return nil, fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Env)
+	}
+
+	var createRepoRequests []eventmodels.CreateRepositoryRequest
+	for _, r := range p.Repositories {
+		req, err := r.ToCreateRepositoryRequest()
+		if err != nil {
+			return nil, fmt.Errorf("loadPlaygrounds: failed to convert repository: %w", err)
+		}
+
+		createRepoRequests = append(createRepoRequests, req)
+	}
+
+	var plot []*eventmodels.EquityPlot
+	for _, r := range p.EquityPlotRecords {
+		plot = append(plot, &eventmodels.EquityPlot{
+			Timestamp: r.Timestamp,
+			Value:     r.Equity,
+		})
+	}
+
+	playground, _, err := CreatePlayground(&CreatePlaygroundRequest{
+		ID:       &p.ID,
+		ClientID: p.ClientID,
+		Env:      p.Env,
+		Account: CreateAccountRequest{
+			Balance: p.Balance,
+			Source:  source,
+		},
+		InitialBalance:    p.StartingBalance,
+		Clock:             clockRequest,
+		Repositories:      createRepoRequests,
+		BackfillOrders:    orders,
+		CreatedAt:         p.CreatedAt,
+		EquityPlotRecords: plot,
+		Tags:              p.Tags,
+		SaveToDB:          false,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
+	}
+
+	return playground, nil
 }
 
 func loadPlaygrounds() error {
@@ -601,94 +747,14 @@ func loadPlaygrounds() error {
 	}
 
 	for _, p := range playgroundsSlice {
-		orders := make([]*models.BacktesterOrder, len(p.Orders))
-
-		pIDStr := p.ID.String()
-
-		log.Infof("loading playground: %s", pIDStr)
-
-		var err error
-		for i, o := range p.Orders {
-			orders[i], err = o.ToBacktesterOrder()
-			if err != nil {
-				return fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
-			}
+		if _, found := playgrounds[p.ID]; found {
+			log.Debugf("loadPlaygrounds: skipping duplicate playground id: %s", p.ID.String())
+			continue
 		}
 
-		var source *models.CreateAccountRequestSource
-		var clockRequest CreateClockRequest
-		if p.Env == "simulator" {
-			if p.EndAt == nil {
-				return fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
-			}
-
-			clockRequest = CreateClockRequest{
-				StartDate: p.StartAt.Format(time.RFC3339),
-				StopDate:  p.EndAt.Format(time.RFC3339),
-			}
-
-		} else if p.Env == "live" {
-			if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
-				return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
-			}
-
-			liveAccountType := models.LiveAccountType(*p.LiveAccountType)
-			if err := liveAccountType.Validate(); err != nil {
-				return fmt.Errorf("loadPlaygrounds: invalid live account type: %w", err)
-			}
-
-			source = &models.CreateAccountRequestSource{
-				Broker:      *p.Broker,
-				AccountID:   *p.AccountID,
-				AccountType: liveAccountType,
-			}
-
-			clockRequest = CreateClockRequest{
-				StartDate: p.StartAt.Format(time.RFC3339),
-			}
-
-		} else {
-			return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Env)
-		}
-
-		var createRepoRequests []eventmodels.CreateRepositoryRequest
-		for _, r := range p.Repositories {
-			req, err := r.ToCreateRepositoryRequest()
-			if err != nil {
-				return fmt.Errorf("loadPlaygrounds: failed to convert repository: %w", err)
-			}
-
-			createRepoRequests = append(createRepoRequests, req)
-		}
-
-		var plot []*eventmodels.EquityPlot
-		for _, r := range p.EquityPlotRecords {
-			plot = append(plot, &eventmodels.EquityPlot{
-				Timestamp: r.Timestamp,
-				Value:     r.Equity,
-			})
-		}
-
-		playground, err := CreatePlayground(&CreatePlaygroundRequest{
-			ID:       &p.ID,
-			ClientID: p.ClientID,
-			Env:      p.Env,
-			Account: CreateAccountRequest{
-				Balance: p.Balance,
-				Source:  source,
-			},
-			InitialBalance:    p.StartingBalance,
-			Clock:             clockRequest,
-			Repositories:      createRepoRequests,
-			BackfillOrders:    orders,
-			CreatedAt:         p.CreatedAt,
-			EquityPlotRecords: plot,
-			Tags:              p.Tags,
-			SaveToDB:          false,
-		})
-
+		playground, err := populatePlayground(p)
 		if err != nil {
-			return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
+			return fmt.Errorf("loadPlaygrounds: failed to populate playground: %w", err)
 		}
 
 		playgrounds[playground.GetId()] = playground
@@ -1032,12 +1098,12 @@ func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, a
 
 	// needs to be async
 	// how would i distribute the load?
-	if err := loadPlaygrounds(); err != nil {
-		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
-	}
-
 	if err := loadLiveAccounts(); err != nil {
 		return fmt.Errorf("SetupHandler: failed to load live accounts: %w", err)
+	}
+
+	if err := loadPlaygrounds(); err != nil {
+		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
 	}
 
 	// router.HandleFunc("", handlePlayground)

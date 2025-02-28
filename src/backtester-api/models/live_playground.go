@@ -18,6 +18,10 @@ type LivePlayground struct {
 	requestHash     *string
 }
 
+func (p *LivePlayground) GetReconcilePlayground() IReconcilePlayground {
+	return p.liveAccount.GetReconcilePlayground()
+}
+
 func (p *LivePlayground) GetClientId() *string {
 	return p.playground.GetClientId()
 }
@@ -190,11 +194,14 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 }
 
 func NewLivePlayground(playgroundID *uuid.UUID, clientID *string, liveAccount *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
-	// account.Broker
 	playground, err := NewPlayground(playgroundID, clientID, startingBalance, startingBalance, nil, orders, PlaygroundEnvironmentLive, now, tags, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
+
+	playground.Meta.SourceBroker = liveAccount.Source.GetBroker()
+	playground.Meta.SourceAccountId = liveAccount.Source.GetAccountID()
+	playground.Meta.LiveAccountType = liveAccount.Source.GetAccountType()
 
 	log.Debugf("adding newCandlesQueue(%p) to NewLivePlayground", newCandlesQueue)
 

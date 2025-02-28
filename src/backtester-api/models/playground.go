@@ -17,6 +17,7 @@ import (
 type IPlayground interface {
 	GetMeta() *PlaygroundMeta
 	GetId() uuid.UUID
+	GetReconcilePlayground() IReconcilePlayground
 	GetClientId() *string
 	GetBalance() float64
 	GetEquity(positions map[eventmodels.Instrument]*Position) float64
@@ -53,6 +54,14 @@ type Playground struct {
 	openOrdersCache    map[eventmodels.Instrument][]*BacktesterOrder
 	minimumPeriod      time.Duration
 	Broker             IBroker
+}
+
+func (p *Playground) GetReconcilePlayground() IReconcilePlayground {
+	return nil
+}
+
+func (p *Playground) SetBalance(balance float64) {
+	p.account.Balance = balance
 }
 
 func (p *Playground) SetBroker(broker IBroker) {
@@ -688,6 +697,10 @@ func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRe
 }
 
 func (p *Playground) GetCurrentTime() time.Time {
+	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
+		return time.Now()
+	}
+
 	return p.clock.CurrentTime
 }
 
@@ -1378,7 +1391,9 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 	var startAt time.Time
 	var endAt *time.Time
 
-	if env != PlaygroundEnvironmentReconcile {
+	if env == PlaygroundEnvironmentReconcile {
+		startAt = now
+	} else {
 		// set the clock
 		if clock != nil {
 			startAt = clock.CurrentTime

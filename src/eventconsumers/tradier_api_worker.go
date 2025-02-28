@@ -16,7 +16,6 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -516,7 +515,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
-		account, found, err := services.FetchLiveAccount(&models.CreateAccountRequestSource{
+		account, found, err := router.FetchLiveAccount(&models.CreateAccountRequestSource{
 			Broker:      liveAccount.BrokerName,
 			AccountID:   liveAccount.AccountId,
 			AccountType: liveAccount.AccountType,
@@ -532,10 +531,20 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
-		if account.AccountType != models.LiveAccountTypePaper {
-			resp, err := account.Source.FetchEquity()
+		var liveAccount *models.LiveAccount
+		if account != nil {
+			var ok bool
+			liveAccount, ok = account.(*models.LiveAccount)
+			if !ok {
+				log.Errorf("failed to cast account to live account: %v", account)
+				continue
+			}
+		}
+
+		if liveAccount.AccountType != models.LiveAccountTypePaper {
+			resp, err := liveAccount.Source.FetchEquity()
 			if err != nil {
-				log.Errorf("failed to fetch equity for (%v, %v): %v", account.AccountId, account.AccountType, err)
+				log.Errorf("failed to fetch equity for (%v, %v): %v", liveAccount.AccountId, liveAccount.AccountType, err)
 				continue
 			}
 

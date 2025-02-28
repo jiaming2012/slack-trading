@@ -16,7 +16,7 @@ type LiveAccount struct {
 	Source                     ILiveAccountSource   `json:"source" gorm:"-"`
 	Broker                     IBroker              `json:"-" gorm:"-"`
 	ReconcilePlayground        IReconcilePlayground `json:"-" gorm:"-"`
-	ReconcilePlaygroundID      uuid.UUID            `json:"reconcile_playground_id" gorm:"column:reconcile_playground_id;type:uuid;not null;index:idx_live_account_reconcile_playground_id"`
+	ReconcilePlaygroundID      uuid.UUID            `json:"reconcile_playground_id" gorm:"column:reconcile_playground_id;type:uuid;index:idx_live_account_reconcile_playground_id"`
 	ReconcilePlaygroundSession PlaygroundSession    `json:"-" gorm:"foreignKey:ReconcilePlaygroundID;references:ID"`
 	BrokerName                 string               `gorm:"column:broker;type:text"`
 	AccountId                  string               `gorm:"column:account_id;type:text"`

@@ -57,7 +57,7 @@ func (p *PlaygroundMeta) Validate() error {
 		if err := p.LiveAccountType.Validate(); err != nil {
 			return fmt.Errorf("PlaygroundMeta.Validate: failed to validate live account: %w", err)
 		}
-	} else {
+	} else if p.Environment == PlaygroundEnvironmentSimulator {
 		if p.StartAt.IsZero() {
 			return fmt.Errorf("PlaygroundMeta.Validate: invalid start date: zero value")
 		}
@@ -75,7 +75,7 @@ func (p *PlaygroundMeta) Validate() error {
 		}
 	}
 
-	if p.InitialBalance <= 0 {
+	if p.InitialBalance < 0 {
 		return fmt.Errorf("PlaygroundMeta.Validate: invalid starting balance")
 	}
 

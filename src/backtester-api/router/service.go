@@ -220,30 +220,111 @@ func placeOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*models.Backte
 	return order, nil
 }
 
+func createNewReconcilePlaygroundAndLiveAccount(source *models.CreateAccountRequestSource, createdAt time.Time) (*models.LiveAccount, error) {
+	createPlaygroundReq := &CreatePlaygroundRequest{
+		Env: string(models.PlaygroundEnvironmentReconcile),
+		Account: CreateAccountRequest{
+			Source: &models.CreateAccountRequestSource{
+				Broker:      source.Broker,
+				AccountType: source.AccountType,
+				AccountID:   source.AccountID,
+			},
+		},
+		Repositories: nil,
+		SaveToDB:     true,
+		CreatedAt:    createdAt,
+	}
+
+	_playground, playgroundSession, err := CreatePlayground(createPlaygroundReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create playground: %v", err)
+	}
+
+	playground, ok := _playground.(*models.Playground)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast playground to reconcile playground")
+	}
+
+	reconcilePlayground, err := models.NewReconcilePlayground(playground)
+	if err != nil {
+		return nil, eventmodels.NewWebError(500, "failed to create new reconcile playground", err)
+	}
+
+	liveAccount, err := services.CreateLiveAccount(createPlaygroundReq.Account.Source.Broker, createPlaygroundReq.Account.Source.AccountType, reconcilePlayground)
+	if err != nil {
+		return nil, eventmodels.NewWebError(500, "failed to create live account", err)
+	}
+
+	// update playground balance
+	response, err := liveAccount.Source.FetchEquity()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch equity: %w", err)
+	}
+	balance := response.Equity
+
+	playground.SetBalance(balance)
+	playground.Meta.InitialBalance = balance
+	playground.Meta.SourceBroker = liveAccount.Source.GetBroker()
+	playground.Meta.SourceAccountId = liveAccount.Source.GetAccountID()
+	playground.Meta.LiveAccountType = liveAccount.Source.GetAccountType()
+
+	playgroundSession.Balance = balance
+	playgroundSession.StartingBalance = balance
+	playgroundSession.Broker = &playground.Meta.SourceBroker
+	playgroundSession.AccountID = &playground.Meta.SourceAccountId
+
+	liveAccountType := string(liveAccount.Source.GetAccountType())
+	playgroundSession.LiveAccountType = &liveAccountType
+	if err := db.Save(playgroundSession).Error; err != nil {
+		return nil, fmt.Errorf("failed to save playground session: %v", err)
+	}
+
+	return liveAccount, nil
+}
+
 // todo: this should be refactored to a service
 // todo: refactor to use interfaces
-func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) {
+func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, *models.PlaygroundSession, error) {
 	env := models.PlaygroundEnvironment(req.Env)
 
 	// validations
 	if err := env.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid playground environment", err)
+		return nil, nil, eventmodels.NewWebError(400, "invalid playground environment", err)
 	}
 
-	if len(req.Repositories) == 0 {
-		return nil, eventmodels.NewWebError(400, "missing repositories", nil)
+	if req.Env != string(models.PlaygroundEnvironmentReconcile) {
+		if len(req.Repositories) == 0 {
+			return nil, nil, eventmodels.NewWebError(400, "missing repositories", nil)
+		}
 	}
 
 	// create playground
 	var playground models.IPlayground
+	var playgroundSession *models.PlaygroundSession
 
-	if env == models.PlaygroundEnvironmentLive {
+	if env == models.PlaygroundEnvironmentReconcile {
+		var err error
+		now := req.CreatedAt
+		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags)
+		if err != nil {
+			return nil, nil, eventmodels.NewWebError(500, "failed to create reconcile playground", err)
+		}
+
+		if req.SaveToDB {
+			if playgroundSession, err = savePlaygroundSession(playground); err != nil {
+				return nil, nil, fmt.Errorf("failed to save reconcile playground: %v", err)
+			}
+		}
+
+	} else if env == models.PlaygroundEnvironmentLive {
+		now := time.Now()
+
 		// capture all candles up to tomorrow
-		tomorrow := time.Now().AddDate(0, 0, 1)
+		tomorrow := now.AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")
 		from, err := eventmodels.NewPolygonDate(tomorrowStr)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
+			return nil, nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
 		// fetch or create live repositories
@@ -253,7 +334,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 		repos, webErr := createRepos(req.Repositories, from, nil, newCandlesQueue)
 		if webErr != nil {
-			return nil, webErr
+			return nil, nil, webErr
 		}
 
 		// save live repositories
@@ -265,14 +346,30 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		}
 
 		// get live account
-		liveAccount, found, err := services.FetchLiveAccount(req.Account.Source)
+		account, found, err := FetchLiveAccount(req.Account.Source)
 		if err != nil {
-			log.Errorf("failed to create live account: %v", err)
-			return nil, err
+			return nil, nil, eventmodels.NewWebError(500, "failed to fetch live account", err)
 		}
 
+		var liveAccount *models.LiveAccount
+		if account != nil {
+			var ok bool
+			liveAccount, ok = account.(*models.LiveAccount)
+			if !ok {
+				return nil, nil, eventmodels.NewWebError(500, "failed to cast account to live account", nil)
+			}
+		}
+		
 		if !found {
-			return nil, eventmodels.NewWebError(404, "live account not found", nil)
+			log.Debugf("failed to create live account: %v. Creating a new one ...", err)
+			liveAccount, err = createNewReconcilePlaygroundAndLiveAccount(req.Account.Source, now)
+			if err != nil {
+				return nil, nil, eventmodels.NewWebError(500, "failed to create new reconcile playground and live account", err)
+			}
+
+			if err := saveLiveAccount(req.Account.Source, liveAccount); err != nil {
+				return nil, nil, fmt.Errorf("failed to save live account: %v", err)
+			}
 		}
 
 		// fetch live orders
@@ -282,13 +379,13 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// create live playground
 		playground, err = models.NewLivePlayground(req.ID, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, req.Tags)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create live playground", err)
+			return nil, nil, eventmodels.NewWebError(500, "failed to create live playground", err)
 		}
 
 		// always save live playgrounds if flag is set
 		if req.SaveToDB {
-			if err := savePlaygroundSession(playground); err != nil {
-				log.Fatalf("failed to save playground: %v", err)
+			if playgroundSession, err = savePlaygroundSession(playground); err != nil {
+				return nil, nil, fmt.Errorf("failed to save playground: %v", err)
 			}
 		}
 
@@ -296,34 +393,34 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 		// validations
 		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
+			return nil, nil, eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
 		to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
 		if err != nil {
-			return nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate", err)
+			return nil, nil, eventmodels.NewWebError(400, "failed to parse clock.stopDate", err)
 		}
 
 		// create clock
 		clock, err := createClock(from, to)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create clock", err)
+			return nil, nil, eventmodels.NewWebError(500, "failed to create clock", err)
 		}
 
 		// create backtester repositories
 		repos, webErr := createRepos(req.Repositories, from, to, nil)
 		if webErr != nil {
-			return nil, webErr
+			return nil, nil, webErr
 		}
 
 		// create playground
 		now := clock.CurrentTime
 		playground, err = models.NewPlayground(req.ID, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to create playground", err)
+			return nil, nil, eventmodels.NewWebError(500, "failed to create playground", err)
 		}
 	} else {
-		return nil, eventmodels.NewWebError(400, "invalid playground environment", nil)
+		return nil, nil, eventmodels.NewWebError(400, "invalid playground environment", nil)
 	}
 
 	playground.SetEquityPlot(req.EquityPlotRecords)
@@ -332,7 +429,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, error) 
 
 	playgrounds[playground.GetId()] = playground
 
-	return playground, nil
+	return playground, playgroundSession, nil
 }
 
 func fetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {

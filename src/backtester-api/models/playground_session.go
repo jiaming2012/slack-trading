@@ -28,7 +28,7 @@ type PlaygroundSession struct {
 	EquityPlotRecords []EquityPlotRecord     `gorm:"foreignKey:PlaygroundID;references:ID"`
 	ParentID          *uuid.UUID             `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
 	Tags              pq.StringArray         `gorm:"type:text[]"`
-	Repositories      CandleRepositoryRecord `gorm:"type:json;not null"`
+	Repositories      CandleRepositoryRecord `gorm:"type:json"`
 }
 
 func (s PlaygroundSession) ToPlayground() (IPlayground, error) {

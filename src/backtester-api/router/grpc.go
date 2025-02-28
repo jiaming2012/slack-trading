@@ -546,6 +546,12 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		})
 	}
 
+	vars := models.NewLiveAccountVariables(models.LiveAccountType(req.AccountType))
+	accountId, err := vars.GetTradierTradesAccountID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create live playground: %v", err)
+	}
+
 	createPlaygroundReq := &CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
@@ -554,6 +560,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 			Source: &models.CreateAccountRequestSource{
 				Broker:      req.Broker,
 				AccountType: models.LiveAccountType(req.AccountType),
+				AccountID:   accountId,
 			},
 		},
 		InitialBalance: float64(req.Balance),
@@ -564,8 +571,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	playground, err := CreatePlayground(createPlaygroundReq)
-
+	playground, _, err := CreatePlayground(createPlaygroundReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
@@ -600,7 +606,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	playground, err := CreatePlayground(&CreatePlaygroundRequest{
+	playground, _, err := CreatePlayground(&CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
 		Account: CreateAccountRequest{
