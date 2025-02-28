@@ -23,13 +23,23 @@ import (
 
 // todo: add a mutex playground level
 var (
-	databaseMutex    = sync.Mutex{}
+	databaseMutex     = sync.Mutex{}
 	client            = new(eventservices.PolygonTickDataMachine)
 	playgrounds       = map[uuid.UUID]models.IPlayground{}
 	liveAccounts      = map[models.CreateAccountRequestSource]models.ILiveAccount{}
 	projectsDirectory string
 	db                *gorm.DB
 )
+
+type DatabaseService struct{}
+
+func NewDatabaseService() *DatabaseService {
+	return &DatabaseService{}
+}
+
+func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, liveAccountType models.LiveAccountType) error {
+	return SaveOrderRecord(playgroundId, order, nil, liveAccountType)
+}
 
 func FetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAccount, bool, error) {
 	databaseMutex.Lock()
@@ -61,7 +71,7 @@ func FetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAc
 
 func saveLiveAccount(source *models.CreateAccountRequestSource, liveAccount models.ILiveAccount) error {
 	s := *source
-	
+
 	_, found := liveAccounts[s]
 	if found {
 		return fmt.Errorf("saveLiveAccount: live account already exists with source: %v", s)
@@ -274,7 +284,7 @@ func saveBalance(tx *gorm.DB, playgroundId uuid.UUID, balance float64) error {
 	return nil
 }
 
-func saveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) error {
+func SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, &liveAccountType); err != nil {
 			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", err)
@@ -498,8 +508,9 @@ func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest,
 
 	switch playground.(type) {
 	case *models.LivePlayground:
-		if err := saveOrderRecord(playground.GetId(), order, nil, models.NewMockLiveAccountSource().GetAccountType()); err != nil {
-			return nil, fmt.Errorf("makeBacktesterOrder: failed to save order record: %w", err)
+		liveAccountType := playground.GetLiveAccountType()
+		if err := SaveOrderRecord(playground.GetId(), order, nil, liveAccountType); err != nil {
+			return nil, fmt.Errorf("makeBacktesterOrder: failed to save live order record: %w", err)
 		}
 	}
 
@@ -992,7 +1003,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 
 			// Resave the order to update the status and close_id
 			balance := playground.GetBalance()
-			if err := saveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
+			if err := SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
 				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 
@@ -1074,7 +1085,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							}
 
-							if err := saveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
+							if err := SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
 								log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 							}
 						} else {

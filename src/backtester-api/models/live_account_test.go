@@ -81,7 +81,8 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		repositories := []*CandleRepository{repo}
-		livePlayground, err := NewLivePlayground(&playgroundID, &clientId, account, startingBalance, repositories, nil, nil, orders, now, tags)
+		database := NewMockDatabase()
+		livePlayground, err := NewLivePlayground(&playgroundID, database, &clientId, account, startingBalance, repositories, nil, nil, orders, now, tags)
 		require.NoError(t, err)
 
 		return livePlayground

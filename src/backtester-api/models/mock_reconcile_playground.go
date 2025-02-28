@@ -6,8 +6,8 @@ type MockReconcilePlayground struct {
 	broker IBroker
 }
 
-func (p *MockReconcilePlayground) PlaceOrder(account ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
-	return nil, nil
+func (p *MockReconcilePlayground) PlaceOrder(account ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, []*BacktesterOrder, error) {
+	return nil, nil, nil
 }
 
 func (p *MockReconcilePlayground) SetBroker(broker IBroker) error {

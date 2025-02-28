@@ -359,7 +359,7 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, *models
 				return nil, nil, eventmodels.NewWebError(500, "failed to cast account to live account", nil)
 			}
 		}
-		
+
 		if !found {
 			log.Debugf("failed to create live account: %v. Creating a new one ...", err)
 			liveAccount, err = createNewReconcilePlaygroundAndLiveAccount(req.Account.Source, now)
@@ -377,7 +377,8 @@ func CreatePlayground(req *CreatePlaygroundRequest) (models.IPlayground, *models
 		// orders if fetched, should be fetched from the DB
 
 		// create live playground
-		playground, err = models.NewLivePlayground(req.ID, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, req.Tags)
+		database := NewDatabaseService()
+		playground, err = models.NewLivePlayground(req.ID, database, req.ClientID, liveAccount, req.InitialBalance, repos, newCandlesQueue, newTradesFilledQueue, req.BackfillOrders, req.CreatedAt, req.Tags)
 		if err != nil {
 			return nil, nil, eventmodels.NewWebError(500, "failed to create live playground", err)
 		}

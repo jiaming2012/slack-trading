@@ -9,6 +9,7 @@ import (
 
 type ReconcilePlayground struct {
 	playground *Playground
+	// newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]
 }
 
 func (r *ReconcilePlayground) SetBroker(broker IBroker) error {
@@ -39,13 +40,13 @@ func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]Executio
 		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get positions: %w", err)
 	}
 
-	return 	r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
+	return r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
 }
 
-func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
+func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, []*BacktesterOrder, error) {
 	position, err := r.playground.GetPosition(order.Symbol, false)
 	if err != nil {
-		return nil, fmt.Errorf("ReconcilePlayground: failed to get position: %w", err)
+		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get position: %w", err)
 	}
 
 	// create reconciliation orders
@@ -71,7 +72,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 					orders = append(orders, o2)
 				}
 			default:
-				return nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
+				return nil, nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
 			}
 		} else {
 			switch order.Side {
@@ -91,7 +92,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 					orders = append(orders, o2)
 				}
 			default:
-				return nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
+				return nil, nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
 			}
 		}
 	} else {
@@ -106,7 +107,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 		case TradierOrderSideBuyToCover:
 			o.Side = TradierOrderSideBuy
 		default:
-			return nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
+			return nil, nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
 		}
 
 		orders = append(orders, o)
@@ -117,7 +118,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 	for _, o := range orders {
 		chg, err := r.playground.PlaceOrder(o)
 		if err != nil {
-			return nil, fmt.Errorf("ReconcilePlayground: failed to place order in playground: %w", err)
+			return nil, nil, fmt.Errorf("ReconcilePlayground: failed to place order in playground: %w", err)
 		}
 
 		changes = append(changes, chg...)
@@ -127,15 +128,16 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 	for _, o := range orders {
 		err = liveAccount.PlaceOrder(o)
 		if err != nil {
-			return nil, fmt.Errorf("ReconcilePlayground: failed to place order: %w", err)
+			return nil, nil, fmt.Errorf("ReconcilePlayground: failed to place order: %w", err)
 		}
 	}
 
-	return changes, nil
+	return changes, orders, nil
 }
 
 func NewReconcilePlayground(playground *Playground) (*ReconcilePlayground, error) {
 	return &ReconcilePlayground{
 		playground: playground,
+		// newTradesQueue: newTradesQueue,
 	}, nil
 }
