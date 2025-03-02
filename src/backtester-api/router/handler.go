@@ -9,919 +9,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
-	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-// todo: add a mutex playground level
 var (
-	databaseMutex     = sync.Mutex{}
 	client            = new(eventservices.PolygonTickDataMachine)
-	playgrounds       = map[uuid.UUID]models.IPlayground{}
-	liveAccounts      = map[models.CreateAccountRequestSource]models.ILiveAccount{}
 	projectsDirectory string
-	db                *gorm.DB
+	database          models.IDatabaseService
 )
-
-type DatabaseService struct{}
-
-func NewDatabaseService() *DatabaseService {
-	return &DatabaseService{}
-}
-
-func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, liveAccountType models.LiveAccountType) error {
-	return SaveOrderRecord(playgroundId, order, nil, liveAccountType)
-}
-
-func FetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAccount, bool, error) {
-	databaseMutex.Lock()
-	defer databaseMutex.Unlock()
-
-	if source == nil {
-		return nil, false, fmt.Errorf("FetchLiveAccount: source is nil")
-	}
-
-	if source.Broker == "" {
-		return nil, false, fmt.Errorf("FetchLiveAccount: broker is empty")
-	}
-
-	if source.AccountID == "" {
-		return nil, false, fmt.Errorf("FetchLiveAccount: account id is empty")
-	}
-
-	if source.AccountType == "" {
-		return nil, false, fmt.Errorf("FetchLiveAccount: account type is empty")
-	}
-
-	account, ok := liveAccounts[*source]
-	if !ok {
-		return nil, false, nil
-	}
-
-	return account, true, nil
-}
-
-func saveLiveAccount(source *models.CreateAccountRequestSource, liveAccount models.ILiveAccount) error {
-	s := *source
-
-	_, found := liveAccounts[s]
-	if found {
-		return fmt.Errorf("saveLiveAccount: live account already exists with source: %v", s)
-	}
-
-	liveAccounts[s] = liveAccount
-
-	return nil
-}
-
-type errorResponse struct {
-	Type string `json:"type"`
-	Msg  string `json:"message"`
-}
-
-func NewErrorResponse(errType string, message string) *errorResponse {
-	return &errorResponse{
-		Type: errType,
-		Msg:  message,
-	}
-}
-
-func setResponse(response interface{}, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		return fmt.Errorf("SetResponse: encode: %w", err)
-	}
-
-	return nil
-}
-
-func setErrorResponse(errType string, statusCode int, err error, w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	resp := NewErrorResponse(errType, err.Error())
-	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
-		return encodeErr
-	}
-
-	return nil
-}
-
-type GetAccountResponse struct {
-	Meta       *models.PlaygroundMeta      `json:"meta"`
-	Balance    float64                     `json:"balance"`
-	Equity     float64                     `json:"equity"`
-	FreeMargin float64                     `json:"free_margin"`
-	Positions  map[string]*models.Position `json:"positions"`
-	Orders     []*models.BacktesterOrder   `json:"orders"`
-}
-
-type CreateAccountRequest struct {
-	Balance float64                            `json:"balance"`
-	Source  *models.CreateAccountRequestSource `json:"source"`
-}
-
-type CreatePlaygroundRequest struct {
-	ID                *uuid.UUID                            `json:"playground_id"`
-	ClientID          *string                               `json:"client_id"`
-	Env               string                                `json:"environment"`
-	Account           CreateAccountRequest                  `json:"account"`
-	InitialBalance    float64                               `json:"starting_balance"`
-	Clock             CreateClockRequest                    `json:"clock"`
-	Repositories      []eventmodels.CreateRepositoryRequest `json:"repositories"`
-	BackfillOrders    []*models.BacktesterOrder             `json:"orders"`
-	EquityPlotRecords []*eventmodels.EquityPlot             `json:"equity_plot_records"`
-	CreatedAt         time.Time                             `json:"created_at"`
-	Tags              []string                              `json:"tags"`
-	SaveToDB          bool                                  `json:"-"`
-}
-
-type CreateClockRequest struct {
-	StartDate string `json:"start"`
-	StopDate  string `json:"stop"`
-}
-
-type CreateOrderRequest struct {
-	Id             *uint                          `json:"id"`
-	Symbol         string                         `json:"symbol"`
-	Class          models.BacktesterOrderClass    `json:"class"`
-	Quantity       float64                        `json:"quantity"`
-	Side           models.TradierOrderSide        `json:"side"`
-	OrderType      models.BacktesterOrderType     `json:"type"`
-	Duration       models.BacktesterOrderDuration `json:"duration"`
-	RequestedPrice float64                        `json:"requested_price"`
-	Price          *float64                       `json:"price"`
-	StopPrice      *float64                       `json:"stop_price"`
-	Tag            string                         `json:"tag"`
-}
-
-type FetchCandlesRequest struct {
-	Symbol string    `json:"symbol"`
-	From   time.Time `json:"from"`
-	To     time.Time `json:"to"`
-}
-
-func (req *CreateOrderRequest) Validate() error {
-	if err := req.Class.Validate(); err != nil {
-		return fmt.Errorf("invalid class: %w", err)
-	}
-
-	if err := req.Side.Validate(); err != nil {
-		return fmt.Errorf("invalid side: %w", err)
-	}
-
-	if req.Quantity <= 0 {
-		return fmt.Errorf("quantity must be greater than 0")
-	}
-
-	if err := req.OrderType.Validate(); err != nil {
-		return fmt.Errorf("invalid order type: %w", err)
-	}
-
-	if req.Price != nil && *req.Price <= 0 {
-		return fmt.Errorf("price must be greater than 0")
-	}
-
-	if req.StopPrice != nil && *req.StopPrice <= 0 {
-		return fmt.Errorf("stop price must be greater than 0")
-	}
-
-	if err := req.Duration.Validate(); err != nil {
-		return fmt.Errorf("invalid duration: %w", err)
-	}
-
-	return nil
-}
-
-func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
-	var orderRecord models.OrderRecord
-
-	if result := db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
-		return 0, false
-	}
-
-	return orderRecord.ID, true
-}
-
-func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder, liveAccountType *models.LiveAccountType) ([]*models.OrderRecord, error) {
-	var allOrderRecords []*models.OrderRecord
-	var updateOrderRequests []*models.UpdateOrderRecordRequest
-
-	for _, order := range orders {
-		var err error
-
-		oRec, updateOrderReq, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
-		}
-
-		updateOrderRequests = append(updateOrderRequests, updateOrderReq...)
-
-		oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
-		if found {
-			oRec.ID = oID
-		}
-
-		if err = tx.Save(&oRec).Error; err != nil {
-			return nil, fmt.Errorf("failed to save order records: %w", err)
-		}
-
-		allOrderRecords = append(allOrderRecords, oRec)
-	}
-
-	// wait for all orders to be saved before updating the closes
-	for _, updateReq := range updateOrderRequests {
-		if updateReq == nil {
-			continue
-		}
-
-		switch updateReq.Field {
-		case "closes":
-			var closes []*models.OrderRecord
-			for _, order := range updateReq.Closes {
-				orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
-				if err != nil {
-					return nil, fmt.Errorf("updateOrderRequests: failed to fetch close order record from db: %w", err)
-				}
-
-				closes = append(closes, orderRec)
-			}
-
-			updateReq.OrderRecord.Closes = closes
-			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
-			}
-
-		case "closed_by":
-			updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
-			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
-			}
-
-		default:
-			return nil, fmt.Errorf("updateOrderRequests: field %s not implemented", updateReq.Field)
-		}
-	}
-
-	return allOrderRecords, nil
-}
-
-func saveBalance(tx *gorm.DB, playgroundId uuid.UUID, balance float64) error {
-	if result := tx.Model(&models.PlaygroundSession{}).Where("id = ?", playgroundId).Update("balance", balance); result.Error != nil {
-		return fmt.Errorf("saveBalance: failed to save balance: %w", result.Error)
-	}
-
-	return nil
-}
-
-func SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) error {
-	err := db.Transaction(func(tx *gorm.DB) error {
-		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, &liveAccountType); err != nil {
-			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", err)
-		}
-
-		if newBalance != nil {
-			if err := saveBalance(tx, playgroundId, *newBalance); err != nil {
-				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", err)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
-	}
-
-	return nil
-}
-
-type closeByRequest struct {
-	OrderID     uint
-	TradeRecord *models.TradeRecord
-}
-
-func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, error) {
-	for _, order := range orders {
-		if order.ID == id {
-			return order, nil
-		}
-	}
-
-	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
-}
-
-func deletePlaygroundSession(playground models.IPlayground) error {
-	session := &models.PlaygroundSession{
-		ID: playground.GetId(),
-	}
-
-	if err := db.Delete(&session).Error; err != nil {
-		return fmt.Errorf("deletePlayground: failed to delete playground: %w", err)
-	}
-
-	return nil
-}
-
-func savePlayground(playground models.IPlayground) error {
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var txErr error
-
-		if _, txErr = savePlaygroundSessionTx(tx, playground); txErr != nil {
-			return fmt.Errorf("failed to save playground session: %w", txErr)
-		}
-
-		playgroundId := playground.GetId()
-		meta := playground.GetMeta()
-		if meta == nil {
-			return errors.New("savePlayground: missing playground meta")
-		}
-
-		liveAccountType := meta.LiveAccountType
-		if _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders(), &liveAccountType); txErr != nil {
-			return fmt.Errorf("failed to save order records: %w", txErr)
-		}
-
-		if txErr = saveEquityPlotRecords(tx, playgroundId, playground.GetEquityPlot()); txErr != nil {
-			return fmt.Errorf("failed to save equity plot records: %w", txErr)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("savePlayground: failed to save playground: %w", err)
-	}
-
-	return nil
-}
-
-func saveEquityPlotRecords(tx *gorm.DB, playgroundId uuid.UUID, records []*eventmodels.EquityPlot) error {
-	var equityPlotRecords []*models.EquityPlotRecord
-
-	for _, record := range records {
-		equityPlotRecords = append(equityPlotRecords, &models.EquityPlotRecord{
-			PlaygroundID: playgroundId,
-			Timestamp:    record.Timestamp,
-			Equity:       record.Value,
-		})
-	}
-
-	if err := tx.CreateInBatches(equityPlotRecords, 100).Error; err != nil {
-		return fmt.Errorf("saveEquityPlotRecords: failed to save equity plot records: %w", err)
-	}
-
-	return nil
-}
-
-func saveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
-	rec := &models.EquityPlotRecord{
-		PlaygroundID: playgroundId,
-		Timestamp:    timestamp,
-		Equity:       equity,
-	}
-
-	if err := db.Create(rec).Error; err != nil {
-		return fmt.Errorf("saveEquityPlotRecord: failed to save equity plot record: %w", err)
-	}
-
-	return nil
-}
-
-func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) (*models.PlaygroundSession, error) {
-	meta := playground.GetMeta()
-
-	if err := meta.Validate(); err != nil {
-		return nil, fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
-	}
-
-	repos := playground.GetRepositories()
-	var repoDTOs []models.CandleRepositoryDTO
-	for _, repo := range repos {
-		repoDTOs = append(repoDTOs, repo.ToDTO())
-	}
-
-	store := &models.PlaygroundSession{
-		ID:              playground.GetId(),
-		ClientID:        playground.GetClientId(),
-		CurrentTime:     playground.GetCurrentTime(),
-		StartAt:         meta.StartAt,
-		EndAt:           meta.EndAt,
-		Balance:         playground.GetBalance(),
-		StartingBalance: meta.InitialBalance,
-		Repositories:    models.CandleRepositoryRecord(repoDTOs),
-		Tags:            meta.Tags,
-		Env:             string(meta.Environment),
-	}
-
-	// todo: only needed for reconcile playgrounds.
-	// live playgrounds can be used to reference reconcile playground source
-	if meta.Environment == models.PlaygroundEnvironmentLive {
-		if meta.SourceBroker == "" || meta.SourceAccountId == "" {
-			return nil, errors.New("savePlaygroundSession: missing broker, or account id")
-		}
-
-		if err := meta.LiveAccountType.Validate(); err != nil {
-			return nil, fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
-		}
-
-		reconcilePlayground := playground.GetReconcilePlayground()
-		reconcilePlaygroundID := reconcilePlayground.GetId()
-		liveAccount := models.LiveAccount{
-			BrokerName:            meta.SourceBroker,
-			AccountId:             meta.SourceAccountId,
-			AccountType:           meta.LiveAccountType,
-			ReconcilePlayground:   reconcilePlayground,
-			ReconcilePlaygroundID: reconcilePlaygroundID,
-		}
-
-		if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
-			BrokerName:            meta.SourceBroker,
-			AccountId:             meta.SourceAccountId,
-			AccountType:           meta.LiveAccountType,
-			ReconcilePlaygroundID: reconcilePlaygroundID,
-		}).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch or create live account: %w", err)
-		}
-
-		store.LiveAccount = &liveAccount
-		store.Broker = &meta.SourceBroker
-		store.AccountID = &meta.SourceAccountId
-
-		var liveAccountType *string
-		if err := meta.LiveAccountType.Validate(); err == nil {
-			val := string(meta.LiveAccountType)
-			liveAccountType = &val
-		}
-		store.LiveAccountType = liveAccountType
-	}
-
-	if err := tx.Create(store).Error; err != nil {
-		return nil, fmt.Errorf("failed to save playground: %w", err)
-	}
-
-	return store, nil
-}
-
-func savePlaygroundSession(playground models.IPlayground) (*models.PlaygroundSession, error) {
-	return savePlaygroundSessionTx(db, playground)
-}
-
-func makeBacktesterOrder(playground models.IPlayground, req *CreateOrderRequest, createdOn time.Time) (*models.BacktesterOrder, error) {
-	var orderId uint
-	if req.Id != nil {
-		orderId = *req.Id
-	} else {
-		orderId = playground.NextOrderID()
-	}
-
-	order := models.NewBacktesterOrder(
-		orderId,
-		req.Class,
-		createdOn,
-		eventmodels.StockSymbol(req.Symbol),
-		req.Side,
-		req.Quantity,
-		req.OrderType,
-		req.Duration,
-		req.RequestedPrice,
-		req.Price,
-		req.StopPrice,
-		models.BacktesterOrderStatusPending,
-		req.Tag,
-	)
-
-	changes, err := playground.PlaceOrder(order)
-	if err != nil {
-		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
-	}
-
-	switch playground.(type) {
-	case *models.LivePlayground:
-		liveAccountType := playground.GetLiveAccountType()
-		if err := SaveOrderRecord(playground.GetId(), order, nil, liveAccountType); err != nil {
-			return nil, fmt.Errorf("makeBacktesterOrder: failed to save live order record: %w", err)
-		}
-	}
-
-	for _, change := range changes {
-		change.Commit()
-	}
-
-	return order, nil
-}
-
-func handleOrder(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(404)
-		return
-	}
-
-	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
-	if err != nil {
-		setErrorResponse("handleAccount: failed to playground id", 400, err, w)
-		return
-	}
-
-	var req *CreateOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		setErrorResponse("createOrder: failed to decode request", 400, err, w)
-		return
-	}
-
-	order, err := placeOrder(id, req)
-	if err != nil {
-		setErrorResponse("createOrder: failed to place order", 500, err, w)
-		return
-	}
-
-	if err := setResponse(order, w); err != nil {
-		setErrorResponse("createOrder: failed to set response", 500, err, w)
-		return
-	}
-}
-
-func createClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
-	// Load the location for New York (Eastern Time)
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		return nil, fmt.Errorf("createClock: failed to load location America/New_York: %w", err)
-	}
-
-	// start at stock market open
-	fromDate := time.Date(start.Year, time.Month(start.Month), start.Day, 9, 30, 0, 0, loc)
-
-	// end at stock market close
-	toDate := time.Date(stop.Year, time.Month(stop.Month), stop.Day, 16, 0, 0, 0, loc)
-
-	// create calendar
-	startDate := eventmodels.PolygonDate{
-		Year:  start.Year,
-		Month: start.Month,
-		Day:   start.Day,
-	}
-
-	endDate := eventmodels.PolygonDate{
-		Year:  stop.Year,
-		Month: stop.Month,
-		Day:   stop.Day,
-	}
-
-	calendar, err := services.FetchCalendarMap(startDate, endDate)
-	if err != nil {
-		return nil, fmt.Errorf("createClock: failed to fetch calendar: %w", err)
-	}
-
-	// create clock
-	clock := models.NewClock(fromDate, toDate, calendar)
-
-	return clock, nil
-}
-
-func loadLiveAccounts() error {
-	var liveAccountsRecords []models.LiveAccount
-	var err error
-
-	if err = db.Preload("ReconcilePlaygroundSession").Find(&liveAccountsRecords).Error; err != nil {
-		return fmt.Errorf("loadLiveAccounts: failed to load live accounts: %w", err)
-	}
-
-	for _, a := range liveAccountsRecords {
-		_playground, found := playgrounds[a.ReconcilePlaygroundID]
-		if !found {
-			_playground, err = populatePlayground(a.ReconcilePlaygroundSession)
-			if err != nil {
-				return fmt.Errorf("loadLiveAccounts: failed to populate playground: %w", err)
-			}
-
-			playgrounds[a.ReconcilePlaygroundID] = _playground
-		}
-
-		playground, ok := _playground.(*models.Playground)
-		if !ok {
-			return fmt.Errorf("loadLiveAccounts: failed to cast playground to playground: %w", err)
-		}
-
-		reconcilePlayground, err := models.NewReconcilePlayground(playground)
-		if err != nil {
-			return fmt.Errorf("loadLiveAccounts: failed to create reconcile playground: %w", err)
-		}
-
-		acc, err := services.CreateLiveAccount(a.BrokerName, a.AccountType, reconcilePlayground)
-		if err != nil {
-			return fmt.Errorf("loadLiveAccounts: failed to create live account: %w", err)
-		}
-
-		source := models.CreateAccountRequestSource{
-			Broker:      a.BrokerName,
-			AccountID:   a.AccountId,
-			AccountType: a.AccountType,
-		}
-
-		if _, found := liveAccounts[source]; found {
-			return fmt.Errorf("loadLiveAccounts: duplicate live account source: %v", source)
-		}
-
-		liveAccounts[source] = acc
-	}
-
-	log.Info("loaded all live accounts")
-
-	return nil
-}
-
-func populatePlayground(p models.PlaygroundSession) (models.IPlayground, error) {
-	orders := make([]*models.BacktesterOrder, len(p.Orders))
-
-	pIDStr := p.ID.String()
-
-	log.Infof("loading playground: %s", pIDStr)
-
-	var err error
-	for i, o := range p.Orders {
-		orders[i], err = o.ToBacktesterOrder()
-		if err != nil {
-			return nil, fmt.Errorf("loadPlaygrounds: failed to convert order: %w", err)
-		}
-	}
-
-	var source *models.CreateAccountRequestSource
-	var clockRequest CreateClockRequest
-	if p.Env == "simulator" {
-		if p.EndAt == nil {
-			return nil, fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
-		}
-
-		clockRequest = CreateClockRequest{
-			StartDate: p.StartAt.Format(time.RFC3339),
-			StopDate:  p.EndAt.Format(time.RFC3339),
-		}
-
-	} else if p.Env == "live" {
-		if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
-			return nil, fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
-		}
-
-		liveAccountType := models.LiveAccountType(*p.LiveAccountType)
-		if err := liveAccountType.Validate(); err != nil {
-			return nil, fmt.Errorf("loadPlaygrounds: invalid live account type for live playground: %w", err)
-		}
-
-		source = &models.CreateAccountRequestSource{
-			Broker:      *p.Broker,
-			AccountID:   *p.AccountID,
-			AccountType: liveAccountType,
-		}
-
-		clockRequest = CreateClockRequest{
-			StartDate: p.StartAt.Format(time.RFC3339),
-		}
-
-	} else if p.Env == "reconcile" {
-		if p.Broker == nil || p.AccountID == nil || p.LiveAccountType == nil {
-			return nil, fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for reconcile playground")
-		}
-
-		liveAccountType := models.LiveAccountType(*p.LiveAccountType)
-		if err := liveAccountType.Validate(); err != nil {
-			return nil, fmt.Errorf("loadPlaygrounds: invalid live account type for reconcile playground: %w", err)
-		}
-
-		source = &models.CreateAccountRequestSource{
-			Broker:      *p.Broker,
-			AccountID:   *p.AccountID,
-			AccountType: liveAccountType,
-		}
-
-	} else {
-		return nil, fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Env)
-	}
-
-	var createRepoRequests []eventmodels.CreateRepositoryRequest
-	for _, r := range p.Repositories {
-		req, err := r.ToCreateRepositoryRequest()
-		if err != nil {
-			return nil, fmt.Errorf("loadPlaygrounds: failed to convert repository: %w", err)
-		}
-
-		createRepoRequests = append(createRepoRequests, req)
-	}
-
-	var plot []*eventmodels.EquityPlot
-	for _, r := range p.EquityPlotRecords {
-		plot = append(plot, &eventmodels.EquityPlot{
-			Timestamp: r.Timestamp,
-			Value:     r.Equity,
-		})
-	}
-
-	playground, _, err := CreatePlayground(&CreatePlaygroundRequest{
-		ID:       &p.ID,
-		ClientID: p.ClientID,
-		Env:      p.Env,
-		Account: CreateAccountRequest{
-			Balance: p.Balance,
-			Source:  source,
-		},
-		InitialBalance:    p.StartingBalance,
-		Clock:             clockRequest,
-		Repositories:      createRepoRequests,
-		BackfillOrders:    orders,
-		CreatedAt:         p.CreatedAt,
-		EquityPlotRecords: plot,
-		Tags:              p.Tags,
-		SaveToDB:          false,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
-	}
-
-	return playground, nil
-}
-
-func loadPlaygrounds() error {
-	var playgroundsSlice []models.PlaygroundSession
-	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
-		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
-	}
-
-	for _, p := range playgroundsSlice {
-		if _, found := playgrounds[p.ID]; found {
-			log.Debugf("loadPlaygrounds: skipping duplicate playground id: %s", p.ID.String())
-			continue
-		}
-
-		playground, err := populatePlayground(p)
-		if err != nil {
-			return fmt.Errorf("loadPlaygrounds: failed to populate playground: %w", err)
-		}
-
-		playgrounds[playground.GetId()] = playground
-	}
-
-	log.Info("loaded all playgrounds")
-
-	return nil
-}
-
-func handleCandles(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		w.WriteHeader(404)
-		return
-	}
-
-	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
-	if err != nil {
-		setErrorResponse("handleCandles: failed to playground id", 400, err, w)
-		return
-	}
-
-	// fetch from query parameters
-	if err := r.ParseForm(); err != nil {
-		setErrorResponse("handleCandles: failed to parse form", 400, err, w)
-		return
-	}
-
-	symbol := eventmodels.StockSymbol(r.Form.Get("symbol"))
-	if symbol == "" {
-		setErrorResponse("handleCandles: missing symbol", 400, fmt.Errorf("missing symbol"), w)
-		return
-	}
-
-	periodStr := r.Form.Get("period")
-	if periodStr == "" {
-		setErrorResponse("handleCandles: missing period", 400, fmt.Errorf("missing period"), w)
-		return
-	}
-
-	period, err := time.ParseDuration(fmt.Sprintf("%ss", periodStr))
-	if err != nil {
-		setErrorResponse("handleCandles: failed to parse period", 400, err, w)
-		return
-	}
-
-	fromStr := r.Form.Get("from")
-
-	from, err := time.Parse(time.RFC3339, fromStr)
-	if err != nil {
-		setErrorResponse("handleCandles: failed to parse from", 400, err, w)
-		return
-	}
-
-	toStr := r.Form.Get("to")
-	to, err := time.Parse(time.RFC3339, toStr)
-	if err != nil {
-		setErrorResponse("handleCandles: failed to parse to", 400, err, w)
-		return
-	}
-
-	candles, err := fetchCandles(id, symbol, period, from, to)
-	if err != nil {
-		setErrorResponse("handleCandles: failed to fetch candles", 500, err, w)
-		return
-	}
-
-	response := map[string]interface{}{
-		"candles": candles,
-	}
-
-	if err := setResponse(response, w); err != nil {
-		setErrorResponse("handleCandles: failed to set response", 500, err, w)
-		return
-	}
-}
-
-func handlePlayground(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		w.WriteHeader(404)
-	} else if r.Method == "POST" {
-		// handleCreatePlayground(w, r)
-		w.WriteHeader(404)
-	} else {
-		w.WriteHeader(404)
-	}
-}
-
-func handleTick(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(404)
-		return
-	}
-
-	// get `seconds` query parameter
-	secondsStr := r.URL.Query().Get("seconds")
-	if secondsStr == "" {
-		setErrorResponse("handleTick: missing seconds query parameter", 400, fmt.Errorf("missing seconds query parameter"), w)
-		return
-	}
-
-	duration, err := time.ParseDuration(fmt.Sprintf("%ss", secondsStr))
-	if err != nil {
-		setErrorResponse("handleTick: failed to parse duration", 400, err, w)
-		return
-	}
-
-	// get `preview` query parameter
-	previewStr := r.URL.Query().Get("preview")
-	preview := false
-	if previewStr != "" {
-		var err error
-		preview, err = utils.ParseBool(previewStr)
-		if err != nil {
-			setErrorResponse("handleTick: failed to parse preview", 400, err, w)
-			return
-		}
-	}
-
-	// get playground id
-	vars := mux.Vars(r)
-	playgroundId, err := uuid.Parse(vars["id"])
-	if err != nil {
-		setErrorResponse("handleTick: failed to playground id", 400, err, w)
-		return
-	}
-
-	// tick
-	stateChange, err := nextTick(playgroundId, duration, preview)
-	if err != nil {
-		setErrorResponse("handleTick: failed to tick", 500, err, w)
-		return
-	}
-
-	if err := setResponse(stateChange, w); err != nil {
-		setErrorResponse("handleTick: failed to set response", 500, err, w)
-		return
-	}
-}
-
-func findOrder(playgroundId uuid.UUID, id uint) (models.IPlayground, *models.BacktesterOrder, error) {
-	playground, found := playgrounds[playgroundId]
-	if !found {
-		return nil, nil, fmt.Errorf("failed to find playground using id %s", playgroundId)
-	}
-
-	orders := playground.GetOrders()
-	for _, order := range orders {
-		if order.ID == id {
-			return playground, order, nil
-		}
-	}
-
-	return nil, nil, fmt.Errorf("failed to find Order in playground %s", playground.GetId().String())
-}
 
 type orderCache struct {
 	container map[uint]models.ExecutionFillRequest
@@ -963,6 +65,47 @@ func (c *orderCache) Remove(orderID uint, getMutex bool) {
 	delete(c.container, orderID)
 }
 
+type errorResponse struct {
+	Type string `json:"type"`
+	Msg  string `json:"message"`
+}
+
+func NewErrorResponse(errType string, message string) *errorResponse {
+	return &errorResponse{
+		Type: errType,
+		Msg:  message,
+	}
+}
+
+func setResponse(response interface{}, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		return fmt.Errorf("SetResponse: encode: %w", err)
+	}
+
+	return nil
+}
+
+func setErrorResponse(errType string, statusCode int, err error, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	resp := NewErrorResponse(errType, err.Error())
+	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
+		return encodeErr
+	}
+
+	return nil
+}
+
+type FetchCandlesRequest struct {
+	Symbol string    `json:"symbol"`
+	From   time.Time `json:"from"`
+	To     time.Time `json:"to"`
+}
+
 func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent]) {
 	cache := &orderCache{
 		container: make(map[uint]models.ExecutionFillRequest),
@@ -975,7 +118,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 		defer unlockFn()
 
 		for tradierOrder, orderFillEntry := range orderCache {
-			playground, order, err := findOrder(orderFillEntry.PlaygroundId, tradierOrder)
+			playground, order, err := database.FindOrder(orderFillEntry.PlaygroundId, tradierOrder)
 			if err != nil {
 				log.Errorf("handleLiveOrders: failed to find orders: %v", err)
 				continue
@@ -1003,7 +146,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 
 			// Resave the order to update the status and close_id
 			balance := playground.GetBalance()
-			if err := SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
+			if err := database.SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
 				if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 					log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 
@@ -1072,7 +215,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 
 				} else if event.ModifyOrder != nil {
 					if event.ModifyOrder.Field == "status" {
-						playground, order, err := findOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.OrderID)
+						playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.OrderID)
 
 						if err == nil {
 							reason, ok := event.ModifyOrder.New.(string)
@@ -1085,7 +228,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 								log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							}
 
-							if err := SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
+							if err := database.SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
 								log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 							}
 						} else {
@@ -1102,26 +245,13 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 	}()
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], database *gorm.DB) error {
+func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], apiService *services.BacktesterApiService, dbService *data.DatabaseService) error {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
-	db = database
 	projectsDirectory = projectsDir
 
-	// needs to be async
-	// how would i distribute the load?
-	if err := loadLiveAccounts(); err != nil {
-		return fmt.Errorf("SetupHandler: failed to load live accounts: %w", err)
+	if err := loadData(apiService, dbService); err != nil {
+		return fmt.Errorf("SetupHandler: failed to load data: %w", err)
 	}
-
-	if err := loadPlaygrounds(); err != nil {
-		return fmt.Errorf("SetupHandler: failed to load playgrounds: %w", err)
-	}
-
-	// router.HandleFunc("", handlePlayground)
-	// router.HandleFunc("/{id}/account", handleAccount)
-	// router.HandleFunc("/{id}/order", handleOrder)
-	// router.HandleFunc("/{id}/tick", handleTick)
-	// router.HandleFunc("/{id}/candles", handleCandles)
 
 	handleLiveOrders(ctx, ordersUpdateQueue)
 

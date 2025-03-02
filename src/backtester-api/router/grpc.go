@@ -11,13 +11,15 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type Server struct {
-	cache *models.RequestCache
+	cache      *models.RequestCache
+	apiService *services.BacktesterApiService
 }
 
 func NewServer() *Server {
@@ -107,7 +109,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 
 	var equityPlot []*pb.EquityPlot
 	if req.EquityPlot {
-		plots, err := getAccountStatsEquity(playgroundId)
+		plots, err := s.apiService.GetAccountStatsEquity(playgroundId)
 		if err != nil {
 			return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
 		}
@@ -127,7 +129,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 }
 
 func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
-	playgrounds := GetPlaygrounds()
+	playgrounds := s.apiService.GetDbService().GetPlaygrounds()
 
 	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
 	for _, p := range playgrounds {
@@ -217,7 +219,7 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
 
-	playground, err := getPlayground(playgroundId)
+	playground, err := s.apiService.GetDbService().GetPlayground(playgroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
@@ -225,17 +227,17 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 	if livePlayground, ok := playground.(*models.LivePlayground); ok {
 		liveRepositories := livePlayground.GetRepositories()
 		for _, repo := range liveRepositories {
-			if err := services.RemoveLiveRepository(repo); err != nil {
+			if err := s.apiService.RemoveLiveRepository(repo); err != nil {
 				return nil, fmt.Errorf("failed to delete live repository: %v", err)
 			}
 		}
 	}
 
-	if err := deletePlaygroundSession(playground); err != nil {
+	if err := data.DeletePlaygroundSession(playground); err != nil {
 		return nil, fmt.Errorf("failed to delete playground session: %v", err)
 	}
 
-	if err := deletePlayground(playgroundId); err != nil {
+	if err := s.apiService.GetDbService().DeletePlayground(playgroundId); err != nil {
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
 
@@ -248,12 +250,12 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	playground, err := getPlayground(playgroundId)
+	playground, err := s.apiService.GetDbService().GetPlayground(playgroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	if err := savePlayground(playground); err != nil {
+	if err := data.SavePlayground(playground); err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
@@ -263,15 +265,16 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest) (*pb.GetOpenOrdersResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get open orders: %v", err)
+		return nil, fmt.Errorf("GetOpenOrders: failed to parse uuid: %v", err)
 	}
 
 	symbol := eventmodels.StockSymbol(req.Symbol)
-	orders, err := getOpenOrders(playgroundId, symbol)
+	playground, err := s.apiService.GetDbService().GetPlayground(playgroundId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get open orders: %v", err)
+		return nil, fmt.Errorf("GetOpenOrders: failed to get playground: %v", err)
 	}
 
+	orders := playground.GetOpenOrders(symbol)
 	ordersDTO := convertOrders(orders)
 
 	return &pb.GetOpenOrdersResponse{
@@ -297,7 +300,7 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
-	candles, err := fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
+	candles, err := s.fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get candles: %v", err)
 	}
@@ -347,7 +350,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 
 	duration := time.Duration(req.Seconds) * time.Second
 
-	tick, err := nextTick(playgroundId, duration, req.IsPreview)
+	tick, err := s.nextTick(playgroundId, duration, req.IsPreview)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
 	}
@@ -445,7 +448,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	account, err := getAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
+	account, err := s.apiService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
@@ -499,7 +502,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
-	order, webErr := placeOrder(playgroundID, &CreateOrderRequest{
+	order, webErr := s.apiService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
 		Symbol:         req.Symbol,
 		Class:          models.BacktesterOrderClass(req.AssetClass),
 		Quantity:       req.Quantity,
@@ -523,7 +526,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 
 func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	if req.ClientId != nil {
-		if playground := getPlaygroundByClientId(*req.ClientId); playground != nil {
+		if playground := s.apiService.GetDbService().GetPlaygroundByClientId(*req.ClientId); playground != nil {
 			return &pb.CreatePlaygroundResponse{
 				Id: playground.GetId().String(),
 			}, nil
@@ -552,10 +555,10 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
 
-	createPlaygroundReq := &CreatePlaygroundRequest{
+	createPlaygroundReq := &models.CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
-		Account: CreateAccountRequest{
+		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
 			Source: &models.CreateAccountRequestSource{
 				Broker:      req.Broker,
@@ -571,7 +574,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	playground, _, err := CreatePlayground(createPlaygroundReq)
+	playground, _, err := s.apiService.CreatePlayground(createPlaygroundReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
@@ -583,7 +586,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	if req.ClientId != nil {
-		if playground := getPlaygroundByClientId(*req.ClientId); playground != nil {
+		if playground := s.apiService.GetDbService().GetPlaygroundByClientId(*req.ClientId); playground != nil {
 			return &pb.CreatePlaygroundResponse{
 				Id: playground.GetId().String(),
 			}, nil
@@ -606,14 +609,14 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	playground, _, err := CreatePlayground(&CreatePlaygroundRequest{
+	playground, _, err := s.apiService.CreatePlayground(&models.CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
-		Account: CreateAccountRequest{
+		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
 		},
 		InitialBalance: float64(req.Balance),
-		Clock: CreateClockRequest{
+		Clock: models.CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
 		},

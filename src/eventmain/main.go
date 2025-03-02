@@ -36,6 +36,8 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/rpc"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/dbutils"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -465,13 +467,13 @@ func run() {
 
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", optionsConfigFile)
-	data, err := os.ReadFile(optionsConfigInDir)
+	config, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
 		log.Fatalf("failed to read options config: %v", err)
 	}
 
 	var optionsConfig eventmodels.OptionsConfigYAML
-	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
+	if err := yaml.Unmarshal(config, &optionsConfig); err != nil {
 		log.Fatalf("failed to unmarshal options config: %v", err)
 	}
 
@@ -610,15 +612,21 @@ func run() {
 	a := NewRouterSetup("/version", router)
 	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
 
+	// Setup database service
+	dbService := data.NewDatabaseService(db)
+
+	// Setup api service
+	apiService := services.NewBacktesterApiService(projectsDir, polygonTickDataMachine, dbService)
+
 	// Setup backtester router playground
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, apiService, dbService); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 
 	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 
 	// this must be after the backtester router setup
-	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
 
 	// options router
 	// r := NewRouterSetup("/options", router)

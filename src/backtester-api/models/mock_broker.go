@@ -9,15 +9,18 @@ import (
 type MockBroker struct {
 	requests []*PlaceEquityTradeRequest
 	orders   []*eventmodels.TradierOrder
+	orderId  uint
 }
 
 func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceEquityTradeRequest) (map[string]interface{}, error) {
 	b.requests = append(b.requests, req)
 	resp := map[string]interface{}{
 		"order": map[string]interface{}{
-			"id": float64(123),
+			"id": float64(b.orderId),
 		},
 	}
+
+	b.orderId++
 
 	return resp, nil
 }
@@ -36,9 +39,10 @@ func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Inst
 	}, nil
 }
 
-func NewMockBroker() *MockBroker {
+func NewMockBroker(orderIdStartIndex uint) *MockBroker {
 	return &MockBroker{
 		requests: make([]*PlaceEquityTradeRequest, 0),
 		orders:   make([]*eventmodels.TradierOrder, 0),
+		orderId:  orderIdStartIndex,
 	}
 }

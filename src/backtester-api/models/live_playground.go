@@ -16,7 +16,11 @@ type LivePlayground struct {
 	newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]
 	newTradesQueue  *eventmodels.FIFOQueue[*TradeRecord]
 	requestHash     *string
-	database        IDatabase
+	database        IDatabaseService
+}
+
+func (p *LivePlayground) GetReconciliationOrders() []*BacktesterOrder {
+	return p.GetReconcilePlayground().GetOrders()
 }
 
 func (p *LivePlayground) GetReconcilePlayground() IReconcilePlayground {
@@ -100,6 +104,8 @@ func (p *LivePlayground) GetEquityPlot() []*eventmodels.EquityPlot {
 }
 
 func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
+	var changes []*PlaceOrderChanges
+
 	reconcilePlayground := p.liveAccount.GetReconcilePlayground()
 	if reconcilePlayground == nil {
 		return nil, fmt.Errorf("reconcile playground is not set")
@@ -120,18 +126,24 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChange
 	}
 
 	for _, o := range reconciliationOrders {
-		if err := p.database.SaveOrderRecord(reconcilePlayground.GetId(), o, LiveAccountTypeReconcilation); err != nil {
-			return nil, fmt.Errorf("makeBacktesterOrder: failed to save reconciliation order record: %w", err)
-		}
+		_order := o
+		changes = append(changes, &PlaceOrderChanges{
+			Commit: func() error {
+				return p.database.SaveOrderRecord(reconcilePlayground.GetId(), _order, nil, LiveAccountTypeReconcilation)
+			},
+			AdditionalInfo: "failed to save reconciliation order record",
+		})
 	}
 
-	changes := append(reconciliationChanges, playgroundChanges...)
-	for _, change := range changes {
-		err := change.Commit()
-		if err != nil {
-			return nil, fmt.Errorf("failed to commit order changes: %w", err)
-		}
-	}
+	changes = append(changes, reconciliationChanges...)
+	changes = append(changes, playgroundChanges...)
+
+	// for _, change := range changes {
+	// 	err := change.Commit()
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to commit order changes: %w", err)
+	// 	}
+	// }
 
 	return changes, nil
 }
@@ -206,7 +218,7 @@ func (p *LivePlayground) RejectOrder(order *BacktesterOrder, reason string) erro
 	return p.playground.RejectOrder(order, reason)
 }
 
-func NewLivePlayground(playgroundID *uuid.UUID, database IDatabase, clientID *string, liveAccount *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
+func NewLivePlayground(playgroundID *uuid.UUID, database IDatabaseService, clientID *string, liveAccount *LiveAccount, startingBalance float64, repositories []*CandleRepository, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], orders []*BacktesterOrder, now time.Time, tags []string) (*LivePlayground, error) {
 	playground, err := NewPlayground(playgroundID, clientID, startingBalance, startingBalance, nil, orders, PlaygroundEnvironmentLive, now, tags, repositories...)
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)

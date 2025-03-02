@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -23,6 +22,7 @@ import (
 type TradierApiWorker struct {
 	wg                *sync.WaitGroup
 	db                *gorm.DB
+	dbService         models.IDatabaseService
 	orders            models.TradierOrderDataStore
 	timeSalesURL      string
 	quotesBearerToken string
@@ -286,7 +286,7 @@ func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.Tradi
 func (w *TradierApiWorker) fetchPendingOrdersfromDB() ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
-	if err := w.db.Where("status = ?", "pending").Find(&orders).Error; err != nil {
+	if err := w.db.Where("status = ? and account_type <> ?", string(models.BacktesterOrderStatusPending), string(models.PlaygroundEnvironmentSimulator)).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
 	}
 
@@ -457,7 +457,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	defer log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: end")
 
 	now := time.Now()
-	playgrounds := router.GetPlaygrounds()
+	playgrounds := w.dbService.GetPlaygrounds()
 
 	count := 0
 	for _, playground := range playgrounds {
@@ -515,7 +515,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
-		account, found, err := router.FetchLiveAccount(&models.CreateAccountRequestSource{
+		account, found, err := w.dbService.FetchLiveAccount(&models.CreateAccountRequestSource{
 			Broker:      liveAccount.BrokerName,
 			AccountID:   liveAccount.AccountId,
 			AccountType: liveAccount.AccountType,
@@ -587,12 +587,12 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				log.Info("stopping TradierApiWorker consumer")
 				return
 			case <-timer.C:
-				if !w.IsMarketOpen() {
-					w.ExecuteLiveAccountPlotUpdate()
+				// if !w.IsMarketOpen() {
+				// 	w.ExecuteLiveAccountPlotUpdate()
 
-					log.Debug("Market is closed: skipping live repos update")
-					continue
-				}
+				// 	log.Debug("Market is closed: skipping live repos update")
+				// 	continue
+				// }
 
 				w.executeOrdersQueueUpdate(ctx)
 				w.ExecuteLiveReposUpdate()
@@ -601,7 +601,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB, dbService models.IDatabaseService) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,
@@ -611,6 +611,7 @@ func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBeare
 		polygonClient:     polygonClient,
 		tradesUpdateQueue: tradesUpdateQueue,
 		calendarURL:       calendarURL,
+		dbService:         dbService,
 	}
 
 	var err error

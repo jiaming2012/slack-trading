@@ -18,6 +18,64 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
+type TradierBroker struct {
+	ordersUrl      string
+	quotesUrl      string
+	nonTradesToken string
+	tradesToken    string
+}
+
+func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("no symbols provided")
+	}
+
+	dto, err := FetchQuotes(ctx, b.quotesUrl, b.nonTradesToken, symbols)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch quotes: %w", err)
+	}
+
+	return dto, nil
+}
+
+func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*eventmodels.TradierOrder, error) {
+	dto, err := FetchOrders(ctx, b.ordersUrl, b.tradesToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch orders: %w", err)
+	}
+
+	orders := make([]*eventmodels.TradierOrder, 0, len(dto))
+	for _, orderDTO := range dto {
+		order, err := orderDTO.ToTradierOrder()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert order dto to order: %w", err)
+		}
+
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
+
+	resp, err := PlaceOrder(ctx, b.ordersUrl, b.tradesToken, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to place order: %w", err)
+	}
+
+	return resp, nil
+}
+
+func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) *TradierBroker {
+	return &TradierBroker{
+		ordersUrl:      ordersUrl,
+		quotesUrl:      quotesUrl,
+		nonTradesToken: nonTradesToken,
+		tradesToken:    tradesToken,
+	}
+}
+
 func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
@@ -58,7 +116,7 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 		}
 
 		log.Errorf("FetchQuotes: failed to fetch quotes: %s", string(errBytes))
-		
+
 		return nil, fmt.Errorf("FetchQuotes: invalid status code: %s", res.Status)
 	}
 

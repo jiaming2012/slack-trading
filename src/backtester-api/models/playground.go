@@ -1299,10 +1299,6 @@ func (p *Playground) GetFreeMargin() (float64, error) {
 	return p.GetFreeMarginFromPositionMap(positions), nil
 }
 
-type PlaceOrderChanges struct {
-	Commit func() error
-}
-
 func (p *Playground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
 	if order.Class != BacktesterOrderClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")

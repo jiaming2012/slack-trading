@@ -65,7 +65,7 @@ func TestLiveAccount(t *testing.T) {
 		return reconcilePlayground
 	}
 
-	createLivePlayground := func(t *testing.T, broker IBroker, reconcilePlayground *ReconcilePlayground) *LivePlayground {
+	createLivePlayground := func(t *testing.T, broker IBroker, reconcilePlayground *ReconcilePlayground, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]) *LivePlayground {
 		account, err := NewLiveAccount(source, broker, reconcilePlayground)
 		require.NoError(t, err)
 
@@ -82,15 +82,20 @@ func TestLiveAccount(t *testing.T) {
 
 		repositories := []*CandleRepository{repo}
 		database := NewMockDatabase()
-		livePlayground, err := NewLivePlayground(&playgroundID, database, &clientId, account, startingBalance, repositories, nil, nil, orders, now, tags)
+		livePlayground, err := NewLivePlayground(&playgroundID, database, &clientId, account, startingBalance, repositories, nil, newTradesQueue, orders, now, tags)
 		require.NoError(t, err)
 
 		return livePlayground
 	}
 
-	t.Run("place order - new", func(t *testing.T) {
-		broker := NewMockBroker()
+	t.Run("place buy order", func(t *testing.T) {
+		broker := NewMockBroker(1000)
 		reconcilePlayground := createReconcilePlayground(t)
+		newTradesQueue := eventmodels.NewFIFOQueue[*TradeRecord]("newTradesFilledQueue", 1)
+
+
+		
+
 		livePlayground := createLivePlayground(t, broker, reconcilePlayground)
 
 		// place buy order
@@ -98,7 +103,7 @@ func TestLiveAccount(t *testing.T) {
 
 		placeOrderChanges, err := livePlayground.PlaceOrder(order)
 		require.NoError(t, err)
-		require.Len(t, placeOrderChanges, 2)
+		require.Len(t, placeOrderChanges, 3)
 
 		for _, change := range placeOrderChanges {
 			err := change.Commit()
@@ -106,8 +111,9 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		// assert - live order is placed
-		require.Len(t, livePlayground.GetOrders(), 1)
-		liveOrder := livePlayground.GetOrders()[0]
+		orders := livePlayground.GetOrders()
+		require.Len(t, orders, 1)
+		liveOrder := orders[0]
 		require.Equal(t, order, liveOrder)
 
 		// assert - reconciliation order is placed
@@ -123,8 +129,9 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, order.Tag, reconcileOrder.Tag)
 	})
 
-	t.Run("place buy order - existing long", func(t *testing.T) {
-		broker := NewMockBroker()
+	t.Run("fill buy order - with existing long order", func(t *testing.T) {
+		reconcileOrderIdx := uint(1000)
+		broker := NewMockBroker(reconcileOrderIdx)
 		reconcilePlayground := createReconcilePlayground(t)
 
 		// place buy order
@@ -133,27 +140,36 @@ func TestLiveAccount(t *testing.T) {
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
 		require.NoError(t, err)
-		require.Len(t, placeOrderChanges, 2)
+		require.Len(t, placeOrderChanges, 3)
 
 		for _, change := range placeOrderChanges {
 			err := change.Commit()
 			require.NoError(t, err)
 		}
 
-		// assert - live order is placed
-		require.Len(t, livePlayground1.GetOrders(), 1)
-		liveOrder := livePlayground1.GetOrders()[0]
-		require.Equal(t, order1, liveOrder)
-
 		// assert - reconciliation order is placed
 		require.Len(t, reconcilePlayground.GetPlayground().GetOrders(), 1)
 		reconcileOrder := reconcilePlayground.GetPlayground().GetOrders()[0]
 
-		require.NotEqual(t, order1.ID, reconcileOrder.ID)
+		require.Equal(t, reconcileOrderIdx, reconcileOrder.ID)
 		require.Equal(t, order1.Symbol, reconcileOrder.Symbol)
 		require.Equal(t, order1.Side, reconcileOrder.Side)
 		require.Equal(t, order1.AbsoluteQuantity, reconcileOrder.AbsoluteQuantity)
 		require.Equal(t, order1.Type, reconcileOrder.Type)
+
+		// assert - reconcile order appears in live playground
+		reconcileOrders := livePlayground1.GetReconciliationOrders()
+		require.Len(t, reconcileOrders, 1)
+		require.Equal(t, reconcileOrder, reconcileOrders[0])
+
+		// assert - live order is placed
+		liveOrders := livePlayground1.GetOrders()
+		require.Len(t, liveOrders, 1)
+		require.Equal(t, order1, liveOrders[0])
+
+		// assert - order status is pending
+		require.Equal(t, BacktesterOrderStatusPending, reconcileOrders[0].Status)
+		require.Equal(t, BacktesterOrderStatusPending, liveOrders[0].Status)
 
 		// fill the orders
 		executionFillMap := make(map[uint]ExecutionFillRequest)
@@ -163,8 +179,8 @@ func TestLiveAccount(t *testing.T) {
 			Quantity:     19,
 		}
 
-		_, _, err = reconcilePlayground.CommitPendingOrders(executionFillMap)
-		require.NoError(t, err)
+		// _, _, err = reconcilePlayground.CommitPendingOrders(executionFillMap)
+		// require.NoError(t, err)
 
 		// place sell order
 		livePlayground2 := createLivePlayground(t, broker, reconcilePlayground)
@@ -180,11 +196,11 @@ func TestLiveAccount(t *testing.T) {
 
 		// assert - live order is placed
 		require.Len(t, livePlayground2.GetOrders(), 1)
-		liveOrder = livePlayground2.GetOrders()[0]
+		liveOrder := livePlayground2.GetOrders()[0]
 		require.Equal(t, order2, liveOrder)
 
 		// assert - reconciliation order is placed
-		reconcileOrders := reconcilePlayground.GetPlayground().GetOrders()
+		reconcileOrders = reconcilePlayground.GetPlayground().GetOrders()
 		require.Len(t, reconcileOrders, 3)
 
 		require.Equal(t, order1.Symbol, reconcileOrders[1].Symbol)

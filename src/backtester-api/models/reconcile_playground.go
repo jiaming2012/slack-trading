@@ -12,6 +12,10 @@ type ReconcilePlayground struct {
 	// newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]
 }
 
+func (r *ReconcilePlayground) GetOrders() []*BacktesterOrder {
+	return r.playground.GetOrders()
+}
+
 func (r *ReconcilePlayground) SetBroker(broker IBroker) error {
 	if r.playground.Broker != nil {
 		if broker == r.playground.Broker {
@@ -25,6 +29,7 @@ func (r *ReconcilePlayground) SetBroker(broker IBroker) error {
 	return nil
 }
 
+// todo: remove this??
 func (r *ReconcilePlayground) GetPlayground() *Playground {
 	return r.playground
 }
@@ -33,15 +38,15 @@ func (r *ReconcilePlayground) GetId() uuid.UUID {
 	return r.playground.GetId()
 }
 
-func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]ExecutionFillRequest) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
-	performChecks := false
-	positionMap, err := r.playground.GetPositions()
-	if err != nil {
-		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get positions: %w", err)
-	}
+// func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]ExecutionFillRequest) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
+// 	performChecks := false
+// 	positionMap, err := r.playground.GetPositions()
+// 	if err != nil {
+// 		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get positions: %w", err)
+// 	}
 
-	return r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
-}
+// 	return r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
+// }
 
 func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, []*BacktesterOrder, error) {
 	position, err := r.playground.GetPosition(order.Symbol, false)
