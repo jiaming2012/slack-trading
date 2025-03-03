@@ -101,6 +101,16 @@ func (s *DatabaseService) LoadLiveAccounts(apiService models.IBacktesterApiServi
 	return nil
 }
 
+func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType) ([]*models.OrderRecord, error) {
+	var orders []*models.OrderRecord
+
+	if err := db.Where("status = ? and account_type = ?", string(models.BacktesterOrderStatusPending), string(accountType)).Find(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
+	}
+
+	return orders, nil
+}
+
 func (s *DatabaseService) LoadPlaygrounds(apiService models.IBacktesterApiService) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

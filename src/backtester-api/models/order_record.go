@@ -31,7 +31,7 @@ type OrderRecord struct {
 	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
 	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
 	ClosedBy        []*TradeRecord    `gorm:"many2many:trade_closed_by"`
-	Reconciliation  []*OrderRecord    `gorm:"many2many:order_reconciliation"`
+	Reconciles      []*OrderRecord    `gorm:"many2many:order_reconciles"`
 	Trades          []*TradeRecord    `gorm:"foreignKey:OrderID"`
 }
 
@@ -46,6 +46,16 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		closes = append(closes, co)
 	}
 
+	var reconciles []*BacktesterOrder
+	for _, r := range o.Reconciles {
+		co, err := r.ToBacktesterOrder()
+		if err != nil {
+			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert reconciled order: %w", err)
+		}
+
+		reconciles = append(reconciles, co)
+	}
+
 	for _, t := range o.Trades {
 		t.OrderRecord = o
 	}
@@ -56,6 +66,7 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 
 	return &BacktesterOrder{
 		ID:               o.ExternalOrderID,
+		PlaygroundID:     o.PlaygroundID,
 		Class:            BacktesterOrderClass(o.Class),
 		Symbol:           eventmodels.NewStockSymbol(o.Symbol),
 		Side:             TradierOrderSide(o.Side),
@@ -72,5 +83,6 @@ func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
 		CreateDate:       o.Timestamp,
 		Closes:           closes,
 		ClosedBy:         o.ClosedBy,
+		Reconciles:       reconciles,
 	}, nil
 }

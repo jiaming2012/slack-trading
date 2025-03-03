@@ -35,7 +35,7 @@ type IPlayground interface {
 	GetCurrentTime() time.Time
 	NextOrderID() uint
 	FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
-	FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error)
+	CommitPendingOrder(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *BacktesterOrder, err error)
 	RejectOrder(order *BacktesterOrder, reason string) error
 	SetEquityPlot(equityPlot []*eventmodels.EquityPlot)
 	GetLiveAccountType() LiveAccountType
@@ -81,7 +81,7 @@ func (p *Playground) GetEnvironment() PlaygroundEnvironment {
 }
 
 func (p *Playground) GetLiveAccountType() LiveAccountType {
-	return ""
+	return p.Meta.LiveAccountType
 }
 
 func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
@@ -151,15 +151,10 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*BacktesterO
 	return openOrders
 }
 
-func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry ExecutionFillRequest, performChecks bool) error {
-	if order.Status != BacktesterOrderStatusPending {
-		err := fmt.Errorf("order %d status is %s, not pending", order.ID, order.Status)
+func (p *Playground) commitTradableOrderToOrderQueue(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry ExecutionFillRequest, performChecks bool) error {
+	if !order.Status.IsTradingAllowed() {
+		err := fmt.Errorf("order %d status is %s, which is no longer tradable", order.ID, order.Status)
 		order.Reject(err)
-
-		if err := p.AddToOrderQueue(order); err != nil {
-			log.Fatalf("position 0: error adding order to order queue: %v", err)
-		}
-
 		return fmt.Errorf("commitPendingOrders: %w", err)
 	}
 
@@ -168,11 +163,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	if performChecks {
 		if orderQuantity == 0 {
 			order.Reject(ErrInvalidOrderVolumeZero)
-
-			if err := p.AddToOrderQueue(order); err != nil {
-				log.Fatalf("position 1: error adding order to order queue: %v", err)
-			}
-
 			return fmt.Errorf("commitPendingOrders: order %d has zero quantity", order.ID)
 		}
 	}
@@ -191,11 +181,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 				if orderQuantity > math.Abs(position.Quantity) {
 					if performChecks {
 						order.Reject(ErrInvalidOrderVolumeLongVolume)
-
-						if err := p.AddToOrderQueue(order); err != nil {
-							log.Fatalf("position 2: error adding order to order queue: %v", err)
-						}
-
 						return fmt.Errorf("commitPendingOrders: order quantity exceeds short position of %.2f", position.Quantity)
 					}
 				} else {
@@ -205,11 +190,6 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 				if math.Abs(orderQuantity) > position.Quantity {
 					if performChecks {
 						order.Reject(ErrInvalidOrderVolumeShortVolume)
-						// append the order to the queue
-						if err := p.AddToOrderQueue(order); err != nil {
-							log.Fatalf("position 3: error adding order to order queue: %v", err)
-						}
-
 						return fmt.Errorf("commitPendingOrders: order quantity exceeds long position of %.2f", position.Quantity)
 					}
 				} else {
@@ -222,24 +202,54 @@ func (p *Playground) commitPendingOrderToOrderQueue(order *BacktesterOrder, star
 	// check if the order can be filled
 	if performMarginCheck && freeMargin <= initialMargin {
 		order.Reject(fmt.Errorf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin))
-
-		// append the order to the queue
-		if err := p.AddToOrderQueue(order); err != nil {
-			log.Fatalf("position 4: error adding order to order queue: %v", err)
-		}
-
 		return fmt.Errorf("commitPendingOrders: order %d has insufficient free margin", order.ID)
 
-	}
-
-	if err := p.AddToOrderQueue(order); err != nil {
-		log.Fatalf("position 4: error adding order to order queue: %v", err)
 	}
 
 	return nil
 }
 
-func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
+func (p *Playground) CommitPendingOrder(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *BacktesterOrder, err error) {
+	for _, o := range p.account.PendingOrders {
+		if o == order {
+			if err := p.commitTradableOrderToOrderQueue(order, startingPositions, orderFillRequest, performChecks); err != nil {
+				order.Reject(err)
+				invalidOrder = order
+
+				if err := p.AddToOrderQueue(order); err != nil {
+					return nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
+				}
+
+				return nil, invalidOrder, nil
+			}
+
+			newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, orderFillRequest, startingPositions)
+			if err != nil {
+				order.Reject(err)
+				invalidOrder = order
+				log.Errorf("error filling order: %v", err)
+
+				if err := p.AddToOrderQueue(order); err != nil {
+					return nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err)
+				}
+
+				return nil, invalidOrder, nil
+			}
+
+			if orderIsFilled {
+				if err := p.AddToOrderQueue(order); err != nil {
+					return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
+				}
+			}
+
+			return newTrade, nil, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
+}
+
+func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
 	pendingOrders := make([]*BacktesterOrder, len(p.account.PendingOrders))
 
 	copy(pendingOrders, p.account.PendingOrders)
@@ -264,23 +274,38 @@ func (p *Playground) CommitPendingOrders(startingPositions map[eventmodels.Instr
 			continue
 		}
 
-		err := p.commitPendingOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks)
-		if err != nil {
+		if err := p.commitTradableOrderToOrderQueue(order, startingPositions, orderFillEntry, performChecks); err != nil {
 			order.Reject(err)
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error committing pending order: %v", err)
+
+			if err := p.AddToOrderQueue(order); err != nil {
+				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
+			}
+
 			continue
 		}
 
-		newTrade, err := p.FillOrder(order, performChecks, orderFillEntry, startingPositions)
+		newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, orderFillEntry, startingPositions)
 		if err != nil {
 			order.Reject(err)
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error filling order: %v", err)
+
+			if err := p.AddToOrderQueue(order); err != nil {
+				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after fillOrder(): %v", err)
+			}
+
 			continue
 		}
 
 		newTrades = append(newTrades, newTrade)
+
+		if orderIsFilled {
+			if err := p.AddToOrderQueue(order); err != nil {
+				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
+			}
+		}
 	}
 
 	return
@@ -361,6 +386,10 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 	case PlaygroundEnvironmentLive, PlaygroundEnvironmentReconcile:
 		if len(symbols) == 0 {
 			return map[eventmodels.Instrument]*Tick{}, nil
+		}
+
+		if p.Broker == nil {
+			return nil, errors.New("getCurrentPrice: broker is nil")
 		}
 
 		quotes, err := p.Broker.FetchQuotes(context.Background(), symbols)
@@ -519,7 +548,7 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 	return nil
 }
 
-func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
+func (p *Playground) fillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, bool, error) {
 	position, ok := positionsMap[order.Symbol]
 	if !ok {
 		position = &Position{Quantity: 0}
@@ -529,21 +558,21 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	if performChecks {
 		orderStatus := order.GetStatus()
 		if !orderStatus.IsTradingAllowed() {
-			return nil, fmt.Errorf("fillOrder: trading is not allowed for order with status %s", orderStatus)
+			return nil, false, fmt.Errorf("fillOrder: trading is not allowed for order with status %s", orderStatus)
 		}
 
 		if order.Type != Market {
-			return nil, fmt.Errorf("fillOrder: %d is not market, found %s", order.ID, order.Type)
+			return nil, false, fmt.Errorf("fillOrder: %d is not market, found %s", order.ID, order.Type)
 		}
 
 		if order.Class != BacktesterOrderClassEquity {
 			log.Errorf("fillOrders: only equity orders are supported")
-			return nil, fmt.Errorf("fillOrders: only equity orders are supported")
+			return nil, false, fmt.Errorf("fillOrders: only equity orders are supported")
 		}
 
 		if err := p.isSideAllowed(order.Symbol, order.Side, position.Quantity); err != nil {
 			order.Status = BacktesterOrderStatusRejected
-			return nil, fmt.Errorf("fillOrders: error checking side allowed: %v", err)
+			return nil, false, fmt.Errorf("fillOrders: error checking side allowed: %v", err)
 		}
 	}
 
@@ -564,7 +593,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 			qty, err := o.GetRemainingOpenQuantity()
 			if err != nil {
-				return nil, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
+				return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
 			}
 
 			remainingOpenQuantity := math.Abs(qty)
@@ -588,19 +617,20 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 
 		// check if the volume to close is valid
 		if volumeToClose < 0 {
-			return nil, fmt.Errorf("fillOrder: volume to close cannot be negative")
+			return nil, false, fmt.Errorf("fillOrder: volume to close cannot be negative")
 		}
 
 		if volumeToClose > 0 {
-			return nil, fmt.Errorf("fillOrder: volume to close exceeds open volume")
+			return nil, false, fmt.Errorf("fillOrder: volume to close exceeds open volume")
 		}
 	}
 
 	// commit the trade
 	trade := NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 
-	if err := order.Fill(trade); err != nil {
-		return nil, fmt.Errorf("fillOrder: error filling order: %w", err)
+	orderIsFilled, err := order.Fill(trade)
+	if err != nil {
+		return nil, false, fmt.Errorf("fillOrder: error filling order: %w", err)
 	}
 
 	// close the open orders
@@ -619,7 +649,7 @@ func (p *Playground) FillOrder(order *BacktesterOrder, performChecks bool, order
 	// update the positions cache
 	p.updatePositionsCache(order.Symbol, trade, order.IsClose)
 
-	return trade, nil
+	return trade, orderIsFilled, nil
 }
 
 func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
@@ -662,7 +692,7 @@ func (p *Playground) fillOrdersDeprecated(ordersToOpen []*BacktesterOrder, start
 			return nil, fmt.Errorf("fillOrders: order %d not found in order fill entry map", order.ID)
 		}
 
-		trade, err := p.FillOrder(order, performChecks, orderFillEntry, positionsCopy)
+		trade, _, err := p.fillOrder(order, performChecks, orderFillEntry, positionsCopy)
 		if err != nil {
 			return nil, fmt.Errorf("fillOrders: error filling order: %w", err)
 		}
@@ -727,9 +757,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
 	} else if position.Quantity < 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
 	} else {
 		return nil, nil
 	}
@@ -752,7 +782,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		}
 	}
 
-	_, invalidOrders, err := p.CommitPendingOrders(map[eventmodels.Instrument]*Position{symbol: position}, orderFillPriceMap, true)
+	_, invalidOrders, err := p.commitPendingOrders(map[eventmodels.Instrument]*Position{symbol: position}, orderFillPriceMap, true)
 	if err != nil {
 		return nil, fmt.Errorf("performLiquidations: error committing pending orders: %w", err)
 	}
@@ -909,7 +939,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	}
 
 	// Commit pending orders
-	newTrades, invalidOrdersDTO, err := p.CommitPendingOrders(startingPositions, orderExecutionRequests, true)
+	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(startingPositions, orderExecutionRequests, true)
 	if err != nil {
 		return nil, fmt.Errorf("error committing pending orders: %w", err)
 	}
@@ -1428,6 +1458,10 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 		Environment:    env,
 		StartAt:        startAt,
 		EndAt:          endAt,
+	}
+
+	if env == PlaygroundEnvironmentReconcile {
+		meta.LiveAccountType = LiveAccountTypeReconcilation
 	}
 
 	var id uuid.UUID

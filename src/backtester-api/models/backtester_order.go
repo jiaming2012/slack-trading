@@ -12,6 +12,7 @@ import (
 )
 
 type BacktesterOrder struct {
+	PlaygroundID     uuid.UUID               `json:"-"`
 	ID               uint                    `json:"id"`
 	Class            BacktesterOrderClass    `json:"class"`
 	Symbol           eventmodels.Instrument  `json:"symbol"`
@@ -28,6 +29,7 @@ type BacktesterOrder struct {
 	RejectReason     *string                 `json:"reject_reason,omitempty"`
 	CreateDate       time.Time               `json:"create_date"`
 	IsClose          bool                    `json:"is_close"`
+	Reconciles       []*BacktesterOrder      `json:"reconciles"`
 	ClosedBy         []*TradeRecord          `json:"closed_by"`
 	Closes           []*BacktesterOrder      `json:"closes"`
 }
@@ -50,13 +52,13 @@ func (o *BacktesterOrder) GetQuantity() float64 {
 	return o.AbsoluteQuantity
 }
 
-func (o *BacktesterOrder) Fill(trade *TradeRecord) error {
+func (o *BacktesterOrder) Fill(trade *TradeRecord) (bool, error) {
 	if !o.Status.IsTradingAllowed() {
-		return ErrTradingNotAllowed
+		return false, ErrTradingNotAllowed
 	}
 
 	if trade.Price <= 0 {
-		return fmt.Errorf("trade price must be greater than 0")
+		return false, fmt.Errorf("trade price must be greater than 0")
 	}
 
 	filledQuantity := 0.0
@@ -65,20 +67,22 @@ func (o *BacktesterOrder) Fill(trade *TradeRecord) error {
 	}
 
 	if trade.Quantity == 0 {
-		return fmt.Errorf("trade quantity must be non-zero")
+		return false, fmt.Errorf("trade quantity must be non-zero")
 	}
 
 	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
-		return fmt.Errorf("trade quantity exceeds order quantity")
+		return false, fmt.Errorf("trade quantity exceeds order quantity")
 	}
 
 	o.Trades = append(o.Trades, trade)
 
+	orderIsFilled := false
 	if o.GetFilledVolume() == o.GetQuantity() {
 		o.Status = BacktesterOrderStatusFilled
+		orderIsFilled = true
 	}
 
-	return nil
+	return orderIsFilled, nil
 }
 
 func (o *BacktesterOrder) GetStatus() BacktesterOrderStatus {
@@ -158,21 +162,17 @@ type UpdateOrderRecordRequest struct {
 	Field        string
 	OrderRecord  *OrderRecord
 	Closes       []*BacktesterOrder
+	Reconciles   []*BacktesterOrder
 	PlaygroundId *uuid.UUID
 	ClosedBy     []*TradeRecord
 }
 
-func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
-	account_type := "simulation"
-	if liveAccountType != nil {
-		account_type = string(*liveAccountType)
-	}
-
-	orderRec := &OrderRecord{
+func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID, accountType LiveAccountType) *OrderRecord {
+	return &OrderRecord{
 		PlaygroundID:    playgroundId,
 		ExternalOrderID: o.ID,
 		Class:           string(o.Class),
-		AccountType:     account_type,
+		AccountType:     string(accountType),
 		Symbol:          o.Symbol.GetTicker(),
 		Side:            string(o.Side),
 		Quantity:        o.AbsoluteQuantity,
@@ -187,6 +187,15 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 		Timestamp:       o.CreateDate,
 		Trades:          o.Trades,
 	}
+}
+
+func (o *BacktesterOrder) UpdateOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
+	if liveAccountType != nil {
+		typ := LiveAccountTypeSimulator
+		liveAccountType = &typ
+	}
+
+	orderRec := o.ToOrderRecord(playgroundId, *liveAccountType)
 
 	// create update order request for update closes
 	var updateOrderRequests []*UpdateOrderRecordRequest
@@ -208,12 +217,22 @@ func (o *BacktesterOrder) ToOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liv
 		})
 	}
 
+	// create update order request for update reconciled by
+	if len(o.Reconciles) > 0 {
+		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+			Field:       "reconciled_by",
+			OrderRecord: orderRec,
+			Reconciles:  o.Reconciles,
+		})
+	}
+
 	return orderRec, updateOrderRequests, nil
 }
 
-func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, requestedPrice float64, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, playgroundId uuid.UUID, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, requestedPrice float64, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
+		PlaygroundID:     playgroundId,
 		Class:            class,
 		CreateDate:       createDate,
 		Symbol:           symbol,
@@ -234,18 +253,19 @@ func NewBacktesterOrder(id uint, class BacktesterOrderClass, createDate time.Tim
 
 func CopyBacktesterOrder(from *BacktesterOrder) *BacktesterOrder {
 	return NewBacktesterOrder(
-		from.ID, 
-		from.Class, 
-		from.CreateDate, 
-		from.Symbol, 
-		from.Side, 
-		from.AbsoluteQuantity, 
-		from.Type, 
-		from.Duration, 
-		from.RequestedPrice, 
-		from.Price, 
-		from.StopPrice, 
-		from.Status, 
+		from.ID,
+		from.PlaygroundID,
+		from.Class,
+		from.CreateDate,
+		from.Symbol,
+		from.Side,
+		from.AbsoluteQuantity,
+		from.Type,
+		from.Duration,
+		from.RequestedPrice,
+		from.Price,
+		from.StopPrice,
+		from.Status,
 		from.Tag,
 	)
 }

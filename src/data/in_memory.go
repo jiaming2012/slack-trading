@@ -42,7 +42,7 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 	for _, order := range orders {
 		var err error
 
-		oRec, updateOrderReq, err := order.ToOrderRecord(tx, playgroundId, liveAccountType)
+		oRec, updateOrderReq, err := order.UpdateOrderRecord(tx, playgroundId, liveAccountType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
 		}
@@ -82,6 +82,22 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 			updateReq.OrderRecord.Closes = closes
 			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
 				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
+			}
+
+		case "reconciled_by":
+			var reconciles []*models.OrderRecord
+			for _, order := range updateReq.Reconciles {
+				orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
+				if err != nil {
+					return nil, fmt.Errorf("updateOrderRequests: failed to fetch reconciled order record from db: %w", err)
+				}
+
+				reconciles = append(reconciles, orderRec)
+			}
+
+			updateReq.OrderRecord.Reconciles = reconciles
+			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (reconciled_by): %w", err)
 			}
 
 		case "closed_by":

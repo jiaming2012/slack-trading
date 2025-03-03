@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 )
@@ -23,6 +24,7 @@ type TradierApiWorker struct {
 	wg                *sync.WaitGroup
 	db                *gorm.DB
 	dbService         models.IDatabaseService
+	broker            models.IBroker
 	orders            models.TradierOrderDataStore
 	timeSalesURL      string
 	quotesBearerToken string
@@ -135,65 +137,6 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 	return results, nil
 }
 
-func (w *TradierApiWorker) fetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	queryParams := url.Values{}
-	queryParams.Add("includeTags", "true")
-
-	if err := liveAccountType.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate live account type: %w", err)
-	}
-
-	vars := models.NewLiveAccountVariables(liveAccountType)
-
-	brokerURL, err := vars.GetTradierTradesOrderURL()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tradier trades order URL: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/%d?%s", brokerURL, orderID, queryParams.Encode())
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to create request: %w", err)
-	}
-
-	bearerToken, err := vars.GetTradierTradesBearerToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
-	}
-
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %s", res.Status)
-	}
-
-	bytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to read response body: %w", err)
-	}
-
-	var resp eventmodels.TradierFetchOrderResponse
-
-	if err := json.Unmarshal(bytes, &resp); err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to parse response body: %w", err)
-	}
-
-	return resp.Order, nil
-}
-
 // func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
 // 	client := http.Client{
 // 		Timeout: 10 * time.Second,
@@ -283,78 +226,14 @@ func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.Tradi
 	return createOrderEvents, updateOrderEvents
 }
 
-func (w *TradierApiWorker) fetchPendingOrdersfromDB() ([]*models.OrderRecord, error) {
-	var orders []*models.OrderRecord
-
-	if err := w.db.Where("status = ? and account_type <> ?", string(models.BacktesterOrderStatusPending), string(models.PlaygroundEnvironmentSimulator)).Find(&orders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
-	}
-
-	return orders, nil
-}
-
-func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
+func (w *TradierApiWorker) updateTradierOrderQueue(ctx context.Context) {
 	log.Trace("TradierApiWorker.executeOrdersQueueUpdate: begin ...")
 	defer log.Trace("TradierApiWorker.executeOrdersQueueUpdate: end")
 
-	pendingOrders, err := w.fetchPendingOrdersfromDB()
-	if err != nil {
-		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
-		return
+	sleepDuration := 10 * time.Millisecond
+	if err := services.UpdateTradierOrderQueue(w.tradesUpdateQueue, w.dbService, w.broker, sleepDuration); err != nil {
+		log.Errorf("failed to update tradier order queue: %v", err)
 	}
-
-	for _, order := range pendingOrders {
-		var liveAccountType models.LiveAccountType
-		if order.AccountType == string(models.LiveAccountTypePaper) {
-			liveAccountType = models.LiveAccountTypePaper
-		} else if order.AccountType == string(models.LiveAccountTypeMargin) {
-			liveAccountType = models.LiveAccountTypeMargin
-		} else {
-			log.Errorf("TradierOrdersMonitoringWorker.Start: invalid account type: %s", order.AccountType)
-			continue
-		}
-
-		orderDTO, err := w.fetchOrder(order.ExternalOrderID, liveAccountType)
-		if err != nil {
-			log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch order: %v", err)
-			continue
-		}
-
-		if orderDTO.Status == string(models.BacktesterOrderStatusFilled) {
-			o, err := orderDTO.ToTradierOrder()
-			if err != nil {
-				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: failed to convert order to backtester order: %v", err)
-			}
-
-			rec := order
-			w.tradesUpdateQueue.Enqueue(&models.TradierOrderUpdateEvent{
-				CreateOrder: &models.TradierOrderCreateEvent{
-					Order:       o,
-					OrderRecord: rec,
-				},
-			})
-
-			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
-		} else if orderDTO.Status == string(models.BacktesterOrderStatusRejected) {
-			reason := "rejected by broker"
-			if orderDTO.ReasonDescription != nil {
-				reason = *orderDTO.ReasonDescription
-			}
-
-			w.tradesUpdateQueue.Enqueue(&models.TradierOrderUpdateEvent{
-
-				ModifyOrder: &models.TradierOrderModifyEvent{
-					OrderID: order.ExternalOrderID,
-					Field:   "status",
-					New:     reason,
-				},
-			})
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
 }
 
 func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period time.Duration) (time.Time, time.Time) {
@@ -594,7 +473,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				// 	continue
 				// }
 
-				w.executeOrdersQueueUpdate(ctx)
+				w.updateTradierOrderQueue(ctx)
 				w.ExecuteLiveReposUpdate()
 			}
 		}

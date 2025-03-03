@@ -91,8 +91,8 @@ func (p *LivePlayground) GetFreeMargin() (float64, error) {
 	return p.playground.GetFreeMargin()
 }
 
-func (p *LivePlayground) FillOrder(order *BacktesterOrder, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, error) {
-	return p.playground.FillOrder(order, performChecks, orderFillEntry, positionsMap)
+func (p *LivePlayground) CommitPendingOrder(order *BacktesterOrder, startingPositions map[eventmodels.Instrument]*Position, orderFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *BacktesterOrder, err error) {
+	return p.playground.CommitPendingOrder(order, startingPositions, orderFillRequest, performChecks)
 }
 
 func (p *LivePlayground) SetEquityPlot(plot []*eventmodels.EquityPlot) {
@@ -126,9 +126,16 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChange
 	}
 
 	for _, o := range reconciliationOrders {
-		_order := o
+		o.Reconciles = append(o.Reconciles, order)
+
 		changes = append(changes, &PlaceOrderChanges{
 			Commit: func() error {
+				_order := o
+
+				if err := p.database.SaveOrderRecord(p.GetId(), order, nil, p.GetLiveAccountType()); err != nil {
+					return fmt.Errorf("failed to save live order record: %w", err)
+				}
+
 				return p.database.SaveOrderRecord(reconcilePlayground.GetId(), _order, nil, LiveAccountTypeReconcilation)
 			},
 			AdditionalInfo: "failed to save reconciliation order record",
@@ -137,13 +144,6 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChange
 
 	changes = append(changes, reconciliationChanges...)
 	changes = append(changes, playgroundChanges...)
-
-	// for _, change := range changes {
-	// 	err := change.Commit()
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to commit order changes: %w", err)
-	// 	}
-	// }
 
 	return changes, nil
 }
@@ -223,6 +223,8 @@ func NewLivePlayground(playgroundID *uuid.UUID, database IDatabaseService, clien
 	if err != nil {
 		return nil, fmt.Errorf("NewLivePlayground: failed to create playground: %w", err)
 	}
+
+	playground.SetBroker(liveAccount.Broker)
 
 	playground.Meta.SourceBroker = liveAccount.Source.GetBroker()
 	playground.Meta.SourceAccountId = liveAccount.Source.GetAccountID()

@@ -376,6 +376,7 @@ func (s *BacktesterApiService) makeBacktesterOrder(playground models.IPlayground
 
 	order := models.NewBacktesterOrder(
 		orderId,
+		playground.GetId(),
 		req.Class,
 		createdOn,
 		eventmodels.StockSymbol(req.Symbol),
@@ -393,14 +394,6 @@ func (s *BacktesterApiService) makeBacktesterOrder(playground models.IPlayground
 	changes, err := playground.PlaceOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
-	}
-
-	switch playground.(type) {
-	case *models.LivePlayground:
-		liveAccountType := playground.GetLiveAccountType()
-		if err := s.dbService.SaveOrderRecord(playground.GetId(), order, nil, liveAccountType); err != nil {
-			return nil, fmt.Errorf("makeBacktesterOrder: failed to save live order record: %w", err)
-		}
 	}
 
 	for _, change := range changes {

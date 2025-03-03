@@ -57,8 +57,21 @@ func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*eventmodels.Tradier
 	return orders, nil
 }
 
-func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
+func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrder, error) {
+	dto, err := FetchOrder(orderID, liveAccountType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch order: %w", err)
+	}
 
+	order, err := dto.ToTradierOrder()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert order dto to order: %w", err)
+	}
+
+	return order, nil
+}
+
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
 	resp, err := PlaceOrder(ctx, b.ordersUrl, b.tradesToken, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order: %w", err)
@@ -126,6 +139,65 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 	}
 
 	return utils.ParseTradierResponse[*models.TradierQuoteDTO](bytes)
+}
+
+func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	queryParams := url.Values{}
+	queryParams.Add("includeTags", "true")
+
+	if err := liveAccountType.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate live account type: %w", err)
+	}
+
+	vars := models.NewLiveAccountVariables(liveAccountType)
+
+	brokerURL, err := vars.GetTradierTradesOrderURL()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier trades order URL: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/%d?%s", brokerURL, orderID, queryParams.Encode())
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to create request: %w", err)
+	}
+
+	bearerToken, err := vars.GetTradierTradesBearerToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %s", res.Status)
+	}
+
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to read response body: %w", err)
+	}
+
+	var resp eventmodels.TradierFetchOrderResponse
+
+	if err := json.Unmarshal(bytes, &resp); err != nil {
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to parse response body: %w", err)
+	}
+
+	return resp.Order, nil
 }
 
 func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.TradierOrderDTO, error) {

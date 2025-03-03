@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -87,7 +88,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		playground, err := createPlayground()
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -168,14 +169,14 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo1, repo2)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -259,14 +260,14 @@ func TestLiquidation(t *testing.T) {
 		balance := 1000.0
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo1, repo2)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -344,14 +345,14 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo1, repo2)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol1, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, startTime, symbol2, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -728,7 +729,7 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -743,7 +744,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, 100.0, delta.NewTrades[0].Price)
 		require.Equal(t, 1000.0, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 2, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -804,7 +805,7 @@ func TestBalance(t *testing.T) {
 		require.NoError(t, err)
 
 		// open 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -818,7 +819,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// open 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -832,7 +833,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -846,7 +847,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// open 3rd order
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -860,7 +861,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// close order
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -907,7 +908,7 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -920,7 +921,7 @@ func TestBalance(t *testing.T) {
 
 		require.Equal(t, balance, playground.GetBalance())
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -950,7 +951,7 @@ func TestPlaceOrder(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, now, []string{})
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -1009,7 +1010,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// Place a buy order
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1028,7 +1029,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, position1.Quantity)
 
 		// Place a sell order
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1071,7 +1072,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -1088,7 +1089,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position1.Quantity)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1147,7 +1148,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1164,7 +1165,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1181,7 +1182,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 150.0, position.CostBasis)
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1198,7 +1199,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 0.0, position.CostBasis)
 
 		// 3rd order - original direction
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1270,7 +1271,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1291,7 +1292,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// close 1st partial
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1308,7 +1309,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 2nd partial
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1325,7 +1326,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 3nd partial
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1391,7 +1392,7 @@ func TestPositions(t *testing.T) {
 	// 	require.NoError(t, err)
 
 	// 	// open 1st order
-	// 	order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err := playground.PlaceOrder(order1)
 	// 	require.NoError(t, err)
 	// 	require.Len(t, changes, 1)
@@ -1412,7 +1413,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, order1, openOrders[0])
 
 	// 	// open 2nd order
-	// 	order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order2)
 	// 	require.NoError(t, err)
 	// 	require.Len(t, changes, 1)
@@ -1438,7 +1439,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, order2, openOrders[1])
 
 	// 	// close 1st partial
-	// 	order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order3 := NewBacktesterOrder(3, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order3)
 	// 	require.NoError(t, err)
 	// 	require.Len(t, changes, 1)
@@ -1455,7 +1456,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, 150.0, position.CostBasis)
 
 	// 	// close 2nd partial
-	// 	order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order4 := NewBacktesterOrder(4, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 15, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order4)
 	// 	require.NoError(t, err)
 	// 	require.Len(t, changes, 1)
@@ -1472,7 +1473,7 @@ func TestPositions(t *testing.T) {
 	// 	require.Equal(t, 150.0, position.CostBasis)
 
 	// 	// close 3nd partial
-	// 	order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+	// 	order5 := NewBacktesterOrder(5, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 	// 	changes, err = playground.PlaceOrder(order5)
 	// 	require.NoError(t, err)
 	// 	require.Len(t, changes, 1)
@@ -1536,7 +1537,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// 1st order
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1557,7 +1558,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// 2nd order
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1578,7 +1579,7 @@ func TestPositions(t *testing.T) {
 		require.ElementsMatch(t, openOrders, []*BacktesterOrder{order1, order2})
 
 		// close orders
-		order3 := NewBacktesterOrder(3, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order3 := NewBacktesterOrder(3, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuyToCover, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1613,7 +1614,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, order2.ClosedBy[0].Quantity)
 
 		// 3rd order - reverse direction
-		order4 := NewBacktesterOrder(4, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order4 := NewBacktesterOrder(4, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1634,7 +1635,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order4, openOrders[0])
 
 		// 4th order - continue in same direction
-		order5 := NewBacktesterOrder(5, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order5 := NewBacktesterOrder(5, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1686,7 +1687,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1702,7 +1703,7 @@ func TestPositions(t *testing.T) {
 		costBasis := 100.0
 		require.Equal(t, costBasis, position.CostBasis)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 20, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1741,7 +1742,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1780,7 +1781,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1791,7 +1792,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1824,7 +1825,7 @@ func TestPositions(t *testing.T) {
 
 		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1842,7 +1843,7 @@ func TestPositions(t *testing.T) {
 		// require.Len(t, position.OpenTrades, 1)
 		// require.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1879,7 +1880,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 100000.0, 100000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1895,7 +1896,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, -10.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -1969,7 +1970,7 @@ func TestFreeMargin(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2008,7 +2009,7 @@ func TestFreeMargin(t *testing.T) {
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2036,7 +2037,7 @@ func TestFreeMargin(t *testing.T) {
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, tradeQty, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2064,7 +2065,7 @@ func TestFreeMargin(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order equal to free margin
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 19, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 19, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2077,7 +2078,7 @@ func TestFreeMargin(t *testing.T) {
 		require.Len(t, delta.InvalidOrders, 0)
 
 		// place order above free margin
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2125,7 +2126,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2151,7 +2152,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 10000.0, 10000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2162,7 +2163,7 @@ func TestOrders(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.InvalidOrders, 0)
 
-		order = NewBacktesterOrder(2, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order = NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2174,7 +2175,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2186,7 +2187,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2198,7 +2199,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, repo)
 		require.NoError(t, err)
 
-		order := NewBacktesterOrder(1, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClass("invalid"), now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2211,7 +2212,7 @@ func TestOrders(t *testing.T) {
 		require.NoError(t, err)
 
 		price := float64(0)
-		order := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, &price, nil, BacktesterOrderStatusPending, "")
+		order := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, &price, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order)
 		require.Error(t, err)
 	})
@@ -2225,25 +2226,25 @@ func TestOrders(t *testing.T) {
 
 		id := uint(1)
 
-		order1 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(id, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(id, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(id, uuid.Nil, BacktesterOrderClassEquity, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		_, err = playground.PlaceOrder(order2)
 		require.Error(t, err)
 	})
 }
 
 func TestTrades(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
-	require.NoError(t, err)
+	// projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	// require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
-	require.NoError(t, err)
+	// err = utils.InitEnvironmentVariables(projectsDir, "test")
+	// require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")
 	period := 1 * time.Minute
@@ -2283,14 +2284,14 @@ func TestTrades(t *testing.T) {
 
 		now := startTime
 
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, playground.ID, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, playground.ID, BacktesterOrderClassEquity, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2319,7 +2320,7 @@ func TestTrades(t *testing.T) {
 		require.NoError(t, err)
 
 		quantity := 10.0
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewBacktesterOrder(1, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
@@ -2335,7 +2336,7 @@ func TestTrades(t *testing.T) {
 		require.Equal(t, quantity, delta.NewTrades[0].Quantity)
 		require.Equal(t, prices[0], delta.NewTrades[0].Price)
 
-		order2 := NewBacktesterOrder(2, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order2 := NewBacktesterOrder(2, uuid.Nil, BacktesterOrderClassEquity, now, symbol, TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)

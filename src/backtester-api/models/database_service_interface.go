@@ -18,4 +18,5 @@ type IDatabaseService interface {
 	DeletePlayground(playgroundID uuid.UUID) error
 	SaveInMemoryPlayground(p IPlayground) error
 	FindOrder(playgroundId uuid.UUID, id uint) (IPlayground, *BacktesterOrder, error)
+	FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error)
 }
