@@ -29,7 +29,8 @@ type BacktesterOrder struct {
 	RejectReason     *string                 `json:"reject_reason,omitempty"`
 	CreateDate       time.Time               `json:"create_date"`
 	IsClose          bool                    `json:"is_close"`
-	Reconciles       []*BacktesterOrder      `json:"reconciles"`
+	CloseOrderId     *uint                   `json:"close_order_id,omitempty"`
+	Reconciles       []*OrderRecord          `json:"reconciles"`
 	ClosedBy         []*TradeRecord          `json:"closed_by"`
 	Closes           []*BacktesterOrder      `json:"closes"`
 }
@@ -162,7 +163,7 @@ type UpdateOrderRecordRequest struct {
 	Field        string
 	OrderRecord  *OrderRecord
 	Closes       []*BacktesterOrder
-	Reconciles   []*BacktesterOrder
+	Reconciles   []*OrderRecord
 	PlaygroundId *uuid.UUID
 	ClosedBy     []*TradeRecord
 }
@@ -185,12 +186,13 @@ func (o *BacktesterOrder) ToOrderRecord(playgroundId uuid.UUID, accountType Live
 		Status:          string(o.Status),
 		Tag:             o.Tag,
 		Timestamp:       o.CreateDate,
+		CloseOrderId:    o.CloseOrderId,
 		Trades:          o.Trades,
 	}
 }
 
 func (o *BacktesterOrder) UpdateOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
-	if liveAccountType != nil {
+	if liveAccountType == nil {
 		typ := LiveAccountTypeSimulator
 		liveAccountType = &typ
 	}
@@ -211,25 +213,27 @@ func (o *BacktesterOrder) UpdateOrderRecord(tx *gorm.DB, playgroundId uuid.UUID,
 	// create update order request for update closed by
 	if len(o.ClosedBy) > 0 {
 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
-			Field:       "closed_by",
-			OrderRecord: orderRec,
-			ClosedBy:    o.ClosedBy,
+			Field:        "closed_by",
+			OrderRecord:  orderRec,
+			ClosedBy:     o.ClosedBy,
+			PlaygroundId: &playgroundId,
 		})
 	}
 
 	// create update order request for update reconciled by
 	if len(o.Reconciles) > 0 {
 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
-			Field:       "reconciled_by",
-			OrderRecord: orderRec,
-			Reconciles:  o.Reconciles,
+			Field:        "reconciles",
+			OrderRecord:  orderRec,
+			Reconciles:   o.Reconciles,
+			PlaygroundId: &playgroundId,
 		})
 	}
 
 	return orderRec, updateOrderRequests, nil
 }
 
-func NewBacktesterOrder(id uint, playgroundId uuid.UUID, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, requestedPrice float64, price, stopPrice *float64, status BacktesterOrderStatus, tag string) *BacktesterOrder {
+func NewBacktesterOrder(id uint, playgroundId uuid.UUID, class BacktesterOrderClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType BacktesterOrderType, duration BacktesterOrderDuration, requestedPrice float64, price, stopPrice *float64, status BacktesterOrderStatus, tag string, closeOrderId *uint) *BacktesterOrder {
 	return &BacktesterOrder{
 		ID:               id,
 		PlaygroundID:     playgroundId,
@@ -248,6 +252,7 @@ func NewBacktesterOrder(id uint, playgroundId uuid.UUID, class BacktesterOrderCl
 		Trades:           []*TradeRecord{},
 		ClosedBy:         []*TradeRecord{},
 		Closes:           []*BacktesterOrder{},
+		CloseOrderId:     closeOrderId,
 	}
 }
 
@@ -267,5 +272,6 @@ func CopyBacktesterOrder(from *BacktesterOrder) *BacktesterOrder {
 		from.StopPrice,
 		from.Status,
 		from.Tag,
+		from.CloseOrderId,
 	)
 }

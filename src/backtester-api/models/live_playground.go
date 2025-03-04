@@ -126,17 +126,22 @@ func (p *LivePlayground) PlaceOrder(order *BacktesterOrder) ([]*PlaceOrderChange
 	}
 
 	for _, o := range reconciliationOrders {
-		o.Reconciles = append(o.Reconciles, order)
-
 		changes = append(changes, &PlaceOrderChanges{
 			Commit: func() error {
 				_order := o
 
-				if err := p.database.SaveOrderRecord(p.GetId(), order, nil, p.GetLiveAccountType()); err != nil {
+				oRec, err := p.database.SaveOrderRecord(p.GetId(), order, nil, p.GetLiveAccountType())
+				if err != nil {
 					return fmt.Errorf("failed to save live order record: %w", err)
 				}
 
-				return p.database.SaveOrderRecord(reconcilePlayground.GetId(), _order, nil, LiveAccountTypeReconcilation)
+				_order.Reconciles = append(_order.Reconciles, oRec)
+
+				if _, err := p.database.SaveOrderRecord(reconcilePlayground.GetId(), _order, nil, LiveAccountTypeReconcilation); err != nil {
+					return fmt.Errorf("failed to save reconciliation order record: %w", err)
+				}
+
+				return nil
 			},
 			AdditionalInfo: "failed to save reconciliation order record",
 		})

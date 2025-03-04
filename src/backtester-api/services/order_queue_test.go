@@ -70,6 +70,11 @@ func TestLiveAccount(t *testing.T) {
 		account, err := models.NewLiveAccount(source, broker, reconcilePlayground)
 		require.NoError(t, err)
 
+		mockDatabase, ok := database.(*models.MockDatabase)
+		require.True(t, ok)
+		mockDatabase.SetLiveAccount(playgroundId, account)
+		mockDatabase.SetLiveAccount(reconcilePlayground.GetId(), account)
+
 		clientId := "test"
 		startingBalance := 1000.0
 		orders := []*models.BacktesterOrder{}
@@ -102,7 +107,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order := models.NewBacktesterOrder(1, livePlayground.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "")
+		order := models.NewBacktesterOrder(1, livePlayground.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "", nil)
 
 		placeOrderChanges, err := livePlayground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -153,7 +158,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1 := models.NewBacktesterOrder(1, livePlayground1.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "")
+		order1 := models.NewBacktesterOrder(1, livePlayground1.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "", nil)
 
 		broker.SetFillOrderExecutionPrice(100.0)
 
@@ -191,7 +196,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, models.BacktesterOrderStatusPending, liveOrders[0].Status)
 
 		// fill buy order
-		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, broker, 0)
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
 		require.NoError(t, err)
 
 		hasUpdates, err := DrainTradierOrderQueue(liveOrdersUpdateQueue, cache, database)
@@ -220,7 +225,7 @@ func TestLiveAccount(t *testing.T) {
 		require.True(t, ok)
 		require.Equal(t, order1.ID, trRec.OrderID)
 		require.Equal(t, order1.GetQuantity(), trRec.Quantity)
-		
+
 		_, ok = newTradesQueue1.Dequeue()
 		require.False(t, ok)
 
@@ -229,7 +234,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 		newTradesQueue2 := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 2)
 		livePlayground2 := createLivePlayground(t, playgroundID, broker, database, reconcilePlayground, newTradesQueue2)
-		order2 := models.NewBacktesterOrder(2, livePlayground2.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "")
+		order2 := models.NewBacktesterOrder(2, livePlayground2.GetId(), models.BacktesterOrderClassEquity, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.BacktesterOrderStatusPending, "", nil)
 
 		// save playground
 		_, err = database.SavePlaygroundSession(livePlayground2)
@@ -263,7 +268,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, order2.Type, reconcileOrders[2].Type)
 
 		// fill sell short order
-		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, broker, 0)
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
 		require.NoError(t, err)
 
 		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, cache, database)
@@ -277,13 +282,13 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, models.BacktesterOrderStatusFilled, reconcileOrders[1].Status)
 		require.Equal(t, models.BacktesterOrderStatusFilled, reconcileOrders[2].Status)
 		require.Equal(t, models.BacktesterOrderStatusFilled, liveOrder.Status)
-		
+
 		// assert - new trades are created
 		trRec, ok = newTradesQueue2.Dequeue()
 		require.True(t, ok)
 		require.Equal(t, order2.ID, trRec.OrderID)
-		require.Equal(t, order1.GetQuantity() * -1, trRec.Quantity)
-		
+		require.Equal(t, order1.GetQuantity()*-1, trRec.Quantity)
+
 		trRec, ok = newTradesQueue2.Dequeue()
 		require.True(t, ok)
 		require.Equal(t, order2.ID, trRec.OrderID)

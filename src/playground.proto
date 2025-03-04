@@ -183,6 +183,7 @@ message PlaceOrderRequest {
     string tag = 8;
     double requested_price = 9;
     optional double price = 10;
+    optional uint64 close_order_id = 11;
 }
 
 message NextTickRequest {

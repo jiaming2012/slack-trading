@@ -24,7 +24,6 @@ type TradierApiWorker struct {
 	wg                *sync.WaitGroup
 	db                *gorm.DB
 	dbService         models.IDatabaseService
-	broker            models.IBroker
 	orders            models.TradierOrderDataStore
 	timeSalesURL      string
 	quotesBearerToken string
@@ -231,7 +230,7 @@ func (w *TradierApiWorker) updateTradierOrderQueue(ctx context.Context) {
 	defer log.Trace("TradierApiWorker.executeOrdersQueueUpdate: end")
 
 	sleepDuration := 10 * time.Millisecond
-	if err := services.UpdateTradierOrderQueue(w.tradesUpdateQueue, w.dbService, w.broker, sleepDuration); err != nil {
+	if err := services.UpdateTradierOrderQueue(w.tradesUpdateQueue, w.dbService, sleepDuration); err != nil {
 		log.Errorf("failed to update tradier order queue: %v", err)
 	}
 }
@@ -388,16 +387,16 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 		return
 	}
 
-	for _, liveAccount := range liveAccounts {
-		if liveAccount.BrokerName != "tradier" {
-			log.Debugf("skipping account %d: unsupported broker %s", liveAccount.ID, liveAccount.BrokerName)
+	for _, liveAccountQuery := range liveAccounts {
+		if liveAccountQuery.BrokerName != "tradier" {
+			log.Debugf("skipping account %d: unsupported broker %s", liveAccountQuery.ID, liveAccountQuery.BrokerName)
 			continue
 		}
 
 		account, found, err := w.dbService.FetchLiveAccount(&models.CreateAccountRequestSource{
-			Broker:      liveAccount.BrokerName,
-			AccountID:   liveAccount.AccountId,
-			AccountType: liveAccount.AccountType,
+			Broker:      liveAccountQuery.BrokerName,
+			AccountID:   liveAccountQuery.AccountId,
+			AccountType: liveAccountQuery.AccountType,
 		})
 
 		if err != nil {
@@ -406,47 +405,45 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 		}
 
 		if !found {
-			log.Errorf("live account not found: %d", liveAccount.ID)
+			log.Errorf("live account not found: %d", liveAccountQuery.ID)
 			continue
 		}
 
-		var liveAccount *models.LiveAccount
+		var inMemoryLiveAccount *models.LiveAccount
 		if account != nil {
 			var ok bool
-			liveAccount, ok = account.(*models.LiveAccount)
+			inMemoryLiveAccount, ok = account.(*models.LiveAccount)
 			if !ok {
 				log.Errorf("failed to cast account to live account: %v", account)
 				continue
 			}
 		}
 
-		if liveAccount.AccountType != models.LiveAccountTypePaper {
-			resp, err := liveAccount.Source.FetchEquity()
-			if err != nil {
-				log.Errorf("failed to fetch equity for (%v, %v): %v", liveAccount.AccountId, liveAccount.AccountType, err)
-				continue
+		resp, err := inMemoryLiveAccount.Source.FetchEquity()
+		if err != nil {
+			log.Errorf("failed to fetch equity for (%v, %v): %v", inMemoryLiveAccount.AccountId, inMemoryLiveAccount.AccountType, err)
+			continue
+		}
+
+		equity := resp.Equity
+
+		if err := w.db.Transaction(func(tx *gorm.DB) error {
+			if err := w.db.Create(&models.LiveAccountPlot{
+				Timestamp:     now,
+				LiveAccountID: liveAccountQuery.ID,
+				Equity:        &equity,
+			}).Error; err != nil {
+				return fmt.Errorf("failed to create live account plot: %w", err)
 			}
 
-			equity := resp.Equity
-
-			if err := w.db.Transaction(func(tx *gorm.DB) error {
-				if err := w.db.Create(&models.LiveAccountPlot{
-					Timestamp:     now,
-					LiveAccountID: liveAccount.ID,
-					Equity:        &equity,
-				}).Error; err != nil {
-					return fmt.Errorf("failed to create live account plot: %w", err)
-				}
-
-				if err := w.db.Model(&liveAccount).Update("plot_updated_at", todayAt1615).Error; err != nil {
-					return fmt.Errorf("failed to update live account: %w", err)
-				}
-
-				return nil
-			}); err != nil {
-				log.Errorf("failed to create live account equity: %v", err)
-				continue
+			if err := w.db.Model(&liveAccountQuery).Update("plot_updated_at", todayAt1615).Error; err != nil {
+				return fmt.Errorf("failed to update live account: %w", err)
 			}
+
+			return nil
+		}); err != nil {
+			log.Errorf("failed to create live account equity: %v", err)
+			continue
 		}
 	}
 }
@@ -466,12 +463,12 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 				log.Info("stopping TradierApiWorker consumer")
 				return
 			case <-timer.C:
-				// if !w.IsMarketOpen() {
-				// 	w.ExecuteLiveAccountPlotUpdate()
+				if !w.IsMarketOpen() {
+					w.ExecuteLiveAccountPlotUpdate()
 
-				// 	log.Debug("Market is closed: skipping live repos update")
-				// 	continue
-				// }
+					log.Debug("Market is closed: skipping live repos update")
+					continue
+				}
 
 				w.updateTradierOrderQueue(ctx)
 				w.ExecuteLiveReposUpdate()

@@ -22,9 +22,10 @@ type Server struct {
 	apiService *services.BacktesterApiService
 }
 
-func NewServer() *Server {
+func NewServer(apiService *services.BacktesterApiService) *Server {
 	return &Server{
-		cache: models.NewRequestCache(),
+		cache:      models.NewRequestCache(),
+		apiService: apiService,
 	}
 }
 
@@ -502,6 +503,11 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
+	var closeOrderId *uint
+	if req.CloseOrderId != nil {
+		closeOrderId = new(uint)
+		*closeOrderId = uint(*req.CloseOrderId)
+	}
 	order, webErr := s.apiService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
 		Symbol:         req.Symbol,
 		Class:          models.BacktesterOrderClass(req.AssetClass),
@@ -513,6 +519,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		StopPrice:      nil,
 		Duration:       models.BacktesterOrderDuration(req.Duration),
 		Tag:            req.Tag,
+		CloseOrderId:   closeOrderId,
 	})
 
 	if webErr != nil {

@@ -80,15 +80,6 @@ func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityT
 	return resp, nil
 }
 
-func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) *TradierBroker {
-	return &TradierBroker{
-		ordersUrl:      ordersUrl,
-		quotesUrl:      quotesUrl,
-		nonTradesToken: nonTradesToken,
-		tradesToken:    tradesToken,
-	}
-}
-
 func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
 	client := http.Client{
 		Timeout: 10 * time.Second,
@@ -312,4 +303,13 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceEquityT
 	log.Infof("PlaceOrder: placed trade: %v", response)
 
 	return response, nil
+}
+
+func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) *TradierBroker {
+	return &TradierBroker{
+		ordersUrl:      ordersUrl,
+		quotesUrl:      quotesUrl,
+		nonTradesToken: nonTradesToken,
+		tradesToken:    tradesToken,
+	}
 }

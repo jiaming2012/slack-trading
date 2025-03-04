@@ -53,7 +53,7 @@ func (s *DatabaseService) LoadLiveAccounts(apiService models.IBacktesterApiServi
 	var liveAccountsRecords []models.LiveAccount
 	var err error
 
-	if err = db.Preload("ReconcilePlaygroundSession").Find(&liveAccountsRecords).Error; err != nil {
+	if err = db.Preload("ReconcilePlaygroundSession").Preload("ReconcilePlaygroundSession.Orders").Preload("ReconcilePlaygroundSession.Orders.Trades").Preload("ReconcilePlaygroundSession.Orders.Closes").Preload("ReconcilePlaygroundSession.Orders.ClosedBy").Preload("ReconcilePlaygroundSession.Orders.Closes.ClosedBy").Preload("ReconcilePlaygroundSession.EquityPlotRecords").Find(&liveAccountsRecords).Error; err != nil {
 		return fmt.Errorf("loadLiveAccounts: failed to load live accounts: %w", err)
 	}
 
@@ -104,17 +104,41 @@ func (s *DatabaseService) LoadLiveAccounts(apiService models.IBacktesterApiServi
 func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
-	if err := db.Where("status = ? and account_type = ?", string(models.BacktesterOrderStatusPending), string(accountType)).Find(&orders).Error; err != nil {
+	if err := db.Preload("Playground").Preload("Playground.LiveAccount").Where("status = ? and account_type = ?", string(models.BacktesterOrderStatusPending), string(accountType)).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
+	}
+
+	for i, o := range orders {
+		if o == nil {
+			return nil, fmt.Errorf("fetch pending orders query failed with status %s and account type %s", string(models.BacktesterOrderStatusPending), string(accountType))
+		}
+
+		iLiveAccount, found, err := s.FetchLiveAccount(&models.CreateAccountRequestSource{
+			Broker:      *o.Playground.Broker,
+			AccountID:   *o.Playground.AccountID,
+			AccountType: models.LiveAccountType(*o.Playground.LiveAccountType),
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch live account: %w", err)
+		}
+
+		if !found {
+			return nil, fmt.Errorf("failed to find live account: %v", o.Playground.LiveAccount)
+		}
+
+		liveAccount, ok := iLiveAccount.(*models.LiveAccount)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast live account to live account: %v", iLiveAccount)
+		}
+
+		orders[i].Playground.LiveAccount = liveAccount
 	}
 
 	return orders, nil
 }
 
 func (s *DatabaseService) LoadPlaygrounds(apiService models.IBacktesterApiService) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var playgroundsSlice []models.PlaygroundSession
 	if err := db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)

@@ -495,6 +495,33 @@ func (p *Playground) RejectOrder(order *BacktesterOrder, reason string) error {
 	return nil
 }
 
+func (p *Playground) closeOpenOrder(order *BacktesterOrder, openOrder *BacktesterOrder, pendingCloses map[*BacktesterOrder]float64, closeVolume float64) (float64, error) {
+	qty, err := openOrder.GetRemainingOpenQuantity()
+	if err != nil {
+		return 0, fmt.Errorf("addClosesInfoToOrder: error getting remaining open quantity: %w", err)
+	}
+
+	remainingOpenQuantity := math.Abs(qty)
+	if volume, found := pendingCloses[openOrder]; found {
+		remainingOpenQuantity -= volume
+	}
+
+	if remainingOpenQuantity <= 0 {
+		return 0, nil
+	}
+
+	volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
+
+	if _, found := pendingCloses[openOrder]; !found {
+		pendingCloses[openOrder] = 0
+	}
+	pendingCloses[openOrder] += volumeToClose
+
+	order.Closes = append(order.Closes, openOrder)
+
+	return volumeToClose, nil
+}
+
 func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Position) error {
 	orderQty := order.GetQuantity()
 
@@ -514,34 +541,45 @@ func (p *Playground) addClosesInfoToOrder(order *BacktesterOrder, position *Posi
 		openOrders := p.GetOpenOrders(order.Symbol)
 		pendingCloses := make(map[*BacktesterOrder]float64)
 
-		for _, openOrder := range openOrders {
-			if closeVolume <= 0 {
-				break
+		if order.CloseOrderId == nil {
+			for _, openOrder := range openOrders {
+				if closeVolume <= 0 {
+					break
+				}
+
+				volumeToClose, err := p.closeOpenOrder(order, openOrder, pendingCloses, closeVolume)
+				if err != nil {
+					return fmt.Errorf("addClosesInfoToOrder: error closing open order: %w", err)
+				}
+
+				closeVolume -= volumeToClose
+			}
+		} else {
+			openOrders := p.GetOpenOrders(order.Symbol)
+			foundOpenOrder := false
+
+			for _, openOrder := range openOrders {
+				if *order.CloseOrderId == openOrder.ID {
+					remaining_volume, err := openOrder.GetRemainingOpenQuantity()
+					if err != nil {
+						return fmt.Errorf("addClosesInfoToOrder: error getting remaining open quantity: %w", err)
+					}
+
+					if closeVolume > remaining_volume {
+						return fmt.Errorf("addClosesInfoToOrder: close volume exceeds open order quantity for open order id %d", openOrder.ID)
+					}
+
+					if _, err := p.closeOpenOrder(order, openOrder, pendingCloses, closeVolume); err != nil {
+						return fmt.Errorf("addClosesInfoToOrder: error closing open order: %w", err)
+					}
+
+					foundOpenOrder = true
+				}
 			}
 
-			qty, err := openOrder.GetRemainingOpenQuantity()
-			if err != nil {
-				return fmt.Errorf("addClosesInfoToOrder: error getting remaining open quantity: %w", err)
+			if !foundOpenOrder {
+				return fmt.Errorf("addClosesInfoToOrder: open order id %d not found in open orders", *order.CloseOrderId)
 			}
-
-			remainingOpenQuantity := math.Abs(qty)
-			if volume, found := pendingCloses[openOrder]; found {
-				remainingOpenQuantity -= volume
-			}
-
-			if remainingOpenQuantity <= 0 {
-				continue
-			}
-
-			volumeToClose := math.Min(closeVolume, remainingOpenQuantity)
-			closeVolume -= volumeToClose
-
-			if _, found := pendingCloses[openOrder]; !found {
-				pendingCloses[openOrder] = 0
-			}
-			pendingCloses[openOrder] += volumeToClose
-
-			order.Closes = append(order.Closes, openOrder)
 		}
 	}
 
@@ -579,7 +617,9 @@ func (p *Playground) fillOrder(order *BacktesterOrder, performChecks bool, order
 	var closeByRequests []*CloseByRequest
 
 	// mutates the order to add closes info
-	p.addClosesInfoToOrder(order, position)
+	if err := p.addClosesInfoToOrder(order, position); err != nil {
+		return nil, false, fmt.Errorf("fillOrder: error adding closes info to order: %w", err)
+	}
 
 	if order.IsClose {
 		volumeToClose := math.Abs(order.GetQuantity())
@@ -757,9 +797,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag, nil)
 	} else if position.Quantity < 0 {
-		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag)
+		order = NewBacktesterOrder(p.account.NextOrderID(), p.ID, BacktesterOrderClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, BacktesterOrderStatusPending, tag, nil)
 	} else {
 		return nil, nil
 	}

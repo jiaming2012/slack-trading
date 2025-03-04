@@ -11,20 +11,32 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, broker models.IBroker, sleepDuration time.Duration) error {
+func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {
 	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeReconcilation)
 	if err != nil {
 		return fmt.Errorf("UpdateTradierOrderQueue: failed to fetch orders: %v", err)
 	}
 
 	for _, order := range pendingOrders {
-		liveAccountType := models.LiveAccountType(order.AccountType)
+		var liveAccountType models.LiveAccountType
+		if order.Playground.LiveAccountType == nil {
+			log.Errorf("UpdateTradierOrderQueue: live account type not found: %v", order.Playground)
+			continue
+		}
+
+		liveAccountType = models.LiveAccountType(*order.Playground.LiveAccountType)
 		if err := liveAccountType.Validate(); err != nil {
 			log.Errorf("UpdateTradierOrderQueue: invalid account type: %v", err)
 			continue
 		}
 
-		tradierOrder, err := broker.FetchOrder(order.ExternalOrderID, liveAccountType)
+		liveAccount := order.Playground.LiveAccount
+		if liveAccount == nil {
+			log.Errorf("UpdateTradierOrderQueue: live account not found: %v", order.Playground)
+			continue
+		}
+
+		tradierOrder, err := liveAccount.Broker.FetchOrder(order.ExternalOrderID, liveAccountType)
 		if err != nil {
 			log.Errorf("UpdateTradierOrderQueue: failed to fetch order: %v", err)
 			continue
@@ -49,6 +61,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			sink.Enqueue(&models.TradierOrderUpdateEvent{
 
 				ModifyOrder: &models.TradierOrderModifyEvent{
+					PlaygroundId: order.PlaygroundID,
 					OrderID: order.ExternalOrderID,
 					Field:   "status",
 					New:     reason,
@@ -89,7 +102,7 @@ func fillPendingOrder(playground models.IPlayground, order *models.BacktesterOrd
 
 	// Resave the order to update the status and close_id
 	balance := playground.GetBalance()
-	if err := database.SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
+	if _, err := database.SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
 		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 			cache.Remove(tradierOrder, false)
@@ -109,6 +122,7 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 
 	for tradierOrder, orderFillEntry := range orderCache {
 		playground, order, err := database.FindOrder(orderFillEntry.PlaygroundId, tradierOrder)
+
 		if err != nil {
 			log.Errorf("handleLiveOrders: failed to find reconciled order: %v", err)
 			continue
@@ -121,7 +135,7 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 
 		// Update live order that was reconciled
 		for _, o := range order.Reconciles {
-			livePlayground, liveOrder, err := database.FindOrder(o.PlaygroundID, o.ID)
+			livePlayground, liveOrder, err := database.FindOrder(o.PlaygroundID, o.ExternalOrderID)
 			if err != nil {
 				log.Errorf("handleLiveOrders: failed to find live order: %v", err)
 				continue
@@ -189,7 +203,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 						log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 					}
 
-					if err := database.SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
+					if _, err := database.SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
 						log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 					}
 				} else {

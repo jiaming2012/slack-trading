@@ -6,6 +6,7 @@ import re
 
 @dataclass
 class CloseSignal:
+    OrderId: str
     Symbol: str
     Side: OrderSide
     Volume: float
@@ -49,7 +50,7 @@ class SimpleCloseStrategy():
             return signals
         
         for symbol in self.symbols:
-            open_orders = self.playground.fetch_open_orders(symbol)
+            open_orders: List[Order] = self.playground.fetch_open_orders(symbol)
             for open_order in open_orders:
                 tag = open_order.tag
                 
@@ -61,17 +62,17 @@ class SimpleCloseStrategy():
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(symbol, OrderSide.SELL, abs(qty), 'sl'))
+                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.SELL, abs(qty), 'sl'))
                     elif current_price >= tp:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(symbol, OrderSide.SELL, abs(qty), 'tp'))
+                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.SELL, abs(qty), 'tp'))
                 elif open_order.side == OrderSide.SELL_SHORT.value:
                     if current_price >= sl:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
+                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
                     elif current_price <= tp:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(symbol, OrderSide.BUY_TO_COVER, abs(qty), 'tp'))
+                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'tp'))
                 else:
                     raise ValueError("Invalid side")
                 

@@ -10,18 +10,39 @@ type MockDatabase struct {
 	orders       map[uuid.UUID][]*BacktesterOrder
 	orderRecords map[uuid.UUID][]*OrderRecord
 	playgrounds  map[uuid.UUID]IPlayground
+	liveAccounts map[uuid.UUID]*LiveAccount
 }
 
-func (m *MockDatabase) SaveOrderRecord(playgroundId uuid.UUID, order *BacktesterOrder, newBalance *float64, liveAccountType LiveAccountType) error {
+func (m *MockDatabase) SetLiveAccount(playgroundId uuid.UUID, liveAccount *LiveAccount) {
+	m.liveAccounts[playgroundId] = liveAccount
+}
+
+func (m *MockDatabase) SaveOrderRecord(playgroundId uuid.UUID, order *BacktesterOrder, newBalance *float64, liveAccountType LiveAccountType) (*OrderRecord, error) {
 	if _, found := m.orderRecords[playgroundId]; !found {
-		return fmt.Errorf("MockDatabase: playground not found in order records")
+		return nil, fmt.Errorf("MockDatabase: playground not found in order records")
 	}
 
 	if _, found := m.orders[playgroundId]; !found {
-		return fmt.Errorf("MockDatabase: playground not found in orders")
+		return nil, fmt.Errorf("MockDatabase: playground not found in orders")
 	}
 
+	playground, found := m.playgrounds[playgroundId]
+	if !found {
+		return nil, fmt.Errorf("MockDatabase: playground not found")
+	}
+
+	liveAccount, found := m.liveAccounts[playgroundId]
+	if !found {
+		return nil, fmt.Errorf("MockDatabase: live account not found")
+	}
+
+	typ := string(liveAccountType)
 	orderRec := order.ToOrderRecord(playgroundId, liveAccountType)
+	orderRec.Playground = PlaygroundSession{
+		ID:              playground.GetId(),
+		LiveAccountType: &typ,
+		LiveAccount:     liveAccount,
+	}
 
 	bFoundOrderRecord := false
 	for idx, o := range m.orderRecords[playgroundId] {
@@ -49,7 +70,7 @@ func (m *MockDatabase) SaveOrderRecord(playgroundId uuid.UUID, order *Backtester
 		m.orders[playgroundId] = append(m.orders[playgroundId], order)
 	}
 
-	return nil
+	return orderRec, nil
 }
 
 func (m *MockDatabase) LoadPlaygrounds(apiService IBacktesterApiService) error {
@@ -105,12 +126,10 @@ func (m *MockDatabase) FindOrder(playgroundId uuid.UUID, id uint) (IPlayground, 
 		return nil, nil, fmt.Errorf("MockDatabase: playground not found")
 	}
 
-	for pId := range m.playgrounds {
-		orders := m.orders[pId]
-		for _, order := range orders {
-			if order.ID == id {
-				return playground, order, nil
-			}
+	orders := m.orders[playgroundId]
+	for _, order := range orders {
+		if order.ID == id {
+			return playground, order, nil
 		}
 	}
 
@@ -137,5 +156,6 @@ func NewMockDatabase() *MockDatabase {
 		orders:       make(map[uuid.UUID][]*BacktesterOrder),
 		orderRecords: make(map[uuid.UUID][]*OrderRecord),
 		playgrounds:  make(map[uuid.UUID]IPlayground),
+		liveAccounts: make(map[uuid.UUID]*LiveAccount),
 	}
 }

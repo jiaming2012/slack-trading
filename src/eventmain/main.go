@@ -654,7 +654,7 @@ func run() {
 
 	// start the twirp server
 	go func() {
-		rpc.SetupTwirpServer()
+		rpc.SetupTwirpServer(apiService)
 	}()
 
 	// Create channel for shutdown signals.

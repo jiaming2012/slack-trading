@@ -389,6 +389,7 @@ func (s *BacktesterApiService) makeBacktesterOrder(playground models.IPlayground
 		req.StopPrice,
 		models.BacktesterOrderStatusPending,
 		req.Tag,
+		req.CloseOrderId,
 	)
 
 	changes, err := playground.PlaceOrder(order)

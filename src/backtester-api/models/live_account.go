@@ -80,5 +80,8 @@ func NewLiveAccount(source ILiveAccountSource, broker IBroker, reconcilePlaygrou
 		Source:              source,
 		Broker:              broker,
 		ReconcilePlayground: reconcilePlayground,
+		BrokerName:          source.GetBroker(),
+		AccountId:           source.GetAccountID(),
+		AccountType:         source.GetAccountType(),
 	}, nil
 }

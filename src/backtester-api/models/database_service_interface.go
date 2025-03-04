@@ -5,7 +5,7 @@ import (
 )
 
 type IDatabaseService interface {
-	SaveOrderRecord(playgroundId uuid.UUID, order *BacktesterOrder, newBalance *float64, liveAccountType LiveAccountType) error
+	SaveOrderRecord(playgroundId uuid.UUID, order *BacktesterOrder, newBalance *float64, liveAccountType LiveAccountType) (*OrderRecord, error)
 	LoadPlaygrounds(apiService IBacktesterApiService) error
 	SavePlaygroundSession(playground IPlayground) (*PlaygroundSession, error)
 	SaveLiveAccount(source *CreateAccountRequestSource, liveAccount ILiveAccount) error

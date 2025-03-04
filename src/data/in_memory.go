@@ -84,18 +84,8 @@ func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.Ba
 				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
 			}
 
-		case "reconciled_by":
-			var reconciles []*models.OrderRecord
-			for _, order := range updateReq.Reconciles {
-				orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
-				if err != nil {
-					return nil, fmt.Errorf("updateOrderRequests: failed to fetch reconciled order record from db: %w", err)
-				}
-
-				reconciles = append(reconciles, orderRec)
-			}
-
-			updateReq.OrderRecord.Reconciles = reconciles
+		case "reconciles":
+			updateReq.OrderRecord.Reconciles = updateReq.Reconciles
 			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
 				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (reconciled_by): %w", err)
 			}
@@ -292,11 +282,21 @@ func (s *DatabaseService) SavePlaygroundSession(playground models.IPlayground) (
 	return savePlaygroundSessionTx(db, playground)
 }
 
-func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) error {
+func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) (*models.OrderRecord, error) {
+	var oRec *models.OrderRecord
+	
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if _, err := saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, &liveAccountType); err != nil {
-			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", err)
+		var oRecs []*models.OrderRecord
+		var e error
+		if oRecs, e = saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, &liveAccountType); e != nil {
+			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", e)
 		}
+
+		if len(oRecs) != 1 {
+			return fmt.Errorf("saveOrderRecord: expected 1 order record, got %d", len(oRecs))
+		}
+
+		oRec = oRecs[0]
 
 		if newBalance != nil {
 			if err := saveBalance(tx, playgroundId, *newBalance); err != nil {
@@ -308,8 +308,8 @@ func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.
 	})
 
 	if err != nil {
-		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
+		return nil, fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
 	}
 
-	return nil
+	return oRec, nil
 }
