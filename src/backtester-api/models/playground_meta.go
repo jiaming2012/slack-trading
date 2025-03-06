@@ -3,22 +3,31 @@ package models
 import (
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // todo: refactor source into struct
-type PlaygroundMeta struct {
-	StartAt         time.Time             `json:"start_at"`
-	EndAt           *time.Time            `json:"end_at"`
-	Symbols         []string              `json:"symbols"`
-	Tags            []string              `json:"tags"`
-	InitialBalance  float64               `json:"starting_balance"`
-	SourceBroker    string                `json:"source_broker"`
-	SourceAccountId string                `json:"source_account_id"`
-	LiveAccountType LiveAccountType       `json:"live_account_type"`
-	Environment     PlaygroundEnvironment `json:"environment"`
+type Meta struct {
+	StartAt         time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
+	EndAt           *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`
+	Symbols         pq.StringArray        `json:"symbols" gorm:"column:symbols;type:text[]"`
+	Tags            pq.StringArray        `json:"tags" gorm:"column:tags;type:text[]"`
+	InitialBalance  float64               `json:"starting_balance" gorm:"column:starting_balance;type:numeric;not null"`
+	SourceBroker    string                `json:"source_broker" gorm:"column:source_broker;type:text;not null"`
+	SourceAccountId string                `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
+	LiveAccountType LiveAccountType       `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
+	Environment     PlaygroundEnvironment `json:"environment" gorm:"column:environment;type:text;not null"`
 }
 
-func (p *PlaygroundMeta) HasTags(tags []string) bool {
+func NewMeta(env PlaygroundEnvironment, tags []string) *Meta {
+	return &Meta{
+		Environment: env,
+		Tags:        tags,
+	}
+}
+
+func (p *Meta) HasTags(tags []string) bool {
 	for _, tag := range tags {
 		found := false
 		for _, t := range p.Tags {
@@ -36,9 +45,13 @@ func (p *PlaygroundMeta) HasTags(tags []string) bool {
 	return true
 }
 
-func (p *PlaygroundMeta) Validate() error {
+func (p *Meta) Validate() error {
 	if err := p.Environment.Validate(); err != nil {
 		return fmt.Errorf("PlaygroundMeta.Validate: %w", err)
+	}
+
+	if err := p.LiveAccountType.Validate(); err != nil {
+		return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
 	}
 
 	if p.Environment == PlaygroundEnvironmentLive {
@@ -82,7 +95,7 @@ func (p *PlaygroundMeta) Validate() error {
 	return nil
 }
 
-func (p *PlaygroundMeta) ToDTO() *PlaygroundMetaDTO {
+func (p *Meta) ToDTO() *PlaygroundMetaDTO {
 	var liveAccountType *string
 	if err := p.LiveAccountType.Validate(); err == nil {
 		liveAccountType = new(string)

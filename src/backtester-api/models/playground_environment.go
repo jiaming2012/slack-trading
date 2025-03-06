@@ -9,7 +9,7 @@ func (e PlaygroundEnvironment) Validate() error {
 	case PlaygroundEnvironmentSimulator, PlaygroundEnvironmentLive, PlaygroundEnvironmentReconcile:
 		return nil
 	default:
-		return fmt.Errorf("invalid playground environment")
+		return fmt.Errorf("invalid playground environment: %s", e)
 	}
 }
 

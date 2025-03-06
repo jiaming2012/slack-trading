@@ -13,9 +13,8 @@ import (
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID uuid.UUID `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
-	// Playground       *Playground            `gorm:"foreignKey:PlaygroundID;references:ID"`
-	AccountType      string                 `gorm:"column:account_type;type:text"`
+	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
+	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null"`
 	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id"`
 	Class            OrderRecordClass       `gorm:"column:class;type:text;not null"`
 	Symbol           string                 `gorm:"column:symbol;type:text;not null"`
@@ -168,54 +167,21 @@ func (o *OrderRecord) FetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID
 	return &orderRec, nil
 }
 
-// func (o *OrderRecord) UpdateOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
-// 	if liveAccountType == nil {
-// 		typ := LiveAccountTypeSimulator
-// 		liveAccountType = &typ
-// 	}
+func (o *OrderRecord) Validate() error {
+	if err := o.LiveAccountType.Validate(); err != nil {
+		return fmt.Errorf("OrderRecord: invalid live account type: %w", err)
+	}
 
-// 	orderRec := o.ToOrderRecord(playgroundId, *liveAccountType)
+	return nil
+}
 
-// 	// create update order request for update closes
-// 	var updateOrderRequests []*UpdateOrderRecordRequest
-// 	if len(o.Closes) > 0 {
-// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
-// 			Field:        "closes",
-// 			OrderRecord:  orderRec,
-// 			Closes:       o.Closes,
-// 			PlaygroundId: &playgroundId,
-// 		})
-// 	}
-
-// 	// create update order request for update closed by
-// 	if len(o.ClosedBy) > 0 {
-// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
-// 			Field:        "closed_by",
-// 			OrderRecord:  orderRec,
-// 			ClosedBy:     o.ClosedBy,
-// 			PlaygroundId: &playgroundId,
-// 		})
-// 	}
-
-// 	// create update order request for update reconciled by
-// 	if len(o.Reconciles) > 0 {
-// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
-// 			Field:        "reconciles",
-// 			OrderRecord:  orderRec,
-// 			Reconciles:   o.Reconciles,
-// 			PlaygroundId: &playgroundId,
-// 		})
-// 	}
-
-// 	return orderRec, updateOrderRequests, nil
-// }
-
-func CopyOrderRecord(from *OrderRecord) *OrderRecord {
+func CopyOrderRecord(from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
 	return NewOrderRecord(
 		from.ID,
 		from.ExternalOrderID,
 		from.PlaygroundID,
 		from.Class,
+		liveAccountType,
 		from.Timestamp,
 		from.instrument,
 		from.Side,
@@ -231,11 +197,12 @@ func CopyOrderRecord(from *OrderRecord) *OrderRecord {
 	)
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, class OrderRecordClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
+func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
 	return &OrderRecord{
 		ExternalOrderID:  external_order_id,
 		PlaygroundID:     playgroundId,
 		Class:            class,
+		LiveAccountType:  accountType,
 		Timestamp:        createDate,
 		Symbol:           symbol.GetTicker(),
 		instrument:       symbol,

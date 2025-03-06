@@ -287,10 +287,10 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 	for _, accountType := range []models.LiveAccountType{models.LiveAccountTypePaper, models.LiveAccountTypeMargin} {
 		vars := models.NewLiveAccountVariables(accountType)
 
-		// tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to get tradier balances url template: %w", err)
-		// }
+		tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier balances url template: %w", err)
+		}
 
 		accountID, err := vars.GetTradierTradesAccountID()
 		if err != nil {
@@ -301,16 +301,6 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
 		}
-
-		// balancesUrl := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
-
-		// accountSource := models.LiveAccountSource{
-		// 	Broker:       brokerName,
-		// 	AccountID:    accountID,
-		// 	AccountType:  accountType,
-		// 	BalancesUrl:  balancesUrl,
-		// 	TradesApiKey: tradierTradesBearerToken,
-		// }
 
 		tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
 		if err != nil {
@@ -329,14 +319,16 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 			return nil, fmt.Errorf("failed to get tradier non trades bearer token: %w", err)
 		}
 
-		source := services.NewLiveAccountSource(brokerName, accountID, tradesUrl, tradierTradesBearerToken, accountType)
+		balancesUrl := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
+
+		source := services.NewLiveAccountSource(brokerName, accountID, balancesUrl, tradierTradesBearerToken, accountType)
 
 		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
 
 		brokers[models.CreateAccountRequestSource{
-			AccountType: accountType,
-			Broker:      brokerName,
-			AccountID:   accountID,
+			LiveAccountType: accountType,
+			Broker:          brokerName,
+			AccountID:       accountID,
 		}] = broker
 	}
 

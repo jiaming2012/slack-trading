@@ -26,7 +26,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
-		liveAccountType = models.LiveAccountType(playground.AccountType)
+		liveAccountType = playground.Meta.LiveAccountType
 		if err := liveAccountType.Validate(); err != nil {
 			log.Errorf("UpdateTradierOrderQueue: invalid account type: %v", err)
 			continue

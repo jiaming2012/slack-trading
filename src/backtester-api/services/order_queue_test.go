@@ -21,7 +21,7 @@ func createPlayground(t *testing.T, symbol eventmodels.Instrument, clock *models
 	require.NoError(t, err)
 
 	balance := 1000.0
-	playground, err := models.NewPlayground(nil, nil, balance, balance, clock, nil, env, clock.CurrentTime, []string{}, repo)
+	playground, err := models.NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, clock.CurrentTime, []string{}, repo)
 	return playground, err
 }
 
@@ -74,7 +74,7 @@ func TestLiveAccount(t *testing.T) {
 
 		repositories := []*models.CandleRepository{repo}
 		env := models.PlaygroundEnvironmentLive
-		livePlayground, err := models.NewPlayground(&playgroundId, &clientId, startingBalance, startingBalance, nil, orders, env, now, tags, repositories...)
+		livePlayground, err := models.NewPlayground(&playgroundId, nil, &clientId, startingBalance, startingBalance, nil, orders, env, now, tags, repositories...)
 		require.NoError(t, err)
 
 		livePlayground.SetNewTradesQueue(newTradesQueue)
@@ -105,7 +105,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order := models.NewOrderRecord(1, nil, livePlayground.GetId(), models.OrderRecordClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order := models.NewOrderRecord(1, nil, livePlayground.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		placeOrderChanges, err := livePlayground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1 := models.NewOrderRecord(1, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order1 := models.NewOrderRecord(1, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		broker.SetFillOrderExecutionPrice(100.0)
 
@@ -236,7 +236,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 		newTradesQueue2 := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 2)
 		livePlayground2 := createLivePlayground(t, playgroundID, broker, database, newTradesQueue2)
-		order2 := models.NewOrderRecord(2, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order2 := models.NewOrderRecord(2, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		// save playground
 		err = database.SavePlaygroundSession(livePlayground2)

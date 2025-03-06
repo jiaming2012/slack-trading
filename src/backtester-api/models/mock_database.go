@@ -130,7 +130,7 @@ func (m *MockDatabase) FetchPendingOrders(accountType LiveAccountType) ([]*Order
 	for pId := range m.playgrounds {
 		orderRecords := m.orderRecords[pId]
 		for _, order := range orderRecords {
-			if order.Status == OrderRecordStatusPending && order.AccountType == string(accountType) {
+			if order.Status == OrderRecordStatusPending && order.LiveAccountType == accountType {
 				orders = append(orders, order)
 			}
 		}

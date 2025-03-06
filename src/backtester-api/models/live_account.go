@@ -12,22 +12,19 @@ import (
 
 type LiveAccount struct {
 	gorm.Model
-	// ReconcilePlaygroundID      uuid.UUID                                 `json:"reconcile_playground_id" gorm:"column:reconcile_playground_id;type:uuid;index:idx_live_account_reconcile_playground_id"`
-	// ReconcilePlaygroundSession *Playground                               `json:"-" gorm:"foreignKey:ReconcilePlaygroundID;references:ID"`
-	BrokerName    string          `gorm:"column:broker;type:text"`
-	AccountId     string          `gorm:"column:account_id;type:text"`
-	AccountType   LiveAccountType `gorm:"column:account_type;type:text"`
-	PlotUpdatedAt time.Time       `gorm:"column:plot_updated_at;type:timestamptz"`
-	Broker        IBroker         `json:"-" gorm:"-"`
-	// ReconcilePlayground        IReconcilePlayground                      `json:"-" gorm:"-"`
-	database IDatabaseService `json:"-" gorm:"-"`
+	BrokerName    string           `gorm:"column:broker;type:text"`
+	AccountId     string           `gorm:"column:account_id;type:text"`
+	AccountType   LiveAccountType  `gorm:"column:account_type;type:text"`
+	PlotUpdatedAt time.Time        `gorm:"column:plot_updated_at;type:timestamptz"`
+	Broker        IBroker          `json:"-" gorm:"-"`
+	database      IDatabaseService `json:"-" gorm:"-"`
 }
 
 func (a *LiveAccount) GetSource() CreateAccountRequestSource {
 	return CreateAccountRequestSource{
-		Broker:     a.BrokerName,
-		AccountID:  a.AccountId,
-		AccountType: a.AccountType,
+		Broker:          a.BrokerName,
+		AccountID:       a.AccountId,
+		LiveAccountType: a.AccountType,
 	}
 }
 

@@ -77,7 +77,7 @@ func (s *DatabaseService) FetchLiveAccount(source *models.CreateAccountRequestSo
 		return nil, false, fmt.Errorf("FetchLiveAccount: account id is empty")
 	}
 
-	if source.AccountType == "" {
+	if source.LiveAccountType == "" {
 		return nil, false, fmt.Errorf("FetchLiveAccount: account type is empty")
 	}
 

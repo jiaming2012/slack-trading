@@ -561,26 +561,38 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
 
+	source := &models.CreateAccountRequestSource{
+		Broker:          req.Broker,
+		LiveAccountType: models.LiveAccountType(req.AccountType),
+		AccountID:       accountId,
+	}
+
+	liveAccount, found, err := s.dbService.FetchLiveAccount(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch live playground: %v", err)
+	}
+
+	if !found {
+		return nil, fmt.Errorf("failed to fetch live playground: live account not found")
+	}
+
 	createPlaygroundReq := &models.CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
 		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
-			Source: &models.CreateAccountRequestSource{
-				Broker:      req.Broker,
-				AccountType: models.LiveAccountType(req.AccountType),
-				AccountID:   accountId,
-			},
+			Source:  source,
 		},
 		InitialBalance: float64(req.Balance),
 		Repositories:   repositoryRequests,
 		Tags:           req.Tags,
 		SaveToDB:       true,
+		LiveAccount:    liveAccount,
 	}
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	var playground *models.Playground
+	playground := &models.Playground{}
 	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}

@@ -1,7 +1,7 @@
 package models
 
 type GetAccountResponse struct {
-	Meta       *PlaygroundMeta      `json:"meta"`
+	Meta       Meta                 `json:"meta"`
 	Balance    float64              `json:"balance"`
 	Equity     float64              `json:"equity"`
 	FreeMargin float64              `json:"free_margin"`

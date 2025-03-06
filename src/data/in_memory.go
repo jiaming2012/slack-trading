@@ -10,26 +10,17 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func (s *DatabaseService) SaveLiveAccount(source *models.CreateAccountRequestSource, liveAccount models.ILiveAccount) error {
-	_source := *source
-
-	_, found := s.liveAccounts[_source]
-	if found {
-		return fmt.Errorf("saveLiveAccount: live account already exists with source: %v", _source)
-	}
-
-	s.liveAccounts[_source] = liveAccount
-
-	return nil
-}
-
 func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew bool) error {
 	// var allOrderRecords []*models.OrderRecord
 	// var updateOrderRequests []*models.UpdateOrderRecordRequest
 
 	err := _db.Transaction(func(tx *gorm.DB) error {
 		for _, order := range orders {
-			var err error
+			var e error
+
+			if err := order.Validate(); err != nil {
+				return fmt.Errorf("failed to validate order: %w", err)
+			}
 
 			// oRec, updateOrderReq, err := order.UpdateOrderRecord(tx, playgroundId, liveAccountType)
 			// if err != nil {
@@ -47,12 +38,12 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 			// }
 
 			if forceNew {
-				if err = tx.Create(&order).Error; err != nil {
-					return fmt.Errorf("failed to create order records: %w", err)
+				if e = tx.Create(&order).Error; e != nil {
+					return fmt.Errorf("failed to create order records: %w", e)
 				}
 			} else {
-				if err = tx.Save(&order).Error; err != nil {
-					return fmt.Errorf("failed to save order records: %w", err)
+				if e = tx.Save(&order).Error; e != nil {
+					return fmt.Errorf("failed to save order records: %w", e)
 				}
 			}
 		}
@@ -145,74 +136,6 @@ func savePlaygroundTx(tx *gorm.DB, playground *models.Playground) error {
 	if err := meta.Validate(); err != nil {
 		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
 	}
-
-	// repos := playground.GetRepositories()
-	// var repoDTOs []models.CandleRepositoryDTO
-	// for _, repo := range repos {
-	// 	repoDTOs = append(repoDTOs, repo.ToDTO())
-	// }
-
-	// playground.StartAt = meta.StartAt
-	// playground.EndAt = meta.EndAt
-	// playground.StartingBalance = meta.InitialBalance
-	// playground.Repositories = models.CandleRepositoryRecord(repoDTOs)
-	// playground.Tags = meta.Tags
-	// playground.Env = string(meta.Environment)
-
-	// store := &models.Playground{
-	// 	ID:              playground.GetId(),
-	// 	ClientID:        playground.GetClientId(),
-	// 	CurrentTime:     playground.GetCurrentTime(),
-	// 	StartAt:         meta.StartAt,
-	// 	EndAt:           meta.EndAt,
-	// 	Balance:         playground.GetBalance(),
-	// 	StartingBalance: meta.InitialBalance,
-	// 	Repositories:    models.CandleRepositoryRecord(repoDTOs),
-	// 	Tags:            meta.Tags,
-	// 	Env:             string(meta.Environment),
-	// }
-
-	// todo: only needed for reconcile playgrounds.
-	// live playgrounds can be used to reference reconcile playground source
-	// if meta.Environment == models.PlaygroundEnvironmentLive {
-	// 	if meta.SourceBroker == "" || meta.SourceAccountId == "" {
-	// 		return errors.New("savePlaygroundSession: missing broker, or account id")
-	// 	}
-
-	if err := meta.LiveAccountType.Validate(); err != nil {
-		return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
-	}
-
-	// reconcilePlayground := playground.GetReconcilePlayground()
-	// reconcilePlaygroundID := reconcilePlayground.GetId()
-	// liveAccount := models.LiveAccount{
-	// 	BrokerName:            meta.SourceBroker,
-	// 	AccountId:             meta.SourceAccountId,
-	// 	AccountType:           meta.LiveAccountType,
-	// 	ReconcilePlayground:   reconcilePlayground,
-	// 	ReconcilePlaygroundID: reconcilePlaygroundID,
-	// }
-
-	// if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
-	// 	BrokerName:            meta.SourceBroker,
-	// 	AccountId:             meta.SourceAccountId,
-	// 	AccountType:           meta.LiveAccountType,
-	// 	ReconcilePlaygroundID: reconcilePlaygroundID,
-	// }).Error; err != nil {
-	// 	return fmt.Errorf("failed to fetch or create live account: %w", err)
-	// }
-
-	// playground.LiveAccount = &liveAccount
-	// playground.BrokerName = &meta.SourceBroker
-	// playground.AccountID = &meta.SourceAccountId
-
-	// var liveAccountType *string
-	// if err := meta.LiveAccountType.Validate(); err == nil {
-	// 	val := string(meta.LiveAccountType)
-	// 	liveAccountType = &val
-	// }
-	// playground.AccountType = string(meta.LiveAccountType)
-	// }
 
 	if err := tx.Create(playground).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)

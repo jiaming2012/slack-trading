@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"fmt"
 	"path"
 	"sync"
@@ -115,6 +114,24 @@ func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountReq
 		s.liveAccounts[source] = a
 	}
 
+	for source, broker := range brokerMap {
+		if _, found := s.liveAccounts[source]; !found {
+			a, err := models.NewLiveAccount(broker, s)
+			if err != nil {
+				return fmt.Errorf("failed to create live account: %w", err)
+			}
+
+			a.SetBroker(broker)
+			a.SetDatabase(s)
+
+			if err := s.db.Save(a).Error; err != nil {
+				return fmt.Errorf("failed to save live account: %w", err)
+			}
+
+			s.liveAccounts[source] = a
+		}
+	}
+
 	log.Info("loaded all live accounts")
 
 	return nil
@@ -138,7 +155,7 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 
 	// load reconcile playgrounds first
 	for _, p := range playgroundsSlice {
-		if p.Env != string(models.PlaygroundEnvironmentReconcile) {
+		if p.Meta.Environment != models.PlaygroundEnvironmentReconcile {
 			continue
 		}
 
@@ -175,7 +192,7 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 
 	// load other playgrounds
 	for _, p := range playgroundsSlice {
-		if p.Env == string(models.PlaygroundEnvironmentReconcile) {
+		if p.Meta.Environment == models.PlaygroundEnvironmentReconcile {
 			continue
 		}
 
@@ -403,10 +420,10 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		}
 
 		playground.SetLiveAccount(req.LiveAccount)
-		
+
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags)
+		err = models.PopulatePlayground(playground, req.Account.Source, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -418,6 +435,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		}
 
 	} else if env == models.PlaygroundEnvironmentLive {
+		// todo: hot load live account
 		if req.LiveAccount == nil {
 			return eventmodels.NewWebError(400, "live playground is missing live account", nil)
 		}
@@ -470,7 +488,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		playground.SetReconcilePlayground(reconcilePlayground)
 
-		err = models.PopulatePlayground(playground, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags, repos...)
+		err = models.PopulatePlayground(playground, req.Account.Source, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -508,7 +526,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
+		err = models.PopulatePlayground(playground, nil, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
@@ -594,7 +612,7 @@ func (s *DatabaseService) createNewReconcilePlayground(source *models.CreateAcco
 		SaveToDB:     true,
 	}
 
-	var playground *models.Playground
+	playground := &models.Playground{}
 	if err := s.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
@@ -649,7 +667,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 	var liveAccount models.ILiveAccount
 	var err error
 
-	if p.Env == "simulator" {
+	if p.Meta.Environment == models.PlaygroundEnvironmentSimulator {
 		if p.EndAt == nil {
 			return fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
 		}
@@ -659,20 +677,20 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			StopDate:  p.EndAt.Format(time.RFC3339),
 		}
 
-	} else if p.Env == "live" {
+	} else if p.Meta.Environment == models.PlaygroundEnvironmentLive {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
 		}
 
-		liveAccountType := models.LiveAccountType(p.AccountType)
+		liveAccountType := p.Meta.LiveAccountType
 		if err = liveAccountType.Validate(); err != nil {
 			return fmt.Errorf("loadPlaygrounds: invalid live account type for live playground: %w", err)
 		}
 
 		source = &models.CreateAccountRequestSource{
-			Broker:      *p.BrokerName,
-			AccountID:   *p.AccountID,
-			AccountType: liveAccountType,
+			Broker:          *p.BrokerName,
+			AccountID:       *p.AccountID,
+			LiveAccountType: liveAccountType,
 		}
 
 		clockRequest = models.CreateClockRequest{
@@ -684,20 +702,20 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			return fmt.Errorf("loadPlaygrounds: failed to get live account for live playground: %w", err)
 		}
 
-	} else if p.Env == "reconcile" {
+	} else if p.Meta.Environment == models.PlaygroundEnvironmentReconcile {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for reconcile playground")
 		}
 
-		liveAccountType := models.LiveAccountType(p.AccountType)
+		liveAccountType := p.Meta.LiveAccountType
 		if err = liveAccountType.Validate(); err != nil {
 			return fmt.Errorf("loadPlaygrounds: invalid live account type for reconcile playground: %w", err)
 		}
 
 		source = &models.CreateAccountRequestSource{
-			Broker:      *p.BrokerName,
-			AccountID:   *p.AccountID,
-			AccountType: liveAccountType,
+			Broker:          *p.BrokerName,
+			AccountID:       *p.AccountID,
+			LiveAccountType: liveAccountType,
 		}
 
 		liveAccount, err = s.getLiveAccount(*source)
@@ -706,7 +724,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		}
 
 	} else {
-		return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Env)
+		return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Meta.Environment)
 	}
 
 	var createRepoRequests []eventmodels.CreateRepositoryRequest
@@ -730,7 +748,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 	err = s.CreatePlayground(p, &models.CreatePlaygroundRequest{
 		ID:       &p.ID,
 		ClientID: p.ClientID,
-		Env:      p.Env,
+		Env:      string(p.Meta.Environment),
 		Account: models.CreateAccountRequest{
 			Balance: p.Balance,
 			Source:  source,
@@ -767,11 +785,7 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 
 	var playgroundEnv models.PlaygroundEnvironment
 	playgroundMeta := playground.GetMeta()
-	if playgroundMeta != nil {
-		playgroundEnv = playgroundMeta.Environment
-	} else {
-		return nil, eventmodels.NewWebError(500, "failed to get playground environment", nil)
-	}
+	playgroundEnv = playgroundMeta.Environment
 
 	liveOrderTempId := uint(0)
 	if playgroundEnv == models.PlaygroundEnvironmentLive {
@@ -799,6 +813,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		req.ExternalOrderID,
 		playground.GetId(),
 		req.Class,
+		playground.Meta.LiveAccountType,
 		createdOn,
 		eventmodels.StockSymbol(req.Symbol),
 		req.Side,
@@ -955,10 +970,6 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 		}
 
 		playgroundId := playground.GetId()
-		meta := playground.GetMeta()
-		if meta == nil {
-			return errors.New("savePlayground: missing playground meta")
-		}
 
 		if txErr = saveOrderRecordsTx(tx, playground.GetOrders(), false); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
@@ -998,19 +1009,14 @@ func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) e
 
 func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var oRecs []*models.OrderRecord
 		var e error
 		if e = saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); e != nil {
 			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", e)
 		}
 
-		if len(oRecs) != 1 {
-			return fmt.Errorf("saveOrderRecord: expected 1 order record, got %d", len(oRecs))
-		}
-
 		if newBalance != nil {
-			if err := saveBalance(tx, order.PlaygroundID, *newBalance); err != nil {
-				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", err)
+			if e := saveBalance(tx, order.PlaygroundID, *newBalance); e != nil {
+				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", e)
 			}
 		}
 

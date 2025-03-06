@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -16,9 +15,10 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
+// "github.com/lib/pq"
 type Playground struct {
 	gorm.Model
-	Meta                  *PlaygroundMeta                                                `gorm:"-"`
+	Meta
 	ID                    uuid.UUID                                                      `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 	account               *BacktesterAccount                                             `gorm:"-"`
 	clock                 *Clock                                                         `gorm:"-"`
@@ -28,14 +28,11 @@ type Playground struct {
 	CurrentTime           time.Time                                                      `gorm:"column:current_time;type:timestamptz;not null"`
 	Balance               float64                                                        `gorm:"column:balance;type:numeric;not null"`
 	StartingBalance       float64                                                        `gorm:"column:starting_balance;type:numeric;not null"`
-	Env                   string                                                         `gorm:"column:environment;type:text;not null"`
 	BrokerName            *string                                                        `gorm:"column:broker;type:text"`
 	AccountID             *string                                                        `gorm:"column:account_id;type:text"`
-	AccountType           string                                                         `gorm:"column:live_account_type;type:text;not null"`
 	Orders                []*OrderRecord                                                 `gorm:"foreignKey:PlaygroundID"`
 	EquityPlotRecords     []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
 	ParentID              *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
-	Tags                  pq.StringArray                                                 `gorm:"type:text[]"`
 	Repositories          CandleRepositoryRecord                                         `gorm:"type:json"`
 	ReconcilePlaygroundID *uuid.UUID                                                     `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
 	LiveAccountID         *uint                                                          `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
@@ -60,9 +57,9 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 	}
 
 	return CreateAccountRequestSource{
-		Broker:      *p.BrokerName,
-		AccountID:   *p.AccountID,
-		AccountType: LiveAccountType(p.AccountType),
+		Broker:          *p.BrokerName,
+		AccountID:       *p.AccountID,
+		LiveAccountType: p.Meta.LiveAccountType,
 	}, nil
 }
 
@@ -90,10 +87,6 @@ func (p *Playground) GetClientId() *string {
 }
 
 func (p *Playground) GetEnvironment() PlaygroundEnvironment {
-	if p.Meta == nil {
-		log.Fatal("GetEnvironment: playground meta is nil")
-	}
-
 	return p.Meta.Environment
 }
 
@@ -399,7 +392,7 @@ func (p *Playground) updatePositionsCache(symbol eventmodels.Instrument, trade *
 func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eventmodels.Instrument]*Tick, error) {
 	result := make(map[eventmodels.Instrument]*Tick)
 
-	if p.Env == string(PlaygroundEnvironmentReconcile) {
+	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
 		if len(symbols) == 0 {
 			return map[eventmodels.Instrument]*Tick{}, nil
 		}
@@ -830,9 +823,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else if position.Quantity < 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else {
 		return nil, nil
 	}
@@ -1084,7 +1077,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	}, nil
 }
 
-func (p *Playground) GetMeta() *PlaygroundMeta {
+func (p *Playground) GetMeta() Meta {
 	return p.Meta
 }
 
@@ -1631,12 +1624,37 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 	var startAt time.Time
 	var endAt *time.Time
+	var liveAccountType LiveAccountType
+	var repositories []CandleRepositoryDTO
+
+	meta := *NewMeta(env, tags)
+
+	brokerName := "tradier"
+	var accountID *string
+
+	if env == PlaygroundEnvironmentReconcile || env == PlaygroundEnvironmentLive {
+		if source == nil {
+			return fmt.Errorf("source is required")
+		}
+
+		accountID = &source.AccountID
+
+		liveAccountType = source.LiveAccountType
+
+		meta.SourceBroker = brokerName
+		meta.LiveAccountType = liveAccountType
+		meta.SourceAccountId = source.AccountID
+	} else {
+		liveAccountType = LiveAccountTypeSimulator
+	}
+
+	meta.LiveAccountType = liveAccountType
 
 	if env == PlaygroundEnvironmentReconcile {
 		startAt = now
@@ -1665,6 +1683,7 @@ func PopulatePlayground(playground *Playground, clientID *string, balance, initi
 			}
 
 			repos[symbol][feed.GetPeriod()] = feed
+			repositories = append(repositories, feed.ToDTO())
 
 			if minimumPeriod == 0 || feed.GetPeriod() < minimumPeriod {
 				minimumPeriod = feed.GetPeriod()
@@ -1672,18 +1691,10 @@ func PopulatePlayground(playground *Playground, clientID *string, balance, initi
 		}
 	}
 
-	meta := &PlaygroundMeta{
-		Symbols:        symbols,
-		Tags:           tags,
-		InitialBalance: initialBalance,
-		Environment:    env,
-		StartAt:        startAt,
-		EndAt:          endAt,
-	}
-
-	if env == PlaygroundEnvironmentReconcile {
-		meta.LiveAccountType = LiveAccountTypeReconcilation
-	}
+	meta.Symbols = symbols
+	meta.InitialBalance = initialBalance
+	meta.StartAt = startAt
+	meta.EndAt = endAt
 
 	var id uuid.UUID
 	if playground != nil {
@@ -1698,22 +1709,25 @@ func PopulatePlayground(playground *Playground, clientID *string, balance, initi
 	playground.account = NewBacktesterAccount(balance, orders)
 	playground.clock = clock
 	playground.repos = repos
+	playground.Repositories = CandleRepositoryRecord(repositories)
 	playground.positionsCache = nil
 	playground.openOrdersCache = make(map[eventmodels.Instrument][]*OrderRecord)
 	playground.minimumPeriod = minimumPeriod
+	playground.AccountID = accountID
+	playground.BrokerName = &brokerName
 
 	return nil
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
 	playground := new(Playground)
 
 	if playgroundId != nil {
 		playground.ID = *playgroundId
 	}
 
-	if err := PopulatePlayground(playground, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
+	if err := PopulatePlayground(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
 		return nil, fmt.Errorf("error populating playground: %w", err)
 	}
 
