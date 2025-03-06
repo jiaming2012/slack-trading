@@ -666,7 +666,7 @@ func run() {
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
 
 	// Setup polygon tick data machine
-	polygonTickDataMachine := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	polygonTickDataMachine := eventservices.NewPolygonClient(polygonApiKey)
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
 
@@ -675,8 +675,10 @@ func run() {
 	a := NewRouterSetup("/version", router)
 	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
 
+	polygonClient := eventservices.NewPolygonClient(polygonApiKey)
+
 	// Setup database service
-	dbService := data.NewDatabaseService(db)
+	dbService := data.NewDatabaseService(db, polygonClient)
 
 	// Setup brokers
 	brokerMap, err := getTradierBrokers()
@@ -688,8 +690,6 @@ func run() {
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
-
-	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
 
 	// this must be after the backtester router setup
 	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)

@@ -117,7 +117,7 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 	// place reconciliation orders in playground
 	var changes []*PlaceOrderChanges
 	for _, o := range orders {
-		chg, err := r.playground.PlaceOrder(o)
+		chg, err := r.playground.placeOrder(o)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReconcilePlayground: failed to place order in playground: %w", err)
 		}
@@ -132,6 +132,18 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 			return nil, nil, fmt.Errorf("ReconcilePlayground: failed to place order: %w", err)
 		}
 	}
+
+	changes = append(changes, &PlaceOrderChanges{
+		Commit: func() error {
+			for _, o := range orders {
+				o.Reconciles = append(o.Reconciles, order)
+			}
+
+			order.ReconciledBy = orders
+			return nil
+		},
+		Info: "Add ReconciledBy field to orders",
+	})
 
 	return changes, orders, nil
 }

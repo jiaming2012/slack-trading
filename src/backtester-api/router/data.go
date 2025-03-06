@@ -8,7 +8,6 @@ import (
 )
 
 func loadData(dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker) error {
-	
 	if err := dbService.LoadLiveAccounts(brokerMap); err != nil {
 		return fmt.Errorf("loadData: failed to load live accounts: %w", err)
 	}

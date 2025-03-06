@@ -170,7 +170,7 @@ func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest eventmodels.A
 	resultCh <- bars
 }
 
-func NewPolygonTickDataMachine(apiKey string) *PolygonTickDataMachine {
+func NewPolygonClient(apiKey string) *PolygonTickDataMachine {
 	return &PolygonTickDataMachine{
 		Client: polygon.New(apiKey),
 		ApiKey: apiKey,

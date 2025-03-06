@@ -13,8 +13,8 @@ import (
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
-	Playground       *Playground            `gorm:"foreignKey:PlaygroundID;references:ID"`
+	PlaygroundID uuid.UUID `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
+	// Playground       *Playground            `gorm:"foreignKey:PlaygroundID;references:ID"`
 	AccountType      string                 `gorm:"column:account_type;type:text"`
 	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id"`
 	Class            OrderRecordClass       `gorm:"column:class;type:text;not null"`
@@ -35,11 +35,21 @@ type OrderRecord struct {
 	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
 	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by"`
 	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles"`
+	ReconciledBy     []*OrderRecord         `gorm:"many2many:order_reconciled_by" json:"-"`
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID"`
 	instrument       eventmodels.Instrument `gorm:"-"`
 }
 
 func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
+	if o.instrument == nil {
+		switch o.Class {
+		case OrderRecordClassEquity:
+			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+		default:
+			panic(fmt.Sprintf("unsupported order record class: %s", o.Class))
+		}
+	}
+
 	return o.instrument
 }
 

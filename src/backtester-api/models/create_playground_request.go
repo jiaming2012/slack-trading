@@ -21,4 +21,5 @@ type CreatePlaygroundRequest struct {
 	CreatedAt         time.Time                             `json:"created_at"`
 	Tags              []string                              `json:"tags"`
 	SaveToDB          bool                                  `json:"-"`
+	LiveAccount       ILiveAccount                          `json:"-"`
 }

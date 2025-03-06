@@ -1,9 +1,7 @@
 package data
 
 import (
-	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -23,16 +21,6 @@ func (s *DatabaseService) SaveLiveAccount(source *models.CreateAccountRequestSou
 	s.liveAccounts[_source] = liveAccount
 
 	return nil
-}
-
-func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
-	var orderRecord models.OrderRecord
-
-	if result := db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
-		return 0, false
-	}
-
-	return orderRecord.ID, true
 }
 
 func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew bool) error {
@@ -133,50 +121,6 @@ func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, e
 	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
 }
 
-func DeletePlaygroundSession(playground *models.Playground) error {
-	session := &models.Playground{
-		ID: playground.GetId(),
-	}
-
-	if err := db.Delete(&session).Error; err != nil {
-		return fmt.Errorf("deletePlayground: failed to delete playground: %w", err)
-	}
-
-	return nil
-}
-
-func SavePlayground(playground *models.Playground) error {
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var txErr error
-
-		if txErr = savePlaygroundTx(tx, playground); txErr != nil {
-			return fmt.Errorf("failed to save playground session: %w", txErr)
-		}
-
-		playgroundId := playground.GetId()
-		meta := playground.GetMeta()
-		if meta == nil {
-			return errors.New("savePlayground: missing playground meta")
-		}
-
-		if txErr = saveOrderRecordsTx(tx, playground.GetOrders(), false); txErr != nil {
-			return fmt.Errorf("failed to save order records: %w", txErr)
-		}
-
-		if txErr = saveEquityPlotRecords(tx, playgroundId, playground.GetEquityPlot()); txErr != nil {
-			return fmt.Errorf("failed to save equity plot records: %w", txErr)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("savePlayground: failed to save playground: %w", err)
-	}
-
-	return nil
-}
-
 func saveEquityPlotRecords(tx *gorm.DB, playgroundId uuid.UUID, records []*eventmodels.EquityPlot) error {
 	var equityPlotRecords []*models.EquityPlotRecord
 
@@ -190,20 +134,6 @@ func saveEquityPlotRecords(tx *gorm.DB, playgroundId uuid.UUID, records []*event
 
 	if err := tx.CreateInBatches(equityPlotRecords, 100).Error; err != nil {
 		return fmt.Errorf("saveEquityPlotRecords: failed to save equity plot records: %w", err)
-	}
-
-	return nil
-}
-
-func SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
-	rec := &models.EquityPlotRecord{
-		PlaygroundID: playgroundId,
-		Timestamp:    timestamp,
-		Equity:       equity,
-	}
-
-	if err := db.Create(rec).Error; err != nil {
-		return fmt.Errorf("SaveEquityPlotRecord: failed to save equity plot record: %w", err)
 	}
 
 	return nil
@@ -286,38 +216,6 @@ func savePlaygroundTx(tx *gorm.DB, playground *models.Playground) error {
 
 	if err := tx.Create(playground).Error; err != nil {
 		return fmt.Errorf("failed to save playground: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) error {
-	return savePlaygroundTx(db, playground)
-}
-
-func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var oRecs []*models.OrderRecord
-		var e error
-		if e = saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); e != nil {
-			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", e)
-		}
-
-		if len(oRecs) != 1 {
-			return fmt.Errorf("saveOrderRecord: expected 1 order record, got %d", len(oRecs))
-		}
-
-		if newBalance != nil {
-			if err := saveBalance(tx, order.PlaygroundID, *newBalance); err != nil {
-				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", err)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
 	}
 
 	return nil

@@ -233,7 +233,7 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 		}
 	}
 
-	if err := data.DeletePlaygroundSession(playground); err != nil {
+	if err := s.dbService.DeletePlaygroundSession(playground); err != nil {
 		return nil, fmt.Errorf("failed to delete playground session: %v", err)
 	}
 
@@ -255,7 +255,7 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	if err := data.SavePlayground(playground); err != nil {
+	if err := s.dbService.SavePlayground(playground); err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
@@ -580,8 +580,8 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	playground, err := s.dbService.CreatePlayground(createPlaygroundReq)
-	if err != nil {
+	var playground *models.Playground
+	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
 
@@ -615,7 +615,8 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	playground, err := s.dbService.CreatePlayground(&models.CreatePlaygroundRequest{
+	var playground *models.Playground
+	err := s.dbService.CreatePlayground(playground, &models.CreatePlaygroundRequest{
 		Env:      req.GetEnvironment(),
 		ClientID: req.ClientId,
 		Account: models.CreateAccountRequest{

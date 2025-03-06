@@ -393,8 +393,8 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
-		if account.ID == 0 {
-			log.Errorf("live account is not set")
+		if err := w.dbService.PopulateLiveAccount(account); err != nil {
+			log.Errorf("failed to populate live account: %v", err)
 			continue
 		}
 

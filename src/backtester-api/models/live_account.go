@@ -23,6 +23,14 @@ type LiveAccount struct {
 	database IDatabaseService `json:"-" gorm:"-"`
 }
 
+func (a *LiveAccount) GetSource() CreateAccountRequestSource {
+	return CreateAccountRequestSource{
+		Broker:     a.BrokerName,
+		AccountID:  a.AccountId,
+		AccountType: a.AccountType,
+	}
+}
+
 func (a *LiveAccount) GetId() uint {
 	return a.ID
 }

@@ -108,7 +108,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 }
 
 func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker) error {
-	client = eventservices.NewPolygonTickDataMachine(apiKey)
+	client = eventservices.NewPolygonClient(apiKey)
 	projectsDirectory = projectsDir
 
 	if err := loadData(dbService, brokerMap); err != nil {

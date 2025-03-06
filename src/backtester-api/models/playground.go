@@ -39,6 +39,7 @@ type Playground struct {
 	Repositories          CandleRepositoryRecord                                         `gorm:"type:json"`
 	ReconcilePlaygroundID *uuid.UUID                                                     `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
 	LiveAccountID         *uint                                                          `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
+	LiveAccount           ILiveAccount                                                   `gorm:"-"`
 	ReconcilePlayground   IReconcilePlayground                                           `gorm:"-"`
 	repos                 map[eventmodels.Instrument]map[time.Duration]*CandleRepository `gorm:"-"`
 	isBacktestComplete    bool                                                           `gorm:"-"`
@@ -67,6 +68,9 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 
 func (p *Playground) SetReconcilePlayground(playground IReconcilePlayground) {
 	p.ReconcilePlayground = playground
+
+	id := playground.GetId()
+	p.ReconcilePlaygroundID = &id
 }
 
 func (p *Playground) TableName() string {
@@ -395,12 +399,12 @@ func (p *Playground) updatePositionsCache(symbol eventmodels.Instrument, trade *
 func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eventmodels.Instrument]*Tick, error) {
 	result := make(map[eventmodels.Instrument]*Tick)
 
-	if p.ReconcilePlayground != nil {
+	if p.Env == string(PlaygroundEnvironmentReconcile) {
 		if len(symbols) == 0 {
 			return map[eventmodels.Instrument]*Tick{}, nil
 		}
 
-		broker := p.ReconcilePlayground.GetLiveAccount().GetBroker()
+		broker := p.GetLiveAccount().GetBroker()
 		if broker == nil {
 			return nil, errors.New("getCurrentPrice: broker is nil")
 		}
@@ -796,7 +800,7 @@ func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRe
 }
 
 func (p *Playground) GetCurrentTime() time.Time {
-	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
+	if p.Meta.Environment == PlaygroundEnvironmentLive || p.Meta.Environment == PlaygroundEnvironmentReconcile {
 		return time.Now()
 	}
 
@@ -1476,44 +1480,55 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 		return nil, fmt.Errorf("cannot place order in the same playground")
 	}
 
-	playgroundChanges, err := p.PlaceOrder(order)
+	// todo: place all changes inside of a single transaction
+	playgroundChanges, err := p.placeOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 	}
 
+	// todo: place all changes inside of a single transaction
 	reconciliationChanges, reconciliationOrders, err := reconcilePlayground.PlaceOrder(order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
 	}
 
-	if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, true); err != nil {
-		return nil, fmt.Errorf("failed to save live order record: %w", err)
-	}
+	// if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, true); err != nil {
+	// 	return nil, fmt.Errorf("failed to save live order record: %w", err)
+	// }
+	changes = append(changes, reconciliationChanges...)
+	changes = append(changes, playgroundChanges...)
 
 	for _, o := range reconciliationOrders {
 		changes = append(changes, &PlaceOrderChanges{
 			Commit: func() error {
 				_order := o
 
-				_order.Reconciles = append(_order.Reconciles, order)
-
+				// todo: place all changes inside of a single transaction
 				if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(_order, nil, true); err != nil {
 					return fmt.Errorf("failed to save reconciliation order record: %w", err)
 				}
 
 				return nil
 			},
-			AdditionalInfo: "failed to save reconciliation order record",
+			Info: fmt.Sprintf("save reconciliation order record %d", o.ID),
 		})
 	}
 
-	changes = append(changes, reconciliationChanges...)
-	changes = append(changes, playgroundChanges...)
+	changes = append(changes, &PlaceOrderChanges{
+		Commit: func() error {
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, false); err != nil {
+				return fmt.Errorf("failed to update live order record: %w", err)
+			}
+
+			return nil
+		},
+		Info: "update live order record",
+	})
 
 	return changes, nil
 }
 
-func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	if order.Class != OrderRecordClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")
 	}
@@ -1589,12 +1604,34 @@ func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 				return nil
 			},
+			Info: fmt.Sprintf("Add PendingOrders field to playground %s", p.ID),
 		},
 	}, nil
 }
 
-// todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
+func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	switch p.Meta.Environment {
+	case PlaygroundEnvironmentLive:
+		return p.placeLiveOrder(order)
+	case PlaygroundEnvironmentSimulator:
+		return p.placeOrder(order)
+	default:
+		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
+	}
+}
+
+func (p *Playground) GetLiveAccount() ILiveAccount {
+	return p.LiveAccount
+}
+
+func (p *Playground) SetLiveAccount(account ILiveAccount) {
+	p.LiveAccount = account
+
+	id := account.GetId()
+	p.LiveAccountID = &id
+}
+
+func PopulatePlayground(playground *Playground, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1615,7 +1652,7 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 		// set the feeds
 		for _, feed := range feeds {
 			if err := feed.SetStartingPosition(startAt); err != nil {
-				return nil, fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
+				return fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
 			}
 
 			symbol := feed.GetSymbol()
@@ -1649,21 +1686,36 @@ func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBa
 	}
 
 	var id uuid.UUID
-	if playgroundId != nil {
-		id = *playgroundId
+	if playground != nil {
+		id = playground.ID
 	} else {
 		id = uuid.New()
 	}
 
-	return &Playground{
-		Meta:            meta,
-		ID:              id,
-		ClientID:        clientID,
-		account:         NewBacktesterAccount(balance, orders),
-		clock:           clock,
-		repos:           repos,
-		positionsCache:  nil,
-		openOrdersCache: make(map[eventmodels.Instrument][]*OrderRecord),
-		minimumPeriod:   minimumPeriod,
-	}, nil
+	playground.Meta = meta
+	playground.ID = id
+	playground.ClientID = clientID
+	playground.account = NewBacktesterAccount(balance, orders)
+	playground.clock = clock
+	playground.repos = repos
+	playground.positionsCache = nil
+	playground.openOrdersCache = make(map[eventmodels.Instrument][]*OrderRecord)
+	playground.minimumPeriod = minimumPeriod
+
+	return nil
+}
+
+// todo: change repository on playground to BacktesterCandleRepository
+func NewPlayground(playgroundId *uuid.UUID, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
+	playground := new(Playground)
+
+	if playgroundId != nil {
+		playground.ID = *playgroundId
+	}
+
+	if err := PopulatePlayground(playground, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
+		return nil, fmt.Errorf("error populating playground: %w", err)
+	}
+
+	return playground, nil
 }

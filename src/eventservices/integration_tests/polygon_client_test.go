@@ -23,7 +23,7 @@ func TestPolygonClient(t *testing.T) {
 
 	t.Run("fetch candles", func(t *testing.T) {
 
-		polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+		polygonClient := eventservices.NewPolygonClient(polygonApiKey)
 
 		tz, err := time.LoadLocation("America/New_York")
 		require.NoError(t, err)

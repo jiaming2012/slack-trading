@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -37,7 +36,7 @@ func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPrevi
 	}
 
 	if playground.GetMeta().Environment == models.PlaygroundEnvironmentLive {
-		if err := data.SaveEquityPlotRecord(playgroundID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
+		if err := s.dbService.SaveEquityPlotRecord(playgroundID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
 			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
 		}
 	}

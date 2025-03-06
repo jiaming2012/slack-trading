@@ -20,15 +20,21 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 	for _, order := range pendingOrders {
 		var liveAccountType models.LiveAccountType
 
-		liveAccountType = models.LiveAccountType(order.Playground.AccountType)
+		playground, err := dbService.FetchPlayground(order.PlaygroundID)
+		if err != nil {
+			log.Errorf("UpdateTradierOrderQueue: failed to fetch playground: %v", err)
+			continue
+		}
+
+		liveAccountType = models.LiveAccountType(playground.AccountType)
 		if err := liveAccountType.Validate(); err != nil {
 			log.Errorf("UpdateTradierOrderQueue: invalid account type: %v", err)
 			continue
 		}
 
-		liveAccount := order.Playground.GetReconcilePlayground().GetLiveAccount()
+		liveAccount := playground.GetReconcilePlayground().GetLiveAccount()
 		if liveAccount == nil {
-			log.Errorf("UpdateTradierOrderQueue: live account not found: %v", order.Playground)
+			log.Errorf("UpdateTradierOrderQueue: live account not found: %v", playground)
 			continue
 		}
 
@@ -66,7 +72,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 
 			sink.Enqueue(&models.TradierOrderUpdateEvent{
 				ModifyOrder: &models.TradierOrderModifyEvent{
-					PlaygroundId:   order.PlaygroundID,
+					PlaygroundId:   playground.ID,
 					TradierOrderID: *order.ExternalOrderID,
 					Field:          "status",
 					New:            reason,
@@ -82,15 +88,15 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 	return nil
 }
 
-func fillPendingOrder(order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, tradierOrder uint, cache *models.OrderCache, database models.IDatabaseService) (*models.TradeRecord, error) {
+func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, tradierOrder uint, cache *models.OrderCache, database models.IDatabaseService) (*models.TradeRecord, error) {
 	performChecks := false
 
-	positions, err := order.Playground.GetPositions()
+	positions, err := playground.GetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("handleLiveOrders: failed to get positions: %w", err)
 	}
 
-	newTrade, invalidOrder, err := order.Playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
+	newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
 			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
@@ -106,7 +112,7 @@ func fillPendingOrder(order *models.OrderRecord, orderFillEntry models.Execution
 	}
 
 	// Resave the order to update the status and close_id
-	balance := order.Playground.GetBalance()
+	balance := playground.GetBalance()
 	if err := database.SaveOrderRecord(order, &balance, false); err != nil {
 		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
@@ -133,7 +139,7 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 			continue
 		}
 
-		if _, err = fillPendingOrder(order, orderFillEntry, tradierOrder, cache, database); err != nil {
+		if _, err = fillPendingOrder(playground, order, orderFillEntry, tradierOrder, cache, database); err != nil {
 			log.Errorf("handleLiveOrders: failed to fill reconciled order: %v", err)
 			continue
 		}
@@ -143,15 +149,21 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 			// liveOrder := o
 			// livePlayground := o.Playground
 
-			trade, err := fillPendingOrder(o, orderFillEntry, tradierOrder, cache, database)
+			p, err := database.FetchPlayground(o.PlaygroundID)
+			if err != nil {
+				log.Errorf("handleLiveOrders: failed to fetch playground for reconciled order: %v", err)
+				continue
+			}
+
+			trade, err := fillPendingOrder(p, o, orderFillEntry, tradierOrder, cache, database)
 			if err != nil {
 				log.Errorf("handleLiveOrders: failed to fill live order: %v", err)
 				continue
 			}
 
 			// if p, ok := livePlayground.(*models.LivePlayground); ok {
-			if o.Playground.ReconcilePlayground != nil {
-				o.Playground.GetNewTradesQueue().Enqueue(trade)
+			if p.ReconcilePlayground != nil {
+				p.GetNewTradesQueue().Enqueue(trade)
 			} else {
 				log.Errorf("handleLiveOrders: playground is not live: %v", playground)
 			}

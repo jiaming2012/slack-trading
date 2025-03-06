@@ -20,27 +20,27 @@ func (m *MockDatabase) SetReconcilePlayground(playgroundId uuid.UUID, reconcileP
 }
 
 func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error {
-	playgroundId := order.Playground.ID
+	playgroundId := order.PlaygroundID
 
 	if _, found := m.orderRecords[playgroundId]; !found {
 		return fmt.Errorf("MockDatabase: playground not found in order records")
 	}
 
-	playground, found := m.playgrounds[playgroundId]
-	if !found {
-		return fmt.Errorf("MockDatabase: playground not found")
-	}
+	// playground, found := m.playgrounds[playgroundId]
+	// if !found {
+	// 	return fmt.Errorf("MockDatabase: playground not found")
+	// }
 
-	liveAccount, found := m.reconcilePlaygrounds[playgroundId]
-	if !found {
-		return fmt.Errorf("MockDatabase: live account not found")
-	}
+	// liveAccount, found := m.reconcilePlaygrounds[playgroundId]
+	// if !found {
+	// 	return fmt.Errorf("MockDatabase: live account not found")
+	// }
 
-	order.Playground = &Playground{
-		ID:                  playground.GetId(),
-		AccountType:         string(playground.GetLiveAccountType()),
-		ReconcilePlayground: liveAccount,
-	}
+	// order.Playground = &Playground{
+	// 	ID:                  playground.GetId(),
+	// 	AccountType:         string(playground.GetLiveAccountType()),
+	// 	ReconcilePlayground: liveAccount,
+	// }
 
 	bFoundOrderRecord := false
 	for idx, o := range m.orderRecords[playgroundId] {
@@ -155,8 +155,12 @@ func (m *MockDatabase) PopulatePlayground(p *Playground) error {
 	return nil
 }
 
-func (m *MockDatabase) CreateLiveAccount(broker IBroker, accountType LiveAccountType) (*LiveAccount, error) {
-	return nil, nil
+func (m *MockDatabase) PopulateLiveAccount(l *LiveAccount) error {
+	return nil
+}
+
+func (m *MockDatabase) LoadLiveAccounts(brokerMap map[CreateAccountRequestSource]IBroker) error {
+	return nil
 }
 
 func (m *MockDatabase) CreateTransaction(transaction func(tx *gorm.DB) error) error {
