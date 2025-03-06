@@ -3,18 +3,19 @@ package models
 import "fmt"
 
 type CreateOrderRequest struct {
-	Id             *uint                   `json:"id"`
-	Symbol         string                  `json:"symbol"`
-	Class          BacktesterOrderClass    `json:"class"`
-	Quantity       float64                 `json:"quantity"`
-	Side           TradierOrderSide        `json:"side"`
-	OrderType      BacktesterOrderType     `json:"type"`
-	Duration       BacktesterOrderDuration `json:"duration"`
-	RequestedPrice float64                 `json:"requested_price"`
-	Price          *float64                `json:"price"`
-	StopPrice      *float64                `json:"stop_price"`
-	Tag            string                  `json:"tag"`
-	CloseOrderId   *uint                   `json:"close_order_id"`
+	Id              *uint               `json:"id"`
+	ExternalOrderID *uint               `json:"external_order_id"`
+	Symbol          string              `json:"symbol"`
+	Class           OrderRecordClass    `json:"class"`
+	Quantity        float64             `json:"quantity"`
+	Side            TradierOrderSide    `json:"side"`
+	OrderType       OrderRecordType     `json:"type"`
+	Duration        OrderRecordDuration `json:"duration"`
+	RequestedPrice  float64             `json:"requested_price"`
+	Price           *float64            `json:"price"`
+	StopPrice       *float64            `json:"stop_price"`
+	Tag             string              `json:"tag"`
+	CloseOrderId    *uint               `json:"close_order_id"`
 }
 
 func (req *CreateOrderRequest) Validate() error {

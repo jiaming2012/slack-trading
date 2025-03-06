@@ -14,6 +14,14 @@ type MockBroker struct {
 	executePrice float64
 }
 
+func (b *MockBroker) GetSource() ILiveAccountSource {
+	return nil
+}
+
+func (b *MockBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
+	return nil, nil
+}
+
 func (b *MockBroker) SetFillOrderExecutionPrice(price float64) {
 	b.executePrice = price
 }
@@ -25,7 +33,7 @@ func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceEquityTradeRequest) {
 		AbsoluteQuantity:         float64(req.Quantity),
 		Side:                     string(req.Side),
 		Type:                     string(req.OrderType),
-		Status:                   string(BacktesterOrderStatusFilled),
+		Status:                   string(OrderRecordStatusFilled),
 		AvgFillPrice:             b.executePrice,
 		AbsoluteLastFillQuantity: float64(req.Quantity),
 	})
@@ -48,6 +56,10 @@ func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceEquityTradeReques
 
 func (b *MockBroker) FetchOrders(ctx context.Context) ([]*eventmodels.TradierOrder, error) {
 	return b.orders, nil
+}
+
+func (b *MockBroker) FetchBalances(url string, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
+	return eventmodels.FetchTradierBalancesResponseDTO{}, nil
 }
 
 func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*TradierQuoteDTO, error) {

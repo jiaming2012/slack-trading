@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,69 +13,234 @@ import (
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID    uuid.UUID         `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
-	Playground      PlaygroundSession `gorm:"foreignKey:PlaygroundID;references:ID"`
-	AccountType     string            `gorm:"column:account_type;type:text"`
-	ExternalOrderID uint              `gorm:"column:external_id;not null;index:idx_external_order_id"`
-	Class           string            `gorm:"column:class;type:text;not null"`
-	Symbol          string            `gorm:"column:symbol;type:text;not null"`
-	Side            string            `gorm:"column:side;type:text;not null"`
-	Quantity        float64           `gorm:"column:quantity;type:numeric;not null"`
-	OrderType       string            `gorm:"column:order_type;type:text;not null"`
-	Duration        string            `gorm:"column:duration;type:text;not null"`
-	Price           *float64          `gorm:"column:price;type:numeric"`
-	RequestedPrice  float64           `gorm:"column:requested_price;type:numeric"`
-	StopPrice       *float64          `gorm:"column:stop_price;type:numeric"`
-	Status          string            `gorm:"column:status;type:text;not null"`
-	RejectReason    *string           `gorm:"column:reject_reason;type:text"`
-	Tag             string            `gorm:"column:tag;type:text"`
-	Timestamp       time.Time         `gorm:"column:timestamp;type:timestamptz;not null"`
-	CloseOrderId    *uint             `gorm:"column:close_order_id"`
-	Closes          []*OrderRecord    `gorm:"many2many:order_closes"`
-	ClosedBy        []*TradeRecord    `gorm:"many2many:trade_closed_by"`
-	Reconciles      []*OrderRecord    `gorm:"many2many:order_reconciles"`
-	Trades          []*TradeRecord    `gorm:"foreignKey:OrderID"`
+	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
+	Playground       *Playground            `gorm:"foreignKey:PlaygroundID;references:ID"`
+	AccountType      string                 `gorm:"column:account_type;type:text"`
+	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id"`
+	Class            OrderRecordClass       `gorm:"column:class;type:text;not null"`
+	Symbol           string                 `gorm:"column:symbol;type:text;not null"`
+	Side             TradierOrderSide       `gorm:"column:side;type:text;not null"`
+	AbsoluteQuantity float64                `gorm:"column:quantity;type:numeric;not null"`
+	OrderType        OrderRecordType        `gorm:"column:order_type;type:text;not null"`
+	Duration         OrderRecordDuration    `gorm:"column:duration;type:text;not null"`
+	Price            *float64               `gorm:"column:price;type:numeric"`
+	RequestedPrice   float64                `gorm:"column:requested_price;type:numeric"`
+	StopPrice        *float64               `gorm:"column:stop_price;type:numeric"`
+	Status           OrderRecordStatus      `gorm:"column:status;type:text;not null"`
+	RejectReason     *string                `gorm:"column:reject_reason;type:text"`
+	Tag              string                 `gorm:"column:tag;type:text"`
+	Timestamp        time.Time              `gorm:"column:timestamp;type:timestamptz;not null"`
+	IsClose          bool                   `gorm:"-"`
+	CloseOrderId     *uint                  `gorm:"column:close_order_id"`
+	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
+	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by"`
+	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles"`
+	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID"`
+	instrument       eventmodels.Instrument `gorm:"-"`
 }
 
-func (o *OrderRecord) ToBacktesterOrder() (*BacktesterOrder, error) {
-	var closes []*BacktesterOrder
-	for _, c := range o.Closes {
-		co, err := c.ToBacktesterOrder()
-		if err != nil {
-			return nil, fmt.Errorf("OrderRecord.ToBacktesterOrder(): failed to convert close order: %w", err)
-		}
+func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
+	return o.instrument
+}
 
-		closes = append(closes, co)
+func (o *OrderRecord) Cancel() {
+	o.Status = OrderRecordStatusCancelled
+}
+
+func (o *OrderRecord) Reject(err error) {
+	reason := err.Error()
+	o.RejectReason = &reason
+	o.Status = OrderRecordStatusRejected
+}
+
+func (o *OrderRecord) GetQuantity() float64 {
+	if o.Side == TradierOrderSideSell || o.Side == TradierOrderSideSellShort {
+		return -o.AbsoluteQuantity
 	}
 
+	return o.AbsoluteQuantity
+}
+
+func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
+	if !o.Status.IsTradingAllowed() {
+		return false, ErrTradingNotAllowed
+	}
+
+	if trade.Price <= 0 {
+		return false, fmt.Errorf("trade price must be greater than 0")
+	}
+
+	filledQuantity := 0.0
 	for _, t := range o.Trades {
-		t.OrderRecord = o
+		filledQuantity += t.Quantity
 	}
 
-	for _, c := range o.ClosedBy {
-		c.OrderRecord = o
+	if trade.Quantity == 0 {
+		return false, fmt.Errorf("trade quantity must be non-zero")
 	}
 
-	return &BacktesterOrder{
-		ID:               o.ExternalOrderID,
-		PlaygroundID:     o.PlaygroundID,
-		Class:            BacktesterOrderClass(o.Class),
-		Symbol:           eventmodels.NewStockSymbol(o.Symbol),
-		Side:             TradierOrderSide(o.Side),
-		AbsoluteQuantity: o.Quantity,
-		Type:             BacktesterOrderType(o.OrderType),
-		Duration:         BacktesterOrderDuration(o.Duration),
-		Price:            o.Price,
-		RequestedPrice:   o.RequestedPrice,
-		StopPrice:        o.StopPrice,
-		Tag:              o.Tag,
-		Status:           BacktesterOrderStatus(o.Status),
-		Trades:           o.Trades,
-		RejectReason:     o.RejectReason,
-		CreateDate:       o.Timestamp,
-		Closes:           closes,
-		ClosedBy:         o.ClosedBy,
-		CloseOrderId:     o.CloseOrderId,
-		Reconciles:       o.Reconciles,
-	}, nil
+	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
+		return false, fmt.Errorf("trade quantity exceeds order quantity")
+	}
+
+	o.Trades = append(o.Trades, trade)
+
+	orderIsFilled := false
+	if o.GetFilledVolume() == o.GetQuantity() {
+		o.Status = OrderRecordStatusFilled
+		orderIsFilled = true
+	}
+
+	return orderIsFilled, nil
+}
+
+func (o *OrderRecord) GetStatus() OrderRecordStatus {
+	if !o.Status.IsTradingAllowed() {
+		return o.Status
+	}
+
+	if len(o.Trades) == 0 {
+		return OrderRecordStatusOpen
+	}
+
+	filledQuantity := o.GetFilledVolume()
+
+	if filledQuantity == o.GetQuantity() {
+		return OrderRecordStatusFilled
+	}
+
+	return OrderRecordStatusPartiallyFilled
+}
+
+func (o *OrderRecord) GetRemainingOpenQuantity() (float64, error) {
+	closedQty := 0.0
+	for _, trade := range o.ClosedBy {
+		closedQty += trade.Quantity
+	}
+
+	if o.Side == TradierOrderSideBuy {
+		return math.Max(0, o.GetFilledVolume()+closedQty), nil
+	} else if o.Side == TradierOrderSideSellShort {
+		return math.Min(0, o.GetFilledVolume()+closedQty), nil
+	} else {
+		return 0, fmt.Errorf("GetRemainingOpenQuantity: unsupported order side")
+	}
+}
+
+func (o *OrderRecord) GetFilledVolume() float64 {
+	filledVolume := 0.0
+	for _, trade := range o.Trades {
+		filledVolume += trade.Quantity
+	}
+
+	return filledVolume
+}
+
+func (o *OrderRecord) GetAvgFillPrice() float64 {
+	if len(o.Trades) == 0 {
+		return 0
+	}
+
+	total := 0.0
+	for _, trade := range o.Trades {
+		total += trade.Price
+	}
+
+	return total / float64(len(o.Trades))
+}
+
+func (o *OrderRecord) FetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, error) {
+	var orderRec OrderRecord
+	if result := db.First(&orderRec, "external_id = ? AND playground_id = ?", o.ID, playgroundId); result.Error != nil {
+		return nil, fmt.Errorf("failed to fetch order record from db: %w", result.Error)
+	}
+
+	return &orderRec, nil
+}
+
+// func (o *OrderRecord) UpdateOrderRecord(tx *gorm.DB, playgroundId uuid.UUID, liveAccountType *LiveAccountType) (*OrderRecord, []*UpdateOrderRecordRequest, error) {
+// 	if liveAccountType == nil {
+// 		typ := LiveAccountTypeSimulator
+// 		liveAccountType = &typ
+// 	}
+
+// 	orderRec := o.ToOrderRecord(playgroundId, *liveAccountType)
+
+// 	// create update order request for update closes
+// 	var updateOrderRequests []*UpdateOrderRecordRequest
+// 	if len(o.Closes) > 0 {
+// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+// 			Field:        "closes",
+// 			OrderRecord:  orderRec,
+// 			Closes:       o.Closes,
+// 			PlaygroundId: &playgroundId,
+// 		})
+// 	}
+
+// 	// create update order request for update closed by
+// 	if len(o.ClosedBy) > 0 {
+// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+// 			Field:        "closed_by",
+// 			OrderRecord:  orderRec,
+// 			ClosedBy:     o.ClosedBy,
+// 			PlaygroundId: &playgroundId,
+// 		})
+// 	}
+
+// 	// create update order request for update reconciled by
+// 	if len(o.Reconciles) > 0 {
+// 		updateOrderRequests = append(updateOrderRequests, &UpdateOrderRecordRequest{
+// 			Field:        "reconciles",
+// 			OrderRecord:  orderRec,
+// 			Reconciles:   o.Reconciles,
+// 			PlaygroundId: &playgroundId,
+// 		})
+// 	}
+
+// 	return orderRec, updateOrderRequests, nil
+// }
+
+func CopyOrderRecord(from *OrderRecord) *OrderRecord {
+	return NewOrderRecord(
+		from.ID,
+		from.ExternalOrderID,
+		from.PlaygroundID,
+		from.Class,
+		from.Timestamp,
+		from.instrument,
+		from.Side,
+		from.AbsoluteQuantity,
+		from.OrderType,
+		from.Duration,
+		from.RequestedPrice,
+		from.Price,
+		from.StopPrice,
+		from.Status,
+		from.Tag,
+		from.CloseOrderId,
+	)
+}
+
+func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, class OrderRecordClass, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
+	return &OrderRecord{
+		ExternalOrderID:  external_order_id,
+		PlaygroundID:     playgroundId,
+		Class:            class,
+		Timestamp:        createDate,
+		Symbol:           symbol.GetTicker(),
+		instrument:       symbol,
+		Side:             side,
+		AbsoluteQuantity: quantity,
+		OrderType:        orderType,
+		Duration:         duration,
+		RequestedPrice:   requestedPrice,
+		Price:            price,
+		StopPrice:        stopPrice,
+		Tag:              tag,
+		Status:           status,
+		Trades:           []*TradeRecord{},
+		ClosedBy:         []*TradeRecord{},
+		Closes:           []*OrderRecord{},
+		CloseOrderId:     closeOrderId,
+	}
 }

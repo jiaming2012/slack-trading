@@ -23,6 +23,108 @@ type TradierBroker struct {
 	quotesUrl      string
 	nonTradesToken string
 	tradesToken    string
+	Source         *LiveAccountSource
+}
+
+func (b *TradierBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
+	s := b.Source
+	responseDTO, err := b.FetchBalances(s.BalancesUrl, s.TradesApiKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch equity: %w", err)
+	}
+
+	switch responseDTO.Balances.AccountType {
+	case "margin":
+		break
+	case "pdt": // Pattern Day Trading account
+		break
+	default:
+		return nil, fmt.Errorf("unsupported account type: %s", responseDTO.Balances.AccountType)
+	}
+
+	return &eventmodels.FetchAccountEquityResponse{
+		Equity:  responseDTO.Balances.TotalEquity,
+		OpenPL:  responseDTO.Balances.OpenPL,
+		ClosePL: responseDTO.Balances.ClosePL,
+	}, nil
+}
+
+func (b *TradierBroker) GetSource() models.ILiveAccountSource {
+	return b.Source
+}
+
+func (b *TradierBroker) FetchBalances(url, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	res, err := client.Do(req)
+	if err != nil {
+		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %s", res.Status)
+	}
+
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to read response body: %w", err)
+	}
+
+	var resp eventmodels.FetchTradierBalancesResponseDTO
+	if err := json.Unmarshal(bytes, &resp); err != nil {
+		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to parse response: %w", err)
+	}
+
+	return resp, nil
+}
+
+func (b *TradierBroker) FetchTradierPositions(url string, token string) ([]eventmodels.TradierPositionDTO, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("FetchTradierPositions: failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("FetchTradierPositions: failed to fetch positions: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("FetchTradierPositions: failed to fetch positions: %s", res.Status)
+	}
+
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("FetchTradierPositions: failed to read response body: %w", err)
+	}
+
+	positions, err := utils.ParseTradierResponse[eventmodels.TradierPositionDTO](bytes)
+	if err != nil {
+		return nil, fmt.Errorf("FetchTradierPositions: failed to parse response: %w", err)
+	}
+
+	return positions, nil
 }
 
 func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
@@ -305,11 +407,12 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceEquityT
 	return response, nil
 }
 
-func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string) *TradierBroker {
+func NewTradierBroker(ordersUrl, quotesUrl, nonTradesToken, tradesToken string, source *LiveAccountSource) *TradierBroker {
 	return &TradierBroker{
 		ordersUrl:      ordersUrl,
 		quotesUrl:      quotesUrl,
 		nonTradesToken: nonTradesToken,
 		tradesToken:    tradesToken,
+		Source:         source,
 	}
 }

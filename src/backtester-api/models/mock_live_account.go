@@ -6,11 +6,7 @@ type MockLiveAccount struct {
 	reconcilePlayground *MockReconcilePlayground
 }
 
-func (a *MockLiveAccount) GetReconcilePlayground() IReconcilePlayground {
-	return a.reconcilePlayground
-}
-
-func (a *MockLiveAccount) PlaceOrder(account *LiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, error) {
+func (a *MockLiveAccount) PlaceOrder(account *LiveAccount, order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	return nil, nil
 }
 

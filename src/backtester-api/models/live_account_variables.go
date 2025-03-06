@@ -34,7 +34,7 @@ func (v LiveAccountVariables) GetTradierTradesOrderURL() (tradierTradesOrderURL 
 	}
 
 	tradierTradesUrlTemplate, e := v.GetTradierTradesUrlTemplate()
-	if err != nil {
+	if e != nil {
 		err = fmt.Errorf("LiveAccountVariables.GetTradierTradesOrderURL() failed: %w", e)
 		return
 	}

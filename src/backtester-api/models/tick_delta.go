@@ -5,7 +5,7 @@ import "github.com/jiaming2012/slack-trading/src/eventmodels"
 type TickDelta struct {
 	NewTrades          []*TradeRecord          `json:"new_trades,omitempty"`
 	NewCandles         []*BacktesterCandle     `json:"new_candles,omitempty"`
-	InvalidOrders      []*BacktesterOrder      `json:"invalid_orders,omitempty"`
+	InvalidOrders      []*OrderRecord          `json:"invalid_orders,omitempty"`
 	Events             []*TickDeltaEvent       `json:"events,omitempty"`
 	EquityPlot         *eventmodels.EquityPlot `json:"equity_plot,omitempty"`
 	CurrentTime        string                  `json:"current_time"`
@@ -24,5 +24,5 @@ const (
 )
 
 type LiquidationEvent struct {
-	OrdersPlaced []*BacktesterOrder `json:"orders_placed"`
+	OrdersPlaced []*OrderRecord `json:"orders_placed"`
 }

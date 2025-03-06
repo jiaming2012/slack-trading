@@ -14,10 +14,10 @@ func (o TradierOrderDataStore) Update(order *eventmodels.TradierOrder) []*Tradie
 	if o, ok := o[order.ID]; ok {
 		if o.Status != order.Status {
 			updates = append(updates, &TradierOrderModifyEvent{
-				OrderID: order.ID,
-				Field:   "status",
-				Old:     o.Status,
-				New:     order.Status,
+				TradierOrderID: order.ID,
+				Field:          "status",
+				Old:            o.Status,
+				New:            order.Status,
 			})
 
 			// creating the update event and doing the update inside the same method makes it harder to save

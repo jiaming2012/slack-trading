@@ -1,6 +1,6 @@
 package models
 
 type CloseByRequest struct {
-	Order    *BacktesterOrder
+	Order    *OrderRecord
 	Quantity float64
 }

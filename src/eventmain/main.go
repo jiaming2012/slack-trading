@@ -280,6 +280,69 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	return nil
 }
 
+func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, error) {
+	brokers := make(map[models.CreateAccountRequestSource]models.IBroker)
+	brokerName := "tradier"
+
+	for _, accountType := range []models.LiveAccountType{models.LiveAccountTypePaper, models.LiveAccountTypeMargin} {
+		vars := models.NewLiveAccountVariables(accountType)
+
+		// tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to get tradier balances url template: %w", err)
+		// }
+
+		accountID, err := vars.GetTradierTradesAccountID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier account id: %w", err)
+		}
+
+		tradierTradesBearerToken, err := vars.GetTradierTradesBearerToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
+		}
+
+		// balancesUrl := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
+
+		// accountSource := models.LiveAccountSource{
+		// 	Broker:       brokerName,
+		// 	AccountID:    accountID,
+		// 	AccountType:  accountType,
+		// 	BalancesUrl:  balancesUrl,
+		// 	TradesApiKey: tradierTradesBearerToken,
+		// }
+
+		tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier trades url template: %w", err)
+		}
+
+		tradesUrl := fmt.Sprintf(tradierTradesUrlTemplate, accountID)
+
+		stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
+		if err != nil {
+			return nil, fmt.Errorf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
+		}
+
+		tradierNonTradesBearerToken, err := vars.GetTradierNonTradesBearerToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier non trades bearer token: %w", err)
+		}
+
+		source := services.NewLiveAccountSource(brokerName, accountID, tradesUrl, tradierTradesBearerToken, accountType)
+
+		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
+
+		brokers[models.CreateAccountRequestSource{
+			AccountType: accountType,
+			Broker:      brokerName,
+			AccountID:   accountID,
+		}] = broker
+	}
+
+	return brokers, nil
+}
+
 var db *gorm.DB
 
 func run() {
@@ -615,11 +678,14 @@ func run() {
 	// Setup database service
 	dbService := data.NewDatabaseService(db)
 
-	// Setup api service
-	apiService := services.NewBacktesterApiService(projectsDir, polygonTickDataMachine, dbService)
+	// Setup brokers
+	brokerMap, err := getTradierBrokers()
+	if err != nil {
+		log.Fatalf("failed to get tradier brokers: %v", err)
+	}
 
 	// Setup backtester router playground
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, apiService, dbService); err != nil {
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 
@@ -654,7 +720,7 @@ func run() {
 
 	// start the twirp server
 	go func() {
-		rpc.SetupTwirpServer(apiService)
+		rpc.SetupTwirpServer(dbService)
 	}()
 
 	// Create channel for shutdown signals.

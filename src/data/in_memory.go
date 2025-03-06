@@ -35,77 +35,88 @@ func fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID
 	return orderRecord.ID, true
 }
 
-func saveOrderRecordsTx(tx *gorm.DB, playgroundId uuid.UUID, orders []*models.BacktesterOrder, liveAccountType *models.LiveAccountType) ([]*models.OrderRecord, error) {
-	var allOrderRecords []*models.OrderRecord
-	var updateOrderRequests []*models.UpdateOrderRecordRequest
+func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew bool) error {
+	// var allOrderRecords []*models.OrderRecord
+	// var updateOrderRequests []*models.UpdateOrderRecordRequest
 
-	for _, order := range orders {
-		var err error
+	err := _db.Transaction(func(tx *gorm.DB) error {
+		for _, order := range orders {
+			var err error
 
-		oRec, updateOrderReq, err := order.UpdateOrderRecord(tx, playgroundId, liveAccountType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert order to order record: %w", err)
+			// oRec, updateOrderReq, err := order.UpdateOrderRecord(tx, playgroundId, liveAccountType)
+			// if err != nil {
+			// 	return nil, fmt.Errorf("failed to convert order to order record: %w", err)
+			// }
+
+			// updateOrderRequests = append(updateOrderRequests, updateOrderReq...)
+
+			// todo: remove after refactoring away OrderRecord
+			// if oRec.ExternalOrderID > 0 {
+			// 	oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
+			// 	if found {
+			// 		oRec.ID = oID
+			// 	}
+			// }
+
+			if forceNew {
+				if err = tx.Create(&order).Error; err != nil {
+					return fmt.Errorf("failed to create order records: %w", err)
+				}
+			} else {
+				if err = tx.Save(&order).Error; err != nil {
+					return fmt.Errorf("failed to save order records: %w", err)
+				}
+			}
 		}
 
-		updateOrderRequests = append(updateOrderRequests, updateOrderReq...)
-
-		oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
-		if found {
-			oRec.ID = oID
-		}
-
-		if err = tx.Save(&oRec).Error; err != nil {
-			return nil, fmt.Errorf("failed to save order records: %w", err)
-		}
-
-		allOrderRecords = append(allOrderRecords, oRec)
-	}
+		return nil
+	})
 
 	// wait for all orders to be saved before updating the closes
-	for _, updateReq := range updateOrderRequests {
-		if updateReq == nil {
-			continue
-		}
+	// for _, updateReq := range updateOrderRequests {
+	// 	if updateReq == nil {
+	// 		continue
+	// 	}
 
-		switch updateReq.Field {
-		case "closes":
-			var closes []*models.OrderRecord
-			for _, order := range updateReq.Closes {
-				orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
-				if err != nil {
-					return nil, fmt.Errorf("updateOrderRequests: failed to fetch close order record from db: %w", err)
-				}
+	// 	switch updateReq.Field {
+	// 	case "closes":
+	// 		var closes []*models.OrderRecord
+	// 		for _, order := range updateReq.Closes {
+	// 			orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
+	// 			if err != nil {
+	// 				return nil, fmt.Errorf("updateOrderRequests: failed to fetch close order record from db: %w", err)
+	// 			}
 
-				closes = append(closes, orderRec)
-			}
+	// 			closes = append(closes, orderRec)
+	// 		}
 
-			updateReq.OrderRecord.Closes = closes
-			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
-			}
+	// 		updateReq.OrderRecord.Closes = closes
+	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
+	// 		}
 
-		case "reconciles":
-			updateReq.OrderRecord.Reconciles = updateReq.Reconciles
-			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (reconciled_by): %w", err)
-			}
+	// 	case "reconciles":
+	// 		updateReq.OrderRecord.Reconciles = updateReq.Reconciles
+	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (reconciled_by): %w", err)
+	// 		}
 
-		case "closed_by":
-			updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
-			if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-				return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
-			}
+	// 	case "closed_by":
+	// 		updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
+	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
+	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
+	// 		}
 
-		default:
-			return nil, fmt.Errorf("updateOrderRequests: field %s not implemented", updateReq.Field)
-		}
-	}
+	// 	default:
+	// 		return nil, fmt.Errorf("updateOrderRequests: field %s not implemented", updateReq.Field)
+	// 	}
+	// }
 
-	return allOrderRecords, nil
+	return err
 }
 
 func saveBalance(tx *gorm.DB, playgroundId uuid.UUID, balance float64) error {
-	if result := tx.Model(&models.PlaygroundSession{}).Where("id = ?", playgroundId).Update("balance", balance); result.Error != nil {
+	if result := tx.Model(&models.Playground{}).Where("id = ?", playgroundId).Update("balance", balance); result.Error != nil {
 		return fmt.Errorf("saveBalance: failed to save balance: %w", result.Error)
 	}
 
@@ -122,8 +133,8 @@ func findOrderRec(id uint, orders []*models.OrderRecord) (*models.OrderRecord, e
 	return nil, fmt.Errorf("findOrderRec: failed to find order record: %d", id)
 }
 
-func DeletePlaygroundSession(playground models.IPlayground) error {
-	session := &models.PlaygroundSession{
+func DeletePlaygroundSession(playground *models.Playground) error {
+	session := &models.Playground{
 		ID: playground.GetId(),
 	}
 
@@ -134,11 +145,11 @@ func DeletePlaygroundSession(playground models.IPlayground) error {
 	return nil
 }
 
-func SavePlayground(playground models.IPlayground) error {
+func SavePlayground(playground *models.Playground) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var txErr error
 
-		if _, txErr = savePlaygroundSessionTx(tx, playground); txErr != nil {
+		if txErr = savePlaygroundTx(tx, playground); txErr != nil {
 			return fmt.Errorf("failed to save playground session: %w", txErr)
 		}
 
@@ -148,12 +159,7 @@ func SavePlayground(playground models.IPlayground) error {
 			return errors.New("savePlayground: missing playground meta")
 		}
 
-		accountType := meta.LiveAccountType
-		if _, ok := playground.(*models.Playground); ok {
-			accountType = models.LiveAccountTypeSimulator
-		}
-
-		if _, txErr = saveOrderRecordsTx(tx, playgroundId, playground.GetOrders(), &accountType); txErr != nil {
+		if txErr = saveOrderRecordsTx(tx, playground.GetOrders(), false); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 
@@ -203,92 +209,97 @@ func SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity fl
 	return nil
 }
 
-func savePlaygroundSessionTx(tx *gorm.DB, playground models.IPlayground) (*models.PlaygroundSession, error) {
+func savePlaygroundTx(tx *gorm.DB, playground *models.Playground) error {
 	meta := playground.GetMeta()
 
 	if err := meta.Validate(); err != nil {
-		return nil, fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
+		return fmt.Errorf("savePlaygroundSession: invalid playground meta: %w", err)
 	}
 
-	repos := playground.GetRepositories()
-	var repoDTOs []models.CandleRepositoryDTO
-	for _, repo := range repos {
-		repoDTOs = append(repoDTOs, repo.ToDTO())
-	}
+	// repos := playground.GetRepositories()
+	// var repoDTOs []models.CandleRepositoryDTO
+	// for _, repo := range repos {
+	// 	repoDTOs = append(repoDTOs, repo.ToDTO())
+	// }
 
-	store := &models.PlaygroundSession{
-		ID:              playground.GetId(),
-		ClientID:        playground.GetClientId(),
-		CurrentTime:     playground.GetCurrentTime(),
-		StartAt:         meta.StartAt,
-		EndAt:           meta.EndAt,
-		Balance:         playground.GetBalance(),
-		StartingBalance: meta.InitialBalance,
-		Repositories:    models.CandleRepositoryRecord(repoDTOs),
-		Tags:            meta.Tags,
-		Env:             string(meta.Environment),
-	}
+	// playground.StartAt = meta.StartAt
+	// playground.EndAt = meta.EndAt
+	// playground.StartingBalance = meta.InitialBalance
+	// playground.Repositories = models.CandleRepositoryRecord(repoDTOs)
+	// playground.Tags = meta.Tags
+	// playground.Env = string(meta.Environment)
+
+	// store := &models.Playground{
+	// 	ID:              playground.GetId(),
+	// 	ClientID:        playground.GetClientId(),
+	// 	CurrentTime:     playground.GetCurrentTime(),
+	// 	StartAt:         meta.StartAt,
+	// 	EndAt:           meta.EndAt,
+	// 	Balance:         playground.GetBalance(),
+	// 	StartingBalance: meta.InitialBalance,
+	// 	Repositories:    models.CandleRepositoryRecord(repoDTOs),
+	// 	Tags:            meta.Tags,
+	// 	Env:             string(meta.Environment),
+	// }
 
 	// todo: only needed for reconcile playgrounds.
 	// live playgrounds can be used to reference reconcile playground source
-	if meta.Environment == models.PlaygroundEnvironmentLive {
-		if meta.SourceBroker == "" || meta.SourceAccountId == "" {
-			return nil, errors.New("savePlaygroundSession: missing broker, or account id")
-		}
+	// if meta.Environment == models.PlaygroundEnvironmentLive {
+	// 	if meta.SourceBroker == "" || meta.SourceAccountId == "" {
+	// 		return errors.New("savePlaygroundSession: missing broker, or account id")
+	// 	}
 
-		if err := meta.LiveAccountType.Validate(); err != nil {
-			return nil, fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
-		}
-
-		reconcilePlayground := playground.GetReconcilePlayground()
-		reconcilePlaygroundID := reconcilePlayground.GetId()
-		liveAccount := models.LiveAccount{
-			BrokerName:            meta.SourceBroker,
-			AccountId:             meta.SourceAccountId,
-			AccountType:           meta.LiveAccountType,
-			ReconcilePlayground:   reconcilePlayground,
-			ReconcilePlaygroundID: reconcilePlaygroundID,
-		}
-
-		if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
-			BrokerName:            meta.SourceBroker,
-			AccountId:             meta.SourceAccountId,
-			AccountType:           meta.LiveAccountType,
-			ReconcilePlaygroundID: reconcilePlaygroundID,
-		}).Error; err != nil {
-			return nil, fmt.Errorf("failed to fetch or create live account: %w", err)
-		}
-
-		store.LiveAccount = &liveAccount
-		store.Broker = &meta.SourceBroker
-		store.AccountID = &meta.SourceAccountId
-
-		var liveAccountType *string
-		if err := meta.LiveAccountType.Validate(); err == nil {
-			val := string(meta.LiveAccountType)
-			liveAccountType = &val
-		}
-		store.LiveAccountType = liveAccountType
+	if err := meta.LiveAccountType.Validate(); err != nil {
+		return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
 	}
 
-	if err := tx.Create(store).Error; err != nil {
-		return nil, fmt.Errorf("failed to save playground: %w", err)
+	// reconcilePlayground := playground.GetReconcilePlayground()
+	// reconcilePlaygroundID := reconcilePlayground.GetId()
+	// liveAccount := models.LiveAccount{
+	// 	BrokerName:            meta.SourceBroker,
+	// 	AccountId:             meta.SourceAccountId,
+	// 	AccountType:           meta.LiveAccountType,
+	// 	ReconcilePlayground:   reconcilePlayground,
+	// 	ReconcilePlaygroundID: reconcilePlaygroundID,
+	// }
+
+	// if err := tx.FirstOrCreate(&liveAccount, models.LiveAccount{
+	// 	BrokerName:            meta.SourceBroker,
+	// 	AccountId:             meta.SourceAccountId,
+	// 	AccountType:           meta.LiveAccountType,
+	// 	ReconcilePlaygroundID: reconcilePlaygroundID,
+	// }).Error; err != nil {
+	// 	return fmt.Errorf("failed to fetch or create live account: %w", err)
+	// }
+
+	// playground.LiveAccount = &liveAccount
+	// playground.BrokerName = &meta.SourceBroker
+	// playground.AccountID = &meta.SourceAccountId
+
+	// var liveAccountType *string
+	// if err := meta.LiveAccountType.Validate(); err == nil {
+	// 	val := string(meta.LiveAccountType)
+	// 	liveAccountType = &val
+	// }
+	// playground.AccountType = string(meta.LiveAccountType)
+	// }
+
+	if err := tx.Create(playground).Error; err != nil {
+		return fmt.Errorf("failed to save playground: %w", err)
 	}
 
-	return store, nil
+	return nil
 }
 
-func (s *DatabaseService) SavePlaygroundSession(playground models.IPlayground) (*models.PlaygroundSession, error) {
-	return savePlaygroundSessionTx(db, playground)
+func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) error {
+	return savePlaygroundTx(db, playground)
 }
 
-func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.BacktesterOrder, newBalance *float64, liveAccountType models.LiveAccountType) (*models.OrderRecord, error) {
-	var oRec *models.OrderRecord
-	
+func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var oRecs []*models.OrderRecord
 		var e error
-		if oRecs, e = saveOrderRecordsTx(tx, playgroundId, []*models.BacktesterOrder{order}, &liveAccountType); e != nil {
+		if e = saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); e != nil {
 			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", e)
 		}
 
@@ -296,10 +307,8 @@ func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.
 			return fmt.Errorf("saveOrderRecord: expected 1 order record, got %d", len(oRecs))
 		}
 
-		oRec = oRecs[0]
-
 		if newBalance != nil {
-			if err := saveBalance(tx, playgroundId, *newBalance); err != nil {
+			if err := saveBalance(tx, order.PlaygroundID, *newBalance); err != nil {
 				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", err)
 			}
 		}
@@ -308,8 +317,8 @@ func (s *DatabaseService) SaveOrderRecord(playgroundId uuid.UUID, order *models.
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
+		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
 	}
 
-	return oRec, nil
+	return nil
 }

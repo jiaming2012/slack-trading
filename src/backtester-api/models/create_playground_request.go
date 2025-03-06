@@ -16,7 +16,7 @@ type CreatePlaygroundRequest struct {
 	InitialBalance    float64                               `json:"starting_balance"`
 	Clock             CreateClockRequest                    `json:"clock"`
 	Repositories      []eventmodels.CreateRepositoryRequest `json:"repositories"`
-	BackfillOrders    []*BacktesterOrder                    `json:"orders"`
+	BackfillOrders    []*OrderRecord                        `json:"orders"`
 	EquityPlotRecords []*eventmodels.EquityPlot             `json:"equity_plot_records"`
 	CreatedAt         time.Time                             `json:"created_at"`
 	Tags              []string                              `json:"tags"`

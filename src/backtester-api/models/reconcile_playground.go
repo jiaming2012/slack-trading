@@ -8,24 +8,20 @@ import (
 )
 
 type ReconcilePlayground struct {
-	playground *Playground
-	// newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]
+	playground  *Playground
+	liveAccount ILiveAccount
 }
 
-func (r *ReconcilePlayground) GetOrders() []*BacktesterOrder {
+func (r *ReconcilePlayground) GetLiveAccount() ILiveAccount {
+	return r.liveAccount
+}
+
+func (r *ReconcilePlayground) GetOrders() []*OrderRecord {
 	return r.playground.GetOrders()
 }
 
 func (r *ReconcilePlayground) SetBroker(broker IBroker) error {
-	if r.playground.Broker != nil {
-		if broker == r.playground.Broker {
-			return nil
-		}
-
-		return fmt.Errorf("ReconcilePlayground: cannot change broker once set")
-	}
-
-	r.playground.SetBroker(broker)
+	r.liveAccount.SetBroker(broker)
 	return nil
 }
 
@@ -38,7 +34,7 @@ func (r *ReconcilePlayground) GetId() uuid.UUID {
 	return r.playground.GetId()
 }
 
-// func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]ExecutionFillRequest) (newTrades []*TradeRecord, invalidOrders []*BacktesterOrder, err error) {
+// func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]ExecutionFillRequest) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
 // 	performChecks := false
 // 	positionMap, err := r.playground.GetPositions()
 // 	if err != nil {
@@ -48,8 +44,8 @@ func (r *ReconcilePlayground) GetId() uuid.UUID {
 // 	return r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
 // }
 
-func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, []*BacktesterOrder, error) {
-	position, err := r.playground.GetPosition(order.Symbol, false)
+func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, []*OrderRecord, error) {
+	position, err := r.playground.GetPosition(order.GetInstrument(), false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get position: %w", err)
 	}
@@ -57,21 +53,21 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 	// create reconciliation orders
 	hasOppositeSides := position.Quantity*order.GetQuantity() < 0
 
-	var orders []*BacktesterOrder
+	var orders []*OrderRecord
 	if hasOppositeSides {
 		if position.Quantity >= 0 {
 			switch order.Side {
 			case TradierOrderSideSell, TradierOrderSideSellShort:
 				sell_qty := math.Min(position.Quantity, order.AbsoluteQuantity)
 				if sell_qty > 0 {
-					o1 := CopyBacktesterOrder(order)
+					o1 := CopyOrderRecord(order)
 					o1.AbsoluteQuantity = sell_qty
 					o1.Side = TradierOrderSideSell
 					orders = append(orders, o1)
 				}
 
 				if remaining_qty := order.AbsoluteQuantity - sell_qty; remaining_qty > 0 {
-					o2 := CopyBacktesterOrder(order)
+					o2 := CopyOrderRecord(order)
 					o2.AbsoluteQuantity = remaining_qty
 					o2.Side = TradierOrderSideSellShort
 					orders = append(orders, o2)
@@ -84,14 +80,14 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 			case TradierOrderSideBuy, TradierOrderSideBuyToCover:
 				buy_qty := math.Min(-position.Quantity, order.AbsoluteQuantity)
 				if buy_qty > 0 {
-					o1 := CopyBacktesterOrder(order)
+					o1 := CopyOrderRecord(order)
 					o1.AbsoluteQuantity = buy_qty
 					o1.Side = TradierOrderSideBuyToCover
 					orders = append(orders, o1)
 				}
 
 				if remaining_qty := order.AbsoluteQuantity - buy_qty; remaining_qty > 0 {
-					o2 := CopyBacktesterOrder(order)
+					o2 := CopyOrderRecord(order)
 					o2.AbsoluteQuantity = remaining_qty
 					o2.Side = TradierOrderSideBuy
 					orders = append(orders, o2)
@@ -102,7 +98,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 		}
 	} else {
 		// both position and order quantity have the same sign
-		o := CopyBacktesterOrder(order)
+		o := CopyOrderRecord(order)
 
 		switch order.Side {
 		case TradierOrderSideBuy, TradierOrderSideSellShort:
@@ -131,7 +127,7 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 
 	// send reconciliation orders to market
 	for _, o := range orders {
-		err = liveAccount.PlaceOrder(o)
+		err = r.liveAccount.PlaceOrder(o)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReconcilePlayground: failed to place order: %w", err)
 		}
@@ -140,9 +136,9 @@ func (r *ReconcilePlayground) PlaceOrder(liveAccount ILiveAccount, order *Backte
 	return changes, orders, nil
 }
 
-func NewReconcilePlayground(playground *Playground) (*ReconcilePlayground, error) {
+func NewReconcilePlayground(playground *Playground, liveAccount ILiveAccount) (*ReconcilePlayground, error) {
 	return &ReconcilePlayground{
-		playground: playground,
-		// newTradesQueue: newTradesQueue,
+		playground:  playground,
+		liveAccount: liveAccount,
 	}, nil
 }

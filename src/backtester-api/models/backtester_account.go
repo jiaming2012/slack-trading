@@ -11,8 +11,8 @@ type BacktesterAccount struct {
 	OrderNonce    uint // Used to generate unique order IDs
 	TradeNounce   uint // Used to generate unique trade IDs
 	Balance       float64
-	Orders        []*BacktesterOrder
-	PendingOrders []*BacktesterOrder
+	Orders        []*OrderRecord
+	PendingOrders []*OrderRecord
 	EquityPlot    []*eventmodels.EquityPlot
 }
 
@@ -21,23 +21,23 @@ func (a *BacktesterAccount) NextOrderID() uint {
 	return a.OrderNonce - 1
 }
 
-func (a *BacktesterAccount) GetActiveOrders() []*BacktesterOrder {
-	result := make([]*BacktesterOrder, 0)
+func (a *BacktesterAccount) GetActiveOrders() []*OrderRecord {
+	result := make([]*OrderRecord, 0)
 	for _, order := range a.Orders {
 		status := order.GetStatus()
-		if status == BacktesterOrderStatusOpen || status == BacktesterOrderStatusPartiallyFilled {
+		if status == OrderRecordStatusOpen || status == OrderRecordStatusPartiallyFilled {
 			result = append(result, order)
 		}
 	}
 	return result
 }
 
-func NewBacktesterAccount(balance float64, orders []*BacktesterOrder) *BacktesterAccount {
-	var pendingOrders []*BacktesterOrder
-	var activeOrders []*BacktesterOrder
+func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAccount {
+	var pendingOrders []*OrderRecord
+	var activeOrders []*OrderRecord
 
 	for _, order := range orders {
-		if order.Status == BacktesterOrderStatusPending {
+		if order.Status == OrderRecordStatusPending {
 			pendingOrders = append(pendingOrders, order)
 		} else {
 			activeOrders = append(activeOrders, order)

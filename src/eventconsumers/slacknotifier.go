@@ -87,7 +87,7 @@ func (c *SlackNotifierClient) SendMessage(msg string) error {
 func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *models.TradierOrderModifyEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderUpdateEventHandler <- %v", ev)
 
-	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.OrderID, ev.Field, ev.Old, ev.New)
+	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.TradierOrderID, ev.Field, ev.Old, ev.New)
 
 	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
 		log.Errorf("SlackNotifierClient.tradierOrderUpdateEventHandler: %v", err)

@@ -10,21 +10,21 @@ import (
 
 type TradeRecord struct {
 	gorm.Model
-	OrderRecord *OrderRecord     `gorm:"foreignKey:OrderID;references:ID"`
-	Order       *BacktesterOrder `gorm:"-"`
-	OrderID     uint             `gorm:"column:order_id;not null;index:idx_order_id"`
-	Timestamp   time.Time        `gorm:"column:timestamp;type:timestamptz;not null"`
-	Quantity    float64          `gorm:"column:quantity;type:numeric;not null"`
-	Price       float64          `gorm:"column:price;type:numeric;not null"`
+	OrderRecord *OrderRecord `gorm:"foreignKey:OrderID;references:ID"`
+	Order       *OrderRecord `gorm:"-"`
+	OrderID     uint         `gorm:"column:order_id;not null;index:idx_order_id"`
+	Timestamp   time.Time    `gorm:"column:timestamp;type:timestamptz;not null"`
+	Quantity    float64      `gorm:"column:quantity;type:numeric;not null"`
+	Price       float64      `gorm:"column:price;type:numeric;not null"`
 }
 
 func (t *TradeRecord) GetSymbol() eventmodels.Instrument {
 	if t.Order != nil {
-		return t.Order.Symbol
+		return t.Order.GetInstrument()	
 	} else if t.OrderRecord != nil {
 		switch t.OrderRecord.Class {
 		case "equity":
-			return eventmodels.NewStockSymbol(t.OrderRecord.Symbol)
+			return t.OrderRecord.GetInstrument()
 		default:
 			panic("invalid order class")
 		}
@@ -33,7 +33,7 @@ func (t *TradeRecord) GetSymbol() eventmodels.Instrument {
 	}
 }
 
-func NewTradeRecord(order *BacktesterOrder, timestamp time.Time, quantity float64, price float64) *TradeRecord {
+func NewTradeRecord(order *OrderRecord, timestamp time.Time, quantity float64, price float64) *TradeRecord {
 	return &TradeRecord{
 		Order:     order,
 		OrderID:   order.ID,

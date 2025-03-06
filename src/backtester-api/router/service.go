@@ -12,7 +12,7 @@ import (
 )
 
 func (s Server) fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
-	playground, err := s.apiService.GetDbService().GetPlayground(playgroundID)
+	playground, err := s.dbService.GetPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found", nil)
 	}
@@ -26,7 +26,7 @@ func (s Server) fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSym
 }
 
 func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*models.TickDelta, error) {
-	playground, err := s.apiService.GetDbService().GetPlayground(playgroundID)
+	playground, err := s.dbService.GetPlayground(playgroundID)
 	if err != nil {
 		return nil, fmt.Errorf("playground not found")
 	}

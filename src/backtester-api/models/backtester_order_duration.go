@@ -2,16 +2,16 @@ package models
 
 import "fmt"
 
-type BacktesterOrderDuration string
+type OrderRecordDuration string
 
 const (
-	Day        BacktesterOrderDuration = "day"
-	GTC        BacktesterOrderDuration = "gtc"
-	PreMarket  BacktesterOrderDuration = "pre"
-	PostMarket BacktesterOrderDuration = "post"
+	Day        OrderRecordDuration = "day"
+	GTC        OrderRecordDuration = "gtc"
+	PreMarket  OrderRecordDuration = "pre"
+	PostMarket OrderRecordDuration = "post"
 )
 
-func (d BacktesterOrderDuration) Validate() error {
+func (d OrderRecordDuration) Validate() error {
 	switch d {
 	case Day, GTC, PreMarket, PostMarket:
 		return nil

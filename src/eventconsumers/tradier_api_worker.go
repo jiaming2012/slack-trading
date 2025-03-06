@@ -387,41 +387,20 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 		return
 	}
 
-	for _, liveAccountQuery := range liveAccounts {
-		if liveAccountQuery.BrokerName != "tradier" {
-			log.Debugf("skipping account %d: unsupported broker %s", liveAccountQuery.ID, liveAccountQuery.BrokerName)
+	for _, account := range liveAccounts {
+		if account.BrokerName != "tradier" {
+			log.Debugf("skipping account %d: unsupported broker %s", account.ID, account.BrokerName)
 			continue
 		}
 
-		account, found, err := w.dbService.FetchLiveAccount(&models.CreateAccountRequestSource{
-			Broker:      liveAccountQuery.BrokerName,
-			AccountID:   liveAccountQuery.AccountId,
-			AccountType: liveAccountQuery.AccountType,
-		})
+		if account.ID == 0 {
+			log.Errorf("live account is not set")
+			continue
+		}
 
+		resp, err := account.Broker.FetchEquity()
 		if err != nil {
-			log.Errorf("failed to fetch live account: %v", err)
-			continue
-		}
-
-		if !found {
-			log.Errorf("live account not found: %d", liveAccountQuery.ID)
-			continue
-		}
-
-		var inMemoryLiveAccount *models.LiveAccount
-		if account != nil {
-			var ok bool
-			inMemoryLiveAccount, ok = account.(*models.LiveAccount)
-			if !ok {
-				log.Errorf("failed to cast account to live account: %v", account)
-				continue
-			}
-		}
-
-		resp, err := inMemoryLiveAccount.Source.FetchEquity()
-		if err != nil {
-			log.Errorf("failed to fetch equity for (%v, %v): %v", inMemoryLiveAccount.AccountId, inMemoryLiveAccount.AccountType, err)
+			log.Errorf("failed to fetch equity for (%v, %v): %v", account.AccountId, account.AccountType, err)
 			continue
 		}
 
@@ -430,13 +409,13 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 		if err := w.db.Transaction(func(tx *gorm.DB) error {
 			if err := w.db.Create(&models.LiveAccountPlot{
 				Timestamp:     now,
-				LiveAccountID: liveAccountQuery.ID,
+				LiveAccountID: account.ID,
 				Equity:        &equity,
 			}).Error; err != nil {
 				return fmt.Errorf("failed to create live account plot: %w", err)
 			}
 
-			if err := w.db.Model(&liveAccountQuery).Update("plot_updated_at", todayAt1615).Error; err != nil {
+			if err := w.db.Model(&account).Update("plot_updated_at", todayAt1615).Error; err != nil {
 				return fmt.Errorf("failed to update live account: %w", err)
 			}
 

@@ -107,11 +107,11 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 	}()
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], apiService *services.BacktesterApiService, dbService *data.DatabaseService) error {
+func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker) error {
 	client = eventservices.NewPolygonTickDataMachine(apiKey)
 	projectsDirectory = projectsDir
 
-	if err := loadData(apiService, dbService); err != nil {
+	if err := loadData(dbService, brokerMap); err != nil {
 		return fmt.Errorf("SetupHandler: failed to load data: %w", err)
 	}
 

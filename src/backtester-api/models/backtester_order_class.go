@@ -2,15 +2,15 @@ package models
 
 import "fmt"
 
-type BacktesterOrderClass string
+type OrderRecordClass string
 
 const (
-	BacktesterOrderClassEquity BacktesterOrderClass = "equity"
+	OrderRecordClassEquity OrderRecordClass = "equity"
 )
 
-func (c BacktesterOrderClass) Validate() error {
+func (c OrderRecordClass) Validate() error {
 	switch c {
-	case BacktesterOrderClassEquity:
+	case OrderRecordClassEquity:
 		return nil
 	default:
 		return fmt.Errorf("invalid order class: %s", c)

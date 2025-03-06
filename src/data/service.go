@@ -9,7 +9,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func (s *DatabaseService) GetPlaygroundByClientId(clientId string) models.IPlayground {
+func (s *DatabaseService) GetPlaygroundByClientId(clientId string) *models.Playground {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -23,7 +23,7 @@ func (s *DatabaseService) GetPlaygroundByClientId(clientId string) models.IPlayg
 	return nil
 }
 
-func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (models.IPlayground, error) {
+func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (*models.Playground, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -35,11 +35,11 @@ func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (models.IPlaygro
 	return playground, nil
 }
 
-func (s *DatabaseService) GetPlaygrounds() []models.IPlayground {
+func (s *DatabaseService) GetPlaygrounds() []*models.Playground {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var slice []models.IPlayground
+	var slice []*models.Playground
 	for _, playground := range s.playgrounds {
 		slice = append(slice, playground)
 	}

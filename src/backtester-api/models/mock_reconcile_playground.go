@@ -4,14 +4,14 @@ import "github.com/google/uuid"
 
 type MockReconcilePlayground struct {
 	broker IBroker
-	orders []*BacktesterOrder
+	orders []*OrderRecord
 }
 
-func (p *MockReconcilePlayground) GetOrders() []*BacktesterOrder {
+func (p *MockReconcilePlayground) GetOrders() []*OrderRecord {
 	return p.orders
 }
 
-func (p *MockReconcilePlayground) PlaceOrder(account ILiveAccount, order *BacktesterOrder) ([]*PlaceOrderChanges, []*BacktesterOrder, error) {
+func (p *MockReconcilePlayground) PlaceOrder(account ILiveAccount, order *OrderRecord) ([]*PlaceOrderChanges, []*OrderRecord, error) {
 	p.orders = append(p.orders, order)
 	return nil, nil, nil
 }

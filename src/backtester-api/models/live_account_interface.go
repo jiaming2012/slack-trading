@@ -1,6 +1,9 @@
 package models
 
 type ILiveAccount interface {
-	GetReconcilePlayground() IReconcilePlayground
-	PlaceOrder(order *BacktesterOrder) error
+	GetId() uint
+	PlaceOrder(order *OrderRecord) error
+	GetBroker() IBroker
+	SetBroker(broker IBroker)
+	GetDatabase() IDatabaseService
 }

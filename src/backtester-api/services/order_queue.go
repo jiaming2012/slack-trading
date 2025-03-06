@@ -19,30 +19,31 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 
 	for _, order := range pendingOrders {
 		var liveAccountType models.LiveAccountType
-		if order.Playground.LiveAccountType == nil {
-			log.Errorf("UpdateTradierOrderQueue: live account type not found: %v", order.Playground)
-			continue
-		}
 
-		liveAccountType = models.LiveAccountType(*order.Playground.LiveAccountType)
+		liveAccountType = models.LiveAccountType(order.Playground.AccountType)
 		if err := liveAccountType.Validate(); err != nil {
 			log.Errorf("UpdateTradierOrderQueue: invalid account type: %v", err)
 			continue
 		}
 
-		liveAccount := order.Playground.LiveAccount
+		liveAccount := order.Playground.GetReconcilePlayground().GetLiveAccount()
 		if liveAccount == nil {
 			log.Errorf("UpdateTradierOrderQueue: live account not found: %v", order.Playground)
 			continue
 		}
 
-		tradierOrder, err := liveAccount.Broker.FetchOrder(order.ExternalOrderID, liveAccountType)
+		if order.ExternalOrderID == nil {
+			log.Errorf("UpdateTradierOrderQueue: external order id not found: %v", order)
+			continue
+		}
+
+		tradierOrder, err := liveAccount.GetBroker().FetchOrder(*order.ExternalOrderID, liveAccountType)
 		if err != nil {
 			log.Errorf("UpdateTradierOrderQueue: failed to fetch order: %v", err)
 			continue
 		}
 
-		if tradierOrder.Status == string(models.BacktesterOrderStatusFilled) {
+		if tradierOrder.Status == string(models.OrderRecordStatusFilled) {
 			rec := order
 			sink.Enqueue(&models.TradierOrderUpdateEvent{
 				CreateOrder: &models.TradierOrderCreateEvent{
@@ -52,19 +53,23 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			})
 
 			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
-		} else if tradierOrder.Status == string(models.BacktesterOrderStatusRejected) {
+		} else if tradierOrder.Status == string(models.OrderRecordStatusRejected) {
 			reason := "rejected by broker"
 			if tradierOrder.ReasonDescription != nil {
 				reason = *tradierOrder.ReasonDescription
 			}
 
-			sink.Enqueue(&models.TradierOrderUpdateEvent{
+			if order.ExternalOrderID == nil {
+				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
+				continue
+			}
 
+			sink.Enqueue(&models.TradierOrderUpdateEvent{
 				ModifyOrder: &models.TradierOrderModifyEvent{
-					PlaygroundId: order.PlaygroundID,
-					OrderID: order.ExternalOrderID,
-					Field:   "status",
-					New:     reason,
+					PlaygroundId:   order.PlaygroundID,
+					TradierOrderID: *order.ExternalOrderID,
+					Field:          "status",
+					New:            reason,
 				},
 			})
 		}
@@ -77,15 +82,15 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 	return nil
 }
 
-func fillPendingOrder(playground models.IPlayground, order *models.BacktesterOrder, orderFillEntry models.ExecutionFillRequest, tradierOrder uint, cache *models.OrderCache, database models.IDatabaseService) (*models.TradeRecord, error) {
+func fillPendingOrder(order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, tradierOrder uint, cache *models.OrderCache, database models.IDatabaseService) (*models.TradeRecord, error) {
 	performChecks := false
 
-	positions, err := playground.GetPositions()
+	positions, err := order.Playground.GetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("handleLiveOrders: failed to get positions: %w", err)
 	}
 
-	newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
+	newTrade, invalidOrder, err := order.Playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
 			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
@@ -101,8 +106,8 @@ func fillPendingOrder(playground models.IPlayground, order *models.BacktesterOrd
 	}
 
 	// Resave the order to update the status and close_id
-	balance := playground.GetBalance()
-	if _, err := database.SaveOrderRecord(playground.GetId(), order, &balance, playground.GetLiveAccountType()); err != nil {
+	balance := order.Playground.GetBalance()
+	if err := database.SaveOrderRecord(order, &balance, false); err != nil {
 		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 			cache.Remove(tradierOrder, false)
@@ -128,27 +133,25 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 			continue
 		}
 
-		if _, err = fillPendingOrder(playground, order, orderFillEntry, tradierOrder, cache, database); err != nil {
+		if _, err = fillPendingOrder(order, orderFillEntry, tradierOrder, cache, database); err != nil {
 			log.Errorf("handleLiveOrders: failed to fill reconciled order: %v", err)
 			continue
 		}
 
 		// Update live order that was reconciled
 		for _, o := range order.Reconciles {
-			livePlayground, liveOrder, err := database.FindOrder(o.PlaygroundID, o.ExternalOrderID)
-			if err != nil {
-				log.Errorf("handleLiveOrders: failed to find live order: %v", err)
-				continue
-			}
+			// liveOrder := o
+			// livePlayground := o.Playground
 
-			trade, err := fillPendingOrder(livePlayground, liveOrder, orderFillEntry, tradierOrder, cache, database)
+			trade, err := fillPendingOrder(o, orderFillEntry, tradierOrder, cache, database)
 			if err != nil {
 				log.Errorf("handleLiveOrders: failed to fill live order: %v", err)
 				continue
 			}
 
-			if p, ok := livePlayground.(*models.LivePlayground); ok {
-				p.GetNewTradeQueue().Enqueue(trade)
+			// if p, ok := livePlayground.(*models.LivePlayground); ok {
+			if o.Playground.ReconcilePlayground != nil {
+				o.Playground.GetNewTradesQueue().Enqueue(trade)
 			} else {
 				log.Errorf("handleLiveOrders: playground is not live: %v", playground)
 			}
@@ -173,7 +176,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 
 		hasUpdates = true
 		if event.CreateOrder != nil {
-			if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusFilled) {
+			if event.CreateOrder.Order.Status == string(models.OrderRecordStatusFilled) {
 				cache.Add(event.CreateOrder.Order, models.ExecutionFillRequest{
 					PlaygroundId: event.CreateOrder.OrderRecord.PlaygroundID,
 					Time:         event.CreateOrder.Order.CreateDate,
@@ -182,7 +185,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 				})
 
 				log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)
-			} else if event.CreateOrder.Order.Status == string(models.BacktesterOrderStatusPending) {
+			} else if event.CreateOrder.Order.Status == string(models.OrderRecordStatusPending) {
 				log.Debugf("handleLiveOrders: order pending: %v", event.CreateOrder.Order)
 			} else {
 				log.Fatalf("handleLiveOrders: unknown order status: %v", event.CreateOrder.Order.Status)
@@ -190,7 +193,8 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 
 		} else if event.ModifyOrder != nil {
 			if event.ModifyOrder.Field == "status" {
-				playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.OrderID)
+				// todo: remove once all orders have links to playground, after PlaygroundSession refactor
+				playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.TradierOrderID)
 
 				if err == nil {
 					reason, ok := event.ModifyOrder.New.(string)
@@ -199,15 +203,15 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 						continue
 					}
 
-					if err := playground.RejectOrder(order, reason); err != nil {
+					if err := playground.RejectOrder(order, reason, database); err != nil {
 						log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 					}
 
-					if _, err := database.SaveOrderRecord(playground.GetId(), order, nil, playground.GetLiveAccountType()); err != nil {
+					if err := database.SaveOrderRecord(order, nil, false); err != nil {
 						log.Fatalf("handleLiveOrders: failed to save order record: %v", err)
 					}
 				} else {
-					log.Warnf("handleLiveOrders: order not found: %v", event.ModifyOrder.OrderID)
+					log.Warnf("handleLiveOrders: order not found: %v", event.ModifyOrder.TradierOrderID)
 				}
 			}
 		} else if event.DeleteOrder != nil {

@@ -6,5 +6,5 @@ type GetAccountResponse struct {
 	Equity     float64              `json:"equity"`
 	FreeMargin float64              `json:"free_margin"`
 	Positions  map[string]*Position `json:"positions"`
-	Orders     []*BacktesterOrder   `json:"orders"`
+	Orders     []*OrderRecord       `json:"orders"`
 }

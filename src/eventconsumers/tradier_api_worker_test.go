@@ -101,7 +101,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		// assert
 		require.Equal(t, 0, len(newOrderEvents))
 		require.Equal(t, 1, len(updateOrderEvents))
-		require.Equal(t, uint64(3), updateOrderEvents[0].OrderID)
+		require.Equal(t, uint64(3), updateOrderEvents[0].TradierOrderID)
 		require.Equal(t, "status", updateOrderEvents[0].Field)
 		require.Equal(t, "open", updateOrderEvents[0].Old)
 		require.Equal(t, "filled", updateOrderEvents[0].New)
