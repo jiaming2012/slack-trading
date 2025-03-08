@@ -7,4 +7,5 @@ type IReconcilePlayground interface {
 	GetOrders() []*OrderRecord
 	GetId() uuid.UUID
 	GetLiveAccount() ILiveAccount
+	GetPlayground() *Playground
 }

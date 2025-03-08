@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,11 +13,58 @@ import (
 type MockDatabase struct {
 	orderRecords         map[uuid.UUID][]*OrderRecord
 	playgrounds          map[uuid.UUID]*Playground
-	reconcilePlaygrounds map[uuid.UUID]IReconcilePlayground
+	reconcilePlaygrounds map[CreateAccountRequestSource]IReconcilePlayground
+	liveAccounts         map[CreateAccountRequestSource]ILiveAccount
 }
 
-func (m *MockDatabase) SetReconcilePlayground(playgroundId uuid.UUID, reconcilePlayground IReconcilePlayground) {
-	m.reconcilePlaygrounds[playgroundId] = reconcilePlayground
+func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
+	period := time.Minute
+	source := eventmodels.CandleRepositorySource{
+		Type: "test",
+	}
+
+	var symbol eventmodels.StockSymbol
+	if len(req.Repositories) == 0 {
+		symbol = eventmodels.NewStockSymbol("AAPL")
+	} else if len(req.Repositories) == 1 {
+		symbol = eventmodels.NewStockSymbol(req.Repositories[0].Symbol)
+	} else {
+		return fmt.Errorf("only one repository is supported in mock environment")
+	}
+
+	startDate, err := time.Parse("2006-01-02", req.Clock.StartDate)
+	if err != nil {
+		return fmt.Errorf("failed to parse start date: %v", err)
+	}
+
+	stopDate, err := time.Parse("2006-01-02", req.Clock.StopDate)
+	if err != nil {
+		return fmt.Errorf("failed to parse end date: %v", err)
+	}
+
+	clock := NewClock(startDate, stopDate, nil)
+
+	feed := []*eventmodels.PolygonAggregateBarV2{
+		{
+			Timestamp: startDate,
+			Open:      100.0,
+			High:      101.0,
+			Low:       99.0,
+			Close:     100.5,
+			Volume:    1000,
+		},
+	}
+
+	repo, err := NewCandleRepository(symbol, period, feed, []string{}, nil, 0, source)
+	if err != nil {
+		return fmt.Errorf("failed to create mock candle repository: %v", err)
+	}
+
+	return PopulatePlayground(playground, req, clock, clock.CurrentTime, repo)
+}
+
+func (m *MockDatabase) SetReconcilePlayground(source CreateAccountRequestSource, reconcilePlayground IReconcilePlayground) {
+	m.reconcilePlaygrounds[source] = reconcilePlayground
 }
 
 func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error {
@@ -68,7 +116,12 @@ func (m *MockDatabase) SavePlaygroundSession(playground *Playground) error {
 	return nil
 }
 
+func (m *MockDatabase) GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error) {
+	return m.liveAccounts[source], nil
+}
+
 func (m *MockDatabase) SaveLiveAccount(source *CreateAccountRequestSource, liveAccount ILiveAccount) error {
+	m.liveAccounts[*source] = liveAccount
 	return nil
 }
 
@@ -81,7 +134,12 @@ func (m *MockDatabase) FetchLiveAccount(source *CreateAccountRequestSource) (ILi
 }
 
 func (m *MockDatabase) FetchPlayground(playgroundId uuid.UUID) (*Playground, error) {
-	return nil, nil
+	playground, found := m.playgrounds[playgroundId]
+	if !found {
+		return nil, fmt.Errorf("MockDatabase: playground not found")
+	}
+
+	return playground, nil
 }
 
 func (m *MockDatabase) GetPlaygrounds() []*Playground {
@@ -121,7 +179,8 @@ func (m *MockDatabase) FindOrder(playgroundId uuid.UUID, id uint) (*Playground, 
 }
 
 func (m *MockDatabase) FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error) {
-	return nil, false, nil
+	p, found := m.reconcilePlaygrounds[source]
+	return p, found, nil
 }
 
 func (m *MockDatabase) FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error) {
@@ -171,6 +230,6 @@ func NewMockDatabase() *MockDatabase {
 	return &MockDatabase{
 		orderRecords:         make(map[uuid.UUID][]*OrderRecord),
 		playgrounds:          make(map[uuid.UUID]*Playground),
-		reconcilePlaygrounds: make(map[uuid.UUID]IReconcilePlayground),
+		reconcilePlaygrounds: make(map[CreateAccountRequestSource]IReconcilePlayground),
 	}
 }

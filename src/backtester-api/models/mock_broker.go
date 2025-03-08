@@ -12,10 +12,11 @@ type MockBroker struct {
 	orders       []*eventmodels.TradierOrder
 	orderId      uint
 	executePrice float64
+	source       ILiveAccountSource
 }
 
 func (b *MockBroker) GetSource() ILiveAccountSource {
-	return nil
+	return b.source
 }
 
 func (b *MockBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
@@ -83,9 +84,11 @@ func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*eve
 }
 
 func NewMockBroker(orderIdStartIndex uint) *MockBroker {
+	source := NewMockLiveAccountSource()
 	return &MockBroker{
 		requests: make([]*PlaceEquityTradeRequest, 0),
 		orders:   make([]*eventmodels.TradierOrder, 0),
 		orderId:  orderIdStartIndex,
+		source:   source,
 	}
 }

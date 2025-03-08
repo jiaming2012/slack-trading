@@ -175,9 +175,9 @@ func (o *OrderRecord) Validate() error {
 	return nil
 }
 
-func CopyOrderRecord(from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
+func CopyOrderRecord(orderID uint, from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
 	return NewOrderRecord(
-		from.ID,
+		orderID,
 		from.ExternalOrderID,
 		from.PlaygroundID,
 		from.Class,
@@ -198,7 +198,7 @@ func CopyOrderRecord(from *OrderRecord, liveAccountType LiveAccountType) *OrderR
 }
 
 func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
-	return &OrderRecord{
+	o := &OrderRecord{
 		ExternalOrderID:  external_order_id,
 		PlaygroundID:     playgroundId,
 		Class:            class,
@@ -220,4 +220,10 @@ func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, cl
 		Closes:           []*OrderRecord{},
 		CloseOrderId:     closeOrderId,
 	}
+
+	if id != 0 {
+		o.ID = id
+	}
+
+	return o
 }

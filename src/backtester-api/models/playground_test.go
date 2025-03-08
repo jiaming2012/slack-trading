@@ -203,11 +203,11 @@ func TestLiquidation(t *testing.T) {
 
 		liquidationOrders := delta.Events[0].LiquidationEvent.OrdersPlaced
 		require.Len(t, liquidationOrders, 2)
-		require.Equal(t, symbol2, liquidationOrders[0].Symbol)
+		require.Equal(t, symbol2, liquidationOrders[0].GetInstrument())
 		require.Equal(t, OrderRecordStatusFilled, liquidationOrders[0].GetStatus())
 		require.Contains(t, liquidationOrders[0].Tag, "liquidation - equity of")
 		require.Contains(t, liquidationOrders[0].Tag, "(maintenance margin)")
-		require.Equal(t, symbol1, liquidationOrders[1].Symbol)
+		require.Equal(t, symbol1, liquidationOrders[1].GetInstrument())
 		require.Equal(t, OrderRecordStatusFilled, liquidationOrders[1].GetStatus())
 		require.Contains(t, liquidationOrders[1].Tag, "liquidation - equity of")
 		require.Contains(t, liquidationOrders[1].Tag, "(maintenance margin)")
@@ -259,6 +259,7 @@ func TestLiquidation(t *testing.T) {
 
 		balance := 1000.0
 		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo1, repo2)
+		require.NoError(t, err)
 
 		order1 := NewOrderRecord(1, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, symbol1, TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
 		changes, err := playground.PlaceOrder(order1)

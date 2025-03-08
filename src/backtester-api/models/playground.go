@@ -75,7 +75,7 @@ func (p *Playground) TableName() string {
 }
 
 func (p *Playground) GetReconcilePlayground() IReconcilePlayground {
-	return nil
+	return p.ReconcilePlayground
 }
 
 func (p *Playground) SetBalance(balance float64) {
@@ -165,7 +165,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 	if !order.Status.IsTradingAllowed() {
 		err := fmt.Errorf("order %d status is %s, which is no longer tradable", order.ID, order.Status)
 		order.Reject(err)
-		return fmt.Errorf("commitPendingOrders: %w", err)
+		return fmt.Errorf("commitTradableOrderToOrderQueue: %w", err)
 	}
 
 	// check if the order is valid
@@ -173,7 +173,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 	if performChecks {
 		if orderQuantity == 0 {
 			order.Reject(ErrInvalidOrderVolumeZero)
-			return fmt.Errorf("commitPendingOrders: order %d has zero quantity", order.ID)
+			return fmt.Errorf("commitTradableOrderToOrderQueue: order %d has zero quantity", order.ID)
 		}
 	}
 
@@ -191,7 +191,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 				if orderQuantity > math.Abs(position.Quantity) {
 					if performChecks {
 						order.Reject(ErrInvalidOrderVolumeLongVolume)
-						return fmt.Errorf("commitPendingOrders: order quantity exceeds short position of %.2f", position.Quantity)
+						return fmt.Errorf("commitTradableOrderToOrderQueue: order quantity exceeds short position of %.2f", position.Quantity)
 					}
 				} else {
 					performMarginCheck = false
@@ -200,7 +200,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 				if math.Abs(orderQuantity) > position.Quantity {
 					if performChecks {
 						order.Reject(ErrInvalidOrderVolumeShortVolume)
-						return fmt.Errorf("commitPendingOrders: order quantity exceeds long position of %.2f", position.Quantity)
+						return fmt.Errorf("commitTradableOrderToOrderQueue: order quantity exceeds long position of %.2f", position.Quantity)
 					}
 				} else {
 					performMarginCheck = false
@@ -212,17 +212,17 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 	// check if the order can be filled
 	if performMarginCheck && freeMargin <= initialMargin {
 		order.Reject(fmt.Errorf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin))
-		return fmt.Errorf("commitPendingOrders: order %d has insufficient free margin", order.ID)
+		return fmt.Errorf("commitTradableOrderToOrderQueue: order %d has insufficient free margin", order.ID)
 
 	}
 
 	return nil
 }
 
-func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions map[eventmodels.Instrument]*Position, orderFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *OrderRecord, err error) {
+func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions map[eventmodels.Instrument]*Position, executionFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *OrderRecord, err error) {
 	for _, o := range p.account.PendingOrders {
 		if o == order {
-			if err := p.commitTradableOrderToOrderQueue(order, startingPositions, orderFillRequest, performChecks); err != nil {
+			if err := p.commitTradableOrderToOrderQueue(order, startingPositions, executionFillRequest, performChecks); err != nil {
 				order.Reject(err)
 				invalidOrder = order
 
@@ -233,7 +233,7 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 				return nil, invalidOrder, nil
 			}
 
-			newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, orderFillRequest, startingPositions)
+			newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, executionFillRequest, startingPositions)
 			if err != nil {
 				order.Reject(err)
 				invalidOrder = order
@@ -259,7 +259,7 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 	return nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
 }
 
-func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, orderFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
+func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, executionFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
 	pendingOrders := make([]*OrderRecord, len(p.account.PendingOrders))
 
 	copy(pendingOrders, p.account.PendingOrders)
@@ -278,7 +278,7 @@ func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instr
 		// 	continue
 		// }
 
-		orderFillEntry, found := orderFillMap[order.ID]
+		orderFillEntry, found := executionFillMap[order.ID]
 		if !found {
 			log.Warnf("error finding order filled entry price for order: %v", order.ID)
 			continue
@@ -841,10 +841,10 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		}
 
 		orderFillPriceMap[order.ID] = ExecutionFillRequest{
-			PlaygroundId: p.ID,
-			Price:        price,
-			Quantity:     order.GetQuantity(),
-			Time:         p.clock.CurrentTime,
+			// PlaygroundId: p.ID,
+			Price:    price,
+			Quantity: order.GetQuantity(),
+			Time:     p.clock.CurrentTime,
 		}
 	}
 
@@ -997,10 +997,10 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		}
 
 		orderExecutionRequests[order.ID] = ExecutionFillRequest{
-			PlaygroundId: p.ID,
-			Price:        price,
-			Time:         p.clock.CurrentTime,
-			Quantity:     order.GetQuantity(),
+			// PlaygroundId: p.ID,
+			Price:    price,
+			Time:     p.clock.CurrentTime,
+			Quantity: order.GetQuantity(),
 		}
 	}
 
@@ -1624,7 +1624,15 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, feeds ...(*CandleRepository)) error {
+	source := req.Account.Source
+	clientID := req.ClientID
+	balance := req.Account.Balance
+	initialBalance := req.InitialBalance
+	orders := req.BackfillOrders
+	tags := req.Tags
+	env := req.Env
+
 	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
@@ -1638,9 +1646,25 @@ func PopulatePlayground(playground *Playground, source *CreateAccountRequestSour
 	brokerName := "tradier"
 	var accountID *string
 
+	if err := env.Validate(); err != nil {
+		return fmt.Errorf("PopulatePlayground: error validating environment: %w", err)
+	}
+
 	if env == PlaygroundEnvironmentReconcile || env == PlaygroundEnvironmentLive {
 		if source == nil {
 			return fmt.Errorf("source is required")
+		}
+
+		if playground.LiveAccount == nil {
+			if req.LiveAccount == nil {
+				return fmt.Errorf("live account is required")
+			}
+
+			playground.SetLiveAccount(req.LiveAccount)
+		}
+
+		if env == PlaygroundEnvironmentLive {
+			playground.SetReconcilePlayground(req.ReconcilePlayground)
 		}
 
 		accountID = &source.AccountID
@@ -1697,8 +1721,8 @@ func PopulatePlayground(playground *Playground, source *CreateAccountRequestSour
 	meta.EndAt = endAt
 
 	var id uuid.UUID
-	if playground != nil {
-		id = playground.ID
+	if req.ID != nil {
+		id = *req.ID
 	} else {
 		id = uuid.New()
 	}
@@ -1719,6 +1743,22 @@ func PopulatePlayground(playground *Playground, source *CreateAccountRequestSour
 	return nil
 }
 
+func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
+	req := &PopulatePlaygroundRequest{
+		Account: CreateAccountRequest{
+			Source:  source,
+			Balance: balance,
+		},
+		Env:            env,
+		ClientID:       clientID,
+		InitialBalance: initialBalance,
+		BackfillOrders: orders,
+		Tags:           tags,
+	}
+
+	return PopulatePlayground(playground, req, clock, now, feeds...)
+}
+
 // todo: change repository on playground to BacktesterCandleRepository
 func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
 	playground := new(Playground)
@@ -1727,7 +1767,7 @@ func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, 
 		playground.ID = *playgroundId
 	}
 
-	if err := PopulatePlayground(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
+	if err := PopulatePlaygroundDeprecated(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
 		return nil, fmt.Errorf("error populating playground: %w", err)
 	}
 

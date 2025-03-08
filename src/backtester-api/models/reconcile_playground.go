@@ -12,6 +12,10 @@ type ReconcilePlayground struct {
 	liveAccount ILiveAccount
 }
 
+func (r *ReconcilePlayground) GetPlayground() *Playground {
+	return r.playground
+}
+
 func (r *ReconcilePlayground) GetLiveAccount() ILiveAccount {
 	return r.liveAccount
 }
@@ -23,11 +27,6 @@ func (r *ReconcilePlayground) GetOrders() []*OrderRecord {
 func (r *ReconcilePlayground) SetBroker(broker IBroker) error {
 	r.liveAccount.SetBroker(broker)
 	return nil
-}
-
-// todo: remove this??
-func (r *ReconcilePlayground) GetPlayground() *Playground {
-	return r.playground
 }
 
 func (r *ReconcilePlayground) GetId() uuid.UUID {
@@ -60,14 +59,14 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 			case TradierOrderSideSell, TradierOrderSideSellShort:
 				sell_qty := math.Min(position.Quantity, order.AbsoluteQuantity)
 				if sell_qty > 0 {
-					o1 := CopyOrderRecord(order, LiveAccountTypeReconcilation)
+					o1 := CopyOrderRecord(0, order, LiveAccountTypeReconcilation)
 					o1.AbsoluteQuantity = sell_qty
 					o1.Side = TradierOrderSideSell
 					orders = append(orders, o1)
 				}
 
 				if remaining_qty := order.AbsoluteQuantity - sell_qty; remaining_qty > 0 {
-					o2 := CopyOrderRecord(order, LiveAccountTypeReconcilation)
+					o2 := CopyOrderRecord(0, order, LiveAccountTypeReconcilation)
 					o2.AbsoluteQuantity = remaining_qty
 					o2.Side = TradierOrderSideSellShort
 					orders = append(orders, o2)
@@ -80,14 +79,14 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 			case TradierOrderSideBuy, TradierOrderSideBuyToCover:
 				buy_qty := math.Min(-position.Quantity, order.AbsoluteQuantity)
 				if buy_qty > 0 {
-					o1 := CopyOrderRecord(order, LiveAccountTypeReconcilation)
+					o1 := CopyOrderRecord(0, order, LiveAccountTypeReconcilation)
 					o1.AbsoluteQuantity = buy_qty
 					o1.Side = TradierOrderSideBuyToCover
 					orders = append(orders, o1)
 				}
 
 				if remaining_qty := order.AbsoluteQuantity - buy_qty; remaining_qty > 0 {
-					o2 := CopyOrderRecord(order, LiveAccountTypeReconcilation)
+					o2 := CopyOrderRecord(0, order, LiveAccountTypeReconcilation)
 					o2.AbsoluteQuantity = remaining_qty
 					o2.Side = TradierOrderSideBuy
 					orders = append(orders, o2)
@@ -98,7 +97,7 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 		}
 	} else {
 		// both position and order quantity have the same sign
-		o := CopyOrderRecord(order, LiveAccountTypeReconcilation)
+		o := CopyOrderRecord(0, order, LiveAccountTypeReconcilation)
 
 		switch order.Side {
 		case TradierOrderSideBuy, TradierOrderSideSellShort:
@@ -149,8 +148,12 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 }
 
 func NewReconcilePlayground(playground *Playground, liveAccount ILiveAccount) (*ReconcilePlayground, error) {
-	return &ReconcilePlayground{
+	reconcilePlayground := &ReconcilePlayground{
 		playground:  playground,
 		liveAccount: liveAccount,
-	}, nil
+	}
+
+	playground.SetReconcilePlayground(reconcilePlayground)
+
+	return reconcilePlayground, nil
 }

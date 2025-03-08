@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/dbutils"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -399,8 +400,8 @@ func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositor
 	return feeds, nil
 }
 
-func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.CreatePlaygroundRequest) error {
-	env := models.PlaygroundEnvironment(req.Env)
+func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest) error {
+	env := req.Env
 
 	// validations
 	if err := env.Validate(); err != nil {
@@ -419,11 +420,9 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			return eventmodels.NewWebError(400, "reconcile playground is missing live account", nil)
 		}
 
-		playground.SetLiveAccount(req.LiveAccount)
-
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req.Account.Source, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags)
+		err = models.PopulatePlayground(playground, req, nil, now)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -439,8 +438,6 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		if req.LiveAccount == nil {
 			return eventmodels.NewWebError(400, "live playground is missing live account", nil)
 		}
-
-		playground.SetLiveAccount(req.LiveAccount)
 
 		// capture all candles up to tomorrow
 		now := time.Now()
@@ -480,15 +477,15 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		if !found {
 			log.Debugf("failed to create live account: %v. Creating a new one ...", err)
 
-			reconcilePlayground, err = s.createNewReconcilePlayground(req.Account.Source, now)
+			reconcilePlayground, err = dbutils.CreateReconcilePlayground(s, req.Account.Source, now)
 			if err != nil {
 				return eventmodels.NewWebError(500, "failed to create new reconcile playground and live account", err)
 			}
 		}
 
-		playground.SetReconcilePlayground(reconcilePlayground)
+		req.ReconcilePlayground = reconcilePlayground
 
-		err = models.PopulatePlayground(playground, req.Account.Source, req.ClientID, req.Account.Balance, req.InitialBalance, nil, req.BackfillOrders, env, now, req.Tags, repos...)
+		err = models.PopulatePlayground(playground, req, nil, now, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -526,7 +523,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, nil, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
+		err = models.PopulatePlaygroundDeprecated(playground, nil, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
@@ -582,81 +579,13 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 	return clock, nil
 }
 
-func (s *DatabaseService) getLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
+func (s *DatabaseService) GetLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
 	liveAccount, found := s.liveAccounts[source]
 	if !found {
 		return nil, fmt.Errorf("failed to find live account: %v", source)
 	}
 
 	return liveAccount, nil
-}
-
-func (s *DatabaseService) createNewReconcilePlayground(source *models.CreateAccountRequestSource, createdAt time.Time) (*models.ReconcilePlayground, error) {
-	if source == nil {
-		return nil, fmt.Errorf("source is nil")
-	}
-
-	liveAccount, err := s.getLiveAccount(*source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get broker: %v", err)
-	}
-
-	createPlaygroundReq := &models.CreatePlaygroundRequest{
-		Env: string(models.PlaygroundEnvironmentReconcile),
-		Account: models.CreateAccountRequest{
-			Source: source,
-		},
-		Repositories: nil,
-		CreatedAt:    createdAt,
-		LiveAccount:  liveAccount,
-		SaveToDB:     true,
-	}
-
-	playground := &models.Playground{}
-	if err := s.CreatePlayground(playground, createPlaygroundReq); err != nil {
-		return nil, fmt.Errorf("failed to create playground: %v", err)
-	}
-
-	// liveAccount, err := s.CreateLiveAccount(broker, createPlaygroundReq.Account.Source.AccountType)
-	// if err != nil {
-	// 	return nil, eventmodels.NewWebError(500, "failed to create live account", err)
-	// }
-
-	reconcilePlayground, err := models.NewReconcilePlayground(playground, liveAccount)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create new reconcile playground", err)
-	}
-
-	// reconcilePlaygroundId := reconcilePlayground.GetId()
-	// playground.ReconcilePlayground = reconcilePlayground
-	// playground.ReconcilePlaygroundID = &reconcilePlaygroundId
-
-	// update playground balance
-	// response, err := liveAccount.Source.FetchEquity()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to fetch equity: %w", err)
-	// }
-	// balance := response.Equity
-
-	// playground.SetBalance(balance)
-	// playground.Meta.InitialBalance = balance
-	// playground.Meta.SourceBroker = liveAccount.Source.GetBroker()
-	// playground.Meta.SourceAccountId = liveAccount.Source.GetAccountID()
-	// playground.Meta.LiveAccountType = liveAccount.Source.GetAccountType()
-
-	// playgroundSession.Balance = balance
-	// playgroundSession.StartingBalance = balance
-	// playgroundSession.BrokerName = &playground.Meta.SourceBroker
-	// playgroundSession.AccountID = &playground.Meta.SourceAccountId
-
-	// liveAccountType := string(liveAccount.Source.GetAccountType())
-	// playgroundSession.AccountType = &liveAccountType
-
-	if err := s.UpdatePlaygroundSession(playground); err != nil {
-		return nil, fmt.Errorf("failed to update playground session: %v", err)
-	}
-
-	return reconcilePlayground, nil
 }
 
 func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
@@ -697,7 +626,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			StartDate: p.StartAt.Format(time.RFC3339),
 		}
 
-		liveAccount, err = s.getLiveAccount(*source)
+		liveAccount, err = s.GetLiveAccount(*source)
 		if err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to get live account for live playground: %w", err)
 		}
@@ -718,7 +647,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			LiveAccountType: liveAccountType,
 		}
 
-		liveAccount, err = s.getLiveAccount(*source)
+		liveAccount, err = s.GetLiveAccount(*source)
 		if err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to get live account for reconcile playground: %w", err)
 		}
@@ -745,10 +674,10 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		})
 	}
 
-	err = s.CreatePlayground(p, &models.CreatePlaygroundRequest{
+	err = s.CreatePlayground(p, &models.PopulatePlaygroundRequest{
 		ID:       &p.ID,
 		ClientID: p.ClientID,
-		Env:      string(p.Meta.Environment),
+		Env:      p.Meta.Environment,
 		Account: models.CreateAccountRequest{
 			Balance: p.Balance,
 			Source:  source,

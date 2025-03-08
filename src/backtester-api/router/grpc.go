@@ -539,6 +539,11 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		}
 	}
 
+	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	if err := playgroundEnvironment.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
+	}
+
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
 	for _, repo := range req.Repositories {
 		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
@@ -576,8 +581,8 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		return nil, fmt.Errorf("failed to fetch live playground: live account not found")
 	}
 
-	createPlaygroundReq := &models.CreatePlaygroundRequest{
-		Env:      req.GetEnvironment(),
+	createPlaygroundReq := &models.PopulatePlaygroundRequest{
+		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
 		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
@@ -611,6 +616,11 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		}
 	}
 
+	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	if err := playgroundEnvironment.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
+	}
+
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
 	for _, repo := range req.Repositories {
 		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
@@ -628,8 +638,8 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}
 
 	var playground *models.Playground
-	err := s.dbService.CreatePlayground(playground, &models.CreatePlaygroundRequest{
-		Env:      req.GetEnvironment(),
+	err := s.dbService.CreatePlayground(playground, &models.PopulatePlaygroundRequest{
+		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
 		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),

@@ -1,26 +1,41 @@
 package models
 
-import "github.com/google/uuid"
+import "fmt"
 
 type MockLiveAccount struct {
 	reconcilePlayground *MockReconcilePlayground
+	broker              IBroker
+	database            IDatabaseService
 }
 
-func (a *MockLiveAccount) PlaceOrder(account *LiveAccount, order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	return nil, nil
+func (a *MockLiveAccount) GetDatabase() IDatabaseService {
+	return a.database
 }
 
-func (a *MockLiveAccount) GetId() uuid.UUID {
-	id, err := uuid.Parse("3b208041-9c52-4221-b514-8d15385d310f")
-	if err != nil {
-		panic(err)
+func (a *MockLiveAccount) PlaceOrder(order *OrderRecord) error {
+	if err := a.database.SaveOrderRecord(order, nil, false); err != nil {
+		return fmt.Errorf("MockLiveAccount.PlaceOrder: failed to save order record: %w", err)
 	}
 
-	return id
+	return nil
 }
 
-func NewMockLiveAccount() *MockLiveAccount {
+func (a *MockLiveAccount) SetBroker(broker IBroker) {
+	a.broker = broker
+}
+
+func (a *MockLiveAccount) GetBroker() IBroker {
+	return a.broker
+}
+
+func (a *MockLiveAccount) GetId() uint {
+	return 12345
+}
+
+func NewMockLiveAccount(broker IBroker, database IDatabaseService) *MockLiveAccount {
 	return &MockLiveAccount{
 		reconcilePlayground: &MockReconcilePlayground{},
+		broker:              broker,
+		database:            database,
 	}
 }

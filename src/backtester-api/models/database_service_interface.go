@@ -11,11 +11,13 @@ type IDatabaseService interface {
 	GetPlaygrounds() []*Playground
 	GetPlaygroundByClientId(clientId string) *Playground
 	GetPlayground(playgroundID uuid.UUID) (*Playground, error)
+	GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error)
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
 	FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
+	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	CreateTransaction(transaction func(tx *gorm.DB) error) error
 	PopulatePlayground(p *Playground) error
 	PopulateLiveAccount(a *LiveAccount) error
