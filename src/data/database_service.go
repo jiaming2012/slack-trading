@@ -400,7 +400,7 @@ func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositor
 	return feeds, nil
 }
 
-func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest) error {
+func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest, newTradesQueue *eventmodels.FIFOQueue[*models.TradeRecord]) error {
 	env := req.Env
 
 	// validations
@@ -422,7 +422,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req, nil, now)
+		err = models.PopulatePlayground(playground, req, nil, now, nil, nil)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -456,6 +456,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			return webErr
 		}
 
+		playground.SetNewCandlesQueue(newCandlesQueue)
+
 		// save live repositories
 		for _, repo := range repos {
 			if err := s.SaveLiveRepository(repo); err != nil {
@@ -485,7 +487,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		req.ReconcilePlayground = reconcilePlayground
 
-		err = models.PopulatePlayground(playground, req, nil, now, repos...)
+		newTradesQueue = eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
+		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -523,7 +526,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req, clock, now, repos...)
+		err = models.PopulatePlayground(playground, req, clock, now, nil, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
@@ -674,6 +677,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		})
 	}
 
+	newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
 	err = s.CreatePlayground(p, &models.PopulatePlaygroundRequest{
 		ID:       &p.ID,
 		ClientID: p.ClientID,
@@ -691,7 +695,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		Tags:              p.Tags,
 		LiveAccount:       liveAccount,
 		SaveToDB:          false,
-	})
+	}, newTradesQueue)
 
 	if err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)

@@ -39,7 +39,7 @@ PM2 is used for deploying client side.
 
 Start all python scripts:
 ``` bash
- pm2 start trading_engine.config.js --env production
+pm2 start trading_engine.config.js --env production
 ```
 
 ## Migrations

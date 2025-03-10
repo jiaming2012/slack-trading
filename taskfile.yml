@@ -129,7 +129,7 @@ tasks:
       - './run-dev.sh'
     dir: ${PROJECTS_DIR}/slack-trading/src/eventmain
 
-  build:app:
+  app:build:
     cmds:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest -f Dockerfile .'
     dir: ${PROJECTS_DIR}/slack-trading
@@ -138,17 +138,24 @@ tasks:
     cmds:
       - 'stern grodt --container-state running'
 
-  stop:app:
+  app:stop:
     cmds:
       - 'kubectl scale deployment grodt --replicas=0'
 
-  update:app:
+  app:update:
     cmds:
       - 'kubectl rollout restart deployment grodt'
 
-  start:app:
+  app:start:
     cmds:
       - 'kubectl scale deployment grodt --replicas=1'
+      
+  app:deploy:
+    cmds:
+      - './deploy-app.sh {{.version}}'
+    dir: ${PROJECTS_DIR}/slack-trading
+    var:
+      version: ""
       
   metrics:
     cmds:
@@ -156,13 +163,6 @@ tasks:
     dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
     var:
       playgroundId: ""
-
-  deploy:app:
-    cmds:
-      - './deploy-app.sh {{.version}}'
-    dir: ${PROJECTS_DIR}/slack-trading
-    var:
-      version: ""
 
   esdb:pf:
     cmds:

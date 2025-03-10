@@ -598,7 +598,8 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 	createPlaygroundReq.CreatedAt = time.Now()
 
 	playground := &models.Playground{}
-	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
+	newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
+	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq, newTradesQueue); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
 
@@ -652,7 +653,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		Repositories: repositoryRequests,
 		Tags:         req.Tags,
 		SaveToDB:     false,
-	})
+	}, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %w", err)
