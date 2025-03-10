@@ -637,7 +637,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	var playground *models.Playground
+	playground := &models.Playground{}
 	err := s.dbService.CreatePlayground(playground, &models.PopulatePlaygroundRequest{
 		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,

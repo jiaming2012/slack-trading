@@ -161,6 +161,18 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*OrderRecord
 	return openOrders
 }
 
+func (p *Playground) GetOpenOrder(id uint) *OrderRecord {
+	for _, orders := range p.openOrdersCache {
+		for _, order := range orders {
+			if order.ID == id {
+				return order
+			}
+		}
+	}
+
+	return nil
+}
+
 func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startingPositions map[eventmodels.Instrument]*Position, orderFillEntry ExecutionFillRequest, performChecks bool) error {
 	if !order.Status.IsTradingAllowed() {
 		err := fmt.Errorf("order %d status is %s, which is no longer tradable", order.ID, order.Status)
@@ -649,12 +661,43 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 	if order.IsClose {
 		volumeToClose := math.Abs(order.GetQuantity())
-		openOrders := p.GetOpenOrders(order.GetInstrument())
 
-		// calculate the volume to close
-		for _, o := range openOrders {
-			if volumeToClose <= 0 {
-				break
+		if order.CloseOrderId == nil {
+			openOrders := p.GetOpenOrders(order.GetInstrument())
+
+			// calculate the volume to close
+			for _, o := range openOrders {
+				if volumeToClose <= 0 {
+					break
+				}
+
+				qty, err := o.GetRemainingOpenQuantity()
+				if err != nil {
+					return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
+				}
+
+				remainingOpenQuantity := math.Abs(qty)
+				if remainingOpenQuantity <= 0 {
+					continue
+				}
+
+				quantity := math.Min(volumeToClose, remainingOpenQuantity)
+				volumeToClose -= quantity
+
+				sign := 1.0
+				if o.Side == TradierOrderSideBuy {
+					sign = -1.0
+				}
+
+				closeByRequests = append(closeByRequests, &CloseByRequest{
+					Order:    o,
+					Quantity: quantity * sign,
+				})
+			}
+		} else {
+			o := p.GetOpenOrder(*order.CloseOrderId)
+			if o == nil {
+				return nil, false, fmt.Errorf("fillOrder: open order %d not found in open orders", *order.CloseOrderId)
 			}
 
 			qty, err := o.GetRemainingOpenQuantity()
@@ -664,7 +707,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 			remainingOpenQuantity := math.Abs(qty)
 			if remainingOpenQuantity <= 0 {
-				continue
+				return nil, false, fmt.Errorf("fillOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
 			}
 
 			quantity := math.Min(volumeToClose, remainingOpenQuantity)

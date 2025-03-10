@@ -523,7 +523,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlaygroundDeprecated(playground, nil, req.ClientID, req.Account.Balance, req.InitialBalance, clock, req.BackfillOrders, env, now, req.Tags, repos...)
+		err = models.PopulatePlayground(playground, req, clock, now, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
