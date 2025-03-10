@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("$POLYGON_API_KEY not set: %v", err)
 	}
 
-	m := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	m := eventservices.NewPolygonClient(polygonApiKey)
 	timespan := eventmodels.PolygonTimespan{
 		Multiplier: 15,
 		Unit:       eventmodels.PolygonTimespanUnitMinute,

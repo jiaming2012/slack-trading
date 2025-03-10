@@ -7,11 +7,12 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func SetupTwirpServer() {
-	server := backtester_router.NewServer()
+func SetupTwirpServer(dbService *data.DatabaseService) {
+	server := backtester_router.NewServer(dbService)
 	twirpHandler := playground.NewPlaygroundServiceServer(server)
 	port := 5051
 

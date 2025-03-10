@@ -10,7 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
@@ -112,7 +112,7 @@ func main() {
 	}
 
 	// Fetch calendar
-	calendar, err := services.FetchCalendar(eventmodels.PolygonDate{
+	calendar, err := data.FetchCalendar(eventmodels.PolygonDate{
 		Year:  startTime.Year(),
 		Month: int(startTime.Month()),
 		Day:   startTime.Day(),

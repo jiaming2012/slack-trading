@@ -32,7 +32,7 @@ func fetchCandles(symbol eventmodels.StockSymbol, from, to time.Time, apiKey str
 	return candles, nil
 }
 
-func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, apiKey string) ([]*eventmodels.CandleDTO, error) {
+func FetchCandlesFromOrderRecords(symbol eventmodels.StockSymbol, orders []*eventmodels.OrderRecord, apiKey string) ([]*eventmodels.CandleDTO, error) {
 	var firstOpenTime, finalOpenTime time.Time
 	var firstExpiration, finalExpiration time.Time
 	var results []*eventmodels.CandleDTO
@@ -76,7 +76,7 @@ func FetchCandlesFromBacktesterOrders(symbol eventmodels.StockSymbol, orders []*
 	return results, nil
 }
 
-func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.BacktesterOrder, candles []*eventmodels.CandleDTO, outDir string) (string, error) {
+func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels.OrderRecord, candles []*eventmodels.CandleDTO, outDir string) (string, error) {
 	var spreadResults []*eventmodels.OptionOrderSpreadResult
 	optionMultiplier := 100.0
 
@@ -123,7 +123,7 @@ func ProcessBacktestTrades(symbol eventmodels.StockSymbol, orders []*eventmodels
 	return csvPath, nil
 }
 
-func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, config *eventmodels.OptionYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, goEnv string) ([]*eventmodels.BacktesterOrder, error) {
+func DeriveHighestEVOrderRecord(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, config *eventmodels.OptionYAML, riskProfileConstraint *eventmodels.RiskProfileConstraint, goEnv string) ([]*eventmodels.OrderRecord, error) {
 	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
 	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
 	defer span.End()
@@ -133,9 +133,9 @@ func DeriveHighestEVBacktesterOrder(ctx context.Context, resultCh chan map[strin
 		return nil, fmt.Errorf("DeriveHighestEVOrders: failed to derive highest EV orders: %w", err)
 	}
 
-	var results []*eventmodels.BacktesterOrder
+	var results []*eventmodels.OrderRecord
 	for _, order := range highestEVOrderComponents {
-		results = append(results, &eventmodels.BacktesterOrder{
+		results = append(results, &eventmodels.OrderRecord{
 			Underlying: event.Symbol,
 			Spread:     order.Spread,
 			Quantity:   1,

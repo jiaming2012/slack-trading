@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -78,7 +79,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, balance, balance, clock, nil, env, nil, nil, clock.CurrentTime, []string{}, repo)
+		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, clock.CurrentTime, []string{}, repo)
 		return playground, err
 	}
 
@@ -146,13 +147,15 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order before market open
-		order1 := NewBacktesterOrder(1, BacktesterOrderClassEquity, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, BacktesterOrderStatusPending, "")
+		order1 := NewOrderRecord(1, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, symbol, TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
-		err = changes.Commit()
+
+		require.Len(t, changes, 1)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		require.Equal(t, startTime, order1.CreateDate)
+		require.Equal(t, startTime, order1.Timestamp)
 
 		// tick
 		_, err = playground.Tick(time.Minute, false)

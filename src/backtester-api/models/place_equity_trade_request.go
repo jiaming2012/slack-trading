@@ -9,7 +9,7 @@ type PlaceEquityTradeRequest struct {
 	DryRun    bool
 }
 
-func NewPlaceEquityOrderRequest(symbol string, quantity int, side TradierOrderSide, orderType BacktesterOrderType, tag string, dryRun bool) *PlaceEquityTradeRequest {
+func NewPlaceEquityOrderRequest(symbol string, quantity int, side TradierOrderSide, orderType OrderRecordType, tag string, dryRun bool) *PlaceEquityTradeRequest {
 	return &PlaceEquityTradeRequest{
 		Symbol:    symbol,
 		Quantity:  quantity,

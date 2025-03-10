@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
 )
@@ -65,7 +66,7 @@ func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *eventmodels.Opti
 	}
 }
 
-func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *eventmodels.TradierOrderDeleteEvent) {
+func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *models.TradierOrderDeleteEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderDeleteEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order deleted -> ID: (%v)", ev.OrderID)
@@ -83,17 +84,17 @@ func (c *SlackNotifierClient) SendMessage(msg string) error {
 	return nil
 }
 
-func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *eventmodels.TradierOrderModifyEvent) {
+func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *models.TradierOrderModifyEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderUpdateEventHandler <- %v", ev)
 
-	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.OrderID, ev.Field, ev.Old, ev.New)
+	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.TradierOrderID, ev.Field, ev.Old, ev.New)
 
 	if _, err := sendResponse(msg, c.webHookURL, false); err != nil {
 		log.Errorf("SlackNotifierClient.tradierOrderUpdateEventHandler: %v", err)
 	}
 }
 
-func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *eventmodels.TradierOrderCreateEvent) {
+func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *models.TradierOrderCreateEvent) {
 	log.Debugf("SlackNotifierClient.optionOrderCreateEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order created -> %v", ev.Order)

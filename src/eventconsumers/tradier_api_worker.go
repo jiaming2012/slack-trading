@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
@@ -24,23 +23,24 @@ import (
 type TradierApiWorker struct {
 	wg                *sync.WaitGroup
 	db                *gorm.DB
-	orders            eventmodels.TradierOrderDataStore
+	dbService         models.IDatabaseService
+	orders            models.TradierOrderDataStore
 	timeSalesURL      string
 	quotesBearerToken string
 	location          *time.Location
 	polygonClient     *eventservices.PolygonTickDataMachine
-	tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent]
+	tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent]
 	calendarURL       string
 }
 
-func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *eventmodels.TradierOrderCreateEvent) {
+func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*eventmodels.TradierOrder, *models.TradierOrderCreateEvent) {
 	if order, ok := w.orders[order.ID]; ok {
 		return order, nil
 	}
 
 	w.orders.Add(order)
 
-	return order, &eventmodels.TradierOrderCreateEvent{
+	return order, &models.TradierOrderCreateEvent{
 		Order: order,
 	}
 }
@@ -136,65 +136,6 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 	return results, nil
 }
 
-func (w *TradierApiWorker) fetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	queryParams := url.Values{}
-	queryParams.Add("includeTags", "true")
-
-	if err := liveAccountType.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate live account type: %w", err)
-	}
-
-	vars := models.NewLiveAccountVariables(liveAccountType)
-
-	brokerURL, err := vars.GetTradierTradesOrderURL()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tradier trades order URL: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/%d?%s", brokerURL, orderID, queryParams.Encode())
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to create request: %w", err)
-	}
-
-	bearerToken, err := vars.GetTradierTradesBearerToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
-	}
-
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to fetch order: %s", res.Status)
-	}
-
-	bytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to read response body: %w", err)
-	}
-
-	var resp eventmodels.TradierFetchOrderResponse
-
-	if err := json.Unmarshal(bytes, &resp); err != nil {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to parse response body: %w", err)
-	}
-
-	return resp.Order, nil
-}
-
 // func (w *TradierApiWorker) fetchOrders() ([]*eventmodels.TradierOrderDTO, error) {
 // 	client := http.Client{
 // 		Timeout: 10 * time.Second,
@@ -259,9 +200,9 @@ func (w *TradierApiWorker) checkForDelete(ordersDTO []*eventmodels.TradierOrderD
 	return result
 }
 
-func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*eventmodels.TradierOrderCreateEvent, []*eventmodels.TradierOrderModifyEvent) {
-	var createOrderEvents []*eventmodels.TradierOrderCreateEvent
-	var updateOrderEvents []*eventmodels.TradierOrderModifyEvent
+func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.TradierOrderDTO) ([]*models.TradierOrderCreateEvent, []*models.TradierOrderModifyEvent) {
+	var createOrderEvents []*models.TradierOrderCreateEvent
+	var updateOrderEvents []*models.TradierOrderModifyEvent
 
 	for _, orderDTO := range ordersDTO {
 		newOrder, err := orderDTO.ToTradierOrder()
@@ -284,76 +225,14 @@ func (w *TradierApiWorker) checkForCreateOrUpdate(ordersDTO []*eventmodels.Tradi
 	return createOrderEvents, updateOrderEvents
 }
 
-func (w *TradierApiWorker) fetchPendingOrdersfromDB() ([]*models.OrderRecord, error) {
-	var orders []*models.OrderRecord
-
-	if err := w.db.Where("status = ?", "pending").Find(&orders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
-	}
-
-	return orders, nil
-}
-
-func (w *TradierApiWorker) executeOrdersQueueUpdate(ctx context.Context) {
+func (w *TradierApiWorker) updateTradierOrderQueue(ctx context.Context) {
 	log.Trace("TradierApiWorker.executeOrdersQueueUpdate: begin ...")
 	defer log.Trace("TradierApiWorker.executeOrdersQueueUpdate: end")
 
-	pendingOrders, err := w.fetchPendingOrdersfromDB()
-	if err != nil {
-		log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch orders: %v", err)
-		return
+	sleepDuration := 10 * time.Millisecond
+	if err := services.UpdateTradierOrderQueue(w.tradesUpdateQueue, w.dbService, sleepDuration); err != nil {
+		log.Errorf("failed to update tradier order queue: %v", err)
 	}
-
-	for _, order := range pendingOrders {
-		var liveAccountType models.LiveAccountType
-		if order.AccountType == string(models.LiveAccountTypePaper) {
-			liveAccountType = models.LiveAccountTypePaper
-		} else if order.AccountType == string(models.LiveAccountTypeMargin) {
-			liveAccountType = models.LiveAccountTypeMargin
-		} else {
-			log.Errorf("TradierOrdersMonitoringWorker.Start: invalid account type: %s", order.AccountType)
-			continue
-		}
-
-		orderDTO, err := w.fetchOrder(order.ExternalOrderID, liveAccountType)
-		if err != nil {
-			log.Errorf("TradierOrdersMonitoringWorker.Start: failed to fetch order: %v", err)
-			continue
-		}
-
-		if orderDTO.Status == string(models.BacktesterOrderStatusFilled) {
-			o, err := orderDTO.ToTradierOrder()
-			if err != nil {
-				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: failed to convert order to backtester order: %v", err)
-			}
-
-			w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
-				CreateOrder: &eventmodels.TradierOrderCreateEvent{
-					Order: o,
-				},
-			})
-
-			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
-		} else if orderDTO.Status == string(models.BacktesterOrderStatusRejected) {
-			reason := "rejected by broker"
-			if orderDTO.ReasonDescription != nil {
-				reason = *orderDTO.ReasonDescription
-			}
-
-			w.tradesUpdateQueue.Enqueue(&eventmodels.TradierOrderUpdateEvent{
-
-				ModifyOrder: &eventmodels.TradierOrderModifyEvent{
-					OrderID: order.ExternalOrderID,
-					Field:   "status",
-					New:     reason,
-				},
-			})
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: fetched %d pending orders", len(pendingOrders))
 }
 
 func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period time.Duration) (time.Time, time.Time) {
@@ -374,7 +253,8 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 	periodStr := period.String()
 
 	symbol := repo.GetSymbol().GetTicker()
-	log.Debugf("Playground id %s live repo update: fetching %s - %s candles", playgroundId, symbol, periodStr)
+
+	log.Tracef("Playground id %s live repo update: fetching %s - %s candles", playgroundId, symbol, periodStr)
 
 	lastCandleInRepo := repo.GetLastCandle()
 
@@ -438,7 +318,11 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 		return
 	}
 
-	log.Infof("Playground id %s: %s - %s: updated %d candles", playgroundId, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
+	if len(newCandles) > 0 {
+		log.Infof("Playground id %s: %s - %s: updated %d candles", playgroundId, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
+	} else {
+		log.Tracef("Playground id %s: %s - %s: no new candles", playgroundId, repo.GetSymbol().GetTicker(), repo.GetPeriodStr())
+	}
 
 	if !maxTimestamp.IsZero() {
 		nextUpdateAt := repo.SetNextUpdateAt(maxTimestamp)
@@ -451,11 +335,11 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	defer log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: end")
 
 	now := time.Now()
-	playgrounds := router.GetPlaygrounds()
+	playgrounds := w.dbService.GetPlaygrounds()
 
 	count := 0
 	for _, playground := range playgrounds {
-		if playground.GetLiveAccountType() != nil {
+		if err := playground.GetLiveAccountType().Validate(); err == nil {
 			repos := playground.GetRepositories()
 			for _, repo := range repos {
 				r := repo
@@ -503,45 +387,42 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 		return
 	}
 
-	for _, liveAccount := range liveAccounts {
-		if liveAccount.BrokerName != "tradier" {
-			log.Debugf("skipping account %d: unsupported broker %s", liveAccount.ID, liveAccount.BrokerName)
+	for _, account := range liveAccounts {
+		if account.BrokerName != "tradier" {
+			log.Debugf("skipping account %d: unsupported broker %s", account.ID, account.BrokerName)
 			continue
 		}
 
-		account, err := services.CreateLiveAccount(-1, liveAccount.BrokerName, models.LiveAccountType(liveAccount.AccountType))
+		if err := w.dbService.PopulateLiveAccount(account); err != nil {
+			log.Errorf("failed to populate live account: %v", err)
+			continue
+		}
+
+		resp, err := account.Broker.FetchEquity()
 		if err != nil {
-			log.Errorf("failed to create live account: %v", err)
+			log.Errorf("failed to fetch equity for (%v, %v): %v", account.AccountId, account.AccountType, err)
 			continue
 		}
 
-		if account.AccountType != string(models.LiveAccountTypePaper) {
-			resp, err := account.Source.FetchEquity()
-			if err != nil {
-				log.Errorf("failed to fetch equity for (%v, %v): %v", account.AccountId, account.AccountType, err)
-				continue
+		equity := resp.Equity
+
+		if err := w.db.Transaction(func(tx *gorm.DB) error {
+			if err := w.db.Create(&models.LiveAccountPlot{
+				Timestamp:     now,
+				LiveAccountID: account.ID,
+				Equity:        &equity,
+			}).Error; err != nil {
+				return fmt.Errorf("failed to create live account plot: %w", err)
 			}
 
-			equity := resp.Equity
-
-			if err := w.db.Transaction(func(tx *gorm.DB) error {
-				if err := w.db.Create(&models.LiveAccountPlot{
-					Timestamp:     now,
-					LiveAccountID: liveAccount.ID,
-					Equity:        &equity,
-				}).Error; err != nil {
-					return fmt.Errorf("failed to create live account plot: %w", err)
-				}
-
-				if err := w.db.Model(&liveAccount).Update("plot_updated_at", todayAt1615).Error; err != nil {
-					return fmt.Errorf("failed to update live account: %w", err)
-				}
-
-				return nil
-			}); err != nil {
-				log.Errorf("failed to create live account equity: %v", err)
-				continue
+			if err := w.db.Model(&account).Update("plot_updated_at", todayAt1615).Error; err != nil {
+				return fmt.Errorf("failed to update live account: %w", err)
 			}
+
+			return nil
+		}); err != nil {
+			log.Errorf("failed to create live account equity: %v", err)
+			continue
 		}
 	}
 }
@@ -568,14 +449,14 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 					continue
 				}
 
-				w.executeOrdersQueueUpdate(ctx)
+				w.updateTradierOrderQueue(ctx)
 				w.ExecuteLiveReposUpdate()
 			}
 		}
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*eventmodels.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB, dbService models.IDatabaseService) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,
@@ -585,6 +466,7 @@ func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBeare
 		polygonClient:     polygonClient,
 		tradesUpdateQueue: tradesUpdateQueue,
 		calendarURL:       calendarURL,
+		dbService:         dbService,
 	}
 
 	var err error

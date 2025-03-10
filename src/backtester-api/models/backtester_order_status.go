@@ -1,21 +1,21 @@
 package models
 
-type BacktesterOrderStatus string
+type OrderRecordStatus string
 
 const (
-	BacktesterOrderStatusOpen            BacktesterOrderStatus = "open"
-	BacktesterOrderStatusPending         BacktesterOrderStatus = "pending"
-	BacktesterOrderStatusPartiallyFilled BacktesterOrderStatus = "partially_filled"
-	BacktesterOrderStatusFilled          BacktesterOrderStatus = "filled"
-	BacktesterOrderStatusExpired         BacktesterOrderStatus = "expired"
-	BacktesterOrderStatusCancelled       BacktesterOrderStatus = "cancelled"
-	BacktesterOrderStatusRejected        BacktesterOrderStatus = "rejected"
+	OrderRecordStatusOpen            OrderRecordStatus = "open"
+	OrderRecordStatusPending         OrderRecordStatus = "pending"
+	OrderRecordStatusPartiallyFilled OrderRecordStatus = "partially_filled"
+	OrderRecordStatusFilled          OrderRecordStatus = "filled"
+	OrderRecordStatusExpired         OrderRecordStatus = "expired"
+	OrderRecordStatusCancelled       OrderRecordStatus = "cancelled"
+	OrderRecordStatusRejected        OrderRecordStatus = "rejected"
 )
 
-func (status BacktesterOrderStatus) IsTradingAllowed() bool {
-	return status == BacktesterOrderStatusPending || status == BacktesterOrderStatusOpen || status == BacktesterOrderStatusPartiallyFilled
+func (status OrderRecordStatus) IsTradingAllowed() bool {
+	return status == OrderRecordStatusPending || status == OrderRecordStatusOpen || status == OrderRecordStatusPartiallyFilled
 }
 
-func (status BacktesterOrderStatus) IsFilled() bool {
-	return status == BacktesterOrderStatusFilled || status == BacktesterOrderStatusPartiallyFilled
+func (status OrderRecordStatus) IsFilled() bool {
+	return status == OrderRecordStatusFilled || status == OrderRecordStatusPartiallyFilled
 }

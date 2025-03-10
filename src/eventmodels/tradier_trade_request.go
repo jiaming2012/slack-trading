@@ -1,6 +1,6 @@
 package eventmodels
 
-type BacktesterOrder struct {
+type OrderRecord struct {
 	Underlying StockSymbol
 	Spread     *OptionSpreadContractDTO
 	Quantity   float64

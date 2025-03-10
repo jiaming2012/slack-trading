@@ -10,23 +10,25 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/playground"
 )
 
 type Server struct {
-	cache *models.RequestCache
+	cache     *models.RequestCache
+	dbService *data.DatabaseService
 }
 
-func NewServer() *Server {
+func NewServer(dbService *data.DatabaseService) *Server {
 	return &Server{
-		cache: models.NewRequestCache(),
+		cache:     models.NewRequestCache(),
+		dbService: dbService,
 	}
 }
 
-func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
+func convertOrders(orders []*models.OrderRecord) []*pb.Order {
 	out := make([]*pb.Order, 0)
 
 	for _, o := range orders {
@@ -36,7 +38,7 @@ func convertOrders(orders []*models.BacktesterOrder) []*pb.Order {
 	return out
 }
 
-func convertOrder(o *models.BacktesterOrder) *pb.Order {
+func convertOrder(o *models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.Trades {
 		trades = append(trades, &pb.Trade{
@@ -64,16 +66,16 @@ func convertOrder(o *models.BacktesterOrder) *pb.Order {
 	order := &pb.Order{
 		Id:             uint64(o.ID),
 		Class:          string(o.Class),
-		Symbol:         o.Symbol.GetTicker(),
+		Symbol:         o.GetInstrument().GetTicker(),
 		Side:           string(o.Side),
 		Quantity:       o.AbsoluteQuantity,
-		Type:           string(o.Type),
+		Type:           string(o.OrderType),
 		Duration:       string(o.Duration),
 		RequestedPrice: o.RequestedPrice,
 		Tag:            o.Tag,
 		Trades:         trades,
 		Status:         string(o.Status),
-		CreateDate:     o.CreateDate.String(),
+		CreateDate:     o.Timestamp.String(),
 		ClosedBy:       closedBy,
 		Closes:         closes,
 	}
@@ -107,7 +109,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 
 	var equityPlot []*pb.EquityPlot
 	if req.EquityPlot {
-		plots, err := getAccountStatsEquity(playgroundId)
+		plots, err := s.dbService.GetAccountStatsEquity(playgroundId)
 		if err != nil {
 			return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
 		}
@@ -127,7 +129,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 }
 
 func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
-	playgrounds := GetPlaygrounds()
+	playgrounds := s.dbService.GetPlaygrounds()
 
 	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
 	for _, p := range playgrounds {
@@ -180,8 +182,9 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		}
 
 		var liveAccountType *string
-		if meta.LiveAccountType != nil {
-			liveAccountType = meta.LiveAccountType.StringPtr()
+		if err := meta.LiveAccountType.Validate(); err == nil {
+			liveAccountType = new(string)
+			*liveAccountType = string(meta.LiveAccountType)
 		}
 
 		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
@@ -216,25 +219,25 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
 
-	playground, err := getPlayground(playgroundId)
+	playground, err := s.dbService.GetPlayground(playgroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
 
-	if livePlayground, ok := playground.(*models.LivePlayground); ok {
-		liveRepositories := livePlayground.GetRepositories()
+	if playground.ReconcilePlayground != nil {
+		liveRepositories := playground.GetRepositories()
 		for _, repo := range liveRepositories {
-			if err := services.RemoveLiveRepository(repo); err != nil {
+			if err := s.dbService.RemoveLiveRepository(repo); err != nil {
 				return nil, fmt.Errorf("failed to delete live repository: %v", err)
 			}
 		}
 	}
 
-	if err := deletePlaygroundSession(playground); err != nil {
+	if err := s.dbService.DeletePlaygroundSession(playground); err != nil {
 		return nil, fmt.Errorf("failed to delete playground session: %v", err)
 	}
 
-	if err := deletePlayground(playgroundId); err != nil {
+	if err := s.dbService.DeletePlayground(playgroundId); err != nil {
 		return nil, fmt.Errorf("failed to delete playground: %v", err)
 	}
 
@@ -247,12 +250,12 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	playground, err := getPlayground(playgroundId)
+	playground, err := s.dbService.GetPlayground(playgroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
-	if err := savePlayground(playground); err != nil {
+	if err := s.dbService.SavePlayground(playground); err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
@@ -262,15 +265,16 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest) (*pb.GetOpenOrdersResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get open orders: %v", err)
+		return nil, fmt.Errorf("GetOpenOrders: failed to parse uuid: %v", err)
 	}
 
 	symbol := eventmodels.StockSymbol(req.Symbol)
-	orders, err := getOpenOrders(playgroundId, symbol)
+	playground, err := s.dbService.GetPlayground(playgroundId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get open orders: %v", err)
+		return nil, fmt.Errorf("GetOpenOrders: failed to get playground: %v", err)
 	}
 
+	orders := playground.GetOpenOrders(symbol)
 	ordersDTO := convertOrders(orders)
 
 	return &pb.GetOpenOrdersResponse{
@@ -296,7 +300,7 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
-	candles, err := fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
+	candles, err := s.fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get candles: %v", err)
 	}
@@ -325,7 +329,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	}
 
 	var tickDelta *pb.TickDelta
-	
+
 	reqCh := s.cache.GetData(req.RequestId)
 
 	isComplete := false
@@ -346,7 +350,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 
 	duration := time.Duration(req.Seconds) * time.Second
 
-	tick, err := nextTick(playgroundId, duration, req.IsPreview)
+	tick, err := s.nextTick(playgroundId, duration, req.IsPreview)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
 	}
@@ -437,14 +441,14 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	var status []models.BacktesterOrderStatus
+	var status []models.OrderRecordStatus
 	if req.Status != nil {
 		for _, s := range req.Status {
-			status = append(status, models.BacktesterOrderStatus(s))
+			status = append(status, models.OrderRecordStatus(s))
 		}
 	}
 
-	account, err := getAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
+	account, err := s.dbService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
@@ -469,8 +473,9 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	ordersDTO := convertOrders(account.Orders)
 
 	var liveAccountType *string
-	if account.Meta.LiveAccountType != nil {
-		liveAccountType = account.Meta.LiveAccountType.StringPtr()
+	if err := account.Meta.LiveAccountType.Validate(); err == nil {
+		liveAccountType = new(string)
+		*liveAccountType = string(account.Meta.LiveAccountType)
 	}
 
 	return &pb.GetAccountResponse{
@@ -497,17 +502,23 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
-	order, webErr := placeOrder(playgroundID, &CreateOrderRequest{
+	var closeOrderId *uint
+	if req.CloseOrderId != nil {
+		closeOrderId = new(uint)
+		*closeOrderId = uint(*req.CloseOrderId)
+	}
+	order, webErr := s.dbService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
 		Symbol:         req.Symbol,
-		Class:          models.BacktesterOrderClass(req.AssetClass),
+		Class:          models.OrderRecordClass(req.AssetClass),
 		Quantity:       req.Quantity,
 		Side:           models.TradierOrderSide(req.Side),
-		OrderType:      models.BacktesterOrderType(req.Type),
+		OrderType:      models.OrderRecordType(req.Type),
 		RequestedPrice: req.RequestedPrice,
 		Price:          req.Price,
 		StopPrice:      nil,
-		Duration:       models.BacktesterOrderDuration(req.Duration),
+		Duration:       models.OrderRecordDuration(req.Duration),
 		Tag:            req.Tag,
+		CloseOrderId:   closeOrderId,
 	})
 
 	if webErr != nil {
@@ -521,11 +532,16 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 
 func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	if req.ClientId != nil {
-		if playground := getPlaygroundByClientId(*req.ClientId); playground != nil {
+		if playground := s.dbService.GetPlaygroundByClientId(*req.ClientId); playground != nil {
 			return &pb.CreatePlaygroundResponse{
 				Id: playground.GetId().String(),
 			}, nil
 		}
+	}
+
+	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	if err := playgroundEnvironment.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
@@ -544,27 +560,45 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		})
 	}
 
-	createPlaygroundReq := &CreatePlaygroundRequest{
-		Env:      req.GetEnvironment(),
+	vars := models.NewLiveAccountVariables(models.LiveAccountType(req.AccountType))
+	accountId, err := vars.GetTradierTradesAccountID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create live playground: %v", err)
+	}
+
+	source := &models.CreateAccountRequestSource{
+		Broker:          req.Broker,
+		LiveAccountType: models.LiveAccountType(req.AccountType),
+		AccountID:       accountId,
+	}
+
+	liveAccount, found, err := s.dbService.FetchLiveAccount(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch live playground: %v", err)
+	}
+
+	if !found {
+		return nil, fmt.Errorf("failed to fetch live playground: live account not found")
+	}
+
+	createPlaygroundReq := &models.PopulatePlaygroundRequest{
+		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
-		Account: CreateAccountRequest{
+		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
-			Source: &CreateAccountRequestSource{
-				Broker:      req.Broker,
-				AccountType: models.LiveAccountType(req.AccountType),
-			},
+			Source:  source,
 		},
 		InitialBalance: float64(req.Balance),
 		Repositories:   repositoryRequests,
 		Tags:           req.Tags,
 		SaveToDB:       true,
+		LiveAccount:    liveAccount,
 	}
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	playground, err := CreatePlayground(createPlaygroundReq)
-
-	if err != nil {
+	playground := &models.Playground{}
+	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
 
@@ -575,11 +609,16 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	if req.ClientId != nil {
-		if playground := getPlaygroundByClientId(*req.ClientId); playground != nil {
+		if playground := s.dbService.GetPlaygroundByClientId(*req.ClientId); playground != nil {
 			return &pb.CreatePlaygroundResponse{
 				Id: playground.GetId().String(),
 			}, nil
 		}
+	}
+
+	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	if err := playgroundEnvironment.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
 	var repositoryRequests []eventmodels.CreateRepositoryRequest
@@ -598,14 +637,15 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		})
 	}
 
-	playground, err := CreatePlayground(&CreatePlaygroundRequest{
-		Env:      req.GetEnvironment(),
+	playground := &models.Playground{}
+	err := s.dbService.CreatePlayground(playground, &models.PopulatePlaygroundRequest{
+		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
-		Account: CreateAccountRequest{
+		Account: models.CreateAccountRequest{
 			Balance: float64(req.Balance),
 		},
 		InitialBalance: float64(req.Balance),
-		Clock: CreateClockRequest{
+		Clock: models.CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
 		},

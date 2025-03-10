@@ -39,7 +39,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 	log.Infof("waiting for signal triggered events\n")
 
-	var allTrades []*eventmodels.BacktesterOrder
+	var allTrades []*eventmodels.OrderRecord
 	errCh := make(chan error)
 
 	go func() {
@@ -91,7 +91,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		// todo: metadata should be attached to each order
 		// todo: this should be refactored to mostly use the same as eventmain
-		highestEVBacktestOrders, err := services.DeriveHighestEVBacktesterOrder(ctx, resultCh, errCh, signal, tradierOrderExecuter, config.OptionsYAML, config.RiskProfileConstraint, goEnv)
+		highestEVBacktestOrders, err := services.DeriveHighestEVOrderRecord(ctx, resultCh, errCh, signal, tradierOrderExecuter, config.OptionsYAML, config.RiskProfileConstraint, goEnv)
 		if err != nil {
 			log.Errorf("tradier executer: %v: send to market failed: %v", signal.Signal, err)
 		}
@@ -110,7 +110,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 		return
 	}
 
-	candlesDTO, err := services.FetchCandlesFromBacktesterOrders(config.Symbol, allTrades, apiKey)
+	candlesDTO, err := services.FetchCandlesFromOrderRecords(config.Symbol, allTrades, apiKey)
 	if err != nil {
 		execResultCh <- ExecResult{
 			Err: fmt.Errorf("failed to fetch candles: %w", err),

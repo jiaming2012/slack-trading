@@ -1,4 +1,4 @@
-package eventmodels
+package models
 
 type TradierOrderUpdateEvent struct {
 	CreateOrder *TradierOrderCreateEvent

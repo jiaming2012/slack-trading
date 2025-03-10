@@ -4,8 +4,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
@@ -13,7 +14,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 
 	t.Run("check for delete returns empty list", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil)
+		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
 		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
@@ -33,7 +34,7 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 
 	t.Run("check for delete returns list of order IDs", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil)
+		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
 		order := &eventmodels.TradierOrder{
 			ID: 1,
 		}
@@ -54,7 +55,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 
 	t.Run("check for create order", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil)
+		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
 		orders := []*eventmodels.TradierOrderDTO{
 			{
 				ID:              3,
@@ -74,7 +75,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 
 	t.Run("check for update order", func(t *testing.T) {
 		// arrange
-		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil)
+		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
 		orders1 := []*eventmodels.TradierOrderDTO{
 			{
 				ID:              3,
@@ -100,7 +101,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		// assert
 		require.Equal(t, 0, len(newOrderEvents))
 		require.Equal(t, 1, len(updateOrderEvents))
-		require.Equal(t, uint64(3), updateOrderEvents[0].OrderID)
+		require.Equal(t, uint64(3), updateOrderEvents[0].TradierOrderID)
 		require.Equal(t, "status", updateOrderEvents[0].Field)
 		require.Equal(t, "open", updateOrderEvents[0].Old)
 		require.Equal(t, "filled", updateOrderEvents[0].New)

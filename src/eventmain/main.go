@@ -36,6 +36,8 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/backtester-api/rpc"
+	"github.com/jiaming2012/slack-trading/src/backtester-api/services"
+	"github.com/jiaming2012/slack-trading/src/data"
 	"github.com/jiaming2012/slack-trading/src/dbutils"
 	"github.com/jiaming2012/slack-trading/src/eventconsumers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -278,6 +280,61 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	return nil
 }
 
+func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, error) {
+	brokers := make(map[models.CreateAccountRequestSource]models.IBroker)
+	brokerName := "tradier"
+
+	for _, accountType := range []models.LiveAccountType{models.LiveAccountTypePaper, models.LiveAccountTypeMargin} {
+		vars := models.NewLiveAccountVariables(accountType)
+
+		tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier balances url template: %w", err)
+		}
+
+		accountID, err := vars.GetTradierTradesAccountID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier account id: %w", err)
+		}
+
+		tradierTradesBearerToken, err := vars.GetTradierTradesBearerToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier trades bearer token: %w", err)
+		}
+
+		tradierTradesUrlTemplate, err := vars.GetTradierTradesUrlTemplate()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier trades url template: %w", err)
+		}
+
+		tradesUrl := fmt.Sprintf(tradierTradesUrlTemplate, accountID)
+
+		stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
+		if err != nil {
+			return nil, fmt.Errorf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
+		}
+
+		tradierNonTradesBearerToken, err := vars.GetTradierNonTradesBearerToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier non trades bearer token: %w", err)
+		}
+
+		balancesUrl := fmt.Sprintf(tradierBalancesUrlTemplate, accountID)
+
+		source := services.NewLiveAccountSource(brokerName, accountID, balancesUrl, tradierTradesBearerToken, accountType)
+
+		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
+
+		brokers[models.CreateAccountRequestSource{
+			LiveAccountType: accountType,
+			Broker:          brokerName,
+			AccountID:       accountID,
+		}] = broker
+	}
+
+	return brokers, nil
+}
+
 var db *gorm.DB
 
 func run() {
@@ -465,13 +522,13 @@ func run() {
 
 	// Load config
 	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", optionsConfigFile)
-	data, err := os.ReadFile(optionsConfigInDir)
+	config, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
 		log.Fatalf("failed to read options config: %v", err)
 	}
 
 	var optionsConfig eventmodels.OptionsConfigYAML
-	if err := yaml.Unmarshal(data, &optionsConfig); err != nil {
+	if err := yaml.Unmarshal(config, &optionsConfig); err != nil {
 		log.Fatalf("failed to unmarshal options config: %v", err)
 	}
 
@@ -500,7 +557,7 @@ func run() {
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*eventmodels.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
+	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
@@ -601,7 +658,7 @@ func run() {
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
 
 	// Setup polygon tick data machine
-	polygonTickDataMachine := eventservices.NewPolygonTickDataMachine(polygonApiKey)
+	polygonTickDataMachine := eventservices.NewPolygonClient(polygonApiKey)
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
 
@@ -610,15 +667,24 @@ func run() {
 	a := NewRouterSetup("/version", router)
 	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
 
+	polygonClient := eventservices.NewPolygonClient(polygonApiKey)
+
+	// Setup database service
+	dbService := data.NewDatabaseService(db, polygonClient)
+
+	// Setup brokers
+	brokerMap, err := getTradierBrokers()
+	if err != nil {
+		log.Fatalf("failed to get tradier brokers: %v", err)
+	}
+
 	// Setup backtester router playground
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, db); err != nil {
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 
-	polygonClient := eventservices.NewPolygonTickDataMachine(polygonApiKey)
-	
 	// this must be after the backtester router setup
-	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db).Start(ctx)
+	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
 
 	// options router
 	// r := NewRouterSetup("/options", router)
@@ -646,7 +712,7 @@ func run() {
 
 	// start the twirp server
 	go func() {
-		rpc.SetupTwirpServer()
+		rpc.SetupTwirpServer(dbService)
 	}()
 
 	// Create channel for shutdown signals.

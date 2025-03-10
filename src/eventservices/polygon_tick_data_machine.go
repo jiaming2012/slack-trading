@@ -59,41 +59,34 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	return m.FetchAggregateBarsWithDates(ticker, timespan, fromDate, toDate, loc)
 }
 
+func (m *PolygonTickDataMachine) FetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	to := end.GetPreviousDay(1)
+	from := to.GetPreviousDay(daysPast)
+	maxAttempts := 5
+
+	errMsg := ""
+	for i := 0; true; i++ {
+		pastBars, err := m.FetchAggregateBars(eventmodels.StockSymbol(symbol), timespan, from, to)
+		if err != nil {
+			if i == maxAttempts-1 {
+				errMsg = fmt.Sprintf("failed to fetch past candles from %s to %s: %v", from.ToString(), to.ToString(), err)
+				break
+			}
+
+			from = from.GetPreviousDay(1)
+			time.Sleep(10 * time.Millisecond)
+
+			continue
+		}
+
+		return pastBars, nil
+	}
+
+	return nil, eventmodels.NewWebError(500, errMsg, nil)
+}
+
 func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*eventmodels.PolygonAggregateBarV2, error) {
-	// fetch data from polygon api
-	// params := models.ListAggsParams{
-	// 	Ticker:     ticker.GetTicker(),
-	// 	Multiplier: timespan.Multiplier,
-	// 	Timespan:   models.Timespan(timespan.Unit),
-	// 	From:       models.Millis(fromDate),
-	// 	To:         models.Millis(toDate),
-	// }.WithOrder(models.Asc).WithAdjusted(false)
-
-	// // make request
-	// iter := m.Client.ListAggs(context.Background(), params)
-
-	// if iter.Err() != nil {
-	// 	return nil, fmt.Errorf("failed to fetch data from polygon api: %w", iter.Err())
-	// }
-
-	// iterate over the results
 	var bars []*eventmodels.PolygonAggregateBarV2
-
-	// for iter.Next() {
-	// 	tstamp := time.Time(iter.Item().Timestamp).In(loc)
-
-	// 	if isInBetween(tstamp, fromDate, toDate) {
-	// 		bars = append(bars, &eventmodels.PolygonAggregateBarV2{
-	// 			Volume:    iter.Item().Volume,
-	// 			VWAP:      iter.Item().VWAP,
-	// 			Open:      iter.Item().Open,
-	// 			Close:     iter.Item().Close,
-	// 			High:      iter.Item().High,
-	// 			Low:       iter.Item().Low,
-	// 			Timestamp: tstamp,
-	// 		})
-	// 	}
-	// }
 
 	symbol := eventmodels.StockSymbol(ticker.GetTicker())
 	result, err := FetchPolygonStockChart(symbol, timespan.Multiplier, string(timespan.Unit), fromDate, toDate, m.ApiKey)
@@ -177,7 +170,7 @@ func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest eventmodels.A
 	resultCh <- bars
 }
 
-func NewPolygonTickDataMachine(apiKey string) *PolygonTickDataMachine {
+func NewPolygonClient(apiKey string) *PolygonTickDataMachine {
 	return &PolygonTickDataMachine{
 		Client: polygon.New(apiKey),
 		ApiKey: apiKey,
