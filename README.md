@@ -28,9 +28,12 @@ cd ${PROJECTS_DIR}/slack-trading
 ln -s $ANACONDA_HOME anaconda
 ```
 
+## PM2
+PM2 is used for deploying client side.
+
 Start all python scripts:
 ``` bash
-
+ pm2 start trading_engine.config.js --env production
 ```
 
 ## Migrations
