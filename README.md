@@ -8,7 +8,7 @@ We use python's bump2version for managing the app version.
 We use anaconda for managing dependencies, instead of pip:
 ``` bash
 conda deactivate
-conda activate base
+conda activate grodt
 ```
 
 Setup interpreter
@@ -24,7 +24,13 @@ export ANACONDA_HOME="path/to/environment"
 
 3. Set symbolic link for pm2 (on dev machines)
 ``` bash
+cd ${PROJECTS_DIR}/slack-trading
 ln -s $ANACONDA_HOME anaconda
+```
+
+Start all python scripts:
+``` bash
+
 ```
 
 ## Migrations
@@ -136,10 +142,8 @@ We use pandas-ta for indicators
 ## Installation
 Mac
 ``` bash
-conda create --name myenv python=3.10
 brew install ta-lib  
-conda install --file conda_requirements.txt
-conda install -c conda-forge ta-lib
+conda env create -f conda-env.yaml
 ```
 
 Ubuntu: visit https://docs.conda.io/projects/conda/en/stable/user-guide/install/rpm-debian.html
