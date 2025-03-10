@@ -28,6 +28,12 @@ cd ${PROJECTS_DIR}/slack-trading
 ln -s $ANACONDA_HOME anaconda
 ```
 
+### Update conda env
+add to taskfile
+``` bash
+conda env update --file conda-env.yaml --prune
+```
+
 ## PM2
 PM2 is used for deploying client side.
 

@@ -30,7 +30,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'margin',
       GRPC_HOST: 'http://45.77.223.21',
     },
-    interpreter: 'anaconda/envs/grodt/bin/python',
+    interpreter: 'anaconda/envs/trading/bin/python',
   },{
     name: 'supertrend1-coin',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -58,7 +58,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'margin',
       GRPC_HOST: 'http://45.77.223.21',
     },
-    interpreter: 'anaconda/envs/grodt/bin/python',
+    interpreter: 'anaconda/envs/trading/bin/python',
   },{
     name: 'supertrend1-meta',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -91,7 +91,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'margin',
       GRPC_HOST: 'http://45.77.223.21',
     },
-    interpreter: 'anaconda/envs/grodt/bin/python',
+    interpreter: 'anaconda/envs/trading/bin/python',
   },{
     name: 'supertrend1-nvda',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -124,7 +124,7 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'margin',
       GRPC_HOST: 'http://45.77.223.21',
     },
-    interpreter: 'anaconda/envs/grodt/bin/python',
+    interpreter: 'anaconda/envs/trading/bin/python',
   },{
     name: 'supertrend1-tsla',
     cmd: 'src/cmd/stats/trading_engine.py',
@@ -157,6 +157,6 @@ module.exports = {
       LIVE_ACCOUNT_TYPE: 'margin',
       GRPC_HOST: 'http://45.77.223.21',
     },
-    interpreter: 'anaconda/envs/grodt/bin/python',
+    interpreter: 'anaconda/envs/trading/bin/python',
   }]
 };
