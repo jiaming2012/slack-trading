@@ -17,7 +17,7 @@ type MockDatabase struct {
 	liveAccounts         map[CreateAccountRequestSource]ILiveAccount
 }
 
-func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
+func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]) error {
 	period := time.Minute
 	source := eventmodels.CandleRepositorySource{
 		Type: "test",
@@ -60,7 +60,7 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 		return fmt.Errorf("failed to create mock candle repository: %v", err)
 	}
 
-	return PopulatePlayground(playground, req, clock, clock.CurrentTime, repo)
+	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, repo)
 }
 
 func (m *MockDatabase) SetReconcilePlayground(source CreateAccountRequestSource, reconcilePlayground IReconcilePlayground) {

@@ -142,7 +142,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         # check for close signals
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, raise_exception=True, with_tick=True)
+            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True)
             logger.info(f"Placed close order: {resp}")
 
         # check for open signals

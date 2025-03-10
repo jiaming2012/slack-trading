@@ -62,4 +62,3 @@ dependencies:
       - structlog==25.1.0
       - twirp==0.0.7
       - typing-extensions==4.12.2
-prefix: /Users/jamal/miniconda3/envs/trading

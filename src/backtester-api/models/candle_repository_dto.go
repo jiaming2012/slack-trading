@@ -48,16 +48,16 @@ func (r *CandleRepositoryDTO) ToCreateRepositoryRequest() (eventmodels.CreateRep
 	}, nil
 }
 
-func (r *CandleRepositoryDTO) ToCandleRepository(candles []*eventmodels.PolygonAggregateBarV2, queue *eventmodels.FIFOQueue[*BacktesterCandle]) (*CandleRepository, error) {
-	return NewCandleRepository(
-		eventmodels.NewStockSymbol(r.Symbol),
-		r.Duration,
-		candles,
-		r.Indicators,
-		queue,
-		r.HistoryInDays,
-		eventmodels.CandleRepositorySource{
-			Type: r.SourceType,
-		},
-	)
-}
+// func (r *CandleRepositoryDTO) ToCandleRepository(candles []*eventmodels.PolygonAggregateBarV2, queue *eventmodels.FIFOQueue[*BacktesterCandle]) (*CandleRepository, error) {
+// 	return NewCandleRepository(
+// 		eventmodels.NewStockSymbol(r.Symbol),
+// 		r.Duration,
+// 		candles,
+// 		r.Indicators,
+// 		queue,
+// 		r.HistoryInDays,
+// 		eventmodels.CandleRepositorySource{
+// 			Type: r.SourceType,
+// 		},
+// 	)
+// }

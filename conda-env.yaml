@@ -8,6 +8,7 @@ dependencies:
   - charset-normalizer
   - idna
   - numpy=1.21.6
+  - loguru
   - pandas=1.3.5
   - pandas-ta
   - polygon-api-client

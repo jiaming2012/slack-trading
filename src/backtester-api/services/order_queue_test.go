@@ -86,15 +86,13 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		livePlayground := &models.Playground{}
-		err = models.PopulatePlayground(livePlayground, req, nil, now, repositories...)
+		err = models.PopulatePlayground(livePlayground, req, nil, now, newTradesQueue, repositories...)
 		require.NoError(t, err)
-
-		livePlayground.SetNewTradesQueue(newTradesQueue)
 
 		return livePlayground
 	}
 
-	createMockLivePlayground := func(playgroundID *uuid.UUID, database models.IDatabaseService, broker models.IBroker, liveAccount *models.LiveAccount) (*models.Playground, error) {
+	createMockReconcilePlayground := func(playgroundID *uuid.UUID, database models.IDatabaseService, broker models.IBroker, liveAccount *models.LiveAccount) (*models.Playground, error) {
 		playground := &models.Playground{}
 		source := models.CreateAccountRequestSource{
 			Broker:          broker.GetSource().GetBroker(),
@@ -117,7 +115,7 @@ func TestLiveAccount(t *testing.T) {
 			CreatedAt:    now,
 			LiveAccount:  liveAccount,
 			SaveToDB:     true,
-		})
+		}, nil)
 
 		return playground, err
 	}
@@ -131,7 +129,7 @@ func TestLiveAccount(t *testing.T) {
 
 		playgroundID, err := uuid.Parse("b352821e-8317-4ee6-aeb8-5b5772e1087a")
 		require.NoError(t, err)
-		playground, err := createMockLivePlayground(&playgroundID, database, broker, liveAccount)
+		playground, err := createMockReconcilePlayground(&playgroundID, database, broker, liveAccount)
 		require.NoError(t, err)
 
 		require.NoError(t, err)
@@ -187,7 +185,7 @@ func TestLiveAccount(t *testing.T) {
 
 		playgroundID, err := uuid.Parse("5ac6cb3a-5182-4330-96f6-297f0bb99ac1")
 		require.NoError(t, err)
-		playground1, err := createMockLivePlayground(&playgroundID, database, broker, liveAccount)
+		playground1, err := createMockReconcilePlayground(&playgroundID, database, broker, liveAccount)
 		require.NoError(t, err)
 
 		reconcilePlayground := createReconcilePlayground(t, playground1, liveAccount, database)

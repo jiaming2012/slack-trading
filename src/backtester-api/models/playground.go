@@ -982,12 +982,8 @@ func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.Equ
 	return p.appendStat(currentTime, positions)
 }
 
-func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
+func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	if isPreview {
-		if p.Meta.Environment != PlaygroundEnvironmentSimulator {
-			return nil, fmt.Errorf("preview tick is only available in simulator environment")
-		}
-
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
@@ -1118,6 +1114,17 @@ func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
 		InvalidOrders: invalidOrdersDTO,
 		Events:        tickDeltaEvents,
 	}, nil
+}
+
+func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
+	switch p.Meta.Environment {
+	case PlaygroundEnvironmentLive:
+		return p.liveTick(d, isPreview)
+	case PlaygroundEnvironmentSimulator:
+		return p.simulateTick(d, isPreview)
+	default:
+		return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.Environment)
+	}
 }
 
 func (p *Playground) GetMeta() Meta {
@@ -1667,7 +1674,7 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], feeds ...(*CandleRepository)) error {
 	source := req.Account.Source
 	clientID := req.ClientID
 	balance := req.Account.Balance
@@ -1708,6 +1715,12 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 		if env == PlaygroundEnvironmentLive {
 			playground.SetReconcilePlayground(req.ReconcilePlayground)
+
+			if newTradesQueue == nil {
+				return fmt.Errorf("newTradesQueue is required")
+			}
+
+			playground.SetNewTradesQueue(newTradesQueue)
 		}
 
 		accountID = &source.AccountID
@@ -1799,7 +1812,7 @@ func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountR
 		Tags:           tags,
 	}
 
-	return PopulatePlayground(playground, req, clock, now, feeds...)
+	return PopulatePlayground(playground, req, clock, now, nil, feeds...)
 }
 
 // todo: change repository on playground to BacktesterCandleRepository

@@ -449,6 +449,9 @@ class BacktesterPlaygroundClient:
             requested_price=price
         )
         
+        if close_order_id:
+            request.close_order_id = close_order_id
+        
         logger.info(f"Placing order: {request}")
                 
         try:
