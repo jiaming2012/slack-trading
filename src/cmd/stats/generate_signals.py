@@ -27,6 +27,7 @@ def train_random_forest_models(df, feature_columns, target_columns):
     """
     models = {}
     predictions = {}
+    info = []
 
     for target in target_columns:
         # Split the data
@@ -46,11 +47,9 @@ def train_random_forest_models(df, feature_columns, target_columns):
         # Evaluate the model
         mse = mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
-        logger.debug(f"Model for {target}:")
-        logger.info(f"Mean Squared Error: {mse}")
-        logger.info(f"R2 Score: {r2}")
+        info.append((target, mse, r2, len(y_pred)))
 
-    return models, predictions
+    return models, predictions, info
 
 
 def fetch_data(symbol: str, start_date: datetime, end_date: datetime) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -219,15 +218,23 @@ class SuperTrendMomentumSignalFactory:
             'atr_14'
         ] + [f'close_lag_{i}' for i in range(1, self.lag_features+1)]
 
-def new_supertrend_momentum_signal_factory(df: pd.DataFrame) -> SuperTrendMomentumSignalFactory:    
+def get_dataframe_info(df: pd.DataFrame) -> str:
+    start_date = df['date'].min()
+    stop_date = df['date'].max()
+    num_rows = len(df)
+    avg_low = df['low'].mean()
+    avg_high = df['high'].mean()
+    
+    return f"Start Date: {start_date}, Stop Date: {stop_date}, Number of Rows: {num_rows}, Average Low: {avg_low}, Average High: {avg_high}"
+
+def new_supertrend_momentum_signal_factory(df: pd.DataFrame) -> Tuple[SuperTrendMomentumSignalFactory, str, Tuple[str, float, float]]:    
     factory = SuperTrendMomentumSignalFactory()
     
-    # Train Random Forest models
-    logger.info("Training Random Forest models...")
-    factory.models, rf_predictions = train_random_forest_models(df, factory.feature_columns, factory.target_columns)
-    logger.info("Training complete.")
+    factory.models, rf_predictions, training_info = train_random_forest_models(df, factory.feature_columns, factory.target_columns)
     
-    return factory
+    df_info = get_dataframe_info(df)
+    
+    return factory, df_info, training_info
 
 if __name__ == '__main__':
     # Parse arguments
@@ -249,7 +256,7 @@ if __name__ == '__main__':
     filtered_df = fetch_data_and_add_supertrend_momentum_signal_features(args.symbol, start_date, end_date, min_max_window_in_hours=4)
     logger.info(f"generated {len(filtered_df)} {args.symbol} signals - from {start_date} to {end_date}")
     
-    factory = new_supertrend_momentum_signal_factory(filtered_df)
+    factory, info = new_supertrend_momentum_signal_factory(filtered_df)
 
     # Apply the newly generated model to a new dataset of future prices
     future_start_data = end_date + pd.Timedelta(days=1)

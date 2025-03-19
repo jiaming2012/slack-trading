@@ -115,11 +115,11 @@ if __name__ == "__main__":
     end_date = '2024-11-10'
     repository_source = RepositorySource.POLYGON
     csv_path = None
-    grpc_host = 'http://45.77.223.21'
+    twirp_host = 'http://45.77.223.21'
     updateFrequency = 'weekly'
     n_calls = 10
     
-    playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, csv_path, grpc_host=grpc_host)
+    playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, csv_path, twirp_host=twirp_host)
     
     strategy = OptimizedOpenStrategy(playground, updateFrequency, n_calls)
     

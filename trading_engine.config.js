@@ -28,7 +28,7 @@ module.exports = {
       PLAYGROUND_CLIENT_ID: 'supertrend1-aapl-margin-3',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'anaconda/envs/trading/bin/python',
   },{
@@ -42,7 +42,7 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -56,7 +56,7 @@ module.exports = {
       PLAYGROUND_CLIENT_ID: 'supertrend1-coin-margin-3',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'anaconda/envs/trading/bin/python',
   },{
@@ -70,7 +70,7 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'META',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -89,7 +89,7 @@ module.exports = {
       PLAYGROUND_CLIENT_ID: 'supertrend1-meta-margin-3',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'anaconda/envs/trading/bin/python',
   },{
@@ -103,7 +103,7 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'NVDA',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -122,7 +122,7 @@ module.exports = {
       PLAYGROUND_CLIENT_ID: 'supertrend1-nvda-margin-3',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'anaconda/envs/trading/bin/python',
   },{
@@ -136,7 +136,7 @@ module.exports = {
     env: {
       BALANCE: '3000',
       SYMBOL: 'TSLA',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -155,7 +155,7 @@ module.exports = {
       PLAYGROUND_CLIENT_ID: 'supertrend1-tsla-margin-3',
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'anaconda/envs/trading/bin/python',
   }]

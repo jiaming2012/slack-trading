@@ -10,7 +10,7 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'AAPL',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'simulator',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       START_DATE: '2025-01-19',
@@ -30,7 +30,7 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'simulator',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       START_DATE: '2025-01-19',
@@ -50,7 +50,7 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'TSLA',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'simulator',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       START_DATE: '2025-01-19',
@@ -70,7 +70,7 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'META',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'simulator',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       START_DATE: '2025-01-19',
@@ -90,7 +90,7 @@ module.exports = {
     env: {
       BALANCE: '10000',
       SYMBOL: 'NVDA',
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
       PLAYGROUND_ENV: 'simulator',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       START_DATE: '2025-01-19',

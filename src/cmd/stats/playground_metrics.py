@@ -26,7 +26,7 @@ def fetch_playground_ids(client: PlaygroundServiceClient, tags: List[str]) -> Li
 
 def _calc_trade_position(trades: List[Trade]) -> TradePosition:
     total_quantity = sum([trade.quantity for trade in trades])
-    vwap = sum([trade.price * trade.quantity for trade in trades]) / total_quantity if total_quantity > 0 else 0
+    vwap = sum([trade.price * trade.quantity for trade in trades]) / total_quantity if total_quantity != 0 else 0
 
     return TradePosition(vwap=vwap, quantity=total_quantity)
 

@@ -20,3 +20,9 @@ class OpenSignalV2:
     max_price_prediction: float
     min_price_prediction: float
     additional_equity_risk: float
+    max_price_prediction_r2: float
+    max_price_prediction_mse: float
+    max_price_prediction_n: int
+    min_price_prediction_r2: float
+    min_price_prediction_mse: float
+    min_price_prediction_n: int

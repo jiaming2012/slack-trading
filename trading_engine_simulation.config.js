@@ -10,7 +10,7 @@ module.exports = {
     env: {
       BALANCE: '5000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v3',
       MODEL_UPDATE_FREQUENCY: 'weekly',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -20,7 +20,7 @@ module.exports = {
       N_CALLS: '40',
     },
     env_prod: {
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   },{
@@ -34,7 +34,7 @@ module.exports = {
     env: {
       BALANCE: '5000',
       SYMBOL: 'COIN',
-      GRPC_HOST: 'http://localhost:5051',
+      TWIRP_HOST: 'http://localhost:5051',
       OPEN_STRATEGY: 'simple_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'weekly',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
@@ -44,7 +44,7 @@ module.exports = {
       N_CALLS: '40',
     },
     env_prod: {
-      GRPC_HOST: 'http://45.77.223.21',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     interpreter: 'src/cmd/stats/env/bin/python',
   }]

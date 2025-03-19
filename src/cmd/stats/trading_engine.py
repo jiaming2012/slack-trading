@@ -3,9 +3,12 @@ from base_open_strategy import BaseOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
 from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalName
 from playground_metrics import collect_data
+from rpc.playground_twirp import PlaygroundServiceClient
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
 from typing import List, Tuple
 from datetime import datetime
+from scipy.stats import t
+import numpy as np
 import time
 import argparse
 import os
@@ -13,35 +16,37 @@ import sys
 
 # todo:
 # refactor open_strategy to parameterize short and long periods
+logger.remove()
 
-def configure_logger():
-    logger.remove()
+logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
 
-    logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
-    
-    env = os.getenv("PLAYGROUND_ENV")
-    if env == "live":
-        level = "TRACE"
-    else:
-        level = "INFO"
+# Configure loguru to log to both console and file
+logger = logger.bind(timestamp="", trading_operation="")
+logger.add("trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
 
-    # Add a console sink
-    logger.add(
-        sink=lambda msg: print(msg, end=""),  # Print to console
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-        level=level
-    )
-    
-    s = os.getenv("SYMBOL")
+env = os.getenv("PLAYGROUND_ENV")
+if env == "live":
+    level = "TRACE"
+else:
+    level = "INFO"
 
-    # Add a file sink
-    logger.add(
-        f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
-        rotation="10 MB",  # Rotate when file size reaches 10MB
-        retention="7 days",  # Keep logs for 7 days
-        level=level,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
-    )
+# Add a console sink
+logger.add(
+    sink=lambda msg: print(msg, end=""),  # Print to console
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    level=level
+)
+
+s = os.getenv("SYMBOL")
+
+# Add a file sink
+logger.add(
+    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+    rotation="10 MB",  # Rotate when file size reaches 10MB
+    retention="7 days",  # Keep logs for 7 days
+    level=level,
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+)
 
 def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
@@ -95,7 +100,13 @@ def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     
     return f"sl--{sl_str}--tp--{tp_str}"
 
-def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max_value: float, sl_shift: float, tp_shift: float, sl_buffer: float, tp_buffer: float) -> Tuple[float, float]:
+def calculate_margin_of_error(confidence_level: float, mse: float, n: int) -> float:
+    se = np.sqrt(mse / n)
+    alpha = 1 - confidence_level
+    t_crit = t.ppf(1 - alpha / 2, df=n-1)
+    return t_crit * se 
+
+def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2, sl_confidence_weight: float, tp_confidence_weight: float, sl_buffer: float, tp_buffer: float) -> Tuple[float, float]:
     """ Builds a tag for the order based on the current price and the min and max values.
         min_value and max_value are the min and max values of the price prediction.
         min_value_sd and max_value_sd are the standard deviations of the min and max values.
@@ -103,36 +114,55 @@ def calculate_sl_tp(side: OrderSide, current_price: float, min_value: float, max
     if not current_price:
         raise ValueError("current_price not found")
         
+    min_value = signal.min_price_prediction  
+    max_value = signal.max_price_prediction
+    
     if side == OrderSide.BUY:
-        tp_target = max_value + tp_shift
-        if tp_target < current_price + tp_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: tp_target of {tp_target} < {current_price + tp_buffer} = {current_price} + {tp_buffer}")
+        min_value_margin_of_error = calculate_margin_of_error(0.95, signal.min_price_prediction_mse, signal.min_price_prediction_n)
+        lower_bound = min_value - (min_value_margin_of_error * sl_confidence_weight)
         
-        sl_target = min_value - sl_shift
-        if sl_target > current_price - sl_buffer:
-            raise ValueError(f"[OrderSide.BUY] Invalid target price: sl_target of {sl_target} > {current_price - sl_buffer} = {current_price} - {sl_buffer}")
+        if lower_bound < sl_buffer:
+            raise ValueError(f"[OrderSide.BUY] Too small: diff(current_price, min_value): {current_price - min_value} < sl_buffer: {sl_buffer}")
+        
+        sl_target = current_price - lower_bound
+        
+        max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
+        upper_bound = max_value + (max_value_margin_of_error * tp_confidence_weight)
+        
+        if upper_bound < tp_buffer:
+            raise ValueError(f"[OrderSide.BUY] Too small: upper_bound: {upper_bound} - current_price: {current_price} < tp_buffer: {tp_buffer}")
+        
+        tp_target = current_price + upper_bound
         
     elif side == OrderSide.SELL_SHORT:
-        tp_target = min_value - tp_shift
-        if tp_target > current_price - tp_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: tp_target of {tp_target} > {current_price - tp_buffer} = {current_price} - {tp_buffer}")
+        max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
+        upper_bound = max_value + (max_value_margin_of_error * sl_confidence_weight)
         
-        sl_target = max_value + sl_shift
-        if sl_target < current_price + sl_buffer:
-            raise ValueError(f"[OrderSide.SELL_SHORT] Invalid target price: sl_target of {sl_target} < {current_price + sl_buffer} = {current_price} + {sl_buffer}")
+        if upper_bound < sl_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Too small: upper_bound: {upper_bound} - current_price: {current_price} < sl_buffer: {sl_buffer}")
+        
+        sl_target = current_price + upper_bound
+        
+        min_value_margin_of_error = calculate_margin_of_error(0.95, signal.min_price_prediction_mse, signal.min_price_prediction_n)
+        lower_bound = min_value - (min_value_margin_of_error * tp_confidence_weight)
+        
+        if lower_bound < tp_buffer:
+            raise ValueError(f"[OrderSide.SELL_SHORT] Too small: diff(current_price, lower_bound): {current_price - lower_bound} < tp_buffer: {tp_buffer}")
+        
+        tp_target = current_price - lower_bound
         
     else:
         raise ValueError("Invalid side")
         
     return sl_target, tp_target
 
-def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, grpc_host) -> Tuple[float, dict]:
+def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, twirp_host) -> Tuple[float, dict]:
     sl_shift = open_strategy.get_sl_shift()
     tp_shift = open_strategy.get_tp_shift()
     sl_buffer = open_strategy.get_sl_buffer()
     tp_buffer = open_strategy.get_tp_buffer()
     
-    while not open_strategy.is_complete():
+    while not open_strategy.is_complete():        
         try:
             current_price = playground.get_current_candle(symbol, period=ltf_period).close
         except Exception as e:
@@ -143,15 +173,13 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         close_signals = close_strategy.tick(current_price)
         for s in close_signals:
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True)
-            logger.info(f"Placed close order: {resp}")
+            logger.info(f"Placed close order: {resp}", timestamp=playground.timestamp, trading_operation='close')
 
         # check for open signals
         tick_delta = playground.flush_new_state_buffer()
         for event in tick_delta:
             for trade in event.new_trades:
-                logger.info('-' * 40)
-                logger.info(f"New {trade.symbol} trade found: {trade.quantity} @ {trade.price} on {trade.create_date}")
-                logger.info('-' * 40)
+                logger.info(f"New Fill: {trade.symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
         
         signals = open_strategy.tick(tick_delta)
         position = None
@@ -168,7 +196,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
-                    logger.info(f"Placed close order: {resp}")
+                    logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp}", timestamp=playground.timestamp, trading_operation='close_short')
 
                 side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
@@ -176,7 +204,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = position
                     side = OrderSide.SELL
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
-                    logger.info(f"Placed close order: {resp}") 
+                    logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp}", timestamp=playground.timestamp, trading_operation='close_long')
                     
                 side = OrderSide.SELL_SHORT
             else:
@@ -184,7 +212,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 continue
             
             try:
-                sl, tp = calculate_sl_tp(side, current_price, s.min_price_prediction, s.max_price_prediction, sl_shift, tp_shift, sl_buffer, tp_buffer)
+                sl, tp = calculate_sl_tp(side, current_price, s, sl_shift, tp_shift, sl_buffer, tp_buffer)
+                logger.info(f"calculated sl: {sl}, tp: {tp}", timestamp=playground.timestamp, trading_operation='open')
                 additional_equity_at_risk = 0
                 if isinstance(s, OpenSignalV2):
                     additional_equity_at_risk = s.additional_equity_risk
@@ -194,7 +223,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
-                logger.warning(f"failed to build tag: {e}. Skipping order ...")
+                logger.warning(f"failed to build tag: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
                 continue
             
             try:
@@ -203,7 +232,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 logger.error(f"Error placing order: {e}")
                 continue
             
-            logger.info(f"Placed open order: {resp}")
+            logger.info(f"Placed open order: {resp}", timestamp=playground.timestamp, trading_operation='open')
             
         playground.tick(playground_tick_in_seconds, raise_exception=True)
         
@@ -211,7 +240,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
     
     # fetch stats
-    stats = collect_data(grpc_host, playground.id)
+    orders = playground.fetch_orders()
+    stats = collect_data(orders)
     
     meta = {
         'profit': profit,
@@ -229,19 +259,19 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     return profit, meta
     
-def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
+def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
     # input parameters
     # Read environment variables
     balance = float(os.getenv("BALANCE"))
     symbol = os.getenv("SYMBOL")
-    grpc_host = os.getenv("GRPC_HOST")
+    twirp_host = os.getenv("TWIRP_HOST")
     playground_env = os.getenv("PLAYGROUND_ENV")
     live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
     open_strategy_input = os.getenv("OPEN_STRATEGY")
     start_date = os.getenv("START_DATE")
     stop_date = os.getenv("STOP_DATE")
     model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
-    optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
+    # optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
     n_calls = os.getenv("N_CALLS")
     playground_client_id = os.getenv("PLAYGROUND_CLIENT_ID")
 
@@ -250,8 +280,8 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         raise ValueError("Environment variable BALANCE is not set")
     if symbol is None:
         raise ValueError("Environment variable SYMBOL is not set")
-    if grpc_host is None:
-        raise ValueError("Environment variable GRPC_HOST is not set")
+    if twirp_host is None:
+        raise ValueError("Environment variable TWIRP HOST is not set")
     if playground_env is None:
         raise ValueError("Environment variable PLAYGROUND_ENV is not set")
     if playground_env.lower() == "live":
@@ -266,8 +296,8 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     if model_update_frequency is None:
         raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
 
-    if optimizer_update_frequency is None:
-        raise ValueError("Environment variable OPTIMIZER_UPDATE_FREQUENCY is not set")
+    # if optimizer_update_frequency is None:
+    #     raise ValueError("Environment variable OPTIMIZER_UPDATE_FREQUENCY is not set")
     
     if live_account_type is not None:
         logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
@@ -338,7 +368,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         req.client_id = playground_client_id
         logger.info(f"using playground client id: {playground_client_id}")
     
-    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, grpc_host=grpc_host)
+    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
     playground.tick(0, raise_exception=True)  # initialize the playground
     logger.info(f"created playground with id: {playground.id}")
     
@@ -348,6 +378,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
         
     elif open_strategy_input == 'simple_open_strategy_v2':
         from simple_open_strategy_v2 import OptimizedOpenStrategy
+        optimizer_update_frequency = None
         open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
         
     elif open_strategy_input == 'simple_open_strategy_v3':
@@ -358,7 +389,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     elif open_strategy_input == 'simple_open_strategy_v4':
         from simple_open_strategy_v4 import SimpleOpenStrategyV4
         additional_profit_risk_percentage = 0.0
-        open_strategy = SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+        open_strategy = SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, symbol, logger, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
     
     elif open_strategy_input == 'candlestick_open_strategy_v1':
         from candlestick_open_strategy_v1 import CandlestickOpenStrategy
@@ -371,7 +402,7 @@ def objective(sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, 
     
     close_strategy = SimpleCloseStrategy(playground)
     
-    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, grpc_host)
+    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, twirp_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
@@ -381,12 +412,10 @@ if __name__ == "__main__":
     args.add_argument("--tp-buffer", type=float, default=0.0)
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
-    
-    configure_logger()
-    
+        
     logger.info(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
     
-    profit, meta = objective(args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
+    profit, meta = objective(logger, args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
     
     logger.info(f"profit: {profit}, meta: {meta}")
     

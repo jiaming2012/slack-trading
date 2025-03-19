@@ -1,0 +1,2 @@
+Filtering trades
+\s*trading_operation=[^\s]+

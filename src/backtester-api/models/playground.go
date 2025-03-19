@@ -603,7 +603,7 @@ func (p *Playground) addClosesInfoToOrder(order *OrderRecord, position *Position
 						return fmt.Errorf("addClosesInfoToOrder: error getting remaining open quantity: %w", err)
 					}
 
-					if closeVolume > remaining_volume {
+					if closeVolume > math.Abs(remaining_volume) {
 						return fmt.Errorf("addClosesInfoToOrder: close volume exceeds open order quantity for open order id %d", openOrder.ID)
 					}
 

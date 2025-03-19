@@ -319,8 +319,8 @@
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "COIN",
-                // "GRPC_HOST": "http://45.77.223.21",
-                "GRPC_HOST": "http://localhost:5051",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "OPEN_STRATEGY": "simple_open_strategy_v4",
                 "START_DATE": "2024-12-23",
@@ -334,6 +334,32 @@
             ]
         },
         {
+            "name": "trading engine v4",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
+            "console": "integratedTerminal",
+            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "env": {
+                "BALANCE": "10000",
+                "SYMBOL": "TSLA",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
+                "PLAYGROUND_ENV": "simulator",
+                "OPEN_STRATEGY": "simple_open_strategy_v4",
+                "START_DATE": "2025-01-01",
+                "STOP_DATE": "2025-03-16",
+                "MODEL_UPDATE_FREQUENCY": "daily",
+                "OPTIMIZER_UPDATE_FREQUENCY": "monthly",
+                "N_CALLS": "40"
+            },
+            "args": [
+                "--min-max-window-in-hours", "20",
+                "--sl-shift", "1",
+                "--tp-shift", "0.25",
+            ]
+        },
+        {
             "name": "trading engine - nvda basic",
             "type": "debugpy",
             "request": "launch",
@@ -343,8 +369,8 @@
             "env": {
                 "BALANCE": "3000",
                 "SYMBOL": "NVDA",
-                "GRPC_HOST": "http://45.77.223.21",
-                // "GRPC_HOST": "http://localhost:5051",
+                "TWIRP_HOST": "http://45.77.223.21",
+                // "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "live",
                 "LIVE_ACCOUNT_TYPE": "margin",
                 "OPEN_STRATEGY": "simple_open_strategy_v1",
@@ -400,17 +426,18 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
             "env": {
                 "BALANCE": "10000",
-                "SYMBOL": "TSLA",
-                // "GRPC_HOST": "http://45.77.223.21",
-                "GRPC_HOST": "http://localhost:5051",
+                "SYMBOL": "COIN",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_open_strategy_v1",
-                "START_DATE": "2024-10-21",
-                "STOP_DATE": "2025-01-24",
-                "MODEL_UPDATE_FREQUENCY": "monthly",
+                "OPEN_STRATEGY": "simple_open_strategy_v4",
+                "START_DATE": "2025-02-16",
+                "STOP_DATE": "2025-03-16",
+                "MODEL_UPDATE_FREQUENCY": "weekly",
+                "N_CALLS": "50"
             }
         },
         {
@@ -423,8 +450,28 @@
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "AAPL",
-                // "GRPC_HOST": "http://45.77.223.21",
-                // "GRPC_HOST": "http://localhost:5051",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                // "TWIRP_HOST": "http://localhost:5051",
+                "PLAYGROUND_ENV": "simulator",
+                "LIVE_ACCOUNT_TYPE": "paper",
+                "OPEN_STRATEGY": "simple_open_strategy_v1",
+                // "START_DATE": "2024-10-21",
+                // "STOP_DATE": "2025-01-24",
+                "MODEL_UPDATE_FREQUENCY": "monthly",
+            }
+        },
+        {
+            "name": "simple_open_strategy_v4",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/simple_open_strategy_v4.py",
+            "console": "integratedTerminal",
+            "python":  "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "env": {
+                "BALANCE": "10000",
+                "SYMBOL": "AAPL",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "LIVE_ACCOUNT_TYPE": "paper",
                 "OPEN_STRATEGY": "simple_open_strategy_v1",
@@ -443,8 +490,8 @@
             "env": {
                 "BALANCE": "3000",
                 "SYMBOL": "NVDA",
-                // "GRPC_HOST": "http://45.77.223.21",
-                "GRPC_HOST": "http://localhost:5051",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "OPEN_STRATEGY": "simple_open_strategy_v3",
                 "START_DATE": "2024-01-04",

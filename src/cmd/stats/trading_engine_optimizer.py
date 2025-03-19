@@ -4,7 +4,41 @@ from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 from pprint import pprint
+from datetime import datetime
 import os
+import sys
+
+logger.remove()
+
+logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG", "WARNING"])
+
+# Configure loguru to log to both console and file
+logger = logger.bind(timestamp="", trading_operation="")
+logger.add("trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
+
+env = os.getenv("PLAYGROUND_ENV")
+if env == "live":
+    level = "TRACE"
+else:
+    level = "INFO"
+
+# Add a console sink
+logger.add(
+    sink=lambda msg: print(msg, end=""),  # Print to console
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    level=level
+)
+
+s = os.getenv("SYMBOL")
+
+# Add a file sink
+logger.add(
+    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+    rotation="10 MB",  # Rotate when file size reaches 10MB
+    retention="7 days",  # Keep logs for 7 days
+    level=level,
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+)
 
 def compute_average_hyperparameters(sorted_meta: list) -> dict:
     avg_hyperparameters = {}
@@ -24,11 +58,11 @@ def sort_meta_by_equity(data) -> list:
 class TradingEngineOptimizer:
     def __init__(self, n_calls: int):
         self.search_space = [
-            Real(-10.0, 10.0, name='sl_shift'),
-            Real(-10.0, 10.0, name='tp_shift'),
+            Real(-15.0, 15.0, name='sl_shift'),
+            Real(-15.0, 15.0, name='tp_shift'),
             Real(0, 5, name='sl_buffer'),
             Real(0, 5, name='tp_buffer'),
-            Integer(5, 24, name='min_max_window_in_hours')
+            Integer(10, 24, name='min_max_window_in_hours')
         ]
 
         self.aggregate_meta = {}
@@ -37,7 +71,7 @@ class TradingEngineOptimizer:
 
     def fn(self, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours):
         global counter
-        value, meta = objective(sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+        value, meta = objective(logger, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         meta_label = f"{sl_shift}_{tp_shift}_{sl_buffer}_{tp_buffer}_{min_max_window_in_hours}"
         meta['hyperparameters'] = {
             'sl_shift': sl_shift,
