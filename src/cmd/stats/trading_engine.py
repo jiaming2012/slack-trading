@@ -70,7 +70,8 @@ def calculate_new_trade_quantity(logger, equity: float, free_margin: float, curr
     max_allowable_margin = free_margin * max_allowable_free_margin_percentage
     max_per_trade_risk = equity * max_per_trade_risk_percentage
     
-    logger.info(f"original max_per_trade_risk: {max_per_trade_risk}, max_allowable_margin: {max_allowable_margin:.2f}, additional_equity_at_risk: {additional_equity_at_risk:.2f}", trading_operation='calculate_risk')
+    logger.info(f"max_allowable_margin: {max_allowable_margin:.2f}, free_margin: {free_margin}, max_allowable_free_margin_percentage: {max_allowable_free_margin_percentage:.2f}", trading_operation='calculate_risk')
+    logger.info(f"original max_per_trade_risk: {max_per_trade_risk:.2f}, equity: {equity:.2f}, max_per_trade_risk_percentage: {max_per_trade_risk_percentage:.2f}", trading_operation='calculate_risk')
     
     max_per_trade_risk += additional_equity_at_risk
     
