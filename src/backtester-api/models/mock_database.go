@@ -158,7 +158,7 @@ func (m *MockDatabase) DeletePlayground(playgroundID uuid.UUID) error {
 	return nil
 }
 
-func (m *MockDatabase) SaveInMemoryPlayground(p *Playground) error {
+func (m *MockDatabase) SavePlaygroundInMemory(p *Playground) error {
 	return nil
 }
 
@@ -181,6 +181,16 @@ func (m *MockDatabase) FindOrder(playgroundId uuid.UUID, id uint) (*Playground, 
 func (m *MockDatabase) FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error) {
 	p, found := m.reconcilePlaygrounds[source]
 	return p, found, nil
+}
+
+func (m *MockDatabase) FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error) {
+	for _, reconcilePlayground := range m.reconcilePlaygrounds {
+		if reconcilePlayground.GetId() == order.PlaygroundID {
+			return reconcilePlayground, true, nil
+		}
+	}
+
+	return nil, false, nil
 }
 
 func (m *MockDatabase) FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error) {

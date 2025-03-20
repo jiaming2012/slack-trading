@@ -46,6 +46,7 @@ message Meta {
     string environment = 2;
     optional string live_account_type = 3;
     repeated string tags = 4;
+    optional string client_id = 5;
 }
 
 message GetAccountStatsRequest {
@@ -285,5 +286,6 @@ message Order {
     string create_date = 15;
     repeated Trade closed_by = 16;
     repeated Order closes = 17;
+    optional uint64 external_id = 18;
 }
 

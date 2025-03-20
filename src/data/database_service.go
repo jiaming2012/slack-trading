@@ -42,9 +42,26 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 
 func (s *DatabaseService) FetchReconcilePlayground(source models.CreateAccountRequestSource) (models.IReconcilePlayground, bool, error) {
 	reconcilePlayground, found := s.reconcilePlaygrounds[source]
-
 	return reconcilePlayground, found, nil
+}
 
+func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *models.OrderRecord) (models.IReconcilePlayground, bool, error) {
+	playground, err := s.FetchPlayground(order.PlaygroundID)
+	if err != nil {
+		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to fetch playground: %w", err)
+	}
+
+	if playground.ReconcilePlaygroundID == nil {
+		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: reconcile playground id is nil: %v", playground)
+	}
+
+	for _, rp := range s.reconcilePlaygrounds {
+		if rp.GetId() == *playground.ReconcilePlaygroundID {
+			return rp, true, nil
+		}
+	}
+
+	return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to find reconcile playground: %v", playground.ReconcilePlaygroundID)
 }
 
 func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
@@ -58,7 +75,7 @@ func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playg
 	return nil, fmt.Errorf("DatabaseService: playground not found: %s", playgroundId.String())
 }
 
-func (s *DatabaseService) SaveInMemoryPlayground(p *models.Playground) error {
+func (s *DatabaseService) SavePlaygroundInMemory(p *models.Playground) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -150,7 +167,7 @@ func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType)
 
 func (s *DatabaseService) LoadPlaygrounds() error {
 	var playgroundsSlice []*models.Playground
-	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Trades.OrderRecord").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -483,6 +500,9 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			if err != nil {
 				return eventmodels.NewWebError(500, "failed to create new reconcile playground and live account", err)
 			}
+
+			// save reconcile playground
+			s.reconcilePlaygrounds[*req.Account.Source] = reconcilePlayground
 		}
 
 		req.ReconcilePlayground = reconcilePlayground
@@ -538,7 +558,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 	playground.SetOpenOrdersCache()
 
-	if err := s.SaveInMemoryPlayground(playground); err != nil {
+	if err := s.SavePlaygroundInMemory(playground); err != nil {
 		return fmt.Errorf("failed to save in-memory playground: %w", err)
 	}
 

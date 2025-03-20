@@ -26,20 +26,14 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
-		source, err := playground.GetSource()
-		if err != nil {
-			log.Errorf("UpdateTradierOrderQueue: failed to get source: %v", err)
-			continue
-		}
-
-		reconcilePlayground, found, err := dbService.FetchReconcilePlayground(source)
+		reconcilePlayground, found, err := dbService.FetchReconcilePlaygroundByOrder(order)
 		if err != nil {
 			log.Errorf("UpdateTradierOrderQueue: failed to fetch reconcile playground: %v", err)
 			continue
 		}
 
 		if !found {
-			log.Errorf("UpdateTradierOrderQueue: reconcile playground not found: %v", source)
+			log.Errorf("UpdateTradierOrderQueue: reconcile playground not found for order: %v", order)
 			continue
 		}
 
@@ -60,14 +54,27 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
-		tradierOrder, err := liveAccount.GetBroker().FetchOrder(*order.ExternalOrderID, liveAccountType)
+		var playgroundOrder *models.OrderRecord
+		for _, o := range reconcilePlayground.GetOrders() {
+			if o.ExternalOrderID != nil && *o.ExternalOrderID == *order.ExternalOrderID {
+				playgroundOrder = o
+				break
+			}
+		}
+
+		if playgroundOrder == nil {
+			log.Errorf("UpdateTradierOrderQueue: order not found in playground: %v", order)
+			continue
+		}
+
+		tradierOrder, err := liveAccount.GetBroker().FetchOrder(*playgroundOrder.ExternalOrderID, liveAccountType)
 		if err != nil {
 			log.Errorf("UpdateTradierOrderQueue: failed to fetch order: %v", err)
 			continue
 		}
 
 		if tradierOrder.Status == string(models.OrderRecordStatusFilled) {
-			rec := order
+			rec := playgroundOrder
 			sink.Enqueue(&models.TradierOrderUpdateEvent{
 				CreateOrder: &models.TradierOrderCreateEvent{
 					Order:               tradierOrder,
@@ -118,6 +125,12 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
 			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
+			cache.Remove(tradierOrder, false)
+			return nil, nil
+		}
+
+		if errors.Is(err, models.ErrOrderAlreadyFilled) {
+			log.Debugf("handleLiveOrders: order already filled: %v", tradierOrder)
 			cache.Remove(tradierOrder, false)
 			return nil, nil
 		}

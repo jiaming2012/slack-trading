@@ -175,11 +175,11 @@ func (o *OrderRecord) Validate() error {
 	return nil
 }
 
-func CopyOrderRecord(orderID uint, from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
+func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
 	return NewOrderRecord(
 		orderID,
 		from.ExternalOrderID,
-		from.PlaygroundID,
+		playgroundID,
 		from.Class,
 		liveAccountType,
 		from.Timestamp,

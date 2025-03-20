@@ -268,6 +268,12 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 		}
 	}
 
+	for _, o := range p.account.Orders {
+		if o == order {
+			return nil, nil, fmt.Errorf("order %d is already in order queue: %w", order.ID, ErrOrderAlreadyFilled)
+		}
+	}
+
 	return nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
 }
 
@@ -1785,6 +1791,8 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 	playground.Meta = meta
 	playground.ID = id
+	playground.Balance = balance
+	playground.StartingBalance = meta.InitialBalance
 	playground.ClientID = clientID
 	playground.account = NewBacktesterAccount(balance, orders)
 	playground.clock = clock
