@@ -63,8 +63,16 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 			Price:      trade.Price,
 		})
 	}
+
+	var externalId *uint64
+	if o.ExternalOrderID != nil {
+		_externalId := uint64(*o.ExternalOrderID)
+		externalId = &_externalId
+	}
+	
 	order := &pb.Order{
 		Id:             uint64(o.ID),
+		ExternalId:     externalId,
 		Class:          string(o.Class),
 		Symbol:         o.GetInstrument().GetTicker(),
 		Side:           string(o.Side),
@@ -194,6 +202,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 				Environment:     string(meta.Environment),
 				LiveAccountType: liveAccountType,
 				Tags:            meta.Tags,
+				ClientId:        p.ClientID,
 			},
 			Clock: &pb.Clock{
 				Start:       meta.StartAt.Format(time.RFC3339),

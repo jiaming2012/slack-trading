@@ -9,7 +9,7 @@ import (
 type AppVersion struct{}
 
 func GetAppVersion() string {
-	return "3.18.0"
+	return "3.19.0"
 }
 
 func (m *AppVersion) Serve(r *http.Request, apiRequest eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {

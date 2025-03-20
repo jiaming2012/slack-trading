@@ -66,22 +66,32 @@ def calculate_required_margin(price: float, qty: float, side: OrderSide) -> floa
         raise ValueError("Invalid side")
         
 
-def calculate_new_trade_quantity(equity: float, free_margin: float, current_price: float, side: OrderSide, stop_loss: float, max_per_trade_risk_percentage: float, max_allowable_free_margin_percentage: float, additional_equity_at_risk: float) -> float:
+def calculate_new_trade_quantity(logger, equity: float, free_margin: float, current_price: float, side: OrderSide, stop_loss: float, max_per_trade_risk_percentage: float, max_allowable_free_margin_percentage: float, additional_equity_at_risk: float) -> float:
     max_allowable_margin = free_margin * max_allowable_free_margin_percentage
     max_per_trade_risk = equity * max_per_trade_risk_percentage
+    
+    logger.info(f"max_allowable_margin: {max_allowable_margin:.2f}, free_margin: {free_margin}, max_allowable_free_margin_percentage: {max_allowable_free_margin_percentage:.2f}", trading_operation='calculate_risk')
+    logger.info(f"original max_per_trade_risk: {max_per_trade_risk:.2f}, equity: {equity:.2f}, max_per_trade_risk_percentage: {max_per_trade_risk_percentage:.2f}", trading_operation='calculate_risk')
+    
     max_per_trade_risk += additional_equity_at_risk
     
     sl_distance = abs(current_price - stop_loss)
+    
+    logger.info(f"current_price: {current_price}, stop_loss: {stop_loss}, sl_distance: {sl_distance}", trading_operation='calculate_risk')
+    
     quantity = max_per_trade_risk / sl_distance
+    
+    logger.info(f"new max_per_trade_risk: {max_per_trade_risk}, quantity: {quantity}", trading_operation='calculate_risk')
 
     required_margin = calculate_required_margin(current_price, quantity, side)
     if required_margin > max_allowable_margin:
         _quantity = max_allowable_margin / calculate_required_margin(current_price, 1, side)
-        logger.debug(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}")
+        logger.info(f"reducing quantity {quantity:.2f} -> {_quantity:.2f}: required_margin of {required_margin:.2f} > max_allowable_margin of {max_allowable_margin:.2f}", trading_operation='calculate_risk')
         quantity = _quantity
         
     # round stock quantity to nearest whole number
     quantity = int(round(quantity - 0.5, 0))
+    logger.info(f"final quantity: {quantity}", trading_operation='calculate_risk')
     if quantity < 1:
         raise ValueError(f"Invalid quantity: {quantity}")
     
@@ -220,7 +230,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 
                 max_per_trade_risk_percentage = 0.06
                 max_allowable_free_margin_percentage = 0.65
-                quantity = calculate_new_trade_quantity(playground.account.equity, playground.account.free_margin, current_price, side, s.min_price_prediction, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
+                quantity = calculate_new_trade_quantity(logger, playground.account.equity, playground.account.free_margin, current_price, side, sl, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
                 tag = build_tag(sl, tp, side)
             except ValueError as e:
                 logger.warning(f"failed to build tag: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
