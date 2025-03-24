@@ -103,6 +103,23 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					New:            reason,
 				},
 			})
+		} else if tradierOrder.Status == string(models.OrderRecordStatusCancelled) {
+			if order.ExternalOrderID == nil {
+				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
+				continue
+			}
+
+			sink.Enqueue(&models.TradierOrderUpdateEvent{
+				ModifyOrder: &models.TradierOrderModifyEvent{
+					PlaygroundId:   playground.ID,
+					TradierOrderID: *order.ExternalOrderID,
+					Field:          "status",
+					New:            string(models.OrderRecordStatusCancelled),
+				},
+			})
+		} else {
+			log.Warnf("TradierApiWorker.executeOrdersQueueUpdate: unknown order status: %v", tradierOrder.Status)
+			continue
 		}
 
 		time.Sleep(sleepDuration)
@@ -121,7 +138,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		return nil, fmt.Errorf("handleLiveOrders: failed to get positions: %w", err)
 	}
 
-	newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
+	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
 			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
@@ -136,6 +153,10 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		}
 
 		return nil, fmt.Errorf("handleLiveOrders: failed to commit pending orders: %w", err)
+	}
+
+	if newOrder != nil {
+		order = newOrder
 	}
 
 	if invalidOrder != nil {

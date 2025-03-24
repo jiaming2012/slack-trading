@@ -3,6 +3,8 @@ package data
 import (
 	"fmt"
 	"path"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,8 +169,21 @@ func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType)
 
 func (s *DatabaseService) LoadPlaygrounds() error {
 	var playgroundsSlice []*models.Playground
-	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.Trades.OrderRecord").Preload("Orders.Closes").Preload("Orders.ClosedBy").Preload("Orders.Closes.ClosedBy").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
+	}
+
+	// if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
+	//     return db.Order("id ASC") // Fetch orders sorted by OrderID in ascending order
+	// }).Preload("Orders.Trades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	//     return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
+	// }
+
+	// Sort orders in each playground by OrderID
+	for _, p := range playgroundsSlice {
+		sort.Slice(p.Orders, func(i, j int) bool {
+			return p.Orders[i].ID < p.Orders[j].ID
+		})
 	}
 
 	// load reconcile playgrounds first
@@ -417,7 +432,7 @@ func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositor
 	return feeds, nil
 }
 
-func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest, newTradesQueue *eventmodels.FIFOQueue[*models.TradeRecord]) error {
+func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest) error {
 	env := req.Env
 
 	// validations
@@ -507,7 +522,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		req.ReconcilePlayground = reconcilePlayground
 
-		newTradesQueue = eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
+		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
 		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
@@ -697,7 +712,6 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		})
 	}
 
-	newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
 	err = s.CreatePlayground(p, &models.PopulatePlaygroundRequest{
 		ID:       &p.ID,
 		ClientID: p.ClientID,
@@ -715,7 +729,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		Tags:              p.Tags,
 		LiveAccount:       liveAccount,
 		SaveToDB:          false,
-	}, newTradesQueue)
+	})
 
 	if err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to create playground: %w", err)
@@ -803,7 +817,7 @@ func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*even
 	return plot, nil
 }
 
-func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide) (*models.GetAccountResponse, error) {
+func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
@@ -829,7 +843,7 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 
 	if fetchOrders {
 		response.Orders = playground.GetOrders()
-		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0
+		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0 || len(symbols) > 0
 		if filterOrders {
 			filteredOrders := []*models.OrderRecord{}
 			for _, order := range response.Orders {
@@ -839,6 +853,20 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 
 				if to != nil && order.Timestamp.After(*to) {
 					continue
+				}
+
+				if len(symbols) > 0 {
+					found := false
+					for _, s := range symbols {
+						if strings.EqualFold(order.Symbol, s) {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						continue
+					}
 				}
 
 				if len(status) > 0 {

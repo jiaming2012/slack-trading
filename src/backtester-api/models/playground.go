@@ -231,18 +231,19 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 	return nil
 }
 
-func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions map[eventmodels.Instrument]*Position, executionFillRequest ExecutionFillRequest, performChecks bool) (newTrade *TradeRecord, invalidOrder *OrderRecord, err error) {
+func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions map[eventmodels.Instrument]*Position, executionFillRequest ExecutionFillRequest, performChecks bool) (newOrder *OrderRecord, newTrade *TradeRecord, invalidOrder *OrderRecord, err error) {
 	for _, o := range p.account.PendingOrders {
-		if o == order {
+		if o.ID == order.ID {
+			order = o
 			if err := p.commitTradableOrderToOrderQueue(order, startingPositions, executionFillRequest, performChecks); err != nil {
 				order.Reject(err)
 				invalidOrder = order
 
 				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
+					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
 				}
 
-				return nil, invalidOrder, nil
+				return nil, nil, invalidOrder, nil
 			}
 
 			newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, executionFillRequest, startingPositions)
@@ -252,29 +253,29 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 				log.Errorf("error filling order: %v", err)
 
 				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err)
+					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err)
 				}
 
-				return nil, invalidOrder, nil
+				return nil, nil, invalidOrder, nil
 			}
 
 			if orderIsFilled {
 				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
+					return nil, nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
 				}
 			}
 
-			return newTrade, nil, nil
+			return order, newTrade, nil, nil
 		}
 	}
 
 	for _, o := range p.account.Orders {
-		if o == order {
-			return nil, nil, fmt.Errorf("order %d is already in order queue: %w", order.ID, ErrOrderAlreadyFilled)
+		if o.ID == order.ID {
+			return nil, nil, nil, fmt.Errorf("order %d is already in order queue: %w", order.ID, ErrOrderAlreadyFilled)
 		}
 	}
 
-	return nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
+	return nil, nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
 }
 
 func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instrument]*Position, executionFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
@@ -660,21 +661,52 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 	var closeByRequests []*CloseByRequest
 
-	// mutates the order to add closes info
-	if err := p.addClosesInfoToOrder(order, position); err != nil {
-		return nil, false, fmt.Errorf("fillOrder: error adding closes info to order: %w", err)
-	}
+	// reconciliation playgrounds do not have close orders
+	if order.LiveAccountType != LiveAccountTypeReconcilation {
+		// mutates the order to add closes info
+		if err := p.addClosesInfoToOrder(order, position); err != nil {
+			return nil, false, fmt.Errorf("fillOrder: error adding closes info to order: %w", err)
+		}
 
-	if order.IsClose {
-		volumeToClose := math.Abs(order.GetQuantity())
+		if order.IsClose {
+			volumeToClose := math.Abs(order.GetQuantity())
 
-		if order.CloseOrderId == nil {
-			openOrders := p.GetOpenOrders(order.GetInstrument())
+			if order.CloseOrderId == nil {
+				openOrders := p.GetOpenOrders(order.GetInstrument())
 
-			// calculate the volume to close
-			for _, o := range openOrders {
-				if volumeToClose <= 0 {
-					break
+				// calculate the volume to close
+				for _, o := range openOrders {
+					if volumeToClose <= 0 {
+						break
+					}
+
+					qty, err := o.GetRemainingOpenQuantity()
+					if err != nil {
+						return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
+					}
+
+					remainingOpenQuantity := math.Abs(qty)
+					if remainingOpenQuantity <= 0 {
+						continue
+					}
+
+					quantity := math.Min(volumeToClose, remainingOpenQuantity)
+					volumeToClose -= quantity
+
+					sign := 1.0
+					if o.Side == TradierOrderSideBuy {
+						sign = -1.0
+					}
+
+					closeByRequests = append(closeByRequests, &CloseByRequest{
+						Order:    o,
+						Quantity: quantity * sign,
+					})
+				}
+			} else {
+				o := p.GetOpenOrder(*order.CloseOrderId)
+				if o == nil {
+					return nil, false, fmt.Errorf("fillOrder: open order %d not found in open orders", *order.CloseOrderId)
 				}
 
 				qty, err := o.GetRemainingOpenQuantity()
@@ -684,7 +716,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 				remainingOpenQuantity := math.Abs(qty)
 				if remainingOpenQuantity <= 0 {
-					continue
+					return nil, false, fmt.Errorf("fillOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
 				}
 
 				quantity := math.Min(volumeToClose, remainingOpenQuantity)
@@ -700,43 +732,15 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 					Quantity: quantity * sign,
 				})
 			}
-		} else {
-			o := p.GetOpenOrder(*order.CloseOrderId)
-			if o == nil {
-				return nil, false, fmt.Errorf("fillOrder: open order %d not found in open orders", *order.CloseOrderId)
+
+			// check if the volume to close is valid
+			if volumeToClose < 0 {
+				return nil, false, fmt.Errorf("fillOrder: volume to close cannot be negative")
 			}
 
-			qty, err := o.GetRemainingOpenQuantity()
-			if err != nil {
-				return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
+			if volumeToClose > 0 {
+				return nil, false, fmt.Errorf("fillOrder: volume to close exceeds open volume")
 			}
-
-			remainingOpenQuantity := math.Abs(qty)
-			if remainingOpenQuantity <= 0 {
-				return nil, false, fmt.Errorf("fillOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
-			}
-
-			quantity := math.Min(volumeToClose, remainingOpenQuantity)
-			volumeToClose -= quantity
-
-			sign := 1.0
-			if o.Side == TradierOrderSideBuy {
-				sign = -1.0
-			}
-
-			closeByRequests = append(closeByRequests, &CloseByRequest{
-				Order:    o,
-				Quantity: quantity * sign,
-			})
-		}
-
-		// check if the volume to close is valid
-		if volumeToClose < 0 {
-			return nil, false, fmt.Errorf("fillOrder: volume to close cannot be negative")
-		}
-
-		if volumeToClose > 0 {
-			return nil, false, fmt.Errorf("fillOrder: volume to close exceeds open volume")
 		}
 	}
 
@@ -745,6 +749,11 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 	orderIsFilled, err := order.Fill(trade)
 	if err != nil {
+		if errors.Is(err, ErrOrderAlreadyFilled) {
+			log.Warnf("order %d already filled", order.ID)
+			return nil, true, nil
+		}
+
 		return nil, false, fmt.Errorf("fillOrder: error filling order: %w", err)
 	}
 
@@ -767,29 +776,29 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	return trade, orderIsFilled, nil
 }
 
-func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
-	position, ok := startingPositions[trade.GetSymbol()]
-	if !ok {
-		position = &Position{}
-	}
+// func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
+// 	position, ok := startingPositions[trade.GetSymbol()]
+// 	if !ok {
+// 		position = &Position{}
+// 	}
 
-	if position.Quantity > 0 {
-		if trade.Quantity < 0 {
-			closeQuantity := math.Min(position.Quantity, math.Abs(trade.Quantity))
-			pl := (trade.Price - position.CostBasis) * closeQuantity
-			position.PL += pl
-		}
-	} else if position.Quantity < 0 {
-		if trade.Quantity > 0 {
-			closeQuantity := math.Min(math.Abs(position.Quantity), trade.Quantity)
-			pl := (position.CostBasis - trade.Price) * closeQuantity
-			position.PL += pl
-		}
-	}
+// 	if position.Quantity > 0 {
+// 		if trade.Quantity < 0 {
+// 			closeQuantity := math.Min(position.Quantity, math.Abs(trade.Quantity))
+// 			pl := (trade.Price - position.CostBasis) * closeQuantity
+// 			position.PL += pl
+// 		}
+// 	} else if position.Quantity < 0 {
+// 		if trade.Quantity > 0 {
+// 			closeQuantity := math.Min(math.Abs(position.Quantity), trade.Quantity)
+// 			pl := (position.CostBasis - trade.Price) * closeQuantity
+// 			position.PL += pl
+// 		}
+// 	}
 
-	position.Quantity += trade.Quantity
-	startingPositions[trade.GetSymbol()] = position
-}
+// 	position.Quantity += trade.Quantity
+// 	startingPositions[trade.GetSymbol()] = position
+// }
 
 func (p *Playground) fillOrdersDeprecated(ordersToOpen []*OrderRecord, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]ExecutionFillRequest, performChecks bool) ([]*TradeRecord, error) {
 	var trades []*TradeRecord

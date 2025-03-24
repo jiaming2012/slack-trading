@@ -154,6 +154,7 @@ message GetAccountRequest {
     optional string toRTF3339 = 4;
     repeated string status = 5;
     repeated string sides = 6;
+    repeated string symbols = 7;
 }
 
 message GetAccountResponse {
@@ -262,10 +263,9 @@ message Candle {
 }
 
 message Trade {
-    string symbol = 1;
-    string create_date = 2;
-    double quantity = 3;
-    double price = 4;
+    string create_date = 1;
+    double quantity = 2;
+    double price = 3;
 }
 
 message Order {
@@ -287,5 +287,6 @@ message Order {
     repeated Trade closed_by = 16;
     repeated Order closes = 17;
     optional uint64 external_id = 18;
+    repeated Order reconciles = 19;
 }
 

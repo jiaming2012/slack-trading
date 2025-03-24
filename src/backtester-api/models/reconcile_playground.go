@@ -138,7 +138,6 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 				o.Reconciles = append(o.Reconciles, order)
 			}
 
-			order.ReconciledBy = orders
 			return nil
 		},
 		Info: "Add ReconciledBy field to orders",
