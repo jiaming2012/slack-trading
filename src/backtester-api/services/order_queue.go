@@ -26,6 +26,28 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
+		if order.IsAdjustment {
+			req := models.ExecutionFillRequest{
+				ReconcilePlayground: nil,
+				OrderRecord:         order,
+				Time:                order.Timestamp,
+				Price:               order.RequestedPrice,
+				Quantity:            order.GetQuantity(),
+			}
+
+			trade, err := fillPendingOrder(playground, order, req, 0, nil, dbService)
+			if err != nil {
+				log.Errorf("UpdateTradierOrderQueue: failed to fill adjustment order: %v", err)
+				continue
+			}
+
+			if trade != nil {
+				log.Infof("UpdateTradierOrderQueue: filled adjustment trade: %v", trade)
+			}
+
+			continue
+		}
+
 		reconcilePlayground, found, err := dbService.FetchReconcilePlaygroundByOrder(order)
 		if err != nil {
 			log.Errorf("UpdateTradierOrderQueue: failed to fetch reconcile playground: %v", err)
@@ -206,13 +228,17 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 				continue
 			}
 
-			if p.ReconcilePlayground != nil {
-				p.GetNewTradesQueue().Enqueue(trade)
-			} else {
-				log.Errorf("handleLiveOrders: playground is not live: %v", p)
-			}
+			if trade != nil {
+				if p.ReconcilePlayground != nil {
+					if trade != nil {
+						p.GetNewTradesQueue().Enqueue(trade)
+					}
+				} else {
+					log.Errorf("handleLiveOrders: playground is not live: %v", p)
+				}
 
-			log.Infof("handleLiveOrders: opened trade: %v", trade)
+				log.Infof("handleLiveOrders: opened trade: %v", trade)
+			}
 		}
 
 		cache.Remove(tradierOrder, false)

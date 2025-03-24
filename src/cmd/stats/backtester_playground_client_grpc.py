@@ -512,7 +512,8 @@ class BacktesterPlaygroundClient:
                 broker='tradier',
                 account_type=account_type,
                 repositories=req.repositories,
-                environment='live'
+                environment='live',
+                tags=req.tags
             )
             
             response = self.network_call_with_retry('create_live_playground', self.client.CreateLivePlayground, liveRequest)            

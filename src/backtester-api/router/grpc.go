@@ -534,6 +534,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		Duration:       models.OrderRecordDuration(req.Duration),
 		Tag:            req.Tag,
 		CloseOrderId:   closeOrderId,
+		IsAdjustment:   req.IsAdjustment,
 	})
 
 	if webErr != nil {

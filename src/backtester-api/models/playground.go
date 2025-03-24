@@ -1586,6 +1586,30 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 	return changes, nil
 }
 
+func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
+		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
+	}
+
+	changes, err := p.placeOrder(order)
+	if err != nil {
+		return nil, fmt.Errorf("failed to place adjustment order in reconcile playground: %w", err)
+	}
+
+	changes = append(changes, &PlaceOrderChanges{
+		Commit: func() error {
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, false); err != nil {
+				return fmt.Errorf("failed to update live order record: %w", err)
+			}
+
+			return nil
+		},
+		Info: "update live order record",
+	})
+
+	return changes, nil
+}
+
 func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	if order.Class != OrderRecordClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")
@@ -1602,19 +1626,24 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
 
-	positionQty := 0.0
-	if position, ok := positions[order.GetInstrument()]; ok {
-		positionQty = position.Quantity
+	var position Position
+	pos, ok := positions[order.GetInstrument()]
+	if ok {
+		position = *pos
 	}
 
 	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
-		if err := p.isSideAllowed(order.GetInstrument(), order.Side, positionQty); err != nil {
+		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity); err != nil {
 			return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 		}
 	}
 
-	if order.RequestedPrice <= 0 {
-		return nil, fmt.Errorf("requested price must be greater than 0")
+	if order.IsAdjustment {
+		order.RequestedPrice = position.CostBasis
+	} else {
+		if order.RequestedPrice <= 0 {
+			return nil, fmt.Errorf("requested price must be greater than 0")
+		}
 	}
 
 	if order.Price != nil && *order.Price <= 0 {
@@ -1673,6 +1702,8 @@ func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return p.placeLiveOrder(order)
 	case PlaygroundEnvironmentSimulator:
 		return p.placeOrder(order)
+	case PlaygroundEnvironmentReconcile:
+		return p.placeReconcileAdjustmentOrder(order)
 	default:
 		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
 	}
