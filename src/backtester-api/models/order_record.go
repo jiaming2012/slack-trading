@@ -29,6 +29,7 @@ type OrderRecord struct {
 	RejectReason     *string                `gorm:"column:reject_reason;type:text"`
 	Tag              string                 `gorm:"column:tag;type:text"`
 	Timestamp        time.Time              `gorm:"column:timestamp;type:timestamptz;not null"`
+	IsAdjustment     bool                   `gorm:"column:is_adjustment"`
 	IsClose          bool                   `gorm:"-"`
 	CloseOrderId     *uint                  `gorm:"column:close_order_id"`
 	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
@@ -223,6 +224,7 @@ func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, cl
 		ClosedBy:         []*TradeRecord{},
 		Closes:           []*OrderRecord{},
 		CloseOrderId:     closeOrderId,
+		IsAdjustment:     false,
 	}
 
 	if id != 0 {

@@ -16,6 +16,7 @@ type CreateOrderRequest struct {
 	StopPrice       *float64            `json:"stop_price"`
 	Tag             string              `json:"tag"`
 	CloseOrderId    *uint               `json:"close_order_id"`
+	IsAdjustment    bool                `json:"is_adjustment"`
 }
 
 func (req *CreateOrderRequest) Validate() error {

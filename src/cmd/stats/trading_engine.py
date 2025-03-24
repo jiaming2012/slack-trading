@@ -371,7 +371,8 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
         start_date=start_date,
         stop_date=stop_date,
         repositories=[ltf_repo, htf_repo],
-        environment=env.value
+        environment=env.value,
+        tags=[symbol, open_strategy_input]
     )
     
     if playground_client_id is not None:

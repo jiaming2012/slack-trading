@@ -250,7 +250,7 @@ func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Pl
 
 	orders := playground.GetOrders()
 	for _, order := range orders {
-		if *order.ExternalOrderID == id {
+		if order.ExternalOrderID != nil && *order.ExternalOrderID == id {
 			return playground, order, nil
 		}
 	}
@@ -771,6 +771,8 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	var orderId uint
 	if req.Id != nil {
 		orderId = *req.Id
+	} else if req.IsAdjustment {
+		orderId = 0
 	} else {
 		orderId = playground.NextOrderID()
 	}
@@ -794,6 +796,16 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		req.Tag,
 		req.CloseOrderId,
 	)
+
+	if req.IsAdjustment {
+		if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+			return nil, fmt.Errorf("makeOrderRecord: only reconcile playgrounds can place adjustment orders")
+		}
+
+		order.IsAdjustment = true
+		order.LiveAccountType = models.LiveAccountTypeReconcilation
+		log.Infof("placing adjustment order: %v", order)
+	}
 
 	changes, err := playground.PlaceOrder(order)
 	if err != nil {
