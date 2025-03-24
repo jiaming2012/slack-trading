@@ -16,6 +16,11 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
+# Merge the dev branch into main
+echo "Merging dev branch into main..."
+git fetch origin
+git merge origin/dev
+
 # Find the latest version of the Docker image
 VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
 
