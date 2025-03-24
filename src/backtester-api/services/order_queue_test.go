@@ -115,7 +115,7 @@ func TestLiveAccount(t *testing.T) {
 			CreatedAt:    now,
 			LiveAccount:  liveAccount,
 			SaveToDB:     true,
-		}, nil)
+		})
 
 		return playground, err
 	}

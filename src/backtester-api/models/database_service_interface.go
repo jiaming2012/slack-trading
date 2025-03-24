@@ -18,7 +18,7 @@ type IDatabaseService interface {
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
 	FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
-	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord]) error
+	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	CreateTransaction(transaction func(tx *gorm.DB) error) error
 	PopulatePlayground(p *Playground) error
 	PopulateLiveAccount(a *LiveAccount) error

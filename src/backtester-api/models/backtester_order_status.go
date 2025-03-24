@@ -8,7 +8,7 @@ const (
 	OrderRecordStatusPartiallyFilled OrderRecordStatus = "partially_filled"
 	OrderRecordStatusFilled          OrderRecordStatus = "filled"
 	OrderRecordStatusExpired         OrderRecordStatus = "expired"
-	OrderRecordStatusCancelled       OrderRecordStatus = "cancelled"
+	OrderRecordStatusCancelled       OrderRecordStatus = "canceled"
 	OrderRecordStatusRejected        OrderRecordStatus = "rejected"
 )
 

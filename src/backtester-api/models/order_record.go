@@ -34,7 +34,6 @@ type OrderRecord struct {
 	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
 	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by"`
 	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles"`
-	ReconciledBy     []*OrderRecord         `gorm:"many2many:order_reconciled_by" json:"-"`
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID"`
 	instrument       eventmodels.Instrument `gorm:"-"`
 }
@@ -86,6 +85,11 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 
 	if trade.Quantity == 0 {
 		return false, fmt.Errorf("trade quantity must be non-zero")
+	}
+
+	if math.Abs(filledQuantity) == o.AbsoluteQuantity {
+		o.Status = OrderRecordStatusFilled
+		return true, ErrOrderAlreadyFilled
 	}
 
 	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {

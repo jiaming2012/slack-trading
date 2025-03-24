@@ -30,7 +30,7 @@ func CreateReconcilePlayground(s models.IDatabaseService, source *models.CreateA
 	}
 
 	playground := &models.Playground{}
-	if err := s.CreatePlayground(playground, createPlaygroundReq, nil); err != nil {
+	if err := s.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
 

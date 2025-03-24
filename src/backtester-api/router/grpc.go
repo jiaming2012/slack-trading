@@ -31,8 +31,10 @@ func NewServer(dbService *data.DatabaseService) *Server {
 func convertOrders(orders []*models.OrderRecord) []*pb.Order {
 	out := make([]*pb.Order, 0)
 
-	for _, o := range orders {
-		out = append(out, convertOrder(o))
+	for _, order := range orders {
+		if o := convertOrder(order); o != nil {
+			out = append(out, o)
+		}
 	}
 
 	return out
@@ -42,7 +44,6 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.Trades {
 		trades = append(trades, &pb.Trade{
-			Symbol:     trade.GetSymbol().GetTicker(),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
@@ -57,11 +58,15 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
-			Symbol:     trade.GetSymbol().GetTicker(),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
 		})
+	}
+
+	var reconciles []*pb.Order
+	for _, order := range o.Reconciles {
+		reconciles = append(reconciles, convertOrder(order))
 	}
 
 	var externalId *uint64
@@ -69,7 +74,7 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		_externalId := uint64(*o.ExternalOrderID)
 		externalId = &_externalId
 	}
-	
+
 	order := &pb.Order{
 		Id:             uint64(o.ID),
 		ExternalId:     externalId,
@@ -86,6 +91,7 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		CreateDate:     o.Timestamp.String(),
 		ClosedBy:       closedBy,
 		Closes:         closes,
+		Reconciles:     reconciles,
 	}
 
 	if o.Price != nil {
@@ -367,7 +373,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
 		newTrades = append(newTrades, &pb.Trade{
-			Symbol:     trade.GetSymbol().GetTicker(),
+			// Symbol:     trade.GetSymbol().GetTicker(),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
@@ -457,7 +463,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	account, err := s.dbService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides)
+	account, err := s.dbService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides, req.Symbols)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
@@ -607,8 +613,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 	createPlaygroundReq.CreatedAt = time.Now()
 
 	playground := &models.Playground{}
-	newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
-	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq, newTradesQueue); err != nil {
+	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create playground: %v", err)
 	}
 
@@ -662,7 +667,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		Repositories: repositoryRequests,
 		Tags:         req.Tags,
 		SaveToDB:     false,
-	}, nil)
+	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create playground: %w", err)
