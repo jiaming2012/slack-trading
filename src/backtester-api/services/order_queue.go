@@ -264,7 +264,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 					OrderRecord:         event.CreateOrder.OrderRecord,
 					Time:                event.CreateOrder.Order.CreateDate,
 					Price:               event.CreateOrder.Order.AvgFillPrice,
-					Quantity:            event.CreateOrder.Order.GetLastFillQuantity(),
+					Quantity:            event.CreateOrder.Order.GetExecFillQuantity(),
 				})
 
 				log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)

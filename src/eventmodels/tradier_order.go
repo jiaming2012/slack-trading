@@ -3,6 +3,7 @@ package eventmodels
 import (
 	"fmt"
 	"log"
+	"math"
 	"time"
 )
 
@@ -28,6 +29,18 @@ type TradierOrder struct {
 	Strategy                  string               `json:"strategy"`
 	ReasonDescription         *string              `json:"reason_description"`
 	Tag                       string               `json:"tag"`
+}
+
+func (o TradierOrder) GetExecFillQuantity() float64 {
+	if o.Side == "buy" || o.Side == "buy_to_cover" {
+		return math.Abs(o.AbsoluteExecQuantity)
+	} else if o.Side == "sell" || o.Side == "sell_short" {
+		return -math.Abs(o.AbsoluteExecQuantity)
+	} else {
+		log.Fatalf("TradierOrder.GetExecFillQuantity: invalid side: %s", o.Side)
+	}
+
+	return 0
 }
 
 func (o TradierOrder) GetLastFillQuantity() float64 {

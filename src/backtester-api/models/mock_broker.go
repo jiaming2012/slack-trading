@@ -29,14 +29,14 @@ func (b *MockBroker) SetFillOrderExecutionPrice(price float64) {
 
 func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceEquityTradeRequest) {
 	b.orders = append(b.orders, &eventmodels.TradierOrder{
-		ID:                       uint(b.orderId),
-		Symbol:                   req.Symbol,
-		AbsoluteQuantity:         float64(req.Quantity),
-		Side:                     string(req.Side),
-		Type:                     string(req.OrderType),
-		Status:                   string(OrderRecordStatusFilled),
-		AvgFillPrice:             b.executePrice,
-		AbsoluteLastFillQuantity: float64(req.Quantity),
+		ID:                   uint(b.orderId),
+		Symbol:               req.Symbol,
+		AbsoluteQuantity:     float64(req.Quantity),
+		Side:                 string(req.Side),
+		Type:                 string(req.OrderType),
+		Status:               string(OrderRecordStatusFilled),
+		AvgFillPrice:         b.executePrice,
+		AbsoluteExecQuantity: float64(req.Quantity),
 	})
 }
 
