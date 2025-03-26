@@ -475,15 +475,22 @@ class BacktesterPlaygroundClient:
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
-            if self.environment == PlaygroundEnvironment.SIMULATOR.value and with_tick:
-                self.logger.info(f"position={self.position} Placing order with tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
-                self.tick(0, raise_exception=True)
+            if self.environment == PlaygroundEnvironment.SIMULATOR.value:
+                if with_tick:
+                    self.logger.info(f"position={self.position} Placing order with tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
+                    self.tick(0, raise_exception=True)
             else:
                 self.logger.info(f"position={self.position} environment={self.environment} Placing order without tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
+                self.logger.info("sleeping for 30 seconds ...")
+                time.sleep(30)
+                self.logger.info("waking up")
             
             return response
         
         except Exception as e:
+            self.logger.error("sleeping for 30 seconds ...")
+            time.sleep(30)
+            self.logger.error("waking up")
             if raise_exception:
                 raise e
             return None
