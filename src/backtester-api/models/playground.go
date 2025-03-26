@@ -1648,7 +1648,20 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 	}
 
 	if order.IsAdjustment {
-		order.RequestedPrice = position.CostBasis
+		if position.CostBasis == 0 {
+			if position.CurrentPrice > 0 {
+				order.RequestedPrice = position.CurrentPrice
+			} else {
+				prc, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
+				if err != nil {
+					return nil, fmt.Errorf("error current fetching price: %w", err)
+				}
+
+				order.RequestedPrice = prc
+			}
+		} else {
+			order.RequestedPrice = math.Abs(position.CostBasis)
+		}
 	} else {
 		if order.RequestedPrice <= 0 {
 			return nil, fmt.Errorf("requested price must be greater than 0")
