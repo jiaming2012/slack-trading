@@ -56,7 +56,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 					}
 				}
 			}
-			
+
 			continue
 		}
 
@@ -257,13 +257,21 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
 			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
-			cache.Remove(tradierOrder, false)
+
+			if cache != nil {
+				cache.Remove(tradierOrder, false)
+			}
+
 			return nil, nil
 		}
 
 		if errors.Is(err, models.ErrOrderAlreadyFilled) {
 			log.Debugf("handleLiveOrders: order already filled: %v", tradierOrder)
-			cache.Remove(tradierOrder, false)
+
+			if cache != nil {
+				cache.Remove(tradierOrder, false)
+			}
+
 			return nil, nil
 		}
 
@@ -283,7 +291,11 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	if err := database.SaveOrderRecord(order, &balance, false); err != nil {
 		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
-			cache.Remove(tradierOrder, false)
+
+			if cache != nil {
+				cache.Remove(tradierOrder, false)
+			}
+			
 			return newTrade, nil
 		}
 
