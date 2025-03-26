@@ -204,7 +204,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1 := models.NewOrderRecord(1, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order1 := models.NewOrderRecord(1, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		broker.SetFillOrderExecutionPrice(100.0)
 
@@ -252,6 +252,9 @@ func TestLiveAccount(t *testing.T) {
 		err = CommitPendingOrders(cache, database)
 		require.NoError(t, err)
 
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
 		// assert - live order is filled
 		liveOrders = livePlayground1.GetOrders()
 		require.Len(t, liveOrders, 1)
@@ -282,7 +285,7 @@ func TestLiveAccount(t *testing.T) {
 
 		livePlayground2 := createLivePlayground(t, playgroundID, reconcilePlayground, liveAccount, broker, database, newTradesQueue2)
 
-		order2 := models.NewOrderRecord(2, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order2 := models.NewOrderRecord(2, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		// save playground
 		err = database.SavePlaygroundSession(livePlayground2)
@@ -324,6 +327,9 @@ func TestLiveAccount(t *testing.T) {
 		require.True(t, hasUpdates)
 
 		err = CommitPendingOrders(cache, database)
+		require.NoError(t, err)
+
+		err = UpdatePendingMarginOrders(database)
 		require.NoError(t, err)
 
 		// assert - live order is filled

@@ -100,12 +100,16 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 	o.Trades = append(o.Trades, trade)
 
 	orderIsFilled := false
-	if o.GetFilledVolume() == o.GetQuantity() {
+	if o.IsFilled() {
 		o.Status = OrderRecordStatusFilled
 		orderIsFilled = true
 	}
 
 	return orderIsFilled, nil
+}
+
+func (o *OrderRecord) SetStatus(status OrderRecordStatus) {
+	o.Status = status
 }
 
 func (o *OrderRecord) GetStatus() OrderRecordStatus {
@@ -117,9 +121,7 @@ func (o *OrderRecord) GetStatus() OrderRecordStatus {
 		return OrderRecordStatusOpen
 	}
 
-	filledQuantity := o.GetFilledVolume()
-
-	if filledQuantity == o.GetQuantity() {
+	if o.IsFilled() {
 		return OrderRecordStatusFilled
 	}
 
@@ -139,6 +141,10 @@ func (o *OrderRecord) GetRemainingOpenQuantity() (float64, error) {
 	} else {
 		return 0, fmt.Errorf("GetRemainingOpenQuantity: unsupported order side")
 	}
+}
+
+func (o *OrderRecord) IsFilled() bool {
+	return o.GetFilledVolume() == o.GetQuantity()
 }
 
 func (o *OrderRecord) GetFilledVolume() float64 {

@@ -18,6 +18,22 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
+const FetchTradesFromReconciliationOrdersSql = `
+SELECT
+  t.*
+FROM order_reconciles orr
+JOIN order_records orec on orr.order_record_id = orec.id
+JOIN trade_records t on orec.id = t.order_id
+WHERE orr.reconcile_id = $1
+`
+
+const FetchReconciliationOrdersSql = `
+SELECT orec.*
+FROM order_reconciles orr
+JOIN order_records orec on orr.order_record_id = orec.id
+WHERE orr.reconcile_id = $1
+`
+
 type DatabaseService struct {
 	mu                   sync.Mutex
 	db                   *gorm.DB
@@ -40,6 +56,24 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		liveRepositories:     make(map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository),
 		polygonClient:        polygonClient,
 	}
+}
+
+func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint) ([]*models.OrderRecord, error) {
+	var orders []*models.OrderRecord
+	if err := s.db.Raw(FetchReconciliationOrdersSql, reconcileId).Scan(&orders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
+	}
+
+	return orders, nil
+}
+
+func (s *DatabaseService) FetchTradesFromReconciliationOrders(reconcileId uint) ([]*models.TradeRecord, error) {
+	var trades []*models.TradeRecord
+	if err := s.db.Raw(FetchTradesFromReconciliationOrdersSql, reconcileId).Scan(&trades).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch trades from reconciliation orders: %w", err)
+	}
+
+	return trades, nil
 }
 
 func (s *DatabaseService) FetchReconcilePlayground(source models.CreateAccountRequestSource) (models.IReconcilePlayground, bool, error) {
