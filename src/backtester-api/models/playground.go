@@ -881,9 +881,9 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else if position.Quantity < 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else {
 		return nil, nil
 	}
@@ -1158,6 +1158,10 @@ func (p *Playground) GetEquity(positions map[eventmodels.Instrument]*Position) f
 	}
 
 	return equity
+}
+
+func (p *Playground) GetPendingOrders() []*OrderRecord {
+	return p.account.PendingOrders
 }
 
 func (p *Playground) GetOrders() []*OrderRecord {
@@ -1523,6 +1527,11 @@ func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 }
 
 func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	pendingOrders := p.GetPendingOrders()
+	for _, o := range pendingOrders {
+		log.Warnf("ClientRequestID=%s placeLiveOrder: pending order %d already exists in pending orders", *order.ClientRequestID, o.ID)
+	}
+
 	if p.ReconcilePlayground.GetLiveAccount() == nil {
 		return nil, fmt.Errorf("live account is not set")
 	}

@@ -76,22 +76,23 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	}
 
 	order := &pb.Order{
-		Id:             uint64(o.ID),
-		ExternalId:     externalId,
-		Class:          string(o.Class),
-		Symbol:         o.GetInstrument().GetTicker(),
-		Side:           string(o.Side),
-		Quantity:       o.AbsoluteQuantity,
-		Type:           string(o.OrderType),
-		Duration:       string(o.Duration),
-		RequestedPrice: o.RequestedPrice,
-		Tag:            o.Tag,
-		Trades:         trades,
-		Status:         string(o.Status),
-		CreateDate:     o.Timestamp.String(),
-		ClosedBy:       closedBy,
-		Closes:         closes,
-		Reconciles:     reconciles,
+		Id:              uint64(o.ID),
+		ExternalId:      externalId,
+		ClientRequestId: o.ClientRequestID,
+		Class:           string(o.Class),
+		Symbol:          o.GetInstrument().GetTicker(),
+		Side:            string(o.Side),
+		Quantity:        o.AbsoluteQuantity,
+		Type:            string(o.OrderType),
+		Duration:        string(o.Duration),
+		RequestedPrice:  o.RequestedPrice,
+		Tag:             o.Tag,
+		Trades:          trades,
+		Status:          string(o.Status),
+		CreateDate:      o.Timestamp.String(),
+		ClosedBy:        closedBy,
+		Closes:          closes,
+		Reconciles:      reconciles,
 	}
 
 	if o.Price != nil {
@@ -523,18 +524,19 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		*closeOrderId = uint(*req.CloseOrderId)
 	}
 	order, webErr := s.dbService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
-		Symbol:         req.Symbol,
-		Class:          models.OrderRecordClass(req.AssetClass),
-		Quantity:       req.Quantity,
-		Side:           models.TradierOrderSide(req.Side),
-		OrderType:      models.OrderRecordType(req.Type),
-		RequestedPrice: req.RequestedPrice,
-		Price:          req.Price,
-		StopPrice:      nil,
-		Duration:       models.OrderRecordDuration(req.Duration),
-		Tag:            req.Tag,
-		CloseOrderId:   closeOrderId,
-		IsAdjustment:   req.IsAdjustment,
+		Symbol:          req.Symbol,
+		ClientRequestID: req.ClientRequestId,
+		Class:           models.OrderRecordClass(req.AssetClass),
+		Quantity:        req.Quantity,
+		Side:            models.TradierOrderSide(req.Side),
+		OrderType:       models.OrderRecordType(req.Type),
+		RequestedPrice:  req.RequestedPrice,
+		Price:           req.Price,
+		StopPrice:       nil,
+		Duration:        models.OrderRecordDuration(req.Duration),
+		Tag:             req.Tag,
+		CloseOrderId:    closeOrderId,
+		IsAdjustment:    req.IsAdjustment,
 	})
 
 	if webErr != nil {

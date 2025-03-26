@@ -464,7 +464,8 @@ class BacktesterPlaygroundClient:
             type='market',
             duration='day',
             tag=tag,
-            requested_price=price
+            requested_price=price,
+            client_request_id=str(uuid.uuid4())
         )
         
         if close_order_id:

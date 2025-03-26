@@ -146,7 +146,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order := models.NewOrderRecord(1, nil, livePlayground.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order := models.NewOrderRecord(1, nil, nil, livePlayground.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMock, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		placeOrderChanges, err := livePlayground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1 := models.NewOrderRecord(1, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order1 := models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		broker.SetFillOrderExecutionPrice(100.0)
 
@@ -285,7 +285,7 @@ func TestLiveAccount(t *testing.T) {
 
 		livePlayground2 := createLivePlayground(t, playgroundID, reconcilePlayground, liveAccount, broker, database, newTradesQueue2)
 
-		order2 := models.NewOrderRecord(2, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+		order2 := models.NewOrderRecord(2, nil, nil, livePlayground2.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSellShort, 20, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
 		// save playground
 		err = database.SavePlaygroundSession(livePlayground2)

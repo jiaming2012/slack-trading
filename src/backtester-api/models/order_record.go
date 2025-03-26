@@ -14,6 +14,7 @@ import (
 type OrderRecord struct {
 	gorm.Model
 	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
+	ClientRequestID  *string                `gorm:"column:client_request_id;type:text"`
 	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null"`
 	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id"`
 	Class            OrderRecordClass       `gorm:"column:class;type:text;not null"`
@@ -190,6 +191,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	return NewOrderRecord(
 		orderID,
 		from.ExternalOrderID,
+		from.ClientRequestID,
 		playgroundID,
 		from.Class,
 		liveAccountType,
@@ -208,9 +210,10 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	)
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
+func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
 	o := &OrderRecord{
 		ExternalOrderID:  external_order_id,
+		ClientRequestID:  client_request_id,
 		PlaygroundID:     playgroundId,
 		Class:            class,
 		LiveAccountType:  accountType,

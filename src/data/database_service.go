@@ -814,6 +814,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	order := models.NewOrderRecord(
 		orderId,
 		req.ExternalOrderID,
+		req.ClientRequestID,
 		playground.GetId(),
 		req.Class,
 		playground.Meta.LiveAccountType,

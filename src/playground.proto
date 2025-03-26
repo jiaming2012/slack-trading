@@ -187,6 +187,7 @@ message PlaceOrderRequest {
     optional double price = 10;
     optional uint64 close_order_id = 11;
     bool is_adjustment = 12;
+    optional string client_request_id = 13;
 }
 
 message NextTickRequest {
@@ -289,5 +290,6 @@ message Order {
     repeated Order closes = 17;
     optional uint64 external_id = 18;
     repeated Order reconciles = 19;
+    optional string client_request_id = 20;
 }
 

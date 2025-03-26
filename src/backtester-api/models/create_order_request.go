@@ -4,6 +4,7 @@ import "fmt"
 
 type CreateOrderRequest struct {
 	Id              *uint               `json:"id"`
+	ClientRequestID *string             `json:"client_request_id"`
 	ExternalOrderID *uint               `json:"external_order_id"`
 	Symbol          string              `json:"symbol"`
 	Class           OrderRecordClass    `json:"class"`
