@@ -1,6 +1,11 @@
 version: '3'
 
 tasks:
+  cleanup:vultr:
+    cmds:
+      - './cleanup_docker_images_remote.sh'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   conda:list:
     cmds:
       - 'conda env list'

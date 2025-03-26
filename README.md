@@ -1,6 +1,14 @@
 # slack-trading
 A mock trading platform.
 
+# DevOps
+
+## Installation
+Crane: managing remote images in Vultr
+``` bash
+brew install crane
+```
+
 # Development
 We use python's bump2version for managing the app version.
 
