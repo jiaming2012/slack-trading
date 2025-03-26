@@ -15,6 +15,8 @@ type MockDatabase struct {
 	playgrounds          map[uuid.UUID]*Playground
 	reconcilePlaygrounds map[CreateAccountRequestSource]IReconcilePlayground
 	liveAccounts         map[CreateAccountRequestSource]ILiveAccount
+	orderNounce          uint
+	tradeNounce          uint
 }
 
 func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
@@ -64,6 +66,27 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, repo)
 }
 
+func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint) ([]*TradeRecord, error) {
+	var records []*TradeRecord
+
+	for _, reconcilePlayground := range m.reconcilePlaygrounds {
+		p := reconcilePlayground.GetPlayground()
+		for _, order := range p.GetOrders() {
+			for _, o := range order.Reconciles {
+				if o.ID == reconcileId {
+					records = append(records, order.Trades...)
+				}
+			}
+		}
+	}
+
+	return records, nil
+}
+
+func (m *MockDatabase) FetchReconciliationOrders(reconcileId uint) ([]*OrderRecord, error) {
+	return nil, nil
+}
+
 func (m *MockDatabase) SetReconcilePlayground(source CreateAccountRequestSource, reconcilePlayground IReconcilePlayground) {
 	m.reconcilePlaygrounds[source] = reconcilePlayground
 }
@@ -73,6 +96,18 @@ func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, 
 
 	if _, found := m.orderRecords[playgroundId]; !found {
 		return fmt.Errorf("MockDatabase: playground not found in order records")
+	}
+
+	if order.ID == 0 {
+		m.orderNounce++
+		order.ID = m.orderNounce
+	}
+
+	for _, trade := range order.Trades {
+		if trade.ID == 0 {
+			m.tradeNounce++
+			trade.ID = m.tradeNounce
+		}
 	}
 
 	// playground, found := m.playgrounds[playgroundId]

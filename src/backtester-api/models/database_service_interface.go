@@ -31,4 +31,6 @@ type IDatabaseService interface {
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
 	SaveLiveRepository(repo *CandleRepository) error
 	UpdatePlaygroundSession(playgroundSession *Playground) error
+	FetchTradesFromReconciliationOrders(reconcileId uint) ([]*TradeRecord, error)
+	FetchReconciliationOrders(reconcileId uint) ([]*OrderRecord, error)
 }

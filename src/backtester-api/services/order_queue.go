@@ -11,6 +11,99 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
+	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin)
+	if err != nil {
+		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
+	}
+
+	var newTrades []*models.TradeRecord
+	for _, order := range pendingOrders {
+		trades, err := dbService.FetchTradesFromReconciliationOrders(order.ID)
+		if err != nil {
+			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch trades: %v", err)
+		}
+
+		if len(trades) == 0 {
+			// check if the reconciliation order is cancelled or rejected
+			orders, err := dbService.FetchReconciliationOrders(order.ID)
+			if err != nil {
+				return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch reconciliation orders: %v", err)
+			}
+
+			for _, o := range orders {
+				shouldUpdate := false
+
+				if o.Status == models.OrderRecordStatusCancelled {
+					order.Cancel()
+					log.Infof("UpdatePendingMarginOrders: order %d was cancelled", order.ID)
+					shouldUpdate = true
+				} else if o.Status == models.OrderRecordStatusRejected {
+					rejectReason := "unknown"
+					if o.RejectReason != nil {
+						rejectReason = *o.RejectReason
+					}
+
+					err := fmt.Errorf(rejectReason)
+					order.Reject(err)
+					log.Infof("UpdatePendingMarginOrders: order %d status is %s", order.ID, o.Status)
+					shouldUpdate = true
+				}
+
+				if shouldUpdate {
+					if err := dbService.SaveOrderRecord(order, nil, false); err != nil {
+						return fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
+					}
+				}
+			}
+			
+			continue
+		}
+
+		shouldUpdate := false
+		for _, trade := range trades {
+			found := false
+			for _, o := range order.Trades {
+				if o.ID == trade.ID {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				trade.OrderID = order.ID
+				order.Trades = append(order.Trades, trade)
+				newTrades = append(newTrades, trade)
+				shouldUpdate = true
+			}
+		}
+
+		if order.IsFilled() {
+			order.SetStatus(models.OrderRecordStatusFilled)
+			log.Infof("UpdatePendingMarginOrders: order filled: %v", order)
+			shouldUpdate = true
+		}
+
+		if shouldUpdate {
+			if err := dbService.SaveOrderRecord(order, nil, false); err != nil {
+				return fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
+			}
+		}
+
+		playground, err := dbService.FetchPlayground(order.PlaygroundID)
+		if err != nil {
+			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
+		}
+
+		for _, trade := range newTrades {
+			playground.GetNewTradesQueue().Enqueue(trade)
+		}
+	}
+
+	return nil
+}
+
+// todo: combine with DrainTradierOrderQueue
 func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {
 	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeReconcilation)
 	if err != nil {
@@ -212,33 +305,6 @@ func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseServ
 		if _, err := fillPendingOrder(reconcilePlayground.GetPlayground(), order, orderFillEntry, tradierOrder, cache, database); err != nil {
 			log.Errorf("handleLiveOrders: failed to fill reconciled order: %v", err)
 			continue
-		}
-
-		// Update live order that was reconciled
-		for _, o := range order.Reconciles {
-			p, err := database.FetchPlayground(o.PlaygroundID)
-			if err != nil {
-				log.Errorf("handleLiveOrders: failed to fetch playground for reconciled order: %v", err)
-				continue
-			}
-
-			trade, err := fillPendingOrder(p, o, orderFillEntry, tradierOrder, cache, database)
-			if err != nil {
-				log.Errorf("handleLiveOrders: failed to fill live order: %v", err)
-				continue
-			}
-
-			if trade != nil {
-				if p.ReconcilePlayground != nil {
-					if trade != nil {
-						p.GetNewTradesQueue().Enqueue(trade)
-					}
-				} else {
-					log.Errorf("handleLiveOrders: playground is not live: %v", p)
-				}
-
-				log.Infof("handleLiveOrders: opened trade: %v", trade)
-			}
 		}
 
 		cache.Remove(tradierOrder, false)
