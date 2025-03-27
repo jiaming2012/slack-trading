@@ -157,14 +157,14 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		// assert - live order is placed
-		orders := livePlayground.GetOrders()
+		orders := livePlayground.GetAllOrders()
 		require.Len(t, orders, 1)
 		liveOrder := orders[0]
 		require.Equal(t, order, liveOrder)
 
 		// assert - reconciliation order is placed
-		require.Len(t, reconcilePlayground.GetPlayground().GetOrders(), 1)
-		reconcileOrder := reconcilePlayground.GetPlayground().GetOrders()[0]
+		require.Len(t, reconcilePlayground.GetPlayground().GetAllOrders(), 1)
+		reconcileOrder := reconcilePlayground.GetPlayground().GetAllOrders()[0]
 
 		require.NotEqual(t, order.ExternalOrderID, reconcileOrder.ExternalOrderID)
 		require.Equal(t, order.Symbol, reconcileOrder.Symbol)
@@ -217,8 +217,8 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		// assert - reconciliation order is placed
-		require.Len(t, reconcilePlayground.GetPlayground().GetOrders(), 1)
-		reconcileOrder := reconcilePlayground.GetPlayground().GetOrders()[0]
+		require.Len(t, reconcilePlayground.GetPlayground().GetAllOrders(), 1)
+		reconcileOrder := reconcilePlayground.GetPlayground().GetAllOrders()[0]
 
 		require.NotNil(t, reconcileOrder.ExternalOrderID)
 		require.Equal(t, reconcileOrderIdx, *reconcileOrder.ExternalOrderID)
@@ -233,7 +233,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, reconcileOrder, reconcileOrders[0])
 
 		// assert - live order is placed
-		liveOrders := livePlayground1.GetOrders()
+		liveOrders := livePlayground1.GetAllOrders()
 		require.Len(t, liveOrders, 1)
 		require.Equal(t, order1, liveOrders[0])
 
@@ -256,7 +256,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// assert - live order is filled
-		liveOrders = livePlayground1.GetOrders()
+		liveOrders = livePlayground1.GetAllOrders()
 		require.Len(t, liveOrders, 1)
 		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[0].Status)
 
@@ -300,12 +300,12 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		// assert - live order is placed
-		require.Len(t, livePlayground2.GetOrders(), 1)
-		liveOrder := livePlayground2.GetOrders()[0]
+		require.Len(t, livePlayground2.GetAllOrders(), 1)
+		liveOrder := livePlayground2.GetAllOrders()[0]
 		require.Equal(t, order2, liveOrder)
 
 		// assert - reconciliation order is placed
-		reconcileOrders = reconcilePlayground.GetPlayground().GetOrders()
+		reconcileOrders = reconcilePlayground.GetPlayground().GetAllOrders()
 		require.Len(t, reconcileOrders, 3)
 
 		require.Equal(t, order1.Symbol, reconcileOrders[1].Symbol)

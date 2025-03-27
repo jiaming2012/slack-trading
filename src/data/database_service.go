@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"sort"
 	"strings"
@@ -282,7 +283,7 @@ func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Pl
 		return nil, nil, fmt.Errorf("failed to find playground using id %s", playgroundId)
 	}
 
-	orders := playground.GetOrders()
+	orders := playground.GetAllOrders()
 	for _, order := range orders {
 		if order.ExternalOrderID != nil && *order.ExternalOrderID == id {
 			return playground, order, nil
@@ -772,6 +773,38 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 	return nil
 }
 
+func (s *DatabaseService) checkPendingCloses(playground *models.Playground, closeOrderID uint) error {
+	orders := playground.GetAllOrders()
+	var orderToClose *models.OrderRecord
+	pendingCloseQuantity := 0.0
+	for _, order := range orders {
+		if order.IsFilled() {
+			if order.ID == closeOrderID {
+				orderToClose = order
+			}
+		} else {
+			if order.CloseOrderId != nil && *order.CloseOrderId == closeOrderID {
+				pendingCloseQuantity += order.AbsoluteQuantity
+			}
+		}
+	}
+
+	if orderToClose == nil {
+		return fmt.Errorf("failed to find order to close: %d", closeOrderID)
+	}
+
+	remainingOpenQty, err := orderToClose.GetRemainingOpenQuantity()
+	if err != nil {
+		return fmt.Errorf("failed to get remaining open quantity: %w", err)
+	}
+
+	if pendingCloseQuantity > math.Abs(remainingOpenQty) {
+		return fmt.Errorf("pending close quantity %.2f is greater than remaining open quantity %.2f", pendingCloseQuantity, remainingOpenQty)
+	}
+
+	return nil
+}
+
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
@@ -783,6 +816,12 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 	}
 
 	createdOn := playground.GetCurrentTime()
+
+	if req.CloseOrderId != nil {
+		if err := s.checkPendingCloses(playground, *req.CloseOrderId); err != nil {
+			return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
+		}
+	}
 
 	var playgroundEnv models.PlaygroundEnvironment
 	playgroundMeta := playground.GetMeta()
@@ -889,7 +928,7 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 	}
 
 	if fetchOrders {
-		response.Orders = playground.GetOrders()
+		response.Orders = playground.GetAllOrders()
 		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0 || len(symbols) > 0
 		if filterOrders {
 			filteredOrders := []*models.OrderRecord{}
@@ -999,7 +1038,7 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 
 		playgroundId := playground.GetId()
 
-		if txErr = saveOrderRecordsTx(tx, playground.GetOrders(), false); txErr != nil {
+		if txErr = saveOrderRecordsTx(tx, playground.GetAllOrders(), false); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 

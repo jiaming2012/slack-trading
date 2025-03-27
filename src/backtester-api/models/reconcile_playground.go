@@ -21,7 +21,7 @@ func (r *ReconcilePlayground) GetLiveAccount() ILiveAccount {
 }
 
 func (r *ReconcilePlayground) GetOrders() []*OrderRecord {
-	return r.playground.GetOrders()
+	return r.playground.GetAllOrders()
 }
 
 func (r *ReconcilePlayground) SetBroker(broker IBroker) error {

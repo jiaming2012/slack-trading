@@ -1596,7 +1596,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 0.0, position.Quantity)
 		require.Equal(t, 0.0, position.CostBasis)
 
-		orders := playground.GetOrders()
+		orders := playground.GetAllOrders()
 		require.Len(t, orders, 3)
 		require.ElementsMatch(t, orders[2].Closes, []*OrderRecord{order1, order2})
 
@@ -2134,14 +2134,14 @@ func TestOrders(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		orders := playground.GetOrders()
+		orders := playground.GetAllOrders()
 		require.Len(t, orders, 1)
 		require.Equal(t, OrderRecordStatusOpen, orders[0].GetStatus())
 
 		_, err = playground.Tick(time.Minute, false)
 		require.NoError(t, err)
 
-		orders = playground.GetOrders()
+		orders = playground.GetAllOrders()
 		require.Len(t, orders, 1)
 		require.Equal(t, OrderRecordStatusFilled, orders[0].GetStatus())
 	})
@@ -2303,7 +2303,7 @@ func TestTrades(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.NewTrades, 1)
 
-		orders := playground.GetOrders()
+		orders := playground.GetAllOrders()
 		require.Len(t, orders, 2)
 		require.Equal(t, OrderRecordStatusFilled, orders[0].GetStatus())
 		require.Equal(t, OrderRecordStatusRejected, orders[1].GetStatus())
@@ -2353,6 +2353,6 @@ func TestTrades(t *testing.T) {
 		require.Equal(t, quantity, delta.NewTrades[0].Quantity)
 		require.Equal(t, prices[1], delta.NewTrades[0].Price)
 
-		require.Equal(t, 2, len(playground.GetOrders()))
+		require.Equal(t, 2, len(playground.GetAllOrders()))
 	})
 }

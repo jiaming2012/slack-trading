@@ -233,6 +233,10 @@ func (w *TradierApiWorker) updateTradierOrderQueue(ctx context.Context) {
 	if err := services.UpdateTradierOrderQueue(w.tradesUpdateQueue, w.dbService, sleepDuration); err != nil {
 		log.Errorf("failed to update tradier order queue: %v", err)
 	}
+
+	if err := services.UpdatePendingMarginOrders(w.dbService); err != nil {
+		log.Errorf("failed to update pending margin orders: %v", err)
+	}
 }
 
 func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period time.Duration) (time.Time, time.Time) {

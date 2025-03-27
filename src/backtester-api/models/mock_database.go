@@ -71,7 +71,7 @@ func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint) ([]
 
 	for _, reconcilePlayground := range m.reconcilePlaygrounds {
 		p := reconcilePlayground.GetPlayground()
-		for _, order := range p.GetOrders() {
+		for _, order := range p.GetAllOrders() {
 			for _, o := range order.Reconciles {
 				if o.ID == reconcileId {
 					records = append(records, order.Trades...)

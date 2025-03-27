@@ -1164,7 +1164,7 @@ func (p *Playground) GetPendingOrders() []*OrderRecord {
 	return p.account.PendingOrders
 }
 
-func (p *Playground) GetOrders() []*OrderRecord {
+func (p *Playground) GetAllOrders() []*OrderRecord {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
@@ -1529,7 +1529,12 @@ func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	pendingOrders := p.GetPendingOrders()
 	for _, o := range pendingOrders {
-		log.Warnf("ClientRequestID=%s placeLiveOrder: pending order %d already exists in pending orders", *order.ClientRequestID, o.ID)
+		cliReqID := ""
+		if o.ClientRequestID != nil {
+			cliReqID = *o.ClientRequestID
+		}
+
+		log.Warnf("ClientRequestID=%s placeLiveOrder: pending order %d already exists in pending orders", cliReqID, o.ID)
 	}
 
 	if p.ReconcilePlayground.GetLiveAccount() == nil {
@@ -1545,6 +1550,28 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 
 	if reconcilePlayground.GetId() == p.GetId() {
 		return nil, fmt.Errorf("cannot place order in the same playground")
+	}
+
+	// check no pending orders exist
+	maxAttempts := 10
+	var pendingOrder *OrderRecord
+	outer_loop:
+	for range maxAttempts {
+		pendingReconcileOrders := reconcilePlayground.GetPlayground().GetPendingOrders()
+		for _, o := range pendingReconcileOrders {
+			if o.Symbol == order.Symbol {
+				pendingOrder = o
+				log.Warnf("placeLiveOrder: pending order %d already exists in reconcile playground pending orders", o.ID)
+				time.Sleep(1 * time.Second)
+				continue outer_loop
+			}
+		}
+		pendingOrder = nil
+		break
+	}
+
+	if pendingOrder != nil {
+		return nil, fmt.Errorf("multiple pending orders not allowed: order %d already exists in reconcile playground for symbol %s", pendingOrder.ID, pendingOrder.Symbol)
 	}
 
 	// todo: place all changes inside of a single transaction
