@@ -57,6 +57,8 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		liveAccounts:         make(map[models.CreateAccountRequestSource]models.ILiveAccount),
 		reconcilePlaygrounds: make(map[models.CreateAccountRequestSource]models.IReconcilePlayground),
 		liveRepositories:     make(map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository),
+		ordersCache:          make(map[uint]*models.OrderRecord),
+		tradesCache:          make(map[uint]*models.TradeRecord),
 		polygonClient:        polygonClient,
 		ordersCache:          make(map[uint]*models.OrderRecord),
 		tradesCache:          make(map[uint]*models.TradeRecord),
