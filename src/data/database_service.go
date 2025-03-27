@@ -58,6 +58,8 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		reconcilePlaygrounds: make(map[models.CreateAccountRequestSource]models.IReconcilePlayground),
 		liveRepositories:     make(map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository),
 		polygonClient:        polygonClient,
+		ordersCache:          make(map[uint]*models.OrderRecord),
+		tradesCache:          make(map[uint]*models.TradeRecord),
 	}
 }
 
@@ -919,8 +921,6 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 
 	return order, nil
 }
-
-
 
 func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
 	playground, err := s.FetchPlayground(playgroundID)
