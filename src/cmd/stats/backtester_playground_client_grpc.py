@@ -481,8 +481,8 @@ class BacktesterPlaygroundClient:
                     self.tick(0, raise_exception=True)
             else:
                 self.logger.info(f"position={self.position} environment={self.environment} Placing order without tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
-                self.logger.info("sleeping for 30 seconds ...")
-                time.sleep(30)
+                self.logger.info("sleeping for 3 seconds ...")
+                time.sleep(3)
                 self.logger.info("waking up")
             
             return response
