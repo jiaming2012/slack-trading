@@ -12,7 +12,8 @@ import (
 )
 
 func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
-	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin)
+	seekFromPlayground := true
+	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin, seekFromPlayground)
 	if err != nil {
 		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
 	}
@@ -105,7 +106,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 
 // todo: combine with DrainTradierOrderQueue
 func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {
-	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeReconcilation)
+	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeReconcilation, false)
 	if err != nil {
 		return fmt.Errorf("UpdateTradierOrderQueue: failed to fetch orders: %v", err)
 	}

@@ -39,6 +39,8 @@ type DatabaseService struct {
 	mu                   sync.Mutex
 	db                   *gorm.DB
 	playgrounds          map[uuid.UUID]*models.Playground
+	ordersCache          map[uint]*models.OrderRecord
+	tradesCache          map[uint]*models.TradeRecord
 	liveAccounts         map[models.CreateAccountRequestSource]models.ILiveAccount
 	reconcilePlaygrounds map[models.CreateAccountRequestSource]models.IReconcilePlayground
 	projectsDir          string
@@ -192,11 +194,26 @@ func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountReq
 	return nil
 }
 
-func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
 	if err := s.db.Where("status = ? and account_type = ?", string(models.OrderRecordStatusPending), string(accountType)).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
+	}
+
+	if seekFromPlayground {
+		var out []*models.OrderRecord
+
+		for _, o := range orders {
+			o2, found := s.ordersCache[o.ID]
+			if !found {
+				return nil, fmt.Errorf("failed to find order in memory: %d", o.ID)
+			}
+
+			out = append(out, o2)
+		}
+
+		return out, nil
 	}
 
 	return orders, nil
@@ -219,6 +236,16 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 		sort.Slice(p.Orders, func(i, j int) bool {
 			return p.Orders[i].ID < p.Orders[j].ID
 		})
+
+		// Store orders in memory
+		for _, o := range p.Orders {
+			s.ordersCache[o.ID] = o
+
+			// Store trades in memory
+			for _, t := range o.Trades {
+				s.tradesCache[t.ID] = t
+			}
+		}
 	}
 
 	// load reconcile playgrounds first
@@ -893,6 +920,8 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	return order, nil
 }
 
+
+
 func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
@@ -1092,6 +1121,12 @@ func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance 
 
 	if err != nil {
 		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
+	}
+
+	// save in cache
+	s.ordersCache[order.ID] = order
+	for _, t := range order.Trades {
+		s.tradesCache[t.ID] = t
 	}
 
 	return nil

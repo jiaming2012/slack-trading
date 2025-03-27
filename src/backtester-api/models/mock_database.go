@@ -229,7 +229,7 @@ func (m *MockDatabase) FetchReconcilePlaygroundByOrder(order *OrderRecord) (IRec
 	return nil, false, nil
 }
 
-func (m *MockDatabase) FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error) {
+func (m *MockDatabase) FetchPendingOrders(accountType LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error) {
 	var orders []*OrderRecord
 
 	for pId := range m.playgrounds {
