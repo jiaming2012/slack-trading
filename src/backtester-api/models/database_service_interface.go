@@ -16,7 +16,7 @@ type IDatabaseService interface {
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
-	FetchPendingOrders(accountType LiveAccountType) ([]*OrderRecord, error)
+	FetchPendingOrders(accountType LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	CreateTransaction(transaction func(tx *gorm.DB) error) error
