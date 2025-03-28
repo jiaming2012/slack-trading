@@ -13,10 +13,18 @@ import (
 
 func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 	seekFromPlayground := true
-	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin, seekFromPlayground)
+
+	marginPendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin, seekFromPlayground)
 	if err != nil {
 		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
 	}
+
+	paperPendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypePaper, seekFromPlayground)
+	if err != nil {
+		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
+	}
+
+	pendingOrders := append(marginPendingOrders, paperPendingOrders...)
 
 	var newTrades []*models.TradeRecord
 	for _, order := range pendingOrders {
@@ -296,7 +304,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 			if cache != nil {
 				cache.Remove(tradierOrder, false)
 			}
-			
+
 			return newTrade, nil
 		}
 
