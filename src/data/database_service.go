@@ -199,7 +199,8 @@ func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountReq
 func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
-	if err := s.db.Where("status = ? and account_type = ?", string(models.OrderRecordStatusPending), string(accountType)).Find(&orders).Error; err != nil {
+	if err := s.db.Joins("JOIN playground_sessions ON playground_sessions.id = order_records.playground_id").
+		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type = ?", string(models.OrderRecordStatusPending), string(accountType)).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
 	}
 
