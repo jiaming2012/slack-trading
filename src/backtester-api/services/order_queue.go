@@ -28,14 +28,14 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 
 	var newTrades []*models.TradeRecord
 	for _, order := range pendingOrders {
-		trades, err := dbService.FetchTradesFromReconciliationOrders(order.ID)
+		trades, err := dbService.FetchTradesFromReconciliationOrders(order.ID, seekFromPlayground)
 		if err != nil {
 			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch trades: %v", err)
 		}
 
 		if len(trades) == 0 {
 			// check if the reconciliation order is cancelled or rejected
-			orders, err := dbService.FetchReconciliationOrders(order.ID)
+			orders, err := dbService.FetchReconciliationOrders(order.ID, seekFromPlayground)
 			if err != nil {
 				return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch reconciliation orders: %v", err)
 			}
@@ -69,7 +69,15 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			continue
 		}
 
-		shouldUpdate := false
+		playground, err := dbService.FetchPlayground(order.PlaygroundID)
+		if err != nil {
+			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
+		}
+
+		if playground.ReconcilePlayground == nil {
+			return fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order)
+		}
+
 		for _, trade := range trades {
 			found := false
 			for _, o := range order.Trades {
@@ -80,28 +88,18 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			}
 
 			if !found {
-				trade.OrderID = order.ID
-				order.Trades = append(order.Trades, trade)
+				if _, err := fillPendingOrder(playground, order, models.ExecutionFillRequest{
+					ReconcilePlayground: playground.ReconcilePlayground,
+					OrderRecord:         order,
+					Trade:               trade,
+				}, 0, nil, dbService); err != nil {
+					log.Errorf("UpdatePendingMarginOrders: failed to fill pending order: %v", err)
+					continue
+				}
+
 				newTrades = append(newTrades, trade)
-				shouldUpdate = true
+				log.Infof("UpdatePendingMarginOrders: filled pending order: %v", trade)
 			}
-		}
-
-		if order.IsFilled() {
-			order.SetStatus(models.OrderRecordStatusFilled)
-			log.Infof("UpdatePendingMarginOrders: order filled: %v", order)
-			shouldUpdate = true
-		}
-
-		if shouldUpdate {
-			if err := dbService.SaveOrderRecord(order, nil, false); err != nil {
-				return fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
-			}
-		}
-
-		playground, err := dbService.FetchPlayground(order.PlaygroundID)
-		if err != nil {
-			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
 		}
 
 		for _, trade := range newTrades {
@@ -265,9 +263,8 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
 	if err != nil {
 		if errors.Is(err, models.ErrTradingNotAllowed) {
-			log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
-
 			if cache != nil {
+				log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
 				cache.Remove(tradierOrder, false)
 			}
 
@@ -278,6 +275,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 			log.Debugf("handleLiveOrders: order already filled: %v", tradierOrder)
 
 			if cache != nil {
+				log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
 				cache.Remove(tradierOrder, false)
 			}
 

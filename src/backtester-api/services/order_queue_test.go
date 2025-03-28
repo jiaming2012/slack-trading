@@ -272,7 +272,7 @@ func TestLiveAccount(t *testing.T) {
 		// assert - new trades are created
 		trRec, ok := newTradesQueue1.Dequeue()
 		require.True(t, ok)
-		require.Equal(t, order1.ID, trRec.OrderID)
+		require.Equal(t, order1.ID, *trRec.OrderID)
 		require.Equal(t, order1.GetQuantity(), trRec.Quantity)
 
 		_, ok = newTradesQueue1.Dequeue()
@@ -340,12 +340,12 @@ func TestLiveAccount(t *testing.T) {
 		// assert - new trades are created
 		trRec, ok = newTradesQueue2.Dequeue()
 		require.True(t, ok)
-		require.Equal(t, order2.ID, trRec.OrderID)
+		require.Equal(t, order2.ID, *trRec.OrderID)
 		require.Equal(t, order1.GetQuantity()*-1, trRec.Quantity)
 
 		trRec, ok = newTradesQueue2.Dequeue()
 		require.True(t, ok)
-		require.Equal(t, order2.ID, trRec.OrderID)
+		require.Equal(t, order2.ID, *trRec.OrderID)
 		diff := order1.GetQuantity() + order2.GetQuantity()
 		require.Equal(t, diff, trRec.Quantity)
 	})

@@ -745,7 +745,13 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	}
 
 	// commit the trade
-	trade := NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
+	var trade *TradeRecord
+	if orderFillEntry.Trade != nil {
+		trade = orderFillEntry.Trade
+		trade.UpdateOrder(order)
+	} else {
+		trade = NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
+	}
 
 	orderIsFilled, err := order.Fill(trade)
 	if err != nil {
@@ -1555,7 +1561,8 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 	// check no pending orders exist
 	maxAttempts := 10
 	var pendingOrder *OrderRecord
-	outer_loop:
+
+outer_loop:
 	for range maxAttempts {
 		pendingReconcileOrders := reconcilePlayground.GetPlayground().GetPendingOrders()
 		for _, o := range pendingReconcileOrders {
