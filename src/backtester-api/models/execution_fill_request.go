@@ -10,4 +10,5 @@ type ExecutionFillRequest struct {
 	Price               float64
 	Quantity            float64
 	Time                time.Time
+	Trade               *TradeRecord
 }

@@ -63,19 +63,27 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 	}
 }
 
-func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 	if err := s.db.Raw(FetchReconciliationOrdersSql, reconcileId).Scan(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
 	}
 
+	if seekFromPlayground {
+		return s.seekOrdersFromPlayground(orders)
+	}
+
 	return orders, nil
 }
 
-func (s *DatabaseService) FetchTradesFromReconciliationOrders(reconcileId uint) ([]*models.TradeRecord, error) {
+func (s *DatabaseService) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.TradeRecord, error) {
 	var trades []*models.TradeRecord
 	if err := s.db.Raw(FetchTradesFromReconciliationOrdersSql, reconcileId).Scan(&trades).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch trades from reconciliation orders: %w", err)
+	}
+
+	if seekFromPlayground {
+		return s.seekTradesFromPlayground(trades)
 	}
 
 	return trades, nil
@@ -196,6 +204,36 @@ func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountReq
 	return nil
 }
 
+func (s *DatabaseService) seekOrdersFromPlayground(orders []*models.OrderRecord) ([]*models.OrderRecord, error) {
+	var out []*models.OrderRecord
+
+	for _, o := range orders {
+		o2, found := s.ordersCache[o.ID]
+		if !found {
+			return nil, fmt.Errorf("failed to find order in memory: %d", o.ID)
+		}
+
+		out = append(out, o2)
+	}
+
+	return out, nil
+}
+
+func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord) ([]*models.TradeRecord, error) {
+	var out []*models.TradeRecord
+
+	for _, t := range trades {
+		t2, found := s.tradesCache[t.ID]
+		if !found {
+			return nil, fmt.Errorf("failed to find trade in memory: %d", t.ID)
+		}
+
+		out = append(out, t2)
+	}
+
+	return out, nil
+}
+
 func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
@@ -205,18 +243,7 @@ func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType,
 	}
 
 	if seekFromPlayground {
-		var out []*models.OrderRecord
-
-		for _, o := range orders {
-			o2, found := s.ordersCache[o.ID]
-			if !found {
-				return nil, fmt.Errorf("failed to find order in memory: %d", o.ID)
-			}
-
-			out = append(out, o2)
-		}
-
-		return out, nil
+		return s.seekOrdersFromPlayground(orders)
 	}
 
 	return orders, nil

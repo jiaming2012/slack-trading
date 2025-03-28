@@ -66,7 +66,7 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, repo)
 }
 
-func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint) ([]*TradeRecord, error) {
+func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error) {
 	var records []*TradeRecord
 
 	for _, reconcilePlayground := range m.reconcilePlaygrounds {
@@ -83,7 +83,7 @@ func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint) ([]
 	return records, nil
 }
 
-func (m *MockDatabase) FetchReconciliationOrders(reconcileId uint) ([]*OrderRecord, error) {
+func (m *MockDatabase) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*OrderRecord, error) {
 	return nil, nil
 }
 
