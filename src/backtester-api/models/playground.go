@@ -1877,6 +1877,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	meta.InitialBalance = initialBalance
 	meta.StartAt = startAt
 	meta.EndAt = endAt
+	meta.ClientID = clientID
 
 	var id uuid.UUID
 	if req.ID != nil {

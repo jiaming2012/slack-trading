@@ -105,6 +105,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("google.protobuf.Empty"),
 				output=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
 			),
+			"GetReconciliationReport": Endpoint(
+				service_name="PlaygroundService",
+				name="GetReconciliationReport",
+				function=getattr(service, "GetReconciliationReport"),
+				input=_sym_db.GetSymbol("playground.GetReconciliationReportRequest"),
+				output=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -214,6 +221,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
+			**kwargs,
+		)
+
+	def GetReconciliationReport(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetReconciliationReport",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
 			**kwargs,
 		)
 
@@ -337,6 +353,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetAppVersionResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetReconciliationReport(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetReconciliationReport",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
 				session=session,
 				**kwargs,
 			)

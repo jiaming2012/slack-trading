@@ -23,6 +23,10 @@ func (b *MockBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, err
 	return nil, nil
 }
 
+func (b *MockBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) {
+	return nil, nil
+}
+
 func (b *MockBroker) SetFillOrderExecutionPrice(price float64) {
 	b.executePrice = price
 }

@@ -672,6 +672,19 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 	return nil
 }
 
+func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
+	var playgrounds []*models.Playground
+	for _, p := range s.playgrounds {
+		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
+			if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+				playgrounds = append(playgrounds, p)
+			}
+		}
+	}
+
+	return playgrounds, nil
+}
+
 func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")

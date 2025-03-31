@@ -10,6 +10,7 @@ import (
 // todo: refactor source into struct
 type Meta struct {
 	StartAt         time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
+	ClientID        *string               `json:"client_id" gorm:"column:client_id;type:text;unique"`
 	EndAt           *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`
 	Symbols         pq.StringArray        `json:"symbols" gorm:"column:symbols;type:text[]"`
 	Tags            pq.StringArray        `json:"tags" gorm:"column:tags;type:text[]"`
