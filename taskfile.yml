@@ -9,6 +9,7 @@ tasks:
   cleanup:docker:
     cmds:
       - './cleanup_old_docker_images.sh'
+      - 'docker volume prune -f'
     dir: ${PROJECTS_DIR}/slack-trading
 
   conda:list:

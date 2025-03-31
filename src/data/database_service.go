@@ -825,7 +825,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			Balance: p.Balance,
 			Source:  source,
 		},
-		InitialBalance:    p.StartingBalance,
+		InitialBalance:    p.Meta.InitialBalance,
 		Clock:             clockRequest,
 		Repositories:      createRepoRequests,
 		BackfillOrders:    p.Orders,

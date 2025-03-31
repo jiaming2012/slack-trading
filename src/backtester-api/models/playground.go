@@ -23,11 +23,7 @@ type Playground struct {
 	account               *BacktesterAccount                                             `gorm:"-"`
 	clock                 *Clock                                                         `gorm:"-"`
 	ClientID              *string                                                        `gorm:"column:client_id;type:text;unique"`
-	StartAt               time.Time                                                      `gorm:"column:start_at;type:timestamptz;not null"`
-	EndAt                 *time.Time                                                     `gorm:"column:end_at;type:timestamptz"`
-	CurrentTime           time.Time                                                      `gorm:"column:current_time;type:timestamptz;not null"`
 	Balance               float64                                                        `gorm:"column:balance;type:numeric;not null"`
-	StartingBalance       float64                                                        `gorm:"column:starting_balance;type:numeric;not null"`
 	BrokerName            *string                                                        `gorm:"column:broker;type:text"`
 	AccountID             *string                                                        `gorm:"column:account_id;type:text"`
 	Orders                []*OrderRecord                                                 `gorm:"foreignKey:PlaygroundID"`
@@ -1889,7 +1885,6 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.Meta = meta
 	playground.ID = id
 	playground.Balance = balance
-	playground.StartingBalance = meta.InitialBalance
 	playground.ClientID = clientID
 	playground.account = NewBacktesterAccount(balance, orders)
 	playground.clock = clock

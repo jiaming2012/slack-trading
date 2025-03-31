@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -111,6 +114,12 @@ func validateOrders(ctx context.Context, t *testing.T, playgroundClient playgrou
 }
 
 func TestWithPostgres(t *testing.T) {
+	if err := godotenv.Load(); err != nil {
+		dir, _ := os.Getwd()
+		log.Printf("Current working directory: %s", dir)
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
 	ctx := context.Background()
 	goEnv := "test"
 
