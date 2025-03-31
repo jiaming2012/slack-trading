@@ -1108,7 +1108,8 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 
 		playgroundId := playground.GetId()
 
-		if txErr = saveOrderRecordsTx(tx, playground.GetAllOrders(), false); txErr != nil {
+		orders := playground.GetAllOrders()
+		if txErr = saveOrderRecordsTx(tx, orders, false); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 
