@@ -26,7 +26,7 @@ type Playground struct {
 	Balance               float64                                                        `gorm:"column:balance;type:numeric;not null"`
 	BrokerName            *string                                                        `gorm:"column:broker;type:text"`
 	AccountID             *string                                                        `gorm:"column:account_id;type:text"`
-	Orders                []*OrderRecord                                                 `gorm:"foreignKey:PlaygroundID"`
+	Orders                []*OrderRecord                                                 
 	EquityPlotRecords     []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
 	ParentID              *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
 	Repositories          CandleRepositoryRecord                                         `gorm:"type:json"`

@@ -18,10 +18,16 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 		for _, order := range orders {
 			var e error
 
-			fmt.Printf("saveOrderRecordsTx: order ID: %s, forceNew: %v\n", order.ID, forceNew)
-
-			for i := range order.Trades {
-				fmt.Printf("saveOrderRecordsTx: order: %s, trade: %s\n", order.ID, order.Trades[i].ID)
+			for _, trade := range order.Trades {
+				if forceNew || trade.ID == 0 {
+					if e = tx.Create(trade).Error; e != nil {
+						return fmt.Errorf("failed to create trade: %w", e)
+					}
+				} else {
+					if e = tx.Save(trade).Error; e != nil {
+						return fmt.Errorf("failed to save trade records: %w", e)
+					}
+				}
 			}
 
 			if err := order.Validate(); err != nil {
@@ -29,11 +35,11 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 			}
 
 			if forceNew {
-				if e = tx.Create(&order).Error; e != nil {
+				if e = tx.Create(order).Error; e != nil {
 					return fmt.Errorf("failed to create order records: %w", e)
 				}
 			} else {
-				if e = tx.Save(&order).Error; e != nil {
+				if e = tx.Save(order).Error; e != nil {
 					return fmt.Errorf("failed to save order records: %w", e)
 				}
 			}

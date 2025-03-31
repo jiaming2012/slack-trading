@@ -36,7 +36,7 @@ type OrderRecord struct {
 	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
 	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by"`
 	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles"`
-	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Trades           []*TradeRecord         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	instrument       eventmodels.Instrument `gorm:"-"`
 }
 
