@@ -24,7 +24,7 @@ SELECT
   t.*
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
-JOIN trade_records t on orec.id = t.order_id
+JOIN trade_records t on orec.id = t.reconcile_order_id
 WHERE orr.reconcile_id = $1
 `
 
@@ -251,7 +251,7 @@ func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType,
 
 func (s *DatabaseService) LoadPlaygrounds() error {
 	var playgroundsSlice []*models.Playground
-	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ReconcileTrades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -273,6 +273,10 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 
 			// Store trades in memory
 			for _, t := range o.Trades {
+				s.tradesCache[t.ID] = t
+			}
+
+			for _, t := range o.ReconcileTrades {
 				s.tradesCache[t.ID] = t
 			}
 		}

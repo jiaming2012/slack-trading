@@ -66,6 +66,10 @@ func (p *Playground) SetReconcilePlayground(playground IReconcilePlayground) {
 	p.ReconcilePlaygroundID = &id
 }
 
+func (p *Playground) TableName() string {
+	return "playground_sessions"
+}
+
 func (p *Playground) GetReconcilePlayground() IReconcilePlayground {
 	return p.ReconcilePlayground
 }
@@ -244,11 +248,11 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 				invalidOrder = order
 				log.Errorf("error filling order: %v", err)
 
-				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err)
+				if err2 := p.AddToOrderQueue(order); err2 != nil {
+					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err2)
 				}
 
-				return nil, nil, invalidOrder, nil
+				return nil, nil, invalidOrder, fmt.Errorf("CommitPendingOrder: error filling order: %v", err)
 			}
 
 			if orderIsFilled {
