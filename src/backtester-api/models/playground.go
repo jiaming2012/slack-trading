@@ -60,8 +60,9 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 }
 
 func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabaseService) (commit func() error, dbCommit func() error, msg string) {
-	commit, dbCommit, msg = order.ResetStatusToPending(dbService)
-	if commit != nil {
+	var orderCommit func() error
+	orderCommit, dbCommit, msg = order.ResetStatusToPending(dbService)
+	if orderCommit != nil {
 		commit = func() error {
 			index := -1
 
@@ -92,7 +93,7 @@ func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabas
 				p.account.PendingOrders = append(p.account.PendingOrders, order)
 			}
 
-			return commit()
+			return orderCommit()
 		}
 	}
 
