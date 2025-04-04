@@ -25,7 +25,7 @@ func InitPostgresWithUrl(url string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&models.Playground{}); err != nil {
+	if err := db.AutoMigrate(&models.TradeRecord{}); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
@@ -33,7 +33,7 @@ func InitPostgresWithUrl(url string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	if err := db.AutoMigrate(&models.TradeRecord{}); err != nil {
+	if err := db.AutoMigrate(&models.Playground{}); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 

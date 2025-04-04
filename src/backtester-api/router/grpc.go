@@ -110,9 +110,95 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	return order
 }
 
+func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest) (*pb.EmptyResponse, error) {
+	broker, err := s.dbService.GetMockBroker(req.Broker)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mock broker: %v", err)
+	}
+
+	if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
+		return nil, fmt.Errorf("failed to fill order: %v", err)
+	}
+
+	return &pb.EmptyResponse{}, nil
+}
+
 func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
 		Version: eventservices.GetAppVersion(),
+	}, nil
+}
+
+func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconciliationReportRequest) (*pb.GetReconciliationReportResponse, error) {
+	reconcilePlaygroundId, err := uuid.Parse(req.ReconcilePlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
+	}
+
+	playground, err := s.dbService.GetPlayground(reconcilePlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
+	}
+
+	if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+		return nil, fmt.Errorf("failed to get reconciliation report: playground is not a reconciliation playground")
+	}
+
+	// Get positions at broker
+	positions, err := playground.GetLiveAccount().GetBroker().FetchPositions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
+	}
+
+	var brokerPositions []*pb.PositionReport
+	for _, p := range positions {
+		brokerPositions = append(brokerPositions, &pb.PositionReport{
+			Symbol:   p.Symbol,
+			Quantity: p.Quantity,
+		})
+	}
+
+	// Get reconciliation playground positions
+	recPositions, err := playground.GetPositions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
+	}
+
+	var reconcilePositions []*pb.PositionReport
+	for instrument, p := range recPositions {
+		reconcilePositions = append(reconcilePositions, &pb.PositionReport{
+			Symbol:       instrument.GetTicker(),
+			Quantity:     p.Quantity,
+			PlaygroundId: &req.ReconcilePlaygroundId,
+		})
+	}
+
+	// Get live playground positions
+	livePlaygrounds, err := s.dbService.GetPlaygroundsByReconcileId(reconcilePlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playgrounds by reconcile id: %v", err)
+	}
+
+	var livePlaygroundPositions []*pb.PositionReport
+	for _, p := range livePlaygrounds {
+		playgroundId := p.ID.String()
+		positions, err := p.GetPositions()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get %s positions: %v", playgroundId, err)
+		}
+		for instrument, pos := range positions {
+			livePlaygroundPositions = append(livePlaygroundPositions, &pb.PositionReport{
+				Symbol:       instrument.GetTicker(),
+				Quantity:     pos.Quantity,
+				PlaygroundId: &playgroundId,
+			})
+		}
+	}
+
+	return &pb.GetReconciliationReportResponse{
+		BrokerPositions:         brokerPositions,
+		ReconciliationPositions: reconcilePositions,
+		LivePlaygroundPositions: livePlaygroundPositions,
 	}, nil
 }
 
@@ -503,6 +589,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			Environment:     string(account.Meta.Environment),
 			LiveAccountType: liveAccountType,
 			Tags:            account.Meta.Tags,
+			ClientId:        account.Meta.ClientID,
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,

@@ -21,6 +21,31 @@ service PlaygroundService {
     rpc DeletePlayground(DeletePlaygroundRequest) returns (EmptyResponse);
     rpc GetAccountStats(GetAccountStatsRequest) returns (GetAccountStatsResponse);
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
+    rpc GetReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
+    rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+}
+
+message MockFillOrderRequest {
+    uint64 order_id = 1;
+    double price = 2;
+    string status = 3;
+    string broker = 4;
+}
+
+message GetReconciliationReportRequest {
+    string reconcile_playground_id = 1;
+}
+
+message PositionReport {
+    string symbol = 1;
+    double quantity = 2;
+    optional string playground_id = 3;
+}
+
+message GetReconciliationReportResponse {
+    repeated PositionReport broker_positions = 1;
+    repeated PositionReport live_playground_positions = 2;
+    repeated PositionReport reconciliation_positions = 3;
 }
 
 message GetPlaygroundsRequest {
@@ -39,6 +64,7 @@ message AccountMeta {
     string environment = 5;
     optional string live_account_type = 6;
     repeated string tags = 7;
+    optional string client_id = 8;
 }
 
 message Meta {

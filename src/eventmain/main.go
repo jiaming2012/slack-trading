@@ -309,6 +309,13 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 
 		tradesUrl := fmt.Sprintf(tradierTradesUrlTemplate, accountID)
 
+		tradierPositionsUrlTemplate, err := vars.GetTradierPositionsUrlTemplate()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tradier positions url template: %w", err)
+		}
+
+		tradierPositionsURL := fmt.Sprintf(tradierPositionsUrlTemplate, accountID)
+
 		stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
 		if err != nil {
 			return nil, fmt.Errorf("$TRADIER_STOCK_QUOTES_URL not set: %v", err)
@@ -323,7 +330,7 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 
 		source := services.NewLiveAccountSource(brokerName, accountID, balancesUrl, tradierTradesBearerToken, accountType)
 
-		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
+		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierPositionsURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
 
 		brokers[models.CreateAccountRequestSource{
 			LiveAccountType: accountType,
@@ -677,6 +684,18 @@ func run() {
 	if err != nil {
 		log.Fatalf("failed to get tradier brokers: %v", err)
 	}
+
+	mockOrderIdStartIndex, err := dbService.GetMockOrderIdStartIndex()
+	if err != nil {
+		log.Fatalf("failed to get mock order id start index: %v", err)
+	}
+
+	// Add mock broker for testing
+	brokerMap[models.CreateAccountRequestSource{
+		LiveAccountType: models.LiveAccountTypeMock,
+		Broker:          "tradier",
+		AccountID:       "mock_default",
+	}] = models.NewMockBroker(mockOrderIdStartIndex)
 
 	// Setup backtester router playground
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {

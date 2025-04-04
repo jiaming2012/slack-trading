@@ -23,14 +23,10 @@ type Playground struct {
 	account               *BacktesterAccount                                             `gorm:"-"`
 	clock                 *Clock                                                         `gorm:"-"`
 	ClientID              *string                                                        `gorm:"column:client_id;type:text;unique"`
-	StartAt               time.Time                                                      `gorm:"column:start_at;type:timestamptz;not null"`
-	EndAt                 *time.Time                                                     `gorm:"column:end_at;type:timestamptz"`
-	CurrentTime           time.Time                                                      `gorm:"column:current_time;type:timestamptz;not null"`
 	Balance               float64                                                        `gorm:"column:balance;type:numeric;not null"`
-	StartingBalance       float64                                                        `gorm:"column:starting_balance;type:numeric;not null"`
 	BrokerName            *string                                                        `gorm:"column:broker;type:text"`
 	AccountID             *string                                                        `gorm:"column:account_id;type:text"`
-	Orders                []*OrderRecord                                                 `gorm:"foreignKey:PlaygroundID"`
+	Orders                []*OrderRecord                                                 `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	EquityPlotRecords     []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
 	ParentID              *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
 	Repositories          CandleRepositoryRecord                                         `gorm:"type:json"`
@@ -62,6 +58,47 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 		LiveAccountType: p.Meta.LiveAccountType,
 	}, nil
 }
+
+func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabaseService) (commit func() error, dbCommit func() error, msg string) {
+	commit, dbCommit, msg = order.ResetStatusToPending(dbService)
+	if commit != nil {
+		commit = func() error {
+			index := -1
+
+			// find order in pending orders
+			for i, o := range p.account.PendingOrders {
+				if o.ID == order.ID {
+					index = i
+					break
+				}
+			}
+
+			if index == -1 {
+				for i, o := range p.account.Orders {
+					if o.ID == order.ID {
+						index = i
+						break
+					}
+				}
+
+				if index == -1 {
+					return fmt.Errorf("order %d not found in orders/pending orders", order.ID)
+				}
+
+				// remove order from order queue
+				p.account.Orders = append(p.account.Orders[:index], p.account.Orders[index+1:]...)
+
+				// add order to pending orders
+				p.account.PendingOrders = append(p.account.PendingOrders, order)
+			}
+
+			return commit()
+		}
+	}
+
+	return commit, dbCommit, msg
+}
+
 
 func (p *Playground) SetReconcilePlayground(playground IReconcilePlayground) {
 	p.ReconcilePlayground = playground
@@ -252,11 +289,11 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, startingPositions ma
 				invalidOrder = order
 				log.Errorf("error filling order: %v", err)
 
-				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err)
+				if err2 := p.AddToOrderQueue(order); err2 != nil {
+					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err2)
 				}
 
-				return nil, nil, invalidOrder, nil
+				return nil, nil, invalidOrder, fmt.Errorf("CommitPendingOrder: error filling order: %v", err)
 			}
 
 			if orderIsFilled {
@@ -1877,6 +1914,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	meta.InitialBalance = initialBalance
 	meta.StartAt = startAt
 	meta.EndAt = endAt
+	meta.ClientID = clientID
 
 	var id uuid.UUID
 	if req.ID != nil {
@@ -1888,7 +1926,6 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.Meta = meta
 	playground.ID = id
 	playground.Balance = balance
-	playground.StartingBalance = meta.InitialBalance
 	playground.ClientID = clientID
 	playground.account = NewBacktesterAccount(balance, orders)
 	playground.clock = clock

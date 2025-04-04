@@ -43,6 +43,20 @@ func (v LiveAccountVariables) GetTradierTradesOrderURL() (tradierTradesOrderURL 
 	return
 }
 
+func (v LiveAccountVariables) GetPositionsUrlTemplate() (tradierPositionsOrderURL string, err error) {
+	switch v.AccountType {
+	case LiveAccountTypePaper:
+		tradierPositionsOrderURL, err = utils.GetEnv("TRADIER_SANDBOX_POSITIONS_URL_TEMPLATE")
+	case LiveAccountTypeMargin:
+		tradierPositionsOrderURL, err = utils.GetEnv("TRADIER_LIVE_POSITIONS_URL_TEMPLATE")
+	default:
+		tradierPositionsOrderURL = ""
+		err = fmt.Errorf("LiveAccountVariables.GetPositionsUrlTemplate: unsupported account type: %s", v.AccountType)
+	}
+
+	return
+}
+
 func (v LiveAccountVariables) GetTradierTradesUrlTemplate() (tradierTradesUrlTemplate string, err error) {
 	switch v.AccountType {
 	case LiveAccountTypePaper:
@@ -91,6 +105,9 @@ func (v LiveAccountVariables) GetTradierTradesAccountID() (accountID string, err
 		accountID, err = utils.GetEnv("TRADIER_SANDBOX_TRADES_ACCOUNT_ID")
 	case LiveAccountTypeMargin:
 		accountID, err = utils.GetEnv("TRADIER_LIVE_TRADES_ACCOUNT_ID")
+	case LiveAccountTypeMock:
+		accountID = "mock_default"
+		err = nil
 	default:
 		accountID = ""
 		err = fmt.Errorf("LiveAccountVariables.GetTradierTradesAccountID: unsupported account type: %s", v.AccountType)

@@ -75,7 +75,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	t.Run("Cancelled", func(t *testing.T) {
 		order := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
 		order.Cancel()
-		require.Equal(t, OrderRecordStatusCancelled, order.GetStatus())
+		require.Equal(t, OrderRecordStatusCanceled, order.GetStatus())
 	})
 
 	t.Run("Fill is rejected after order is cancelled", func(t *testing.T) {

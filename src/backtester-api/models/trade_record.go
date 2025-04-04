@@ -8,8 +8,8 @@ import (
 
 type TradeRecord struct {
 	gorm.Model
-	OrderID          *uint     `gorm:"column:order_id;index:idx_order_id"`
-	ReconcileOrderID *uint     `gorm:"column:reconcile_order_id;index:idx_reconcile_order_id"`
+	OrderID          *uint     `gorm:"column:order_id;index:idx_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
+	ReconcileOrderID *uint     `gorm:"column:reconcile_order_id;index:idx_reconcile_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
 	Timestamp        time.Time `gorm:"column:timestamp;type:timestamptz;not null"`
 	Quantity         float64   `gorm:"column:quantity;type:numeric;not null"`
 	Price            float64   `gorm:"column:price;type:numeric;not null"`

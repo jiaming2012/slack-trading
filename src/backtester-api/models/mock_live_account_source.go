@@ -5,11 +5,11 @@ import "github.com/jiaming2012/slack-trading/src/eventmodels"
 type MockLiveAccountSource struct{}
 
 func (m *MockLiveAccountSource) GetBroker() string {
-	return "mock"
+	return "tradier"
 }
 
 func (m *MockLiveAccountSource) GetAccountID() string {
-	return "mock account id"
+	return "mock_default"
 }
 
 func (m *MockLiveAccountSource) GetApiKey() string {

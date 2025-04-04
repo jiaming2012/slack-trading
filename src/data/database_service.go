@@ -24,7 +24,7 @@ SELECT
   t.*
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
-JOIN trade_records t on orec.id = t.order_id
+JOIN trade_records t on orec.id = t.reconcile_order_id
 WHERE orr.reconcile_id = $1
 `
 
@@ -33,6 +33,20 @@ SELECT orec.*
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
 WHERE orr.reconcile_id = $1
+`
+
+const FetchMockMaxExternalIdSql = `
+SELECT max(orec.external_id) 
+  FROM order_records orec 
+  JOIN order_reconciles or2 on or2.order_record_id = orec.id
+  JOIN order_records orec2 on orec2.id = or2.reconcile_id  
+  WHERE orec2.account_type = 'mock'
+`
+
+const FetchMockOrderCountSql = `
+SELECT count(id)
+  FROM order_records orec
+  WHERE account_type = 'mock'
 `
 
 type DatabaseService struct {
@@ -61,6 +75,36 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		ordersCache:          make(map[uint]*models.OrderRecord),
 		tradesCache:          make(map[uint]*models.TradeRecord),
 	}
+}
+
+func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
+	var mockOrderCount uint
+	if err := s.db.Raw(FetchMockOrderCountSql).Scan(&mockOrderCount).Error; err != nil {
+		return 0, fmt.Errorf("failed to get mock order count: %w", err)
+	}
+
+	if mockOrderCount == 0 {
+		return 1, nil
+	}
+
+	var mockMaxExternalId uint
+	if err := s.db.Raw(FetchMockMaxExternalIdSql).Scan(&mockMaxExternalId).Error; err != nil {
+		return 0, fmt.Errorf("failed to get mock order id start index: %w", err)
+	}
+
+	return mockMaxExternalId + 1, nil
+}
+
+func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
+	for b, val := range s.brokerMap {
+		if b.LiveAccountType == models.LiveAccountTypeMock {
+			if b.Broker == broker {
+				return val, nil
+			}
+		}
+	}
+
+	return &models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
 }
 
 func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.OrderRecord, error) {
@@ -234,11 +278,11 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	return out, nil
 }
 
-func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
 	if err := s.db.Joins("JOIN playground_sessions ON playground_sessions.id = order_records.playground_id").
-		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type = ?", string(models.OrderRecordStatusPending), string(accountType)).Find(&orders).Error; err != nil {
+		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type in (?)", string(models.OrderRecordStatusPending), liveAccountTypes).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
 	}
 
@@ -251,7 +295,7 @@ func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType,
 
 func (s *DatabaseService) LoadPlaygrounds() error {
 	var playgroundsSlice []*models.Playground
-	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ReconcileTrades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -269,10 +313,18 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 
 		// Store orders in memory
 		for _, o := range p.Orders {
+			if err := o.Hydrate(); err != nil {
+				return fmt.Errorf("loadPlaygrounds: failed to hydrate order: %w", err)
+			}
+
 			s.ordersCache[o.ID] = o
 
 			// Store trades in memory
 			for _, t := range o.Trades {
+				s.tradesCache[t.ID] = t
+			}
+
+			for _, t := range o.ReconcileTrades {
 				s.tradesCache[t.ID] = t
 			}
 		}
@@ -672,6 +724,19 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 	return nil
 }
 
+func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
+	var playgrounds []*models.Playground
+	for _, p := range s.playgrounds {
+		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
+			if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+				playgrounds = append(playgrounds, p)
+			}
+		}
+	}
+
+	return playgrounds, nil
+}
+
 func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
@@ -812,7 +877,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 			Balance: p.Balance,
 			Source:  source,
 		},
-		InitialBalance:    p.StartingBalance,
+		InitialBalance:    p.Meta.InitialBalance,
 		Clock:             clockRequest,
 		Repositories:      createRepoRequests,
 		BackfillOrders:    p.Orders,
@@ -1095,7 +1160,8 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 
 		playgroundId := playground.GetId()
 
-		if txErr = saveOrderRecordsTx(tx, playground.GetAllOrders(), false); txErr != nil {
+		orders := playground.GetAllOrders()
+		if txErr = saveOrderRecordsTx(tx, orders, false); txErr != nil {
 			return fmt.Errorf("failed to save order records: %w", txErr)
 		}
 

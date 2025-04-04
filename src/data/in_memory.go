@@ -18,31 +18,28 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 		for _, order := range orders {
 			var e error
 
+			for _, trade := range order.Trades {
+				if forceNew || trade.ID == 0 {
+					if e = tx.Create(trade).Error; e != nil {
+						return fmt.Errorf("failed to create trade: %w", e)
+					}
+				} else {
+					if e = tx.Save(trade).Error; e != nil {
+						return fmt.Errorf("failed to save trade records: %w", e)
+					}
+				}
+			}
+
 			if err := order.Validate(); err != nil {
 				return fmt.Errorf("failed to validate order: %w", err)
 			}
 
-			// oRec, updateOrderReq, err := order.UpdateOrderRecord(tx, playgroundId, liveAccountType)
-			// if err != nil {
-			// 	return nil, fmt.Errorf("failed to convert order to order record: %w", err)
-			// }
-
-			// updateOrderRequests = append(updateOrderRequests, updateOrderReq...)
-
-			// todo: remove after refactoring away OrderRecord
-			// if oRec.ExternalOrderID > 0 {
-			// 	oID, found := fetchOrderIdFromDbByExternalOrderId(playgroundId, oRec.ExternalOrderID)
-			// 	if found {
-			// 		oRec.ID = oID
-			// 	}
-			// }
-
 			if forceNew {
-				if e = tx.Create(&order).Error; e != nil {
+				if e = tx.Create(order).Error; e != nil {
 					return fmt.Errorf("failed to create order records: %w", e)
 				}
 			} else {
-				if e = tx.Save(&order).Error; e != nil {
+				if e = tx.Save(order).Error; e != nil {
 					return fmt.Errorf("failed to save order records: %w", e)
 				}
 			}
@@ -50,46 +47,6 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 
 		return nil
 	})
-
-	// wait for all orders to be saved before updating the closes
-	// for _, updateReq := range updateOrderRequests {
-	// 	if updateReq == nil {
-	// 		continue
-	// 	}
-
-	// 	switch updateReq.Field {
-	// 	case "closes":
-	// 		var closes []*models.OrderRecord
-	// 		for _, order := range updateReq.Closes {
-	// 			orderRec, err := order.FetchOrderRecordFromDB(tx, *updateReq.PlaygroundId)
-	// 			if err != nil {
-	// 				return nil, fmt.Errorf("updateOrderRequests: failed to fetch close order record from db: %w", err)
-	// 			}
-
-	// 			closes = append(closes, orderRec)
-	// 		}
-
-	// 		updateReq.OrderRecord.Closes = closes
-	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (closes): %w", err)
-	// 		}
-
-	// 	case "reconciles":
-	// 		updateReq.OrderRecord.Reconciles = updateReq.Reconciles
-	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (reconciled_by): %w", err)
-	// 		}
-
-	// 	case "closed_by":
-	// 		updateReq.OrderRecord.ClosedBy = updateReq.ClosedBy
-	// 		if err := tx.Save(updateReq.OrderRecord).Error; err != nil {
-	// 			return nil, fmt.Errorf("updateOrderRequests: failed to update order record (close_by): %w", err)
-	// 		}
-
-	// 	default:
-	// 		return nil, fmt.Errorf("updateOrderRequests: field %s not implemented", updateReq.Field)
-	// 	}
-	// }
 
 	return err
 }
