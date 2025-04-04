@@ -15,4 +15,5 @@ type IBroker interface {
 	GetSource() ILiveAccountSource
 	FetchEquity() (*eventmodels.FetchAccountEquityResponse, error)
 	FetchPositions() ([]eventmodels.TradierPositionDTO, error)
+	FillOrder(orderId uint, price float64, status string) error
 }

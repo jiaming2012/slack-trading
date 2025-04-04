@@ -685,6 +685,18 @@ func run() {
 		log.Fatalf("failed to get tradier brokers: %v", err)
 	}
 
+	mockOrderIdStartIndex, err := dbService.GetMockOrderIdStartIndex()
+	if err != nil {
+		log.Fatalf("failed to get mock order id start index: %v", err)
+	}
+
+	// Add mock broker for testing
+	brokerMap[models.CreateAccountRequestSource{
+		LiveAccountType: models.LiveAccountTypeMock,
+		Broker:          "tradier",
+		AccountID:       "mock_default",
+	}] = models.NewMockBroker(mockOrderIdStartIndex)
+
 	// Setup backtester router playground
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)

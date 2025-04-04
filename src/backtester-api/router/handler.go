@@ -64,26 +64,8 @@ type FetchCandlesRequest struct {
 	To     time.Time `json:"to"`
 }
 
+// handles live order from broker
 func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], database models.IDatabaseService) {
-	cache := models.NewOrderCache()
-
-	// commit pending orders from cache
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if err := services.CommitPendingOrders(cache, database); err != nil {
-					log.Errorf("handleLiveOrders: failed to commit pending orders: %v", err)
-				}
-
-				time.Sleep(10 * time.Second)
-			}
-		}
-	}()
-
-	// handles order from broker
 	go func() {
 		for {
 			select {
@@ -91,7 +73,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 				log.Debug("handleLiveOrders: context done")
 				return
 			default:
-				hasUpdates, err := services.DrainTradierOrderQueue(orderUpdateQueue, cache, database)
+				hasUpdates, err := services.DrainTradierOrderQueue(orderUpdateQueue, database)
 				if err != nil {
 					log.Errorf("handleLiveOrders: failed to drain order queue: %v", err)
 					continue

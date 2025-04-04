@@ -110,6 +110,19 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	return order
 }
 
+func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest) (*pb.EmptyResponse, error) {
+	broker, err := s.dbService.GetMockBroker(req.Broker)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mock broker: %v", err)
+	}
+
+	if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
+		return nil, fmt.Errorf("failed to fill order: %v", err)
+	}
+
+	return &pb.EmptyResponse{}, nil
+}
+
 func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
 		Version: eventservices.GetAppVersion(),

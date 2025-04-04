@@ -35,6 +35,20 @@ JOIN order_records orec on orr.order_record_id = orec.id
 WHERE orr.reconcile_id = $1
 `
 
+const FetchMockMaxExternalIdSql = `
+SELECT max(orec.external_id) 
+  FROM order_records orec 
+  JOIN order_reconciles or2 on or2.order_record_id = orec.id
+  JOIN order_records orec2 on orec2.id = or2.reconcile_id  
+  WHERE orec2.account_type = 'mock'
+`
+
+const FetchMockOrderCountSql = `
+SELECT count(id)
+  FROM order_records orec
+  WHERE account_type = 'mock'
+`
+
 type DatabaseService struct {
 	mu                   sync.Mutex
 	db                   *gorm.DB
@@ -61,6 +75,36 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		ordersCache:          make(map[uint]*models.OrderRecord),
 		tradesCache:          make(map[uint]*models.TradeRecord),
 	}
+}
+
+func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
+	var mockOrderCount uint
+	if err := s.db.Raw(FetchMockOrderCountSql).Scan(&mockOrderCount).Error; err != nil {
+		return 0, fmt.Errorf("failed to get mock order count: %w", err)
+	}
+
+	if mockOrderCount == 0 {
+		return 1, nil
+	}
+
+	var mockMaxExternalId uint
+	if err := s.db.Raw(FetchMockMaxExternalIdSql).Scan(&mockMaxExternalId).Error; err != nil {
+		return 0, fmt.Errorf("failed to get mock order id start index: %w", err)
+	}
+
+	return mockMaxExternalId + 1, nil
+}
+
+func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
+	for b, val := range s.brokerMap {
+		if b.LiveAccountType == models.LiveAccountTypeMock {
+			if b.Broker == broker {
+				return val, nil
+			}
+		}
+	}
+
+	return &models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
 }
 
 func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.OrderRecord, error) {
@@ -234,11 +278,11 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	return out, nil
 }
 
-func (s *DatabaseService) FetchPendingOrders(accountType models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
 	if err := s.db.Joins("JOIN playground_sessions ON playground_sessions.id = order_records.playground_id").
-		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type = ?", string(models.OrderRecordStatusPending), string(accountType)).Find(&orders).Error; err != nil {
+		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type in (?)", string(models.OrderRecordStatusPending), liveAccountTypes).Find(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
 	}
 
@@ -269,6 +313,10 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 
 		// Store orders in memory
 		for _, o := range p.Orders {
+			if err := o.Hydrate(); err != nil {
+				return fmt.Errorf("loadPlaygrounds: failed to hydrate order: %w", err)
+			}
+
 			s.ordersCache[o.ID] = o
 
 			// Store trades in memory

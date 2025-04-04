@@ -59,6 +59,47 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 	}, nil
 }
 
+func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabaseService) (commit func() error, dbCommit func() error, msg string) {
+	commit, dbCommit, msg = order.ResetStatusToPending(dbService)
+	if commit != nil {
+		commit = func() error {
+			index := -1
+
+			// find order in pending orders
+			for i, o := range p.account.PendingOrders {
+				if o.ID == order.ID {
+					index = i
+					break
+				}
+			}
+
+			if index == -1 {
+				for i, o := range p.account.Orders {
+					if o.ID == order.ID {
+						index = i
+						break
+					}
+				}
+
+				if index == -1 {
+					return fmt.Errorf("order %d not found in orders/pending orders", order.ID)
+				}
+
+				// remove order from order queue
+				p.account.Orders = append(p.account.Orders[:index], p.account.Orders[index+1:]...)
+
+				// add order to pending orders
+				p.account.PendingOrders = append(p.account.PendingOrders, order)
+			}
+
+			return commit()
+		}
+	}
+
+	return commit, dbCommit, msg
+}
+
+
 func (p *Playground) SetReconcilePlayground(playground IReconcilePlayground) {
 	p.ReconcilePlayground = playground
 

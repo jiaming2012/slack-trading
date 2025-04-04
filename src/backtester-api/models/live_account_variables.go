@@ -105,6 +105,9 @@ func (v LiveAccountVariables) GetTradierTradesAccountID() (accountID string, err
 		accountID, err = utils.GetEnv("TRADIER_SANDBOX_TRADES_ACCOUNT_ID")
 	case LiveAccountTypeMargin:
 		accountID, err = utils.GetEnv("TRADIER_LIVE_TRADES_ACCOUNT_ID")
+	case LiveAccountTypeMock:
+		accountID = "mock_default"
+		err = nil
 	default:
 		accountID = ""
 		err = fmt.Errorf("LiveAccountVariables.GetTradierTradesAccountID: unsupported account type: %s", v.AccountType)

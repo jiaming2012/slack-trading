@@ -112,6 +112,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetReconciliationReportRequest"),
 				output=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
 			),
+			"MockFillOrder": Endpoint(
+				service_name="PlaygroundService",
+				name="MockFillOrder",
+				function=getattr(service, "MockFillOrder"),
+				input=_sym_db.GetSymbol("playground.MockFillOrderRequest"),
+				output=_sym_db.GetSymbol("playground.EmptyResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -230,6 +237,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
+			**kwargs,
+		)
+
+	def MockFillOrder(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/MockFillOrder",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
 			**kwargs,
 		)
 
@@ -363,6 +379,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def MockFillOrder(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/MockFillOrder",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
 				session=session,
 				**kwargs,
 			)

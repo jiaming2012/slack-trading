@@ -41,6 +41,20 @@ type OrderRecord struct {
 	instrument       eventmodels.Instrument `gorm:"-"`
 }
 
+func (o *OrderRecord) IsPending() bool {
+	if o.Status == OrderRecordStatusPending {
+		return true
+	}
+
+	for _, o2 := range o.Reconciles {
+		if o2.Status == OrderRecordStatusPending {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
 	if o.instrument == nil {
 		switch o.Class {
@@ -55,7 +69,7 @@ func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
 }
 
 func (o *OrderRecord) Cancel() {
-	o.Status = OrderRecordStatusCancelled
+	o.Status = OrderRecordStatusCanceled
 }
 
 func (o *OrderRecord) Reject(err error) {
@@ -110,8 +124,57 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 	return orderIsFilled, nil
 }
 
-func (o *OrderRecord) SetStatus(status OrderRecordStatus) {
-	o.Status = status
+func (o *OrderRecord) Hydrate() error {
+	if o.instrument == nil {
+		switch o.Class {
+		case OrderRecordClassEquity:
+			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+		default:
+			return fmt.Errorf("unsupported order record class: %s", o.Class)
+		}
+	}
+
+	for _, o2 := range o.Reconciles {
+		if err := o2.Hydrate(); err != nil {
+			return fmt.Errorf("failed to hydrate order record: %w", err)
+		}
+	}
+
+	for _, o2 := range o.Closes {
+		if err := o2.Hydrate(); err != nil {
+			return fmt.Errorf("failed to hydrate order record: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (o *OrderRecord) ResetStatusToPending(dbService IDatabaseService) (commit func() error, dbCommit func() error, msg string) {
+	if o.Status != OrderRecordStatusPending {
+		commit = func() error {
+			o.Status = OrderRecordStatusPending
+			o.RejectReason = nil
+			return nil
+		}
+
+		dbCommit = func() error {
+			copy := CopyOrderRecord(o.PlaygroundID, o.ID, o, o.LiveAccountType)
+			copy.Status = OrderRecordStatusPending
+			copy.RejectReason = nil
+
+			if err := dbService.SaveOrderRecord(copy, nil, false); err != nil {
+				return fmt.Errorf("failed to update order record status: %w", err)
+			}
+
+			return nil
+		}
+
+		msg = fmt.Sprintf("Resetting order %d status from %s to %s", o.ID, o.Status, OrderRecordStatusPending)
+
+		return commit, dbCommit, msg
+	}
+
+	return nil, nil, ""
 }
 
 func (o *OrderRecord) GetStatus() OrderRecordStatus {

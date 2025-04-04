@@ -27,6 +27,10 @@ type TradierBroker struct {
 	Source         *LiveAccountSource
 }
 
+func (b *TradierBroker) FillOrder(orderId uint, price float64, status string) error {
+	return fmt.Errorf("FillOrder: not implemented for live tradier broker")
+}
+
 func (b *TradierBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
 	s := b.Source
 	responseDTO, err := b.FetchBalances(s.BalancesUrl, s.TradesApiKey)

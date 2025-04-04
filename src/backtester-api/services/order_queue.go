@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -14,17 +15,10 @@ import (
 func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 	seekFromPlayground := true
 
-	marginPendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeMargin, seekFromPlayground)
+	pendingOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeMargin, models.LiveAccountTypePaper, models.LiveAccountTypeMock}, seekFromPlayground)
 	if err != nil {
 		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
 	}
-
-	paperPendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypePaper, seekFromPlayground)
-	if err != nil {
-		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
-	}
-
-	pendingOrders := append(marginPendingOrders, paperPendingOrders...)
 
 	var newTrades []*models.TradeRecord
 	for _, order := range pendingOrders {
@@ -43,7 +37,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			for _, o := range orders {
 				shouldUpdate := false
 
-				if o.Status == models.OrderRecordStatusCancelled {
+				if o.Status == models.OrderRecordStatusCanceled {
 					order.Cancel()
 					log.Infof("UpdatePendingMarginOrders: order %d was cancelled", order.ID)
 					shouldUpdate = true
@@ -92,7 +86,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 					ReconcilePlayground: playground.ReconcilePlayground,
 					OrderRecord:         order,
 					Trade:               trade,
-				}, 0, nil, dbService); err != nil {
+				}, dbService); err != nil {
 					log.Errorf("UpdatePendingMarginOrders: failed to fill pending order: %v", err)
 					continue
 				}
@@ -110,9 +104,8 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 	return nil
 }
 
-// todo: combine with DrainTradierOrderQueue
 func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {
-	pendingOrders, err := dbService.FetchPendingOrders(models.LiveAccountTypeReconcilation, false)
+	pendingOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeReconcilation}, false)
 	if err != nil {
 		return fmt.Errorf("UpdateTradierOrderQueue: failed to fetch orders: %v", err)
 	}
@@ -135,7 +128,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				Quantity:            order.GetQuantity(),
 			}
 
-			trade, err := fillPendingOrder(playground, order, req, 0, nil, dbService)
+			trade, err := fillPendingOrder(playground, order, req, dbService)
 			if err != nil {
 				log.Errorf("UpdateTradierOrderQueue: failed to fill adjustment order: %v", err)
 				continue
@@ -225,7 +218,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					New:            reason,
 				},
 			})
-		} else if tradierOrder.Status == string(models.OrderRecordStatusCancelled) {
+		} else if tradierOrder.Status == string(models.OrderRecordStatusCanceled) {
 			if order.ExternalOrderID == nil {
 				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
 				continue
@@ -236,9 +229,12 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					PlaygroundId:   playground.ID,
 					TradierOrderID: *order.ExternalOrderID,
 					Field:          "status",
-					New:            string(models.OrderRecordStatusCancelled),
+					New:            string(models.OrderRecordStatusCanceled),
 				},
 			})
+		} else if tradierOrder.Status == string(models.OrderRecordStatusPending) {
+			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d is pending", order.ExternalOrderID)
+			continue
 		} else {
 			log.Warnf("TradierApiWorker.executeOrdersQueueUpdate: unknown order status: %v", tradierOrder.Status)
 			continue
@@ -252,7 +248,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 	return nil
 }
 
-func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, tradierOrder uint, cache *models.OrderCache, database models.IDatabaseService) (*models.TradeRecord, error) {
+func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, database models.IDatabaseService) (*models.TradeRecord, error) {
 	performChecks := false
 
 	positions, err := playground.GetPositions()
@@ -260,37 +256,68 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		return nil, fmt.Errorf("handleLiveOrders: failed to get positions: %w", err)
 	}
 
-	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
-	if err != nil {
-		if errors.Is(err, models.ErrTradingNotAllowed) {
-			if cache != nil {
-				log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
-				cache.Remove(tradierOrder, false)
+	if !order.IsPending() {
+		log.Warnf("handleLiveOrders: order is not pending: %v", order)
+
+		var commits []func() error
+		if err := database.CreateTransaction(func(tx *gorm.DB) error {
+			var dbCommits []func() error
+			var messages []string
+
+			if commit, dbCommit, msg := playground.ResetStatusToPending(order, database); commit != nil {
+				commits = append(commits, commit)
+				dbCommits = append(dbCommits, dbCommit)
+				messages = append(messages, msg)
 			}
 
-			return nil, nil
-		}
+			for _, o := range order.Reconciles {
+				p, err := database.FetchPlayground(o.PlaygroundID)
+				if err != nil {
+					return fmt.Errorf("handleLiveOrders: failed to fetch playground: %v", err)
+				}
 
-		if errors.Is(err, models.ErrOrderAlreadyFilled) {
-			log.Debugf("handleLiveOrders: order already filled: %v", tradierOrder)
-
-			if cache != nil {
-				log.Debugf("handleLiveOrders: removing order from cache: %v", tradierOrder)
-				cache.Remove(tradierOrder, false)
+				if commit, dbCommit, msg := p.ResetStatusToPending(o, database); commit != nil {
+					commits = append(commits, commit)
+					dbCommits = append(dbCommits, dbCommit)
+					messages = append(messages, msg)
+				}
 			}
 
-			return nil, nil
+			if len(commits) != len(dbCommits) || len(commits) != len(messages) {
+				return fmt.Errorf("handleLiveOrders: mismatched commits and dbCommits: %d != %d", len(commits), len(dbCommits))
+			}
+
+			for i := 0; i < len(dbCommits); i++ {
+				log.Warnf(messages[i])
+
+				if err := dbCommits[i](); err != nil {
+					return fmt.Errorf("handleLiveOrders: failed to db commit: %v", err)
+				}
+			}
+
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("handleLiveOrders: failed to create transaction: %v", err)
 		}
 
-		return nil, fmt.Errorf("handleLiveOrders: failed to commit pending orders: %w", err)
+		for _, commit := range commits {
+			if err := commit(); err != nil {
+				return nil, fmt.Errorf("handleLiveOrders: failed to commit: %v", err)
+			}
+		}
 	}
 
-	if newOrder != nil {
-		order = newOrder
+	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
+	if err != nil {
+		return nil, fmt.Errorf("handleLiveOrders: failed to commit pending orders: %w", err)
 	}
 
 	if invalidOrder != nil {
 		return nil, fmt.Errorf("handleLiveOrders: invalid order: %v", invalidOrder)
+	}
+
+	if newOrder != nil {
+		order = newOrder
 	}
 
 	// Resave the order to update the status and close_id
@@ -298,11 +325,6 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	if err := database.SaveOrderRecord(order, &balance, false); err != nil {
 		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
-
-			if cache != nil {
-				cache.Remove(tradierOrder, false)
-			}
-
 			return newTrade, nil
 		}
 
@@ -312,45 +334,43 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	return newTrade, nil
 }
 
-func CommitPendingOrders(cache *models.OrderCache, database models.IDatabaseService) error {
-	orderCache, unlockFn := cache.GetMap()
+func commitPendingOrders(database models.IDatabaseService, orderFillEntry models.ExecutionFillRequest) error {
+	reconcilePlayground := orderFillEntry.ReconcilePlayground
+	order := orderFillEntry.OrderRecord
 
-	defer unlockFn()
-
-	for tradierOrder, orderFillEntry := range orderCache {
-		reconcilePlayground := orderFillEntry.ReconcilePlayground
-		order := orderFillEntry.OrderRecord
-
-		if _, err := fillPendingOrder(reconcilePlayground.GetPlayground(), order, orderFillEntry, tradierOrder, cache, database); err != nil {
-			log.Errorf("handleLiveOrders: failed to fill reconciled order: %v", err)
-			continue
-		}
-
-		cache.Remove(tradierOrder, false)
+	if _, err := fillPendingOrder(reconcilePlayground.GetPlayground(), order, orderFillEntry, database); err != nil {
+		return fmt.Errorf("handleLiveOrders: failed to fill reconciled order: %v", err)
 	}
 
 	return nil
 }
 
-func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], cache *models.OrderCache, database models.IDatabaseService) (hasUpdates bool, err error) {
-	hasUpdates = false
-
+func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], database models.IDatabaseService) (hasUpdates bool, err error) {
 	for {
 		event, ok := source.Dequeue()
 		if !ok {
 			break
 		}
 
-		hasUpdates = true
 		if event.CreateOrder != nil {
+			if event.CreateOrder.OrderRecord.Status == models.OrderRecordStatusFilled {
+				log.Debugf("handleLiveOrders: order already filled: %v", event.CreateOrder.OrderRecord)
+				continue
+			}
+
+			hasUpdates = true
+
 			if event.CreateOrder.Order.Status == string(models.OrderRecordStatusFilled) {
-				cache.Add(event.CreateOrder.Order, models.ExecutionFillRequest{
+				if err := commitPendingOrders(database, models.ExecutionFillRequest{
 					ReconcilePlayground: event.CreateOrder.ReconcilePlayground,
 					OrderRecord:         event.CreateOrder.OrderRecord,
 					Time:                event.CreateOrder.Order.CreateDate,
 					Price:               event.CreateOrder.Order.AvgFillPrice,
 					Quantity:            event.CreateOrder.Order.GetExecFillQuantity(),
-				})
+				}); err != nil {
+					log.Errorf("handleLiveOrders: failed to commit pending orders: %v", err)
+					continue
+				}
 
 				log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)
 			} else if event.CreateOrder.Order.Status == string(models.OrderRecordStatusPending) {
@@ -360,6 +380,8 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 			}
 
 		} else if event.ModifyOrder != nil {
+			hasUpdates = true
+
 			if event.ModifyOrder.Field == "status" {
 				// todo: remove once all orders have links to playground, after PlaygroundSession refactor
 				playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.TradierOrderID)
