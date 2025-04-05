@@ -91,6 +91,16 @@ func (m *MockDatabase) SetReconcilePlayground(source CreateAccountRequestSource,
 	m.reconcilePlaygrounds[source] = reconcilePlayground
 }
 
+func (m *MockDatabase) SaveOrderRecords(order []*OrderRecord, forceNew bool) error {
+	for _, o := range order {
+		if err := m.SaveOrderRecord(o, nil, forceNew); err != nil {
+			return fmt.Errorf("failed to save order record: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error {
 	playgroundId := order.PlaygroundID
 
@@ -109,22 +119,6 @@ func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, 
 			trade.ID = m.tradeNounce
 		}
 	}
-
-	// playground, found := m.playgrounds[playgroundId]
-	// if !found {
-	// 	return fmt.Errorf("MockDatabase: playground not found")
-	// }
-
-	// liveAccount, found := m.reconcilePlaygrounds[playgroundId]
-	// if !found {
-	// 	return fmt.Errorf("MockDatabase: live account not found")
-	// }
-
-	// order.Playground = &Playground{
-	// 	ID:                  playground.GetId(),
-	// 	AccountType:         string(playground.GetLiveAccountType()),
-	// 	ReconcilePlayground: liveAccount,
-	// }
 
 	bFoundOrderRecord := false
 	for idx, o := range m.orderRecords[playgroundId] {

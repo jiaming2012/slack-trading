@@ -1150,6 +1150,10 @@ func (s *DatabaseService) DeletePlaygroundSession(playground *models.Playground)
 	return nil
 }
 
+func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNew bool) error {
+	return saveOrderRecordsTx(s.db, orders, forceNew)
+}
+
 func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var txErr error

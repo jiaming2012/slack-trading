@@ -1351,11 +1351,6 @@ func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error
 		}
 	}
 
-	// adjust open trades
-	// for symbol, position := range positions {
-	// 	position.OpenTrades = p.getNetTrades(allTrades[symbol])
-	// }
-
 	vwapMap := make(map[eventmodels.Instrument]float64)
 	totalQuantityMap := make(map[eventmodels.Instrument]float64)
 	for _, order := range p.account.Orders {
@@ -1406,6 +1401,7 @@ func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error
 		tick, found := currentPrices[symbol]
 		if found {
 			positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
+			positions[symbol].CurrentPrice = tick.Value
 		} else {
 			log.Warnf("getCurrentPrice [%s]: not found", symbol)
 			positions[symbol].PL = 0
@@ -1932,11 +1928,15 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.clock = clock
 	playground.repos = repos
 	playground.Repositories = CandleRepositoryRecord(repositories)
-	playground.positionsCache = nil
 	playground.openOrdersCache = make(map[eventmodels.Instrument][]*OrderRecord)
 	playground.minimumPeriod = minimumPeriod
 	playground.AccountID = accountID
 	playground.BrokerName = &brokerName
+	
+	playground.positionsCache = nil
+	if _, err := playground.GetPositions(); err != nil {
+		return fmt.Errorf("error getting positions: %w", err)
+	}
 
 	return nil
 }

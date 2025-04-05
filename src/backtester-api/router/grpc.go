@@ -42,7 +42,7 @@ func convertOrders(orders []*models.OrderRecord) []*pb.Order {
 
 func convertOrder(o *models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
-	for _, trade := range o.Trades {
+	for _, trade := range o.GetTrades() {
 		trades = append(trades, &pb.Trade{
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,

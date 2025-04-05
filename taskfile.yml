@@ -149,6 +149,11 @@ tasks:
     cmds:
       - 'stern grodt --container-state running'
 
+  app:restart:
+    cmds:
+      - 'task app:stop'
+      - 'task app:start'
+
   app:stop:
     cmds:
       - 'kubectl scale deployment grodt --replicas=0'

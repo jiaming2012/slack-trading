@@ -13,32 +13,40 @@ import (
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order"`
-	ClientRequestID  *string                `gorm:"column:client_request_id;type:text"`
-	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null"`
-	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id"`
-	Class            OrderRecordClass       `gorm:"column:class;type:text;not null"`
-	Symbol           string                 `gorm:"column:symbol;type:text;not null"`
-	Side             TradierOrderSide       `gorm:"column:side;type:text;not null"`
-	AbsoluteQuantity float64                `gorm:"column:quantity;type:numeric;not null"`
-	OrderType        OrderRecordType        `gorm:"column:order_type;type:text;not null"`
-	Duration         OrderRecordDuration    `gorm:"column:duration;type:text;not null"`
-	Price            *float64               `gorm:"column:price;type:numeric"`
-	RequestedPrice   float64                `gorm:"column:requested_price;type:numeric"`
-	StopPrice        *float64               `gorm:"column:stop_price;type:numeric"`
-	Status           OrderRecordStatus      `gorm:"column:status;type:text;not null"`
-	RejectReason     *string                `gorm:"column:reject_reason;type:text"`
-	Tag              string                 `gorm:"column:tag;type:text"`
-	Timestamp        time.Time              `gorm:"column:timestamp;type:timestamptz;not null"`
-	IsAdjustment     bool                   `gorm:"column:is_adjustment"`
-	IsClose          bool                   `gorm:"-"`
-	CloseOrderId     *uint                  `gorm:"column:close_order_id"`
-	Closes           []*OrderRecord         `gorm:"many2many:order_closes"`
-	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by"`
-	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles"`
-	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	instrument       eventmodels.Instrument `gorm:"-"`
+	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order" copier:"must,nopanic"`
+	ClientRequestID  *string                `gorm:"column:client_request_id;type:text" copier:"must,nopanic"`
+	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null" copier:"must,nopanic"`
+	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id" copier:"must,nopanic"`
+	Class            OrderRecordClass       `gorm:"column:class;type:text;not null" copier:"must,nopanic"`
+	Symbol           string                 `gorm:"column:symbol;type:text;not null" copier:"must,nopanic"`
+	Side             TradierOrderSide       `gorm:"column:side;type:text;not null" copier:"must,nopanic"`
+	AbsoluteQuantity float64                `gorm:"column:quantity;type:numeric;not null" copier:"must,nopanic"`
+	OrderType        OrderRecordType        `gorm:"column:order_type;type:text;not null" copier:"must,nopanic"`
+	Duration         OrderRecordDuration    `gorm:"column:duration;type:text;not null" copier:"must,nopanic"`
+	Price            *float64               `gorm:"column:price;type:numeric" copier:"must,nopanic"`
+	RequestedPrice   float64                `gorm:"column:requested_price;type:numeric" copier:"must,nopanic"`
+	StopPrice        *float64               `gorm:"column:stop_price;type:numeric" copier:"must,nopanic"`
+	Status           OrderRecordStatus      `gorm:"column:status;type:text;not null" copier:"must,nopanic"`
+	RejectReason     *string                `gorm:"column:reject_reason;type:text" copier:"must,nopanic"`
+	Tag              string                 `gorm:"column:tag;type:text" copier:"must,nopanic"`
+	Timestamp        time.Time              `gorm:"column:timestamp;type:timestamptz;not null" copier:"must,nopanic"`
+	IsAdjustment     bool                   `gorm:"column:is_adjustment" copier:"must,nopanic"`
+	IsClose          bool                   `gorm:"-" copier:"must,nopanic"`
+	CloseOrderId     *uint                  `gorm:"column:close_order_id" copier:"must,nopanic"`
+	Closes           []*OrderRecord         `gorm:"many2many:order_closes" copier:"must,nopanic"`
+	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by" copier:"must,nopanic"`
+	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles" copier:"must,nopanic"`
+	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
+	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
+	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
+}
+
+func (o *OrderRecord) GetTrades() []*TradeRecord {
+	if o.LiveAccountType == LiveAccountTypeReconcilation {
+		return o.ReconcileTrades
+	}
+
+	return o.Trades
 }
 
 func (o *OrderRecord) IsPending() bool {
@@ -96,7 +104,8 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 	}
 
 	filledQuantity := 0.0
-	for _, t := range o.Trades {
+	trades := o.GetTrades()
+	for _, t := range trades {
 		filledQuantity += t.Quantity
 	}
 
@@ -113,7 +122,11 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 		return false, fmt.Errorf("trade quantity exceeds order quantity")
 	}
 
-	o.Trades = append(o.Trades, trade)
+	if o.LiveAccountType == LiveAccountTypeReconcilation {
+		o.ReconcileTrades = append(o.ReconcileTrades, trade)
+	} else {
+		o.Trades = append(o.Trades, trade)
+	}
 
 	orderIsFilled := false
 	if o.IsFilled() {
@@ -182,7 +195,8 @@ func (o *OrderRecord) GetStatus() OrderRecordStatus {
 		return o.Status
 	}
 
-	if len(o.Trades) == 0 {
+	trades := o.GetTrades()
+	if len(trades) == 0 {
 		return OrderRecordStatusOpen
 	}
 
@@ -214,7 +228,8 @@ func (o *OrderRecord) IsFilled() bool {
 
 func (o *OrderRecord) GetFilledVolume() float64 {
 	filledVolume := 0.0
-	for _, trade := range o.Trades {
+	trades := o.GetTrades()
+	for _, trade := range trades {
 		filledVolume += trade.Quantity
 	}
 
@@ -222,16 +237,17 @@ func (o *OrderRecord) GetFilledVolume() float64 {
 }
 
 func (o *OrderRecord) GetAvgFillPrice() float64 {
-	if len(o.Trades) == 0 {
+	trades := o.GetTrades()
+	if len(trades) == 0 {
 		return 0
 	}
 
 	total := 0.0
-	for _, trade := range o.Trades {
+	for _, trade := range trades {
 		total += trade.Price
 	}
 
-	return total / float64(len(o.Trades))
+	return total / float64(len(trades))
 }
 
 func (o *OrderRecord) FetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID) (*OrderRecord, error) {

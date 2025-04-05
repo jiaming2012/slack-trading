@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -21,22 +22,34 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 	}
 
 	var newTrades []*models.TradeRecord
+	var joinedErr error
+
 	for _, order := range pendingOrders {
 		trades, err := dbService.FetchTradesFromReconciliationOrders(order.ID, seekFromPlayground)
 		if err != nil {
-			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch trades: %v", err)
+			e := fmt.Errorf("UpdatePendingMarginOrders: failed to fetch trades: %v", err)
+			joinedErr = errors.Join(joinedErr, e)
+			log.Error(e)
+			continue
 		}
 
 		if len(trades) == 0 {
 			// check if the reconciliation order is cancelled or rejected
 			orders, err := dbService.FetchReconciliationOrders(order.ID, seekFromPlayground)
 			if err != nil {
-				return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch reconciliation orders: %v", err)
+				e := fmt.Errorf("UpdatePendingMarginOrders: failed to fetch reconciliation orders: %v", err)
+				joinedErr = errors.Join(joinedErr, e)
+				log.Error(e)
+				continue
 			}
 
-			for _, o := range orders {
-				shouldUpdate := false
+			ordersCopy := make([]*models.OrderRecord, 0, len(orders))
+			for idx, o := range orders {
+				*ordersCopy[idx] = *o
+			}
 
+			shouldUpdate := false
+			for _, o := range ordersCopy {
 				if o.Status == models.OrderRecordStatusCanceled {
 					order.Cancel()
 					log.Infof("UpdatePendingMarginOrders: order %d was cancelled", order.ID)
@@ -52,24 +65,38 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 					log.Infof("UpdatePendingMarginOrders: order %d status is %s", order.ID, o.Status)
 					shouldUpdate = true
 				}
+			}
 
-				if shouldUpdate {
-					if err := dbService.SaveOrderRecord(order, nil, false); err != nil {
-						return fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
+			if shouldUpdate {
+				if err := dbService.SaveOrderRecords(ordersCopy, false); err != nil {
+					e := fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
+					joinedErr = errors.Join(joinedErr, e)
+					log.Error(e)
+					continue
+				}
+
+				// copy the orders to the original slice
+				for i := range orders {
+					if err := copier.Copy(orders[i], &ordersCopy[i]); err != nil {
+						log.Fatalf("UpdatePendingMarginOrders: failed to copy order: %v", err)
 					}
 				}
 			}
-
-			continue
 		}
 
 		playground, err := dbService.FetchPlayground(order.PlaygroundID)
 		if err != nil {
-			return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
+			e := fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
+			joinedErr = errors.Join(joinedErr, e)
+			log.Error(e)
+			continue
 		}
 
 		if playground.ReconcilePlayground == nil {
-			return fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order)
+			e := fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order)
+			joinedErr = errors.Join(joinedErr, e)
+			log.Error(e)
+			continue
 		}
 
 		for _, trade := range trades {
@@ -87,7 +114,9 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 					OrderRecord:         order,
 					Trade:               trade,
 				}, dbService); err != nil {
-					log.Errorf("UpdatePendingMarginOrders: failed to fill pending order: %v", err)
+					e := fmt.Errorf("UpdatePendingMarginOrders: failed to fill pending order: %v", err)
+					joinedErr = errors.Join(joinedErr, e)
+					log.Error(e)
 					continue
 				}
 
@@ -101,7 +130,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 	}
 
-	return nil
+	return joinedErr
 }
 
 func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {

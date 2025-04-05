@@ -29,6 +29,7 @@ type IDatabaseService interface {
 	SavePlaygroundSession(playground *Playground) error
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
+	SaveOrderRecords(order []*OrderRecord, forceNew bool) error
 	SaveLiveRepository(repo *CandleRepository) error
 	UpdatePlaygroundSession(playgroundSession *Playground) error
 	FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error)
