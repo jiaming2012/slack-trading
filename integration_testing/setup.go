@@ -35,7 +35,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 
 	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "ewr.vultrcr.com/grodt/app:latest",
+			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
 			Env: map[string]string{
 				"PROJECTS_DIR":     "/app",

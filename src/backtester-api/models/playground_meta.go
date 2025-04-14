@@ -9,16 +9,18 @@ import (
 
 // todo: refactor source into struct
 type Meta struct {
-	StartAt         time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
-	ClientID        *string               `json:"client_id" gorm:"column:client_id;type:text;unique"`
-	EndAt           *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`
-	Symbols         pq.StringArray        `json:"symbols" gorm:"column:symbols;type:text[]"`
-	Tags            pq.StringArray        `json:"tags" gorm:"column:tags;type:text[]"`
-	InitialBalance  float64               `json:"starting_balance" gorm:"column:starting_balance;type:numeric;not null"`
-	SourceBroker    string                `json:"source_broker" gorm:"column:source_broker;type:text;not null"`
-	SourceAccountId string                `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
-	LiveAccountType LiveAccountType       `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
-	Environment     PlaygroundEnvironment `json:"environment" gorm:"column:environment;type:text;not null"`
+	PlaygroundId          string                `json:"playground_id" gorm:"column:playground_id;type:text;primaryKey"`
+	ReconcilePlaygroundId *string               `json:"reconcile_playground_id" gorm:"column:reconcile_playground_id;type:text"`
+	StartAt               time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
+	ClientID              *string               `json:"client_id" gorm:"column:client_id;type:text;unique"`
+	EndAt                 *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`
+	Symbols               pq.StringArray        `json:"symbols" gorm:"column:symbols;type:text[]"`
+	Tags                  pq.StringArray        `json:"tags" gorm:"column:tags;type:text[]"`
+	InitialBalance        float64               `json:"starting_balance" gorm:"column:starting_balance;type:numeric;not null"`
+	SourceBroker          string                `json:"source_broker" gorm:"column:source_broker;type:text;not null"`
+	SourceAccountId       string                `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
+	LiveAccountType       LiveAccountType       `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
+	Environment           PlaygroundEnvironment `json:"environment" gorm:"column:environment;type:text;not null"`
 }
 
 func NewMeta(env PlaygroundEnvironment, tags []string) *Meta {
@@ -55,7 +57,15 @@ func (p *Meta) Validate() error {
 		return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
 	}
 
+	if p.PlaygroundId == "" {
+		return fmt.Errorf("PlaygroundMeta.Validate: playground id is not set")
+	}
+
 	if p.Environment == PlaygroundEnvironmentLive {
+		if p.ReconcilePlaygroundId == nil {
+			return fmt.Errorf("PlaygroundMeta.Validate: reconcile playground id is not set")
+		}
+
 		if p.StartAt.IsZero() {
 			return fmt.Errorf("PlaygroundMeta.Validate: invalid start date: zero value")
 		}
@@ -96,21 +106,21 @@ func (p *Meta) Validate() error {
 	return nil
 }
 
-func (p *Meta) ToDTO() *PlaygroundMetaDTO {
-	var liveAccountType *string
-	if err := p.LiveAccountType.Validate(); err == nil {
-		liveAccountType = new(string)
-		*liveAccountType = string(p.LiveAccountType)
-	}
+// func (p *Meta) ToDTO() *PlaygroundMetaDTO {
+// 	var liveAccountType *string
+// 	if err := p.LiveAccountType.Validate(); err == nil {
+// 		liveAccountType = new(string)
+// 		*liveAccountType = string(p.LiveAccountType)
+// 	}
 
-	return &PlaygroundMetaDTO{
-		StartDate:             p.StartAt.Format(time.RFC3339),
-		EndDate:               p.EndAt.Format(time.RFC3339),
-		Symbols:               p.Symbols,
-		InitialBalance:        p.InitialBalance,
-		Environment:           string(p.Environment),
-		SourceBroker:          p.SourceBroker,
-		SourceAccountId:       p.SourceAccountId,
-		SourceLiveAccountType: liveAccountType,
-	}
-}
+// 	return &PlaygroundMetaDTO{
+// 		StartDate:             p.StartAt.Format(time.RFC3339),
+// 		EndDate:               p.EndAt.Format(time.RFC3339),
+// 		Symbols:               p.Symbols,
+// 		InitialBalance:        p.InitialBalance,
+// 		Environment:           string(p.Environment),
+// 		SourceBroker:          p.SourceBroker,
+// 		SourceAccountId:       p.SourceAccountId,
+// 		SourceLiveAccountType: liveAccountType,
+// 	}
+// }

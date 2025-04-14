@@ -1920,6 +1920,12 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 		id = uuid.New()
 	}
 
+	meta.PlaygroundId = id.String()
+	if req.ReconcilePlayground != nil {
+		_id := req.ReconcilePlayground.GetPlayground().GetId().String()
+		meta.ReconcilePlaygroundId = &_id
+	}
+
 	playground.Meta = meta
 	playground.ID = id
 	playground.Balance = balance

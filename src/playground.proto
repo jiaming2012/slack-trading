@@ -57,22 +57,16 @@ message GetAppVersionResponse {
 }
 
 message AccountMeta {
-    string start_date = 1;
-    optional string end_date = 2;
-    repeated string symbols = 3;
-    double initial_balance = 4;
-    string environment = 5;
-    optional string live_account_type = 6;
-    repeated string tags = 7;
-    optional string client_id = 8;
-}
-
-message Meta {
-    double initial_balance = 1;
-    string environment = 2;
-    optional string live_account_type = 3;
-    repeated string tags = 4;
-    optional string client_id = 5;
+    string playground_id = 1;
+    optional string reconcile_playground_id = 2;
+    string start_date = 3;
+    optional string end_date = 4;
+    repeated string symbols = 5;
+    double initial_balance = 6;
+    string environment = 7;
+    optional string live_account_type = 8;
+    repeated string tags = 9;
+    optional string client_id = 10;
 }
 
 message GetAccountStatsRequest {
@@ -91,7 +85,7 @@ message GetAccountStatsResponse {
 
 message PlaygroundSession {
     string playground_id = 1;
-    Meta meta = 2;
+    AccountMeta meta = 2;
     Clock clock = 3;
     repeated Repository repositories = 4;
     double balance = 5;

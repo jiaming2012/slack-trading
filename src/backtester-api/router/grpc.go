@@ -117,7 +117,7 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 	}
 
 	if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
-		return nil, fmt.Errorf("failed to fill order: %v", err)
+		return nil, fmt.Errorf("failed to fill mock order: %v", err)
 	}
 
 	return &pb.EmptyResponse{}, nil
@@ -288,14 +288,22 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			*liveAccountType = string(meta.LiveAccountType)
 		}
 
+		var reconcilePlaygroundId *string
+		if p.ReconcilePlayground != nil {
+			_reconcilePlaygroundId := p.ReconcilePlayground.GetId().String()
+			reconcilePlaygroundId = &_reconcilePlaygroundId
+		}
+
 		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
 			PlaygroundId: p.GetId().String(),
-			Meta: &pb.Meta{
-				InitialBalance:  meta.InitialBalance,
-				Environment:     string(meta.Environment),
-				LiveAccountType: liveAccountType,
-				Tags:            meta.Tags,
-				ClientId:        p.ClientID,
+			Meta: &pb.AccountMeta{
+				PlaygroundId:          p.GetId().String(),
+				ReconcilePlaygroundId: reconcilePlaygroundId,
+				InitialBalance:        meta.InitialBalance,
+				Environment:           string(meta.Environment),
+				LiveAccountType:       liveAccountType,
+				Tags:                  meta.Tags,
+				ClientId:              p.ClientID,
 			},
 			Clock: &pb.Clock{
 				Start:       meta.StartAt.Format(time.RFC3339),
@@ -582,14 +590,16 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
-			InitialBalance:  account.Meta.InitialBalance,
-			StartDate:       account.Meta.StartAt.Format(time.RFC3339),
-			EndDate:         endAt,
-			Symbols:         account.Meta.Symbols,
-			Environment:     string(account.Meta.Environment),
-			LiveAccountType: liveAccountType,
-			Tags:            account.Meta.Tags,
-			ClientId:        account.Meta.ClientID,
+			PlaygroundId:          account.Meta.PlaygroundId,
+			ReconcilePlaygroundId: account.Meta.ReconcilePlaygroundId,
+			InitialBalance:        account.Meta.InitialBalance,
+			StartDate:             account.Meta.StartAt.Format(time.RFC3339),
+			EndDate:               endAt,
+			Symbols:               account.Meta.Symbols,
+			Environment:           string(account.Meta.Environment),
+			LiveAccountType:       liveAccountType,
+			Tags:                  account.Meta.Tags,
+			ClientId:              account.Meta.ClientID,
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,
