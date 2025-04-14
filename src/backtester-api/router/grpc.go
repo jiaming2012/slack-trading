@@ -704,7 +704,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 	playground := &models.Playground{}
 	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
-		return nil, fmt.Errorf("failed to create playground: %v", err)
+		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
 
 	return &pb.CreatePlaygroundResponse{
@@ -760,7 +760,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create playground: %w", err)
+		return nil, fmt.Errorf("s.CreatePlayground: failed to create playground: %w", err)
 	}
 
 	return &pb.CreatePlaygroundResponse{

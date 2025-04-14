@@ -21,7 +21,7 @@ func TestLiveAccount(t *testing.T) {
 
 	fmt.Printf("Playground client: %v\n", playgroundClient)
 
-	playgroundResp, err := playgroundClient.CreatePlayground(ctx, &playground.CreatePolygonPlaygroundRequest{
+	_, err := playgroundClient.CreatePlayground(ctx, &playground.CreatePolygonPlaygroundRequest{
 		Balance:   10000,
 		StartDate: "2021-01-04",
 		StopDate:  "2021-01-05",
