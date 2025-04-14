@@ -43,9 +43,14 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 				continue
 			}
 
-			ordersCopy := make([]*models.OrderRecord, 0, len(orders))
-			for idx, o := range orders {
-				*ordersCopy[idx] = *o
+			// create a copy of the orders
+			ordersCopy := make([]*models.OrderRecord, len(orders))
+			for i := 0; i < len(orders); i++ {
+				c := &models.OrderRecord{}
+				if err := copier.Copy(c, orders[i]); err != nil {
+					log.Fatalf("UpdatePendingMarginOrders: failed to copy order: %v", err)
+				}
+				ordersCopy[i] = c
 			}
 
 			shouldUpdate := false
