@@ -254,7 +254,8 @@ func (s *DatabaseService) seekOrdersFromPlayground(orders []*models.OrderRecord)
 	for _, o := range orders {
 		o2, found := s.ordersCache[o.ID]
 		if !found {
-			return nil, fmt.Errorf("failed to find order in memory: %d", o.ID)
+			log.Errorf("failed to find order in memory: %d, excluding from results ...", o.ID)
+			continue
 		}
 
 		out = append(out, o2)
@@ -269,7 +270,8 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	for _, t := range trades {
 		t2, found := s.tradesCache[t.ID]
 		if !found {
-			return nil, fmt.Errorf("failed to find trade in memory: %d", t.ID)
+			log.Errorf("failed to find trade in memory: %d, excluding from results ...", t.ID)
+			continue
 		}
 
 		out = append(out, t2)
@@ -1223,6 +1225,7 @@ func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance 
 
 	// save in cache
 	s.ordersCache[order.ID] = order
+	
 	for _, t := range order.Trades {
 		s.tradesCache[t.ID] = t
 	}
