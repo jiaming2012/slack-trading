@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccount(t *testing.T) {
+func TestLiveAccountFilled(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -93,6 +93,10 @@ func TestLiveAccount(t *testing.T) {
 	require.Equal(t, "pending", liveAccount.Orders[0].Status)
 	require.NotNil(t, liveAccount.Meta.ReconcilePlaygroundId)
 
+	// Check the live account positions
+	pos := liveAccount.Positions["AAPL"]
+	require.Nil(t, pos)
+
 	// Fetch the reconcile account
 	reconcileAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
@@ -111,6 +115,10 @@ func TestLiveAccount(t *testing.T) {
 	require.Equal(t, "market", reconcileAccount.Orders[0].Type)
 	require.Equal(t, "day", reconcileAccount.Orders[0].Duration)
 	require.Equal(t, "pending", reconcileAccount.Orders[0].Status)
+
+	// Check the reconcile account positions
+	pos = reconcileAccount.Positions["AAPL"]
+	require.Nil(t, pos)
 
 	require.Len(t, reconcileAccount.Orders[0].Reconciles, 1)
 	require.Equal(t, liveAccount.Orders[0].Id, reconcileAccount.Orders[0].Reconciles[0].Id)
@@ -151,7 +159,7 @@ func TestLiveAccount(t *testing.T) {
 
 	require.True(t, bNewTrade)
 
-	// Check the order details
+	// Check the live account order details
 	liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: createLivePgResp.Id,
 		FetchOrders:  true,
@@ -161,4 +169,25 @@ func TestLiveAccount(t *testing.T) {
 	require.Len(t, liveAccount.Orders, 1)
 
 	require.Equal(t, "filled", liveAccount.Orders[0].Status)
+
+	// Check the live account positions
+	pos = liveAccount.Positions["AAPL"]
+	require.NotNil(t, pos)
+	require.Equal(t, 10.0, pos.Quantity)
+
+	// Check the reconcile account order details
+	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
+		FetchOrders:  true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reconcileAccount)
+	require.Len(t, reconcileAccount.Orders, 1)
+
+	require.Equal(t, "filled", reconcileAccount.Orders[0].Status)
+
+	// Check the live account positions
+	pos = reconcileAccount.Positions["AAPL"]
+	require.NotNil(t, pos)
+	require.Equal(t, 10.0, pos.Quantity)
 }

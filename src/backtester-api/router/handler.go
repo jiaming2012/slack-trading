@@ -80,8 +80,8 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 				}
 
 				if !hasUpdates {
-					log.Tracef("handleLiveOrders: no order update events. Sleeping for 4 seconds ...")
-					time.Sleep(4 * time.Second)
+					log.Tracef("handleLiveOrders: no order update events. Sleeping for 1 second(s) ...")
+					time.Sleep(1 * time.Second)
 					log.Tracef("handleLiveOrders: waking up")
 				}
 			}
