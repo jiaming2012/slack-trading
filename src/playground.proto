@@ -285,9 +285,12 @@ message Candle {
 }
 
 message Trade {
-    string create_date = 1;
-    double quantity = 2;
-    double price = 3;
+    uint64 id = 1;
+    string create_date = 2;
+    double quantity = 3;
+    double price = 4;
+    optional uint64 order_id = 5;
+    optional uint64 reconcile_order_id = 6;
 }
 
 message Order {

@@ -43,10 +43,25 @@ func convertOrders(orders []*models.OrderRecord) []*pb.Order {
 func convertOrder(o *models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.GetTrades() {
+		var orderId *uint64
+		if trade.OrderID != nil {
+			_orderId := uint64(*trade.OrderID)
+			orderId = &_orderId
+		}
+
+		var reconcileOrderId *uint64
+		if trade.ReconcileOrderID != nil {
+			_reconcileOrderId := uint64(*trade.ReconcileOrderID)
+			reconcileOrderId = &_reconcileOrderId
+		}
+
 		trades = append(trades, &pb.Trade{
+			Id:        uint64(trade.ID),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
+			OrderId:    orderId,
+			ReconcileOrderId: reconcileOrderId,
 		})
 	}
 
@@ -467,11 +482,25 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
+		var orderId *uint64
+		if trade.OrderID != nil {
+			_orderId := uint64(*trade.OrderID)
+			orderId = &_orderId
+		}
+
+		var reconcileOrderId *uint64
+		if trade.ReconcileOrderID != nil {
+			_reconcileOrderId := uint64(*trade.ReconcileOrderID)
+			reconcileOrderId = &_reconcileOrderId
+		}
+
 		newTrades = append(newTrades, &pb.Trade{
-			// Symbol:     trade.GetSymbol().GetTicker(),
-			CreateDate: trade.Timestamp.String(),
-			Quantity:   trade.Quantity,
-			Price:      trade.Price,
+			Id:               uint64(trade.ID),
+			CreateDate:       trade.Timestamp.String(),
+			Quantity:         trade.Quantity,
+			Price:            trade.Price,
+			OrderId:          orderId,
+			ReconcileOrderId: reconcileOrderId,
 		})
 	}
 

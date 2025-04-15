@@ -1227,6 +1227,10 @@ func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance 
 		s.tradesCache[t.ID] = t
 	}
 
+	for _, t := range order.ReconcileTrades {
+		s.tradesCache[t.ID] = t
+	}
+
 	return nil
 }
 

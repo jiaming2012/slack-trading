@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/playground"
@@ -94,7 +96,7 @@ func TestLiveAccount(t *testing.T) {
 	// Fetch the reconcile account
 	reconcileAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
-		FetchOrders: true,
+		FetchOrders:  true,
 	})
 
 	require.NoError(t, err)
@@ -112,26 +114,51 @@ func TestLiveAccount(t *testing.T) {
 
 	require.Len(t, reconcileAccount.Orders[0].Reconciles, 1)
 	require.Equal(t, liveAccount.Orders[0].Id, reconcileAccount.Orders[0].Reconciles[0].Id)
+	require.NotNil(t, reconcileAccount.Orders[0].ExternalId)
 
+	// Fill the order
+	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
+		OrderId: *reconcileAccount.Orders[0].ExternalId,
+		Price:   178.0,
+		Status:  "filled",
+		Broker:  "tradier",
+	})
 
-	// // Fill the order
-	// _, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-	// 	OrderId: liveAccount.Orders[0].Id,
-	// 	Price: 178.0,
-	// 	Status: "filled",
-	// 	Broker: "tradier",
-	// })
+	require.NoError(t, err)
 
-	// require.NoError(t, err)
+	now := time.Now()
+	bNewTrade := false
+	for {
+		if time.Since(now) > time.Second*40 {
+			break
+		}
 
-	// // Check the order details
-	// liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
-	// 	PlaygroundId: createLivePgResp.Id,
-	// 	FetchOrders:  true,
-	// })
-	// require.NoError(t, err)
-	// require.NotNil(t, liveAccount)
-	// require.Len(t, liveAccount.Orders, 1)
-	
-	// require.Equal(t, "filled", liveAccount.Orders[0].Status)
+		uId := uuid.NewString()
+		fmt.Printf("%s NextTick: %s\n", createLivePgResp.Id, uId)
+		nextTickResponse, err := p.NextTick(ctx, &playground.NextTickRequest{
+			PlaygroundId: createLivePgResp.Id,
+			RequestId:    uId,
+		})
+		require.NoError(t, err)
+
+		if len(nextTickResponse.NewTrades) > 0 {
+			bNewTrade = true
+			break
+		}
+
+		time.Sleep(time.Second) // Wait for the order to be filled
+	}
+
+	require.True(t, bNewTrade)
+
+	// Check the order details
+	liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: createLivePgResp.Id,
+		FetchOrders:  true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, liveAccount)
+	require.Len(t, liveAccount.Orders, 1)
+
+	require.Equal(t, "filled", liveAccount.Orders[0].Status)
 }

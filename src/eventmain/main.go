@@ -691,11 +691,29 @@ func run() {
 	}
 
 	// Add mock broker for testing
+	pendingMockOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeReconcilation}, false)
+	if err != nil {
+		log.Fatalf("failed to fetch pending mock orders: %v", err)
+	}
+
+	var existsingOrders []*models.PlaceEquityTradeRequest
+	for _, order := range pendingMockOrders {
+		existsingOrders = append(existsingOrders, &models.PlaceEquityTradeRequest{
+			OrderID:   order.ExternalOrderID,
+			Symbol:    order.Symbol,
+			Quantity:  int(order.AbsoluteQuantity),
+			Side:      order.Side,
+			OrderType: models.TradierOrderTypeMarket,
+			Tag:       order.Tag,
+			DryRun:    false,
+		})
+	}
+
 	brokerMap[models.CreateAccountRequestSource{
 		LiveAccountType: models.LiveAccountTypeMock,
 		Broker:          "tradier",
 		AccountID:       "mock_default",
-	}] = models.NewMockBroker(mockOrderIdStartIndex)
+	}] = models.NewMockBroker(mockOrderIdStartIndex, existsingOrders)
 
 	// Setup backtester router playground
 	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {

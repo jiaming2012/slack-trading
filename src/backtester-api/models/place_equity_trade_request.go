@@ -1,6 +1,7 @@
 package models
 
 type PlaceEquityTradeRequest struct {
+	OrderID   *uint
 	Symbol    string
 	Quantity  int
 	Side      TradierOrderSide

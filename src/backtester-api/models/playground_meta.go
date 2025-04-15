@@ -9,8 +9,8 @@ import (
 
 // todo: refactor source into struct
 type Meta struct {
-	PlaygroundId          string                `json:"playground_id" gorm:"column:playground_id;type:text;primaryKey"`
-	ReconcilePlaygroundId *string               `json:"reconcile_playground_id" gorm:"column:reconcile_playground_id;type:text"`
+	PlaygroundId          string                `json:"playground_id" gorm:"-"`
+	ReconcilePlaygroundId *string               `json:"reconcile_playground_id" gorm:"-"`
 	StartAt               time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
 	ClientID              *string               `json:"client_id" gorm:"column:client_id;type:text;unique"`
 	EndAt                 *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`

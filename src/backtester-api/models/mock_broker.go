@@ -3,6 +3,8 @@ package models
 import (
 	"context"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -30,8 +32,7 @@ func (b *MockBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) 
 }
 
 func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceEquityTradeRequest) {
-	b.orders = append(b.orders, &eventmodels.TradierOrder{
-		ID:                        uint(b.orderId),
+	o := &eventmodels.TradierOrder{
 		Symbol:                    req.Symbol,
 		AbsoluteQuantity:          float64(req.Quantity),
 		Side:                      string(req.Side),
@@ -40,7 +41,18 @@ func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceEquityTradeRequest) {
 		AvgFillPrice:              0,
 		LastFillPrice:             0,
 		AbsoluteRemainingQuantity: float64(req.Quantity),
-	})
+	}
+
+	// need to get the external order id. Maybe place it on the live order?
+	if req.OrderID != nil {
+		o.ID = *req.OrderID
+		b.orderId = uint(math.Max(float64(b.orderId), float64(*req.OrderID+1)))
+	} else {
+		o.ID = uint(b.orderId)
+		b.orderId++
+	}
+
+	b.orders = append(b.orders, o)
 }
 
 func (b *MockBroker) FillOrder(orderId uint, price float64, status string) error {
@@ -52,6 +64,10 @@ func (b *MockBroker) FillOrder(orderId uint, price float64, status string) error
 		return fmt.Errorf("invalid status: %s", status)
 	}
 
+	if price <= 0 {
+		return fmt.Errorf("invalid price: %f", price)
+	}
+
 	for _, o := range b.orders {
 		if o.ID == orderId {
 			o.Status = status
@@ -60,6 +76,7 @@ func (b *MockBroker) FillOrder(orderId uint, price float64, status string) error
 			o.AbsoluteExecQuantity = o.AbsoluteRemainingQuantity
 			o.AbsoluteLastFillQuantity = o.AbsoluteRemainingQuantity
 			o.AbsoluteRemainingQuantity = 0
+			o.CreateDate = time.Now()
 			return nil
 		}
 	}
@@ -76,8 +93,6 @@ func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceEquityTradeReques
 	}
 
 	b.fillPlaceEquityTradeRequest(req)
-
-	b.orderId++
 
 	return resp, nil
 }
@@ -113,13 +128,19 @@ func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*eve
 	return nil, fmt.Errorf("order not found")
 }
 
-func NewMockBroker(orderIdStartIndex uint) *MockBroker {
+func NewMockBroker(orderIdStartIndex uint, existingOrders []*PlaceEquityTradeRequest) *MockBroker {
 	source := NewMockLiveAccountSource()
 
-	return &MockBroker{
+	broker := &MockBroker{
 		requests: make([]*PlaceEquityTradeRequest, 0),
 		orders:   make([]*eventmodels.TradierOrder, 0),
 		orderId:  orderIdStartIndex,
 		source:   source,
 	}
+
+	for _, req := range existingOrders {
+		broker.fillPlaceEquityTradeRequest(req)
+	}
+
+	return broker
 }

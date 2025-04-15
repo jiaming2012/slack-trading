@@ -131,6 +131,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 
 		for _, trade := range newTrades {
+			log.Tracef("UpdatePendingMarginOrders: playground %v enqueuing trade #%v", playground.GetId().String(), trade.ID)
 			playground.GetNewTradesQueue().Enqueue(trade)
 		}
 	}
