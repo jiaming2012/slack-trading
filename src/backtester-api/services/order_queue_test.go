@@ -121,7 +121,7 @@ func TestLiveAccount(t *testing.T) {
 	}
 
 	t.Run("place buy order", func(t *testing.T) {
-		broker := models.NewMockBroker(1000)
+		broker := models.NewMockBroker(1000, nil)
 		database := models.NewMockDatabase()
 		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 1)
 		liveAccount, err := models.NewLiveAccount(broker, database)
@@ -177,7 +177,7 @@ func TestLiveAccount(t *testing.T) {
 
 	t.Run("fill buy order - with existing long order", func(t *testing.T) {
 		reconcileOrderIdx := uint(1000)
-		broker := models.NewMockBroker(reconcileOrderIdx)
+		broker := models.NewMockBroker(reconcileOrderIdx, nil)
 		database := models.NewMockDatabase()
 		newTradesQueue1 := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 2)
 		liveAccount, err := models.NewLiveAccount(broker, database)
@@ -190,7 +190,6 @@ func TestLiveAccount(t *testing.T) {
 
 		reconcilePlayground := createReconcilePlayground(t, playground1, liveAccount, database)
 		liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 2)
-		cache := models.NewOrderCache()
 
 		playgroundID, err = uuid.Parse("c59a5f72-7989-4457-9120-f281924e7e0e")
 		require.NoError(t, err)
@@ -205,8 +204,6 @@ func TestLiveAccount(t *testing.T) {
 
 		// place buy order
 		order1 := models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
-
-		broker.SetFillOrderExecutionPrice(100.0)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
 		require.NoError(t, err)
@@ -242,15 +239,16 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, models.OrderRecordStatusPending, liveOrders[0].Status)
 
 		// fill buy order
+		require.NotNil(t, reconcileOrders[0].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[0].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+
 		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
 		require.NoError(t, err)
 
-		hasUpdates, err := DrainTradierOrderQueue(liveOrdersUpdateQueue, cache, database)
+		hasUpdates, err := DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
 		require.NoError(t, err)
 		require.True(t, hasUpdates)
-
-		err = CommitPendingOrders(cache, database)
-		require.NoError(t, err)
 
 		err = UpdatePendingMarginOrders(database)
 		require.NoError(t, err)
@@ -319,15 +317,20 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, order2.OrderType, reconcileOrders[2].OrderType)
 
 		// fill sell short order
+		require.NotNil(t, reconcileOrders[1].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[1].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+		
+		require.NotNil(t, reconcileOrders[2].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[2].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+
 		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
 		require.NoError(t, err)
 
-		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, cache, database)
+		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
 		require.NoError(t, err)
 		require.True(t, hasUpdates)
-
-		err = CommitPendingOrders(cache, database)
-		require.NoError(t, err)
 
 		err = UpdatePendingMarginOrders(database)
 		require.NoError(t, err)

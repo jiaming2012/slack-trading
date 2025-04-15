@@ -75,6 +75,7 @@ func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint, see
 			for _, o := range order.Reconciles {
 				if o.ID == reconcileId {
 					records = append(records, order.Trades...)
+					records = append(records, order.ReconcileTrades...)
 				}
 			}
 		}
