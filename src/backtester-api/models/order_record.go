@@ -94,6 +94,26 @@ func (o *OrderRecord) GetQuantity() float64 {
 	return o.AbsoluteQuantity
 }
 
+func (o *OrderRecord) Rollback(trade *TradeRecord) {
+	if o.LiveAccountType == LiveAccountTypeReconcilation {
+		for i, t := range o.ReconcileTrades {
+			if t.ID == trade.ID {
+				o.ReconcileTrades = append(o.ReconcileTrades[:i], o.ReconcileTrades[i+1:]...)
+				break
+			}
+		}
+	} else {
+		for i, t := range o.Trades {
+			if t.ID == trade.ID {
+				o.Trades = append(o.Trades[:i], o.Trades[i+1:]...)
+				break
+			}
+		}
+	}
+
+	o.Reject(fmt.Errorf("trade rolled back, (qty, prc)=(%.2f, %.2f)", trade.Quantity, trade.Price))
+}
+
 func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 	if !o.Status.IsTradingAllowed() {
 		return false, ErrTradingNotAllowed
@@ -133,6 +153,8 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 		o.Status = OrderRecordStatusFilled
 		orderIsFilled = true
 	}
+
+	trade.UpdateOrder(o)
 
 	return orderIsFilled, nil
 }

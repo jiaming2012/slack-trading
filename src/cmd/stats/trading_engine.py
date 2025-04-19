@@ -381,6 +381,12 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
     playground.tick(0, raise_exception=True)  # initialize the playground
+    
+    # todo: this ideally would happen inside BacktesterPlaygroundClient
+    current_bar = playground.fetch_most_recent_bar(ltf_period)
+    
+    playground.set_current_candle(symbol, ltf_period, current_bar)
+    
     logger.info(f"created playground with id: {playground.id}")
     
     if open_strategy_input == 'simple_open_strategy_v1':

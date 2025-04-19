@@ -36,8 +36,8 @@ type Playground struct {
 	ReconcilePlayground   IReconcilePlayground                                           `gorm:"-"`
 	repos                 map[eventmodels.Instrument]map[time.Duration]*CandleRepository `gorm:"-"`
 	isBacktestComplete    bool                                                           `gorm:"-"`
-	positionsCache        map[eventmodels.Instrument]*Position                           `gorm:"-"`
-	openOrdersCache       map[eventmodels.Instrument][]*OrderRecord                      `gorm:"-"`
+	positionsCache        *PositionsCache                                                `gorm:"-"`
+	openOrdersCache       *OpenOrdersCache                                               `gorm:"-"`
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
 	newTradesQueue        *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
 	minimumPeriod         time.Duration                                                  `gorm:"-"` // This is a new field
@@ -99,7 +99,6 @@ func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabas
 
 	return commit, dbCommit, msg
 }
-
 
 func (p *Playground) SetReconcilePlayground(playground IReconcilePlayground) {
 	p.ReconcilePlayground = playground
@@ -191,16 +190,11 @@ func (p *Playground) GetRepositories() []*CandleRepository {
 }
 
 func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*OrderRecord {
-	openOrders, found := p.openOrdersCache[symbol]
-	if !found {
-		return make([]*OrderRecord, 0)
-	}
-
-	return openOrders
+	return p.openOrdersCache.Get(symbol)
 }
 
 func (p *Playground) GetOpenOrder(id uint) *OrderRecord {
-	for _, orders := range p.openOrdersCache {
+	for _, orders := range p.openOrdersCache.Iter() {
 		for _, order := range orders {
 			if order.ID == id {
 				return order
@@ -378,9 +372,9 @@ func (p *Playground) commitPendingOrders(startingPositions map[eventmodels.Instr
 	return
 }
 
-func (p *Playground) updateOpenOrdersCache(newOrder *OrderRecord) error {
+func (p *Playground) updateOpenOrdersCache(openOrdersCache *OpenOrdersCache, newOrder *OrderRecord) error {
 	// check for close of open orders
-	for symbol, orders := range p.openOrdersCache {
+	for symbol, orders := range openOrdersCache.Iter() {
 		for i := len(orders) - 1; i >= 0; i-- {
 			qty, err := orders[i].GetRemainingOpenQuantity()
 			if err != nil {
@@ -389,7 +383,7 @@ func (p *Playground) updateOpenOrdersCache(newOrder *OrderRecord) error {
 
 			remaining_open_qty := math.Abs(qty)
 			if remaining_open_qty <= 0 {
-				p.deleteFromOpenOrdersCache(symbol, i)
+				openOrdersCache.Delete(symbol, i)
 			}
 		}
 	}
@@ -397,7 +391,7 @@ func (p *Playground) updateOpenOrdersCache(newOrder *OrderRecord) error {
 	// check for new open orders
 	isOpen := newOrder.Side == TradierOrderSideBuy || newOrder.Side == TradierOrderSideSellShort
 	if isOpen {
-		p.addToOpenOrdersCache(newOrder)
+		openOrdersCache.Add(newOrder)
 	}
 
 	return nil
@@ -420,20 +414,17 @@ func calcVwap(orders []*OrderRecord) float64 {
 	return totalValue / totalQuantity
 }
 
-func (p *Playground) updatePositionsCache(symbol eventmodels.Instrument, trade *TradeRecord, isClose bool) {
-	position, ok := p.positionsCache[symbol]
-	if !ok {
-		position = &Position{}
-	}
+func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, positionsCache *PositionsCache, symbol eventmodels.Instrument, trade *TradeRecord, isClose bool) {
+	position := positionsCache.Get(symbol)
 
 	totalQuantity := position.Quantity + trade.Quantity
 
 	// update the cost basis
 	if totalQuantity == 0 {
-		delete(p.positionsCache, symbol)
+		positionsCache.Delete(symbol)
 	} else {
 		if !isClose {
-			position.CostBasis = calcVwap(p.GetOpenOrders(symbol))
+			position.CostBasis = calcVwap(openOrdersCache.Get(symbol))
 		}
 
 		// update the quantity
@@ -442,7 +433,7 @@ func (p *Playground) updatePositionsCache(symbol eventmodels.Instrument, trade *
 		// update the maintenance margin
 		position.MaintenanceMargin = calculateMaintenanceRequirement(position.Quantity, position.CostBasis)
 
-		p.positionsCache[symbol] = position
+		positionsCache.Set(symbol, position)
 	}
 }
 
@@ -512,7 +503,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 }
 
 func (p *Playground) SetOpenOrdersCache() error {
-	p.openOrdersCache = make(map[eventmodels.Instrument][]*OrderRecord)
+	p.openOrdersCache = NewOpenOrdersCache()
 	for _, o := range p.account.Orders {
 		qty, err := o.GetRemainingOpenQuantity()
 		if err != nil {
@@ -520,16 +511,16 @@ func (p *Playground) SetOpenOrdersCache() error {
 		}
 
 		if math.Abs(qty) > 0 {
-			p.addToOpenOrdersCache(o)
+			p.openOrdersCache.Add(o)
 		}
 	}
 
 	return nil
 }
 
-func (p *Playground) addToOpenOrdersCache(order *OrderRecord) {
-	p.addToCache(p.openOrdersCache, order)
-}
+// func (p *Playground) addToOpenOrdersCache(order *OrderRecord) {
+// 	p.addToCache(p.openOrdersCache, order)
+// }
 
 func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord, order *OrderRecord) {
 	openOrders, found := cache[order.GetInstrument()]
@@ -540,9 +531,9 @@ func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord,
 	cache[order.GetInstrument()] = append(openOrders, order)
 }
 
-func (p *Playground) deleteFromOpenOrdersCache(symbol eventmodels.Instrument, index int) {
-	p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:index], p.openOrdersCache[symbol][index+1:]...)
-}
+// func (p *Playground) deleteFromOpenOrdersCache(symbol eventmodels.Instrument, index int) {
+// 	p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:index], p.openOrdersCache[symbol][index+1:]...)
+// }
 
 func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDatabaseService) error {
 	if order.Status == OrderRecordStatusRejected {
@@ -669,6 +660,54 @@ func (p *Playground) addClosesInfoToOrder(order *OrderRecord, position *Position
 	return nil
 }
 
+func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionsCache *PositionsCache) error {
+	if openOrdersCache == nil {
+		return fmt.Errorf("open orders cache is nil")
+	}
+
+	if positionsCache == nil {
+		return fmt.Errorf("positions cache is nil")
+	}
+
+	if openOrdersCache.Len() != positionsCache.Len() {
+		return fmt.Errorf("open orders cache length %d does not match positions cache length %d", openOrdersCache.Len(), positionsCache.Len())
+	}
+
+	position := make(map[string]Position)
+	for symbol, orders := range openOrdersCache.Iter() {
+		for _, order := range orders {
+			if order == nil {
+				continue
+			}
+			if order.ID == 0 {
+				continue
+			}
+
+			if _, ok := position[order.Symbol]; !ok {
+				position[order.Symbol] = Position{}
+			}
+
+			pos := position[order.Symbol]
+
+			openQty, err := order.GetRemainingOpenQuantity()
+			if err != nil {
+				return fmt.Errorf("open orders cache symbol %s: error getting remaining open quantity: %w", order.Symbol, err)
+			}
+
+			pos.Quantity += openQty
+			position[order.Symbol] = pos
+		}
+
+		positionCache := positionsCache.Get(symbol)
+
+		if positionCache.Quantity != position[symbol.GetTicker()].Quantity {
+			return fmt.Errorf("open orders cache symbol %s quantity %f does not match positions cache quantity %f", symbol, positionCache.Quantity, position[symbol.GetTicker()].Quantity)
+		}
+	}
+
+	return nil
+}
+
 func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFillEntry ExecutionFillRequest, positionsMap map[eventmodels.Instrument]*Position) (*TradeRecord, bool, error) {
 	position, ok := positionsMap[order.GetInstrument()]
 	if !ok {
@@ -786,7 +825,6 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	var trade *TradeRecord
 	if orderFillEntry.Trade != nil {
 		trade = orderFillEntry.Trade
-		trade.UpdateOrder(order)
 	} else {
 		trade = NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 	}
@@ -808,67 +846,38 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		req.Order.ClosedBy = append(req.Order.ClosedBy, trade)
 	}
 
-	// remove the open orders that were closed in cache
-	p.updateOpenOrdersCache(order)
+	openOrdersCacheCopy := p.openOrdersCache.Copy()
+
+	// update copy: remove the open orders that were closed in cache
+	p.updateOpenOrdersCache(openOrdersCacheCopy, order)
+
+	positionsCacheCopy := p.positionsCache.Copy()
+
+	// update the copy positions cache
+	p.updatePositionsCache(openOrdersCacheCopy, positionsCacheCopy, order.GetInstrument(), trade, order.IsClose)
+
+	if performChecks {
+		if err := p.validateCache(openOrdersCacheCopy, positionsCacheCopy); err != nil {
+			log.Debugf("rolling back order %v", order.ID)
+	
+			order.Rollback(trade)
+	
+			return nil, false, fmt.Errorf("fillOrder: error validating cache: %w", err)
+		}
+	}
+
+	// update the caches
+	p.openOrdersCache.Commit(openOrdersCacheCopy)
+	p.positionsCache.Commit(positionsCacheCopy)
 
 	// update the account balance before updating the positions cache
 	p.updateBalance(order.GetInstrument(), trade, positionsMap)
 
-	// update the positions cache
-	p.updatePositionsCache(order.GetInstrument(), trade, order.IsClose)
+	if orderFillEntry.Trade != nil {
+		orderFillEntry.Trade = trade
+	}
 
 	return trade, orderIsFilled, nil
-}
-
-// func (p *Playground) updateTrade(trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
-// 	position, ok := startingPositions[trade.GetSymbol()]
-// 	if !ok {
-// 		position = &Position{}
-// 	}
-
-// 	if position.Quantity > 0 {
-// 		if trade.Quantity < 0 {
-// 			closeQuantity := math.Min(position.Quantity, math.Abs(trade.Quantity))
-// 			pl := (trade.Price - position.CostBasis) * closeQuantity
-// 			position.PL += pl
-// 		}
-// 	} else if position.Quantity < 0 {
-// 		if trade.Quantity > 0 {
-// 			closeQuantity := math.Min(math.Abs(position.Quantity), trade.Quantity)
-// 			pl := (position.CostBasis - trade.Price) * closeQuantity
-// 			position.PL += pl
-// 		}
-// 	}
-
-// 	position.Quantity += trade.Quantity
-// 	startingPositions[trade.GetSymbol()] = position
-// }
-
-func (p *Playground) fillOrdersDeprecated(ordersToOpen []*OrderRecord, startingPositions map[eventmodels.Instrument]*Position, orderFillEntryMap map[uint]ExecutionFillRequest, performChecks bool) ([]*TradeRecord, error) {
-	var trades []*TradeRecord
-
-	positionsCopy := make(map[eventmodels.Instrument]*Position)
-	for symbol, position := range startingPositions {
-		positionsCopy[symbol] = &Position{
-			Quantity: position.Quantity,
-		}
-	}
-
-	for _, order := range ordersToOpen {
-		orderFillEntry, found := orderFillEntryMap[order.ID]
-		if !found {
-			return nil, fmt.Errorf("fillOrders: order %d not found in order fill entry map", order.ID)
-		}
-
-		trade, _, err := p.fillOrder(order, performChecks, orderFillEntry, positionsCopy)
-		if err != nil {
-			return nil, fmt.Errorf("fillOrders: error filling order: %w", err)
-		}
-
-		trades = append(trades, trade)
-	}
-
-	return trades, nil
 }
 
 func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRecord, startingPositions map[eventmodels.Instrument]*Position) {
@@ -989,7 +998,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 			liquidatedOrders = append(liquidatedOrders, order)
 		}
 
-		positions, err = p.GetPositions()
+		positions, err = p.UpdateAndGetPositions()
 		if err != nil {
 			return nil, fmt.Errorf("error getting positions: %w", err)
 		}
@@ -1013,7 +1022,7 @@ func (p *Playground) checkForLiquidations(positions map[eventmodels.Instrument]*
 	return nil, nil
 }
 
-func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	symbolsRepo, ok := p.repos[symbol]
 	if !ok {
 		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
@@ -1033,7 +1042,7 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 }
 
 func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.EquityPlot, error) {
-	positions, err := p.GetPositions()
+	positions, err := p.UpdateAndGetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1077,7 +1086,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	startingPositions, err := p.GetPositions()
+	startingPositions, err := p.UpdateAndGetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1111,7 +1120,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	// Check for liquidations
 	var tickDeltaEvents []*TickDeltaEvent
 
-	startingPositions, err = p.GetPositions()
+	startingPositions, err = p.UpdateAndGetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1220,7 +1229,7 @@ func (p *Playground) GetAllOrders() []*OrderRecord {
 }
 
 func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {
-	positions, err := p.GetPositions()
+	positions, err := p.UpdateAndGetPositions()
 	if err != nil {
 		return Position{}, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1305,26 +1314,26 @@ func getKeysFromMap(m map[eventmodels.Instrument]*Position) []eventmodels.Instru
 	return keys
 }
 
-func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error) {
+func (p *Playground) UpdateAndGetPositions() (map[eventmodels.Instrument]*Position, error) {
 	if p.positionsCache != nil {
 		// update pl
-		symbols := getKeysFromMap(p.positionsCache)
+		symbols := getKeysFromMap(p.positionsCache.Iter())
 		currentPrices, err := p.getCurrentPrices(symbols)
 		if err != nil {
 			return nil, fmt.Errorf("getCurrentPrice: %w", err)
 		}
 
-		for symbol, position := range p.positionsCache {
+		for symbol, position := range p.positionsCache.Iter() {
 			currentPrice, found := currentPrices[symbol]
 			if !found {
 				return nil, fmt.Errorf("current price not found for symbol %s", symbol)
 			}
 
-			p.positionsCache[symbol].PL = (currentPrice.Value - position.CostBasis) * position.Quantity
-			p.positionsCache[symbol].CurrentPrice = currentPrice.Value
+			pl := (currentPrice.Value - position.CostBasis) * position.Quantity
+			p.positionsCache.Update(symbol, pl, currentPrice.Value)
 		}
 
-		return p.positionsCache, nil
+		return p.positionsCache.Iter(), nil
 	}
 
 	positions := make(map[eventmodels.Instrument]*Position)
@@ -1409,7 +1418,7 @@ func (p *Playground) GetPositions() (map[eventmodels.Instrument]*Position, error
 	}
 
 	// set the cache
-	p.positionsCache = positions
+	p.positionsCache.SetCache(positions)
 
 	return positions, nil
 }
@@ -1496,7 +1505,7 @@ func (p *Playground) GetFreeMarginFromPositionMap(positions map[eventmodels.Inst
 }
 
 func (p *Playground) GetFreeMargin() (float64, error) {
-	positions, err := p.GetPositions()
+	positions, err := p.UpdateAndGetPositions()
 	if err != nil {
 		return 0, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1698,7 +1707,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		}
 	}
 
-	positions, err := p.GetPositions()
+	positions, err := p.UpdateAndGetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
@@ -1934,13 +1943,13 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.clock = clock
 	playground.repos = repos
 	playground.Repositories = CandleRepositoryRecord(repositories)
-	playground.openOrdersCache = make(map[eventmodels.Instrument][]*OrderRecord)
+	playground.openOrdersCache = NewOpenOrdersCache()
+	playground.positionsCache = NewPositionsCache()
 	playground.minimumPeriod = minimumPeriod
 	playground.AccountID = accountID
 	playground.BrokerName = &brokerName
-	
-	playground.positionsCache = nil
-	if _, err := playground.GetPositions(); err != nil {
+
+	if _, err := playground.UpdateAndGetPositions(); err != nil {
 		return fmt.Errorf("error getting positions: %w", err)
 	}
 

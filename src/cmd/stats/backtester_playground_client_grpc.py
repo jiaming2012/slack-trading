@@ -13,7 +13,7 @@ import time
 import uuid
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
 from src.cmd.stats.playground_types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
@@ -117,6 +117,20 @@ class BacktesterPlaygroundClient:
                 
                 if backoff < max_backoff:
                     backoff = min(max_backoff, backoff * 2)  # Exponential backoff
+                    
+    def set_current_candle(self, symbol: str, period: int, bar: Bar):        
+        set_nested_value(self.current_candles, symbol, period, bar)
+                
+    def fetch_most_recent_bar(self, period: int) -> Bar:
+        # Calculate three days ago
+        now = datetime.now()
+        three_days_ago = now - timedelta(days=3)
+        
+        bars = self.fetch_candles_v3(period, three_days_ago, now)
+        if not bars or len(bars) == 0:
+            raise Exception(f"No bars found for symbol {self.symbol} and period {period}")
+        
+        return bars[-1]
                 
     def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, logger, twirp_host: str = 'http://localhost:5051'):
         self.host = twirp_host 
@@ -160,11 +174,12 @@ class BacktesterPlaygroundClient:
         self.position = None
 
         self.account = self._fetch_and_update_account_state()
-        self.current_candles = {}
         self._is_backtest_complete = False
         self.trade_timestamps = []
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
+        
+        self.current_candles = {}
         
     def get_realized_profit(self) -> float:
         initial_balance = self.account.meta.initial_balance
@@ -320,22 +335,56 @@ class BacktesterPlaygroundClient:
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Bar]:
-        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
-        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
-        
-       # Manually insert the colon in the timezone offset
-        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
-        toStr = toStr[:-2] + ':' + toStr[-2:]
+    def fetch_candles_v3(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+        '''
+        This version is used bc timestamps created from python doesn't work with v2
+        '''
+        timestampFromUtc = timestampFrom.replace(tzinfo=ZoneInfo('UTC'))
+        fromStr = timestampFromUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
                         
-        try:
-            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandles, GetCandlesRequest(
+        req = GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 period_in_seconds=period_in_seconds,
-                fromRTF3339=fromStr,
-                toRTF3339=toStr
-            ))
+                fromRTF3339=fromStr            
+            )
+    
+        if timestampTo is not None:
+            timestampToUtc = timestampTo.replace(tzinfo=ZoneInfo('UTC'))
+            toStr = timestampToUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+            req.toRTF3339 = toStr
+                        
+        try:
+            response = self.network_call_with_retry('fetch_candles_v3', self.client.GetCandles, req)
+        
+        except Exception as e:
+            self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
+            raise e
+        
+        return response.bars
+    
+    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+        
+       # Manually insert the colon in the timezone offset
+        fromStr = fromStr[:-2] + ':' + fromStr[-2:]        
+                        
+        req = GetCandlesRequest(
+                playground_id=self.id,
+                symbol=self.symbol,
+                period_in_seconds=period_in_seconds,
+                fromRTF3339=fromStr            )
+    
+        if timestampTo is not None:
+            toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+            
+            # Manually insert the colon in the timezone offset
+            toStr = toStr[:-2] + ':' + toStr[-2:]
+            
+            req.toRTF3339 = toStr
+                        
+        try:
+            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandles, req)
         
         except Exception as e:
             self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)

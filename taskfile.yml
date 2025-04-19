@@ -133,6 +133,11 @@ tasks:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountMultiplePlaygrounds$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
+  test:e2e:live-account-duplicate-orders:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountDuplicateOrdersTest$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
   metrics:token:
     cmds:
       - 'kubectl -n kubernetes-dashboard create token --duration=24h dashboard-admin'

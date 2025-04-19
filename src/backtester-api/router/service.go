@@ -10,7 +10,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
-func (s Server) fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from, to time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (s Server) fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	playground, err := s.dbService.GetPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found", nil)

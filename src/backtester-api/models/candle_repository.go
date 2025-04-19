@@ -166,13 +166,13 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 	return maxTimestamp, nil
 }
 
-func (r *CandleRepository) FetchCandles(startTime, endTime time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	var candles []*eventmodels.AggregateBarWithIndicators
 	for _, candle := range r.candlesWithIndicators {
-		if (candle.Timestamp.Equal(startTime) || candle.Timestamp.After(startTime)) && candle.Timestamp.Before(endTime) {
+		if (candle.Timestamp.Equal(startTime) || candle.Timestamp.After(startTime)) && (endTime == nil || candle.Timestamp.Before(*endTime)) {
 			candles = append(candles, candle)
 		}
 	}
