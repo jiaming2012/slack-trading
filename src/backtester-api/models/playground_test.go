@@ -2599,20 +2599,16 @@ func TestTrades(t *testing.T) {
 		require.NoError(t, err)
 
 		order2 := NewOrderRecord(2, nil, nil, playground.ID, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-		changes, err = playground.PlaceOrder(order2)
-		require.NoError(t, err)
-		require.Len(t, changes, 1)
-		err = changes[0].Commit()
-		require.NoError(t, err)
+		_, err = playground.PlaceOrder(order2)
+		require.Error(t, err)
 
 		delta, err := playground.Tick(time.Minute, false)
 		require.NoError(t, err)
 		require.Len(t, delta.NewTrades, 1)
 
 		orders := playground.GetAllOrders()
-		require.Len(t, orders, 2)
+		require.Len(t, orders, 1)
 		require.Equal(t, OrderRecordStatusFilled, orders[0].GetStatus())
-		require.Equal(t, OrderRecordStatusRejected, orders[1].GetStatus())
 	})
 
 	t.Run("Tick", func(t *testing.T) {

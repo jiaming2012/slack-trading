@@ -225,7 +225,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, startin
 	performMarginCheck := performChecks
 
 	if performChecks {
-		// perform margin check
+		// margin check
 		freeMargin = p.GetFreeMarginFromPositionMap(startingPositions)
 		initialMargin = calculateInitialMarginRequirement(orderQuantity, orderFillEntry.Price)
 		position := startingPositions[order.GetInstrument()]
@@ -730,7 +730,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 			return nil, false, fmt.Errorf("fillOrders: only equity orders are supported")
 		}
 
-		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity); err != nil {
+		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity, false); err != nil {
 			order.Status = OrderRecordStatusRejected
 			return nil, false, fmt.Errorf("fillOrders: error checking side allowed: %v", err)
 		}
@@ -859,9 +859,9 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	if performChecks {
 		if err := p.validateCache(openOrdersCacheCopy, positionsCacheCopy); err != nil {
 			log.Debugf("rolling back order %v", order.ID)
-	
+
 			order.Rollback(trade)
-	
+
 			return nil, false, fmt.Errorf("fillOrder: error validating cache: %w", err)
 		}
 	}
@@ -1104,7 +1104,6 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}
 
 		orderExecutionRequests[order.ID] = ExecutionFillRequest{
-			// PlaygroundId: p.ID,
 			Price:    price,
 			Time:     p.clock.CurrentTime,
 			Quantity: order.GetQuantity(),
@@ -1441,7 +1440,15 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 	return nil, nil
 }
 
-func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64) error {
+func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64, includePendingOrders bool) error {
+	if includePendingOrders {
+		for _, o := range p.account.PendingOrders {
+			if o.GetInstrument() == symbol {
+				positionQuantity += o.GetQuantity()
+			}
+		}
+	}
+
 	if positionQuantity > 0 {
 		if side == TradierOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when long position of %.2f exists: must sell to close", positionQuantity)
@@ -1697,6 +1704,9 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 }
 
 func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	if order.Class != OrderRecordClassEquity {
 		return nil, fmt.Errorf("only equity orders are supported")
 	}
@@ -1719,7 +1729,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 	}
 
 	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
-		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity); err != nil {
+		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity, true); err != nil {
 			return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 		}
 	}
@@ -1756,9 +1766,6 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 	if err := utils.ValidateTag(order.Tag); err != nil {
 		return nil, fmt.Errorf("invalid tag: %w", err)
 	}
-
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
 
 	// order.ID can be zero if the order is a pending live order
 	if order.ID > 0 {

@@ -140,10 +140,11 @@ func TestLiveAccountDuplicateOrdersTest(t *testing.T) {
 		if err != nil {
 			fmt.Printf("Error placing order %d: %v\n", i, err)
 			errorCount++
+			continue
 		}
 
 		externalOrderId, err := getExternalOrderId(p, createLivePgResp.Id, placeOrderResp.Id)
-		
+
 		require.NoError(t, err, fmt.Sprintf("i == %d", i))
 
 		// Fill the order
@@ -159,9 +160,8 @@ func TestLiveAccountDuplicateOrdersTest(t *testing.T) {
 		time.Sleep(2 * time.Second)
 	}
 
-	require.NotEqual(t, 2, errorCount, "Both orders should not have failed")
+	require.Equal(t, 1, errorCount, "Duplicate order should have failed")
 
-	foundInvalidOrder := false
 	filledOrders := 0
 	now = time.Now()
 	for {
@@ -177,28 +177,23 @@ func TestLiveAccountDuplicateOrdersTest(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		if len(nextTickResponse.InvalidOrders) > 0 {
-			foundInvalidOrder = true
-			break
-		}
-
 		if len(nextTickResponse.NewTrades) > 0 {
 			filledOrders += len(nextTickResponse.NewTrades)
 		}
 
-		if filledOrders == 2 {
+		if filledOrders == 1 {
 			break
 		}
 
 		time.Sleep(time.Second) // Wait for the order to be filled
 	}
 
-	require.True(t, foundInvalidOrder, "Invalid order should be found")
+	require.Equal(t, 1, filledOrders)
 }
 
 func getExternalOrderId(p playground.PlaygroundService, livePlaygroundId string, orderId uint64) (uint64, error) {
 	ctx := context.Background()
-	
+
 	liveAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: livePlaygroundId,
 		FetchOrders:  false,
