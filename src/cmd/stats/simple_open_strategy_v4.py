@@ -1,4 +1,4 @@
-# from loguru import logger
+from loguru import logger
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource, CreatePolygonPlaygroundRequest, Repository, PlaygroundEnvironment
 from google.protobuf.json_format import MessageToDict
 from base_open_strategy import BaseOpenStrategy
@@ -46,7 +46,7 @@ class SimpleOpenStrategyV4(BaseOpenStrategy):
                 return (OpenSignalName.CROSS_BELOW_80, data_set)
             
             if data_set.iloc[-1]['stochrsi_cross_above_20'] and data_set.iloc[-1]['superD_htf_50_3'] == 1:
-                self.logger.info("Cross above 20")
+                self.logger.info("Cross above 20", operation='open_signal')
                 return (OpenSignalName.CROSS_ABOVE_20, data_set)
         
         return None, data_set
@@ -54,8 +54,8 @@ class SimpleOpenStrategyV4(BaseOpenStrategy):
     def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignalV2]:
         new_candles = super().tick(tick_delta)
 
-        ltf_data = pd.DataFrame(self.candles_5m)
-        htf_data = pd.DataFrame(self.candles_1h)
+        ltf_data = pd.DataFrame(self.candles_ltf)
+        htf_data = pd.DataFrame(self.candles_htf)
         
         if self.feature_set is None:
             _, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)

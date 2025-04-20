@@ -47,8 +47,8 @@ class SimpleOpenStrategy(BaseOpenStrategy):
     def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignal]:
         new_candles = super().tick(tick_delta)
         
-        ltf_data = pd.DataFrame(self.candles_5m)
-        htf_data = pd.DataFrame(self.candles_1h)
+        ltf_data = pd.DataFrame(self.candles_ltf)
+        htf_data = pd.DataFrame(self.candles_htf)
                     
         if self.feature_set is None:
             _, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)

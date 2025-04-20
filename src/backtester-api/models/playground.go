@@ -679,9 +679,9 @@ func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionsCa
 			if order == nil {
 				continue
 			}
-			if order.ID == 0 {
-				continue
-			}
+			// if order.ID == 0 {
+			// 	continue
+			// }
 
 			if _, ok := position[order.Symbol]; !ok {
 				position[order.Symbol] = Position{}
@@ -1643,9 +1643,6 @@ outer_loop:
 		return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
 	}
 
-	// if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, true); err != nil {
-	// 	return nil, fmt.Errorf("failed to save live order record: %w", err)
-	// }
 	changes = append(changes, reconciliationChanges...)
 	changes = append(changes, playgroundChanges...)
 

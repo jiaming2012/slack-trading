@@ -663,7 +663,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		OrderType:       models.OrderRecordType(req.Type),
 		RequestedPrice:  req.RequestedPrice,
 		Price:           req.Price,
-		StopPrice:       nil,
+		StopPrice:       req.Sl,
 		Duration:        models.OrderRecordDuration(req.Duration),
 		Tag:             req.Tag,
 		CloseOrderId:    closeOrderId,

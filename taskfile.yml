@@ -157,7 +157,7 @@ tasks:
       - 'git commit -m "{{.CLI_ARGS}}"'
       - 'git push'
       
-  run:dev:
+  app:dev:
     cmds:
       - './run-dev.sh'
     dir: ${PROJECTS_DIR}/slack-trading/src/eventmain

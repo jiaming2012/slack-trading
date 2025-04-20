@@ -18,6 +18,8 @@ from src.cmd.stats.playground_types import RepositorySource, OrderSide, LiveAcco
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
+MAX_RETRIES = 6
+
 class PlaygroundEnvironment(Enum):
     SIMULATOR = 'simulator'
     LIVE = 'live'
@@ -111,8 +113,12 @@ class BacktesterPlaygroundClient:
                 return response
             except TwirpServerException as e:
                 retries += 1
+                
+                if retries > MAX_RETRIES:
+                    self.logger.error(f"{caller} network call failed after {retries} retries. Giving up.")
+                    raise e
                             
-                self.logger.warning(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
+                self.logger.error(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)
                 
                 if backoff < max_backoff:
@@ -121,16 +127,58 @@ class BacktesterPlaygroundClient:
     def set_current_candle(self, symbol: str, period: int, bar: Bar):        
         set_nested_value(self.current_candles, symbol, period, bar)
                 
-    def fetch_most_recent_bar(self, period: int) -> Bar:
+    def fetch_most_recent_bar(self, period: int, now: datetime) -> Bar:
         # Calculate three days ago
-        now = datetime.now()
         three_days_ago = now - timedelta(days=3)
         
-        bars = self.fetch_candles_v3(period, three_days_ago, now)
+        bars = self.fetch_candles_v3(period, three_days_ago)
         if not bars or len(bars) == 0:
             raise Exception(f"No bars found for symbol {self.symbol} and period {period}")
         
         return bars[-1]
+    
+    def get_repository_seconds(self, tf: str = 'ltf') -> Repository:
+        def get_timespan_unit(u: str) -> int:
+            if u == 'minute':
+                unit_multiplier = 60
+            elif u == 'hour':
+                unit_multiplier = 3600
+            elif u == 'day':
+                unit_multiplier = 86400
+            elif u == 'week':
+                unit_multiplier = 604800
+            else:
+                raise Exception(f'Invalid timespan unit {u}')
+            
+            return unit_multiplier
+        
+                    
+        if len(self.repositories) == 0:
+            raise Exception('No repositories found')
+        
+        if tf == 'ltf':
+            ltf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
+            for i, repo in enumerate(self.repositories):
+                unit_multiplier = get_timespan_unit(repo.timespan_unit)
+                val = repo.timespan_multiplier
+                if val * unit_multiplier < ltf:
+                    self.logger.debug(f"{unit_multiplier * val} < {ltf}:ltf for {repo.symbol}")
+                    ltf = val * unit_multiplier
+                    
+            return ltf
+        elif tf == 'htf':
+            htf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
+            for i, repo in enumerate(self.repositories):
+                unit_multiplier = get_timespan_unit(repo.timespan_unit)
+                val = repo.timespan_multiplier
+                if val * unit_multiplier > htf:
+                    self.logger.debug(f"{unit_multiplier * val} > {htf}:htf for {repo.symbol}")
+                    htf = val * unit_multiplier
+                    
+            return htf
+        else:
+            raise Exception(f'Invalid timespan multiplier {tf}')
+        
                 
     def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, logger, twirp_host: str = 'http://localhost:5051'):
         self.host = twirp_host 
@@ -140,6 +188,7 @@ class BacktesterPlaygroundClient:
             raise Exception('Invalid logger: must be an instance of loguru logger')
         
         self.logger = logger
+        self.repositories = req.repositories
         for repo in req.repositories:
             self.symbol = repo.symbol
             if self.symbol is not None and repo.symbol != self.symbol:
@@ -149,6 +198,8 @@ class BacktesterPlaygroundClient:
             raise Exception('Symbol not found in repository')
 
         self.client = PlaygroundServiceClient(self.host, timeout=60)
+        self.ltf_seconds = self.get_repository_seconds('ltf')
+        self.htf_seconds = self.get_repository_seconds('htf')
 
         if source == RepositorySource.CSV:
             # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -178,7 +229,6 @@ class BacktesterPlaygroundClient:
         self.trade_timestamps = []
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
-        
         self.current_candles = {}
         
     def get_realized_profit(self) -> float:
@@ -493,16 +543,16 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None) -> object:
         if quantity == 0:
             return
         
         free_margin_over_equity = self.get_free_margin_over_equity()
         if free_margin_over_equity < 0.2:
             if quantity > 0 and side == OrderSide.BUY:
-                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new long order')
+                raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place long order')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
-                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new short order')
+                raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place short order')
   
         request = PlaceOrderRequest(
             playground_id=self.id,
@@ -516,6 +566,9 @@ class BacktesterPlaygroundClient:
             requested_price=price,
             client_request_id=str(uuid.uuid4())
         )
+        
+        if sl is not None:
+            request.sl = sl
         
         if close_order_id:
             request.close_order_id = close_order_id
@@ -537,9 +590,6 @@ class BacktesterPlaygroundClient:
             return response
         
         except Exception as e:
-            self.logger.error("sleeping for 30 seconds ...")
-            time.sleep(30)
-            self.logger.error("waking up")
             if raise_exception:
                 raise e
             return None
@@ -551,7 +601,7 @@ class BacktesterPlaygroundClient:
         try:
             req = NextTickRequest(
                     playground_id=self.id,
-                    seconds=300,
+                    seconds=self.ltf_seconds,
                     is_preview=True,
                     request_id=str(uuid.uuid4())
                 )
