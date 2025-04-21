@@ -473,6 +473,8 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--max-open-count", type=float, default=None)
+    args.add_argument("--target-risk-to-reward", type=float, default=None)
+    args.add_argument("--max-per-trade-risk-percentage", type=float, default=None)
     args.add_argument("--sl-shift", type=float, default=0.0)
     args.add_argument("--tp-shift", type=float, default=0.0)
     args.add_argument("--sl-buffer", type=float, default=0.0)
