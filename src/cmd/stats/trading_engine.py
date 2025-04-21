@@ -93,7 +93,7 @@ def calculate_new_trade_quantity(logger, equity: float, free_margin: float, curr
         
     # round stock quantity to nearest whole number
     quantity = int(round(quantity - 0.5, 0))
-    logger.info(f"final quantity: {quantity}", trading_operation='calculate_risk')
+    logger.trace(f"calculate_new_trade_quantity: outputting final quantity: {quantity}", trading_operation='calculate_risk')
     if quantity < 1:
         raise ValueError(f"Invalid quantity: {quantity}")
     
