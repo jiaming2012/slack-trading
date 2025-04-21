@@ -156,7 +156,7 @@ message GetCandlesRequest {
     string symbol = 2;
     int32 period_in_seconds = 3;
     string fromRTF3339 = 4;
-    string toRTF3339 = 5;
+    optional string toRTF3339 = 5;
 }
 
 message GetCandlesResponse {
@@ -208,6 +208,7 @@ message PlaceOrderRequest {
     optional uint64 close_order_id = 11;
     bool is_adjustment = 12;
     optional string client_request_id = 13;
+    optional double sl = 14;
 }
 
 message NextTickRequest {

@@ -1,7 +1,7 @@
-# from loguru import logger
+from loguru import logger
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource, CreatePolygonPlaygroundRequest, Repository, PlaygroundEnvironment
 from google.protobuf.json_format import MessageToDict
-from base_open_strategy import BaseOpenStrategy
+from base_open_strategy import BaseSimpleOpenStrategy
 from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
 from dateutil.relativedelta import relativedelta
 from typing import List, Tuple
@@ -15,9 +15,12 @@ import pandas as pd
 from trading_engine_types import OpenSignalV2, OpenSignalName
 
 # V4: Targets a specific risk/reward
-class SimpleOpenStrategyV4(BaseOpenStrategy):
-    def __init__(self, playground, additional_profit_risk_percentage, updateFrequency: str, symbol: str, logger, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
-        super().__init__(playground, updateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
+    def __init__(self, playground, additional_profit_risk_percentage, modelUpdateFrequency: str, symbol: str, logger, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
+        if modelUpdateFrequency is None:
+            raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
+        
+        super().__init__(playground, modelUpdateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
         self.logger = logger.bind(symbol=symbol)
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
@@ -46,7 +49,7 @@ class SimpleOpenStrategyV4(BaseOpenStrategy):
                 return (OpenSignalName.CROSS_BELOW_80, data_set)
             
             if data_set.iloc[-1]['stochrsi_cross_above_20'] and data_set.iloc[-1]['superD_htf_50_3'] == 1:
-                self.logger.info("Cross above 20")
+                self.logger.info("Cross above 20", operation='open_signal')
                 return (OpenSignalName.CROSS_ABOVE_20, data_set)
         
         return None, data_set
@@ -54,8 +57,8 @@ class SimpleOpenStrategyV4(BaseOpenStrategy):
     def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignalV2]:
         new_candles = super().tick(tick_delta)
 
-        ltf_data = pd.DataFrame(self.candles_5m)
-        htf_data = pd.DataFrame(self.candles_1h)
+        ltf_data = pd.DataFrame(self.candles_ltf)
+        htf_data = pd.DataFrame(self.candles_htf)
         
         if self.feature_set is None:
             _, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)

@@ -56,11 +56,11 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		}
 
 		trades = append(trades, &pb.Trade{
-			Id:        uint64(trade.ID),
-			CreateDate: trade.Timestamp.String(),
-			Quantity:   trade.Quantity,
-			Price:      trade.Price,
-			OrderId:    orderId,
+			Id:               uint64(trade.ID),
+			CreateDate:       trade.Timestamp.String(),
+			Quantity:         trade.Quantity,
+			Price:            trade.Price,
+			OrderId:          orderId,
 			ReconcileOrderId: reconcileOrderId,
 		})
 	}
@@ -174,7 +174,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 	}
 
 	// Get reconciliation playground positions
-	recPositions, err := playground.GetPositions()
+	recPositions, err := playground.UpdateAndGetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
@@ -197,7 +197,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 	var livePlaygroundPositions []*pb.PositionReport
 	for _, p := range livePlaygrounds {
 		playgroundId := p.ID.String()
-		positions, err := p.GetPositions()
+		positions, err := p.UpdateAndGetPositions()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get %s positions: %v", playgroundId, err)
 		}
@@ -257,7 +257,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		}
 
 		meta := p.GetMeta()
-		positions, err := p.GetPositions()
+		positions, err := p.UpdateAndGetPositions()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get playground positions: %v", err)
 		}
@@ -418,9 +418,14 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 		return nil, fmt.Errorf("failed to get next tick while parsing from timestamp: %v", err)
 	}
 
-	to, err := time.Parse(time.RFC3339, req.ToRTF3339)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get next tick while parsing to timestamp: %v", err)
+	var to *time.Time
+	if req.ToRTF3339 != nil {
+		_t, err := time.Parse(time.RFC3339, *req.ToRTF3339)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get next tick while parsing to timestamp: %v", err)
+		}
+
+		to = &_t
 	}
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
@@ -658,7 +663,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		OrderType:       models.OrderRecordType(req.Type),
 		RequestedPrice:  req.RequestedPrice,
 		Price:           req.Price,
-		StopPrice:       nil,
+		StopPrice:       req.Sl,
 		Duration:        models.OrderRecordDuration(req.Duration),
 		Tag:             req.Tag,
 		CloseOrderId:    closeOrderId,

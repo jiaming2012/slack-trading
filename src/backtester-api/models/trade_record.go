@@ -30,6 +30,5 @@ func NewTradeRecord(order *OrderRecord, timestamp time.Time, quantity float64, p
 		Price:     price,
 	}
 
-	tr.UpdateOrder(order)
 	return tr
 }

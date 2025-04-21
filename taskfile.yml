@@ -113,11 +113,6 @@ tasks:
       - 'go test ./...'
     dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
 
-  test:e2e:
-    cmds:
-      - 'go test -count=1 ./...'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
-
   test:e2e:live-account-filled:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountFilled$ github.com/jiaming2012/slack-trading/integration_testing'
@@ -132,6 +127,18 @@ tasks:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountMultiplePlaygrounds$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
+  test:e2e:live-account-duplicate-orders:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountDuplicateOrdersTest$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
+  test:e2e:all:
+    cmds:
+      - task test:e2e:live-account-filled
+      - task test:e2e:live-account-close
+      - task test:e2e:live-account-multiple-playgrounds
+      - task test:e2e:live-account-duplicate-orders
 
   metrics:token:
     cmds:
@@ -150,7 +157,7 @@ tasks:
       - 'git commit -m "{{.CLI_ARGS}}"'
       - 'git push'
       
-  run:dev:
+  app:dev:
     cmds:
       - './run-dev.sh'
     dir: ${PROJECTS_DIR}/slack-trading/src/eventmain

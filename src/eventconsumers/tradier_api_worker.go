@@ -397,6 +397,11 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
+		if account.AccountType == models.LiveAccountTypeMock {
+			log.Debugf("skipping account %d: unsupported account type %s", account.ID, account.AccountType)
+			continue
+		}
+
 		if err := w.dbService.PopulateLiveAccount(account); err != nil {
 			log.Errorf("failed to populate live account: %v", err)
 			continue

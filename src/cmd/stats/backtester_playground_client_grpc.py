@@ -9,14 +9,17 @@ from dataclasses import dataclass
 from typing import List, Dict
 from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
+from utils import get_timespan_unit
 import time
 import uuid
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
 from src.cmd.stats.playground_types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
+
+MAX_RETRIES = 6
 
 class PlaygroundEnvironment(Enum):
     SIMULATOR = 'simulator'
@@ -111,12 +114,57 @@ class BacktesterPlaygroundClient:
                 return response
             except TwirpServerException as e:
                 retries += 1
+                
+                if retries > MAX_RETRIES:
+                    self.logger.error(f"{caller} network call failed after {retries} retries. Giving up.")
+                    raise e
                             
-                self.logger.warning(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
+                self.logger.error(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)
                 
                 if backoff < max_backoff:
                     backoff = min(max_backoff, backoff * 2)  # Exponential backoff
+                    
+    def set_current_candle(self, symbol: str, period: int, bar: Bar):        
+        set_nested_value(self.current_candles, symbol, period, bar)
+                
+    def fetch_most_recent_bar(self, period: int, now: datetime) -> Bar:
+        # Calculate three days ago
+        three_days_ago = now - timedelta(days=3)
+        
+        bars = self.fetch_candles_v3(period, three_days_ago)
+        if not bars or len(bars) == 0:
+            raise Exception(f"No bars found for symbol {self.symbol} and period {period}")
+        
+        return bars[-1]
+    
+    def get_repository_seconds(self, tf: str = 'ltf') -> Repository:            
+        if len(self.repositories) == 0:
+            raise Exception('No repositories found')
+        
+        if tf == 'ltf':
+            ltf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
+            for i, repo in enumerate(self.repositories):
+                unit_multiplier = get_timespan_unit(repo.timespan_unit)
+                val = repo.timespan_multiplier
+                if val * unit_multiplier < ltf:
+                    self.logger.debug(f"{unit_multiplier * val} < {ltf}:ltf for {repo.symbol}")
+                    ltf = val * unit_multiplier
+                    
+            return ltf
+        elif tf == 'htf':
+            htf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
+            for i, repo in enumerate(self.repositories):
+                unit_multiplier = get_timespan_unit(repo.timespan_unit)
+                val = repo.timespan_multiplier
+                if val * unit_multiplier > htf:
+                    self.logger.debug(f"{unit_multiplier * val} > {htf}:htf for {repo.symbol}")
+                    htf = val * unit_multiplier
+                    
+            return htf
+        else:
+            raise Exception(f'Invalid timespan multiplier {tf}')
+        
                 
     def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, logger, twirp_host: str = 'http://localhost:5051'):
         self.host = twirp_host 
@@ -126,6 +174,7 @@ class BacktesterPlaygroundClient:
             raise Exception('Invalid logger: must be an instance of loguru logger')
         
         self.logger = logger
+        self.repositories = req.repositories
         for repo in req.repositories:
             self.symbol = repo.symbol
             if self.symbol is not None and repo.symbol != self.symbol:
@@ -135,6 +184,8 @@ class BacktesterPlaygroundClient:
             raise Exception('Symbol not found in repository')
 
         self.client = PlaygroundServiceClient(self.host, timeout=60)
+        self.ltf_seconds = self.get_repository_seconds('ltf')
+        self.htf_seconds = self.get_repository_seconds('htf')
 
         if source == RepositorySource.CSV:
             # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -160,11 +211,11 @@ class BacktesterPlaygroundClient:
         self.position = None
 
         self.account = self._fetch_and_update_account_state()
-        self.current_candles = {}
         self._is_backtest_complete = False
         self.trade_timestamps = []
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
+        self.current_candles = {}
         
     def get_realized_profit(self) -> float:
         initial_balance = self.account.meta.initial_balance
@@ -320,22 +371,56 @@ class BacktesterPlaygroundClient:
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Bar]:
-        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
-        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
-        
-       # Manually insert the colon in the timezone offset
-        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
-        toStr = toStr[:-2] + ':' + toStr[-2:]
+    def fetch_candles_v3(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+        '''
+        This version is used bc timestamps created from python doesn't work with v2
+        '''
+        timestampFromUtc = timestampFrom.replace(tzinfo=ZoneInfo('UTC'))
+        fromStr = timestampFromUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
                         
-        try:
-            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandles, GetCandlesRequest(
+        req = GetCandlesRequest(
                 playground_id=self.id,
                 symbol=self.symbol,
                 period_in_seconds=period_in_seconds,
-                fromRTF3339=fromStr,
-                toRTF3339=toStr
-            ))
+                fromRTF3339=fromStr            
+            )
+    
+        if timestampTo is not None:
+            timestampToUtc = timestampTo.replace(tzinfo=ZoneInfo('UTC'))
+            toStr = timestampToUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+            req.toRTF3339 = toStr
+                        
+        try:
+            response = self.network_call_with_retry('fetch_candles_v3', self.client.GetCandles, req)
+        
+        except Exception as e:
+            self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
+            raise e
+        
+        return response.bars
+    
+    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+        
+       # Manually insert the colon in the timezone offset
+        fromStr = fromStr[:-2] + ':' + fromStr[-2:]        
+                        
+        req = GetCandlesRequest(
+                playground_id=self.id,
+                symbol=self.symbol,
+                period_in_seconds=period_in_seconds,
+                fromRTF3339=fromStr            )
+    
+        if timestampTo is not None:
+            toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+            
+            # Manually insert the colon in the timezone offset
+            toStr = toStr[:-2] + ':' + toStr[-2:]
+            
+            req.toRTF3339 = toStr
+                        
+        try:
+            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandles, req)
         
         except Exception as e:
             self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
@@ -444,16 +529,16 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None) -> object:
         if quantity == 0:
             return
         
         free_margin_over_equity = self.get_free_margin_over_equity()
         if free_margin_over_equity < 0.2:
             if quantity > 0 and side == OrderSide.BUY:
-                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new long order')
+                raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place long order')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
-                raise InvalidParametersException(f'Insufficient free margin ({free_margin_over_equity * 100}%): new short order')
+                raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place short order')
   
         request = PlaceOrderRequest(
             playground_id=self.id,
@@ -467,6 +552,9 @@ class BacktesterPlaygroundClient:
             requested_price=price,
             client_request_id=str(uuid.uuid4())
         )
+        
+        if sl is not None:
+            request.sl = sl
         
         if close_order_id:
             request.close_order_id = close_order_id
@@ -488,9 +576,6 @@ class BacktesterPlaygroundClient:
             return response
         
         except Exception as e:
-            self.logger.error("sleeping for 30 seconds ...")
-            time.sleep(30)
-            self.logger.error("waking up")
             if raise_exception:
                 raise e
             return None
@@ -502,7 +587,7 @@ class BacktesterPlaygroundClient:
         try:
             req = NextTickRequest(
                     playground_id=self.id,
-                    seconds=300,
+                    seconds=self.ltf_seconds,
                     is_preview=True,
                     request_id=str(uuid.uuid4())
                 )

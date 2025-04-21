@@ -1,13 +1,15 @@
 from loguru import logger
 from base_open_strategy import BaseOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
-from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalName
+from simple_stack_close_strategy import SimpleStackCloseStrategy
+from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalV3, OpenSignalName
 from playground_metrics import collect_data
 from rpc.playground_twirp import PlaygroundServiceClient
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException
 from typing import List, Tuple
 from datetime import datetime
 from scipy.stats import t
+from utils import get_timespan_unit
 import numpy as np
 import time
 import argparse
@@ -91,7 +93,7 @@ def calculate_new_trade_quantity(logger, equity: float, free_margin: float, curr
         
     # round stock quantity to nearest whole number
     quantity = int(round(quantity - 0.5, 0))
-    logger.info(f"final quantity: {quantity}", trading_operation='calculate_risk')
+    logger.trace(f"calculate_new_trade_quantity: outputting final quantity: {quantity}", trading_operation='calculate_risk')
     if quantity < 1:
         raise ValueError(f"Invalid quantity: {quantity}")
     
@@ -172,15 +174,26 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     sl_buffer = open_strategy.get_sl_buffer()
     tp_buffer = open_strategy.get_tp_buffer()
     
+    i = 0
     while not open_strategy.is_complete():        
         try:
-            current_price = playground.get_current_candle(symbol, period=ltf_period).close
+            current_candle = playground.get_current_candle(symbol, ltf_period)
+            current_price = current_candle.close
         except Exception as e:
             current_price = None
             logger.debug(f"warn: failed to get current price: {e}")
-            
+        
+        i += 1   
         # check for close signals
-        close_signals = close_strategy.tick(current_price)
+        kwargs = {}
+        if isinstance(close_strategy, SimpleStackCloseStrategy):
+            kwargs['supertrend_direction'] = current_candle.superD_50_3
+            kwargs['tp_buffer'] = tp_buffer
+            max_per_trade_risk_percentage = open_strategy.get_max_per_trade_risk_percentage()
+        else:
+            max_per_trade_risk_percentage = 0.06
+            
+        close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True)
             logger.info(f"Placed close order: {resp}", timestamp=playground.timestamp, trading_operation='close')
@@ -189,7 +202,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         tick_delta = playground.flush_new_state_buffer()
         for event in tick_delta:
             for trade in event.new_trades:
-                logger.info(f"New Fill: {trade.symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
+                logger.info(f"New Fill: {symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
         
         signals = open_strategy.tick(tick_delta)
         position = None
@@ -201,7 +214,9 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             logger.error(f"Multiple signals detected: {signals}")
             
         for s in signals:            
-            if s.name == OpenSignalName.CROSS_ABOVE_20:
+            if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
+                side = s.kwargs['side']
+            elif s.name == OpenSignalName.CROSS_ABOVE_20:
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
@@ -218,28 +233,39 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     
                 side = OrderSide.SELL_SHORT
             else:
-                logger.error(f"Unknown signal: {s.name}")
+                logger.error(f"Unknown signal: {s.name}", timestamp=playground.timestamp, trading_operation='open')
                 continue
             
             try:
-                sl, tp = calculate_sl_tp(side, current_price, s, sl_shift, tp_shift, sl_buffer, tp_buffer)
-                logger.info(f"calculated sl: {sl}, tp: {tp}", timestamp=playground.timestamp, trading_operation='open')
                 additional_equity_at_risk = 0
-                if isinstance(s, OpenSignalV2):
-                    additional_equity_at_risk = s.additional_equity_risk
-                
-                max_per_trade_risk_percentage = 0.06
                 max_allowable_free_margin_percentage = 0.65
+                
+                if isinstance(s, OpenSignalV3):
+                    count = s.kwargs['count']
+                    tag = f'SupertrendStackSignal-{count}'
+                    sl = s.kwargs['sl']
+                else:
+                    sl, tp = calculate_sl_tp(side, current_price, s, sl_shift, tp_shift, sl_buffer, tp_buffer)
+                    logger.info(f"calculated sl: {sl}, tp: {tp}", timestamp=playground.timestamp, trading_operation='open')
+                    if isinstance(s, OpenSignalV2):
+                        additional_equity_at_risk = s.additional_equity_risk
+                
+                    tag = build_tag(sl, tp, side)
+                    sl = None
+            
                 quantity = calculate_new_trade_quantity(logger, playground.account.equity, playground.account.free_margin, current_price, side, sl, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
-                tag = build_tag(sl, tp, side)
+                    
             except ValueError as e:
-                logger.warning(f"failed to build tag: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
+                logger.warning(f"failed to calculate order quantity: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
                 continue
             
             try:
-                resp = playground.place_order(symbol, quantity, side, current_price, tag)
+                resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl)
+            except InvalidParametersException as e:
+                logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
+                continue
             except Exception as e:
-                logger.error(f"Error placing order: {e}")
+                logger.error(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
                 continue
             
             logger.info(f"Placed open order: {resp}", timestamp=playground.timestamp, trading_operation='open')
@@ -269,7 +295,20 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     return profit, meta
     
-def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer = 0.0, min_max_window_in_hours=4) -> Tuple[float, dict]:
+def objective(logger, kwargs) -> Tuple[float, dict]:
+    if kwargs is None:
+        raise ValueError("kwargs is None")
+    
+    if type(kwargs) is not dict:
+        raise ValueError("kwargs is not a dict")
+    
+    # default parameters
+    sl_shift = kwargs.get('sl_shift', 0.0)
+    tp_shift = kwargs.get('tp_shift', 0.0)
+    sl_buffer = kwargs.get('sl_buffer', 0.0)
+    tp_buffer = kwargs.get('tp_buffer', 0.0)
+    min_max_window_in_hours = kwargs.get('min_max_window_in_hours', 4)
+    
     # input parameters
     # Read environment variables
     balance = float(os.getenv("BALANCE"))
@@ -280,9 +319,7 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
     open_strategy_input = os.getenv("OPEN_STRATEGY")
     start_date = os.getenv("START_DATE")
     stop_date = os.getenv("STOP_DATE")
-    model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
     # optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
-    n_calls = os.getenv("N_CALLS")
     playground_client_id = os.getenv("PLAYGROUND_CLIENT_ID")
 
     # Check if the required environment variables are set
@@ -303,9 +340,6 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
         if stop_date is None:
             raise ValueError("Environment variable STOP_DATE is not set")
         
-    if model_update_frequency is None:
-        raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
-
     # if optimizer_update_frequency is None:
     #     raise ValueError("Environment variable OPTIMIZER_UPDATE_FREQUENCY is not set")
     
@@ -313,10 +347,6 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
         logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
     else:
         logger.info(f'starting {playground_env} playgound for {symbol}')
-        
-    if n_calls is None:
-        raise ValueError("Environment variable N_CALLS is not set")
-    n_calls = int(n_calls)
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
@@ -356,12 +386,12 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
             history_in_days=10
         )
         
-    ltf_period = ltf_repo.timespan_multiplier * 60
+    ltf_period = ltf_repo.timespan_multiplier * get_timespan_unit(ltf_repo.timespan_unit)
     
     htf_repo = Repository(
         symbol=symbol,
-        timespan_multiplier=60,
-        timespan_unit='minute',
+        timespan_multiplier=1,
+        timespan_unit='hour',
         indicators=["supertrend"],
         history_in_days=365
     )
@@ -381,16 +411,30 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
     playground.tick(0, raise_exception=True)  # initialize the playground
+    
+    # todo: this ideally would happen inside BacktesterPlaygroundClient
+    current_bar = playground.fetch_most_recent_bar(ltf_period, playground.timestamp)
+    
+    playground.set_current_candle(symbol, ltf_period, current_bar)
+    
     logger.info(f"created playground with id: {playground.id}")
     
     if open_strategy_input == 'simple_open_strategy_v1':
         from simple_open_strategy_v1 import SimpleOpenStrategy
+        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+        
         open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
     elif open_strategy_input == 'simple_open_strategy_v2':
-        from simple_open_strategy_v2 import OptimizedOpenStrategy
+        from simple_open_strategy_v2 import SimpleOptimizedOpenStrategy
         optimizer_update_frequency = None
-        open_strategy = OptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
+        
+        n_calls = os.getenv("N_CALLS")
+        if n_calls is None:
+            raise ValueError("Environment variable N_CALLS is not set")
+        n_calls = int(n_calls)
+        
+        open_strategy = SimpleOptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
         
     elif open_strategy_input == 'simple_open_strategy_v3':
         from simple_open_strategy_v3 import SimpleOpenStrategyV3
@@ -406,17 +450,29 @@ def objective(logger, sl_shift = 0.0, tp_shift = 0.0, sl_buffer = 0.0, tp_buffer
         from candlestick_open_strategy_v1 import CandlestickOpenStrategy
         min_max_window_in_hours = 24
         open_strategy = CandlestickOpenStrategy(playground, model_update_frequency, min_max_window_in_hours)
-        
+    
+    elif open_strategy_input == 'simple_stack_open_strategy_v1':
+        from simple_stack_open_strategy_v1 import SimpleStackOpenStrategyV1
+        additional_profit_risk_percentage = 0.0
+        max_open_count = int(kwargs['max_open_count'])
+        target_risk_to_reward = float(kwargs['target_risk_to_reward'])
+        max_per_trade_risk_percentage = float(kwargs['max_per_trade_risk_percentage'])
+        open_strategy = SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer)
+
     else:
         logger.error(f"Invalid open strategy: {open_strategy_input}")
         raise ValueError(f"Invalid open strategy: {open_strategy_input}")
     
-    close_strategy = SimpleCloseStrategy(playground)
+    if open_strategy_input == 'simple_stack_open_strategy_v1':
+        close_strategy = SimpleStackCloseStrategy(playground, logger, max_open_count, target_risk_to_reward)
+    else:
+        close_strategy = SimpleCloseStrategy(playground)
     
     return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, twirp_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
+    args.add_argument("--max-open-count", type=float, default=None)
     args.add_argument("--sl-shift", type=float, default=0.0)
     args.add_argument("--tp-shift", type=float, default=0.0)
     args.add_argument("--sl-buffer", type=float, default=0.0)
@@ -424,9 +480,11 @@ if __name__ == "__main__":
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
     args = args.parse_args()
         
-    logger.info(f"starting trading engine with inputs sl_shift: {args.sl_shift}, tp_shift: {args.tp_shift}, sl_buffer: {args.sl_buffer}, tp_buffer: {args.tp_buffer}, min_max_window_in_hours: {args.min_max_window_in_hours}")
+    kwargs = {k:v for k, v in vars(args).items() if v is not None}
     
-    profit, meta = objective(logger, args.sl_shift, args.tp_shift, args.sl_buffer, args.tp_buffer, args.min_max_window_in_hours)
+    logger.info(f"starting trading engine with kwargs: {kwargs}")
+    
+    profit, meta = objective(logger, kwargs)
     
     logger.info(f"profit: {profit}, meta: {meta}")
     

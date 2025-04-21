@@ -327,17 +327,19 @@
             "console": "integratedTerminal",
             "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
             "env": {
-                "BALANCE": "10000",
-                "SYMBOL": "COIN",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                "TWIRP_HOST": "http://localhost:5051",
-                "PLAYGROUND_ENV": "simulator",
+                "BALANCE": "3000",
+                "SYMBOL": "TSLA",
+                "PLAYGROUND_CLIENT_ID": "supertrend1-tsla-paper-9",
+                "TWIRP_HOST": "http://45.77.223.21",
+                // "TWIRP_HOST": "http://localhost:5051",
+                "PLAYGROUND_ENV": "live",
                 "OPEN_STRATEGY": "simple_open_strategy_v4",
-                "START_DATE": "2024-12-23",
-                "STOP_DATE": "2024-12-28",
-                "MODEL_UPDATE_FREQUENCY": "weekly",
-                "OPTIMIZER_UPDATE_FREQUENCY": "monthly",
-                "N_CALLS": "40"
+                // "START_DATE": "2024-12-23",
+                // "STOP_DATE": "2024-12-28",
+                "LIVE_ACCOUNT_TYPE": "paper",
+                "MODEL_UPDATE_FREQUENCY": "daily",
+                "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
+                "N_CALLS": "30"
             },
             "args": [
                 "--min-max-window-in-hours", "12"            
@@ -431,24 +433,62 @@
             ]
         },
         {
-            "name": "trading optimizer",
+            "name": "trading engine [stack] - simulation",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
+            "console": "integratedTerminal",
+            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "env": {
+                "BALANCE": "3000",
+                "SYMBOL": "COIN",
+                // "TWIRP_HOST": "http://45.77.223.21",
+                "TWIRP_HOST": "http://localhost:5051",
+                "PLAYGROUND_ENV": "simulator",
+                "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
+                "START_DATE": "2025-02-18",
+                "STOP_DATE": "2025-04-18",
+                "LIVE_ACCOUNT_TYPE": "simulation",
+            },
+            "args": [
+                "--max-open-count", "3",
+                "--target-risk-to-reward", "1.9",
+                "--max-per-trade-risk-percentage", "0.08",
+                "--sl-buffer", "2.1",
+                "--tp-buffer", "1.3",
+            ]
+        },
+        {
+            "name": "trading engine [stack] - optimizer",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
             "console": "integratedTerminal",
             "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
             "env": {
-                "BALANCE": "10000",
+                "BALANCE": "3000",
                 "SYMBOL": "COIN",
                 // "TWIRP_HOST": "http://45.77.223.21",
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_open_strategy_v4",
-                "START_DATE": "2025-02-16",
-                "STOP_DATE": "2025-03-16",
-                "MODEL_UPDATE_FREQUENCY": "weekly",
-                "N_CALLS": "50"
-            }
+                "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
+                "START_DATE": "2025-02-18",
+                "STOP_DATE": "2025-04-18",
+                "LIVE_ACCOUNT_TYPE": "simulation",
+            },
+            "args": [
+                "--sl-buffer-lbound", "0",
+                "--sl-buffer-ubound", "5",
+                "--tp-buffer-lbound", "0",
+                "--tp-buffer-ubound", "5",
+                "--max-open-count-lbound", "2",
+                "--max-open-count-ubound", "8",
+                "--target-risk-to-reward-lbound", "0.5",
+                "--target-risk-to-reward-ubound", "3.0",
+                "--max-per-trade-risk-percentage-lbound", "0.02",
+                "--max-per-trade-risk-percentage-ubound", "0.1",
+                "--n-calls", "40",
+            ]
         },
         {
             "name": "simple_open_strategy_v2",
@@ -469,6 +509,15 @@
                 // "STOP_DATE": "2025-01-24",
                 "MODEL_UPDATE_FREQUENCY": "monthly",
             }
+        },
+        {
+            "name": "simple_stack_open_strategy_v1",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/cmd/stats/simple_stack_open_strategy_v1.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/cmd/stats-sandbox/myenv/bin/python",
+            "env": {}
         },
         {
             "name": "simple_open_strategy_v4",

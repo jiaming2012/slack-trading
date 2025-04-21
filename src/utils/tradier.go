@@ -17,7 +17,7 @@ func ValidateTag(tag string) error {
 
 	for _, c := range tag {
 		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
-			return fmt.Errorf("invalid character in tag: %c", c)
+			return fmt.Errorf("invalid character in tag: %c (%s)", c, tag)
 		}
 	}
 

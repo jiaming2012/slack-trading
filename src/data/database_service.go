@@ -1033,7 +1033,7 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
-	positions, err := playground.GetPositions()
+	positions, err := playground.UpdateAndGetPositions()
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
 	}
@@ -1117,28 +1117,28 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 	return &response, nil
 }
 
-func (s *DatabaseService) getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.OrderRecord, error) {
-	playground, err := s.FetchPlayground(playgroundID)
-	if err != nil {
-		return nil, eventmodels.NewWebError(404, "playground not found", nil)
-	}
+// func (s *DatabaseService) getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.OrderRecord, error) {
+// 	playground, err := s.FetchPlayground(playgroundID)
+// 	if err != nil {
+// 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
+// 	}
 
-	// todo: add mutex for playground
+// 	// todo: add mutex for playground
 
-	orders := playground.GetOpenOrders(symbol)
+// 	orders := playground.GetOpenOrders(symbol)
 
-	return orders, nil
-}
+// 	return orders, nil
+// }
 
-func (s *DatabaseService) fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
-	var orderRecord models.OrderRecord
+// func (s *DatabaseService) fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
+// 	var orderRecord models.OrderRecord
 
-	if result := s.db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
-		return 0, false
-	}
+// 	if result := s.db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
+// 		return 0, false
+// 	}
 
-	return orderRecord.ID, true
-}
+// 	return orderRecord.ID, true
+// }
 
 func (s *DatabaseService) DeletePlaygroundSession(playground *models.Playground) error {
 	session := &models.Playground{
@@ -1225,7 +1225,7 @@ func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance 
 
 	// save in cache
 	s.ordersCache[order.ID] = order
-	
+
 	for _, t := range order.Trades {
 		s.tradesCache[t.ID] = t
 	}

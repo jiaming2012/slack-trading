@@ -33,16 +33,6 @@ func (r *ReconcilePlayground) GetId() uuid.UUID {
 	return r.playground.GetId()
 }
 
-// func (r *ReconcilePlayground) CommitPendingOrders(orderFillMap map[uint]ExecutionFillRequest) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
-// 	performChecks := false
-// 	positionMap, err := r.playground.GetPositions()
-// 	if err != nil {
-// 		return nil, nil, fmt.Errorf("ReconcilePlayground: failed to get positions: %w", err)
-// 	}
-
-// 	return r.playground.CommitPendingOrders(positionMap, orderFillMap, performChecks)
-// }
-
 func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, []*OrderRecord, error) {
 	position, err := r.playground.GetPosition(order.GetInstrument(), false)
 	if err != nil {
