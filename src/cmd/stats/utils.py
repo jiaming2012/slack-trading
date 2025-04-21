@@ -11,6 +11,20 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_timespan_unit(u: str) -> int:
+    if u == 'minute':
+        unit_multiplier = 60
+    elif u == 'hour':
+        unit_multiplier = 3600
+    elif u == 'day':
+        unit_multiplier = 86400
+    elif u == 'week':
+        unit_multiplier = 604800
+    else:
+        raise Exception(f'Invalid timespan unit {u}')
+    
+    return unit_multiplier
+        
 class PolygonCandleResponse:
     def __init__(self):
         self.query_count = 0

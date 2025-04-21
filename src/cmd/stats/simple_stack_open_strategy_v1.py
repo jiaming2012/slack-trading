@@ -21,17 +21,20 @@ class SignalBar:
 
 # V4: Targets a specific risk/reward
 class SimpleStackOpenStrategyV1(BaseOpenStrategy):
-    def __init__(self, playground, additional_profit_risk_percentage, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0):
+    def __init__(self, playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0):
         sl_shift = 0.0
         tp_shift = 0.0
-        min_max_window_in_hours = None
-        updateFrequency = 'daily' # TODO: remove this - not used
         
-        super().__init__(playground, updateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+        super().__init__(playground, sl_shift, tp_shift, sl_buffer, tp_buffer)
         
         self.logger = logger.bind(symbol=symbol)
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
+        self.max_open_count = max_open_count
+        self.max_per_trade_risk_percentage = max_per_trade_risk_percentage
         self.factory_meta = {}
+    
+    def get_max_per_trade_risk_percentage(self):
+        return self.max_per_trade_risk_percentage
     
     def get_sl_shift(self):
         return self.sl_shift
@@ -53,7 +56,6 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                 return i
             
         return -1
-    
     
     def bars_overlap(self, bar1: SignalBar, bar2: SignalBar) -> bool:
         # Get high and low of each bar
@@ -85,13 +87,15 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                 if data_set.iloc[i]['superD_50_3'] == 1:
                     signal_criteria = data_set.iloc[i]['close'] < data_set.iloc[i]['open']
                     side = OrderSide.BUY
+                    sl_buffer = self.sl_buffer * -1
                 elif data_set.iloc[i]['superD_50_3'] == -1:
                     signal_criteria = data_set.iloc[i]['close'] > data_set.iloc[i]['open']
                     side = OrderSide.SELL_SHORT
+                    sl_buffer = self.sl_buffer
                 else:
                     signal_criteria = False
                 
-                if len(past_signal_bars) >= 3: # TODO: make this a parameter
+                if len(past_signal_bars) >= self.max_open_count:
                     logger.trace(f"Signal constraint: {past_signal_bars} already met for current supertrend", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                     break    
                 
@@ -101,7 +105,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                         past_signal_bars.append(new_bar)
                         
                         if i == -1:
-                            sl = data_set.iloc[i]['superT_50_3'] - self.sl_buffer
+                            sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
                             logger.info(f"[LIVE] Signal criteria met at index {i}: {data_set.iloc[i]['date']}, with sl: {sl}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                             return OpenSignalName.SUPERTREND_STACK_SIGNAL, data_set, { 'count': len(past_signal_bars), 'sl': sl, 'side': side }
                         else:
@@ -115,9 +119,6 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
 
         ltf_data = pd.DataFrame(self.candles_ltf)
         htf_data = pd.DataFrame(self.candles_htf)
-        
-        # if self.feature_set is None:
-        #     _, self.feature_set, _ = self.check_for_new_signal(ltf_data, htf_data)
         
         open_signals = []
         for c in new_candles:
@@ -135,22 +136,8 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                 if open_signal:
                     self.logger.debug(f"new signal: {open_signal.name}: {kwargs}")
                     
-                    # if not self.factory:
-                    #     self.logger.debug("Skipping signal creation: factory not initialized")
-                    #     continue
-                
-                    # formatted_feature_set = self.feature_set.iloc[[-1]][self.factory.feature_columns]
-                    
-                    # max_price_prediction = self.factory.models['max_price_prediction'].predict(formatted_feature_set)[0]
-                    # min_price_prediction = self.factory.models['min_price_prediction'].predict(formatted_feature_set)[0]
-                    
                     timestamp_utc = pd.Timestamp(c.bar.datetime)
                     date = timestamp_utc.tz_convert('America/New_York')
-                    # self.logger.trace(f"Date: {date}")
-                    # self.logger.trace(f"Current bar close: {c.bar.close}")
-                    # self.logger.trace(f"Max price prediction: {max_price_prediction}")
-                    # self.logger.trace(f"Min price prediction: {min_price_prediction}")
-                    # self.logger.trace("-" * 40)
                     
                     realized_profit = self.playground.get_realized_profit()
                     self.logger.trace(f"Realized profit: {realized_profit}")
@@ -172,87 +159,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                         )
                     )
                     
-        # if self.should_update_model() or self.factory is None:
-        #     if self.feature_set is None:
-        #         self.logger.debug("Skipping model training: feature set is empty")
-        #         return open_signals
-            
-        #     if self.factory is None:
-        #         self.logger.info(f"strategy_operation=init initializing factory @ {self.playground.timestamp}")
-        #     else:
-        #         self.logger.info(f"strategy_operation=init reinitializing factory for {self.update_model_reason} @ {self.playground.timestamp}")
-                
-            # target_set = add_supertrend_momentum_signal_target_set_v2(self.feature_set, self.min_max_window_in_hours)
-            
-            # self.factory, df_info, factory_meta = new_supertrend_momentum_signal_factory(target_set)
-            
-            # self.logger.info(f"strategy_operation=train_model {df_info}")
-            
-            # for target, mse, r2, n in factory_meta:
-            #     info = f"{target}: MSE={mse}, R^2={r2}, n={n}"
-            #     self.factory_meta[target] = {
-            #         'mse': mse,
-            #         'r2': r2,
-            #         'n': n
-            #     }
-            #     self.logger.info(f"strategy_operation=train_model {info}")
-                    
         return open_signals
-
-# def add_supertrend_momentum_signal_target_set_v2(df: pd.DataFrame, min_max_window_in_hours: float) -> pd.DataFrame:
-#     # Initialize new columns
-#     df['min_price_prediction'] = None
-#     df['max_price_prediction'] = None
-#     df['last_close_price'] = None
-#     df['min_price_prediction_time'] = None
-#     df['max_price_prediction_time'] = None
-#     df['last_close_price_time'] = None
-
-#     # Calculate min, max, and close prices within min_max_period_in_hours for rows where cross_below_80 is True
-#     for idx, row in df[df['stochrsi_cross_below_80']].iterrows():
-#         start_time = row['date']
-#         end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
-#         mask = (df['date'] > start_time) & (df['date'] <= end_time)
-        
-#         if not df.loc[mask].empty:
-#             min_price_idx = df.loc[mask, 'low'].idxmin()
-#             max_price_idx = df.loc[mask, 'high'].idxmax()
-#             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
-            
-#             df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-#             df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
-#             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
-            
-#             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
-#             df.loc[idx, 'max_price_prediction_time'] = df.loc[max_price_idx, 'date']
-#             df.loc[idx, 'last_close_price_time'] = close_price_row['date'] if close_price_row is not None else None
-
-#     # Calculate min, max, and close prices within 1 day for rows where cross_above_20 is True
-#     for idx, row in df[df['stochrsi_cross_above_20']].iterrows():
-#         start_time = row['date']
-#         end_time = start_time + pd.Timedelta(hours=min_max_window_in_hours)
-#         mask = (df['date'] > start_time) & (df['date'] <= end_time)
-        
-#         if not df.loc[mask].empty:
-#             min_price_idx = df.loc[mask, 'low'].idxmin()
-#             max_price_idx = df.loc[mask, 'high'].idxmax()
-#             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
-            
-#             df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-#             df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
-#             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
-            
-#             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
-#             df.loc[idx, 'max_price_prediction_time'] = df.loc[max_price_idx, 'date']
-#             df.loc[idx, 'last_close_price_time'] = close_price_row['date'] if close_price_row is not None else None
-
-#     # Filter the DataFrame to include only rows with cross_below_80 or cross_above_20
-#     filtered_df = df[(df['stochrsi_cross_below_80']) | (df['stochrsi_cross_above_20'])]
-
-#     # Handle NaN values by filling them with 0
-#     filtered_df = filtered_df.fillna(0)
-    
-#     return filtered_df
 
 
 if __name__ == "__main__":
@@ -293,7 +200,8 @@ if __name__ == "__main__":
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
     additional_profit_risk_percentage = 0.0
-    strategy = SimpleStackOpenStrategyV1(playground, additional_profit_risk_percentage, updateFrequency, symbol, logger)
+    max_open_count = 3
+    strategy = SimpleStackOpenStrategyV1(playground, max_open_count, additional_profit_risk_percentage, updateFrequency, symbol, logger)
     
     while not strategy.is_complete():
         tick_delta = playground.flush_new_state_buffer()

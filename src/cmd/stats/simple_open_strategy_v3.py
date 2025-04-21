@@ -1,7 +1,7 @@
 from loguru import logger
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource
 from google.protobuf.json_format import MessageToDict
-from base_open_strategy import BaseOpenStrategy
+from base_open_strategy import BaseSimpleOpenStrategy
 from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
 from dateutil.relativedelta import relativedelta
 from typing import List, Tuple
@@ -16,9 +16,12 @@ from trading_engine_types import OpenSignalV2, OpenSignalName
     
 # V3: Added additional_equity_risk to OpenSignalV2
 # Flexible per trade % risk
-class SimpleOpenStrategyV3(BaseOpenStrategy):
-    def __init__(self, playground, additional_profit_risk_percentage, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
-        super().__init__(playground, updateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+class SimpleOpenStrategyV3(BaseSimpleOpenStrategy):
+    def __init__(self, playground, additional_profit_risk_percentage, modelUpdateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
+        if modelUpdateFrequency is None:
+            raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
+        
+        super().__init__(playground, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
     

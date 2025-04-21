@@ -1,11 +1,9 @@
 from backtester_playground_client_grpc import OrderSide
 from dataclasses import dataclass
+from typing import Tuple
 from rpc.playground_pb2 import Order
 from typing import List
 import re
-
-MaxOpenOrders = 3
-TargetRiskToReward = 2.0
 
 @dataclass
 class CloseSignal:
@@ -40,30 +38,51 @@ def calc_remaining_open_quantity(order: Order) -> float:
         qty += t.quantity
     return qty
 
-def total_risk_taken(orders: List[Order]) -> float:        
+def avg_filled_price(order: Order) -> float:
+    if len(order.trades) == 0:
+        raise ValueError("Order has no trades")
+    
+    total_qty = abs(sum(t.quantity for t in order.trades))
+    vwap = 0.0
+    for t in order.trades:
+        vwap += t.price * (abs(t.quantity) / total_qty)
+    return vwap
+
+def total_risk_taken(orders: List[Order]) -> Tuple[float, float]:        
     total_risk = 0
+    total_quantity = 0
+    order_fills: Tuple[float, float] = []
     for order in orders:
-        total_risk += abs(order.price - order.stop_price) * order.quantity
+        entry_price = avg_filled_price(order)
+        total_risk += abs(entry_price - order.stop_price) * abs(order.quantity)
+        total_quantity += order.quantity
+        order_fills.append((entry_price, order.quantity))
+    
+    if total_quantity == 0:
+        raise ValueError("No open orders")
         
-    return total_risk
+    avg_entry_price = 0.0
+    for price, qty in order_fills:
+        avg_entry_price += price * (abs(qty) / total_quantity)
+        
+    return total_risk, avg_entry_price
 
 def target_tp_for_reward_ratio(orders: List[Order], reward_risk_ratio: float) -> float:
     total_quantity = sum(order.quantity for order in orders)
-    total_risk = total_risk_taken(orders)
+    total_risk, avg_entry_price = total_risk_taken(orders)
     total_reward = reward_risk_ratio * total_risk
-
-    # Weighted average entry price
-    avg_entry_price = sum(order.price * order.quantity for order in orders) / total_quantity
 
     # TP that would yield the desired reward
     tp = total_reward / total_quantity + avg_entry_price
     return tp
 
 class SimpleStackCloseStrategy():
-    def __init__(self, playground, logger):        
+    def __init__(self, playground, logger, max_open_count, target_risk_to_reward: float):        
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         self.logger = logger
+        self.max_open_count = max_open_count
+        self.target_risk_to_reward = target_risk_to_reward
         
     def tick(self, current_price: float, kwargs: dict) -> List[CloseSignal]:
         signals = []
@@ -97,14 +116,16 @@ class SimpleStackCloseStrategy():
                     self.logger.error(f"Invalid tag format: {tag}")
                     continue
                 
-                if count >= MaxOpenOrders:
-                    tp = target_tp_for_reward_ratio(open_orders, TargetRiskToReward)
+                if count >= self.max_open_count:
+                    tp = target_tp_for_reward_ratio(open_orders, self.target_risk_to_reward)
                     if open_order.side == OrderSide.BUY.value:
+                        tp += kwargs['tp_buffer']
                         if current_price >= tp:
                             total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
                             signals.append(CloseSignal(None, symbol, OrderSide.SELL, abs(total_qty), 'tp'))
                             continue
                     elif open_order.side == OrderSide.SELL_SHORT.value:
+                        tp -= kwargs['tp_buffer']
                         if current_price <= tp:
                             total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
                             signals.append(CloseSignal(None, symbol, OrderSide.BUY_TO_COVER, abs(total_qty), 'tp'))

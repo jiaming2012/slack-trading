@@ -11,24 +11,6 @@ from rpc.playground_pb2 import TickDelta
 from trading_engine_types import OpenSignal, OpenSignalName
 
 class BaseOpenStrategy(ABC):
-    def is_new_month(self):
-        current_month = self.playground.timestamp.month
-        result = current_month != self.previous_month
-        self.previous_month = current_month
-        return result
-    
-    def is_new_week(self):
-        current_week = self.playground.timestamp.isocalendar().week
-        result = current_week != self.previous_week
-        self.previous_week = current_week
-        return result
-    
-    def is_new_day(self):
-        current_day = self.playground.timestamp.day
-        result = current_day != self.previous_day
-        self.previous_day = current_day
-        return result
-    
     def get_previous_year_date_range(self, period_in_seconds: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
         current_date = self.playground.timestamp
         
@@ -40,7 +22,7 @@ class BaseOpenStrategy(ABC):
         
         return previous_year_start, previous_year_end
     
-    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
+    def __init__(self, playground, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0):
         self.playground = playground
         self.timestamp = playground.timestamp
         
@@ -55,32 +37,12 @@ class BaseOpenStrategy(ABC):
         
         self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
         self.candles_htf = deque(candles_htf_dicts, maxlen=len(candles_htf_dicts)) 
-    
-        self.previous_month = None
-        self.previous_week = None
-        self.previous_day = None
-        self.factory = None
-        self.feature_set = None
-        self.min_max_window_in_hours = min_max_window_in_hours
+
         self.sl_buffer = sl_buffer
         self.tp_buffer = tp_buffer
         self.sl_shift = sl_shift
         self.tp_shift = tp_shift
-        
-        if updateFrequency == 'daily':
-            self.previous_day = self.playground.timestamp.day
-            self.should_update_model = self.is_new_day
-            self.update_model_reason = 'new day'
-        elif updateFrequency == 'weekly':
-            self.previous_week = self.playground.timestamp.isocalendar().week
-            self.should_update_model = self.is_new_week
-            self.update_model_reason = 'new week'
-        elif updateFrequency == 'monthly':
-            self.previous_month = self.playground.timestamp.month
-            self.should_update_model = self.is_new_month
-            self.update_model_reason = 'new month'
-        else:
-            raise Exception(f"Unsupported update frequency: {updateFrequency}")
+    
         
     def is_complete(self):
         return self.playground.is_backtest_complete()
@@ -141,3 +103,48 @@ class BaseOpenStrategy(ABC):
                     new_candles.append(c)
             
         return new_candles
+    
+    
+class BaseSimpleOpenStrategy(BaseOpenStrategy):
+    def is_new_month(self):
+        current_month = self.playground.timestamp.month
+        result = current_month != self.previous_month
+        self.previous_month = current_month
+        return result
+    
+    def is_new_week(self):
+        current_week = self.playground.timestamp.isocalendar().week
+        result = current_week != self.previous_week
+        self.previous_week = current_week
+        return result
+    
+    def is_new_day(self):
+        current_day = self.playground.timestamp.day
+        result = current_day != self.previous_day
+        self.previous_day = current_day
+        return result
+    
+    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
+        super().__init__(playground, sl_shift, tp_shift, sl_buffer, tp_buffer)
+        
+        self.previous_month = None
+        self.previous_week = None
+        self.previous_day = None
+        self.factory = None
+        self.feature_set = None
+        self.min_max_window_in_hours = min_max_window_in_hours
+        
+        if updateFrequency == 'daily':
+            self.previous_day = self.playground.timestamp.day
+            self.should_update_model = self.is_new_day
+            self.update_model_reason = 'new day'
+        elif updateFrequency == 'weekly':
+            self.previous_week = self.playground.timestamp.isocalendar().week
+            self.should_update_model = self.is_new_week
+            self.update_model_reason = 'new week'
+        elif updateFrequency == 'monthly':
+            self.previous_month = self.playground.timestamp.month
+            self.should_update_model = self.is_new_month
+            self.update_model_reason = 'new month'
+        else:
+            raise Exception(f"Unsupported update frequency: {updateFrequency}")

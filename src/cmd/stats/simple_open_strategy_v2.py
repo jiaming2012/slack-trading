@@ -18,7 +18,7 @@ from trading_engine_types import OpenSignal, OpenSignalName
 from trading_engine_optimizer import TradingEngineOptimizer
 import os 
 
-class OptimizedOpenStrategy(BaseOpenStrategy):
+class SimpleOptimizedOpenStrategy(BaseOpenStrategy):
     def is_new_month(self):
         current_month = self.playground.timestamp.month
         result = current_month != self.previous_month
@@ -76,6 +76,9 @@ class OptimizedOpenStrategy(BaseOpenStrategy):
         return SimpleOpenStrategy(self.playground, self.updateModelFrequency, sl_shift=sl_shift, tp_shift=tp_shift, sl_buffer=sl_buffer, tp_buffer=tp_buffer, min_max_window_in_hours=min_max_window_in_hours) 
         
     def __init__(self, playground, updateModelFrequency, updateOptimizerFrequency, n_calls=10):
+        if updateModelFrequency is None:
+            raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
+        
         super().__init__(playground)
         
         self.n_calls = n_calls
@@ -121,7 +124,7 @@ if __name__ == "__main__":
     
     playground = BacktesterPlaygroundClient(balance, symbol, start_date, end_date, repository_source, csv_path, twirp_host=twirp_host)
     
-    strategy = OptimizedOpenStrategy(playground, updateFrequency, n_calls)
+    strategy = SimpleOptimizedOpenStrategy(playground, updateFrequency, n_calls)
     
     while not strategy.is_complete():
         strategy.tick()

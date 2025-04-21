@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import List, Dict
 from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
+from utils import get_timespan_unit
 import time
 import uuid
 
@@ -137,22 +138,7 @@ class BacktesterPlaygroundClient:
         
         return bars[-1]
     
-    def get_repository_seconds(self, tf: str = 'ltf') -> Repository:
-        def get_timespan_unit(u: str) -> int:
-            if u == 'minute':
-                unit_multiplier = 60
-            elif u == 'hour':
-                unit_multiplier = 3600
-            elif u == 'day':
-                unit_multiplier = 86400
-            elif u == 'week':
-                unit_multiplier = 604800
-            else:
-                raise Exception(f'Invalid timespan unit {u}')
-            
-            return unit_multiplier
-        
-                    
+    def get_repository_seconds(self, tf: str = 'ltf') -> Repository:            
         if len(self.repositories) == 0:
             raise Exception('No repositories found')
         
