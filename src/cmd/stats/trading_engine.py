@@ -189,6 +189,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         except Exception as e:
             current_price = None
             logger.debug(f"warn: failed to update price feed: {e}")
+            time.sleep(1)
+            continue
         
         i += 1   
         # check for close signals
