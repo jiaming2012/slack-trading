@@ -6,8 +6,23 @@ REGISTRY="ewr.vultrcr.com/grodt/app"
 # Get the list of tags from the registry
 TAGS=$(crane ls $REGISTRY)
 
+# Find the max tag version number
+if [ -z "$TAGS" ]; then
+    echo "No tags found in the registry."
+    exit 1
+fi
+
+# Sort the tags and get the latest version
+LATEST_TAG=$(echo "$TAGS" | sort -V | tail -n 1)
+if [ -z "$LATEST_TAG" ]; then
+    echo "No valid tags found."
+    exit 1
+fi
+
 # Define the version threshold
-THRESHOLD="3.20.5"
+# Prompt user for the version threshold
+echo "Current latest version: $LATEST_TAG"
+read -p "Enter the version threshold (e.g., 1.2.3) to keep images newer than this version: " THRESHOLD
 
 # Function to compare semantic versions
 version_lt() {

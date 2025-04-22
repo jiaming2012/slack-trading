@@ -1,6 +1,14 @@
 #!/bin/bash
 
+# Get the latest image tag
+LATEST_TAG=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "ewr.vultrcr.com/grodt/app" | grep -E ':[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)
+if [ -z "$LATEST_TAG" ]; then
+    echo "No images found for ewr.vultrcr.com/grodt/app."
+    exit 1
+fi
+
 # Get the version threshold from user input
+echo "Current latest version: $LATEST_TAG"
 read -p "Enter the minimum version to keep (e.g., 3.21.9): " INPUT_VERSION
 
 # Extract major, minor, and patch versions from input
