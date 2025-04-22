@@ -67,4 +67,32 @@ while true; do
     sleep 5
 done
 
+echo "Changes applied. Waiting for the pod to be ready..."
+
+TWIRP_HOST="http://45.77.223.21"
+URL="$TWIRP_HOST/twirp/playground.PlaygroundService/GetAppVersion"
+
+EXPECTED_VERSION=$VERSION
+PAYLOAD="{}"
+HEADERS=(-H "Content-Type: application/json")
+
+while true; do
+  RESPONSE=$(curl -s -X POST "${HEADERS[@]}" -d "$PAYLOAD" "$URL")
+
+  # Use jq to safely parse JSON; fallback to grep if jq isn't installed
+  if command -v jq &> /dev/null; then
+    VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
+  else
+    VERSION=$(echo "$RESPONSE" | grep -oP '"version"\s*:\s*"\K[^"]+')
+  fi
+
+  if [[ "$VERSION" == "$EXPECTED_VERSION" ]]; then
+    echo "Received expected version: $VERSION"
+    break
+  else
+    echo "Waiting for expected version... got: ${VERSION:-"no version"}"
+    sleep 1
+  fi
+done
+
 echo "Deployment successful! Version $VERSION has been deployed."

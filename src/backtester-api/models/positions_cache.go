@@ -72,6 +72,22 @@ func (o *PositionsCache) Add(symbol eventmodels.Instrument, trade *TradeRecord) 
 		o.cache[symbol] = &Position{}
 	}
 
+	// Update the cost basis
+	if o.cache[symbol].Quantity > 0 {
+		if trade.Quantity > 0 {
+			o.cache[symbol].CostBasis = (o.cache[symbol].CostBasis*o.cache[symbol].Quantity + trade.Price*trade.Quantity) / (o.cache[symbol].Quantity + trade.Quantity)
+		}
+	} else if o.cache[symbol].Quantity < 0 {
+		if trade.Quantity < 0 {
+			o.cache[symbol].CostBasis = (o.cache[symbol].CostBasis*o.cache[symbol].Quantity + trade.Price*trade.Quantity) / (o.cache[symbol].Quantity + trade.Quantity)
+		}
+	} else {
+		o.cache[symbol].CostBasis = trade.Price
+	}
+
+	// Update the maintenance margin
+	o.cache[symbol].MaintenanceMargin = calculateMaintenanceRequirement(trade.Quantity, trade.Price)
+
 	// Append the order to the slice for the given symbol
 	o.cache[symbol].Quantity += trade.Quantity
 }
@@ -89,6 +105,15 @@ func (o *PositionsCache) Get(symbol eventmodels.Instrument) *Position {
 	return pos
 }
 
+func (o *PositionsCache) Exists(symbol eventmodels.Instrument) bool {
+	if o.cache == nil {
+		return false
+	}
+
+	_, found := o.cache[symbol]
+	return found
+}
+
 func (o *PositionsCache) SetCache(cache map[eventmodels.Instrument]*Position) {
 	o.cache = cache
 }
@@ -103,7 +128,7 @@ func (o *PositionsCache) Copy() *PositionsCache {
 	return copy
 }
 
-func NewPositionsCache() *PositionsCache {
+func NewPositionCache() *PositionsCache {
 	return &PositionsCache{
 		cache: make(map[eventmodels.Instrument]*Position),
 	}

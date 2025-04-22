@@ -56,11 +56,11 @@ func calculateInitialMarginRequirement(stockQuantity, stockPrice float64) float6
 	return 0
 }
 
-func sortPositionsByQuantityDesc(positions map[eventmodels.Instrument]*Position) ([]eventmodels.Instrument, []*Position) {
+func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.Instrument, []*Position) {
 	sortedSymbols := make([]eventmodels.Instrument, 0)
 	sortedPositions := make([]*Position, 0)
 
-	for symbol, position := range positions {
+	for symbol, position := range positionCache.Iter() {
 		if len(sortedSymbols) == 0 {
 			sortedSymbols = append(sortedSymbols, symbol)
 			sortedPositions = append(sortedPositions, position)

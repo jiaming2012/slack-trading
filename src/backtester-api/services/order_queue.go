@@ -286,7 +286,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, database models.IDatabaseService) (*models.TradeRecord, error) {
 	performChecks := false
 
-	positions, err := playground.UpdateAndGetPositions()
+	positionCache, err := playground.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return nil, fmt.Errorf("handleLiveOrders: failed to get positions: %w", err)
 	}
@@ -342,7 +342,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		}
 	}
 
-	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positions, orderFillEntry, performChecks)
+	newOrder, newTrade, invalidOrder, err := playground.CommitPendingOrder(order, positionCache, orderFillEntry, performChecks)
 	if err != nil {
 		return nil, fmt.Errorf("handleLiveOrders: failed to commit pending orders: %w", err)
 	}

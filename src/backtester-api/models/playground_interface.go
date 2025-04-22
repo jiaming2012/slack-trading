@@ -36,7 +36,7 @@ package models
 // 	clock              *Clock
 // 	repos              map[eventmodels.Instrument]map[time.Duration]*CandleRepository
 // 	isBacktestComplete bool
-// 	positionsCache     map[eventmodels.Instrument]*Position
+// 	positionCache     map[eventmodels.Instrument]*Position
 // 	openOrdersCache    map[eventmodels.Instrument][]*OrderRecord
 // 	minimumPeriod      time.Duration
 // 	Broker             IBroker

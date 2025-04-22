@@ -446,7 +446,7 @@
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
-                "START_DATE": "2025-02-18",
+                "START_DATE": "2024-04-19",
                 "STOP_DATE": "2025-04-18",
                 "LIVE_ACCOUNT_TYPE": "simulation",
             },

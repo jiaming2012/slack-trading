@@ -54,9 +54,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
         
         return None, data_set
     
-    def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignalV2]:
-        new_candles = super().tick(tick_delta)
-
+    def tick(self, new_candles: List[Candle]) -> List[OpenSignalV2]:
         ltf_data = pd.DataFrame(self.candles_ltf)
         htf_data = pd.DataFrame(self.candles_htf)
         
@@ -65,12 +63,6 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
         
         open_signals = []
         for c in new_candles:
-            try:
-                self.update_price_feed(c)
-            except Exception as e:
-                self.logger.error(f"updating price feed: {e}")
-                continue
-            
             # todo: move this to a debug log. Move other debug logs to trace.
             self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             

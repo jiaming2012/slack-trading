@@ -175,13 +175,20 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     tp_buffer = open_strategy.get_tp_buffer()
     
     i = 0
-    while not open_strategy.is_complete():        
+    while not open_strategy.is_complete():
         try:
+            tick_delta = playground.flush_new_state_buffer()
+            for event in tick_delta:
+                for trade in event.new_trades:
+                    logger.info(f"New Fill: {symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
+                
+            new_candles = open_strategy.update_price_feed(tick_delta)
+             
             current_candle = playground.get_current_candle(symbol, ltf_period)
             current_price = current_candle.close
         except Exception as e:
             current_price = None
-            logger.debug(f"warn: failed to get current price: {e}")
+            logger.debug(f"warn: failed to update price feed: {e}")
         
         i += 1   
         # check for close signals
@@ -199,12 +206,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             logger.info(f"Placed close order: {resp}", timestamp=playground.timestamp, trading_operation='close')
 
         # check for open signals
-        tick_delta = playground.flush_new_state_buffer()
-        for event in tick_delta:
-            for trade in event.new_trades:
-                logger.info(f"New Fill: {symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
-        
-        signals = open_strategy.tick(tick_delta)
+        signals = open_strategy.tick(new_candles)
         position = None
         if len(signals) > 0:
             pos = playground.account.get_position(symbol)
@@ -473,6 +475,8 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--max-open-count", type=float, default=None)
+    args.add_argument("--target-risk-to-reward", type=float, default=None)
+    args.add_argument("--max-per-trade-risk-percentage", type=float, default=None)
     args.add_argument("--sl-shift", type=float, default=0.0)
     args.add_argument("--tp-shift", type=float, default=0.0)
     args.add_argument("--sl-buffer", type=float, default=0.0)

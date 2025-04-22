@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from collections import deque
 from typing import List, Tuple
 from rpc.playground_pb2 import TickDelta
-from trading_engine_types import OpenSignal, OpenSignalName
+from trading_engine_types import OpenSignal, OpenSignalV3, OpenSignalName
 
 class BaseOpenStrategy(ABC):
     def get_previous_year_date_range(self, period_in_seconds: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
@@ -47,32 +47,37 @@ class BaseOpenStrategy(ABC):
     def is_complete(self):
         return self.playground.is_backtest_complete()
     
-    def update_price_feed(self, new_candle: Candle):
-         # Convert the Protocol Buffer message to a dictionary
-        new_candle_dict = MessageToDict(new_candle.bar, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
+    def update_price_feed(self, tick_delta: List[TickDelta]) -> List[Candle]:
+        new_candles = self.parse_new_candles(tick_delta)
         
-        new_candle_timestamp_utc = pd.Timestamp(new_candle.bar.datetime)
-        
-        if new_candle.period == self.playground.ltf_seconds:
-            prev_candle_timestamp_utc = pd.Timestamp(self.candles_ltf[-1]['datetime'])
+        for new_candle in new_candles:
+            # Convert the Protocol Buffer message to a dictionary
+            new_candle_dict = MessageToDict(new_candle.bar, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
             
-            # append only if sorted by timestamp
-            if len(self.candles_ltf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
-                raise Exception("Candles (5m) are not sorted by timestamp")
+            new_candle_timestamp_utc = pd.Timestamp(new_candle.bar.datetime)
             
-            self.candles_ltf.append(new_candle_dict)
-        elif new_candle.period == self.playground.htf_seconds:
-            prev_candle_timestamp_utc = pd.Timestamp(self.candles_htf[-1]['datetime'])
+            if new_candle.period == self.playground.ltf_seconds:
+                prev_candle_timestamp_utc = pd.Timestamp(self.candles_ltf[-1]['datetime'])
+                
+                # append only if sorted by timestamp
+                if len(self.candles_ltf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                    raise Exception("Candles (5m) are not sorted by timestamp")
+                
+                self.candles_ltf.append(new_candle_dict)
+            elif new_candle.period == self.playground.htf_seconds:
+                prev_candle_timestamp_utc = pd.Timestamp(self.candles_htf[-1]['datetime'])
+                
+                # append only if sorted by timestamp
+                if len(self.candles_htf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                    raise Exception("Candles (1h) are not sorted by timestamp")
+                
+                self.candles_htf.append(new_candle_dict)
+            else:
+                raise Exception(f"Unsupported period: {new_candle})")
             
-            # append only if sorted by timestamp
-            if len(self.candles_htf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
-                raise Exception("Candles (1h) are not sorted by timestamp")
-            
-            self.candles_htf.append(new_candle_dict)
-        else:
-            raise Exception(f"Unsupported period: {new_candle})")
+        return new_candles
     
     @abstractmethod        
     def get_sl_shift(self):
@@ -95,7 +100,10 @@ class BaseOpenStrategy(ABC):
         pass
     
     @abstractmethod
-    def tick(self, tick_delta: List[TickDelta]) -> List[OpenSignal]:
+    def tick(self, new_candles: List[Candle]) -> List[OpenSignalV3]:
+        pass
+        
+    def parse_new_candles(self, tick_delta: List[TickDelta]) -> List[Candle]:
         new_candles = []
         for delta in tick_delta:
             if hasattr(delta, 'new_candles'):
@@ -103,7 +111,7 @@ class BaseOpenStrategy(ABC):
                     new_candles.append(c)
             
         return new_candles
-    
+            
     
 class BaseSimpleOpenStrategy(BaseOpenStrategy):
     def is_new_month(self):
