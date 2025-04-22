@@ -90,24 +90,33 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		externalId = &_externalId
 	}
 
+	previousPosition := &pb.Position{
+		Quantity:          o.PreviousPosition.Quantity,
+		CostBasis:         o.PreviousPosition.CostBasis,
+		Pl:                o.PreviousPosition.PL,
+		MaintenanceMargin: o.PreviousPosition.MaintenanceMargin,
+		CurrentPrice:      o.PreviousPosition.CurrentPrice,
+	}
+
 	order := &pb.Order{
-		Id:              uint64(o.ID),
-		ExternalId:      externalId,
-		ClientRequestId: o.ClientRequestID,
-		Class:           string(o.Class),
-		Symbol:          o.GetInstrument().GetTicker(),
-		Side:            string(o.Side),
-		Quantity:        o.AbsoluteQuantity,
-		Type:            string(o.OrderType),
-		Duration:        string(o.Duration),
-		RequestedPrice:  o.RequestedPrice,
-		Tag:             o.Tag,
-		Trades:          trades,
-		Status:          string(o.Status),
-		CreateDate:      o.Timestamp.String(),
-		ClosedBy:        closedBy,
-		Closes:          closes,
-		Reconciles:      reconciles,
+		Id:               uint64(o.ID),
+		ExternalId:       externalId,
+		ClientRequestId:  o.ClientRequestID,
+		Class:            string(o.Class),
+		Symbol:           o.GetInstrument().GetTicker(),
+		Side:             string(o.Side),
+		Quantity:         o.AbsoluteQuantity,
+		Type:             string(o.OrderType),
+		Duration:         string(o.Duration),
+		RequestedPrice:   o.RequestedPrice,
+		Tag:              o.Tag,
+		Trades:           trades,
+		Status:           string(o.Status),
+		CreateDate:       o.Timestamp.String(),
+		ClosedBy:         closedBy,
+		Closes:           closes,
+		Reconciles:       reconciles,
+		PreviousPosition: previousPosition,
 	}
 
 	if o.Price != nil {
@@ -174,13 +183,13 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 	}
 
 	// Get reconciliation playground positions
-	recPositions, err := playground.UpdateAndGetPositions()
+	reconciliationPlaygroundPositionCache, err := playground.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
 
 	var reconcilePositions []*pb.PositionReport
-	for instrument, p := range recPositions {
+	for instrument, p := range reconciliationPlaygroundPositionCache.Iter() {
 		reconcilePositions = append(reconcilePositions, &pb.PositionReport{
 			Symbol:       instrument.GetTicker(),
 			Quantity:     p.Quantity,
@@ -197,11 +206,11 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 	var livePlaygroundPositions []*pb.PositionReport
 	for _, p := range livePlaygrounds {
 		playgroundId := p.ID.String()
-		positions, err := p.UpdateAndGetPositions()
+		positionCache, err := p.UpdatePricesAndGetPositionCache()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get %s positions: %v", playgroundId, err)
 		}
-		for instrument, pos := range positions {
+		for instrument, pos := range positionCache.Iter() {
 			livePlaygroundPositions = append(livePlaygroundPositions, &pb.PositionReport{
 				Symbol:       instrument.GetTicker(),
 				Quantity:     pos.Quantity,
@@ -257,20 +266,20 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		}
 
 		meta := p.GetMeta()
-		positions, err := p.UpdateAndGetPositions()
+		positionCache, err := p.UpdatePricesAndGetPositionCache()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get playground positions: %v", err)
 		}
 
 		balance := p.GetBalance()
-		equity := p.GetEquity(positions)
+		equity := p.GetEquity(positionCache)
 		freeMargin, err := p.GetFreeMargin()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get playground free margin: %v", err)
 		}
 
 		positionsDTO := make(map[string]*pb.Position)
-		for k, v := range positions {
+		for k, v := range positionCache.Iter() {
 			positionsDTO[k.GetTicker()] = &pb.Position{
 				Quantity:          v.Quantity,
 				CostBasis:         v.CostBasis,

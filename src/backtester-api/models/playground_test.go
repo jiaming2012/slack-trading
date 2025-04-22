@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -17,7 +16,7 @@ func TestValidateCache(t *testing.T) {
 	newPlayground := func() *Playground {
 		return &Playground{
 			openOrdersCache: NewOpenOrdersCache(),
-			positionsCache:  NewPositionsCache(),
+			positionCache:   NewPositionCache(),
 		}
 	}
 
@@ -34,7 +33,7 @@ func TestValidateCache(t *testing.T) {
 		pg := newPlayground()
 		pg.openOrdersCache.Add(order)
 
-		assert.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("positive case: multiple symbols", func(t *testing.T) {
@@ -92,11 +91,11 @@ func TestValidateCache(t *testing.T) {
 		pg.openOrdersCache.Add(order2)
 		pg.openOrdersCache.Add(order3)
 
-		pg.positionsCache.Add(order1.instrument, order1.Trades[0])
-		pg.positionsCache.Add(order2.instrument, order2.Trades[0])
-		pg.positionsCache.Add(order3.instrument, order3.Trades[0])
+		pg.positionCache.Add(order1.instrument, order1.Trades[0])
+		pg.positionCache.Add(order2.instrument, order2.Trades[0])
+		pg.positionCache.Add(order3.instrument, order3.Trades[0])
 
-		assert.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("positive case: positive quantity", func(t *testing.T) {
@@ -136,10 +135,10 @@ func TestValidateCache(t *testing.T) {
 		pg.openOrdersCache.Add(order1)
 		pg.openOrdersCache.Add(order2)
 
-		pg.positionsCache.Add(order1.instrument, order1.Trades[0])
-		pg.positionsCache.Add(order2.instrument, order2.Trades[0])
+		pg.positionCache.Add(order1.instrument, order1.Trades[0])
+		pg.positionCache.Add(order2.instrument, order2.Trades[0])
 
-		assert.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("positive case: negative quantity", func(t *testing.T) {
@@ -161,9 +160,9 @@ func TestValidateCache(t *testing.T) {
 		pg := newPlayground()
 		pg.openOrdersCache.Add(order)
 
-		pg.positionsCache.Add(order.instrument, order.Trades[0])
+		pg.positionCache.Add(order.instrument, order.Trades[0])
 
-		assert.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.NoError(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("negative case: zero quantity - positions", func(t *testing.T) {
@@ -185,7 +184,7 @@ func TestValidateCache(t *testing.T) {
 		pg := newPlayground()
 		pg.openOrdersCache.Add(order)
 
-		assert.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("negative case: position", func(t *testing.T) {
@@ -196,9 +195,9 @@ func TestValidateCache(t *testing.T) {
 			Price:    100.0,
 		}
 
-		pg.positionsCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
+		pg.positionCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
 
-		assert.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("negative case: position", func(t *testing.T) {
@@ -221,16 +220,16 @@ func TestValidateCache(t *testing.T) {
 		pg := newPlayground()
 		pg.openOrdersCache.Add(order1)
 
-		pg.positionsCache.Add(order1.instrument, order1.Trades[0])
+		pg.positionCache.Add(order1.instrument, order1.Trades[0])
 
 		trade := &TradeRecord{
 			Quantity: 5,
 			Price:    100.0,
 		}
 
-		pg.positionsCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
+		pg.positionCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
 
-		assert.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionsCache))
+		require.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("unable to fill order if cache doesn't match", func(t *testing.T) {
@@ -273,27 +272,31 @@ func TestValidateCache(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		// Simulate a tick to fill the order
-		_, err = playground.Tick(time.Second, false)
+		// Manually commit pending order
+		executionFillRequest := ExecutionFillRequest{
+			OrderRecord: order1,
+			Price:       20.0,
+			Quantity:    30,
+			Time:        startTime.Add(time.Minute),
+		}
+
+		_, newTrade, invalidOrder, err := playground.CommitPendingOrder(order1, playground.positionCache, executionFillRequest, true)
 		require.NoError(t, err)
+		require.NotNil(t, newTrade)
+		require.Nil(t, invalidOrder)
 
 		// Assert that the order is filled
-		assert.Equal(t, OrderRecordStatusFilled, order1.Status)
+		require.Equal(t, OrderRecordStatusFilled, order1.Status)
 
 		// Check position cache
-		position := playground.positionsCache.Get(symbol)
-		assert.Equal(t, 30.0, position.Quantity)
+		position := playground.positionCache.Get(symbol)
+		require.Equal(t, 30.0, position.Quantity)
 
 		// Check open orders cache
 		openOrders := playground.openOrdersCache.Get(symbol)
 
-		assert.Len(t, openOrders, 1)
-		assert.Equal(t, order1.ID, openOrders[0].ID)
-
-		// Simulate a position imbalance
-		playground.positionsCache.Set(symbol, &Position{
-			Quantity: 10,
-		})
+		require.Len(t, openOrders, 1)
+		require.Equal(t, order1.ID, openOrders[0].ID)
 
 		// Place a new order
 		order2 := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeSimulator, startTime, symbol, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
@@ -305,14 +308,27 @@ func TestValidateCache(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		// Simulate a tick to fill the order
-		tickDelta, err := playground.Tick(time.Minute, false)
-		require.NoError(t, err)
+		// Manually commit pending order
+		executionFillRequest2 := ExecutionFillRequest{
+			OrderRecord: order1,
+			Price:       20.0,
+			Quantity:    30,
+			Time:        startTime.Add(time.Minute),
+		}
+
+		// Simulate a position imbalance
+		playground.positionCache.Set(symbol, &Position{
+			Quantity: 10,
+		})
+
+		_, newTrade, invalidOrder, err = playground.CommitPendingOrder(order2, playground.positionCache, executionFillRequest2, true)
+		require.Error(t, err)
+		require.Nil(t, newTrade)
+		require.NotNil(t, invalidOrder)
 
 		// Assert that the order is rejected
-		assert.Equal(t, OrderRecordStatusRejected, order2.Status)
-		assert.Len(t, tickDelta.InvalidOrders, 1)
-		assert.Equal(t, order2.ID, tickDelta.InvalidOrders[0].ID)
+		require.Equal(t, OrderRecordStatusRejected, order2.Status)
+		require.Equal(t, order2.ID, invalidOrder.ID)
 	})
 }
 
@@ -496,9 +512,9 @@ func TestLiquidation(t *testing.T) {
 		// require.Equal(t, symbol2, delta.NewTrades[1].GetSymbol())
 		require.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		positions, err := playground.UpdateAndGetPositions()
+		positionCache, err := playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
-		require.Len(t, positions, 2)
+		require.Equal(t, 2, positionCache.Len())
 
 		delta, err = playground.Tick(5*time.Minute, false)
 		require.NoError(t, err)
@@ -525,9 +541,9 @@ func TestLiquidation(t *testing.T) {
 		require.Equal(t, -30.0, liquidationOrders[1].Trades[0].Quantity)
 		require.Equal(t, 10.0, liquidationOrders[1].Trades[0].Price)
 
-		positions, err = playground.UpdateAndGetPositions()
+		positionCache, err = playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
-		require.Len(t, positions, 0)
+		require.Equal(t, 0, positionCache.Len())
 	})
 
 	t.Run("Sell orders - single liquidation", func(t *testing.T) {
@@ -588,9 +604,9 @@ func TestLiquidation(t *testing.T) {
 		// require.Equal(t, symbol2, delta.NewTrades[1].GetSymbol())
 		require.Equal(t, 100.0, delta.NewTrades[1].Price)
 
-		positions, err := playground.UpdateAndGetPositions()
+		positionCache, err := playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
-		require.Len(t, positions, 2)
+		require.Equal(t, 2, positionCache.Len())
 
 		delta, err = playground.Tick(5*time.Minute, false)
 		require.NoError(t, err)
@@ -608,10 +624,10 @@ func TestLiquidation(t *testing.T) {
 		require.Equal(t, 4.0, liquidationOrders[0].Trades[0].Quantity)
 		require.Equal(t, 200.0, liquidationOrders[0].Trades[0].Price)
 
-		positions, err = playground.UpdateAndGetPositions()
+		positionCache, err = playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
 
-		require.Len(t, positions, 1)
+		require.Equal(t, 1, positionCache.Len())
 	})
 
 	t.Run("Buy orders - no liquidation", func(t *testing.T) {
@@ -1014,9 +1030,7 @@ func TestBalance(t *testing.T) {
 
 	t.Run("GetAccountBalance - increase after profitable trade", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
-
 		now := startTime
-
 		candles := []*eventmodels.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
@@ -1064,6 +1078,95 @@ func TestBalance(t *testing.T) {
 		require.Len(t, delta.NewTrades, 1)
 		require.Equal(t, 115.0, delta.NewTrades[0].Price)
 		require.Equal(t, 1030.0, playground.GetBalance())
+	})
+
+	t.Run("Starts with correct initial position when playground has existing orders", func(t *testing.T) {
+		symbol1 := eventmodels.StockSymbol("AAPL")
+		symbol2 := eventmodels.StockSymbol("GOOG")
+		now := startTime
+
+		// existing orders
+		order1 := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol1, TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil)
+		order1.Trades = append(order1.Trades, &TradeRecord{
+			Quantity: 2,
+			Price:    100.0,
+		})
+
+		order2 := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol2, TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil)
+		order2.Trades = append(order2.Trades, &TradeRecord{
+			Quantity: -5,
+			Price:    300.0,
+		})
+
+		order3 := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol1, TradierOrderSideBuy, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil)
+		order3.Trades = append(order3.Trades, &TradeRecord{
+			Quantity: 4,
+			Price:    200.0,
+		})
+
+		// create repos
+		t1 := startTime.Add(5 * time.Minute)
+		symbol1_Price := 250.0
+		candles1 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     symbol1_Price,
+			},
+			{
+				Timestamp: t1,
+				Close:     symbol1_Price,
+			},
+		}
+
+		symbol2_Price := 500.0
+		candles2 := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     symbol2_Price,
+			},
+			{
+				Timestamp: t1,
+				Close:     symbol2_Price,
+			},
+		}
+
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		require.NoError(t, err)
+
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		require.NoError(t, err)
+
+		// create playground
+		balance := 1000.0
+		clock := NewClock(startTime, endTime, nil)
+		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, []*OrderRecord{order1, order2, order3}, env, startTime, []string{}, repo1, repo2)
+		require.NoError(t, err)
+
+		// check initial position
+		positionCache, err := playground.UpdatePricesAndGetPositionCache()
+		require.NoError(t, err)
+
+		require.Equal(t, 2, positionCache.Len())
+
+		// check first position
+		position1 := positionCache.Get(symbol1)
+		require.Equal(t, 6.0, position1.Quantity)
+		require.Less(t, position1.CostBasis-166.667, 0.01)
+		require.Equal(t, symbol1_Price, position1.CurrentPrice)
+
+		pl := (symbol1_Price - position1.CostBasis) * 6.0
+		require.Equal(t, pl, position1.PL)
+		require.Greater(t, position1.MaintenanceMargin, 0.0)
+
+		// check second position
+		position2 := positionCache.Get(symbol2)
+		require.Equal(t, -5.0, position2.Quantity)
+		require.Less(t, position2.CostBasis-300.0, 0.01)
+		require.Equal(t, symbol2_Price, position2.CurrentPrice)
+
+		pl = (position2.CostBasis - symbol2_Price) * 5.0
+		require.Equal(t, pl, position2.PL)
+		require.Greater(t, position2.MaintenanceMargin, 0.0)
 	})
 
 	t.Run("GetAccountBalance - increase and decrease after profitable and unprofitable trade", func(t *testing.T) {
@@ -1276,6 +1379,81 @@ func TestPositions(t *testing.T) {
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
 	source := eventmodels.CandleRepositorySource{Type: "test"}
+
+	t.Run("Order.PreviousPosition", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+		now := startTime
+		balance := 1000000.0
+
+		candles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     250.0,
+			},
+			{
+				Timestamp: startTime.Add(1 * time.Minute),
+				Close:     260.0,
+			},
+		}
+
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		require.NoError(t, err)
+
+		// Create a new playground
+		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, repo)
+		require.NoError(t, err)
+
+		// Place a buy order
+		order := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
+		changes, err := playground.PlaceOrder(order)
+		require.NoError(t, err)
+		require.Len(t, changes, 1)
+		err = changes[0].Commit()
+		require.NoError(t, err)
+
+		// Tick the playground
+		delta, err := playground.Tick(time.Second, false)
+		require.NoError(t, err)
+		require.NotNil(t, delta)
+
+		// assert single open trade
+		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		require.NoError(t, err)
+
+		require.Equal(t, 10.0, position1.Quantity)
+		require.Equal(t, 0.0, order.PreviousPosition.Quantity)
+
+		// Place 2 buy orders
+		order2 := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
+		changes, err = playground.PlaceOrder(order2)
+		require.NoError(t, err)
+		require.Len(t, changes, 1)
+		err = changes[0].Commit()
+		require.NoError(t, err)
+
+		order3 := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, eventmodels.StockSymbol("AAPL"), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
+		changes, err = playground.PlaceOrder(order3)
+		require.NoError(t, err)
+		require.Len(t, changes, 1)
+		err = changes[0].Commit()
+		require.NoError(t, err)
+
+		// Tick the playground
+		delta, err = playground.Tick(time.Second, false)
+		require.NoError(t, err)
+
+		// assert two open trades
+		newTrades := delta.NewTrades
+		require.Len(t, newTrades, 2)
+
+		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		require.NoError(t, err)
+		require.Equal(t, 30.0, position2.Quantity)
+
+		// assert previous position
+		require.Equal(t, 10.0, order2.PreviousPosition.Quantity)
+		require.Equal(t, 20.0, order3.PreviousPosition.Quantity)
+	})
 
 	t.Run("GetPosition", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -1651,151 +1829,6 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Skip("GetPosition - average cost basis - partial closes LONG")
-
-	// t.Run("GetPosition - average cost basis - partial closes LONG", func(t *testing.T) {
-	// 	clock := NewClock(startTime, endTime, nil)
-
-	// 	t1 := time.Date(2021, time.January, 1, 0, 1, 0, 0, time.UTC)
-	// 	t2 := time.Date(2021, time.January, 1, 0, 2, 0, 0, time.UTC)
-	// 	t3 := time.Date(2021, time.January, 1, 0, 3, 0, 0, time.UTC)
-	// 	t4 := time.Date(2021, time.January, 1, 0, 4, 0, 0, time.UTC)
-	// 	t5 := time.Date(2021, time.January, 1, 0, 5, 0, 0, time.UTC)
-
-	// 	now := startTime
-
-	// 	balance := 1000000.0
-
-	// 	candles := []*eventmodels.PolygonAggregateBarV2{
-	// 		{
-	// 			Timestamp: startTime,
-	// 			Close:     100.0,
-	// 		},
-	// 		{
-	// 			Timestamp: t1,
-	// 			Close:     200.0,
-	// 		},
-	// 		{
-	// 			Timestamp: t2,
-	// 			Close:     300.0,
-	// 		},
-	// 		{
-	// 			Timestamp: t3,
-	// 			Close:     400.0,
-	// 		},
-	// 		{
-	// 			Timestamp: t4,
-	// 			Close:     500.0,
-	// 		},
-	// 		{
-	// 			Timestamp: t5,
-	// 			Close:     600.0,
-	// 		},
-	// 	}
-
-	// 	repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
-	// 	require.NoError(t, err)
-
-	// 	playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime,[]string{} , repo)
-	// 	require.NoError(t, err)
-
-	// 	// open 1st order
-	// 	order1 := NewOrderRecord(1, nil,uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-	// 	changes, err := playground.PlaceOrder(order1)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, changes, 1)
-	// err = changes[0].Commit()
-	// 	require.NoError(t, err)
-
-	// 	delta, err := playground.Tick(time.Minute, false)
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, delta)
-
-	// 	position, err := playground.GetPosition(symbol, true)
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, 15.0, position.Quantity)
-	// 	require.Equal(t, 100.0, position.CostBasis)
-
-	// 	openOrders := playground.GetOpenOrders(symbol)
-	// 	require.Len(t, openOrders, 1)
-	// 	require.Equal(t, order1, openOrders[0])
-
-	// 	// open 2nd order
-	// 	order2 := NewOrderRecord(2, nil,uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideBuy, 15, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-	// 	changes, err = playground.PlaceOrder(order2)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, changes, 1)
-	// err = changes[0].Commit()
-	// 	require.NoError(t, err)
-
-	// 	delta, err = playground.Tick(time.Minute, false)
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, delta)
-
-	// 	require.Len(t, delta.NewTrades, 1)
-	// 	newTrade := delta.NewTrades[0]
-	// 	require.Equal(t, 200.0, newTrade.Price)
-
-	// 	position, err = playground.GetPosition(symbol, true)
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, 30.0, position.Quantity)
-	// 	require.Equal(t, 150.0, position.CostBasis)
-
-	// 	openOrders = playground.GetOpenOrders(symbol)
-	// 	require.Len(t, openOrders, 2)
-	// 	require.Equal(t, order1, openOrders[0])
-	// 	require.Equal(t, order2, openOrders[1])
-
-	// 	// close 1st partial
-	// 	order3 := NewOrderRecord(3, nil,uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-	// 	changes, err = playground.PlaceOrder(order3)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, changes, 1)
-	// err = changes[0].Commit()
-	// 	require.NoError(t, err)
-
-	// 	delta, err = playground.Tick(time.Minute, false)
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, delta)
-
-	// 	position, err = playground.GetPosition(symbol, true)
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, 25.0, position.Quantity)
-	// 	require.Equal(t, 150.0, position.CostBasis)
-
-	// 	// close 2nd partial
-	// 	order4 := NewOrderRecord(4, nil,uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideSell, 15, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-	// 	changes, err = playground.PlaceOrder(order4)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, changes, 1)
-	// err = changes[0].Commit()
-	// 	require.NoError(t, err)
-
-	// 	delta, err = playground.Tick(time.Minute, false)
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, delta)
-
-	// 	position, err = playground.GetPosition(symbol, true)
-	// 	require.NoError(t, err)
-	// 	require.Equal(t, 10.0, position.Quantity)
-	// 	require.Equal(t, 150.0, position.CostBasis)
-
-	// 	// close 3nd partial
-	// 	order5 := NewOrderRecord(5, nil,uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, symbol, TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-	// 	changes, err = playground.PlaceOrder(order5)
-	// 	require.NoError(t, err)
-	// 	require.Len(t, changes, 1)
-	// err = changes[0].Commit()
-	// 	require.NoError(t, err)
-
-	// 	delta, err = playground.Tick(time.Minute, false)
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, delta)
-
-	// 	position, err = playground.GetPosition(symbol, true)
-	// 	require.ErrorContains(t, err, "position not found")
-	// 	require.Equal(t, 0.0, position.Quantity)
-	// 	require.Equal(t, 0.0, position.CostBasis)
-	// })
 
 	t.Run("GetPosition - average cost basis - multiple orders - reverse direction", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -2287,9 +2320,9 @@ func TestFreeMargin(t *testing.T) {
 		_, err = playground.Tick(time.Minute, false)
 		require.NoError(t, err)
 
-		positions, err := playground.UpdateAndGetPositions()
+		positionCache, err := playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
-		usedMargin := positions[symbol].MaintenanceMargin
+		usedMargin := positionCache.Get(symbol).MaintenanceMargin
 		require.Equal(t, 500.0, usedMargin)
 
 		freeMargin, err := playground.GetFreeMargin()

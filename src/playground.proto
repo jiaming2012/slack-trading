@@ -315,5 +315,6 @@ message Order {
     optional uint64 external_id = 18;
     repeated Order reconciles = 19;
     optional string client_request_id = 20;
+    Position previous_position = 21;
 }
 

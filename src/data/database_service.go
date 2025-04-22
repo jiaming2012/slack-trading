@@ -1033,21 +1033,21 @@ func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders boo
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
-	positions, err := playground.UpdateAndGetPositions()
+	positionCache, err := playground.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
 	}
 
 	positionsKV := map[string]*models.Position{}
-	for k, v := range positions {
+	for k, v := range positionCache.Iter() {
 		positionsKV[k.GetTicker()] = v
 	}
 
 	response := models.GetAccountResponse{
 		Meta:       playground.GetMeta(),
 		Balance:    playground.GetBalance(),
-		Equity:     playground.GetEquity(positions),
-		FreeMargin: playground.GetFreeMarginFromPositionMap(positions),
+		Equity:     playground.GetEquity(positionCache),
+		FreeMargin: playground.GetFreeMarginFromPositionMap(positionCache),
 		Positions:  positionsKV,
 	}
 
