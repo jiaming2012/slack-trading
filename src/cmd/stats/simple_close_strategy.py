@@ -40,11 +40,11 @@ def calc_remaining_open_quantity(order: Order) -> float:
     return qty
 
 class SimpleCloseStrategy():
-    def __init__(self, playground):        
+    def __init__(self, playground, kwargs: dict):        
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         
-    def tick(self, current_price: float) -> List[CloseSignal]:
+    def tick(self, current_price: float, kwargs: dict) -> List[CloseSignal]:
         signals = []
         if not current_price:
             return signals

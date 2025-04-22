@@ -189,6 +189,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         except Exception as e:
             current_price = None
             logger.debug(f"warn: failed to update price feed: {e}")
+            time.sleep(1)
+            continue
         
         i += 1   
         # check for close signals
@@ -430,6 +432,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     elif open_strategy_input == 'simple_open_strategy_v2':
         from simple_open_strategy_v2 import SimpleOptimizedOpenStrategy
         optimizer_update_frequency = None
+        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
         
         n_calls = os.getenv("N_CALLS")
         if n_calls is None:
@@ -441,16 +444,22 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     elif open_strategy_input == 'simple_open_strategy_v3':
         from simple_open_strategy_v3 import SimpleOpenStrategyV3
         additional_profit_risk_percentage = 0.25
+        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+        
         open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
     elif open_strategy_input == 'simple_open_strategy_v4':
         from simple_open_strategy_v4 import SimpleOpenStrategyV4
         additional_profit_risk_percentage = 0.0
+        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+        
         open_strategy = SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, symbol, logger, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
     
     elif open_strategy_input == 'candlestick_open_strategy_v1':
         from candlestick_open_strategy_v1 import CandlestickOpenStrategy
         min_max_window_in_hours = 24
+        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+        
         open_strategy = CandlestickOpenStrategy(playground, model_update_frequency, min_max_window_in_hours)
     
     elif open_strategy_input == 'simple_stack_open_strategy_v1':
@@ -468,7 +477,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     if open_strategy_input == 'simple_stack_open_strategy_v1':
         close_strategy = SimpleStackCloseStrategy(playground, logger, max_open_count, target_risk_to_reward)
     else:
-        close_strategy = SimpleCloseStrategy(playground)
+        close_strategy = SimpleCloseStrategy(playground, {})
     
     return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, twirp_host)
 

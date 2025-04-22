@@ -560,6 +560,7 @@ class BacktesterPlaygroundClient:
             request.close_order_id = close_order_id
                         
         try:
+            self.logger.debug(f"position={self.position} environment={self.environment} Placing order: {request}", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             

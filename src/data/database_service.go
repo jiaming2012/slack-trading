@@ -906,7 +906,7 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 			if order.ID == closeOrderID {
 				orderToClose = order
 			}
-		} else {
+
 			if order.CloseOrderId != nil && *order.CloseOrderId == closeOrderID {
 				pendingCloseQuantity += order.AbsoluteQuantity
 			}
