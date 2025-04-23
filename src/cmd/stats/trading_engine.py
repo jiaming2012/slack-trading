@@ -226,7 +226,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
-                    logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp}", timestamp=playground.timestamp, trading_operation='close_short')
+                    logger.info(f"Placed close all order: CROSS_ABOVE_20 - {json.dumps(resp)}", timestamp=playground.timestamp, trading_operation='close_short')
 
                 side = OrderSide.BUY
             elif s.name == OpenSignalName.CROSS_BELOW_80:
@@ -234,7 +234,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = position
                     side = OrderSide.SELL
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
-                    logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp}", timestamp=playground.timestamp, trading_operation='close_long')
+                    logger.info(f"Placed close all order: CROSS_BELOW_80 - {json.dumps(resp)}", timestamp=playground.timestamp, trading_operation='close_long')
                     
                 side = OrderSide.SELL_SHORT
             else:
@@ -272,7 +272,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 logger.error(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
                 continue
             
-            logger.info(f"Placed open order: {resp}", timestamp=playground.timestamp, trading_operation='open')
+            logger.info(f"Placed open order: {json.dumps(resp)}", timestamp=playground.timestamp, trading_operation='open')
             
         playground.tick(playground_tick_in_seconds, raise_exception=True)
         
