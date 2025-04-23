@@ -256,7 +256,6 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                         additional_equity_at_risk = s.additional_equity_risk
                 
                     tag = build_tag(sl, tp, side)
-                    sl = None
             
                 quantity = calculate_new_trade_quantity(logger, playground.account.equity, playground.account.free_margin, current_price, side, sl, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
                     
