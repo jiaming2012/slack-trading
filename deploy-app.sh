@@ -126,7 +126,6 @@ fetch_new_version() {
       echo "Received expected version: $VERSION"
       break
     else
-      echo "Waiting for expected version... got: ${VERSION:-"no version"}"
       sleep 1
     fi
   done
