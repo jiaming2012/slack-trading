@@ -322,7 +322,7 @@ func TestValidateCache(t *testing.T) {
 		})
 
 		_, newTrade, invalidOrder, err = playground.CommitPendingOrder(order2, playground.positionCache, executionFillRequest2, true)
-		require.Error(t, err)
+		require.NoError(t, err)
 		require.Nil(t, newTrade)
 		require.NotNil(t, invalidOrder)
 
