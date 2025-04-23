@@ -968,10 +968,13 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	var orderId uint
 	if req.Id != nil {
 		orderId = *req.Id
-	} else if req.IsAdjustment {
-		orderId = 0
 	} else {
-		orderId = playground.NextOrderID()
+		orderId = 0
+	}
+
+	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
+		externalId := playground.NextOrderID()		
+		req.ExternalOrderID = &externalId
 	}
 
 	order := models.NewOrderRecord(
@@ -1027,7 +1030,7 @@ func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*even
 	return plot, nil
 }
 
-func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
+func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)

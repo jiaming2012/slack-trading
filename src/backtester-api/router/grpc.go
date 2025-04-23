@@ -601,7 +601,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	account, err := s.dbService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides, req.Symbols)
+	account, err := s.dbService.GetAccount(playgroundId, req.FetchOrders, from, to, status, sides, req.Symbols)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}

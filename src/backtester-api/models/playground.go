@@ -743,91 +743,6 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 	}
 
-	var closeByRequests []*CloseByRequest
-
-	// reconciliation playgrounds do not have close orders
-	if order.LiveAccountType != LiveAccountTypeReconcilation {
-		// mutates the order to add closes info
-		if err := p.addClosesInfoToOrder(order, position); err != nil {
-			return nil, false, fmt.Errorf("fillOrder: error adding closes info to order: %w", err)
-		}
-
-		if order.IsClose {
-			volumeToClose := math.Abs(order.GetQuantity())
-
-			if order.CloseOrderId == nil {
-				openOrders := p.GetOpenOrders(order.GetInstrument())
-
-				// calculate the volume to close
-				for _, o := range openOrders {
-					if volumeToClose <= 0 {
-						break
-					}
-
-					qty, err := o.GetRemainingOpenQuantity()
-					if err != nil {
-						return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
-					}
-
-					remainingOpenQuantity := math.Abs(qty)
-					if remainingOpenQuantity <= 0 {
-						continue
-					}
-
-					quantity := math.Min(volumeToClose, remainingOpenQuantity)
-					volumeToClose -= quantity
-
-					sign := 1.0
-					if o.Side == TradierOrderSideBuy {
-						sign = -1.0
-					}
-
-					closeByRequests = append(closeByRequests, &CloseByRequest{
-						Order:    o,
-						Quantity: quantity * sign,
-					})
-				}
-			} else {
-				o := p.GetOpenOrder(*order.CloseOrderId)
-				if o == nil {
-					return nil, false, fmt.Errorf("fillOrder: open order %d not found in open orders", *order.CloseOrderId)
-				}
-
-				qty, err := o.GetRemainingOpenQuantity()
-				if err != nil {
-					return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
-				}
-
-				remainingOpenQuantity := math.Abs(qty)
-				if remainingOpenQuantity <= 0 {
-					return nil, false, fmt.Errorf("fillOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
-				}
-
-				quantity := math.Min(volumeToClose, remainingOpenQuantity)
-				volumeToClose -= quantity
-
-				sign := 1.0
-				if o.Side == TradierOrderSideBuy {
-					sign = -1.0
-				}
-
-				closeByRequests = append(closeByRequests, &CloseByRequest{
-					Order:    o,
-					Quantity: quantity * sign,
-				})
-			}
-
-			// check if the volume to close is valid
-			if volumeToClose < 0 {
-				return nil, false, fmt.Errorf("fillOrder: volume to close cannot be negative")
-			}
-
-			if volumeToClose > 0 {
-				return nil, false, fmt.Errorf("fillOrder: volume to close exceeds open volume")
-			}
-		}
-	}
-
 	// commit the trade
 	var trade *TradeRecord
 	if orderFillEntry.Trade != nil {
@@ -844,6 +759,11 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 
 		return nil, false, fmt.Errorf("fillOrder: error filling order: %w", err)
+	}
+
+	closeByRequests, err := p.getCloseByRequests(order, position)
+	if err != nil {
+		return nil, false, fmt.Errorf("fillOrder: error getting close by requests: %w", err)
 	}
 
 	// close the open orders
@@ -881,7 +801,6 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	// update the caches
 	p.openOrdersCache.Commit(openOrdersCacheCopy)
 	p.positionCache.Commit(positionCacheCopy)
-
 
 	if orderFillEntry.Trade != nil {
 		orderFillEntry.Trade = trade
@@ -941,9 +860,11 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		externalId := p.account.NextOrderID()
+		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else if position.Quantity < 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		externalId := p.account.NextOrderID()
+		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else {
 		return nil, nil
 	}
@@ -1711,6 +1632,95 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 	return changes, nil
 }
 
+func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position) ([]*CloseByRequest, error) {
+	var closeByRequests []*CloseByRequest
+
+	// reconciliation playgrounds do not have close orders
+	if order.LiveAccountType != LiveAccountTypeReconcilation {
+		// mutates the order to add closes info
+		if err := p.addClosesInfoToOrder(order, position); err != nil {
+			return nil, fmt.Errorf("placeOrder: error adding closes info to order: %w", err)
+		}
+
+		if order.IsClose {
+			volumeToClose := math.Abs(order.GetQuantity())
+
+			if order.CloseOrderId == nil {
+				openOrders := p.GetOpenOrders(order.GetInstrument())
+
+				// calculate the volume to close
+				for _, o := range openOrders {
+					if volumeToClose <= 0 {
+						break
+					}
+
+					qty, err := o.GetRemainingOpenQuantity()
+					if err != nil {
+						return nil, fmt.Errorf("placeOrder: error getting remaining open quantity: %w", err)
+					}
+
+					remainingOpenQuantity := math.Abs(qty)
+					if remainingOpenQuantity <= 0 {
+						continue
+					}
+
+					quantity := math.Min(volumeToClose, remainingOpenQuantity)
+					volumeToClose -= quantity
+
+					sign := 1.0
+					if o.Side == TradierOrderSideBuy {
+						sign = -1.0
+					}
+
+					closeByRequests = append(closeByRequests, &CloseByRequest{
+						Order:    o,
+						Quantity: quantity * sign,
+					})
+				}
+			} else {
+				o := p.GetOpenOrder(*order.CloseOrderId)
+				if o == nil {
+					return nil, fmt.Errorf("placeOrder: open order %d not found in open orders", *order.CloseOrderId)
+				}
+
+				qty, err := o.GetRemainingOpenQuantity()
+				if err != nil {
+					return nil, fmt.Errorf("placeOrder: error getting remaining open quantity: %w", err)
+				}
+
+				remainingOpenQuantity := math.Abs(qty)
+				if remainingOpenQuantity <= 0 {
+					return nil, fmt.Errorf("placeOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
+				}
+
+				quantity := math.Min(volumeToClose, remainingOpenQuantity)
+				volumeToClose -= quantity
+
+				sign := 1.0
+				if o.Side == TradierOrderSideBuy {
+					sign = -1.0
+				}
+
+				closeByRequests = append(closeByRequests, &CloseByRequest{
+					Order:    o,
+					Quantity: quantity * sign,
+				})
+			}
+
+			// check if the volume to close is valid
+			if volumeToClose < 0 {
+				return nil, fmt.Errorf("placeOrder: volume to close cannot be negative")
+			}
+
+			if volumeToClose > 0 {
+				return nil, fmt.Errorf("placeOrder: volume to close exceeds open volume")
+			}
+		}
+	}
+
+	return closeByRequests, nil
+}
+
 func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
@@ -1769,6 +1779,10 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 	if err := utils.ValidateTag(order.Tag); err != nil {
 		return nil, fmt.Errorf("invalid tag: %w", err)
+	}
+
+	if _, err := p.getCloseByRequests(order, position); err != nil {
+		return nil, fmt.Errorf("error getting close by requests: %w", err)
 	}
 
 	// order.ID can be zero if the order is a pending live order

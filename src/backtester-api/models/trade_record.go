@@ -16,6 +16,10 @@ type TradeRecord struct {
 }
 
 func (tr *TradeRecord) UpdateOrder(order *OrderRecord) {
+	if order.LiveAccountType == LiveAccountTypeSimulator {
+		return
+	} 
+
 	if order.LiveAccountType == LiveAccountTypeReconcilation {
 		tr.ReconcileOrderID = &order.ID
 	} else {
