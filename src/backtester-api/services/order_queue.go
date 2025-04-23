@@ -347,8 +347,9 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		return nil, fmt.Errorf("handleLiveOrders: failed to commit pending orders: %w", err)
 	}
 
+	var resultErr error = nil
 	if invalidOrder != nil {
-		return nil, fmt.Errorf("handleLiveOrders: invalid order: %v", invalidOrder)
+		resultErr = fmt.Errorf("handleLiveOrders: invalid order: %v", invalidOrder)
 	}
 
 	if newOrder != nil {
@@ -366,7 +367,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		return nil, fmt.Errorf("handleLiveOrders: failed to save order record: %v", err)
 	}
 
-	return newTrade, nil
+	return newTrade, resultErr
 }
 
 func commitPendingOrders(database models.IDatabaseService, orderFillEntry models.ExecutionFillRequest) error {
