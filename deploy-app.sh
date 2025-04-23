@@ -82,6 +82,18 @@ main() {
 
   kubectl apply -f .clusters/production/deployment.yaml
 
+  echo "Changes applied. Waiting for the pod to be ready..."
+
+  run_with_spinner fetch_pod_status
+
+  echo "Pod is ready. Waiting for the new version to be available..."
+
+  run_with_spinner fetch_new_version
+
+  echo "Deployment successful! Version $VERSION has been deployed."
+}
+
+fetch_pod_status() {
   while true; do
     STATUS=$(kubectl get pods -l app=grodt -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
     if [ "$STATUS" == "True" ]; then
@@ -90,12 +102,6 @@ main() {
     fi
     sleep 5
   done
-
-  echo "Changes applied. Waiting for the pod to be ready..."
-
-  run_with_spinner fetch_new_version
-
-  echo "Deployment successful! Version $VERSION has been deployed."
 }
 
 fetch_new_version() {
