@@ -3,96 +3,127 @@
 # Stop the script on any command failure
 set -e
 
-# Check if the current branch is main
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$CURRENT_BRANCH" != "main" ]; then
-  echo "Error: You must be on the main branch to deploy"
-  exit 1
-fi
+run_with_spinner() {
+  local cmd="$*"
+  local delay=0.1
+  local spinstr='|/-\'
+  local i=0
 
-# Check if the working directory is clean
-if [ -n "$(git status --porcelain)" ]; then
-  echo "Error: Your working directory is dirty. Please commit or stash your changes before deploying."
-  exit 1
-fi
+  # Run the command in the background
+  eval "$cmd" &
+  local pid=$!
 
-# Merge the dev branch into main
-echo "Merging dev branch into main..."
-git fetch origin
-git merge origin/dev
+  # Spinner loop
+  while kill -0 "$pid" 2>/dev/null; do
+    printf "\r[%c] Working..." "${spinstr:i++%${#spinstr}:1}"
+    sleep $delay
+  done
 
-# Find the latest version of the Docker image
-VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
+  wait $pid  # Capture exit code
+  local exit_code=$?
 
-if [ -z "$VERSION" ]; then
-  echo "Error: Unable to find the latest version of the Docker image"
-  exit 1
-fi
+  printf "\r[✔] Done!      \n"
+  return $exit_code
+}
 
-echo "Latest version found: $VERSION"
+main() {
+  # Check if the current branch is main
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$CURRENT_BRANCH" != "main" ]; then
+    echo "Error: You must be on the main branch to deploy"
+    exit 1
+  fi
 
-# Prompt the user for confirmation
-read -p "Would you like to deploy ewr.vultrcr.com/grodt/app:$VERSION? (y/n): " CONFIRM
-if [ "$CONFIRM" != "y" ]; then
-  echo "Deployment cancelled."
-  exit 0
-fi
+  # Check if the working directory is clean
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "Error: Your working directory is dirty. Please commit or stash your changes before deploying."
+    exit 1
+  fi
 
-echo "Deploying version $VERSION ..."
+  # Merge the dev branch into main
+  echo "Merging dev branch into main..."
+  git fetch origin
+  git merge origin/dev
 
-# Update deployment.yaml with the new image version
-sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
+  # Find the latest version of the Docker image
+  VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
 
-# Remove backup file created by sed
-rm ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml.bak
+  if [ -z "$VERSION" ]; then
+    echo "Error: Unable to find the latest version of the Docker image"
+    exit 1
+  fi
 
-# Commit the updated deployment.yaml file and the version bump
-git add ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
-git commit -m "Bump app version to $VERSION in deployment.yaml"
+  echo "Latest version found: $VERSION"
 
-# Push the changes to GitHub
-git push
+  # Prompt the user for confirmation
+  read -p "Would you like to deploy ewr.vultrcr.com/grodt/app:$VERSION? (y/n): " CONFIRM
+  if [ "$CONFIRM" != "y" ]; then
+    echo "Deployment cancelled."
+    exit 0
+  fi
 
-# Update kubernetes cluster
-kubectl apply -f .clusters/production/configmap.yaml
+  echo "Deploying version $VERSION ..."
 
-kubectl apply -f .clusters/production/deployment.yaml
+  # Update deployment.yaml with the new image version
+  sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
 
-while true; do
+  # Remove backup file created by sed
+  rm ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml.bak
+
+  # Commit the updated deployment.yaml file and the version bump
+  git add ${PROJECTS_DIR}/slack-trading/.clusters/production/deployment.yaml
+  git commit -m "Bump app version to $VERSION in deployment.yaml"
+
+  # Push the changes to GitHub
+  git push
+
+  # Update kubernetes cluster
+  kubectl apply -f .clusters/production/configmap.yaml
+
+  kubectl apply -f .clusters/production/deployment.yaml
+
+  while true; do
     STATUS=$(kubectl get pods -l app=grodt -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}')
     if [ "$STATUS" == "True" ]; then
         echo "Pod is ready!"
         break
     fi
     sleep 5
-done
+  done
 
-echo "Changes applied. Waiting for the pod to be ready..."
+  echo "Changes applied. Waiting for the pod to be ready..."
 
-TWIRP_HOST="http://45.77.223.21"
-URL="$TWIRP_HOST/twirp/playground.PlaygroundService/GetAppVersion"
+  run_with_spinner fetch_new_version
 
-EXPECTED_VERSION=$VERSION
-PAYLOAD="{}"
-HEADERS=(-H "Content-Type: application/json")
+  echo "Deployment successful! Version $VERSION has been deployed."
+}
 
-while true; do
-  RESPONSE=$(curl -s -X POST "${HEADERS[@]}" -d "$PAYLOAD" "$URL")
+fetch_new_version() {
+  TWIRP_HOST="http://45.77.223.21"
+  URL="$TWIRP_HOST/twirp/playground.PlaygroundService/GetAppVersion"
 
-  # Use jq to safely parse JSON; fallback to grep if jq isn't installed
-  if command -v jq &> /dev/null; then
-    VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
-  else
-    VERSION=$(echo "$RESPONSE" | grep -oP '"version"\s*:\s*"\K[^"]+')
-  fi
+  EXPECTED_VERSION=$VERSION
+  PAYLOAD="{}"
+  HEADERS=(-H "Content-Type: application/json")
 
-  if [[ "$VERSION" == "$EXPECTED_VERSION" ]]; then
-    echo "Received expected version: $VERSION"
-    break
-  else
-    echo "Waiting for expected version... got: ${VERSION:-"no version"}"
-    sleep 1
-  fi
-done
+  while true; do
+    RESPONSE=$(curl -s -X POST "${HEADERS[@]}" -d "$PAYLOAD" "$URL")
 
-echo "Deployment successful! Version $VERSION has been deployed."
+    # Use jq to safely parse JSON; fallback to grep if jq isn't installed
+    if command -v jq &> /dev/null; then
+      VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
+    else
+      VERSION=$(echo "$RESPONSE" | grep -oP '"version"\s*:\s*"\K[^"]+')
+    fi
+
+    if [[ "$VERSION" == "$EXPECTED_VERSION" ]]; then
+      echo "Received expected version: $VERSION"
+      break
+    else
+      echo "Waiting for expected version... got: ${VERSION:-"no version"}"
+      sleep 1
+    fi
+  done
+}
+
+main
