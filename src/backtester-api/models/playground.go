@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,6 +42,11 @@ type Playground struct {
 	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
 	newTradesQueue        *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
 	minimumPeriod         time.Duration                                                  `gorm:"-"` // This is a new field
+	placeOrderMutex       *sync.Mutex                                                    `json:"-" gorm:"-"`
+}
+
+func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
+	return p.placeOrderMutex
 }
 
 func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
@@ -1973,6 +1979,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.minimumPeriod = minimumPeriod
 	playground.AccountID = accountID
 	playground.BrokerName = &brokerName
+	playground.placeOrderMutex = &sync.Mutex{}
 
 	if _, err := playground.UpdatePositionCachePositions(); err != nil {
 		return fmt.Errorf("error getting positions: %w", err)

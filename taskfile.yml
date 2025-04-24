@@ -113,6 +113,11 @@ tasks:
       - 'go test ./...'
     dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
 
+  test:e2e:live-account-close-with-id:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCloseWithID$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
   test:e2e:live-account-filled:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountFilled$ github.com/jiaming2012/slack-trading/integration_testing'

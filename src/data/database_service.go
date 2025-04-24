@@ -930,14 +930,17 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 }
 
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
+	if err := req.Validate(); err != nil {
+		return nil, eventmodels.NewWebError(400, "invalid request", err)
+	}
+	
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", err)
 	}
 
-	if err := req.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid request", err)
-	}
+	playground.GetPlaceOrderLock().Lock()
+	defer playground.GetPlaceOrderLock().Unlock()
 
 	createdOn := playground.GetCurrentTime()
 

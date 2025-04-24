@@ -30,6 +30,7 @@ message MockFillOrderRequest {
     double price = 2;
     string status = 3;
     string broker = 4;
+    optional int32 delay_in_seconds = 5;
 }
 
 message GetReconciliationReportRequest {
@@ -316,5 +317,6 @@ message Order {
     repeated Order reconciles = 19;
     optional string client_request_id = 20;
     Position previous_position = 21;
+    optional uint64 close_order_id = 22;
 }
 
