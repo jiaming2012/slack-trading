@@ -136,16 +136,16 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 
 	require.Len(t, reconcileAccount.Orders, 2)
 
+	delayInSeconds := int32(5)
 	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[1].ExternalId,
-		Price:   178.0,
-		Status:  "filled",
-		Broker:  "tradier",
+		OrderId:        *reconcileAccount.Orders[1].ExternalId,
+		Price:          178.0,
+		Status:         "filled",
+		Broker:         "tradier",
+		DelayInSeconds: &delayInSeconds,
 	})
 
 	require.NoError(t, err)
-
-	time.Sleep(time.Second * 3)
 
 	// 2nd order should fail
 	clientReqId = "test3"

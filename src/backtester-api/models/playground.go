@@ -1556,7 +1556,7 @@ outer_loop:
 		for _, o := range pendingReconcileOrders {
 			if o.Symbol == order.Symbol {
 				pendingOrder = o
-				log.Warnf("placeLiveOrder: pending order %d already exists in reconcile playground pending orders", o.ID)
+				log.Warnf("placeLiveOrder: cannot place order #%d because pending order #%d already exists, with symbol=%s, in reconcile playground pending orders", order.ID, o.ID, o.Symbol)
 				time.Sleep(1 * time.Second)
 				continue outer_loop
 			}
