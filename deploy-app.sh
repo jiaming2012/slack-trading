@@ -114,7 +114,8 @@ fetch_new_version() {
 
   while true; do
     RESPONSE=$(curl -s -X POST "${HEADERS[@]}" -d "$PAYLOAD" "$URL")
-
+    echo "Raw response: $RESPONSE"  # Debugging line
+    
     # Use jq to safely parse JSON; fallback to grep if jq isn't installed
     if command -v jq &> /dev/null; then
       VERSION=$(echo "$RESPONSE" | jq -r '.version // empty')
