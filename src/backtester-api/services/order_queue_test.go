@@ -323,7 +323,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NotNil(t, reconcileOrders[1].ExternalOrderID)
 		err = broker.FillOrder(*reconcileOrders[1].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
 		require.NoError(t, err)
-		
+
 		require.NotNil(t, reconcileOrders[2].ExternalOrderID)
 		err = broker.FillOrder(*reconcileOrders[2].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
 		require.NoError(t, err)
@@ -360,5 +360,175 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, order2.ID, *trRec.OrderID)
 		diff := order1.GetQuantity() + order2.GetQuantity()
 		require.Equal(t, diff, trRec.Quantity)
+	})
+
+	t.Run("fill orders out of sequence", func(t *testing.T) {
+		reconcileOrderIdx := uint(1000)
+		broker := models.NewMockBroker(reconcileOrderIdx, nil)
+		database := models.NewMockDatabase()
+		newTradesQueue1 := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesFilledQueue", 3)
+		liveAccount, err := models.NewLiveAccount(broker, database)
+		require.NoError(t, err)
+
+		playgroundID, err := uuid.Parse("5ac6cb3a-5182-4330-96f6-297f0bb99ac1")
+		require.NoError(t, err)
+		playground1, err := createMockReconcilePlayground(&playgroundID, database, broker, liveAccount)
+		require.NoError(t, err)
+
+		reconcilePlayground := createReconcilePlayground(t, playground1, liveAccount, database)
+		liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 2)
+
+		playgroundID, err = uuid.Parse("c59a5f72-7989-4457-9120-f281924e7e0e")
+		require.NoError(t, err)
+		livePlayground1 := createLivePlayground(t, playgroundID, reconcilePlayground, liveAccount, broker, database, newTradesQueue1)
+
+		// save playgrounds
+		err = database.SavePlaygroundSession(reconcilePlayground.GetPlayground())
+		require.NoError(t, err)
+
+		err = database.SavePlaygroundSession(livePlayground1)
+		require.NoError(t, err)
+
+		// place buy order
+		order1 := models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideBuy, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+
+		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
+		require.NoError(t, err)
+
+		for _, change := range placeOrderChanges {
+			err := change.Commit()
+			require.NoError(t, err)
+		}
+
+		// fill buy order
+		reconcileOrders := livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 1)
+
+		require.NotNil(t, reconcileOrders[0].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[0].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
+		require.NoError(t, err)
+
+		hasUpdates, err := DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
+		require.NoError(t, err)
+		require.True(t, hasUpdates)
+
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
+		// assert - live order is filled
+		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 1)
+		require.Equal(t, models.TradierOrderSideBuy, reconcileOrders[0].Side)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[0].Status)
+		require.Equal(t, 19.0, reconcileOrders[0].AbsoluteQuantity)
+		require.Len(t, reconcileOrders[0].Reconciles, 1)
+		require.Equal(t, order1.ID, reconcileOrders[0].Reconciles[0].ID)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[0].Reconciles[0].Status)
+
+		liveOrders := livePlayground1.GetAllOrders()
+		require.Len(t, liveOrders, 1)
+		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[0].Status)
+
+		// place sell order
+		order2 := models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSell, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+
+		placeOrderChanges2, err := livePlayground1.PlaceOrder(order2)
+		require.NoError(t, err)
+
+		for _, change := range placeOrderChanges2 {
+			err := change.Commit()
+			require.NoError(t, err)
+		}
+
+		liveOrders = livePlayground1.GetAllOrders()
+		require.Len(t, liveOrders, 2)
+		require.Equal(t, models.OrderRecordStatusPending, liveOrders[1].Status)
+
+		// do not fill order - yet
+		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 2)
+		require.Equal(t, models.TradierOrderSideSell, reconcileOrders[1].Side)
+		require.Equal(t, models.OrderRecordStatusPending, reconcileOrders[1].Status)
+		require.Equal(t, 19.0, reconcileOrders[1].AbsoluteQuantity)
+
+		// place sell short order
+		order3 := models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSellShort, 5, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
+
+		placeOrderChanges3, err := livePlayground1.PlaceOrder(order3)
+		require.NoError(t, err)
+
+		for _, change := range placeOrderChanges3 {
+			err := change.Commit()
+			require.NoError(t, err)
+		}
+
+		liveOrders = livePlayground1.GetAllOrders()
+		require.Len(t, liveOrders, 3)
+		require.Equal(t, models.OrderRecordStatusNew, liveOrders[2].Status)
+
+		// order #3 (sell short) not available to fill
+		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 2)
+		allOrders := livePlayground1.GetAllOrders()
+		require.Len(t, allOrders, 3)
+		require.Equal(t, order3.ID, allOrders[2].ID)
+
+		position, err := livePlayground1.GetPosition(symbol, true)
+		require.NoError(t, err)
+		require.Equal(t, 19.0, position.Quantity)
+
+		// fill order #2
+		require.NotNil(t, reconcileOrders[1].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[1].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
+		require.NoError(t, err)
+
+		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
+		require.NoError(t, err)
+		require.True(t, hasUpdates)
+
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
+		// assert - live order #2 is filled
+		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 3)
+
+		require.Equal(t, models.TradierOrderSideSell, reconcileOrders[1].Side)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Status)
+		require.Equal(t, 19.0, reconcileOrders[1].AbsoluteQuantity)
+		require.Len(t, reconcileOrders[1].Reconciles, 1)
+		require.Equal(t, order2.ID, reconcileOrders[1].Reconciles[0].ID)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Reconciles[0].Status)
+
+		require.Equal(t, models.OrderRecordStatusPending, reconcileOrders[2].Status)
+
+		// fill order #3
+		require.NotNil(t, reconcileOrders[2].ExternalOrderID)
+		err = broker.FillOrder(*reconcileOrders[2].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
+		require.NoError(t, err)
+
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
+		require.NoError(t, err)
+
+		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
+		require.NoError(t, err)
+		require.True(t, hasUpdates)
+
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
+		// assert - live order #3 is filled
+		require.Equal(t, models.TradierOrderSideSellShort, reconcileOrders[2].Side)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[2].Status)
+		require.Equal(t, 5.0, reconcileOrders[2].AbsoluteQuantity)
+		require.Len(t, reconcileOrders[2].Reconciles, 1)
+		require.Equal(t, order3.ID, reconcileOrders[2].Reconciles[0].ID)
+		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[2].Reconciles[0].Status)
 	})
 }

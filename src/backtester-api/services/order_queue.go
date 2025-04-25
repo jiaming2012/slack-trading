@@ -136,6 +136,56 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 	}
 
+	if joinedErr == nil {
+		newOrder, e := dbService.FetchNewOrder()
+		if e != nil {
+			err = fmt.Errorf("handleLiveOrders: failed to fetch new orders: %w", e)
+			joinedErr = errors.Join(joinedErr, err)
+			return joinedErr
+		}
+
+		if newOrder != nil {
+			playground, e := dbService.GetPlayground(newOrder.PlaygroundID)
+			if e != nil {
+				err = fmt.Errorf("handleLiveOrders: failed to get playground: %w", e)
+				joinedErr = errors.Join(joinedErr, err)
+				return joinedErr
+			}
+
+			// remove order from new orders queue
+			order := playground.PopNewOrdersQueue(newOrder.ID)
+
+			// add order to pending orders
+			// playground.AddToPendingOrdersQueue(order)
+
+			// if e := dbService.SaveOrderRecord(order, nil, false); e != nil {
+			// 	err = fmt.Errorf("handleLiveOrders: failed to save order record: %w", e)
+			// 	joinedErr = errors.Join(joinedErr, err)
+			// 	return joinedErr
+			// }
+
+			// place order in the playground
+			playgroundChanges, e := playground.PlaceOrder(order)
+			if e != nil {
+				err = fmt.Errorf("handleLiveOrders: failed to place order: %w", e)
+				joinedErr = errors.Join(joinedErr, err)
+				return joinedErr
+			}
+
+			for _, change := range playgroundChanges {
+				if e := change.Commit(); e != nil {
+					err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
+					joinedErr = errors.Join(joinedErr, err)
+					return joinedErr
+				}
+			}
+
+			log.Debugf("handleLiveOrders: order placed from new orders queue: %v", order)
+		} else {
+			log.Debugf("handleLiveOrders: no new open orders")
+		}
+	}
+
 	return joinedErr
 }
 
@@ -233,7 +283,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				},
 			})
 
-			log.Debugf("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled", order.ExternalOrderID)
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled by broker", order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusRejected) {
 			reason := "rejected by broker"
 			if tradierOrder.ReasonDescription != nil {
@@ -253,6 +303,8 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					New:            reason,
 				},
 			})
+
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is rejected by broker", order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusCanceled) {
 			if order.ExternalOrderID == nil {
 				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
@@ -267,6 +319,8 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					New:            string(models.OrderRecordStatusCanceled),
 				},
 			})
+
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is canceled by broker", order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusPending) {
 			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d is pending", order.ExternalOrderID)
 			continue
@@ -421,7 +475,6 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 			if event.ModifyOrder.Field == "status" {
 				// todo: remove once all orders have links to playground, after PlaygroundSession refactor
 				playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.TradierOrderID)
-
 				if err == nil {
 					reason, ok := event.ModifyOrder.New.(string)
 					if !ok {

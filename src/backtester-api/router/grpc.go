@@ -98,6 +98,12 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		CurrentPrice:      o.PreviousPosition.CurrentPrice,
 	}
 
+	var closeOrderId *uint64
+	if o.CloseOrderId != nil {
+		_closeOrderId := uint64(*o.CloseOrderId)
+		closeOrderId = &_closeOrderId
+	}
+
 	order := &pb.Order{
 		Id:               uint64(o.ID),
 		ExternalId:       externalId,
@@ -117,6 +123,7 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 		Closes:           closes,
 		Reconciles:       reconciles,
 		PreviousPosition: previousPosition,
+		CloseOrderId:     closeOrderId,
 	}
 
 	if o.Price != nil {
@@ -140,8 +147,17 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 		return nil, fmt.Errorf("failed to get mock broker: %v", err)
 	}
 
-	if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
-		return nil, fmt.Errorf("failed to fill mock order: %v", err)
+	if req.DelayInSeconds != nil && *req.DelayInSeconds > 0 {
+		go func() {
+			time.Sleep(time.Duration(*req.DelayInSeconds) * time.Second)
+			if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
+				log.Errorf("failed to fill mock order: %v", err)
+			}
+		}()
+	} else {
+		if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
+			return nil, fmt.Errorf("failed to fill mock order: %v", err)
+		}
 	}
 
 	return &pb.EmptyResponse{}, nil
@@ -601,7 +617,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	account, err := s.dbService.GetAccountInfo(playgroundId, req.FetchOrders, from, to, status, sides, req.Symbols)
+	account, err := s.dbService.GetAccount(playgroundId, req.FetchOrders, from, to, status, sides, req.Symbols)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}

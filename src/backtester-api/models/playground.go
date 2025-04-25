@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,28 +20,83 @@ import (
 type Playground struct {
 	gorm.Model
 	Meta
-	ID                    uuid.UUID                                                      `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	account               *BacktesterAccount                                             `gorm:"-"`
-	clock                 *Clock                                                         `gorm:"-"`
-	ClientID              *string                                                        `gorm:"column:client_id;type:text;unique"`
-	Balance               float64                                                        `gorm:"column:balance;type:numeric;not null"`
-	BrokerName            *string                                                        `gorm:"column:broker;type:text"`
-	AccountID             *string                                                        `gorm:"column:account_id;type:text"`
-	Orders                []*OrderRecord                                                 `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	EquityPlotRecords     []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
-	ParentID              *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
-	Repositories          CandleRepositoryRecord                                         `gorm:"type:json"`
-	ReconcilePlaygroundID *uuid.UUID                                                     `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
-	LiveAccountID         *uint                                                          `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
-	LiveAccount           ILiveAccount                                                   `gorm:"-"`
-	ReconcilePlayground   IReconcilePlayground                                           `gorm:"-"`
-	repos                 map[eventmodels.Instrument]map[time.Duration]*CandleRepository `gorm:"-"`
-	isBacktestComplete    bool                                                           `gorm:"-"`
-	positionCache         *PositionsCache                                                `gorm:"-"`
-	openOrdersCache       *OpenOrdersCache                                               `gorm:"-"`
-	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
-	newTradesQueue        *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
-	minimumPeriod         time.Duration                                                  `gorm:"-"` // This is a new field
+	ID                      uuid.UUID                                                      `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	account                 *BacktesterAccount                                             `gorm:"-"`
+	clock                   *Clock                                                         `gorm:"-"`
+	ClientID                *string                                                        `gorm:"column:client_id;type:text;unique"`
+	Balance                 float64                                                        `gorm:"column:balance;type:numeric;not null"`
+	BrokerName              *string                                                        `gorm:"column:broker;type:text"`
+	AccountID               *string                                                        `gorm:"column:account_id;type:text"`
+	Orders                  []*OrderRecord                                                 `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	EquityPlotRecords       []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
+	ParentID                *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
+	Repositories            CandleRepositoryRecord                                         `gorm:"type:json"`
+	ReconcilePlaygroundID   *uuid.UUID                                                     `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
+	LiveAccountID           *uint                                                          `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
+	LiveAccount             ILiveAccount                                                   `gorm:"-"`
+	ReconcilePlayground     IReconcilePlayground                                           `gorm:"-"`
+	repos                   map[eventmodels.Instrument]map[time.Duration]*CandleRepository `gorm:"-"`
+	isBacktestComplete      bool                                                           `gorm:"-"`
+	positionCache           *PositionsCache                                                `gorm:"-"`
+	openOrdersCache         *OpenOrdersCache                                               `gorm:"-"`
+	newCandlesQueue         *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
+	newTradesQueue          *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
+	minimumPeriod           time.Duration                                                  `gorm:"-"` // This is a new field
+	placeOrderMutex         *sync.Mutex                                                    `json:"-" gorm:"-"`
+	newOrdersQueueMutex     *sync.Mutex                                                    `json:"-" gorm:"-"`
+	pendingOrdersQueueMutex *sync.Mutex                                                    `json:"-" gorm:"-"`
+}
+
+func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
+	return p.placeOrderMutex
+}
+
+func (p *Playground) PopNewOrdersQueue(orderID uint) *OrderRecord {
+	p.newOrdersQueueMutex.Lock()
+	defer p.newOrdersQueueMutex.Unlock()
+
+	if len(p.account.NewOrders) == 0 {
+		return nil
+	}
+
+	for i, o := range p.account.NewOrders {
+		if o.ID == orderID {
+			p.account.NewOrders = append(p.account.NewOrders[:i], p.account.NewOrders[i+1:]...)
+			return o
+		}
+	}
+
+	return nil
+}
+
+func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
+	p.pendingOrdersQueueMutex.Lock()
+	defer p.pendingOrdersQueueMutex.Unlock()
+
+	for _, o := range p.account.PendingOrders {
+		if o.ID == order.ID {
+			log.Warnf("order %d already in pending orders queue", order.ID)
+			return
+		}
+	}
+
+	order.Status = OrderRecordStatusPending
+	p.account.PendingOrders = append(p.account.PendingOrders, order)
+}
+
+func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) {
+	p.newOrdersQueueMutex.Lock()
+	defer p.newOrdersQueueMutex.Unlock()
+
+	for _, o := range p.account.NewOrders {
+		if o.ID == order.ID {
+			log.Warnf("order %d already in new orders queue", order.ID)
+			return
+		}
+	}
+
+	order.Status = OrderRecordStatusNew
+	p.account.NewOrders = append(p.account.NewOrders, order)
 }
 
 func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
@@ -743,91 +799,6 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 	}
 
-	var closeByRequests []*CloseByRequest
-
-	// reconciliation playgrounds do not have close orders
-	if order.LiveAccountType != LiveAccountTypeReconcilation {
-		// mutates the order to add closes info
-		if err := p.addClosesInfoToOrder(order, position); err != nil {
-			return nil, false, fmt.Errorf("fillOrder: error adding closes info to order: %w", err)
-		}
-
-		if order.IsClose {
-			volumeToClose := math.Abs(order.GetQuantity())
-
-			if order.CloseOrderId == nil {
-				openOrders := p.GetOpenOrders(order.GetInstrument())
-
-				// calculate the volume to close
-				for _, o := range openOrders {
-					if volumeToClose <= 0 {
-						break
-					}
-
-					qty, err := o.GetRemainingOpenQuantity()
-					if err != nil {
-						return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
-					}
-
-					remainingOpenQuantity := math.Abs(qty)
-					if remainingOpenQuantity <= 0 {
-						continue
-					}
-
-					quantity := math.Min(volumeToClose, remainingOpenQuantity)
-					volumeToClose -= quantity
-
-					sign := 1.0
-					if o.Side == TradierOrderSideBuy {
-						sign = -1.0
-					}
-
-					closeByRequests = append(closeByRequests, &CloseByRequest{
-						Order:    o,
-						Quantity: quantity * sign,
-					})
-				}
-			} else {
-				o := p.GetOpenOrder(*order.CloseOrderId)
-				if o == nil {
-					return nil, false, fmt.Errorf("fillOrder: open order %d not found in open orders", *order.CloseOrderId)
-				}
-
-				qty, err := o.GetRemainingOpenQuantity()
-				if err != nil {
-					return nil, false, fmt.Errorf("fillOrder: error getting remaining open quantity: %w", err)
-				}
-
-				remainingOpenQuantity := math.Abs(qty)
-				if remainingOpenQuantity <= 0 {
-					return nil, false, fmt.Errorf("fillOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
-				}
-
-				quantity := math.Min(volumeToClose, remainingOpenQuantity)
-				volumeToClose -= quantity
-
-				sign := 1.0
-				if o.Side == TradierOrderSideBuy {
-					sign = -1.0
-				}
-
-				closeByRequests = append(closeByRequests, &CloseByRequest{
-					Order:    o,
-					Quantity: quantity * sign,
-				})
-			}
-
-			// check if the volume to close is valid
-			if volumeToClose < 0 {
-				return nil, false, fmt.Errorf("fillOrder: volume to close cannot be negative")
-			}
-
-			if volumeToClose > 0 {
-				return nil, false, fmt.Errorf("fillOrder: volume to close exceeds open volume")
-			}
-		}
-	}
-
 	// commit the trade
 	var trade *TradeRecord
 	if orderFillEntry.Trade != nil {
@@ -844,6 +815,11 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 
 		return nil, false, fmt.Errorf("fillOrder: error filling order: %w", err)
+	}
+
+	closeByRequests, err := p.getCloseByRequests(order, position)
+	if err != nil {
+		return nil, false, fmt.Errorf("fillOrder: error getting close by requests: %w", err)
 	}
 
 	// close the open orders
@@ -881,7 +857,6 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	// update the caches
 	p.openOrdersCache.Commit(openOrdersCacheCopy)
 	p.positionCache.Commit(positionCacheCopy)
-
 
 	if orderFillEntry.Trade != nil {
 		orderFillEntry.Trade = trade
@@ -941,9 +916,11 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	}
 
 	if position.Quantity > 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		externalId := p.account.NextOrderID()
+		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else if position.Quantity < 0 {
-		order = NewOrderRecord(p.account.NextOrderID(), nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		externalId := p.account.NextOrderID()
+		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
 	} else {
 		return nil, nil
 	}
@@ -1222,6 +1199,7 @@ func (p *Playground) GetAllOrders() []*OrderRecord {
 	defer p.account.mutex.Unlock()
 
 	result := append(p.account.Orders, p.account.PendingOrders...)
+	result = append(result, p.account.NewOrders...)
 	if len(result) == 0 {
 		return make([]*OrderRecord, 0)
 	}
@@ -1594,83 +1572,93 @@ func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 }
 
 func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	var changes []*PlaceOrderChanges
+
 	pendingOrders := p.GetPendingOrders()
-	for _, o := range pendingOrders {
+	if len(pendingOrders) > 0 {
+		o := pendingOrders[0]
 		cliReqID := ""
 		if o.ClientRequestID != nil {
 			cliReqID = *o.ClientRequestID
 		}
 
-		log.Warnf("ClientRequestID=%s placeLiveOrder: pending order %d already exists in pending orders", cliReqID, o.ID)
-	}
+		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing into new orders queue", o.ID, cliReqID)
 
-	if p.ReconcilePlayground.GetLiveAccount() == nil {
-		return nil, fmt.Errorf("live account is not set")
-	}
-
-	var changes []*PlaceOrderChanges
-
-	reconcilePlayground := p.ReconcilePlayground
-	if reconcilePlayground == nil {
-		return nil, fmt.Errorf("reconcile playground is not set")
-	}
-
-	if reconcilePlayground.GetId() == p.GetId() {
-		return nil, fmt.Errorf("cannot place order in the same playground")
-	}
-
-	// check no pending orders exist
-	maxAttempts := 10
-	var pendingOrder *OrderRecord
-
-outer_loop:
-	for range maxAttempts {
-		pendingReconcileOrders := reconcilePlayground.GetPlayground().GetPendingOrders()
-		for _, o := range pendingReconcileOrders {
-			if o.Symbol == order.Symbol {
-				pendingOrder = o
-				log.Warnf("placeLiveOrder: pending order %d already exists in reconcile playground pending orders", o.ID)
-				time.Sleep(1 * time.Second)
-				continue outer_loop
-			}
-		}
-		pendingOrder = nil
-		break
-	}
-
-	if pendingOrder != nil {
-		return nil, fmt.Errorf("multiple pending orders not allowed: order %d already exists in reconcile playground for symbol %s", pendingOrder.ID, pendingOrder.Symbol)
-	}
-
-	// todo: place all changes inside of a single transaction
-	playgroundChanges, err := p.placeOrder(order)
-	if err != nil {
-		return nil, fmt.Errorf("failed to place order in live playground: %w", err)
-	}
-
-	// todo: place all changes inside of a single transaction
-	reconciliationChanges, reconciliationOrders, err := reconcilePlayground.PlaceOrder(order)
-	if err != nil {
-		return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
-	}
-
-	changes = append(changes, reconciliationChanges...)
-	changes = append(changes, playgroundChanges...)
-
-	for _, o := range reconciliationOrders {
 		changes = append(changes, &PlaceOrderChanges{
 			Commit: func() error {
-				_order := o
-
-				// todo: place all changes inside of a single transaction
-				if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(_order, nil, true); err != nil {
-					return fmt.Errorf("failed to save reconciliation order record: %w", err)
-				}
-
+				p.AddToNewOrdersQueue(order)
 				return nil
 			},
-			Info: fmt.Sprintf("save reconciliation order record %d", o.ID),
+			Info: fmt.Sprintf("adding order %d to new orders queue", order.ID),
 		})
+	} else {
+		// no pending orders, place the order
+		if p.ReconcilePlayground.GetLiveAccount() == nil {
+			return nil, fmt.Errorf("live account is not set")
+		}
+
+		reconcilePlayground := p.ReconcilePlayground
+		if reconcilePlayground == nil {
+			return nil, fmt.Errorf("reconcile playground is not set")
+		}
+
+		if reconcilePlayground.GetId() == p.GetId() {
+			return nil, fmt.Errorf("cannot place order in the same playground")
+		}
+
+		// 	// check no pending orders exist
+		// 	maxAttempts := 30
+		// 	var pendingOrder *OrderRecord
+
+		// outer_loop:
+		// 	for range maxAttempts {
+		// 		pendingReconcileOrders := reconcilePlayground.GetPlayground().GetPendingOrders()
+		// 		for _, o := range pendingReconcileOrders {
+		// 			if o.Symbol == order.Symbol {
+		// 				pendingOrder = o
+		// 				log.Warnf("placeLiveOrder: cannot place order #%d because pending order #%d (externalId) already exists, with symbol=%s, in reconcile playground pending orders", order.ID, *o.ExternalOrderID, o.Symbol)
+		// 				time.Sleep(1 * time.Second)
+		// 				continue outer_loop
+		// 			}
+		// 		}
+		// 		pendingOrder = nil
+		// 		break
+		// 	}
+
+		// 	if pendingOrder != nil {
+		// 		return nil, fmt.Errorf("multiple pending orders not allowed: order %d already exists in reconcile playground for symbol %s", pendingOrder.ID, pendingOrder.Symbol)
+		// 	}
+
+		// todo: place all changes inside of a single transaction
+		playgroundChanges, err := p.placeOrder(order)
+		if err != nil {
+			return nil, fmt.Errorf("failed to place order in live playground: %w", err)
+		}
+
+		// todo: place all changes inside of a single transaction
+		reconciliationChanges, reconciliationOrders, err := reconcilePlayground.PlaceOrder(order)
+		if err != nil {
+			return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
+		}
+
+		changes = append(changes, reconciliationChanges...)
+		changes = append(changes, playgroundChanges...)
+
+		for _, o := range reconciliationOrders {
+			changes = append(changes, &PlaceOrderChanges{
+				Commit: func() error {
+					_order := o
+
+					// todo: place all changes inside of a single transaction
+					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(_order, nil, true); err != nil {
+						return fmt.Errorf("failed to save reconciliation order record: %w", err)
+					}
+
+					return nil
+				},
+				Info: fmt.Sprintf("save reconciliation order record %d", o.ID),
+			})
+		}
 	}
 
 	changes = append(changes, &PlaceOrderChanges{
@@ -1709,6 +1697,95 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 	})
 
 	return changes, nil
+}
+
+func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position) ([]*CloseByRequest, error) {
+	var closeByRequests []*CloseByRequest
+
+	// reconciliation playgrounds do not have close orders
+	if order.LiveAccountType != LiveAccountTypeReconcilation {
+		// mutates the order to add closes info
+		if err := p.addClosesInfoToOrder(order, position); err != nil {
+			return nil, fmt.Errorf("placeOrder: error adding closes info to order: %w", err)
+		}
+
+		if order.IsClose {
+			volumeToClose := math.Abs(order.GetQuantity())
+
+			if order.CloseOrderId == nil {
+				openOrders := p.GetOpenOrders(order.GetInstrument())
+
+				// calculate the volume to close
+				for _, o := range openOrders {
+					if volumeToClose <= 0 {
+						break
+					}
+
+					qty, err := o.GetRemainingOpenQuantity()
+					if err != nil {
+						return nil, fmt.Errorf("placeOrder: error getting remaining open quantity: %w", err)
+					}
+
+					remainingOpenQuantity := math.Abs(qty)
+					if remainingOpenQuantity <= 0 {
+						continue
+					}
+
+					quantity := math.Min(volumeToClose, remainingOpenQuantity)
+					volumeToClose -= quantity
+
+					sign := 1.0
+					if o.Side == TradierOrderSideBuy {
+						sign = -1.0
+					}
+
+					closeByRequests = append(closeByRequests, &CloseByRequest{
+						Order:    o,
+						Quantity: quantity * sign,
+					})
+				}
+			} else {
+				o := p.GetOpenOrder(*order.CloseOrderId)
+				if o == nil {
+					return nil, fmt.Errorf("placeOrder: open order %d not found in open orders", *order.CloseOrderId)
+				}
+
+				qty, err := o.GetRemainingOpenQuantity()
+				if err != nil {
+					return nil, fmt.Errorf("placeOrder: error getting remaining open quantity: %w", err)
+				}
+
+				remainingOpenQuantity := math.Abs(qty)
+				if remainingOpenQuantity <= 0 {
+					return nil, fmt.Errorf("placeOrder: open order %d has no remaining open quantity", *order.CloseOrderId)
+				}
+
+				quantity := math.Min(volumeToClose, remainingOpenQuantity)
+				volumeToClose -= quantity
+
+				sign := 1.0
+				if o.Side == TradierOrderSideBuy {
+					sign = -1.0
+				}
+
+				closeByRequests = append(closeByRequests, &CloseByRequest{
+					Order:    o,
+					Quantity: quantity * sign,
+				})
+			}
+
+			// check if the volume to close is valid
+			if volumeToClose < 0 {
+				return nil, fmt.Errorf("placeOrder: volume to close cannot be negative")
+			}
+
+			if volumeToClose > 0 {
+				return nil, fmt.Errorf("placeOrder: volume to close exceeds open volume")
+			}
+		}
+	}
+
+	return closeByRequests, nil
 }
 
 func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
@@ -1769,6 +1846,10 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 	if err := utils.ValidateTag(order.Tag); err != nil {
 		return nil, fmt.Errorf("invalid tag: %w", err)
+	}
+
+	if _, err := p.getCloseByRequests(order, position); err != nil {
+		return nil, fmt.Errorf("error getting close by requests: %w", err)
 	}
 
 	// order.ID can be zero if the order is a pending live order
@@ -1959,6 +2040,9 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.minimumPeriod = minimumPeriod
 	playground.AccountID = accountID
 	playground.BrokerName = &brokerName
+	playground.placeOrderMutex = &sync.Mutex{}
+	playground.newOrdersQueueMutex = &sync.Mutex{}
+	playground.pendingOrdersQueueMutex = &sync.Mutex{}
 
 	if _, err := playground.UpdatePositionCachePositions(); err != nil {
 		return fmt.Errorf("error getting positions: %w", err)

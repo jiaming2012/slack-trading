@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccountClose(t *testing.T) {
+func TestLiveAccountCloseDuplicateOpen(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -42,22 +43,22 @@ func TestLiveAccountClose(t *testing.T) {
 
 	// Place an order
 	clientReqId := "test1"
-	placeOrderResp, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+	placeOrderResp1, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
 		ClientRequestId: &clientReqId,
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "buy",
+		Side:            "sell_short",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
 	})
 
 	require.NoError(t, err)
-	require.NotNil(t, placeOrderResp)
+	require.NotNil(t, placeOrderResp1)
 
-	// Fetch the account
+	// Fetch the live account
 	liveAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: createLivePgResp.Id,
 		FetchOrders:  true,
@@ -83,66 +84,70 @@ func TestLiveAccountClose(t *testing.T) {
 
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 10)
+	now := time.Now()
+	var openTradeId *uint64
+	for {
+		if time.Since(now) > time.Second*40 {
+			break
+		}
 
-	// Place sell 1/2 order
+		uId := uuid.NewString()
+
+		nextTickResponse, err := p.NextTick(ctx, &playground.NextTickRequest{
+			PlaygroundId: createLivePgResp.Id,
+			RequestId:    uId,
+		})
+		require.NoError(t, err)
+
+		if len(nextTickResponse.NewTrades) > 0 {
+			openTradeId = &nextTickResponse.NewTrades[0].Id
+			break
+		}
+
+		time.Sleep(time.Second) // Wait for the order to be filled
+	}
+
+	require.NotNil(t, openTradeId)
+
+	// close order should succeed
 	clientReqId = "test2"
-	_, err = p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+	placeOrderResp2, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
 		ClientRequestId: &clientReqId,
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
-		Quantity:        5,
-		Side:            "sell",
+		Quantity:        10,
+		Side:            "buy_to_cover",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
 	})
 
 	require.NoError(t, err)
+	require.NotNil(t, placeOrderResp2)
 
-	// Fill the order
-	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
-		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
-		FetchOrders:  true,
-	})
-
-	require.NoError(t, err)
-	require.Len(t, reconcileAccount.Orders, 2)
-
-	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[1].ExternalId,
-		Price:   178.0,
-		Status:  "filled",
-		Broker:  "tradier",
-	})
-
-	require.NoError(t, err)
-
-	time.Sleep(time.Second * 10)
-
-	// Place sell 1/2 order, closes remaining position
+	// new buy order should succeed
 	clientReqId = "test3"
-	_, err = p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
+	placeOrderResp3, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
 		ClientRequestId: &clientReqId,
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
-		Quantity:        5,
-		Side:            "sell",
+		Quantity:        10,
+		Side:            "buy",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
 	})
 
 	require.NoError(t, err)
+	require.NotNil(t, placeOrderResp3)
 
-	// Fill the order
+	// Fill 2nd close order
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
 	})
-
 	require.NoError(t, err)
 	require.Len(t, reconcileAccount.Orders, 3)
 
@@ -155,39 +160,77 @@ func TestLiveAccountClose(t *testing.T) {
 
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 20)
+	invalidOrdersCount := 0
+	now = time.Now()
+	for {
+		if time.Since(now) > time.Second*40 {
+			break
+		}
 
-	// Check the live account order details
+		uId := uuid.NewString()
+
+		nextTickResponse, err := p.NextTick(ctx, &playground.NextTickRequest{
+			PlaygroundId: createLivePgResp.Id,
+			RequestId:    uId,
+		})
+		require.NoError(t, err)
+
+		invalidOrdersCount += len(nextTickResponse.InvalidOrders)
+
+		if len(nextTickResponse.NewTrades) > 0 {
+			openTradeId = &nextTickResponse.NewTrades[0].Id
+			break
+		}
+
+		time.Sleep(time.Second) // Wait for the order to be filled
+	}
+
+	require.NotNil(t, openTradeId)
+	require.Equal(t, 0, invalidOrdersCount)
+
+	// Re-fetch the live account
 	liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: createLivePgResp.Id,
 		FetchOrders:  true,
 	})
+
 	require.NoError(t, err)
 	require.NotNil(t, liveAccount)
+
 	require.Len(t, liveAccount.Orders, 3)
 
+	require.Equal(t, placeOrderResp1.Id, liveAccount.Orders[0].Id)
 	require.Equal(t, "filled", liveAccount.Orders[0].Status)
+
+	require.Equal(t, placeOrderResp2.Id, liveAccount.Orders[2].Id)
+	require.Equal(t, "pending", liveAccount.Orders[2].Status)
+
+	require.Equal(t, placeOrderResp3.Id, liveAccount.Orders[1].Id)
 	require.Equal(t, "filled", liveAccount.Orders[1].Status)
-	require.Equal(t, "filled", liveAccount.Orders[2].Status)
 
-	// Check the live account positions
-	pos := liveAccount.Positions["AAPL"]
-	require.Nil(t, pos)
-
-	// Check the reconcile account order details
+	// Re-fetch the reconcile account
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
 	})
+
 	require.NoError(t, err)
 	require.NotNil(t, reconcileAccount)
+
 	require.Len(t, reconcileAccount.Orders, 3)
 
-	require.Equal(t, "filled", reconcileAccount.Orders[0].Status)
-	require.Equal(t, "filled", reconcileAccount.Orders[1].Status)
-	require.Equal(t, "filled", reconcileAccount.Orders[2].Status)
+	require.Len(t, reconcileAccount.Orders[0].Reconciles, 1)
+	require.Equal(t, placeOrderResp1.Id, reconcileAccount.Orders[0].Reconciles[0].Id)
+	require.Equal(t, "sell_short", reconcileAccount.Orders[0].Side)
+	require.Equal(t, "filled", liveAccount.Orders[0].Status)
 
-	// Check the live account positions
-	pos = reconcileAccount.Positions["AAPL"]
-	require.Nil(t, pos)
+	require.Len(t, reconcileAccount.Orders[1].Reconciles, 1)
+	require.Equal(t, placeOrderResp3.Id, reconcileAccount.Orders[1].Reconciles[0].Id)
+	require.Equal(t, "buy_to_cover", reconcileAccount.Orders[1].Side)
+	require.Equal(t, "pending", liveAccount.Orders[2].Status)
+
+	require.Len(t, reconcileAccount.Orders[2].Reconciles, 1)
+	require.Equal(t, placeOrderResp2.Id, reconcileAccount.Orders[2].Reconciles[0].Id)
+	require.Equal(t, "buy", reconcileAccount.Orders[2].Side)
+	require.Equal(t, "filled", liveAccount.Orders[2].Status)
 }

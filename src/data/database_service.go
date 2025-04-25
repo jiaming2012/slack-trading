@@ -280,6 +280,23 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	return out, nil
 }
 
+func (s *DatabaseService) FetchNewOrder() (newOrder *models.OrderRecord, err error) {
+	var order *models.OrderRecord
+
+	if err := s.db.Where("status = ?", string(models.OrderRecordStatusNew)).First(&order).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch new order: %w", err)
+	}
+
+	if order != nil {
+		return order, nil
+	}
+
+	return nil, nil
+}
+
 func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
@@ -930,14 +947,17 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 }
 
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
+	if err := req.Validate(); err != nil {
+		return nil, eventmodels.NewWebError(400, "invalid request", err)
+	}
+
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", err)
 	}
 
-	if err := req.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid request", err)
-	}
+	playground.GetPlaceOrderLock().Lock()
+	defer playground.GetPlaceOrderLock().Unlock()
 
 	createdOn := playground.GetCurrentTime()
 
@@ -968,10 +988,13 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	var orderId uint
 	if req.Id != nil {
 		orderId = *req.Id
-	} else if req.IsAdjustment {
-		orderId = 0
 	} else {
-		orderId = playground.NextOrderID()
+		orderId = 0
+	}
+
+	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
+		externalId := playground.NextOrderID()
+		req.ExternalOrderID = &externalId
 	}
 
 	order := models.NewOrderRecord(
@@ -1027,7 +1050,7 @@ func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*even
 	return plot, nil
 }
 
-func (s *DatabaseService) GetAccountInfo(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
+func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)

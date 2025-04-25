@@ -2475,7 +2475,7 @@ func TestOrders(t *testing.T) {
 
 		orders := playground.GetAllOrders()
 		require.Len(t, orders, 1)
-		require.Equal(t, OrderRecordStatusOpen, orders[0].GetStatus())
+		require.Equal(t, OrderRecordStatusNew, orders[0].GetStatus()) // TODO: change to pending
 
 		_, err = playground.Tick(time.Minute, false)
 		require.NoError(t, err)
