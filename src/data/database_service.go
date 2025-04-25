@@ -280,6 +280,23 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	return out, nil
 }
 
+func (s *DatabaseService) FetchNewOrder() (newOrder *models.OrderRecord, err error) {
+	var order *models.OrderRecord
+
+	if err := s.db.Where("status = ?", string(models.OrderRecordStatusNew)).First(&order).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch new order: %w", err)
+	}
+
+	if order != nil {
+		return order, nil
+	}
+
+	return nil, nil
+}
+
 func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
@@ -933,7 +950,7 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 	if err := req.Validate(); err != nil {
 		return nil, eventmodels.NewWebError(400, "invalid request", err)
 	}
-	
+
 	playground, err := s.FetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", err)
@@ -976,7 +993,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	}
 
 	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
-		externalId := playground.NextOrderID()		
+		externalId := playground.NextOrderID()
 		req.ExternalOrderID = &externalId
 	}
 

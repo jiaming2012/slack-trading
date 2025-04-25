@@ -3,7 +3,7 @@ package models
 type OrderRecordStatus string
 
 const (
-	OrderRecordStatusOpen            OrderRecordStatus = "open"
+	OrderRecordStatusNew             OrderRecordStatus = "new"
 	OrderRecordStatusPending         OrderRecordStatus = "pending"
 	OrderRecordStatusPartiallyFilled OrderRecordStatus = "partially_filled"
 	OrderRecordStatusFilled          OrderRecordStatus = "filled"
@@ -13,7 +13,7 @@ const (
 )
 
 func (status OrderRecordStatus) IsTradingAllowed() bool {
-	return status == OrderRecordStatusPending || status == OrderRecordStatusOpen || status == OrderRecordStatusPartiallyFilled
+	return status == OrderRecordStatusPending || status == OrderRecordStatusNew || status == OrderRecordStatusPartiallyFilled
 }
 
 func (status OrderRecordStatus) IsFilled() bool {

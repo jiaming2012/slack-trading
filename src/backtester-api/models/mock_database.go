@@ -123,10 +123,18 @@ func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, 
 
 	bFoundOrderRecord := false
 	for idx, o := range m.orderRecords[playgroundId] {
-		if o.ExternalOrderID == order.ExternalOrderID {
-			m.orderRecords[playgroundId][idx] = order
-			bFoundOrderRecord = true
-			break
+		if order.ExternalOrderID != nil {
+			if o.ExternalOrderID == order.ExternalOrderID {
+				m.orderRecords[playgroundId][idx] = order
+				bFoundOrderRecord = true
+				break
+			}
+		} else {
+			if o.ID == order.ID {
+				m.orderRecords[playgroundId][idx] = order
+				bFoundOrderRecord = true
+				break
+			}
 		}
 	}
 
@@ -182,7 +190,12 @@ func (m *MockDatabase) GetPlaygroundByClientId(clientId string) *Playground {
 }
 
 func (m *MockDatabase) GetPlayground(playgroundID uuid.UUID) (*Playground, error) {
-	return nil, nil
+	playground, found := m.playgrounds[playgroundID]
+	if !found {
+		return nil, fmt.Errorf("MockDatabase: playground not found")
+	}
+
+	return playground, nil
 }
 
 func (m *MockDatabase) DeletePlayground(playgroundID uuid.UUID) error {
@@ -222,6 +235,18 @@ func (m *MockDatabase) FetchReconcilePlaygroundByOrder(order *OrderRecord) (IRec
 	}
 
 	return nil, false, nil
+}
+
+func (m *MockDatabase) FetchNewOrder() (newOrder *OrderRecord, err error) {
+	for _, orders := range m.orderRecords {
+		for _, order := range orders {
+			if order.Status == OrderRecordStatusNew {
+				return order, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 func (m *MockDatabase) FetchPendingOrders(liveAccountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error) {

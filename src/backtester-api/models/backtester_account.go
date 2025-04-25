@@ -13,6 +13,7 @@ type BacktesterAccount struct {
 	Balance       float64
 	Orders        []*OrderRecord
 	PendingOrders []*OrderRecord
+	NewOrders     []*OrderRecord
 	EquityPlot    []*eventmodels.EquityPlot
 }
 
@@ -21,24 +22,16 @@ func (a *BacktesterAccount) NextOrderID() uint {
 	return a.OrderNonce - 1
 }
 
-func (a *BacktesterAccount) GetActiveOrders() []*OrderRecord {
-	result := make([]*OrderRecord, 0)
-	for _, order := range a.Orders {
-		status := order.GetStatus()
-		if status == OrderRecordStatusOpen || status == OrderRecordStatusPartiallyFilled {
-			result = append(result, order)
-		}
-	}
-	return result
-}
-
 func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAccount {
 	var pendingOrders []*OrderRecord
 	var activeOrders []*OrderRecord
+	var newOrders []*OrderRecord
 
 	for _, order := range orders {
 		if order.Status == OrderRecordStatusPending {
 			pendingOrders = append(pendingOrders, order)
+		} else if order.Status == OrderRecordStatusNew {
+			newOrders = append(newOrders, order)
 		} else {
 			activeOrders = append(activeOrders, order)
 		}
@@ -49,5 +42,6 @@ func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAcc
 		Balance:       balance,
 		Orders:        activeOrders,
 		PendingOrders: pendingOrders,
+		NewOrders:     newOrders,
 	}
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccountCloseWithID(t *testing.T) {
+func TestLiveAccountCloseDuplicate(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -49,7 +49,7 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "buy",
+		Side:            "sell_short",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
@@ -117,35 +117,14 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "sell",
+		Side:            "buy_to_cover",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
-		CloseOrderId:    &placeOrderResp1.Id,
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp2)
-
-	// Fill first close order
-	// reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
-	// 	PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
-	// 	FetchOrders:  true,
-	// })
-	// require.NoError(t, err)
-
-	// require.Len(t, reconcileAccount.Orders, 2)
-
-	// delayInSeconds := int32(5)
-	// _, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-	// 	OrderId:        *reconcileAccount.Orders[1].ExternalId,
-	// 	Price:          178.0,
-	// 	Status:         "filled",
-	// 	Broker:         "tradier",
-	// 	DelayInSeconds: &delayInSeconds,
-	// })
-
-	// require.NoError(t, err)
 
 	// 2nd order should fail
 	clientReqId = "test3"
@@ -155,14 +134,13 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "sell",
+		Side:            "buy_to_cover",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
-		CloseOrderId:    &placeOrderResp1.Id,
 	})
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot sell when no position exists")
+	require.ErrorContains(t, err, "cannot buy to cover when no position exists")
 	require.Nil(t, placeOrderResp3)
 }

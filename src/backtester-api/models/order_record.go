@@ -220,7 +220,7 @@ func (o *OrderRecord) GetStatus() OrderRecordStatus {
 
 	trades := o.GetTrades()
 	if len(trades) == 0 {
-		return OrderRecordStatusOpen
+		return OrderRecordStatusNew // TODO: change this to pending
 	}
 
 	if o.IsFilled() {

@@ -14,9 +14,9 @@ import (
 func TestOrderRecordStatus(t *testing.T) {
 	now := time.Time{}
 
-	t.Run("Open", func(t *testing.T) {
+	t.Run("New", func(t *testing.T) {
 		order := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, eventmodels.StockSymbol("AAPL"), "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
-		require.Equal(t, OrderRecordStatusOpen, order.GetStatus())
+		require.Equal(t, OrderRecordStatusNew, order.GetStatus())
 	})
 
 	t.Run("PartiallyFilled", func(t *testing.T) {
