@@ -153,35 +153,54 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			}
 
 			// remove order from new orders queue
-			order := playground.PopNewOrdersQueue(newOrder.ID)
-			if order == nil {
-				err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue", newOrder.ID)
+			order, err := playground.GetOrder(newOrder.ID) // get, then remove later
+			if err != nil {
+				err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue: %w", newOrder.ID, err)
 				joinedErr = errors.Join(joinedErr, err)
 				return joinedErr
 			}
-
-			// add order to pending orders
-			// playground.AddToPendingOrdersQueue(order)
-
-			// if e := dbService.SaveOrderRecord(order, nil, false); e != nil {
-			// 	err = fmt.Errorf("handleLiveOrders: failed to save order record: %w", e)
-			// 	joinedErr = errors.Join(joinedErr, err)
-			// 	return joinedErr
-			// }
 
 			// place order in the playground
 			playgroundChanges, e := playground.PlaceOrder(order)
 			if e != nil {
-				err = fmt.Errorf("handleLiveOrders: failed to place order: %w", e)
-				joinedErr = errors.Join(joinedErr, err)
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to place order: %w", e))
+
+				// remove order from new orders queue
+				// for _, change := range changes {
+				// 	if change != nil {
+				// 		if e := change.Commit(); e != nil {
+				// 			err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
+				// 			joinedErr = errors.Join(joinedErr, err)
+				// 			return joinedErr
+				// 		}
+				// 	}
+				// }
+
+				order.Reject(e)
+
+				// add order to orders queue
+				if e2 := playground.AddToOrderQueue(order); e2 != nil {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to add order to orders queue: %w", e2))
+				}
+
+				if e := dbService.SaveOrderRecord(order, nil, false); e != nil {
+					joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to save order record: %w", e))
+				}
+
 				return joinedErr
 			}
 
+			// add changes from pop new orders queue to the playground changes
+			// send new order to other queue
+			// playgroundChanges = append(playgroundChanges, changes...)
+
 			for _, change := range playgroundChanges {
-				if e := change.Commit(); e != nil {
-					err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
-					joinedErr = errors.Join(joinedErr, err)
-					return joinedErr
+				if change != nil {
+					if e := change.Commit(); e != nil {
+						err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
+						joinedErr = errors.Join(joinedErr, err)
+						return joinedErr
+					}
 				}
 			}
 

@@ -51,23 +51,52 @@ func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
 	return p.placeOrderMutex
 }
 
-func (p *Playground) PopNewOrdersQueue(orderID uint) *OrderRecord {
-	p.newOrdersQueueMutex.Lock()
-	defer p.newOrdersQueueMutex.Unlock()
-
-	if len(p.account.NewOrders) == 0 {
-		return nil
-	}
-
-	for i, o := range p.account.NewOrders {
+func (p *Playground) GetOrder(orderID uint) (*OrderRecord, error) {
+	for _, o := range p.GetAllOrders() {
 		if o.ID == orderID {
-			p.account.NewOrders = append(p.account.NewOrders[:i], p.account.NewOrders[i+1:]...)
-			return o
+			return o, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("order %d not found", orderID)
 }
+
+// func (p *Playground) PopNewOrdersQueue(orderID uint) ([]*PlaceOrderChanges, *OrderRecord, error) {
+// 	p.newOrdersQueueMutex.Lock()
+// 	defer p.newOrdersQueueMutex.Unlock()
+
+// 	if len(p.account.NewOrders) == 0 {
+// 		return nil, nil, fmt.Errorf("PopNewOrdersQueue: new orders queue is empty")
+// 	}
+
+// 	for _, o := range p.account.NewOrders {
+// 		if o.ID == orderID {
+// 			return []*PlaceOrderChanges{
+// 				{
+// 					Commit: func() error {
+// 						p.newOrdersQueueMutex.Lock()
+// 						defer p.newOrdersQueueMutex.Unlock()
+
+// 						if len(p.account.NewOrders) == 0 {
+// 							return fmt.Errorf("PopNewOrdersQueue (callback): new orders queue is empty")
+// 						}
+
+// 						for m, k := range p.account.NewOrders {
+// 							if k.ID == orderID {
+// 								p.account.NewOrders = append(p.account.NewOrders[:m], p.account.NewOrders[m+1:]...)
+// 								return nil
+// 							}
+// 						}
+// 						return fmt.Errorf("PopNewOrdersQueue (callback) order %d not found in new orders queue", orderID)
+// 					},
+// 					Info: fmt.Sprintf("PopNewOrdersQueue: order %d removed from new orders queue", orderID),
+// 				},
+// 			}, o, nil
+// 		}
+// 	}
+
+// 	return nil, nil, fmt.Errorf("PopNewOrdersQueue: order %d not found in new orders queue", orderID)
+// }
 
 func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
 	p.pendingOrdersQueueMutex.Lock()
@@ -217,15 +246,34 @@ func (p *Playground) AddToOrderQueue(order *OrderRecord) error {
 		}
 	}
 
+	newOrdersIndex := -1
 	if index == -1 {
-		return fmt.Errorf("order %d not found in pending orders", order.ID)
+		log.Tracef("order %d not found in pending orders, check new orders queue ...", order.ID)
+
+		for i, o := range p.account.NewOrders {
+			if o.ID == order.ID {
+				newOrdersIndex = i
+				break
+			}
+		}
+
+		if newOrdersIndex == -1 {
+			return fmt.Errorf("order %d not found in pending or new orders queue", order.ID)
+		}
 	}
 
 	// add order to order queue
 	p.account.Orders = append(p.account.Orders, order)
 
-	// remove order from pending orders
-	p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
+	if index >= 0 {
+		// remove order from pending orders
+		p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
+	} else if newOrdersIndex >= 0 {
+		// remove order from new orders
+		p.account.NewOrders = append(p.account.NewOrders[:newOrdersIndex], p.account.NewOrders[newOrdersIndex+1:]...)
+	} else {
+		return fmt.Errorf("unexpected: order %d not found in pending or new orders queue", order.ID)
+	}
 
 	return nil
 }
@@ -849,7 +897,10 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 	}
 
-	order.PreviousPosition = *position
+	// only update the position on the first fill
+	if len(order.Trades) == 1 || len(order.ReconcileTrades) == 1 {
+		order.PreviousPosition = *position
+	}
 
 	// update the account balance before updating the positions cache
 	p.updateBalance(order.GetInstrument(), trade, p.positionCache)
@@ -1630,7 +1681,7 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 		// 	}
 
 		// todo: place all changes inside of a single transaction
-		playgroundChanges, err := p.placeOrder(order)
+		playgroundChanges, err := p.placeOrder(order) // remove from new queue and place into pending
 		if err != nil {
 			return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 		}
