@@ -141,6 +141,15 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 	return order
 }
 
+func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
+	order, err := s.dbService.GetOrder(uint(req.OrderId))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order: %v", err)
+	}
+
+	return convertOrder(order), nil
+}
+
 func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest) (*pb.EmptyResponse, error) {
 	broker, err := s.dbService.GetMockBroker(req.Broker)
 	if err != nil {
@@ -153,11 +162,15 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 			if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
 				log.Errorf("failed to fill mock order: %v", err)
 			}
+
+			log.Debugf("Mock order %d filled, with delay", req.OrderId)
 		}()
 	} else {
 		if err := broker.FillOrder(uint(req.OrderId), req.Price, string(req.Status)); err != nil {
 			return nil, fmt.Errorf("failed to fill mock order: %v", err)
 		}
+
+		log.Debugf("Mock order %d filled, without delay", req.OrderId)
 	}
 
 	return &pb.EmptyResponse{}, nil
@@ -581,6 +594,10 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 }
 
 func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
+	requestUUID := uuid.New().String()
+
+	log.Tracef("%v: GetAccount:start", requestUUID)
+
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account info: %v", err)
@@ -647,6 +664,9 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		*liveAccountType = string(account.Meta.LiveAccountType)
 	}
 
+	log.Debugf("%v: GetAccount:Orders Count: %d", requestUUID, len(ordersDTO))
+	log.Tracef("%v: GetAccount:end", requestUUID)
+
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
 			PlaygroundId:          account.Meta.PlaygroundId,
@@ -669,6 +689,8 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 }
 
 func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
+	log.Infof("%v: PlaceOrder:start", req.ClientRequestId)
+
 	playgroundID, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
@@ -700,6 +722,8 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	}
 
 	orderDTO := convertOrder(order)
+
+	log.Infof("%v: PlaceOrder:end", req.ClientRequestId)
 
 	return orderDTO, nil
 }

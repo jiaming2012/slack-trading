@@ -23,12 +23,21 @@ func (s *DatabaseService) GetPlaygroundByClientId(clientId string) *models.Playg
 	return nil
 }
 
+func (s *DatabaseService) getPlayground(playgroundID uuid.UUID) *models.Playground {
+	playground, ok := s.playgrounds[playgroundID]
+	if !ok {
+		return nil
+	}
+
+	return playground
+}
+
 func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (*models.Playground, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	playground, ok := s.playgrounds[playgroundID]
-	if !ok {
+	playground := s.getPlayground(playgroundID)
+	if playground == nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 

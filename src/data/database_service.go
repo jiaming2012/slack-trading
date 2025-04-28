@@ -77,7 +77,38 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 	}
 }
 
+func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var order *models.OrderRecord
+	if err := s.db.Where("id = ?", id).First(&order).Error; err != nil {
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+
+	if order == nil {
+		return nil, fmt.Errorf("failed to find order with id: %d", id)
+	}
+
+	return order, nil
+}
+
+func (s *DatabaseService) DeleteMockOrders() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Soft delete mock orders
+	if err := s.db.Exec("UPDATE order_records SET deleted_at = NOW() WHERE account_type = 'mock'").Error; err != nil {
+		return fmt.Errorf("failed to soft delete mock orders: %w", err)
+	}
+
+	return nil
+}
+
 func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var mockOrderCount uint
 	if err := s.db.Raw(FetchMockOrderCountSql).Scan(&mockOrderCount).Error; err != nil {
 		return 0, fmt.Errorf("failed to get mock order count: %w", err)
@@ -96,6 +127,9 @@ func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
 }
 
 func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for b, val := range s.brokerMap {
 		if b.LiveAccountType == models.LiveAccountTypeMock {
 			if b.Broker == broker {
@@ -138,8 +172,43 @@ func (s *DatabaseService) FetchReconcilePlayground(source models.CreateAccountRe
 	return reconcilePlayground, found, nil
 }
 
+func (s *DatabaseService) fetchPlaygroundFromDB(playgroundId uuid.UUID) (*models.Playground, error) {
+	var playground *models.Playground
+
+	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.ReconcileTrades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.ClosedBy", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes.ClosedBy", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Reconciles", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Reconciles.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("EquityPlotRecords").Where("id = ?", playgroundId).First(&playground).Error; err != nil {
+		return nil, fmt.Errorf("loadPlaygrounds: failed to load orders in playgrounds: %w", err)
+	}
+
+	if playground == nil {
+		return nil, fmt.Errorf("failed to find playground in DB: %s", playgroundId.String())
+	}
+
+	return playground, nil
+}
+
 func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *models.OrderRecord) (models.IReconcilePlayground, bool, error) {
-	playground, err := s.FetchPlayground(order.PlaygroundID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, err := s.fetchPlayground(order.PlaygroundID)
 	if err != nil {
 		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to fetch playground: %w", err)
 	}
@@ -157,15 +226,20 @@ func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *models.OrderRec
 	return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to find reconcile playground: %v", playground.ReconcilePlaygroundID)
 }
 
-func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *DatabaseService) fetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
 	if playground, found := s.playgrounds[playgroundId]; found {
 		return playground, nil
 	}
 
 	return nil, fmt.Errorf("DatabaseService: playground not found: %s", playgroundId.String())
+}
+
+func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// return s.fetchPlaygroundFromDB(playgroundId)
+	return s.fetchPlayground(playgroundId)
 }
 
 func (s *DatabaseService) SavePlaygroundInMemory(p *models.Playground) error {
@@ -305,8 +379,10 @@ func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccou
 		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
 	}
 
-	if seekFromPlayground {
-		return s.seekOrdersFromPlayground(orders)
+	for _, o := range orders {
+		if o.ID == 612 {
+			log.Infof("found order: %d", o.ID)
+		}
 	}
 
 	return orders, nil
@@ -314,7 +390,25 @@ func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccou
 
 func (s *DatabaseService) LoadPlaygrounds() error {
 	var playgroundsSlice []*models.Playground
-	if err := s.db.Preload("Orders").Preload("Orders.Trades").Preload("Orders.ReconcileTrades").Preload("Orders.ClosedBy").Preload("Orders.Closes").Preload("Orders.Closes.ClosedBy").Preload("Orders.Closes.Trades").Preload("Orders.Reconciles").Preload("Orders.Reconciles.Trades").Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
+	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.ReconcileTrades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.ClosedBy", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes.ClosedBy", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Closes.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Reconciles", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Orders.Reconciles.Trades", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("EquityPlotRecords").Find(&playgroundsSlice).Error; err != nil {
 		return fmt.Errorf("loadPlaygrounds: failed to load playgrounds: %w", err)
 	}
 
@@ -744,6 +838,9 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 }
 
 func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var playgrounds []*models.Playground
 	for _, p := range s.playgrounds {
 		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
@@ -794,6 +891,9 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 }
 
 func (s *DatabaseService) GetLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	liveAccount, found := s.liveAccounts[source]
 	if !found {
 		return nil, fmt.Errorf("failed to find live account: %v", source)
@@ -946,12 +1046,34 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 	return nil
 }
 
+func (s *DatabaseService) waitForOrderRecord(orderID uint) error {
+	timeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout waiting for order %d", orderID)
+		case <-ticker.C:
+			var order models.OrderRecord
+			result := s.db.First(&order, orderID)
+			if result.Error == nil && result.RowsAffected > 0 {
+				return nil // order found
+			}
+		}
+	}
+}
+
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := req.Validate(); err != nil {
 		return nil, eventmodels.NewWebError(400, "invalid request", err)
 	}
 
-	playground, err := s.FetchPlayground(playgroundID)
+	playground, err := s.fetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", err)
 	}
@@ -979,6 +1101,10 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 	order, err := s.makeOrderRecord(playground, req, createdOn)
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to place order", err)
+	}
+
+	if err := s.waitForOrderRecord(order.ID); err != nil {
+		return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
 	}
 
 	return order, nil
@@ -1033,15 +1159,30 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
 
-	for _, change := range changes {
-		change.Commit()
+	err = s.CreateTransaction(func(tx *gorm.DB) error {
+		for _, change := range changes {
+			if e := change.Commit(tx); e != nil {
+				return fmt.Errorf("placeOrder: failed to commit order change: %w", e)
+			}
+	
+			log.Infof("done committing order change: %s", change.Info)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("placeOrder: failed to commit order changes: %w", err)
 	}
 
 	return order, nil
 }
 
 func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
-	playground, err := s.FetchPlayground(playgroundID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, err := s.fetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
@@ -1051,12 +1192,24 @@ func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*even
 }
 
 func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
-	playground, err := s.FetchPlayground(playgroundID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, err := s.fetchPlaygroundFromDB(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
 
-	positionCache, err := playground.UpdatePricesAndGetPositionCache()
+	internalPlayground := s.getPlayground(playgroundID)
+	if internalPlayground == nil {
+		return nil, eventmodels.NewWebError(404, "playground not found internally", nil)
+	}
+
+	// cache := internalPlayground.GetPositionCache()
+
+	// playground.SetPositionCache(cache)
+
+	positionCache, err := internalPlayground.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
 	}
@@ -1067,15 +1220,15 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	}
 
 	response := models.GetAccountResponse{
-		Meta:       playground.GetMeta(),
-		Balance:    playground.GetBalance(),
-		Equity:     playground.GetEquity(positionCache),
-		FreeMargin: playground.GetFreeMarginFromPositionMap(positionCache),
+		Meta:       internalPlayground.GetMeta(),
+		Balance:    internalPlayground.GetBalance(),
+		Equity:     internalPlayground.GetEquity(positionCache),
+		FreeMargin: internalPlayground.GetFreeMarginFromPositionMap(positionCache),
 		Positions:  positionsKV,
 	}
 
 	if fetchOrders {
-		response.Orders = playground.GetAllOrders()
+		response.Orders = playground.Orders
 		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0 || len(symbols) > 0
 		if filterOrders {
 			filteredOrders := []*models.OrderRecord{}
@@ -1226,6 +1379,14 @@ func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) e
 	return savePlaygroundTx(s.db, playground)
 }
 
+func (s *DatabaseService) SaveOrderRecordTx(tx *gorm.DB, order *models.OrderRecord, forceNew bool) error {
+	if err := saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); err != nil {
+		return fmt.Errorf("saveOrderRecordTx: failed to save order record: %w", err)
+	}
+
+	return nil
+}
+
 func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var e error
@@ -1245,6 +1406,8 @@ func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance 
 	if err != nil {
 		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
 	}
+
+	log.Infof("SaveOrderRecord: order record: %d saved to db", order.ID)
 
 	// save in cache
 	s.ordersCache[order.ID] = order

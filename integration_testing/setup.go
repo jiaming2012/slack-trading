@@ -77,7 +77,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 	twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
 
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 30 * time.Second,
 	}
 
 	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)

@@ -110,7 +110,7 @@ tasks:
 
   test:
     cmds:
-      - 'go test ./...'
+      - 'go test -count=1 ./...'
     dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
 
   test:e2e:live-account-close-with-id:
@@ -125,7 +125,7 @@ tasks:
 
   test:e2e:live-account-close:
     cmds:
-      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountClose$ github.com/jiaming2012/slack-trading/integration_testing'
+      - 'go test -timeout 90s -count=1 -run ^TestLiveAccountClose$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
   
   test:e2e:live-account-multiple-playgrounds:

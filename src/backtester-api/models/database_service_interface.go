@@ -12,6 +12,7 @@ type IDatabaseService interface {
 	GetPlaygroundByClientId(clientId string) *Playground
 	GetPlayground(playgroundID uuid.UUID) (*Playground, error)
 	GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error)
+	GetOrder(id uint) (*OrderRecord, error)
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
@@ -30,6 +31,7 @@ type IDatabaseService interface {
 	SavePlaygroundSession(playground *Playground) error
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
+	SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error
 	SaveOrderRecords(order []*OrderRecord, forceNew bool) error
 	SaveLiveRepository(repo *CandleRepository) error
 	UpdatePlaygroundSession(playgroundSession *Playground) error

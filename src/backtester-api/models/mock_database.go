@@ -19,6 +19,22 @@ type MockDatabase struct {
 	tradeNounce          uint
 }
 
+func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error {
+	return m.SaveOrderRecord(order, nil, forceNew)
+}
+
+func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
+	for _, orders := range m.orderRecords {
+		for _, order := range orders {
+			if order.ID == id {
+				return order, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("MockDatabase: order not found")
+}
+
 func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
 	period := time.Minute
 	source := eventmodels.CandleRepositorySource{
@@ -293,7 +309,7 @@ func (m *MockDatabase) LoadLiveAccounts(brokerMap map[CreateAccountRequestSource
 }
 
 func (m *MockDatabase) CreateTransaction(transaction func(tx *gorm.DB) error) error {
-	return nil
+	return transaction(nil)
 }
 
 func NewMockDatabase() *MockDatabase {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -98,7 +99,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 
 		if playground.ReconcilePlayground == nil {
-			e := fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order)
+			e := fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order.ID)
 			joinedErr = errors.Join(joinedErr, e)
 			log.Error(e)
 			continue
@@ -152,8 +153,8 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 				return joinedErr
 			}
 
-			// remove order from new orders queue
-			order, err := playground.GetOrder(newOrder.ID) // get, then remove later
+			// remove order from new orders queue DELETE ME
+			order, err := playground.GetOrder(newOrder.ID)
 			if err != nil {
 				err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue: %w", newOrder.ID, err)
 				joinedErr = errors.Join(joinedErr, err)
@@ -164,17 +165,6 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			playgroundChanges, e := playground.PlaceOrder(order)
 			if e != nil {
 				joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to place order: %w", e))
-
-				// remove order from new orders queue
-				// for _, change := range changes {
-				// 	if change != nil {
-				// 		if e := change.Commit(); e != nil {
-				// 			err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
-				// 			joinedErr = errors.Join(joinedErr, err)
-				// 			return joinedErr
-				// 		}
-				// 	}
-				// }
 
 				order.Reject(e)
 
@@ -190,18 +180,21 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 				return joinedErr
 			}
 
-			// add changes from pop new orders queue to the playground changes
-			// send new order to other queue
-			// playgroundChanges = append(playgroundChanges, changes...)
-
-			for _, change := range playgroundChanges {
-				if change != nil {
-					if e := change.Commit(); e != nil {
-						err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
-						joinedErr = errors.Join(joinedErr, err)
-						return joinedErr
+			err = dbService.CreateTransaction(func(tx *gorm.DB) error {
+				for _, change := range playgroundChanges {
+					if change != nil {
+						if e := change.Commit(tx); e != nil {
+							return fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
+						}
 					}
 				}
+
+				return nil
+			})
+
+			if err != nil {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to commit changes: %w", err))
+				return joinedErr
 			}
 
 			log.Debugf("handleLiveOrders: order placed from new orders queue: %v", order)
@@ -344,9 +337,9 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				},
 			})
 
-			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is canceled by broker", order.ExternalOrderID)
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is canceled by broker", order.ID, *order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusPending) {
-			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d is pending", order.ExternalOrderID)
+			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is pending", order.ID, *order.ExternalOrderID)
 			continue
 		} else {
 			log.Warnf("TradierApiWorker.executeOrdersQueueUpdate: unknown order status: %v", tradierOrder.Status)
@@ -362,6 +355,20 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 }
 
 func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, database models.IDatabaseService) (*models.TradeRecord, error) {
+	playground.GetPlaceOrderLock().Lock()
+	defer playground.GetPlaceOrderLock().Unlock()
+
+	requestId := uuid.New().String()
+	log.Tracef("%s: fillPendingOrder:start, playgroundId: %s", requestId, playground.GetId().String())
+	defer func() {
+		orders := playground.GetAllOrders()
+		log.Tracef("%s: handleLiveOrders [end]: orders count: %v", requestId, len(orders))
+		log.Tracef("%s: fillPendingOrder:end", requestId)
+	}()
+
+	orders := playground.GetAllOrders()
+	log.Tracef("%s: handleLiveOrders [start]: orders count: %v", requestId, len(orders))
+
 	performChecks := false
 
 	positionCache, err := playground.UpdatePricesAndGetPositionCache()

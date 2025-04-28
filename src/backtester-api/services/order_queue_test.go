@@ -153,7 +153,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -210,7 +210,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -297,7 +297,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -306,7 +306,7 @@ func TestLiveAccount(t *testing.T) {
 		liveOrder := livePlayground2.GetAllOrders()[0]
 		require.Equal(t, order2, liveOrder)
 
-		// assert - reconciliation order is placed
+		// assert - first reconciliation order (sell: 19) is placed & (sell short: 1) is placed
 		reconcileOrders = reconcilePlayground.GetPlayground().GetAllOrders()
 		require.Len(t, reconcileOrders, 3)
 
@@ -319,12 +319,35 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, models.TradierOrderSideSellShort, reconcileOrders[2].Side)
 		require.Equal(t, 1.0, reconcileOrders[2].AbsoluteQuantity)
 		require.Equal(t, order2.OrderType, reconcileOrders[2].OrderType)
+		require.Equal(t, models.OrderRecordStatusPending, reconcileOrders[2].Status)
 
-		// fill sell short order
+		// fill sell order
 		require.NotNil(t, reconcileOrders[1].ExternalOrderID)
 		err = broker.FillOrder(*reconcileOrders[1].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
 		require.NoError(t, err)
 
+		err = UpdateTradierOrderQueue(liveOrdersUpdateQueue, database, 0)
+		require.NoError(t, err)
+
+		hasUpdates, err = DrainTradierOrderQueue(liveOrdersUpdateQueue, database)
+		require.NoError(t, err)
+		require.True(t, hasUpdates)
+
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
+		// assert - sell short order has been placed
+		reconcileOrders = reconcilePlayground.GetPlayground().GetAllOrders()
+		require.Len(t, reconcileOrders, 3)
+
+		// assert - live order is partially filled
+		liveOrders = livePlayground2.GetAllOrders()
+		require.Len(t, liveOrders, 1)
+		require.Equal(t, models.OrderRecordStatusPending, liveOrders[0].Status)
+		require.Equal(t, -19.0, liveOrders[0].GetFilledVolume())
+		require.Equal(t, -20.0, liveOrders[0].GetQuantity())
+
+		// fill the sell short order
 		require.NotNil(t, reconcileOrders[2].ExternalOrderID)
 		err = broker.FillOrder(*reconcileOrders[2].ExternalOrderID, 100.0, string(models.OrderRecordStatusFilled))
 		require.NoError(t, err)
@@ -338,7 +361,7 @@ func TestLiveAccount(t *testing.T) {
 
 		err = UpdatePendingMarginOrders(database)
 		require.NoError(t, err)
-
+		
 		// assert - live order is filled
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Status)
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[2].Status)
@@ -397,7 +420,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -420,6 +443,10 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// assert - live order is filled
+		liveOrders := livePlayground1.GetAllOrders()
+		require.Len(t, liveOrders, 1)
+		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[0].Status)
+
 		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
 		require.Len(t, reconcileOrders, 1)
 		require.Equal(t, models.TradierOrderSideBuy, reconcileOrders[0].Side)
@@ -429,10 +456,6 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, order1.ID, reconcileOrders[0].Reconciles[0].ID)
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[0].Reconciles[0].Status)
 
-		liveOrders := livePlayground1.GetAllOrders()
-		require.Len(t, liveOrders, 1)
-		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[0].Status)
-
 		// place sell order
 		order2 := models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), models.OrderRecordClassEquity, models.LiveAccountTypeMargin, now, symbol, models.TradierOrderSideSell, 19, models.Market, models.Day, 0.01, nil, nil, models.OrderRecordStatusPending, "", nil)
 
@@ -440,7 +463,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -462,20 +485,18 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
 		liveOrders = livePlayground1.GetAllOrders()
 		require.Len(t, liveOrders, 3)
+		require.Equal(t, order3.ID, liveOrders[2].ID)
 		require.Equal(t, models.OrderRecordStatusNew, liveOrders[2].Status)
 
 		// order #3 (sell short) not available to fill
 		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
 		require.Len(t, reconcileOrders, 2)
-		allOrders := livePlayground1.GetAllOrders()
-		require.Len(t, allOrders, 3)
-		require.Equal(t, order3.ID, allOrders[2].ID)
 
 		position, err := livePlayground1.GetPosition(symbol, true)
 		require.NoError(t, err)
@@ -497,6 +518,11 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// assert - live order #2 is filled
+		liveOrders = livePlayground1.GetAllOrders()
+		require.Len(t, liveOrders, 3)
+		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[1].Status)
+		require.Equal(t, models.OrderRecordStatusPending, liveOrders[2].Status)  // order #3 is still placed but still pending
+
 		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
 		require.Len(t, reconcileOrders, 3)
 
@@ -506,8 +532,15 @@ func TestLiveAccount(t *testing.T) {
 		require.Len(t, reconcileOrders[1].Reconciles, 1)
 		require.Equal(t, order2.ID, reconcileOrders[1].Reconciles[0].ID)
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Reconciles[0].Status)
-
+		
 		require.Equal(t, models.OrderRecordStatusPending, reconcileOrders[2].Status)
+
+		// place order #3 (sell short) - now available to fill: order #2 no longer pending
+		err = UpdatePendingMarginOrders(database)
+		require.NoError(t, err)
+
+		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
+		require.Len(t, reconcileOrders, 3)
 
 		// fill order #3
 		require.NotNil(t, reconcileOrders[2].ExternalOrderID)
@@ -567,7 +600,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -610,7 +643,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -632,7 +665,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -731,7 +764,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -801,7 +834,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -884,7 +917,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -942,7 +975,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Len(t, liveOrders2, 2)
 		require.Equal(t, models.OrderRecordStatusFilled, liveOrders2[1].Status)
 		require.Equal(t, -20.0, liveOrders2[1].PreviousPosition.Quantity)
-		
+
 		livePlayground2_Position, err = livePlayground2.GetPosition(order3.GetInstrument(), true)
 		require.NoError(t, err)
 		require.Equal(t, -10.0, livePlayground2_Position.Quantity)
@@ -994,7 +1027,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -1037,7 +1070,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 
@@ -1059,7 +1092,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit()
+			err := change.Commit(nil)
 			require.NoError(t, err)
 		}
 

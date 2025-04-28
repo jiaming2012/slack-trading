@@ -1,6 +1,8 @@
 package models
 
+import "gorm.io/gorm"
+
 type PlaceOrderChanges struct {
-	Commit func() error
+	Commit func(tx *gorm.DB) error
 	Info   string
 }
