@@ -253,13 +253,17 @@ func (m *MockDatabase) FetchReconcilePlaygroundByOrder(order *OrderRecord) (IRec
 	return nil, false, nil
 }
 
-func (m *MockDatabase) FetchNewOrder() (newOrder *OrderRecord, err error) {
+func (m *MockDatabase) FetchNewOrders() (newOrders []*OrderRecord, err error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
 			if order.Status == OrderRecordStatusNew {
-				return order, nil
+				newOrders = append(newOrders, order)
 			}
 		}
+	}
+
+	if len(newOrders) > 0 {
+		return newOrders, nil
 	}
 
 	return nil, nil

@@ -16,7 +16,7 @@ type IDatabaseService interface {
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
-	FetchNewOrder() (newOrder *OrderRecord, err error)
+	FetchNewOrders() (newOrders []*OrderRecord, err error)
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
 	FetchPendingOrders(accountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error

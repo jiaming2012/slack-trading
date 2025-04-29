@@ -64,10 +64,10 @@ func (p *Playground) GetOrder(orderID uint) (*OrderRecord, error) {
 func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
 	p.pendingOrdersQueueMutex.Lock()
 	defer p.pendingOrdersQueueMutex.Unlock()
-	
+
 	p.newOrdersQueueMutex.Lock()
 	defer p.newOrdersQueueMutex.Unlock()
-	
+
 	for i, o := range p.account.NewOrders {
 		if o.ID == order.ID {
 			// remove order from new orders queue
@@ -95,7 +95,7 @@ func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) {
 
 	for _, o := range p.account.NewOrders {
 		if o.ID == order.ID {
-			log.Warnf("order %d already in new orders queue", order.ID)
+			log.Warnf("AddToNewOrdersQueue: order %d already in new orders queue. Returning ...", order.ID)
 			return
 		}
 	}
@@ -635,8 +635,42 @@ func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord,
 // 	p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:index], p.openOrdersCache[symbol][index+1:]...)
 // }
 
+func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) error {
+	if order.Status == OrderRecordStatusCanceled {
+		log.Warnf("CancelOrder: order %d is already canceled. Returning ...", order.ID)
+		return nil
+	}
+
+	if order.Status != OrderRecordStatusPending {
+		return fmt.Errorf("order is not pending")
+	}
+
+	err := database.CreateTransaction(func(tx *gorm.DB) error {
+		for _, o := range order.Reconciles {
+			o.Cancel()
+			if err := tx.Save(o).Error; err != nil {
+				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
+			}
+		}
+
+		order.Cancel()
+		if err := tx.Save(order).Error; err != nil {
+			return fmt.Errorf("CancelOrder: failed to save order: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("CancelOrder: failed to cancel order: %w", err)
+	}
+
+	return nil
+}
+
 func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDatabaseService) error {
 	if order.Status == OrderRecordStatusRejected {
+		log.Warnf("RejectOrder: order %d is already rejected. Returning ...", order.ID)
 		return nil
 	}
 
@@ -1618,7 +1652,7 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 			cliReqID = *o.ClientRequestID
 		}
 
-		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing into new orders queue", o.ID, cliReqID)
+		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing order %d into new orders queue", o.ID, cliReqID, order.ID)
 
 		changes = append(changes, &PlaceOrderChanges{
 			Commit: func(tx *gorm.DB) error {

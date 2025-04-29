@@ -10,7 +10,7 @@ import (
 
 func waitUntilOrderStatus(p playground.PlaygroundService, orderId uint64, expectedStatus string) error {
 	ctx := context.Background()
-	timeout := time.After(30 * time.Second)
+	timeout := time.After(60 * time.Second)
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 

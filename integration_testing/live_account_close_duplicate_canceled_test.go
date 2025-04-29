@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccountCloseDuplicate(t *testing.T) {
+func TestLiveAccountCloseDuplicateCanceled(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -109,7 +109,7 @@ func TestLiveAccountCloseDuplicate(t *testing.T) {
 
 	require.NotNil(t, openTradeId)
 
-	// Close the trade
+	// Close order 1
 	clientReqId = "test2"
 	placeOrderResp2, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
@@ -126,7 +126,7 @@ func TestLiveAccountCloseDuplicate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp2)
 
-	// 2nd order should fail
+	// duplicate order status should be new
 	clientReqId = "test3"
 	placeOrderResp3, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
@@ -140,7 +140,28 @@ func TestLiveAccountCloseDuplicate(t *testing.T) {
 		Duration:        "day",
 	})
 
-	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot buy to cover when no position exists")
-	require.Nil(t, placeOrderResp3)
+	require.NoError(t, err)
+	require.NotNil(t, placeOrderResp3)
+	require.Equal(t, "new", placeOrderResp3.Status)
+
+	// Cancel order 2
+	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
+		FetchOrders:  true,
+	})
+	require.NoError(t, err)
+
+	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
+		OrderId: *reconcileAccount.Orders[1].ExternalId,
+		Price:   178.0,
+		Status:  "canceled",
+		Broker:  "tradier",
+	})
+	require.NoError(t, err)
+
+	// Wait for the order to be canceled
+	waitUntilOrderStatus(p, placeOrderResp2.Id, "canceled")
+
+	// Order 3 should now be filled
+	waitUntilOrderStatus(p, placeOrderResp3.Id, "filled")
 }

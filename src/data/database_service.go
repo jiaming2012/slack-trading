@@ -354,18 +354,18 @@ func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord)
 	return out, nil
 }
 
-func (s *DatabaseService) FetchNewOrder() (newOrder *models.OrderRecord, err error) {
-	var order *models.OrderRecord
+func (s *DatabaseService) FetchNewOrders() (newOrders []*models.OrderRecord, err error) {
+	var orders []*models.OrderRecord
 
-	if err := s.db.Where("status = ?", string(models.OrderRecordStatusNew)).First(&order).Error; err != nil {
+	if err := s.db.Where("status = ?", string(models.OrderRecordStatusNew)).Find(&orders).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to fetch new order: %w", err)
 	}
 
-	if order != nil {
-		return order, nil
+	if len(orders) > 0 {
+		return orders, nil
 	}
 
 	return nil, nil
