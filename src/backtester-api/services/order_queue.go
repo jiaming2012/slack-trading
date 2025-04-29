@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -67,7 +68,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 
 					err := fmt.Errorf(rejectReason)
 					order.Reject(err)
-					log.Infof("UpdatePendingMarginOrders: order %d status is %s", order.ID, o.Status)
+					log.Infof("UpdatePendingMarginOrders: order %d status is %s for %s", order.ID, o.Status, rejectReason)
 					shouldUpdate = true
 				}
 			}
@@ -98,7 +99,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 
 		if playground.ReconcilePlayground == nil {
-			e := fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order)
+			e := fmt.Errorf("UpdatePendingMarginOrders: reconcile playground not found for order: %v", order.ID)
 			joinedErr = errors.Join(joinedErr, e)
 			log.Error(e)
 			continue
@@ -136,59 +137,70 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 		}
 	}
 
-	if joinedErr == nil {
-		newOrder, e := dbService.FetchNewOrder()
+	newOrders, e := dbService.FetchNewOrders()
+	if e != nil {
+		err = fmt.Errorf("handleLiveOrders: failed to fetch new orders: %w", e)
+		joinedErr = errors.Join(joinedErr, err)
+		return joinedErr
+	}
+
+	for _, newOrder := range newOrders {
+		playground, e := dbService.GetPlayground(newOrder.PlaygroundID)
 		if e != nil {
-			err = fmt.Errorf("handleLiveOrders: failed to fetch new orders: %w", e)
+			err = fmt.Errorf("handleLiveOrders: failed to get playground: %w", e)
 			joinedErr = errors.Join(joinedErr, err)
 			return joinedErr
 		}
 
-		if newOrder != nil {
-			playground, e := dbService.GetPlayground(newOrder.PlaygroundID)
-			if e != nil {
-				err = fmt.Errorf("handleLiveOrders: failed to get playground: %w", e)
-				joinedErr = errors.Join(joinedErr, err)
-				return joinedErr
+		// remove order from new orders queue DELETE ME
+		order, err := playground.GetOrder(newOrder.ID)
+		if err != nil {
+			err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue: %w", newOrder.ID, err)
+			joinedErr = errors.Join(joinedErr, err)
+			return joinedErr
+		}
+
+		// place order in the playground
+		playgroundChanges, e := playground.PlaceOrder(order)
+		if e != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to place order: %w", e))
+
+			order.Reject(e)
+
+			// add order to orders queue
+			if e2 := playground.AddToOrderQueue(order); e2 != nil {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to add order to orders queue: %w", e2))
 			}
 
-			// remove order from new orders queue
-			order := playground.PopNewOrdersQueue(newOrder.ID)
-			if order == nil {
-				err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue", newOrder.ID)
-				joinedErr = errors.Join(joinedErr, err)
-				return joinedErr
+			if e := dbService.SaveOrderRecord(order, nil, false); e != nil {
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to save order record: %w", e))
 			}
 
-			// add order to pending orders
-			// playground.AddToPendingOrdersQueue(order)
+			return joinedErr
+		}
 
-			// if e := dbService.SaveOrderRecord(order, nil, false); e != nil {
-			// 	err = fmt.Errorf("handleLiveOrders: failed to save order record: %w", e)
-			// 	joinedErr = errors.Join(joinedErr, err)
-			// 	return joinedErr
-			// }
-
-			// place order in the playground
-			playgroundChanges, e := playground.PlaceOrder(order)
-			if e != nil {
-				err = fmt.Errorf("handleLiveOrders: failed to place order: %w", e)
-				joinedErr = errors.Join(joinedErr, err)
-				return joinedErr
-			}
-
+		err = dbService.CreateTransaction(func(tx *gorm.DB) error {
 			for _, change := range playgroundChanges {
-				if e := change.Commit(); e != nil {
-					err = fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
-					joinedErr = errors.Join(joinedErr, err)
-					return joinedErr
+				if change != nil {
+					if e := change.Commit(tx); e != nil {
+						return fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
+					}
 				}
 			}
 
-			log.Debugf("handleLiveOrders: order placed from new orders queue: %v", order)
-		} else {
-			log.Debugf("handleLiveOrders: no new open orders")
+			return nil
+		})
+
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to commit changes: %w", err))
+			return joinedErr
 		}
+
+		log.Debugf("handleLiveOrders: order placed from new orders queue: %v", order)
+	}
+
+	if len(newOrders) == 0 {
+		log.Debugf("handleLiveOrders: no new open orders")
 	}
 
 	return joinedErr
@@ -325,9 +337,9 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				},
 			})
 
-			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is canceled by broker", order.ExternalOrderID)
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is canceled by broker", order.ID, *order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusPending) {
-			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d is pending", order.ExternalOrderID)
+			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is pending", order.ID, *order.ExternalOrderID)
 			continue
 		} else {
 			log.Warnf("TradierApiWorker.executeOrdersQueueUpdate: unknown order status: %v", tradierOrder.Status)
@@ -343,6 +355,20 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 }
 
 func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, database models.IDatabaseService) (*models.TradeRecord, error) {
+	playground.GetPlaceOrderLock().Lock()
+	defer playground.GetPlaceOrderLock().Unlock()
+
+	requestId := uuid.New().String()
+	log.Tracef("%s: fillPendingOrder:start, playgroundId: %s", requestId, playground.GetId().String())
+	defer func() {
+		orders := playground.GetAllOrders()
+		log.Tracef("%s: handleLiveOrders [end]: orders count: %v", requestId, len(orders))
+		log.Tracef("%s: fillPendingOrder:end", requestId)
+	}()
+
+	orders := playground.GetAllOrders()
+	log.Tracef("%s: handleLiveOrders [start]: orders count: %v", requestId, len(orders))
+
 	performChecks := false
 
 	positionCache, err := playground.UpdatePricesAndGetPositionCache()
@@ -487,8 +513,23 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 						continue
 					}
 
-					if err := playground.RejectOrder(order, reason, database); err != nil {
-						log.Errorf("handleLiveOrders: failed to reject order: %v", err)
+					switch reason {
+					case string(models.OrderRecordStatusCanceled):
+						if err := playground.CancelOrder(order, database); err != nil {
+							log.Errorf("handleLiveOrders: failed to cancel order: %v", err)
+							continue
+						}
+					case "rejected by broker": // tradier internal status
+						fallthrough
+					case string(models.OrderRecordStatusRejected):
+						if err := playground.RejectOrder(order, reason, database); err != nil {
+							log.Errorf("handleLiveOrders: failed to reject order: %v", err)
+							continue
+						}
+					case string(models.OrderRecordStatusPending):
+						break
+					default:
+						log.Warnf("handleLiveOrders: unknown order status: %v", reason)
 					}
 
 					if err := database.SaveOrderRecord(order, nil, false); err != nil {

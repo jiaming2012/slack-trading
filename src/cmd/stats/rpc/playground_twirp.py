@@ -42,6 +42,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetPlaygroundsRequest"),
 				output=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
 			),
+			"GetOrder": Endpoint(
+				service_name="PlaygroundService",
+				name="GetOrder",
+				function=getattr(service, "GetOrder"),
+				input=_sym_db.GetSymbol("playground.GetOrderRequest"),
+				output=_sym_db.GetSymbol("playground.Order"),
+			),
 			"NextTick": Endpoint(
 				service_name="PlaygroundService",
 				name="NextTick",
@@ -147,6 +154,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
+			**kwargs,
+		)
+
+	def GetOrder(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetOrder",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.Order"),
 			**kwargs,
 		)
 
@@ -279,6 +295,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetPlaygroundsResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetOrder(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetOrder",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.Order"),
 				session=session,
 				**kwargs,
 			)

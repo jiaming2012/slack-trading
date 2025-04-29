@@ -690,6 +690,10 @@ func run() {
 		log.Fatalf("failed to get mock order id start index: %v", err)
 	}
 
+	if err := dbService.DeleteMockOrders(); err != nil {
+		log.Fatalf("failed to delete mock orders: %v", err)
+	}
+
 	// Add mock broker for testing
 	pendingMockOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeReconcilation}, false)
 	if err != nil {

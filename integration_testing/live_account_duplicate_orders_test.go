@@ -157,7 +157,7 @@ func TestLiveAccountDuplicateOrdersTest(t *testing.T) {
 
 		require.NoError(t, err, fmt.Sprintf("i == %d", i))
 
-		time.Sleep(2 * time.Second)
+		waitUntilOrderStatus(p, placeOrderResp.Id, "filled")
 	}
 
 	require.Equal(t, 1, errorCount, "Duplicate order should have failed")

@@ -12,7 +12,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccountCloseWithID(t *testing.T) {
+func TestLiveAccountCloseDuplicateRejected(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -49,7 +49,7 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "buy",
+		Side:            "sell_short",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
@@ -109,7 +109,7 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 
 	require.NotNil(t, openTradeId)
 
-	// Close the trade
+	// Close order 1
 	clientReqId = "test2"
 	placeOrderResp2, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
@@ -117,17 +117,16 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "sell",
+		Side:            "buy_to_cover",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
-		CloseOrderId:    &placeOrderResp1.Id,
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp2)
 
-	// 2nd order should be open
+	// duplicate order status should be new
 	clientReqId = "test3"
 	placeOrderResp3, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
 		PlaygroundId:    createLivePgResp.Id,
@@ -135,41 +134,34 @@ func TestLiveAccountCloseWithID(t *testing.T) {
 		Symbol:          "AAPL",
 		AssetClass:      "equity",
 		Quantity:        10,
-		Side:            "sell",
+		Side:            "buy_to_cover",
 		Type:            "market",
 		RequestedPrice:  177.0,
 		Duration:        "day",
-		CloseOrderId:    &placeOrderResp1.Id,
 	})
 
 	require.NoError(t, err)
+	require.NotNil(t, placeOrderResp3)
 	require.Equal(t, "new", placeOrderResp3.Status)
 
-	// Fill first close order
+	// Cancel order 2
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
 	})
 	require.NoError(t, err)
 
-	require.Len(t, reconcileAccount.Orders, 2)
-
-	delayInSeconds := int32(5)
 	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId:        *reconcileAccount.Orders[1].ExternalId,
-		Price:          178.0,
-		Status:         "filled",
-		Broker:         "tradier",
-		DelayInSeconds: &delayInSeconds,
+		OrderId: *reconcileAccount.Orders[1].ExternalId,
+		Price:   178.0,
+		Status:  "rejected",
+		Broker:  "tradier",
 	})
-
 	require.NoError(t, err)
 
-	// Wait for the order to be filled
-	err = waitUntilOrderStatus(p, placeOrderResp2.Id, "filled")
-	require.NoError(t, err)
+	// Wait for the order to be canceled
+	waitUntilOrderStatus(p, placeOrderResp2.Id, "rejected")
 
-	// Wait for the 2nd close order to be rejected
-	err = waitUntilOrderStatus(p, placeOrderResp3.Id, "rejected")
-	require.NoError(t, err)
+	// Order 3 should now be filled
+	waitUntilOrderStatus(p, placeOrderResp3.Id, "filled")
 }

@@ -393,12 +393,12 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 
 	for _, account := range liveAccounts {
 		if account.BrokerName != "tradier" {
-			log.Debugf("skipping account %d: unsupported broker %s", account.ID, account.BrokerName)
+			log.Debugf("ExecuteLiveAccountPlotUpdate: skipping account %d: unsupported broker %s", account.ID, account.BrokerName)
 			continue
 		}
 
 		if account.AccountType == models.LiveAccountTypeMock {
-			log.Debugf("skipping account %d: unsupported account type %s", account.ID, account.AccountType)
+			log.Debugf("ExecuteLiveAccountPlotUpdate: skipping account %d: unsupported account type %s", account.ID, account.AccountType)
 			continue
 		}
 

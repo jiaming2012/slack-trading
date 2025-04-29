@@ -51,32 +51,37 @@ func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
 	return p.placeOrderMutex
 }
 
-func (p *Playground) PopNewOrdersQueue(orderID uint) *OrderRecord {
-	p.newOrdersQueueMutex.Lock()
-	defer p.newOrdersQueueMutex.Unlock()
-
-	if len(p.account.NewOrders) == 0 {
-		return nil
-	}
-
-	for i, o := range p.account.NewOrders {
+func (p *Playground) GetOrder(orderID uint) (*OrderRecord, error) {
+	for _, o := range p.GetAllOrders() {
 		if o.ID == orderID {
-			p.account.NewOrders = append(p.account.NewOrders[:i], p.account.NewOrders[i+1:]...)
-			return o
+			return o, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("order %d not found", orderID)
 }
 
 func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
 	p.pendingOrdersQueueMutex.Lock()
 	defer p.pendingOrdersQueueMutex.Unlock()
 
+	p.newOrdersQueueMutex.Lock()
+	defer p.newOrdersQueueMutex.Unlock()
+
+	for i, o := range p.account.NewOrders {
+		if o.ID == order.ID {
+			// remove order from new orders queue
+			p.account.NewOrders = append(p.account.NewOrders[:i], p.account.NewOrders[i+1:]...)
+			log.Debugf("order %d found in new orders queue. Moved to pending queue", order.ID)
+		}
+	}
+
 	for _, o := range p.account.PendingOrders {
 		if o.ID == order.ID {
-			log.Warnf("order %d already in pending orders queue", order.ID)
-			return
+			if o.ExternalOrderID != nil && order.ExternalOrderID != nil && *o.ExternalOrderID == *order.ExternalOrderID {
+				log.Warnf("order %d already in pending orders queue", order.ID)
+				return
+			}
 		}
 	}
 
@@ -90,7 +95,7 @@ func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) {
 
 	for _, o := range p.account.NewOrders {
 		if o.ID == order.ID {
-			log.Warnf("order %d already in new orders queue", order.ID)
+			log.Warnf("AddToNewOrdersQueue: order %d already in new orders queue. Returning ...", order.ID)
 			return
 		}
 	}
@@ -217,15 +222,34 @@ func (p *Playground) AddToOrderQueue(order *OrderRecord) error {
 		}
 	}
 
+	newOrdersIndex := -1
 	if index == -1 {
-		return fmt.Errorf("order %d not found in pending orders", order.ID)
+		log.Tracef("order %d not found in pending orders, check new orders queue ...", order.ID)
+
+		for i, o := range p.account.NewOrders {
+			if o.ID == order.ID {
+				newOrdersIndex = i
+				break
+			}
+		}
+
+		if newOrdersIndex == -1 {
+			return fmt.Errorf("order %d not found in pending or new orders queue", order.ID)
+		}
 	}
 
 	// add order to order queue
 	p.account.Orders = append(p.account.Orders, order)
 
-	// remove order from pending orders
-	p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
+	if index >= 0 {
+		// remove order from pending orders
+		p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
+	} else if newOrdersIndex >= 0 {
+		// remove order from new orders
+		p.account.NewOrders = append(p.account.NewOrders[:newOrdersIndex], p.account.NewOrders[newOrdersIndex+1:]...)
+	} else {
+		return fmt.Errorf("unexpected: order %d not found in pending or new orders queue", order.ID)
+	}
 
 	return nil
 }
@@ -569,6 +593,15 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 	}
 }
 
+func (p *Playground) SetPositionCache(cache *PositionsCache) error {
+	p.positionCache = cache
+	return nil
+}
+
+func (p *Playground) GetPositionCache() *PositionsCache {
+	return p.positionCache
+}
+
 func (p *Playground) SetOpenOrdersCache() error {
 	p.openOrdersCache = NewOpenOrdersCache()
 	for _, o := range p.account.Orders {
@@ -602,8 +635,42 @@ func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord,
 // 	p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:index], p.openOrdersCache[symbol][index+1:]...)
 // }
 
+func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) error {
+	if order.Status == OrderRecordStatusCanceled {
+		log.Warnf("CancelOrder: order %d is already canceled. Returning ...", order.ID)
+		return nil
+	}
+
+	if order.Status != OrderRecordStatusPending {
+		return fmt.Errorf("order is not pending")
+	}
+
+	err := database.CreateTransaction(func(tx *gorm.DB) error {
+		for _, o := range order.Reconciles {
+			o.Cancel()
+			if err := tx.Save(o).Error; err != nil {
+				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
+			}
+		}
+
+		order.Cancel()
+		if err := tx.Save(order).Error; err != nil {
+			return fmt.Errorf("CancelOrder: failed to save order: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("CancelOrder: failed to cancel order: %w", err)
+	}
+
+	return nil
+}
+
 func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDatabaseService) error {
 	if order.Status == OrderRecordStatusRejected {
+		log.Warnf("RejectOrder: order %d is already rejected. Returning ...", order.ID)
 		return nil
 	}
 
@@ -849,7 +916,10 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		}
 	}
 
-	order.PreviousPosition = *position
+	// only update the position on the first fill
+	if len(order.Trades) == 1 || len(order.ReconcileTrades) == 1 {
+		order.PreviousPosition = *position
+	}
 
 	// update the account balance before updating the positions cache
 	p.updateBalance(order.GetInstrument(), trade, p.positionCache)
@@ -925,7 +995,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		return nil, nil
 	}
 
-	p.account.PendingOrders = append(p.account.PendingOrders, order)
+	p.AddToPendingOrdersQueue(order)
 
 	orderFillPriceMap := map[uint]ExecutionFillRequest{}
 
@@ -1582,10 +1652,10 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 			cliReqID = *o.ClientRequestID
 		}
 
-		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing into new orders queue", o.ID, cliReqID)
+		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing order %d into new orders queue", o.ID, cliReqID, order.ID)
 
 		changes = append(changes, &PlaceOrderChanges{
-			Commit: func() error {
+			Commit: func(tx *gorm.DB) error {
 				p.AddToNewOrdersQueue(order)
 				return nil
 			},
@@ -1606,31 +1676,8 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 			return nil, fmt.Errorf("cannot place order in the same playground")
 		}
 
-		// 	// check no pending orders exist
-		// 	maxAttempts := 30
-		// 	var pendingOrder *OrderRecord
-
-		// outer_loop:
-		// 	for range maxAttempts {
-		// 		pendingReconcileOrders := reconcilePlayground.GetPlayground().GetPendingOrders()
-		// 		for _, o := range pendingReconcileOrders {
-		// 			if o.Symbol == order.Symbol {
-		// 				pendingOrder = o
-		// 				log.Warnf("placeLiveOrder: cannot place order #%d because pending order #%d (externalId) already exists, with symbol=%s, in reconcile playground pending orders", order.ID, *o.ExternalOrderID, o.Symbol)
-		// 				time.Sleep(1 * time.Second)
-		// 				continue outer_loop
-		// 			}
-		// 		}
-		// 		pendingOrder = nil
-		// 		break
-		// 	}
-
-		// 	if pendingOrder != nil {
-		// 		return nil, fmt.Errorf("multiple pending orders not allowed: order %d already exists in reconcile playground for symbol %s", pendingOrder.ID, pendingOrder.Symbol)
-		// 	}
-
 		// todo: place all changes inside of a single transaction
-		playgroundChanges, err := p.placeOrder(order)
+		playgroundChanges, err := p.placeOrder(order) // remove from new queue and place into pending
 		if err != nil {
 			return nil, fmt.Errorf("failed to place order in live playground: %w", err)
 		}
@@ -1646,11 +1693,11 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 
 		for _, o := range reconciliationOrders {
 			changes = append(changes, &PlaceOrderChanges{
-				Commit: func() error {
+				Commit: func(tx *gorm.DB) error {
 					_order := o
 
 					// todo: place all changes inside of a single transaction
-					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecord(_order, nil, true); err != nil {
+					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, false); err != nil {
 						return fmt.Errorf("failed to save reconciliation order record: %w", err)
 					}
 
@@ -1662,8 +1709,8 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 	}
 
 	changes = append(changes, &PlaceOrderChanges{
-		Commit: func() error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, false); err != nil {
+		Commit: func(tx *gorm.DB) error {
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, false); err != nil {
 				return fmt.Errorf("failed to update live order record: %w", err)
 			}
 
@@ -1686,8 +1733,8 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 	}
 
 	changes = append(changes, &PlaceOrderChanges{
-		Commit: func() error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecord(order, nil, false); err != nil {
+		Commit: func(tx *gorm.DB) error {
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, false); err != nil {
 				return fmt.Errorf("failed to update live order record: %w", err)
 			}
 
@@ -1872,13 +1919,11 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 	return []*PlaceOrderChanges{
 		{
-			Commit: func() error {
+			Commit: func(tx *gorm.DB) error {
 				p.account.mutex.Lock()
 				defer p.account.mutex.Unlock()
 
-				order.Status = OrderRecordStatusPending
-
-				p.account.PendingOrders = append(p.account.PendingOrders, order)
+				p.AddToPendingOrdersQueue(order)
 
 				return nil
 			},

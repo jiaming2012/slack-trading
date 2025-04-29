@@ -2,16 +2,43 @@ package dbutils
 
 import (
 	"fmt"
+	"os"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 )
 
 func InitPostgresWithUrl(url string) (*gorm.DB, error) {
+	log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	var level logger.LogLevel
+	switch os.Getenv("LOG_LEVEL") {
+	// case "trace":
+	// 	level = logger.Info
+	// case "warn":
+	// 	level = logger.Warn
+	default:
+		level = logger.Warn
+	}
+
+	log.Infof("Setting database log level to %v", level)
+
+	postgresLogger := logger.New(
+		log.StandardLogger(),
+		logger.Config{
+			SlowThreshold:             1 * time.Second,
+			LogLevel:                  level,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+		},
+	)
+
 	db, err := gorm.Open(postgres.Open(url), &gorm.Config{
-		// Logger: logger.Default.LogMode(logger.Silent),
+		Logger: postgresLogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

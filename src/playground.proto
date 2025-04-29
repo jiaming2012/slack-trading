@@ -12,6 +12,7 @@ service PlaygroundService {
     rpc CreatePlayground (CreatePolygonPlaygroundRequest) returns (CreatePlaygroundResponse);
     rpc CreateLivePlayground (CreateLivePlaygroundRequest) returns (CreatePlaygroundResponse);
     rpc GetPlaygrounds(GetPlaygroundsRequest) returns (GetPlaygroundsResponse);
+    rpc GetOrder(GetOrderRequest) returns (Order);
     rpc NextTick(NextTickRequest) returns (TickDelta);
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
@@ -23,6 +24,10 @@ service PlaygroundService {
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
     rpc GetReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+}
+
+message GetOrderRequest {
+    uint64 order_id = 1;
 }
 
 message MockFillOrderRequest {

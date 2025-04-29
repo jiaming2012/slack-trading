@@ -19,6 +19,22 @@ type MockDatabase struct {
 	tradeNounce          uint
 }
 
+func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error {
+	return m.SaveOrderRecord(order, nil, forceNew)
+}
+
+func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
+	for _, orders := range m.orderRecords {
+		for _, order := range orders {
+			if order.ID == id {
+				return order, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("MockDatabase: order not found")
+}
+
 func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
 	period := time.Minute
 	source := eventmodels.CandleRepositorySource{
@@ -237,13 +253,17 @@ func (m *MockDatabase) FetchReconcilePlaygroundByOrder(order *OrderRecord) (IRec
 	return nil, false, nil
 }
 
-func (m *MockDatabase) FetchNewOrder() (newOrder *OrderRecord, err error) {
+func (m *MockDatabase) FetchNewOrders() (newOrders []*OrderRecord, err error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
 			if order.Status == OrderRecordStatusNew {
-				return order, nil
+				newOrders = append(newOrders, order)
 			}
 		}
+	}
+
+	if len(newOrders) > 0 {
+		return newOrders, nil
 	}
 
 	return nil, nil
@@ -293,7 +313,7 @@ func (m *MockDatabase) LoadLiveAccounts(brokerMap map[CreateAccountRequestSource
 }
 
 func (m *MockDatabase) CreateTransaction(transaction func(tx *gorm.DB) error) error {
-	return nil
+	return transaction(nil)
 }
 
 func NewMockDatabase() *MockDatabase {

@@ -10,7 +10,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/playground"
 )
 
-func TestLiveAccountClose(t *testing.T) {
+func TestLiveAccountCancelOrder(t *testing.T) {
 	ctx := context.Background()
 	goEnv := "test"
 
@@ -84,7 +84,7 @@ func TestLiveAccountClose(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, liveAccount)
 
-	// Fill the order
+	// Cancel the order
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
@@ -98,91 +98,15 @@ func TestLiveAccountClose(t *testing.T) {
 	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
 		OrderId: *reconcileAccount.Orders[lastIndex].ExternalId,
 		Price:   178.0,
-		Status:  "filled",
+		Status:  "canceled",
 		Broker:  "tradier",
 	})
 
 	require.NoError(t, err)
 
-	err = waitUntilOrderStatus(p, placeOrderResponse1.Id, "filled")
-	require.NoError(t, err)
+	fmt.Printf("Cancel order %d for playground %s\n", placeOrderResponse1.Id, createLivePgResp.Id)
 
-	// Place sell 1/2 order
-	clientReqId = "test2"
-	placeOrderResponse2, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId:    createLivePgResp.Id,
-		ClientRequestId: &clientReqId,
-		Symbol:          "AAPL",
-		AssetClass:      "equity",
-		Quantity:        5,
-		Side:            "sell",
-		Type:            "market",
-		RequestedPrice:  177.0,
-		Duration:        "day",
-	})
-
-	require.NoError(t, err)
-
-	// Fill the order
-	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
-		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
-		FetchOrders:  true,
-	})
-
-	require.NoError(t, err)
-	require.Equal(t, reconcileAccountInitialOrderCount+2, len(reconcileAccount.Orders))
-
-	lastIndex = len(reconcileAccount.Orders) - 1
-	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[lastIndex].ExternalId,
-		Price:   178.0,
-		Status:  "filled",
-		Broker:  "tradier",
-	})
-
-	require.NoError(t, err)
-
-	err = waitUntilOrderStatus(p, placeOrderResponse2.Id, "filled")
-	require.NoError(t, err)
-
-	// Place sell 1/2 order, closes remaining position
-	clientReqId = "test3"
-	placeOrderResponse3, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId:    createLivePgResp.Id,
-		ClientRequestId: &clientReqId,
-		Symbol:          "AAPL",
-		AssetClass:      "equity",
-		Quantity:        5,
-		Side:            "sell",
-		Type:            "market",
-		RequestedPrice:  177.0,
-		Duration:        "day",
-	})
-
-	fmt.Printf("Placed order %d\n", placeOrderResponse3.Id)
-
-	require.NoError(t, err)
-
-	// Fill the order
-	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
-		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
-		FetchOrders:  true,
-	})
-
-	require.NoError(t, err)
-	require.Equal(t, reconcileAccountInitialOrderCount+3, len(reconcileAccount.Orders))
-
-	lastIndex = len(reconcileAccount.Orders) - 1
-	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[lastIndex].ExternalId,
-		Price:   178.0,
-		Status:  "filled",
-		Broker:  "tradier",
-	})
-
-	require.NoError(t, err)
-
-	err = waitUntilOrderStatus(p, placeOrderResponse3.Id, "filled")
+	err = waitUntilOrderStatus(p, placeOrderResponse1.Id, "canceled")
 	require.NoError(t, err)
 
 	// Check the live account order details
@@ -192,13 +116,11 @@ func TestLiveAccountClose(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, liveAccount)
-	require.Len(t, liveAccount.Orders, 3)
+	require.Len(t, liveAccount.Orders, 1)
 
 	fmt.Printf("Fetch live orders for playground %s\n", createLivePgResp.Id)
 
-	require.Equal(t, "filled", liveAccount.Orders[0].Status)
-	require.Equal(t, "filled", liveAccount.Orders[1].Status)
-	require.Equal(t, "filled", liveAccount.Orders[2].Status)
+	require.Equal(t, "canceled", liveAccount.Orders[0].Status)
 
 	// Check the live account positions
 	pos := liveAccount.Positions["AAPL"]
@@ -212,13 +134,11 @@ func TestLiveAccountClose(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, reconcileAccount)
-	require.Equal(t, 3, len(reconcileAccount.Orders)-reconcileAccountInitialOrderCount)
+	require.Equal(t, 1, len(reconcileAccount.Orders)-reconcileAccountInitialOrderCount)
 
-	require.Equal(t, "filled", reconcileAccount.Orders[reconcileAccountInitialOrderCount].Status)
-	require.Equal(t, "filled", reconcileAccount.Orders[reconcileAccountInitialOrderCount+1].Status)
-	require.Equal(t, "filled", reconcileAccount.Orders[reconcileAccountInitialOrderCount+2].Status)
+	require.Equal(t, "canceled", reconcileAccount.Orders[reconcileAccountInitialOrderCount].Status)
 
-	// Check the live account positions
+	// Check the reconcile account positions
 	pos = reconcileAccount.Positions["AAPL"]
 	if pos != nil {
 		require.Equal(t, initialReconcileAccountPosition, pos.Quantity)
