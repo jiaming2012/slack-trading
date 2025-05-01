@@ -385,6 +385,11 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 	nowEST := now.In(w.location)
 	todayAt1615 := time.Date(nowEST.Year(), nowEST.Month(), nowEST.Day(), 16, 15, 0, 0, w.location)
 
+	if now.Before(todayAt1615) {
+		log.Debug("ExecuteLiveAccountPlotUpdate: skipping : not yet 16:15 EST")
+		return
+	}
+
 	var liveAccounts []*models.LiveAccount
 	if err := w.db.Where("plot_updated_at IS NULL OR plot_updated_at < ?", todayAt1615).Find(&liveAccounts).Error; err != nil {
 		log.Errorf("failed to fetch live accounts: %v", err)
