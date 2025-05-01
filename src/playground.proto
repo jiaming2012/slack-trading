@@ -23,6 +23,7 @@ service PlaygroundService {
     rpc GetAccountStats(GetAccountStatsRequest) returns (GetAccountStatsResponse);
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
     rpc GetReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
+    rpc GetEquityReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
 }
 
@@ -41,6 +42,10 @@ message MockFillOrderRequest {
 message GetReconciliationReportRequest {
     string reconcile_playground_id = 1;
 }
+
+message GetEquityReconciliationReport {
+    string reconcile_playground_id = 1;
+} 
 
 message PositionReport {
     string symbol = 1;
