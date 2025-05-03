@@ -388,7 +388,7 @@ func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccou
 	return orders, nil
 }
 
-func (s *DatabaseService) LoadPlaygrounds() error {
+func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error {
 	var playgroundsSlice []*models.Playground
 	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
 		return db.Order("id ASC")
@@ -457,7 +457,7 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 			return fmt.Errorf("loadPlaygrounds: account id is not set for reconcile playground: %s", p.ID.String())
 		}
 
-		if err := s.PopulatePlayground(p); err != nil {
+		if err := s.PopulatePlayground(p, calendar); err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to populate reconcile playground: %w", err)
 		}
 
@@ -491,7 +491,7 @@ func (s *DatabaseService) LoadPlaygrounds() error {
 			continue
 		}
 
-		if err := s.PopulatePlayground(p); err != nil {
+		if err := s.PopulatePlayground(p, calendar); err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to populate live playground: %w", err)
 		}
 	}
@@ -780,7 +780,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		req.ReconcilePlayground = reconcilePlayground
 
 		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
-		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, repos...)
+		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -818,7 +818,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req, clock, now, nil, repos...)
+		err = models.PopulatePlayground(playground, req, clock, now, nil, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
@@ -902,7 +902,7 @@ func (s *DatabaseService) GetLiveAccount(source models.CreateAccountRequestSourc
 	return liveAccount, nil
 }
 
-func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
+func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eventmodels.MarketCalendar) error {
 	log.Infof("loading playground: %s", p.ID)
 
 	var source *models.CreateAccountRequestSource
@@ -1004,6 +1004,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground) error {
 		EquityPlotRecords: plot,
 		Tags:              p.Tags,
 		LiveAccount:       liveAccount,
+		Calendar:          calendar,
 		SaveToDB:          false,
 	})
 
@@ -1164,7 +1165,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 			if e := change.Commit(tx); e != nil {
 				return fmt.Errorf("placeOrder: failed to commit order change: %w", e)
 			}
-	
+
 			log.Infof("done committing order change: %s", change.Info)
 		}
 

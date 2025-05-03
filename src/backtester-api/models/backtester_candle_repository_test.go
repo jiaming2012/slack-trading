@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/utils"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSymbol(t *testing.T) {
@@ -59,7 +60,9 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		repo.SetStartingPosition(tstamp)
+		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+
+		require.NoError(t, err)
 
 		_, err = repo.Update(tstamp)
 
@@ -79,7 +82,9 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
-		repo.SetStartingPosition(tstamp)
+		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+
+		require.NoError(t, err)
 
 		c, err := repo.Update(tstamp)
 
@@ -101,7 +106,9 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 
-		repo.SetStartingPosition(tstamp)
+		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+
+		require.NoError(t, err)
 
 		_, err = repo.Update(tstamp)
 

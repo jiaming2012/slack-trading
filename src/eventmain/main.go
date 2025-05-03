@@ -719,8 +719,15 @@ func run() {
 		AccountID:       "mock_default",
 	}] = models.NewMockBroker(mockOrderIdStartIndex, existsingOrders)
 
+	quotesBearerToken := tradierNonTradesBearerToken
+	nowUTC := time.Now().UTC()
+	calendar, err := eventservices.FetchMarketCalendar(calendarURL, quotesBearerToken, nowUTC)
+	if err != nil {
+		log.Fatalf("Failed to fetch market calendar: %v", err)
+	}
+
 	// Setup backtester router playground
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap); err != nil {
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap, calendar); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 

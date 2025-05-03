@@ -22,12 +22,12 @@ type IDatabaseService interface {
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	CreateTransaction(transaction func(tx *gorm.DB) error) error
-	PopulatePlayground(p *Playground) error
+	PopulatePlayground(p *Playground, calendar *eventmodels.MarketCalendar) error
 	PopulateLiveAccount(a *LiveAccount) error
 	LoadLiveAccounts(brokerMap map[CreateAccountRequestSource]IBroker) error
 	CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]) ([]*CandleRepository, *eventmodels.WebError)
 	RemoveLiveRepository(repo *CandleRepository) error
-	LoadPlaygrounds() error
+	LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error
 	SavePlaygroundSession(playground *Playground) error
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error

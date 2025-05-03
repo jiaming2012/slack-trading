@@ -428,8 +428,10 @@
             "console": "integratedTerminal",
             "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
             "args": [
-                "--playground-id", "27a2ae48-e157-4c85-bed9-ee710281ad23",
-                "--twirp-host", "http://45.77.223.21"
+                "--tags", "cli_v11",
+                "--twirp-host", "http://45.77.223.21",
+                "--from-date", "2025-05-01",
+                "--to-date", "2025-05-02",
             ]
         },
         {

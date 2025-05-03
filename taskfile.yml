@@ -237,12 +237,12 @@ tasks:
     var:
       version: ""
       
-  metrics:
+  metrics:fetch:
     cmds:
-      - './env/bin/python playground_metrics.py --playground-id {{.playgroundId}}'
+      - './env/bin/python playground_metrics.py --tags cli_v11 --twirp-host http://45.77.223.21 --from-date 2025-05-01 --to-date 2025-05-02'
     dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
     var:
-      playgroundId: ""
+      tags: ""
 
   esdb:pf:
     cmds:

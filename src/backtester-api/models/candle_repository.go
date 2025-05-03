@@ -98,17 +98,41 @@ func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicato
 	return r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
 }
 
-func (r *CandleRepository) SetStartingPosition(currentTime time.Time) error {
+func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env PlaygroundEnvironment, calendar *eventmodels.MarketCalendar) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	for i, candle := range r.candlesWithIndicators {
-		if currentTime.Equal(candle.Timestamp) || currentTime.After(candle.Timestamp) {
+		if candle.Timestamp.Equal(currentTime) || candle.Timestamp.After(currentTime) {
 			start := i
 			r.startingPosition = &start
 			r.position = start
 			return nil
 		}
+	}
+
+	if env == PlaygroundEnvironmentSimulator || env == PlaygroundEnvironmentLive {
+		start := len(r.candlesWithIndicators) - 1
+		r.startingPosition = &start
+		r.position = start
+		showAlert := true
+
+		// Check if the market is open
+		if calendar != nil {
+			now := time.Now()
+			result, err := eventservices.IsMarketOpen(calendar, now)
+			if err != nil {
+				return fmt.Errorf("failed to check if market is open: %v", err)
+			}
+			showAlert = result
+		}
+
+		if showAlert {
+			startingCandle := r.candlesWithIndicators[start]
+			log.Warnf("no candles found at or after %s, but market is open. Setting start candle to %s", currentTime, startingCandle.Timestamp)
+		}
+
+		return nil
 	}
 
 	return fmt.Errorf("no candles found at or after %s", currentTime)
@@ -294,16 +318,16 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 	} else {
 		for _, candle := range candles {
 			candlesWithIndicators = append(candlesWithIndicators, &eventmodels.AggregateBarWithIndicators{
-				Volume:   candle.Volume,
-				Open:     candle.Open,
-				High:     candle.High,
-				Low:      candle.Low,
-				Close:    candle.Close,
+				Volume:    candle.Volume,
+				Open:      candle.Open,
+				High:      candle.High,
+				Low:       candle.Low,
+				Close:     candle.Close,
 				Timestamp: candle.Timestamp,
 			})
 		}
 	}
-	
+
 	log.Debugf("adding newCandlesQueue(%p) to CandleRepository (%s, %s)", newCandlesQueue, symbol, period.String())
 
 	return &CandleRepository{

@@ -1956,7 +1956,7 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], calendar *eventmodels.MarketCalendar, feeds ...(*CandleRepository)) error {
 	source := req.Account.Source
 	clientID := req.ClientID
 	balance := req.Account.Balance
@@ -2031,7 +2031,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 		// set the feeds
 		for _, feed := range feeds {
-			if err := feed.SetStartingPosition(startAt); err != nil {
+			if err := feed.SetStartingPosition(startAt, env, calendar); err != nil {
 				return fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
 			}
 
@@ -2109,7 +2109,7 @@ func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountR
 		Tags:           tags,
 	}
 
-	return PopulatePlayground(playground, req, clock, now, nil, feeds...)
+	return PopulatePlayground(playground, req, clock, now, nil, nil, feeds...)
 }
 
 // todo: change repository on playground to BacktesterCandleRepository

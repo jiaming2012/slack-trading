@@ -79,7 +79,7 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 	}
 
 	newTradesQueue := eventmodels.NewFIFOQueue[*TradeRecord]("newTradesQueue", 999)
-	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, repo)
+	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, req.Calendar, repo)
 }
 
 func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error) {
@@ -161,7 +161,7 @@ func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, 
 	return nil
 }
 
-func (m *MockDatabase) LoadPlaygrounds() error {
+func (m *MockDatabase) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error {
 	return nil
 }
 
@@ -300,7 +300,7 @@ func (m *MockDatabase) SaveLiveRepository(repo *CandleRepository) error {
 	return nil
 }
 
-func (m *MockDatabase) PopulatePlayground(p *Playground) error {
+func (m *MockDatabase) PopulatePlayground(p *Playground, calendar *eventmodels.MarketCalendar) error {
 	return nil
 }
 
