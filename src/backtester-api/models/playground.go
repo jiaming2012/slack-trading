@@ -647,16 +647,36 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 
 	err := database.CreateTransaction(func(tx *gorm.DB) error {
 		for _, o := range order.Reconciles {
-			o.Cancel()
+			if o.ID == 0 {
+				return fmt.Errorf("CancelOrder: order.Reconciles order ID is 0")
+			}
+
+			var existing OrderRecord
+			if err := tx.First(&existing, o.ID).Error; err != nil {
+				return fmt.Errorf("CancelOrder order.Reconciles: failed to find existing order: %w", err)
+			}
+
 			if err := tx.Save(o).Error; err != nil {
 				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
 			}
+
+			o.Cancel()
 		}
 
-		order.Cancel()
+		if order.ID == 0 {
+			return fmt.Errorf("CancelOrder: order ID is 0")
+		}
+
+		var existing OrderRecord
+		if err := tx.First(&existing, order.ID).Error; err != nil {
+			return fmt.Errorf("CancelOrder: failed to find existing order: %w", err)
+		}
+
 		if err := tx.Save(order).Error; err != nil {
 			return fmt.Errorf("CancelOrder: failed to save order: %w", err)
 		}
+
+		order.Cancel()
 
 		return nil
 	})
@@ -682,16 +702,36 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 		cause := fmt.Errorf(reason)
 
 		for _, o := range order.Reconciles {
-			o.Reject(cause)
-			if err := tx.Save(o).Error; err != nil {
-				return fmt.Errorf("RejectOrder: failed to save reconciled order: %w", err)
+			if o.ID == 0 {
+				return fmt.Errorf("RejectOrder order.Reconciles: order ID is 0")
 			}
+
+			var existing OrderRecord
+			if err := tx.First(&existing, o.ID).Error; err != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to find existing order: %w", err)
+			}
+
+			if err := tx.Save(o).Error; err != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to save reconciled order: %w", err)
+			}
+
+			o.Reject(cause)
 		}
 
-		order.Reject(cause)
+		if order.ID == 0 {
+			return fmt.Errorf("RejectOrder: order ID is 0")
+		}
+
+		var existing OrderRecord
+		if err := tx.First(&existing, order.ID).Error; err != nil {
+			return fmt.Errorf("RejectOrder: failed to find existing order: %w", err)
+		}
+
 		if err := tx.Save(order).Error; err != nil {
 			return fmt.Errorf("RejectOrder: failed to save order: %w", err)
 		}
+
+		order.Reject(cause)
 
 		return nil
 	})

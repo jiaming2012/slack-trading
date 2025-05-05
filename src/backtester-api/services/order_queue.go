@@ -152,7 +152,6 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			return joinedErr
 		}
 
-		// remove order from new orders queue DELETE ME
 		order, err := playground.GetOrder(newOrder.ID)
 		if err != nil {
 			err = fmt.Errorf("handleLiveOrders: failed to pop order #%d from new orders queue: %w", newOrder.ID, err)
