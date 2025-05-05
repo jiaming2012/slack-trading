@@ -1735,9 +1735,12 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 			changes = append(changes, &PlaceOrderChanges{
 				Commit: func(tx *gorm.DB) error {
 					_order := o
+					forceNew := true
+					if _order.ID > 0 {
+						forceNew = false
+					} 
 
-					// todo: place all changes inside of a single transaction
-					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, true); err != nil {
+					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, forceNew); err != nil {
 						return fmt.Errorf("failed to save reconciliation order record: %w", err)
 					}
 
@@ -1750,7 +1753,12 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 
 	changes = append(changes, &PlaceOrderChanges{
 		Commit: func(tx *gorm.DB) error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, true); err != nil {
+			forceNew := true
+			if order.ID > 0 {
+				forceNew = false
+			} 
+
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, forceNew); err != nil {
 				return fmt.Errorf("failed to update live order record: %w", err)
 			}
 

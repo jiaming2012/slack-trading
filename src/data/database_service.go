@@ -120,7 +120,9 @@ func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
 
 	var mockMaxExternalId uint
 	if err := s.db.Raw(FetchMockMaxExternalIdSql).Scan(&mockMaxExternalId).Error; err != nil {
-		return 0, fmt.Errorf("failed to get mock order id start index: %w", err)
+		log.Errorf("failed to get mock order id start index: %v", err)
+		log.Debug("setting mockMaxExternalId to 0")
+		mockMaxExternalId = 0
 	}
 
 	return mockMaxExternalId + 1, nil
