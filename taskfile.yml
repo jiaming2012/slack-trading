@@ -1,12 +1,12 @@
 version: '3'
 
 tasks:
-  cleanup:vultr:
+  clean:vultr:
     cmds:
       - './cleanup_docker_images_remote.sh'
     dir: ${PROJECTS_DIR}/slack-trading
 
-  cleanup:docker:
+  clean:docker:
     cmds:
       - './cleanup_old_docker_images.sh'
       - 'docker volume prune -f'

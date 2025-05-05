@@ -117,7 +117,15 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDi
 
 	// Start a eventstoredb container
 	esdbReq := testcontainers.ContainerRequest{
-		Image:        "eventstore/eventstore:24.2.0-jammy",
+		Image: "eventstore/eventstore:24.2.0-jammy",
+		Cmd: []string{
+			"--db", "/var/lib/eventstore",
+			"--log", "/var/log/eventstore",
+		},
+		Tmpfs: map[string]string{
+			"/var/lib/eventstore": "rw",
+			"/var/log/eventstore": "rw",
+		},
 		ExposedPorts: []string{"2113/tcp", "1113/tcp"},
 		Env: map[string]string{
 			"EVENTSTORE_RUN_PROJECTIONS":            "All",
@@ -163,7 +171,10 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDi
 	initScriptPath := filepath.Join(projectsDir, "slack-trading", "src", "backtester-api", "db", "init.sql")
 
 	postgresReq := testcontainers.ContainerRequest{
-		Image:        "postgres:13",
+		Image: "postgres:13",
+		Tmpfs: map[string]string{
+			"/var/lib/postgresql/data": "rw",
+		},
 		ExposedPorts: []string{"5432/tcp"},
 		Env: map[string]string{
 			"POSTGRES_USER":     postgresUser,
