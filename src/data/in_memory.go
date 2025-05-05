@@ -18,29 +18,26 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 		for _, order := range orders {
 			var e error
 
-			// for _, trade := range order.Trades {
-			// 	if forceNew || trade.ID == 0 {
-			// 		if e = tx.Create(trade).Error; e != nil {
-			// 			return fmt.Errorf("failed to create trade: %w", e)
-			// 		}
-			// 	} else {
-			// 		if e = tx.Save(trade).Error; e != nil {
-			// 			return fmt.Errorf("failed to save trade records: %w", e)
-			// 		}
-			// 	}
-			// }
-
-			if err := order.Validate(); err != nil {
-				return fmt.Errorf("failed to validate order: %w", err)
+			if e = order.Validate(); e != nil {
+				return fmt.Errorf("failed to validate order: %w", e)
 			}
 
-			if forceNew || order.ID == 0 {
+			if forceNew {
 				if e = tx.Create(order).Error; e != nil {
 					return fmt.Errorf("failed to create order records: %w", e)
 				}
 			} else {
-				if e = tx.Save(order).Error; e != nil {
-					return fmt.Errorf("failed to save order records: %w", e)
+				if order.ID == 0 {
+					return fmt.Errorf("saveOrderRecordsTx: order ID is 0")
+				}
+
+				var existing models.OrderRecord
+				if err := tx.First(&existing, order.ID).Error; err != nil {
+					return fmt.Errorf("saveOrderRecordsTx: failed to find existing order: %w", err)
+				}
+
+				if err := tx.Save(order).Error; err != nil {
+					return fmt.Errorf("saveOrderRecordsTx: failed to update order: %w", err)
 				}
 			}
 		}

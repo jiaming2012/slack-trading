@@ -13,6 +13,23 @@ import (
 	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 )
 
+func UpdateOrder(tx *gorm.DB, order *models.OrderRecord) error {
+	if order.ID == 0 {
+		return fmt.Errorf("updateOrder: order ID is 0")
+	}
+
+	var existing models.OrderRecord
+	if err := tx.First(&existing, order.ID).Error; err != nil {
+		return fmt.Errorf("updateOrder: failed to find existing order: %w", err)
+	}
+
+	if err := tx.Save(order).Error; err != nil {
+		return fmt.Errorf("updateOrder: failed to update order: %w", err)
+	}
+
+	return nil
+}
+
 func InitPostgresWithUrl(url string) (*gorm.DB, error) {
 	log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	var level logger.LogLevel
