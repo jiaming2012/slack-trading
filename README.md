@@ -3,6 +3,27 @@ A mock trading platform.
 
 # DevOps
 
+## Delete all playgrounds
+During initial development, it has been useful to soft delete a set of existing playgrounds, with scripts below:
+``` sql
+-- mark all playgrounds as deleted
+update playground_sessions set deleted_at = NOW() where environment != 'reconcile' and deleted_at is null ;
+
+-- mark order records as deleted
+update order_records as ord  
+  set deleted_at = NOW()
+  from playground_sessions as ps
+  where ps.id = ord.playground_id
+    and ps.deleted_at is not null ;
+
+-- mark trade records as deleted
+update trade_records as tr
+  set deleted_at = NOW()
+  from order_records as orec
+  where tr.order_id = orec.id
+    and orec.deleted_at is not null ;
+```
+
 ## Installation
 Crane: managing remote images in Vultr
 ``` bash
