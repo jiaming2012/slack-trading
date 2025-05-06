@@ -25,14 +25,14 @@ SELECT
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
 JOIN trade_records t on orec.id = t.reconcile_order_id
-WHERE orr.reconcile_id = $1
+WHERE orr.reconcile_id = $1 AND t.deleted_at IS NULL
 `
 
 const FetchReconciliationOrdersSql = `
 SELECT orec.*
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
-WHERE orr.reconcile_id = $1
+WHERE orr.reconcile_id = $1 AND orec.deleted_at IS NULL
 `
 
 const FetchMockMaxExternalIdSql = `
