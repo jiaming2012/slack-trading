@@ -21,8 +21,6 @@ func TestLiveAccountCloseDuplicateRejected(t *testing.T) {
 	// Start main app container
 	p := createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
 
-	fmt.Printf("Playground client: %v\n", p)
-
 	createLivePgResp, err := p.CreateLivePlayground(ctx, &playground.CreateLivePlaygroundRequest{
 		Balance:     10000,
 		Broker:      "tradier",
@@ -144,7 +142,7 @@ func TestLiveAccountCloseDuplicateRejected(t *testing.T) {
 	require.NotNil(t, placeOrderResp3)
 	require.Equal(t, "new", placeOrderResp3.Status)
 
-	// Cancel order 2
+	// Reject order 2
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
@@ -159,9 +157,13 @@ func TestLiveAccountCloseDuplicateRejected(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for the order to be canceled
+	// Wait for the order to be rejected
+	fmt.Printf("waiting for order %d to be rejected ...\n", placeOrderResp2.Id)
+
 	waitUntilOrderStatus(p, placeOrderResp2.Id, "rejected")
 
 	// Order 3 should now be filled
+	fmt.Printf("waiting for order %d to be filled...\n", placeOrderResp3.Id)
+
 	waitUntilOrderStatus(p, placeOrderResp3.Id, "filled")
 }

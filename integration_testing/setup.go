@@ -126,6 +126,8 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDi
 			"/var/lib/eventstore": "rw",
 			"/var/log/eventstore": "rw",
 		},
+		Privileged:   true,
+		User:         "0:0",
 		ExposedPorts: []string{"2113/tcp", "1113/tcp"},
 		Env: map[string]string{
 			"EVENTSTORE_RUN_PROJECTIONS":            "All",

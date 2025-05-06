@@ -18,6 +18,8 @@ type IDatabaseService interface {
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
 	FetchNewOrders() (newOrders []*OrderRecord, err error)
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
+	RejectOrder(order *OrderRecord, reason string) error
+	CancelOrder(order *OrderRecord) error
 	FetchPendingOrders(accountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error

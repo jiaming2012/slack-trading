@@ -361,7 +361,7 @@ func TestLiveAccount(t *testing.T) {
 
 		err = UpdatePendingMarginOrders(database)
 		require.NoError(t, err)
-		
+
 		// assert - live order is filled
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Status)
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[2].Status)
@@ -521,7 +521,7 @@ func TestLiveAccount(t *testing.T) {
 		liveOrders = livePlayground1.GetAllOrders()
 		require.Len(t, liveOrders, 3)
 		require.Equal(t, models.OrderRecordStatusFilled, liveOrders[1].Status)
-		require.Equal(t, models.OrderRecordStatusPending, liveOrders[2].Status)  // order #3 is still placed but still pending
+		require.Equal(t, models.OrderRecordStatusPending, liveOrders[2].Status) // order #3 is still placed but still pending
 
 		reconcileOrders = livePlayground1.GetReconcilePlayground().GetOrders()
 		require.Len(t, reconcileOrders, 3)
@@ -532,7 +532,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Len(t, reconcileOrders[1].Reconciles, 1)
 		require.Equal(t, order2.ID, reconcileOrders[1].Reconciles[0].ID)
 		require.Equal(t, models.OrderRecordStatusFilled, reconcileOrders[1].Reconciles[0].Status)
-		
+
 		require.Equal(t, models.OrderRecordStatusPending, reconcileOrders[2].Status)
 
 		// place order #3 (sell short) - now available to fill: order #2 no longer pending

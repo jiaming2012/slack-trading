@@ -102,6 +102,7 @@ func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) {
 
 	order.Status = OrderRecordStatusNew
 	p.account.NewOrders = append(p.account.NewOrders, order)
+	log.Infof("AddToNewOrdersQueue: order %d added to new orders queue", order.ID)
 }
 
 func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
@@ -660,7 +661,18 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
 			}
 
+			// TODO: this should use the saga pattern - maybe temporal - so that all orders that were reconciled
+			// are rolled back if any of them fail
+			pg, e := database.GetPlayground(o.PlaygroundID)
+			if e != nil {
+				return fmt.Errorf("CancelOrder order.Reconciles: failed to get playground: %w", e)
+			}
+
 			o.Cancel()
+
+			if e = pg.AddToOrderQueue(o); e != nil {
+				return fmt.Errorf("CancelOrder order.Reconciles: failed to add order to order queue: %w", e)
+			}
 		}
 
 		if order.ID == 0 {
@@ -678,6 +690,10 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 
 		order.Cancel()
 
+		if err := p.AddToOrderQueue(order); err != nil {
+			return fmt.Errorf("CancelOrder: failed to add order to order queue: %w", err)
+		}
+
 		return nil
 	})
 
@@ -689,6 +705,9 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 }
 
 func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDatabaseService) error {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
 	if order.Status == OrderRecordStatusRejected {
 		log.Warnf("RejectOrder: order %d is already rejected. Returning ...", order.ID)
 		return nil
@@ -715,7 +734,18 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 				return fmt.Errorf("RejectOrder order.Reconciles: failed to save reconciled order: %w", err)
 			}
 
+			// TODO: this should use the saga pattern - maybe temporal - so that all orders that were reconciled
+			// are rolled back if any of them fail
+			pg, e := database.GetPlayground(o.PlaygroundID)
+			if e != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to get playground: %w", e)
+			}
+
 			o.Reject(cause)
+
+			if e = pg.AddToOrderQueue(o); e != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to add order to order queue: %w", e)
+			}
 		}
 
 		if order.ID == 0 {
@@ -732,6 +762,10 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 		}
 
 		order.Reject(cause)
+
+		if err := p.AddToOrderQueue(order); err != nil {
+			return fmt.Errorf("RejectOrder: failed to add order to order queue: %w", err)
+		}
 
 		return nil
 	})
@@ -1731,14 +1765,14 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 		changes = append(changes, reconciliationChanges...)
 		changes = append(changes, playgroundChanges...)
 
-		for _, o := range reconciliationOrders {
+		for i, o := range reconciliationOrders {
 			changes = append(changes, &PlaceOrderChanges{
 				Commit: func(tx *gorm.DB) error {
 					_order := o
 					forceNew := true
 					if _order.ID > 0 {
 						forceNew = false
-					} 
+					}
 
 					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, forceNew); err != nil {
 						return fmt.Errorf("failed to save reconciliation order record: %w", err)
@@ -1746,7 +1780,7 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 
 					return nil
 				},
-				Info: fmt.Sprintf("save reconciliation order record %d", o.ID),
+				Info: fmt.Sprintf("iteration %d - save reconciliation order record %d", i+1, order.ID),
 			})
 		}
 	}
@@ -1756,7 +1790,7 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 			forceNew := true
 			if order.ID > 0 {
 				forceNew = false
-			} 
+			}
 
 			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, forceNew); err != nil {
 				return fmt.Errorf("failed to update live order record: %w", err)

@@ -314,31 +314,55 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 }
 
 func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) *OrderRecord {
-	o := &OrderRecord{
-		Model:            gorm.Model{ID: id},
-		ExternalOrderID:  external_order_id,
-		ClientRequestID:  client_request_id,
-		PlaygroundID:     playgroundId,
-		Class:            class,
-		LiveAccountType:  accountType,
-		Timestamp:        createDate,
-		Symbol:           symbol.GetTicker(),
-		instrument:       symbol,
-		Side:             side,
-		AbsoluteQuantity: quantity,
-		OrderType:        orderType,
-		Duration:         duration,
-		RequestedPrice:   requestedPrice,
-		Price:            price,
-		StopPrice:        stopPrice,
-		Tag:              tag,
-		Status:           status,
-		Trades:           []*TradeRecord{},
-		ClosedBy:         []*TradeRecord{},
-		Closes:           []*OrderRecord{},
-		CloseOrderId:     closeOrderId,
-		IsAdjustment:     false,
+	order := &OrderRecord{
+		Model: gorm.Model{ID: id},
 	}
 
-	return o
+	PopulateOrderRecord(
+		order,
+		external_order_id,
+		client_request_id,
+		playgroundId,
+		class,
+		accountType,
+		createDate,
+		symbol,
+		side,
+		quantity,
+		orderType,
+		duration,
+		requestedPrice,
+		price,
+		stopPrice,
+		status,
+		tag,
+		closeOrderId,
+	)
+
+	return order
+}
+
+func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol eventmodels.Instrument, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) {
+	order.ExternalOrderID = external_order_id
+	order.ClientRequestID = client_request_id
+	order.PlaygroundID = playgroundId
+	order.Class = class
+	order.LiveAccountType = accountType
+	order.Timestamp = createDate
+	order.Symbol = symbol.GetTicker()
+	order.instrument = symbol
+	order.Side = side
+	order.AbsoluteQuantity = quantity
+	order.OrderType = orderType
+	order.Duration = duration
+	order.RequestedPrice = requestedPrice
+	order.Price = price
+	order.StopPrice = stopPrice
+	order.Tag = tag
+	order.Status = status
+	order.Trades = []*TradeRecord{}
+	order.ClosedBy = []*TradeRecord{}
+	order.Closes = []*OrderRecord{}
+	order.CloseOrderId = closeOrderId
+	order.IsAdjustment = false
 }

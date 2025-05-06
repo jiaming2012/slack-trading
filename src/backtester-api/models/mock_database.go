@@ -23,6 +23,25 @@ func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceN
 	return m.SaveOrderRecord(order, nil, forceNew)
 }
 
+func (m *MockDatabase) CancelOrder(order *OrderRecord) error {
+	if order == nil {
+		return fmt.Errorf("MockDatabase: order is nil")
+	}
+
+	order.Cancel()
+	return nil
+}
+
+func (m *MockDatabase) RejectOrder(order *OrderRecord, reason string) error {
+	if order == nil {
+		return fmt.Errorf("MockDatabase: order is nil")
+	}
+
+	order.Reject(fmt.Errorf("MockDatabase: %s", reason))
+
+	return nil
+}
+
 func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {

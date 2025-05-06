@@ -723,7 +723,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 
 	orderDTO := convertOrder(order)
 
-	log.Infof("%v: PlaceOrder:end", req.ClientRequestId)
+	log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
 
 	return orderDTO, nil
 }

@@ -1068,6 +1068,63 @@ func (s *DatabaseService) waitForOrderRecord(orderID uint) error {
 	}
 }
 
+func (s *DatabaseService) CancelOrder(order *models.OrderRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, err := s.fetchPlayground(order.PlaygroundID)
+	if err != nil {
+		return fmt.Errorf("CancelOrder: failed to fetch playground: %w", err)
+	}
+
+	if err := s.db.Model(order).Update("status", models.OrderRecordStatusCanceled).Error; err != nil {
+		return fmt.Errorf("CancelOrder: failed to update order status to cancelled: %w", err)
+	}
+
+	order.Status = models.OrderRecordStatusCanceled
+
+	if err = playground.AddToOrderQueue(order); err != nil {
+		return fmt.Errorf("CancelOrder: failed to add order to queue: %w", err)
+	}
+
+	return nil
+}
+
+func (s *DatabaseService) RejectOrder(order *models.OrderRecord, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, err := s.fetchPlayground(order.PlaygroundID)
+	if err != nil {
+		return fmt.Errorf("RejectOrder: failed to fetch playground: %w", err)
+	}
+
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := s.db.Model(order).Update("status", models.OrderRecordStatusRejected).Error; err != nil {
+			return fmt.Errorf("RejectOrder: failed to update order status to rejected: %w", err)
+		}
+
+		if err := s.db.Model(order).Update("reject_reason", reason).Error; err != nil {
+			return fmt.Errorf("RejectOrder: failed to update order reject reason: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("RejectOrder: failed to update order in transaction: %w", err)
+	}
+
+	order.Status = models.OrderRecordStatusRejected
+	order.RejectReason = &reason
+
+	if err = playground.AddToOrderQueue(order); err != nil {
+		return fmt.Errorf("RejectOrder: failed to add order to queue: %w", err)
+	}
+
+	return nil
+}
+
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1092,14 +1149,14 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 		}
 	}
 
-	var playgroundEnv models.PlaygroundEnvironment
-	playgroundMeta := playground.GetMeta()
-	playgroundEnv = playgroundMeta.Environment
+	// var playgroundEnv models.PlaygroundEnvironment
+	// playgroundMeta := playground.GetMeta()
+	// playgroundEnv = playgroundMeta.Environment
 
-	liveOrderTempId := uint(0)
-	if playgroundEnv == models.PlaygroundEnvironmentLive {
-		req.Id = &liveOrderTempId
-	}
+	// liveOrderTempId := uint(0)
+	// if playgroundEnv == models.PlaygroundEnvironmentLive {
+	// 	req.Id = &liveOrderTempId
+	// }
 
 	order, err := s.makeOrderRecord(playground, req, createdOn)
 	if err != nil {
@@ -1114,11 +1171,13 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 }
 
 func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *models.CreateOrderRequest, createdOn time.Time) (*models.OrderRecord, error) {
-	var orderId uint
+	order := &models.OrderRecord{}
 	if req.Id != nil {
-		orderId = *req.Id
+		order.ID = *req.Id
 	} else {
-		orderId = 0
+		if err := s.db.Create(&order).Error; err != nil {
+			return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
+		}
 	}
 
 	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
@@ -1126,8 +1185,8 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		req.ExternalOrderID = &externalId
 	}
 
-	order := models.NewOrderRecord(
-		orderId,
+	models.PopulateOrderRecord(
+		order,
 		req.ExternalOrderID,
 		req.ClientRequestID,
 		playground.GetId(),

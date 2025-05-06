@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -44,48 +43,24 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 				continue
 			}
 
-			// create a copy of the orders
-			ordersCopy := make([]*models.OrderRecord, len(orders))
-			for i := 0; i < len(orders); i++ {
-				c := &models.OrderRecord{}
-				if err := copier.Copy(c, orders[i]); err != nil {
-					log.Fatalf("UpdatePendingMarginOrders: failed to copy order: %v", err)
-				}
-				ordersCopy[i] = c
-			}
-
-			shouldUpdate := false
-			for _, o := range ordersCopy {
+			for _, o := range orders {
 				if o.Status == models.OrderRecordStatusCanceled {
-					order.Cancel()
-					log.Infof("UpdatePendingMarginOrders: order %d was cancelled", order.ID)
-					shouldUpdate = true
+					dbService.CancelOrder(order)
+
+					log.Infof("UpdatePendingMarginOrders (cancel order): order %d status is %s", order.ID, o.Status)
 				} else if o.Status == models.OrderRecordStatusRejected {
 					rejectReason := "unknown"
 					if o.RejectReason != nil {
 						rejectReason = *o.RejectReason
 					}
 
-					err := fmt.Errorf(rejectReason)
-					order.Reject(err)
-					log.Infof("UpdatePendingMarginOrders: order %d status is %s for %s", order.ID, o.Status, rejectReason)
-					shouldUpdate = true
-				}
-			}
-
-			if shouldUpdate {
-				if err := dbService.SaveOrderRecords(ordersCopy, false); err != nil {
-					e := fmt.Errorf("UpdatePendingMarginOrders: failed to save order record: %v", err)
-					joinedErr = errors.Join(joinedErr, e)
-					log.Error(e)
-					continue
-				}
-
-				// copy the orders to the original slice
-				for i := range orders {
-					if err := copier.Copy(orders[i], &ordersCopy[i]); err != nil {
-						log.Fatalf("UpdatePendingMarginOrders: failed to copy order: %v", err)
+					if e := dbService.RejectOrder(order, rejectReason); e != nil {
+						e := fmt.Errorf("UpdatePendingMarginOrders: failed to reject order: %v", e)
+						joinedErr = errors.Join(joinedErr, e)
+						log.Error(e)
 					}
+
+					log.Infof("UpdatePendingMarginOrders (reject order): order %d status is %s for %s", order.ID, o.Status, rejectReason)
 				}
 			}
 		}
@@ -307,7 +282,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			}
 
 			if order.ExternalOrderID == nil {
-				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
+				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external id for order %d not found", order.ID)
 				continue
 			}
 
@@ -320,7 +295,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				},
 			})
 
-			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is rejected by broker", order.ExternalOrderID)
+			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d, external %d, is rejected by broker", order.ID, *order.ExternalOrderID)
 		} else if tradierOrder.Status == string(models.OrderRecordStatusCanceled) {
 			if order.ExternalOrderID == nil {
 				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
