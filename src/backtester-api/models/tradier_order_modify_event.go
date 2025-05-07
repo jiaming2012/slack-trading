@@ -8,4 +8,5 @@ type TradierOrderModifyEvent struct {
 	Field          string
 	Old            interface{}
 	New            interface{}
+	Reason         *string
 }
