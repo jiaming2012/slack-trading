@@ -291,7 +291,8 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 					PlaygroundId:   playground.ID,
 					TradierOrderID: *order.ExternalOrderID,
 					Field:          "status",
-					New:            reason,
+					New:            string(models.OrderRecordStatusRejected),
+					Reason:         &reason,
 				},
 			})
 
@@ -481,21 +482,33 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 				// todo: remove once all orders have links to playground, after PlaygroundSession refactor
 				playground, order, err := database.FindOrder(event.ModifyOrder.PlaygroundId, event.ModifyOrder.TradierOrderID)
 				if err == nil {
-					reason, ok := event.ModifyOrder.New.(string)
+					newState, ok := event.ModifyOrder.New.(string)
 					if !ok {
-						log.Errorf("handleLiveOrders: failed to convert reason to string: %v", event.ModifyOrder.New)
+						log.Errorf("handleLiveOrders: failed to convert event.ModifyOrder.New to string: %v", event.ModifyOrder.New)
 						continue
 					}
 
-					switch reason {
+					reason := ""
+
+					switch newState {
 					case string(models.OrderRecordStatusCanceled):
 						if err := playground.CancelOrder(order, database); err != nil {
 							log.Errorf("handleLiveOrders: failed to cancel order: %v", err)
 							continue
 						}
 					case "rejected by broker": // tradier internal status
+						reason = "rejected by broker"
 						fallthrough
 					case string(models.OrderRecordStatusRejected):
+						if reason == "" {
+							if event.ModifyOrder.Reason == nil {
+								log.Errorf("handleLiveOrders: reason is nil for order: %v", event.ModifyOrder)
+								continue
+							}
+
+							reason = *event.ModifyOrder.Reason
+						}
+
 						if err := playground.RejectOrder(order, reason, database); err != nil {
 							log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							continue
@@ -503,7 +516,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 					case string(models.OrderRecordStatusPending):
 						break
 					default:
-						log.Warnf("handleLiveOrders: unknown order status: %v", reason)
+						log.Warnf("handleLiveOrders: unknown state: %v", newState)
 					}
 
 					if err := database.SaveOrderRecord(order, nil, false); err != nil {
