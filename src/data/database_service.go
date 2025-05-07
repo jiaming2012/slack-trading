@@ -1175,6 +1175,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	if req.Id != nil {
 		order.ID = *req.Id
 	} else {
+		order.PlaygroundID = playground.GetId()
 		if err := s.db.Create(&order).Error; err != nil {
 			return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
 		}
