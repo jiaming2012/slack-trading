@@ -13,10 +13,12 @@ type IDatabaseService interface {
 	GetPlayground(playgroundID uuid.UUID) (*Playground, error)
 	GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error)
 	GetOrder(id uint) (*OrderRecord, error)
+	GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error)
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)
 	FetchPlayground(playgroundId uuid.UUID) (*Playground, error)
 	FetchNewOrders() (newOrders []*OrderRecord, err error)
+	FetchExternalIdMap(orders []*OrderRecord) (map[uint]*OrderRecord, error)
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
 	RejectOrder(order *OrderRecord, reason string) error
 	CancelOrder(order *OrderRecord) error

@@ -87,8 +87,8 @@ class SimpleOpenStrategyV3(BaseSimpleOpenStrategy):
                     min_price_prediction = self.factory.models['min_price_prediction'].predict(formatted_feature_set)[0]
                     
                     timestamp_utc = pd.Timestamp(c.bar.datetime)
-                    date = timestamp_utc.tz_convert('America/New_York')
-                    logger.trace(f"Date: {date}")
+                    tstamp = timestamp_utc.tz_convert('America/New_York')
+                    logger.trace(f"Date: {tstamp}")
                     logger.trace(f"Current bar close: {c.bar.close}")
                     logger.trace(f"Max price prediction: {max_price_prediction}")
                     logger.trace(f"Min price prediction: {min_price_prediction}")
@@ -108,7 +108,7 @@ class SimpleOpenStrategyV3(BaseSimpleOpenStrategy):
                     open_signals.append(
                         OpenSignalV2(
                             open_signal, 
-                            date, 
+                            tstamp, 
                             max_price_prediction, 
                             min_price_prediction,
                             additional_equity_risk

@@ -19,6 +19,14 @@ type MockDatabase struct {
 	tradeNounce          uint
 }
 
+func (m *MockDatabase) GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error) {
+	return nil, nil
+}
+
+func (m *MockDatabase) FetchExternalIdMap(orders []*OrderRecord) (map[uint]*OrderRecord, error) {
+	return nil, nil
+}
+
 func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error {
 	return m.SaveOrderRecord(order, nil, forceNew)
 }

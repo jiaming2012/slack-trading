@@ -10,14 +10,14 @@ class OpenSignalName(Enum):
 @dataclass
 class OpenSignal:
     name: OpenSignalName
-    date: pd.Timestamp
+    timestamp: pd.Timestamp
     max_price_prediction: float
     min_price_prediction: float
     
 @dataclass
 class OpenSignalV2:
     name: OpenSignalName
-    date: pd.Timestamp
+    timestamp: pd.Timestamp
     max_price_prediction: float
     min_price_prediction: float
     additional_equity_risk: float
@@ -31,6 +31,6 @@ class OpenSignalV2:
 @dataclass
 class OpenSignalV3:
     name: OpenSignalName
-    date: pd.Timestamp
+    timestamp: pd.Timestamp
     kwargs: dict
     additional_equity_risk: float

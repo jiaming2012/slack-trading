@@ -28,11 +28,11 @@ func NewServer(dbService *data.DatabaseService) *Server {
 	}
 }
 
-func convertOrders(orders []*models.OrderRecord) []*pb.Order {
+func convertOrders(orders []*models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) []*pb.Order {
 	out := make([]*pb.Order, 0)
 
 	for _, order := range orders {
-		if o := convertOrder(order); o != nil {
+		if o := convertOrder(order, externalIdMap); o != nil {
 			out = append(out, o)
 		}
 	}
@@ -40,7 +40,7 @@ func convertOrders(orders []*models.OrderRecord) []*pb.Order {
 	return out
 }
 
-func convertOrder(o *models.OrderRecord) *pb.Order {
+func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.GetTrades() {
 		var orderId *uint64
@@ -67,7 +67,7 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 
 	var closes []*pb.Order
 	for _, order := range o.Closes {
-		closes = append(closes, convertOrder(order))
+		closes = append(closes, convertOrder(order, externalIdMap))
 	}
 
 	var closedBy []*pb.Trade
@@ -81,11 +81,16 @@ func convertOrder(o *models.OrderRecord) *pb.Order {
 
 	var reconciles []*pb.Order
 	for _, order := range o.Reconciles {
-		reconciles = append(reconciles, convertOrder(order))
+		reconciles = append(reconciles, convertOrder(order, externalIdMap))
 	}
 
 	var externalId *uint64
-	if o.ExternalOrderID != nil {
+	if externalIdMap != nil {
+		if reconcileOrder, ok := externalIdMap[o.ID]; ok {
+			_id := uint64(*reconcileOrder.ExternalOrderID)
+			externalId = &_id
+		}
+	} else if o.ExternalOrderID != nil {
 		_externalId := uint64(*o.ExternalOrderID)
 		externalId = &_externalId
 	}
@@ -147,7 +152,7 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 		return nil, fmt.Errorf("failed to get order: %v", err)
 	}
 
-	return convertOrder(order), nil
+	return convertOrder(order, nil), nil
 }
 
 func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest) (*pb.EmptyResponse, error) {
@@ -179,6 +184,43 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
 		Version: eventservices.GetAppVersion(),
+	}, nil
+}
+
+func (s *Server) GetEquityReport(ctx context.Context, req *pb.GetEquityReportRequest) (*pb.GetEquityReportResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
+	}
+
+	playground, err := s.dbService.GetPlayground(playgroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
+	}
+
+	if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+		return nil, fmt.Errorf("failed to get equity report: playground is not a reconciliation playground")
+	}
+
+	equityReportItems, err := playground.GetEquityReportItems(s.dbService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
+	}
+
+	var items []*pb.LiveAccountPlot
+	for _, item := range equityReportItems {
+		if item.Equity == nil {
+			return nil, fmt.Errorf("failed to get equity report: equity is nil")
+		}
+
+		items = append(items, &pb.LiveAccountPlot{
+			Timestamp: item.Timestamp.Format(time.RFC3339),
+			Equity: *item.Equity,
+		})
+	}
+
+	return &pb.GetEquityReportResponse{
+		Items: items,
 	}, nil
 }
 
@@ -438,7 +480,7 @@ func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest
 	}
 
 	orders := playground.GetOpenOrders(symbol)
-	ordersDTO := convertOrders(orders)
+	ordersDTO := convertOrders(orders, nil)
 
 	return &pb.GetOpenOrdersResponse{
 		Orders: ordersDTO,
@@ -556,14 +598,14 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		})
 	}
 
-	invalidOrdersDTO := convertOrders(tick.InvalidOrders)
+	invalidOrdersDTO := convertOrders(tick.InvalidOrders, nil)
 
 	tickDeltaEvents := make([]*pb.TickDeltaEvent, 0)
 	for _, event := range tick.Events {
 		var liquidationEvent *pb.LiquidationEvent
 
 		if event.LiquidationEvent != nil {
-			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced)
+			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced, nil)
 
 			liquidationEvent = &pb.LiquidationEvent{
 				OrdersPlaced: ordersPlaced,
@@ -656,7 +698,15 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		endAt = &_endAt
 	}
 
-	ordersDTO := convertOrders(account.Orders)
+	var externalIdMap map[uint]*models.OrderRecord
+	if req.FetchExternalId && account.Meta.Environment == models.PlaygroundEnvironmentLive {
+		externalIdMap, err = s.dbService.FetchExternalIdMap(account.Orders)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get external id map: %v", err)
+		}
+	}
+
+	ordersDTO := convertOrders(account.Orders, externalIdMap)
 
 	var liveAccountType *string
 	if err := account.Meta.LiveAccountType.Validate(); err == nil {
@@ -721,7 +771,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to place order: %v", webErr)
 	}
 
-	orderDTO := convertOrder(order)
+	orderDTO := convertOrder(order, nil)
 
 	log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
 

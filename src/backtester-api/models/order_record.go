@@ -66,11 +66,15 @@ func (o *OrderRecord) IsPending() bool {
 
 func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
 	if o.instrument == nil {
-		switch o.Class {
-		case OrderRecordClassEquity:
-			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
-		default:
-			panic(fmt.Sprintf("unsupported order record class: %s", o.Class))
+		if o.Symbol != "" {
+			switch o.Class {
+			case OrderRecordClassEquity:
+				o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+			default:
+				panic(fmt.Sprintf("unsupported order record class: %s", o.Class))
+			}
+		} else {
+			o.instrument = eventmodels.NewStockSymbol("")
 		}
 	}
 
@@ -162,11 +166,13 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 
 func (o *OrderRecord) Hydrate() error {
 	if o.instrument == nil {
-		switch o.Class {
-		case OrderRecordClassEquity:
-			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
-		default:
-			return fmt.Errorf("unsupported order record class: %s", o.Class)
+		if o.Symbol != "" {
+			switch o.Class {
+			case OrderRecordClassEquity:
+				o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+			default:
+				return fmt.Errorf("unsupported order record class: %s", o.Class)
+			}
 		}
 	}
 

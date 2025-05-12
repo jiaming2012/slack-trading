@@ -100,6 +100,23 @@ def calculate_new_trade_quantity(logger, equity: float, free_margin: float, curr
     
     return quantity
 
+def build_client_request_id(symbol: str, date: str, side: OrderSide, quantity: float) -> str:
+    """
+        Builds a client request id in the format {symbol}--{date}--{side}--{quantity}, e.g. EURUSD--2023-10-01--BUY--1000
+    """
+    if side == OrderSide.BUY:
+        side_str = "buy"
+    elif side == OrderSide.SELL:
+        side_str = "sell"
+    elif side == OrderSide.SELL_SHORT:
+        side_str = "sell_short"
+    elif side == OrderSide.BUY_TO_COVER:
+        side_str = "buy_to_cover"
+    else:
+        raise ValueError("Invalid side")
+    
+    return f"{symbol}--{date}--{side_str}--{quantity:.2f}"
+
 def build_tag(sl: float, tp: float, side: OrderSide) -> str:
     """
         Builds a tag on the order in the format sl--{sl}--tp--{tp}, e.g. sl--100-50--tp--200-00
@@ -169,6 +186,8 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         
     return sl_target, tp_target
 
+
+
 def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, twirp_host) -> Tuple[float, dict]:
     sl_shift = open_strategy.get_sl_shift()
     tp_shift = open_strategy.get_tp_shift()
@@ -195,7 +214,11 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         
         i += 1   
         # check for close signals
-        kwargs = {}
+        kwargs = {
+            'period': ltf_period,
+            'playground': playground,
+        }
+        
         if isinstance(close_strategy, SimpleStackCloseStrategy):
             kwargs['supertrend_direction'] = current_candle.superD_50_3
             kwargs['tp_buffer'] = tp_buffer
@@ -205,7 +228,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True)
+            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)
+            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
             logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
 
         # check for open signals
@@ -225,7 +249,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
 
                 side = OrderSide.BUY
@@ -233,7 +258,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True)
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None), client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                     
                 side = OrderSide.SELL_SHORT
@@ -264,7 +290,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 continue
             
             try:
-                resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl)
+                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), side, quantity)
+                resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl, client_request_id=client_id)
             except InvalidParametersException as e:
                 logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
                 continue

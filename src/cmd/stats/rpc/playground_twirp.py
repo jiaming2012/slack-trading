@@ -119,6 +119,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetReconciliationReportRequest"),
 				output=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
 			),
+			"GetEquityReport": Endpoint(
+				service_name="PlaygroundService",
+				name="GetEquityReport",
+				function=getattr(service, "GetEquityReport"),
+				input=_sym_db.GetSymbol("playground.GetEquityReportRequest"),
+				output=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
+			),
 			"MockFillOrder": Endpoint(
 				service_name="PlaygroundService",
 				name="MockFillOrder",
@@ -253,6 +260,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
+			**kwargs,
+		)
+
+	def GetEquityReport(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetEquityReport",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
 			**kwargs,
 		)
 
@@ -405,6 +421,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetReconciliationReportResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetEquityReport(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetEquityReport",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
 				session=session,
 				**kwargs,
 			)

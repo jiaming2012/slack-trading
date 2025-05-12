@@ -23,8 +23,21 @@ service PlaygroundService {
     rpc GetAccountStats(GetAccountStatsRequest) returns (GetAccountStatsResponse);
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
     rpc GetReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
-    rpc GetEquityReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
+    rpc GetEquityReport(GetEquityReportRequest) returns (GetEquityReportResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+}
+
+message GetEquityReportRequest {
+    string playground_id = 1;
+}
+
+message LiveAccountPlot {
+    string timestamp = 1;
+    double equity = 2;
+}
+
+message GetEquityReportResponse {
+    repeated LiveAccountPlot items = 1;
 }
 
 message GetOrderRequest {
@@ -186,6 +199,7 @@ message GetAccountRequest {
     repeated string status = 5;
     repeated string sides = 6;
     repeated string symbols = 7;
+    bool fetch_external_id = 8;
 }
 
 message GetAccountResponse {

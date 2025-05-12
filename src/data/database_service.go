@@ -28,11 +28,17 @@ JOIN trade_records t on orec.id = t.reconcile_order_id
 WHERE orr.reconcile_id = $1 AND t.deleted_at IS NULL
 `
 
-const FetchReconciliationOrdersSql = `
+const FetchReconciliationOrderSql = `
 SELECT orec.*
 FROM order_reconciles orr
 JOIN order_records orec on orr.order_record_id = orec.id
 WHERE orr.reconcile_id = $1 AND orec.deleted_at IS NULL
+`
+
+const FetchReconciliationOrdersSql = `
+SELECT o1.reconcile_id, o2.* from order_reconciles o1
+  JOIN order_records o2 on o1.order_record_id = o2.id
+  WHERE reconcile_id in ?
 `
 
 const FetchMockMaxExternalIdSql = `
@@ -75,6 +81,28 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		ordersCache:          make(map[uint]*models.OrderRecord),
 		tradesCache:          make(map[uint]*models.TradeRecord),
 	}
+}
+
+func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveAccountPlot, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	playground, found := s.playgrounds[playgroundId]
+	if !found {
+		return nil, fmt.Errorf("failed to find playground: %s", playgroundId.String())
+	}
+
+	liveAccount := playground.GetLiveAccount()
+	if liveAccount == nil {
+		return nil, fmt.Errorf("failed to find live account for playground: %s", playgroundId.String())
+	}
+
+	var items []models.LiveAccountPlot
+	if err := s.db.Where("live_account_id = ?", liveAccount.GetId()).Order("timestamp DESC").Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("failed to append equity plot records: %w", err)
+	}
+
+	return items, nil
 }
 
 func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
@@ -143,9 +171,43 @@ func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
 	return &models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
 }
 
+type ReconcileOrderRecord struct {
+	models.OrderRecord
+	ReconcileId uint `gorm:"column:reconcile_id" copier:"must,nopanic"`
+}
+
+func (s *DatabaseService) FetchExternalIdMap(orders []*models.OrderRecord) (map[uint]*models.OrderRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// var orderIds strings.Builder
+	// for i := 0; i < len(orders)-1; i++ {
+	// 	orderIds.WriteString(fmt.Sprintf("%d,", orders[i].ID))
+	// }
+	var orderIds []uint
+	for _, o := range orders {
+		orderIds = append(orderIds, o.ID)
+	}
+
+	// orderIds.WriteString(fmt.Sprintf("%d", orders[len(orders)-1].ID))
+
+	var reconcileOrders []*ReconcileOrderRecord
+	if err := s.db.Raw(FetchReconciliationOrdersSql, orderIds).Scan(&reconcileOrders).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
+	}
+
+	externalIdMap := make(map[uint]*models.OrderRecord)
+
+	for _, o := range reconcileOrders {
+		externalIdMap[o.ReconcileId] = &o.OrderRecord
+	}
+
+	return externalIdMap, nil
+}
+
 func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
-	if err := s.db.Raw(FetchReconciliationOrdersSql, reconcileId).Scan(&orders).Error; err != nil {
+	if err := s.db.Raw(FetchReconciliationOrderSql, reconcileId).Scan(&orders).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
 	}
 

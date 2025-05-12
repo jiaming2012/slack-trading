@@ -237,7 +237,7 @@ class BacktesterPlaygroundClient:
         self._new_state_buffer = []
         return buffer
     
-    def get_current_candle(self, symbol: str, period: int) -> float:
+    def get_current_candle(self, symbol: str, period: int) -> Bar:
         symbols = self.current_candles.get(symbol)
         if not symbols:
             raise Exception(f"Current bar for symbol {symbol} not found")
@@ -529,7 +529,7 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None) -> object:
         if quantity == 0:
             return
         
@@ -539,6 +539,9 @@ class BacktesterPlaygroundClient:
                 raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place long order')
             elif quantity < 0 and side == OrderSide.SELL_SHORT:
                 raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place short order')
+  
+        if client_request_id is None:
+            client_request_id = str(uuid.uuid4())
   
         request = PlaceOrderRequest(
             playground_id=self.id,
@@ -550,7 +553,7 @@ class BacktesterPlaygroundClient:
             duration='day',
             tag=tag,
             requested_price=price,
-            client_request_id=str(uuid.uuid4())
+            client_request_id=client_request_id
         )
         
         if sl is not None:

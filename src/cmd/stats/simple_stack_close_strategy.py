@@ -3,10 +3,13 @@ from dataclasses import dataclass
 from typing import Tuple
 from rpc.playground_pb2 import Order
 from typing import List
+from datetime import datetime
+import pandas as pd
 import re
 
 @dataclass
 class CloseSignal:
+    Timestamp: pd.Timestamp
     OrderId: str
     Symbol: str
     Side: OrderSide
@@ -89,8 +92,18 @@ class SimpleStackCloseStrategy():
         if not current_price:
             return signals
         
+        playground = kwargs.get('playground')
+        if playground is None:
+            raise ValueError("Playground is not set")
+        
+        period = kwargs.get('period')
+        if period is None:
+            raise ValueError("Period is not set")
+        
         supertrend_direction = kwargs['supertrend_direction']
         for symbol in self.symbols:
+            current_candle = playground.get_current_candle(symbol, period)
+            ts = current_candle.timestamp
             open_orders: List[Order] = self.playground.fetch_open_orders(symbol)   
             for open_order in open_orders:
                 tag = open_order.tag
@@ -99,12 +112,12 @@ class SimpleStackCloseStrategy():
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= open_order.stop_price:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.SELL, abs(qty), 'sl'))
+                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'sl'))
                         continue
                 elif open_order.side == OrderSide.SELL_SHORT.value:
                     if current_price >= open_order.stop_price:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
+                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
                         continue
                 else:
                     raise ValueError("Check SL: Invalid side")
@@ -122,13 +135,13 @@ class SimpleStackCloseStrategy():
                         tp += kwargs['tp_buffer']
                         if current_price >= tp:
                             total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
-                            signals.append(CloseSignal(None, symbol, OrderSide.SELL, abs(total_qty), 'tp'))
+                            signals.append(CloseSignal(ts, None, symbol, OrderSide.SELL, abs(total_qty), 'tp'))
                             continue
                     elif open_order.side == OrderSide.SELL_SHORT.value:
                         tp -= kwargs['tp_buffer']
                         if current_price <= tp:
                             total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
-                            signals.append(CloseSignal(None, symbol, OrderSide.BUY_TO_COVER, abs(total_qty), 'tp'))
+                            signals.append(CloseSignal(ts, None, symbol, OrderSide.BUY_TO_COVER, abs(total_qty), 'tp'))
                             continue
                     else:
                         raise ValueError("Check TP: Invalid side")
@@ -136,12 +149,12 @@ class SimpleStackCloseStrategy():
                 # Check if the supertrend direction has changed
                 if open_order.side == OrderSide.BUY.value and supertrend_direction == -1:
                     qty = calc_remaining_open_quantity(open_order)
-                    signals.append(CloseSignal(open_order.id, symbol, OrderSide.SELL, abs(qty), 'supertrend'))
+                    signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'supertrend'))
                     continue
                 
                 if open_order.side == OrderSide.SELL_SHORT.value and supertrend_direction == 1:
                     qty = calc_remaining_open_quantity(open_order)
-                    signals.append(CloseSignal(open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'supertrend'))
+                    signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'supertrend'))
                     continue
                     
                 

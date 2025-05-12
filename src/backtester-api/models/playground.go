@@ -61,6 +61,15 @@ func (p *Playground) GetOrder(orderID uint) (*OrderRecord, error) {
 	return nil, fmt.Errorf("order %d not found", orderID)
 }
 
+func (p *Playground) GetEquityReportItems(dbService IDatabaseService) ([]LiveAccountPlot, error) {
+	items, err := dbService.GetEquityPlots(p.ID)
+	if err != nil {
+		return nil, fmt.Errorf("GetEquityReport: error getting equity plots: %v", err)
+	}
+
+	return items, nil
+}
+
 func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
 	p.pendingOrdersQueueMutex.Lock()
 	defer p.pendingOrdersQueueMutex.Unlock()
