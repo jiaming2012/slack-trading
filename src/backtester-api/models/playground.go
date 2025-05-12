@@ -1825,7 +1825,7 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 
 	changes = append(changes, &PlaceOrderChanges{
 		Commit: func(tx *gorm.DB) error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, true); err != nil {
+			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, false); err != nil {
 				return fmt.Errorf("failed to update live order record: %w", err)
 			}
 
