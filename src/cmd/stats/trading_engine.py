@@ -325,6 +325,23 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
+
+def build_client_version_tag(client_id: str) -> str:
+    """
+        Builds a client version tag in the format cli_v{client_id}
+    """
+    if client_id is None:
+        raise ValueError("client_id is None")
+    
+    idx = client_id.rfind('-')
+    if idx == -1:
+        raise ValueError("client_id is invalid")
+    
+    version = client_id[idx+1:]
+    if version is None:
+        raise ValueError("version is None")
+    
+    return f"cli_v{version}"
     
 def objective(logger, kwargs) -> Tuple[float, dict]:
     if kwargs is None:
@@ -433,11 +450,12 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
         stop_date=stop_date,
         repositories=[ltf_repo, htf_repo],
         environment=env.value,
-        tags=[symbol, open_strategy_input]
+        tags=[symbol.lower(), open_strategy_input]
     )
     
     if playground_client_id is not None:
         req.client_id = playground_client_id
+        req.tags.append(build_client_version_tag(playground_client_id))
         logger.info(f"using playground client id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
