@@ -259,7 +259,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                     qty = position
                     side = OrderSide.SELL
                     client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None), client_request_id=client_id)
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                     
                 side = OrderSide.SELL_SHORT
