@@ -14,7 +14,7 @@ import (
 type OrderRecord struct {
 	gorm.Model
 	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order" copier:"must,nopanic"`
-	ClientRequestID  *string                `gorm:"column:client_request_id;type:text" copier:"must,nopanic"`
+	ClientRequestID  *string                `gorm:"column:client_request_id;type:text;unique" copier:"must,nopanic"`
 	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null" copier:"must,nopanic"`
 	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id" copier:"must,nopanic"`
 	Class            OrderRecordClass       `gorm:"column:class;type:text;not null" copier:"must,nopanic"`

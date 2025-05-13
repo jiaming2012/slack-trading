@@ -215,7 +215,7 @@ func (s *Server) GetEquityReport(ctx context.Context, req *pb.GetEquityReportReq
 
 		items = append(items, &pb.LiveAccountPlot{
 			Timestamp: item.Timestamp.Format(time.RFC3339),
-			Equity: *item.Equity,
+			Equity:    *item.Equity,
 		})
 	}
 
@@ -744,6 +744,18 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	playgroundID, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
+	}
+
+	if req.ClientRequestId != nil {
+		if order, _ := s.dbService.GetOrderByClientId(*req.ClientRequestId); order != nil {
+			log.Infof("%v: PlaceOrder:Order already exists", req.ClientRequestId)
+			
+			orderDTO := convertOrder(order, nil)
+
+			log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
+			
+			return orderDTO, nil
+		}
 	}
 
 	var closeOrderId *uint

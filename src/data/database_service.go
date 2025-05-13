@@ -105,6 +105,22 @@ func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveA
 	return items, nil
 }
 
+func (s *DatabaseService) GetOrderByClientId(clientId string) (*models.OrderRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var order *models.OrderRecord
+	if err := s.db.Where("client_request_id = ?", clientId).First(&order).Error; err != nil {
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+
+	if order == nil {
+		return nil, fmt.Errorf("failed to find order with client id: %s", clientId)
+	}
+
+	return order, nil
+}
+
 func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1210,15 +1226,6 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 			return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
 		}
 	}
-
-	// var playgroundEnv models.PlaygroundEnvironment
-	// playgroundMeta := playground.GetMeta()
-	// playgroundEnv = playgroundMeta.Environment
-
-	// liveOrderTempId := uint(0)
-	// if playgroundEnv == models.PlaygroundEnvironmentLive {
-	// 	req.Id = &liveOrderTempId
-	// }
 
 	order, err := s.makeOrderRecord(playground, req, createdOn)
 	if err != nil {

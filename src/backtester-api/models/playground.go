@@ -1728,6 +1728,13 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 	var changes []*PlaceOrderChanges
 
 	pendingOrders := p.GetPendingOrders()
+	for i := len(pendingOrders) - 1; i >= 0; i-- {
+		o := pendingOrders[i]
+		if o.ID == order.ID {
+			pendingOrders = append(pendingOrders[:i], pendingOrders[i+1:]...)
+		}
+	}
+
 	if len(pendingOrders) > 0 {
 		o := pendingOrders[0]
 		cliReqID := ""

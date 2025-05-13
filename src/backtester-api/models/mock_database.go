@@ -50,6 +50,18 @@ func (m *MockDatabase) RejectOrder(order *OrderRecord, reason string) error {
 	return nil
 }
 
+func (m *MockDatabase) GetOrderByClientId(clientId string) (*OrderRecord, error) {
+	for _, orders := range m.orderRecords {
+		for _, order := range orders {
+			if *order.ClientRequestID == clientId {
+				return order, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("MockDatabase: order not found using clientId")
+}
+
 func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
