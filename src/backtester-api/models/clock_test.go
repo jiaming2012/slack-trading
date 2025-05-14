@@ -162,7 +162,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		// expect: order is filled at market open
-		require.Equal(t, 1, len(playground.account.Orders))
+		require.Equal(t, OrderRecordStatusFilled, order1.Status)
 
 		require.Equal(t, 1, len(order1.Trades))
 

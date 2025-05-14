@@ -38,6 +38,7 @@ type IDatabaseService interface {
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
 	SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error
 	SaveOrderRecords(order []*OrderRecord, forceNew bool) error
+	UpdateOrderStatus(order *OrderRecord, status OrderRecordStatus) error
 	SaveLiveRepository(repo *CandleRepository) error
 	UpdatePlaygroundSession(playgroundSession *Playground) error
 	FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error)

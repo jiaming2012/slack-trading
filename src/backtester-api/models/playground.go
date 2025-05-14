@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
+	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
@@ -70,48 +71,31 @@ func (p *Playground) GetEquityReportItems(dbService IDatabaseService) ([]LiveAcc
 	return items, nil
 }
 
-func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord) {
-	p.pendingOrdersQueueMutex.Lock()
-	defer p.pendingOrdersQueueMutex.Unlock()
+func (p *Playground) updateStatus(order *OrderRecord, status OrderRecordStatus, dbService IDatabaseService) error {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
 
-	p.newOrdersQueueMutex.Lock()
-	defer p.newOrdersQueueMutex.Unlock()
-
-	for i, o := range p.account.NewOrders {
-		if o.ID == order.ID {
-			// remove order from new orders queue
-			p.account.NewOrders = append(p.account.NewOrders[:i], p.account.NewOrders[i+1:]...)
-			log.Debugf("order %d found in new orders queue. Moved to pending queue", order.ID)
-		}
+	if err := dbService.UpdateOrderStatus(order, status); err != nil {
+		return fmt.Errorf("updateStatus: error updating order status: %v", err)
 	}
 
-	for _, o := range p.account.PendingOrders {
-		if o.ID == order.ID {
-			if o.ExternalOrderID != nil && order.ExternalOrderID != nil && *o.ExternalOrderID == *order.ExternalOrderID {
-				log.Warnf("order %d already in pending orders queue", order.ID)
-				return
-			}
-		}
-	}
-
-	order.Status = OrderRecordStatusPending
-	p.account.PendingOrders = append(p.account.PendingOrders, order)
+	return nil
 }
 
-func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) {
-	p.newOrdersQueueMutex.Lock()
-	defer p.newOrdersQueueMutex.Unlock()
-
-	for _, o := range p.account.NewOrders {
-		if o.ID == order.ID {
-			log.Warnf("AddToNewOrdersQueue: order %d already in new orders queue. Returning ...", order.ID)
-			return
-		}
+func (p *Playground) AddToPendingOrdersQueue(order *OrderRecord, dbService IDatabaseService) error {
+	if err := p.updateStatus(order, OrderRecordStatusPending, dbService); err != nil {
+		return fmt.Errorf("AddToPendingOrdersQueue: error updating order status: %v", err)
 	}
 
-	order.Status = OrderRecordStatusNew
-	p.account.NewOrders = append(p.account.NewOrders, order)
-	log.Infof("AddToNewOrdersQueue: order %d added to new orders queue", order.ID)
+	return nil
+}
+
+func (p *Playground) AddToNewOrdersQueue(order *OrderRecord) error {
+	if err := p.updateStatus(order, OrderRecordStatusNew, nil); err != nil {
+		return fmt.Errorf("AddToNewOrdersQueue: error updating order status: %v", err)
+	}
+
+	return nil
 }
 
 func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
@@ -135,33 +119,8 @@ func (p *Playground) ResetStatusToPending(order *OrderRecord, dbService IDatabas
 	orderCommit, dbCommit, msg = order.ResetStatusToPending(dbService)
 	if orderCommit != nil {
 		commit = func() error {
-			index := -1
-
-			// find order in pending orders
-			for i, o := range p.account.PendingOrders {
-				if o.ID == order.ID {
-					index = i
-					break
-				}
-			}
-
-			if index == -1 {
-				for i, o := range p.account.Orders {
-					if o.ID == order.ID {
-						index = i
-						break
-					}
-				}
-
-				if index == -1 {
-					return fmt.Errorf("order %d not found in orders/pending orders", order.ID)
-				}
-
-				// remove order from order queue
-				p.account.Orders = append(p.account.Orders[:index], p.account.Orders[index+1:]...)
-
-				// add order to pending orders
-				p.account.PendingOrders = append(p.account.PendingOrders, order)
+			if err := p.updateStatus(order, OrderRecordStatusPending, dbService); err != nil {
+				return fmt.Errorf("ResetStatusToPending: error updating order status: %v", err)
 			}
 
 			return orderCommit()
@@ -219,49 +178,6 @@ func (p *Playground) appendStat(currentTime time.Time, positionCache *PositionsC
 	p.account.EquityPlot = append(p.account.EquityPlot, plot)
 
 	return plot, nil
-}
-
-func (p *Playground) AddToOrderQueue(order *OrderRecord) error {
-	index := -1
-
-	// find order in pending orders
-	for i, o := range p.account.PendingOrders {
-		if o.ID == order.ID {
-			index = i
-			break
-		}
-	}
-
-	newOrdersIndex := -1
-	if index == -1 {
-		log.Tracef("order %d not found in pending orders, check new orders queue ...", order.ID)
-
-		for i, o := range p.account.NewOrders {
-			if o.ID == order.ID {
-				newOrdersIndex = i
-				break
-			}
-		}
-
-		if newOrdersIndex == -1 {
-			return fmt.Errorf("order %d not found in pending or new orders queue", order.ID)
-		}
-	}
-
-	// add order to order queue
-	p.account.Orders = append(p.account.Orders, order)
-
-	if index >= 0 {
-		// remove order from pending orders
-		p.account.PendingOrders = append(p.account.PendingOrders[:index], p.account.PendingOrders[index+1:]...)
-	} else if newOrdersIndex >= 0 {
-		// remove order from new orders
-		p.account.NewOrders = append(p.account.NewOrders[:newOrdersIndex], p.account.NewOrders[newOrdersIndex+1:]...)
-	} else {
-		return fmt.Errorf("unexpected: order %d not found in pending or new orders queue", order.ID)
-	}
-
-	return nil
 }
 
 func (p *Playground) GetId() uuid.UUID {
@@ -347,63 +263,33 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, positio
 	if performMarginCheck && freeMargin <= initialMargin {
 		order.Reject(fmt.Errorf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin))
 		return fmt.Errorf("commitTradableOrderToOrderQueue: order %d has insufficient free margin", order.ID)
-
 	}
 
 	return nil
 }
 
 func (p *Playground) CommitPendingOrder(order *OrderRecord, positionCache *PositionsCache, executionFillRequest ExecutionFillRequest, performChecks bool) (newOrder *OrderRecord, newTrade *TradeRecord, invalidOrder *OrderRecord, err error) {
-	for _, o := range p.account.PendingOrders {
-		if o.ID == order.ID {
-			order = o
-			if err := p.commitTradableOrderToOrderQueue(order, positionCache, executionFillRequest, performChecks); err != nil {
-				order.Reject(err)
-				invalidOrder = order
+	if err := p.commitTradableOrderToOrderQueue(order, positionCache, executionFillRequest, performChecks); err != nil {
+		order.Reject(err)
+		invalidOrder = order
 
-				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
-				}
-
-				return nil, nil, invalidOrder, nil
-			}
-
-			newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, executionFillRequest)
-			if err != nil {
-				order.Reject(err)
-				invalidOrder = order
-				log.Errorf("CommitPendingOrder: error filling order: %v", err)
-
-				if err2 := p.AddToOrderQueue(order); err2 != nil {
-					return nil, nil, nil, fmt.Errorf("CommitPendingOrder: error adding order to order queue after fillOrder(): %v", err2)
-				}
-
-				return nil, nil, invalidOrder, nil
-			}
-
-			if orderIsFilled {
-				if err := p.AddToOrderQueue(order); err != nil {
-					return nil, nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
-				}
-			}
-
-			return order, newTrade, nil, nil
-		}
+		return nil, nil, invalidOrder, nil
 	}
 
-	for _, o := range p.account.Orders {
-		if o.ID == order.ID {
-			return nil, nil, nil, fmt.Errorf("order %d is already in order queue: %w", order.ID, ErrOrderAlreadyFilled)
-		}
+	newTrade, _, err = p.fillOrder(order, performChecks, executionFillRequest)
+	if err != nil {
+		order.Reject(err)
+		invalidOrder = order
+		log.Errorf("CommitPendingOrder: error filling order: %v", err)
+
+		return nil, nil, invalidOrder, nil
 	}
 
-	return nil, nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
+	return order, newTrade, nil, nil
 }
 
-func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
-	pendingOrders := make([]*OrderRecord, len(p.account.PendingOrders))
-
-	copy(pendingOrders, p.account.PendingOrders)
+func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFillRequest, performChecks bool, dbService IDatabaseService) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
+	pendingOrders := dbService.GetPendingOrders(p.Meta.LiveAccountType)
 
 	for _, order := range pendingOrders {
 		// commented out bc the program already skips till the next market open before placing a trade, hence
@@ -430,9 +316,7 @@ func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFill
 			order.Reject(err)
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error updating position cache: %v", err)
-			if err := p.AddToOrderQueue(order); err != nil {
-				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after UpdatePositionCachePositions(): %v", err)
-			}
+			
 			continue
 		}
 
@@ -441,33 +325,19 @@ func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFill
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error committing pending order: %v", err)
 
-			if err := p.AddToOrderQueue(order); err != nil {
-				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after commitTradableOrderToOrderQueue(): %v", err)
-			}
-
 			continue
 		}
 
-		newTrade, orderIsFilled, err := p.fillOrder(order, performChecks, orderFillEntry)
+		newTrade, _, err := p.fillOrder(order, performChecks, orderFillEntry)
 		if err != nil {
 			order.Reject(err)
 			invalidOrders = append(invalidOrders, order)
 			log.Errorf("error filling order: %v", err)
 
-			if err := p.AddToOrderQueue(order); err != nil {
-				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after fillOrder(): %v", err)
-			}
-
 			continue
 		}
 
 		newTrades = append(newTrades, newTrade)
-
-		if orderIsFilled {
-			if err := p.AddToOrderQueue(order); err != nil {
-				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue: %v", err)
-			}
-		}
 	}
 
 	return
@@ -1060,7 +930,7 @@ func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 	return tick.Value, nil
 }
 
-func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*OrderRecord, error) {
+func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string, dbService IDatabaseService) (*OrderRecord, error) {
 	var order *OrderRecord
 
 	requestedPrice, err := p.fetchCurrentPrice(context.Background(), symbol)
@@ -1078,10 +948,13 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		return nil, nil
 	}
 
-	p.AddToPendingOrdersQueue(order)
+	if err := dbService.UpdateOrderStatus(order, OrderRecordStatusPending); err != nil {
+		return nil, fmt.Errorf("error updating order status: %w", err)
+	}
 
 	orderFillPriceMap := map[uint]ExecutionFillRequest{}
 
+	pendingOrders := dbService
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
 		if err != nil {
@@ -1343,22 +1216,6 @@ func (p *Playground) GetEquity(positionCache *PositionsCache) float64 {
 	return equity
 }
 
-func (p *Playground) GetPendingOrders() []*OrderRecord {
-	return p.account.PendingOrders
-}
-
-func (p *Playground) GetAllOrders() []*OrderRecord {
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
-	result := append(p.account.Orders, p.account.PendingOrders...)
-	result = append(result, p.account.NewOrders...)
-	if len(result) == 0 {
-		return make([]*OrderRecord, 0)
-	}
-	return result
-}
-
 func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {
 	positionCache, err := p.UpdatePricesAndGetPositionCache()
 	if err != nil {
@@ -1582,9 +1439,9 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 	return nil, nil
 }
 
-func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64, includePendingOrders bool) error {
-	if includePendingOrders {
-		for _, o := range p.account.PendingOrders {
+func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64, pendingOrders []*models.OrderRecord) error {
+	if pendingOrders != nil {
+		for _, o := range pendingOrders {
 			if o.GetInstrument() == symbol {
 				positionQuantity += o.GetQuantity()
 			}
@@ -2174,7 +2031,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.ID = id
 	playground.Balance = balance
 	playground.ClientID = clientID
-	playground.account = NewBacktesterAccount(balance, orders)
+	playground.account = NewBacktesterAccount(balance)
 	playground.clock = clock
 	playground.repos = repos
 	playground.Repositories = CandleRepositoryRecord(repositories)

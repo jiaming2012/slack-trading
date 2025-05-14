@@ -1310,6 +1310,19 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	return order, nil
 }
 
+func (s *DatabaseService) UpdateOrderStatus(order *models.OrderRecord, status models.OrderRecordStatus) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.db.Where("id = ?", order.ID).Update("status", status); err != nil {
+		return fmt.Errorf("UpdateOrderStatus: failed to update order status: %w", err)
+	}
+
+	order.Status = status
+
+	return nil
+}
+
 func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

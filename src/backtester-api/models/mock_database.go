@@ -50,6 +50,15 @@ func (m *MockDatabase) RejectOrder(order *OrderRecord, reason string) error {
 	return nil
 }
 
+func (m *MockDatabase) UpdateOrderStatus(order *OrderRecord, status OrderRecordStatus) error {
+	if order == nil {
+		return fmt.Errorf("MockDatabase: order is nil")
+	}
+
+	order.Status = status
+	return nil
+}
+
 func (m *MockDatabase) GetOrderByClientId(clientId string) (*OrderRecord, error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
