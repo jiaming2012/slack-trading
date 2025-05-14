@@ -610,51 +610,6 @@ func (s *DatabaseService) FetchBalances(url string, token string) (eventmodels.F
 	return eventmodels.FetchTradierBalancesResponseDTO{}, nil
 }
 
-// func (s *DatabaseService) CreateLiveAccount(broker models.IBroker, accountType models.LiveAccountType) (*models.LiveAccount, error) {
-// if balance < 0 {
-// 	return nil, fmt.Errorf("balance cannot be negative")
-// }
-
-// if err := source.Validate(); err != nil {
-// 	return nil, fmt.Errorf("invalid source: %w", err)
-// }
-
-// balance check
-// if balance > 0 {
-// 	balances, err := source.FetchEquity()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to fetch equity: %w", err)
-// 	}
-
-// 	if balances.Equity < balance {
-// 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
-// 	}
-// }
-
-// 	account, err := models.NewLiveAccount(broker, s)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create live account: %w", err)
-// 	}
-
-// 	return account, nil
-// }
-
-func (s *DatabaseService) FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
-	s.liveAccountsMutex.Lock()
-	defer s.liveAccountsMutex.Unlock()
-
-	repositories = []*models.CandleRepository{}
-	for _, symbolRepo := range s.liveRepositories {
-		for _, periodRepos := range symbolRepo {
-			repositories = append(repositories, periodRepos...)
-		}
-	}
-
-	return repositories, func() {
-		s.liveAccountsMutex.Unlock()
-	}, nil
-}
-
 func (s *DatabaseService) RemoveLiveRepository(repo *models.CandleRepository) error {
 	s.liveAccountsMutex.Lock()
 	defer s.liveAccountsMutex.Unlock()
@@ -708,6 +663,32 @@ func (s *DatabaseService) SaveLiveRepository(repo *models.CandleRepository) erro
 	s.liveRepositories[repo.GetSymbol()] = symbolRepo
 
 	return nil
+}
+
+func (s *DatabaseService) fetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
+	to := end.GetPreviousDay(1)
+	from := to.GetPreviousDay(daysPast)
+	maxAttempts := 5
+
+	errMsg := ""
+	for i := 0; true; i++ {
+		pastBars, err := s.polygonClient.FetchAggregateBars(eventmodels.StockSymbol(symbol), timespan, from, to)
+		if err != nil {
+			if i == maxAttempts-1 {
+				errMsg = fmt.Sprintf("failed to fetch past candles from %s to %s: %v", from.ToString(), to.ToString(), err)
+				break
+			}
+
+			from = from.GetPreviousDay(1)
+			time.Sleep(10 * time.Millisecond)
+
+			continue
+		}
+
+		return pastBars, nil
+	}
+
+	return nil, eventmodels.NewWebError(500, errMsg, nil)
 }
 
 func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {

@@ -251,8 +251,7 @@ func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period
 	return start, end
 }
 
-func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.CandleRepository) {
-	now := time.Now()
+func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.CandleRepository, now time.Time) {
 	period := repo.GetPeriod()
 	periodStr := period.String()
 
@@ -334,11 +333,10 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 	}
 }
 
-func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
+func (w *TradierApiWorker) ExecuteLiveReposUpdate(now time.Time) {
 	log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: begin ...")
 	defer log.Trace("TradierApiWorker.ExecuteLiveReposUpdate: end")
 
-	now := time.Now()
 	playgrounds := w.dbService.GetPlaygrounds()
 
 	count := 0
@@ -351,7 +349,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 				nextUpdateAt := r.GetNextUpdateAt()
 				if nextUpdateAt == nil || now.After(*nextUpdateAt) {
 					count += 1
-					go w.updateLiveRepos(playground.GetId(), r)
+					go w.updateLiveRepos(playground.GetId(), r, now)
 				}
 			}
 		}
@@ -464,7 +462,8 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 					continue
 				}
 
-				w.ExecuteLiveReposUpdate()
+				now := time.Now()
+				w.ExecuteLiveReposUpdate(now)
 			}
 		}
 	}()

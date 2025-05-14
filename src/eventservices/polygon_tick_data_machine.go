@@ -16,20 +16,20 @@ type PolygonTickDataMachine struct {
 	ApiKey string
 }
 
-func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2DTO, error) {
-	bars, err := m.FetchAggregateBars(ticker, timespan, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch aggregate bars: %w", err)
-	}
+// func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2DTO, error) {
+// 	bars, err := m.FetchAggregateBars(ticker, timespan, from, to)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to fetch aggregate bars: %w", err)
+// 	}
 
-	var barsDTO []*eventmodels.PolygonAggregateBarV2DTO
-	for _, bar := range bars {
-		dto := bar.ToDTO()
-		barsDTO = append(barsDTO, &dto)
-	}
+// 	var barsDTO []*eventmodels.PolygonAggregateBarV2DTO
+// 	for _, bar := range bars {
+// 		dto := bar.ToDTO()
+// 		barsDTO = append(barsDTO, &dto)
+// 	}
 
-	return barsDTO, nil
-}
+// 	return barsDTO, nil
+// }
 
 func isInBetween(t time.Time, from, to time.Time) bool {
 	return (t.Equal(from) || t.After(from)) && (t.Equal(to) || t.Before(to))
@@ -59,32 +59,7 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	return m.FetchAggregateBarsWithDates(ticker, timespan, fromDate, toDate, loc)
 }
 
-func (m *PolygonTickDataMachine) FetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
-	to := end.GetPreviousDay(1)
-	from := to.GetPreviousDay(daysPast)
-	maxAttempts := 5
-
-	errMsg := ""
-	for i := 0; true; i++ {
-		pastBars, err := m.FetchAggregateBars(eventmodels.StockSymbol(symbol), timespan, from, to)
-		if err != nil {
-			if i == maxAttempts-1 {
-				errMsg = fmt.Sprintf("failed to fetch past candles from %s to %s: %v", from.ToString(), to.ToString(), err)
-				break
-			}
-
-			from = from.GetPreviousDay(1)
-			time.Sleep(10 * time.Millisecond)
-
-			continue
-		}
-
-		return pastBars, nil
-	}
-
-	return nil, eventmodels.NewWebError(500, errMsg, nil)
-}
-
+// TODO: combine this with FetchAggregateBars
 func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*eventmodels.PolygonAggregateBarV2, error) {
 	var bars []*eventmodels.PolygonAggregateBarV2
 
