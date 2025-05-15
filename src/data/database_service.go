@@ -791,7 +791,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req, nil, now, nil, nil)
+		err = models.PopulatePlayground(playground, req, nil, now, nil, nil, nil)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -860,7 +860,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		req.ReconcilePlayground = reconcilePlayground
 
 		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
-		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, req.Calendar, repos...)
+		invalidOrdersQueue := eventmodels.NewFIFOQueue[*models.OrderRecord]("invalidOrdersQueue", 999)
+		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, invalidOrdersQueue, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -898,7 +899,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req, clock, now, nil, req.Calendar, repos...)
+		err = models.PopulatePlayground(playground, req, clock, now, nil, nil, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}

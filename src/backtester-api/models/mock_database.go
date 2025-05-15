@@ -118,7 +118,8 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 	}
 
 	newTradesQueue := eventmodels.NewFIFOQueue[*TradeRecord]("newTradesQueue", 999)
-	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, req.Calendar, repo)
+	invalidOrdersQueue := eventmodels.NewFIFOQueue[*OrderRecord]("invalidOrdersQueue", 999)
+	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, invalidOrdersQueue, req.Calendar, repo)
 }
 
 func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error) {
