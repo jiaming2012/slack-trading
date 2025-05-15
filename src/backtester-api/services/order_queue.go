@@ -33,6 +33,14 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			continue
 		}
 
+		playground, err := dbService.FetchPlayground(order.PlaygroundID)
+		if err != nil {
+			e := fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
+			joinedErr = errors.Join(joinedErr, e)
+			log.Error(e)
+			continue
+		}
+
 		if len(trades) == 0 {
 			// check if the reconciliation order is cancelled or rejected
 			orders, err := dbService.FetchReconciliationOrders(order.ID, seekFromPlayground)
@@ -47,6 +55,8 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 				if o.Status == models.OrderRecordStatusCanceled {
 					dbService.CancelOrder(order)
 
+					playground.GetInvalidOrdersQueue().Enqueue(order)
+
 					log.Infof("UpdatePendingMarginOrders (cancel order): order %d status is %s", order.ID, o.Status)
 				} else if o.Status == models.OrderRecordStatusRejected {
 					rejectReason := "unknown"
@@ -60,17 +70,11 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 						log.Error(e)
 					}
 
+					playground.GetInvalidOrdersQueue().Enqueue(order)
+
 					log.Infof("UpdatePendingMarginOrders (reject order): order %d status is %s for %s", order.ID, o.Status, rejectReason)
 				}
 			}
-		}
-
-		playground, err := dbService.FetchPlayground(order.PlaygroundID)
-		if err != nil {
-			e := fmt.Errorf("UpdatePendingMarginOrders: failed to fetch playground: %v", err)
-			joinedErr = errors.Join(joinedErr, e)
-			log.Error(e)
-			continue
 		}
 
 		if playground.ReconcilePlayground == nil {

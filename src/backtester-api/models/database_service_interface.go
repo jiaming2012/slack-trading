@@ -13,6 +13,7 @@ type IDatabaseService interface {
 	GetPlayground(playgroundID uuid.UUID) (*Playground, error)
 	GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error)
 	GetOrder(id uint) (*OrderRecord, error)
+	GetOrderByClientId(clientId string) (*OrderRecord, error)
 	GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error)
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)

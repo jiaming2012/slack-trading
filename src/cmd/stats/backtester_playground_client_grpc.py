@@ -605,13 +605,15 @@ class BacktesterPlaygroundClient:
         try:
             liveRequest = CreateLivePlaygroundRequest(
                 balance=req.balance,
-                client_id=req.client_id,
                 broker='tradier',
                 account_type=account_type,
                 repositories=req.repositories,
                 environment='live',
                 tags=req.tags
             )
+            
+            if len(req.client_id) > 0:
+                liveRequest.client_id = req.client_id
             
             response = self.network_call_with_retry('create_live_playground', self.client.CreateLivePlayground, liveRequest)            
             return response.id

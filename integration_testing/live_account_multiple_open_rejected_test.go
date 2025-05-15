@@ -2,7 +2,6 @@ package integrationtesting
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -20,8 +19,6 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 
 	// Start main app container
 	p := createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
-
-	fmt.Printf("Playground client: %v\n", p)
 
 	createLivePgResp, err := p.CreateLivePlayground(ctx, &playground.CreateLivePlaygroundRequest{
 		Balance:     10000,
@@ -41,25 +38,38 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 
 	require.NoError(t, err)
 
+	// Fetch reconcile account initial order count
+	liveAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: createLivePgResp.Id,
+		FetchOrders:  false,
+	})
+	require.NoError(t, err)
+
+	reconcileAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
+		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
+		FetchOrders:  true,
+	})
+	require.NoError(t, err)
+
+	reconcileAccountOrdersInitialCount := len(reconcileAccount.Orders)
+
 	// Place an order
-	clientReqId := "test1"
 	placeOrderResp1, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId:    createLivePgResp.Id,
-		ClientRequestId: &clientReqId,
-		Symbol:          "AAPL",
-		AssetClass:      "equity",
-		Quantity:        10,
-		Side:            "sell_short",
-		Type:            "market",
-		RequestedPrice:  177.0,
-		Duration:        "day",
+		PlaygroundId:   createLivePgResp.Id,
+		Symbol:         "AAPL",
+		AssetClass:     "equity",
+		Quantity:       10,
+		Side:           "sell_short",
+		Type:           "market",
+		RequestedPrice: 177.0,
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp1)
 
 	// Fetch the live account
-	liveAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
+	liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: createLivePgResp.Id,
 		FetchOrders:  true,
 	})
@@ -68,15 +78,19 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 	require.NotNil(t, liveAccount)
 
 	// Fill the order
-	reconcileAccount, err := p.GetAccount(ctx, &playground.GetAccountRequest{
+	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
 	})
 
 	require.NoError(t, err)
 
+	require.Len(t, reconcileAccount.Orders, reconcileAccountOrdersInitialCount+1)
+	require.Len(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Reconciles, 1)
+	require.Equal(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Reconciles[0].Id, placeOrderResp1.Id)
+
 	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[0].ExternalId,
+		OrderId: *reconcileAccount.Orders[reconcileAccountOrdersInitialCount].ExternalId,
 		Price:   178.0,
 		Status:  "filled",
 		Broker:  "tradier",
@@ -109,54 +123,51 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 
 	require.NotNil(t, openTradeId)
 
-	// close order should succeed
-	clientReqId = "test2"
+	// order 2: buy_to_cover
 	placeOrderResp2, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId:    createLivePgResp.Id,
-		ClientRequestId: &clientReqId,
-		Symbol:          "AAPL",
-		AssetClass:      "equity",
-		Quantity:        10,
-		Side:            "buy_to_cover",
-		Type:            "market",
-		RequestedPrice:  177.0,
-		Duration:        "day",
+		PlaygroundId:   createLivePgResp.Id,
+		Symbol:         "AAPL",
+		AssetClass:     "equity",
+		Quantity:       10,
+		Side:           "buy_to_cover",
+		Type:           "market",
+		RequestedPrice: 177.0,
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp2)
 
-	// new buy order should succeed
-	clientReqId = "test3"
+	// order 3: buy
 	placeOrderResp3, err := p.PlaceOrder(ctx, &playground.PlaceOrderRequest{
-		PlaygroundId:    createLivePgResp.Id,
-		ClientRequestId: &clientReqId,
-		Symbol:          "AAPL",
-		AssetClass:      "equity",
-		Quantity:        10,
-		Side:            "buy",
-		Type:            "market",
-		RequestedPrice:  177.0,
-		Duration:        "day",
+		PlaygroundId:   createLivePgResp.Id,
+		Symbol:         "AAPL",
+		AssetClass:     "equity",
+		Quantity:       10,
+		Side:           "buy",
+		Type:           "market",
+		RequestedPrice: 177.0,
+		Duration:       "day",
 	})
 
 	require.NoError(t, err)
 	require.NotNil(t, placeOrderResp3)
 
-	// Reject new buy order
+	// Reject the second order: buy_to_cover
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: *liveAccount.Meta.ReconcilePlaygroundId,
 		FetchOrders:  true,
 	})
 
-	// Must fill 2nd order first
 	require.NoError(t, err)
-	require.Len(t, reconcileAccount.Orders, 2)
+	require.Len(t, reconcileAccount.Orders, reconcileAccountOrdersInitialCount+2)
+	require.Len(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Reconciles, 1)
+	require.Equal(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Reconciles[0].Id, placeOrderResp2.Id)
 
 	_, err = p.MockFillOrder(ctx, &playground.MockFillOrderRequest{
-		OrderId: *reconcileAccount.Orders[1].ExternalId,
+		OrderId: *reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].ExternalId,
 		Price:   178.0,
-		Status:  "filled",
+		Status:  "rejected",
 		Broker:  "tradier",
 	})
 
@@ -185,7 +196,7 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 			break
 		}
 
-		if openTradeCount == 2 {
+		if invalidOrdersCount > 0 {
 			break
 		}
 
@@ -193,13 +204,16 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 	}
 
 	require.NotNil(t, openTradeId)
-	require.Equal(t, 0, invalidOrdersCount)
+	require.Equal(t, 0, openTradeCount)
+	require.Equal(t, 1, invalidOrdersCount)
 
 	// Re-fetch the live account
 	liveAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
 		PlaygroundId: createLivePgResp.Id,
 		FetchOrders:  true,
 	})
+
+	// Wait until order 3 is rejected
 
 	require.NoError(t, err)
 	require.NotNil(t, liveAccount)
@@ -209,11 +223,11 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 	require.Equal(t, placeOrderResp1.Id, liveAccount.Orders[0].Id)
 	require.Equal(t, "filled", liveAccount.Orders[0].Status)
 
-	require.Equal(t, placeOrderResp2.Id, liveAccount.Orders[2].Id)
-	require.Equal(t, "filled", liveAccount.Orders[2].Status)
+	require.Equal(t, placeOrderResp2.Id, liveAccount.Orders[1].Id)
+	require.Equal(t, "rejected", liveAccount.Orders[1].Status)
 
-	require.Equal(t, placeOrderResp3.Id, liveAccount.Orders[1].Id)
-	require.Equal(t, "filled", liveAccount.Orders[1].Status)
+	require.Equal(t, placeOrderResp3.Id, liveAccount.Orders[2].Id)
+	require.Equal(t, "rejected", liveAccount.Orders[2].Status)
 
 	// Re-fetch the reconcile account
 	reconcileAccount, err = p.GetAccount(ctx, &playground.GetAccountRequest{
@@ -224,20 +238,15 @@ func TestLiveAccountMultipleOpenRejected(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, reconcileAccount)
 
-	require.Len(t, reconcileAccount.Orders, 3)
+	require.Len(t, reconcileAccount.Orders, reconcileAccountOrdersInitialCount+2)
 
-	require.Len(t, reconcileAccount.Orders[0].Reconciles, 1)
-	require.Equal(t, placeOrderResp1.Id, reconcileAccount.Orders[0].Reconciles[0].Id)
-	require.Equal(t, "sell_short", reconcileAccount.Orders[0].Side)
-	require.Equal(t, "filled", liveAccount.Orders[0].Status)
+	require.Len(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Reconciles, 1)
+	require.Equal(t, placeOrderResp1.Id, reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Reconciles[0].Id)
+	require.Equal(t, "sell_short", reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Side)
+	require.Equal(t, "filled", reconcileAccount.Orders[reconcileAccountOrdersInitialCount].Status)
 
-	require.Len(t, reconcileAccount.Orders[1].Reconciles, 1)
-	require.Equal(t, placeOrderResp3.Id, reconcileAccount.Orders[1].Reconciles[0].Id)
-	require.Equal(t, "buy_to_cover", reconcileAccount.Orders[1].Side)
-	require.Equal(t, "filled", liveAccount.Orders[2].Status)
-
-	require.Len(t, reconcileAccount.Orders[2].Reconciles, 1)
-	require.Equal(t, placeOrderResp2.Id, reconcileAccount.Orders[2].Reconciles[0].Id)
-	require.Equal(t, "buy", reconcileAccount.Orders[2].Side)
-	require.Equal(t, "filled", liveAccount.Orders[2].Status)
+	require.Len(t, reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Reconciles, 1)
+	require.Equal(t, placeOrderResp2.Id, reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Reconciles[0].Id)
+	require.Equal(t, "buy_to_cover", reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Side)
+	require.Equal(t, "rejected", reconcileAccount.Orders[reconcileAccountOrdersInitialCount+1].Status)
 }

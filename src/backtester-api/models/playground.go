@@ -41,6 +41,7 @@ type Playground struct {
 	openOrdersCache         *OpenOrdersCache                                               `gorm:"-"`
 	newCandlesQueue         *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
 	newTradesQueue          *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
+	invalidOrdersQueue      *eventmodels.FIFOQueue[*OrderRecord]                           `json:"-" gorm:"-"`
 	minimumPeriod           time.Duration                                                  `gorm:"-"` // This is a new field
 	placeOrderMutex         *sync.Mutex                                                    `json:"-" gorm:"-"`
 	newOrdersQueueMutex     *sync.Mutex                                                    `json:"-" gorm:"-"`
@@ -244,6 +245,13 @@ func (p *Playground) AddToOrderQueue(order *OrderRecord) error {
 		}
 
 		if newOrdersIndex == -1 {
+			for i := 0; i < len(p.account.Orders); i++ {
+				if p.account.Orders[i].ID == order.ID {
+					log.Tracef("order already %d found in order queue", order.ID)
+					return nil
+				}
+			}
+
 			return fmt.Errorf("order %d not found in pending or new orders queue", order.ID)
 		}
 	}
@@ -258,7 +266,7 @@ func (p *Playground) AddToOrderQueue(order *OrderRecord) error {
 		// remove order from new orders
 		p.account.NewOrders = append(p.account.NewOrders[:newOrdersIndex], p.account.NewOrders[newOrdersIndex+1:]...)
 	} else {
-		return fmt.Errorf("unexpected: order %d not found in pending or new orders queue", order.ID)
+		return fmt.Errorf("unexpected: order %d not found in pending, orders, or new queue", order.ID)
 	}
 
 	return nil
@@ -1691,6 +1699,18 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 		break
 	}
 
+	var invalidOrders []*OrderRecord
+
+	for {
+		order, ok := p.GetInvalidOrdersQueue().Dequeue()
+		if ok {
+			invalidOrders = append(invalidOrders, order)
+			continue
+		}
+
+		break
+	}
+
 	currentTime := p.GetCurrentTime()
 
 	equityPlot, err := p.updateAccountStats(currentTime)
@@ -1701,6 +1721,7 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 	return &TickDelta{
 		NewCandles:         newCandles,
 		NewTrades:          newTrades,
+		InvalidOrders:      invalidOrders,
 		Events:             nil,
 		CurrentTime:        currentTime.Format(time.RFC3339),
 		IsBacktestComplete: false,
@@ -1724,10 +1745,25 @@ func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 	return p.newTradesQueue
 }
 
+func (p *Playground) SetInvalidOrdersQueue(queue *eventmodels.FIFOQueue[*OrderRecord]) {
+	p.invalidOrdersQueue = queue
+}
+
+func (p *Playground) GetInvalidOrdersQueue() *eventmodels.FIFOQueue[*OrderRecord] {
+	return p.invalidOrdersQueue
+}
+
 func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
 	var changes []*PlaceOrderChanges
 
 	pendingOrders := p.GetPendingOrders()
+	for i := len(pendingOrders) - 1; i >= 0; i-- {
+		o := pendingOrders[i]
+		if o.ID == order.ID {
+			pendingOrders = append(pendingOrders[:i], pendingOrders[i+1:]...)
+		}
+	}
+
 	if len(pendingOrders) > 0 {
 		o := pendingOrders[0]
 		cliReqID := ""
@@ -2047,7 +2083,7 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], calendar *eventmodels.MarketCalendar, feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], invalidOrdersQueue *eventmodels.FIFOQueue[*OrderRecord], calendar *eventmodels.MarketCalendar, feeds ...(*CandleRepository)) error {
 	source := req.Account.Source
 	clientID := req.ClientID
 	balance := req.Account.Balance
@@ -2094,6 +2130,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 			}
 
 			playground.SetNewTradesQueue(newTradesQueue)
+			playground.SetInvalidOrdersQueue(invalidOrdersQueue)
 		}
 
 		accountID = &source.AccountID
@@ -2200,7 +2237,7 @@ func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountR
 		Tags:           tags,
 	}
 
-	return PopulatePlayground(playground, req, clock, now, nil, nil, feeds...)
+	return PopulatePlayground(playground, req, clock, now, nil, nil, nil, feeds...)
 }
 
 // todo: change repository on playground to BacktesterCandleRepository

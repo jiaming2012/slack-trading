@@ -50,6 +50,18 @@ func (m *MockDatabase) RejectOrder(order *OrderRecord, reason string) error {
 	return nil
 }
 
+func (m *MockDatabase) GetOrderByClientId(clientId string) (*OrderRecord, error) {
+	for _, orders := range m.orderRecords {
+		for _, order := range orders {
+			if *order.ClientRequestID == clientId {
+				return order, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("MockDatabase: order not found using clientId")
+}
+
 func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
@@ -106,7 +118,8 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 	}
 
 	newTradesQueue := eventmodels.NewFIFOQueue[*TradeRecord]("newTradesQueue", 999)
-	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, req.Calendar, repo)
+	invalidOrdersQueue := eventmodels.NewFIFOQueue[*OrderRecord]("invalidOrdersQueue", 999)
+	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, invalidOrdersQueue, req.Calendar, repo)
 }
 
 func (m *MockDatabase) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error) {

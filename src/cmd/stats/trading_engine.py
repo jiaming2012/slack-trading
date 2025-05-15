@@ -44,7 +44,7 @@ s = os.getenv("SYMBOL")
 
 # Add a file sink
 logger.add(
-    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d.%H-%M-%S')}.log",  # Log file name
     rotation="10 MB",  # Rotate when file size reaches 10MB
     retention="7 days",  # Keep logs for 7 days
     level=level,
@@ -228,7 +228,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
-            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)
+            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
             logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
 
@@ -249,7 +249,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
 
@@ -258,8 +258,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None), client_request_id=client_id)
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
+                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                     
                 side = OrderSide.SELL_SHORT
@@ -290,7 +290,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 continue
             
             try:
-                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), side, quantity)
+                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, quantity)
                 resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl, client_request_id=client_id)
             except InvalidParametersException as e:
                 logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
@@ -325,6 +325,23 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
+
+def build_client_version_tag(client_id: str) -> str:
+    """
+        Builds a client version tag in the format cli_v{client_id}
+    """
+    if client_id is None:
+        raise ValueError("client_id is None")
+    
+    idx = client_id.rfind('-')
+    if idx == -1:
+        raise ValueError("client_id is invalid")
+    
+    version = client_id[idx+1:]
+    if version is None:
+        raise ValueError("version is None")
+    
+    return f"cli_v{version}"
     
 def objective(logger, kwargs) -> Tuple[float, dict]:
     if kwargs is None:
@@ -433,11 +450,12 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
         stop_date=stop_date,
         repositories=[ltf_repo, htf_repo],
         environment=env.value,
-        tags=[symbol, open_strategy_input]
+        tags=[symbol.lower(), open_strategy_input]
     )
     
     if playground_client_id is not None:
         req.client_id = playground_client_id
+        req.tags.append(build_client_version_tag(playground_client_id))
         logger.info(f"using playground client id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)

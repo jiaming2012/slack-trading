@@ -87,7 +87,7 @@ func TestLiveAccount(t *testing.T) {
 		}
 
 		livePlayground := &models.Playground{}
-		err = models.PopulatePlayground(livePlayground, req, nil, now, newTradesQueue, nil, repositories...)
+		err = models.PopulatePlayground(livePlayground, req, nil, now, newTradesQueue, nil, nil, repositories...)
 		require.NoError(t, err)
 
 		return livePlayground

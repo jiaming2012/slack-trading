@@ -105,6 +105,22 @@ func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveA
 	return items, nil
 }
 
+func (s *DatabaseService) GetOrderByClientId(clientId string) (*models.OrderRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var order *models.OrderRecord
+	if err := s.db.Where("client_request_id = ?", clientId).First(&order).Error; err != nil {
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+
+	if order == nil {
+		return nil, fmt.Errorf("failed to find order with client id: %s", clientId)
+	}
+
+	return order, nil
+}
+
 func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -775,7 +791,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req, nil, now, nil, nil)
+		err = models.PopulatePlayground(playground, req, nil, now, nil, nil, nil)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -844,7 +860,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		req.ReconcilePlayground = reconcilePlayground
 
 		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
-		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, req.Calendar, repos...)
+		invalidOrdersQueue := eventmodels.NewFIFOQueue[*models.OrderRecord]("invalidOrdersQueue", 999)
+		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, invalidOrdersQueue, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
 		}
@@ -882,7 +899,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req, clock, now, nil, req.Calendar, repos...)
+		err = models.PopulatePlayground(playground, req, clock, now, nil, nil, req.Calendar, repos...)
 		if err != nil {
 			return eventmodels.NewWebError(500, "failed to create playground", err)
 		}
@@ -1210,15 +1227,6 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 			return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
 		}
 	}
-
-	// var playgroundEnv models.PlaygroundEnvironment
-	// playgroundMeta := playground.GetMeta()
-	// playgroundEnv = playgroundMeta.Environment
-
-	// liveOrderTempId := uint(0)
-	// if playgroundEnv == models.PlaygroundEnvironmentLive {
-	// 	req.Id = &liveOrderTempId
-	// }
 
 	order, err := s.makeOrderRecord(playground, req, createdOn)
 	if err != nil {

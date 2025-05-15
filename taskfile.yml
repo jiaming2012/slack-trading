@@ -113,6 +113,32 @@ tasks:
       - 'go test -count=1 ./...'
     dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
 
+  test:e2e:
+    cmds:
+      - task test:e2e:live-account-cancel-order
+      - task test:e2e:live-account-close-duplicate-canceled
+      - task test:e2e:live-account-close-duplicate-rejected
+      - task test:e2e:live-account-close
+      - task test:e2e:live-account-close-with-id
+      - task test:e2e:live-account-duplicate-orders
+      - task test:e2e:live-account-filled
+      - task test:e2e:live-account-get-open-orders
+      - task test:e2e:live-account-multiple-open-rejected
+      - task test:e2e:live-account-multiple-open
+      - task test:e2e:live-account-multiple-playgrounds
+      - task test:e2e:live-account-reject-order
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
+  test:e2e:live-account-get-open-orders:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountGetOpenOrders$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
+  test:e2e:live-account-multiple-open-rejected:
+    cmds:
+      - 'go test -timeout 90s -count=1 -run ^TestLiveAccountMultipleOpenRejected$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
   test:e2e:live-account-close-with-id:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCloseWithID$ github.com/jiaming2012/slack-trading/integration_testing'
@@ -162,20 +188,6 @@ tasks:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCancelOrder$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing 
-
-  test:e2e:all:
-    cmds:
-      - task test:e2e:live-account-filled
-      - task test:e2e:live-account-close
-      - task test:e2e:live-account-multiple-playgrounds
-      - task test:e2e:live-account-duplicate-orders
-      - task test:e2e:live-account-close-with-id
-      - task test:e2e:live-account-close-duplicate-rejected
-      - task test:e2e:live-account-close-duplicate-canceled
-      - task test:e2e:live-account-multiple-open
-      - task test:e2e:live-account-reject-order
-      - task test:e2e:live-account-cancel-order
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
   metrics:token:
     cmds:
