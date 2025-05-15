@@ -44,7 +44,7 @@ s = os.getenv("SYMBOL")
 
 # Add a file sink
 logger.add(
-    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.log",  # Log file name
+    f"logs/app-{s}-{datetime.now().strftime('%Y-%m-%d.%H-%M-%S')}.log",  # Log file name
     rotation="10 MB",  # Rotate when file size reaches 10MB
     retention="7 days",  # Keep logs for 7 days
     level=level,
@@ -228,7 +228,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
-            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)
+            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
             logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
 
@@ -249,7 +249,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
 
@@ -258,7 +258,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), s.Side, s.Volume)  
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                     
@@ -290,7 +290,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 continue
             
             try:
-                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d"), side, quantity)
+                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, quantity)
                 resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl, client_request_id=client_id)
             except InvalidParametersException as e:
                 logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')

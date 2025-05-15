@@ -749,11 +749,11 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	if req.ClientRequestId != nil {
 		if order, _ := s.dbService.GetOrderByClientId(*req.ClientRequestId); order != nil {
 			log.Infof("%v: PlaceOrder:Order already exists", req.ClientRequestId)
-			
+
 			orderDTO := convertOrder(order, nil)
 
 			log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
-			
+
 			return orderDTO, nil
 		}
 	}
@@ -792,6 +792,10 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 
 func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePlaygroundRequest) (*pb.CreatePlaygroundResponse, error) {
 	if req.ClientId != nil {
+		if len(*req.ClientId) == 0 {
+			return nil, fmt.Errorf("failed to create live playground: client id is an empty string")
+		}
+
 		if playground := s.dbService.GetPlaygroundByClientId(*req.ClientId); playground != nil {
 			return &pb.CreatePlaygroundResponse{
 				Id: playground.GetId().String(),

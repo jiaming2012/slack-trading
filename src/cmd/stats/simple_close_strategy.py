@@ -2,6 +2,7 @@ from backtester_playground_client_grpc import OrderSide
 from dataclasses import dataclass
 from rpc.playground_pb2 import Order
 from typing import List
+from dateutil.parser import isoparse
 import pandas as pd
 import re
 
@@ -51,10 +52,6 @@ class SimpleCloseStrategy():
         if not current_price:
             return signals
         
-        playground = kwargs.get('playground')
-        if playground is None:
-            raise ValueError("Playground is not set")
-        
         period = kwargs.get('period')
         if period is None:
             raise ValueError("Period is not set")
@@ -69,8 +66,9 @@ class SimpleCloseStrategy():
                 except ValueError:
                     continue
                 
-                current_candle = playground.get_current_candle(symbol, period)
-                ts = current_candle.timestamp
+                current_candle = self.playground.get_current_candle(symbol, period)
+                ts = isoparse(current_candle.datetime)
+                
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
                         qty = calc_remaining_open_quantity(open_order)
@@ -89,3 +87,45 @@ class SimpleCloseStrategy():
                     raise ValueError("Invalid side")
                 
         return signals
+
+if __name__ == "__main__":
+    from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, PlaygroundEnvironment, CreatePolygonPlaygroundRequest
+    from loguru import logger
+
+    symbol = "AAPL"
+    balance = 10000
+    start_date = None
+    stop_date = None
+    ltf_repo = Repository(
+        symbol=symbol,
+        timespan_multiplier=5,
+        timespan_unit='minute',
+        indicators=["supertrend"],
+        history_in_days=10
+    )
+    env = PlaygroundEnvironment.LIVE
+    
+    req = CreatePolygonPlaygroundRequest(
+        balance=balance,
+        start_date=start_date,
+        stop_date=stop_date,
+        repositories=[ltf_repo],
+        environment=env.value,
+        client_id="simple_close_strategy_test2abc",
+        tags=[symbol.lower(), "simple_close_strategy_test2abc"],
+    )
+    
+    live_account_type = "margin"
+    # twirp_host = "http://45.77.223.21"
+    twirp_host = "http://localhost:5051"
+    repository_source = RepositorySource.POLYGON
+    
+    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
+    
+    # Example usage
+    strategy = SimpleCloseStrategy(playground=playground, kwargs={})
+    signals = strategy.tick(current_price=150.0, kwargs={
+        'period': 300
+    })
+    for signal in signals:
+        print(signal)
