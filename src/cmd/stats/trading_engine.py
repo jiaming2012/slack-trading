@@ -229,7 +229,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
             if playground.timestamp - s.Timestamp > timedelta(minutes=5):
-                logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - {s.Reason}", timestamp=playground.timestamp, trading_operation='close')
+                logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
                 continue
             else:
                 logger.info(f"playground (tstamp): {playground.timestamp} - close signal (tstamp): {s.Timestamp} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
