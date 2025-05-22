@@ -24,7 +24,23 @@ service PlaygroundService {
     rpc GetAppVersion(google.protobuf.Empty) returns (GetAppVersionResponse);
     rpc GetReconciliationReport(GetReconciliationReportRequest) returns (GetReconciliationReportResponse);
     rpc GetEquityReport(GetEquityReportRequest) returns (GetEquityReportResponse);
+    rpc GetDailyTickerSummaryFromPolygon(GetDailyTickerSummaryFromPolygonRequest) returns (GetDailyTickerSummaryFromPolygonResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+}
+
+message GetDailyTickerSummaryFromPolygonRequest {
+    string symbol = 1;
+    string date = 2;
+}
+
+message GetDailyTickerSummaryFromPolygonResponse {
+    double open = 1;
+    double close = 2;
+    double high = 3;
+    double low = 4;
+    uint64 volume = 5;
+    double after_hours_close = 6;
+    double premarket_open = 7;
 }
 
 message GetEquityReportRequest {

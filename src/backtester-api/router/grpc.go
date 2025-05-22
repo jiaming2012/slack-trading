@@ -146,6 +146,48 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 	return order
 }
 
+func (s *Server) GetDailyTickerSummaryFromPolygon(ctx context.Context, req *pb.GetDailyTickerSummaryFromPolygonRequest) (*pb.GetDailyTickerSummaryFromPolygonResponse, error) {
+	// fromTimestamp, err := time.Parse(time.RFC3339, req.TimestampRTF3339)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to parse from timestamp: %v", err)
+	// }
+
+	// from := eventmodels.NewPolygonDateFromTime(fromTimestamp)
+
+	// toTimestamp := fromTimestamp.Add(24 * time.Hour)
+
+	// to := eventmodels.NewPolygonDateFromTime(toTimestamp)
+
+	// timespan := eventmodels.PolygonTimespan{
+	// 	Multiplier: 1,
+	// 	Unit:       eventmodels.PolygonTimespanUnitHour,
+	// }
+
+	// polygonClient := s.dbService.GetPolygonClient()
+	// bars, err := polygonClient.FetchAggregateBars(eventmodels.StockSymbol(req.Symbol), timespan, from, to)
+	// if err != nil {
+	// 	return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars", err)
+	// }
+
+	// if len(bars) == 0 {
+	// 	return nil, fmt.Errorf("no bars found for symbol %s", req.Symbol)
+	// }
+
+	// for _, bar := range bars {
+	// 	if bar.Timestamp.Equal(fromTimestamp) {
+	// 		if bar.Timestamp.Hour() == 16 {
+	// 			return &pb.GetPriceFromPolygonResponse{
+	// 				TimestampRTF3339: bar.Timestamp.Format(time.RFC3339),
+	// 				Price:            bar.Close,
+	// 			}, nil
+	// 		}
+	// 	}
+	// }
+
+	// return nil, fmt.Errorf("no bars found for symbol %s", req.Symbol)
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
 	order, err := s.dbService.GetOrder(uint(req.OrderId))
 	if err != nil {

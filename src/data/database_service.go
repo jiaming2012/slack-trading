@@ -83,6 +83,10 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 	}
 }
 
+func (s *DatabaseService) GetPolygonClient() models.IPolygonClient {
+	return s.polygonClient
+}
+
 func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveAccountPlot, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1366,12 +1370,25 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 		if filterOrders {
 			filteredOrders := []*models.OrderRecord{}
 			for _, order := range response.Orders {
-				if from != nil && order.Timestamp.Before(*from) {
-					continue
+				var closeTimestampMax *time.Time
+				for _, closeOrder := range order.ClosedBy {
+					if closeTimestampMax != nil {
+						if closeOrder.Timestamp.After(*closeTimestampMax) {
+							closeTimestampMax = &closeOrder.Timestamp
+						}
+					} else {
+						closeTimestampMax = &closeOrder.Timestamp
+					}
 				}
 
-				if to != nil && order.Timestamp.After(*to) {
-					continue
+				if closeTimestampMax != nil {
+					if from != nil && order.Timestamp.Before(*from) && closeTimestampMax.Before(*from) {
+						continue
+					}
+
+					if to != nil && order.Timestamp.After(*to) {
+						continue
+					}
 				}
 
 				if len(symbols) > 0 {
