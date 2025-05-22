@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from rpc.playground_pb2 import Order
 from typing import List
 from dateutil.parser import isoparse
+from datetime import datetime
 import pandas as pd
 import re
 
@@ -67,7 +68,7 @@ class SimpleCloseStrategy():
                     continue
                 
                 current_candle = self.playground.get_current_candle(symbol, period)
-                ts = isoparse(current_candle.datetime)
+                ts = isoparse(datetime.now())
                 
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
