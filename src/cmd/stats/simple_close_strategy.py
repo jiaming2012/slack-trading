@@ -68,8 +68,8 @@ class SimpleCloseStrategy():
                     continue
                 
                 current_candle = self.playground.get_current_candle(symbol, period)
-                # ts = isoparse(current_candle.datetime)
-                ts = datetime.now()
+                candle_dt = isoparse(current_candle.datetime)
+                ts = datetime.now(tz=candle_dt.tzinfo)
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
                         qty = calc_remaining_open_quantity(open_order)
