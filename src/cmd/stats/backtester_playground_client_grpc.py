@@ -483,7 +483,7 @@ class BacktesterPlaygroundClient:
         
     def tick(self, seconds: int, raise_exception=True):
         if self.environment == PlaygroundEnvironment.LIVE.value:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             if now < self.next_tick_at:
                 wait_period = (self.next_tick_at - now).total_seconds()
                 time.sleep(wait_period)
