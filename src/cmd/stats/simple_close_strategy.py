@@ -2,8 +2,8 @@ from backtester_playground_client_grpc import OrderSide
 from dataclasses import dataclass
 from rpc.playground_pb2 import Order
 from typing import List
-from dateutil.parser import isoparse
 from datetime import datetime
+from dateutil.parser import isoparse
 import pandas as pd
 import re
 
@@ -68,8 +68,8 @@ class SimpleCloseStrategy():
                     continue
                 
                 current_candle = self.playground.get_current_candle(symbol, period)
-                ts = isoparse(datetime.now())
-                
+                # ts = isoparse(current_candle.datetime)
+                ts = datetime.now()
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
                         qty = calc_remaining_open_quantity(open_order)
