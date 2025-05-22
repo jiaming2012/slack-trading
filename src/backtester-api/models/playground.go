@@ -623,6 +623,10 @@ func (p *Playground) GetPositionCache() *PositionsCache {
 func (p *Playground) SetOpenOrdersCache() error {
 	p.openOrdersCache = NewOpenOrdersCache()
 	for _, o := range p.account.Orders {
+		if !o.Status.IsFilled() {
+			continue
+		}
+
 		qty, err := o.GetRemainingOpenQuantity()
 		if err != nil {
 			continue

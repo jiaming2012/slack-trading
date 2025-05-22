@@ -43,7 +43,6 @@ message GetDailyTickerSummaryFromPolygonResponse {
     double premarket_open = 7;
 }
 
-
 message GetEquityReportRequest {
     string playground_id = 1;
 }
