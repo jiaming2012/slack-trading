@@ -249,8 +249,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             logger.error(f"Multiple signals detected: {open_signals}")
             
         for s in open_signals:
-            if playground.timestamp - s.timestamp > timedelta(minutes=5):
-                logger.warning(f"Ignoring open signal: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+            if playground.timestamp - s.timestamp > timedelta(minutes=10):
+                logger.warning(f"Ignoring open signal: diff - {playground.timestamp - s.timestamp} > 10: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
                 continue
             else:
                 logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - s.timestamp}", timestamp=playground.timestamp, trading_operation='process_open_signal')
