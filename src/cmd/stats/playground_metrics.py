@@ -1,6 +1,6 @@
 import argparse
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import GetAccountRequest, GetAccountResponse, GetPlaygroundsRequest, GetPriceFromBroker, Order, Trade, AccountMeta, Bar, Position
+from rpc.playground_pb2 import GetAccountRequest, GetAccountResponse, GetPlaygroundsRequest, Order, Trade, AccountMeta, Bar, Position
 from twirp.context import Context
 from pprint import pprint
 from typing import List, Dict, Tuple
