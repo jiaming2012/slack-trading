@@ -1,6 +1,6 @@
 import argparse
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import GetAccountRequest, GetAccountResponse, GetPlaygroundsRequest, Order, Trade, AccountMeta, Bar, Position
+from rpc.playground_pb2 import GetAccountRequest, GetAccountResponse, GetPlaygroundsRequest, GetPriceFromBroker, Order, Trade, AccountMeta, Bar, Position
 from twirp.context import Context
 from pprint import pprint
 from typing import List, Dict, Tuple
@@ -80,16 +80,62 @@ def _calc_realized_order_profit(order) -> Tuple[float, float, float]:
     close_prices = []
     
     if order.side == 'buy':
-        trade_position = _calc_trade_position(order.trades)
-        open_price = trade_position.vwap
+        open_position = _calc_trade_position(order.trades)
+        open_price = open_position.vwap
         if open_price > 0:
             for trade in order.closed_by:
                 pl += (trade.price - open_price) * abs(trade.quantity)
                 close_prices.append(trade.price)
-            
+                
+    elif order.side == 'buy_to_cover':
+        if len(order.closes) == 0:
+            raise ValueError('buy_to_cover order has no closes')
+        
+        total_quantity = 0
+        for o in order.closes:
+            total_quantity += sum([trade.quantity for trade in o.trades])
+        
+        open_position = TradePosition(vwap=0, quantity=0, current_price=0, pl=0)
+        if total_quantity < 0:
+            for trade in order.closes:
+                p = _calc_trade_position(trade.trades)
+                open_position.vwap += (p.vwap * p.quantity) / total_quantity
+                open_position.quantity += p.quantity
+                
+        open_price = open_position.vwap
+        if open_price <= 0:
+            raise ValueError('buy_to_cover order has no open price')
+        
+        for trade in order.trades:
+            pl += (open_price - trade.price) * abs(trade.quantity)
+            close_prices.append(trade.price)
+                
+    elif order.side == 'sell':
+        if len(order.closes) == 0:
+            raise ValueError('sell order has no closes')
+        
+        total_quantity = 0
+        for o in order.closes:
+            total_quantity += sum([trade.quantity for trade in o.trades])
+        
+        open_position = TradePosition(vwap=0, quantity=0, current_price=0, pl=0)
+        if total_quantity > 0:
+            for o in order.closes:
+                p = _calc_trade_position(o.trades)
+                open_position.vwap += (p.vwap * p.quantity) / total_quantity
+                open_position.quantity += p.quantity
+                
+        open_price = open_position.vwap
+        if open_price <= 0:
+            raise ValueError('sell order has no open price')
+        
+        for trade in order.trades:
+            pl += (trade.price - open_price) * abs(trade.quantity)
+            close_prices.append(trade.price)
+                
     elif order.side == 'sell_short':
-        trade_position = _calc_trade_position(order.trades)
-        open_price = trade_position.vwap
+        open_position = _calc_trade_position(order.trades)
+        open_price = open_position.vwap
         if open_price > 0:
             for trade in order.closed_by:
                 pl += (open_price - trade.price) * trade.quantity
@@ -110,7 +156,7 @@ def _calc_realized_profit_list(orders) -> List[float]:
         
     return realized_profits
 
-def calc_positions(orders, position) -> Dict[str, TradePosition]:
+def calc_positions(orders) -> Dict[str, TradePosition]:
     positions = {}
     b_start_calculation = False
 
@@ -322,15 +368,39 @@ def print_trades(orders: List[Order]):
                 close_ids.append(closed_order.external_id)
             requested_close = closed_orders[order.id][0].requested_price
         
-        s = f'ts={ts} open_id={order.external_id} close_id(s)={close_ids} qty={order.quantity:.2f} open_slippage={open_slippage:.2f} side={order.side} symbol={order.symbol} requested_open={order.requested_price:.2f} open_price={open_price:.2f} requested_close={requested_close:.2f} close_price={close_price:.2f} pl={pl:.2f}'
+        s = f'ts={ts} open_id={order.external_id} close_id(s)={close_ids} qty={order.quantity:.4f} open_slippage={open_slippage:.4f} side={order.side} symbol={order.symbol} requested_open={order.requested_price:.4f} open_price={open_price:.4f} requested_close={requested_close:.4f} close_price={close_price:.4f} pl={pl:.4f}'
         
         print(s)
+        
+def filter_orders_before(orders: List[Order], from_date: datetime) -> List[Order]:
+    filtered_orders = []
+    for order in orders:
+        if order.side == 'sell' or order.side == 'buy_to_cover':
+            for open_order in order.closes:
+                if open_order.create_date < from_date:
+                    filtered_orders.append(open_order)
+                
+    return filtered_orders
 
-def collect_data(orders: List[Order], position: Position) -> dict:
+def filter_open_orders(orders: List[Order]) -> List[Order]:
+    filtered_orders = []
+    for order in orders:
+        if order.side == 'buy' or order.side == 'sell_short':
+            closed_volume = 0
+            for closed_order in order.closed_by:
+                closed_volume += closed_order.quantity
+                
+            if abs(closed_volume) < abs(order.quantity):
+                filtered_orders.append(order)
+            
+    return filtered_orders
+
+def collect_data(orders: List[Order], position: Position, from_date: datetime) -> dict:
     profit_list = _calc_realized_profit_list(orders)
     trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(orders)
 
     gross_data = {}
+    gross_data['unrealized_pl_at_open'] = calc_positions(filter_orders_before(orders, from_date))
     gross_data['total_orders'] = calc_total_orders(orders)
     gross_data['total_trades'] = calc_total_trades(orders)
     gross_data['gross_profit'] = calc_gross_profit(profit_list)
@@ -342,7 +412,7 @@ def collect_data(orders: List[Order], position: Position) -> dict:
     gross_data['avg_loss'] = calc_avg_loss(profit_list)
     gross_data['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
     gross_data['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
-    gross_data['positions'] = calc_positions(orders, position)
+    gross_data['positions'] = calc_positions(orders)
     
     open_slippage = calc_open_slippage(orders)
     close_slippage = calc_close_slippage(orders)
@@ -378,7 +448,7 @@ if __name__ == '__main__':
         account = fetch_account(client, args.playground_id, args.from_date, args.to_date)
         orders = account.orders
         positions = account.positions
-        data = collect_data(orders, positions)
+        data = collect_data(orders, positions, args.from_date)
         
         print('gross data:')
         pprint(data['gross_data'])
@@ -400,14 +470,14 @@ if __name__ == '__main__':
             account = fetch_account(client, playground_id, args.from_date, args.to_date)
             orders = account.orders
             positions = account.positions
-            data = collect_data(orders, positions)
+            data = collect_data(orders, positions, args.from_date)
             all_data.append(data)
             all_accounts.append(account)
             all_orders.append(orders)
             all_orders_extended.extend(orders)
             
         if len(all_data) > 1:
-            aggregate_data = collect_data(all_orders_extended, positions)
+            aggregate_data = collect_data(all_orders_extended, positions, args.from_date)
             
             print('agg data (all playgrounds):')
             pprint(aggregate_data['agg_data'])

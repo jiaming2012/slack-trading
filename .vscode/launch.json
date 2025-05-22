@@ -430,10 +430,10 @@
             "console": "integratedTerminal",
             "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
             "args": [
-                "--tags", "cli_v12",
-                "--twirp-host", "http://localhost:5051",
-                "--from-date", "2025-05-09",
-                "--to-date", "2025-05-10",
+                "--tags", "cli_v14",
+                "--twirp-host", "http://45.77.223.21",
+                "--from-date", "2025-05-20",
+                "--to-date", "2025-05-21",
             ]
         },
         {

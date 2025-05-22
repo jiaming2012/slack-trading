@@ -7,7 +7,7 @@ from playground_metrics import collect_data
 from rpc.playground_twirp import PlaygroundServiceClient
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException
 from typing import List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from scipy.stats import t
 from utils import get_timespan_unit
 import json
@@ -228,21 +228,33 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
+            if playground.timestamp - s.Timestamp > timedelta(minutes=5):
+                logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - {s.Reason}", timestamp=playground.timestamp, trading_operation='close')
+                continue
+            else:
+                logger.info(f"playground (tstamp): {playground.timestamp} - close signal (tstamp): {s.Timestamp} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
+            
             client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
             resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
             logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
 
         # check for open signals
-        signals = open_strategy.tick(new_candles)
+        open_signals = open_strategy.tick(new_candles)
         position = None
-        if len(signals) > 0:
+        if len(open_signals) > 0:
             pos = playground.account.get_position(symbol)
             position = pos.quantity if pos else 0
                 
-        if len(signals) > 1:
-            logger.error(f"Multiple signals detected: {signals}")
+        if len(open_signals) > 1:
+            logger.error(f"Multiple signals detected: {open_signals}")
             
-        for s in signals:            
+        for s in open_signals:
+            if playground.timestamp - s.timestamp > timedelta(minutes=5):
+                logger.warning(f"Ignoring open signal: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                continue
+            else:
+                logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - s.timestamp}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+              
             if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
                 side = s.kwargs['side']
             elif s.name == OpenSignalName.CROSS_ABOVE_20:

@@ -126,6 +126,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetEquityReportRequest"),
 				output=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
 			),
+			"GetDailyTickerSummaryFromPolygon": Endpoint(
+				service_name="PlaygroundService",
+				name="GetDailyTickerSummaryFromPolygon",
+				function=getattr(service, "GetDailyTickerSummaryFromPolygon"),
+				input=_sym_db.GetSymbol("playground.GetDailyTickerSummaryFromPolygonRequest"),
+				output=_sym_db.GetSymbol("playground.GetDailyTickerSummaryFromPolygonResponse"),
+			),
 			"MockFillOrder": Endpoint(
 				service_name="PlaygroundService",
 				name="MockFillOrder",
@@ -269,6 +276,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
+			**kwargs,
+		)
+
+	def GetDailyTickerSummaryFromPolygon(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetDailyTickerSummaryFromPolygon",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetDailyTickerSummaryFromPolygonResponse"),
 			**kwargs,
 		)
 
@@ -431,6 +447,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetEquityReportResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetDailyTickerSummaryFromPolygon(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetDailyTickerSummaryFromPolygon",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetDailyTickerSummaryFromPolygonResponse"),
 				session=session,
 				**kwargs,
 			)

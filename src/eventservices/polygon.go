@@ -16,7 +16,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
-func makeRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
+func makePolygonAggsTickerRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
 	// Parse the base URL
 	parsedURL, err := url.Parse("https://api.polygon.io/v2/aggs/ticker")
 	if err != nil {
@@ -28,6 +28,51 @@ func makeRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timefram
 	parsedURL.Path = joinedPath
 
 	return parsedURL.String(), nil
+}
+
+type DailyTickerSummaryResponse struct {
+	AfterHours float64 `json:"afterHours"`
+	Close      float64 `json:"close"`
+	From       string  `json:"from"`
+	High       float64 `json:"high"`
+	Low        float64 `json:"low"`
+	Open       float64 `json:"open"`
+	PreMarket  float64 `json:"preMarket"`
+	Status     string  `json:"status"`
+	Symbol     string  `json:"symbol"`
+	Volume     int64   `json:"volume"`
+}
+
+func fetchPolygonDailyTickerSummary(symbol string, date eventmodels.PolygonDate, apiKey string) (*DailyTickerSummaryResponse, error) {
+	url := fmt.Sprintf("https://api.polygon.io/v1/open-close/%s/%s?apiKey=%s", symbol, date.ToString(), apiKey)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("fetchPolygonDailyTickerSummary: failed to create request: %w", err)
+	}
+
+	req.Header.Add("Accept", "application/json")
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetchPolygonDailyTickerSummary: failed to fetch stock tick: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetchPolygonDailyTickerSummary: failed to fetch stock tick, http code %v", res.Status)
+	}
+
+	var dto DailyTickerSummaryResponse
+	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
+		return nil, fmt.Errorf("fetchPolygonDailyTickerSummary: failed to decode json: %w", err)
+	}
+
+	return &dto, nil
 }
 
 func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleResponse, error) {
@@ -94,7 +139,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 	}
 
 	for {
-		url, err := makeRequestURL(inputSymbol, timeframeValue, timeframeUnit, fromDate, toDate)
+		url, err := makePolygonAggsTickerRequestURL(inputSymbol, timeframeValue, timeframeUnit, fromDate, toDate)
 		if err != nil {
 			return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
 		}
