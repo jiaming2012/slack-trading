@@ -355,8 +355,8 @@
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "AAPL",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                "TWIRP_HOST": "http://localhost:5051",
+                "TWIRP_HOST": "http://45.77.223.21",
+                // "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "live",
                 "OPEN_STRATEGY": "simple_open_strategy_v4",
                 "START_DATE": "2025-01-01",
@@ -364,7 +364,7 @@
                 "MODEL_UPDATE_FREQUENCY": "daily",
                 "OPTIMIZER_UPDATE_FREQUENCY": "monthly",
                 "LIVE_ACCOUNT_TYPE": "margin",
-                "PLAYGROUND_CLIENT_ID": "supertrend1-aapl-margin-13",
+                "PLAYGROUND_CLIENT_ID": "supertrend1-aapl-margin-test-13",
                 "N_CALLS": "40"
             },
             "args": [
