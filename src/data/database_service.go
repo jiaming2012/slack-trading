@@ -1237,8 +1237,10 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 		return nil, eventmodels.NewWebError(500, "failed to place order", err)
 	}
 
-	if err := s.waitForOrderRecord(order.ID); err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+	if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
+		if err := s.waitForOrderRecord(order.ID); err != nil {
+			return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+		}
 	}
 
 	return order, nil
@@ -1249,9 +1251,12 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 	if req.Id != nil {
 		order.ID = *req.Id
 	} else {
-		order.PlaygroundID = playground.GetId()
-		if err := s.db.Create(&order).Error; err != nil {
-			return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
+		// use database to generate a new ID
+		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
+			order.PlaygroundID = playground.GetId()
+			if err := s.db.Create(&order).Error; err != nil {
+				return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
+			}
 		}
 	}
 
@@ -1332,14 +1337,21 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	playground, err := s.fetchPlaygroundFromDB(playgroundID)
-	if err != nil {
-		return nil, eventmodels.NewWebError(404, "playground not found", nil)
-	}
-
 	internalPlayground := s.getPlayground(playgroundID)
 	if internalPlayground == nil {
 		return nil, eventmodels.NewWebError(404, "playground not found internally", nil)
+	}
+
+	var orders []*models.OrderRecord
+	if internalPlayground.GetEnvironment() == models.PlaygroundEnvironmentSimulator {
+		orders = internalPlayground.GetAllOrders()
+	} else {
+		playground, err := s.fetchPlaygroundFromDB(playgroundID)
+		if err != nil {
+			return nil, eventmodels.NewWebError(404, "playground not found", nil)
+		}
+
+		orders = playground.Orders
 	}
 
 	// cache := internalPlayground.GetPositionCache()
@@ -1365,7 +1377,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	}
 
 	if fetchOrders {
-		response.Orders = playground.Orders
+		response.Orders = orders
 		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0 || len(symbols) > 0
 		if filterOrders {
 			filteredOrders := []*models.OrderRecord{}

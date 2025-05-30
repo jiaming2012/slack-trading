@@ -251,7 +251,14 @@ tasks:
       
   metrics:fetch:
     cmds:
-      - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://45.77.223.21 --from-date 2025-05-20 --to-date 2025-05-21'
+      - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://45.77.223.21 --from-date 2025-05-28 --to-date 2025-05-29'
+    dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+    var:
+      tags: ""
+
+  metrics:fetch:simulation:
+    cmds:
+        - './env/bin/python playground_metrics.py --playground-id b2df3e33-b684-4d5e-b6d1-9d67f29f45cb --twirp-host http://localhost:5051 --from-date 2025-05-27 --to-date 2025-05-29'
     dir: ${PROJECTS_DIR}/slack-trading/src/cmd/stats
     var:
       tags: ""

@@ -229,7 +229,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         close_signals = close_strategy.tick(current_price, kwargs)
         for s in close_signals:
             if playground.timestamp - s.Timestamp > timedelta(minutes=5):
-                logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - {s.Reason}", timestamp=playground.timestamp, trading_operation='close')
+                logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
                 continue
             else:
                 logger.info(f"playground (tstamp): {playground.timestamp} - close signal (tstamp): {s.Timestamp} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
@@ -249,8 +249,8 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             logger.error(f"Multiple signals detected: {open_signals}")
             
         for s in open_signals:
-            if playground.timestamp - s.timestamp > timedelta(minutes=5):
-                logger.warning(f"Ignoring open signal: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+            if playground.timestamp - s.timestamp > timedelta(minutes=10):
+                logger.warning(f"Ignoring open signal: diff - {playground.timestamp - s.timestamp} > 10: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
                 continue
             else:
                 logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - s.timestamp}", timestamp=playground.timestamp, trading_operation='process_open_signal')
@@ -320,7 +320,10 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     # fetch stats
     orders = playground.fetch_orders()
-    stats = collect_data(orders)
+    position = playground.account.get_position(symbol)
+    from_date = playground.account.meta.start_date
+    
+    stats = collect_data(orders, position, from_date)
     
     meta = {
         'profit': profit,
@@ -332,9 +335,9 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         'stats': stats
     }
     
-    playground.remove_from_server()
+    # playground.remove_from_server()
     
-    logger.info(f"Removed playground: {playground.id}")
+    # logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
 

@@ -62,10 +62,11 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
             _, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
         
         open_signals = []
+        
         for c in new_candles:
             # todo: move this to a debug log. Move other debug logs to trace.
             self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
-            
+        
             if c.period == 300:
                 open_signal, self.feature_set = self.check_for_new_signal(ltf_data, htf_data)
                 if open_signal:
@@ -81,7 +82,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
                     min_price_prediction = self.factory.models['min_price_prediction'].predict(formatted_feature_set)[0]
                     
                     timestamp_utc = pd.Timestamp(c.bar.datetime)
-                    tstamp = timestamp_utc.tz_convert('America/New_York')
+                    tstamp = timestamp_utc.tz_convert('America/New_York').to_pydatetime()
                     self.logger.trace(f"Date: {tstamp}")
                     self.logger.trace(f"Current bar close: {c.bar.close}")
                     self.logger.trace(f"Max price prediction: {max_price_prediction}")

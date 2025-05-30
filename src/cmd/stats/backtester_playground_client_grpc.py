@@ -2,7 +2,7 @@ from loguru import logger as loguru_logger
 import requests
 from collections import deque
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import numpy as np
 from urllib.parse import urlencode
 from dataclasses import dataclass
@@ -200,7 +200,7 @@ class BacktesterPlaygroundClient:
         elif req.environment == PlaygroundEnvironment.LIVE.value:
             self.id = self.create_live_playground(req, live_account_type)
             
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("America/New_York"))
             self.next_tick_at = now
             self.timestamp = now
             self._initial_timestamp = now
@@ -483,7 +483,7 @@ class BacktesterPlaygroundClient:
         
     def tick(self, seconds: int, raise_exception=True):
         if self.environment == PlaygroundEnvironment.LIVE.value:
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("America/New_York"))
             if now < self.next_tick_at:
                 wait_period = (self.next_tick_at - now).total_seconds()
                 time.sleep(wait_period)
@@ -513,6 +513,7 @@ class BacktesterPlaygroundClient:
         timestamp = new_state.current_time
         if timestamp:
             self.timestamp = isoparse(timestamp)
+            self.timestamp = self.timestamp.astimezone(ZoneInfo("America/New_York"))
                 
         self._is_backtest_complete = new_state.is_backtest_complete
         
