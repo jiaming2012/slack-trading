@@ -117,8 +117,9 @@ module.exports = {
     },
     env_simulation: {
       PLAYGROUND_ENV: 'simulator',
-      START_DATE: '2024-11-01',
-      STOP_DATE: '2025-01-31',
+      START_DATE: '2025-05-28',
+      STOP_DATE: '2025-05-29',
+      TWIRP_HOST: 'http://45.77.223.21',
     },
     env_paper: {
       PLAYGROUND_CLIENT_ID: 'supertrend1-nvda-paper-14',

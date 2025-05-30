@@ -440,6 +440,10 @@ if __name__ == '__main__':
 
     client = PlaygroundServiceClient(args.twirp_host, timeout=60)
 
+    all_accounts = []
+    all_data = []
+    all_orders = []
+    all_orders_extended = []
     if args.playground_id:
         if args.tags:
             print('playground_id and tags are mutually exclusive')
@@ -449,12 +453,28 @@ if __name__ == '__main__':
         orders = account.orders
         positions = account.positions
         data = collect_data(orders, positions, args.from_date)
+        all_data.append(data)
+        all_accounts.append(account)
+        all_orders.append(orders)
+        all_orders_extended.extend(orders)
         
-        print('gross data:')
-        pprint(data['gross_data'])
+        for account, orders, data in zip(all_accounts, all_orders, all_data):
+            print('Playground ID:', account.meta.playground_id)
+            print('Client ID:', account.meta.client_id)
+            print('*' * 20)
+            
+            print('trades:')
+            print_trades(orders)
+            print('*' * 20)
+            
+            print('agg data:')
+            pprint(data['agg_data'])
+            print('*' * 20)
 
-        print('agg data:')
-        pprint(data['agg_data'])
+            print('gross data:')
+            pprint(data['gross_data'])
+            print('-' * 50)
+            
     else:
         if len(args.tags) == 0:
             print('playground_id or tags is required')
@@ -462,10 +482,7 @@ if __name__ == '__main__':
             
         playground_ids = fetch_playground_ids(client, args.tags)
         
-        all_accounts = []
-        all_data = []
-        all_orders = []
-        all_orders_extended = []
+        
         for playground_id in playground_ids:
             account = fetch_account(client, playground_id, args.from_date, args.to_date)
             orders = account.orders

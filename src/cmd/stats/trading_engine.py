@@ -320,7 +320,10 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
     
     # fetch stats
     orders = playground.fetch_orders()
-    stats = collect_data(orders)
+    position = playground.account.get_position(symbol)
+    from_date = playground.account.meta.start_date
+    
+    stats = collect_data(orders, position, from_date)
     
     meta = {
         'profit': profit,
@@ -332,9 +335,9 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         'stats': stats
     }
     
-    playground.remove_from_server()
+    # playground.remove_from_server()
     
-    logger.info(f"Removed playground: {playground.id}")
+    # logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
 
