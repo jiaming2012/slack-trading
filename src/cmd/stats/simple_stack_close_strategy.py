@@ -4,6 +4,8 @@ from typing import Tuple
 from rpc.playground_pb2 import Order
 from typing import List
 from datetime import datetime
+from zoneinfo import ZoneInfo
+from dateutil.parser import isoparse
 import pandas as pd
 import re
 
@@ -103,7 +105,13 @@ class SimpleStackCloseStrategy():
         supertrend_direction = kwargs['supertrend_direction']
         for symbol in self.symbols:
             current_candle = playground.get_current_candle(symbol, period)
-            ts = current_candle.timestamp
+            candle_dt = isoparse(current_candle.datetime)
+            
+            if self.playground.environment == 'simulator':
+                ts = candle_dt.astimezone(ZoneInfo("America/New_York"))
+            else:
+                ts = datetime.now(tz=candle_dt.tzinfo)
+                
             open_orders: List[Order] = self.playground.fetch_open_orders(symbol)   
             for open_order in open_orders:
                 tag = open_order.tag

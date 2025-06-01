@@ -102,6 +102,18 @@ def set_nested_value(d, key1, key2, value):
                 
 
 class BacktesterPlaygroundClient:
+    def is_retryable_exception(self, e):
+        """
+        Check if the exception is retryable.
+        """
+        if isinstance(e, TwirpServerException):
+            # Check for specific error codes that are retryable
+            if e.message.find('volume to close exceeds open volume') >= 0:
+                return False
+            
+        return True
+    
+    
     def network_call_with_retry(self, caller, client, request, backoff=2, max_backoff=60):
         retries = 0
         while True:
@@ -114,6 +126,10 @@ class BacktesterPlaygroundClient:
                 return response
             except TwirpServerException as e:
                 retries += 1
+                
+                if not self.is_retryable_exception(e):
+                    self.logger.error(f"{caller} network call failed with non-retryable exception: {e}. Giving up.")
+                    raise e
                 
                 if retries > MAX_RETRIES:
                     self.logger.error(f"{caller} network call failed after {retries} retries. Giving up.")
@@ -194,7 +210,7 @@ class BacktesterPlaygroundClient:
             self.id = self.create_playground_polygon(req)
             
             resp = self.preview_tick()
-            self.timestamp = isoparse(resp.current_time)
+            self.timestamp = isoparse(resp.current_time).astimezone(ZoneInfo("America/New_York"))
             self._initial_timestamp = self.timestamp
             
         elif req.environment == PlaygroundEnvironment.LIVE.value:

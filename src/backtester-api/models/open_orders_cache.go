@@ -1,6 +1,8 @@
 package models
 
 import (
+	"sync"
+
 	"github.com/jinzhu/copier"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
@@ -8,9 +10,13 @@ import (
 
 type OpenOrdersCache struct {
 	cache map[eventmodels.Instrument][]*OrderRecord
+	mu    sync.RWMutex
 }
 
 func (o *OpenOrdersCache) Len() int {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
 	size := 0
 
 	for _, orders := range o.cache {
@@ -27,14 +33,26 @@ func (o *OpenOrdersCache) Len() int {
 	return size
 }
 
-func (o *OpenOrdersCache) Iter() map[eventmodels.Instrument][]*OrderRecord {
+func (o *OpenOrdersCache) Iter() (out map[eventmodels.Instrument][]*OrderRecord, done func()) {
 	if o.cache == nil {
-		return nil
+		return nil, nil
 	}
-	return o.cache
+
+	o.mu.RLock()
+
+	done = func() {
+		o.mu.RUnlock()
+	}
+
+	out = o.cache
+
+	return out, done
 }
 
 func (o *OpenOrdersCache) Delete(symbol eventmodels.Instrument, index int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	if o.cache == nil {
 		return
 	}
@@ -52,6 +70,9 @@ func (o *OpenOrdersCache) Delete(symbol eventmodels.Instrument, index int) {
 }
 
 func (o *OpenOrdersCache) Add(order *OrderRecord) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	if o.cache == nil {
 		o.cache = make(map[eventmodels.Instrument][]*OrderRecord)
 	}
@@ -65,6 +86,9 @@ func (o *OpenOrdersCache) Add(order *OrderRecord) {
 }
 
 func (o *OpenOrdersCache) Get(symbol eventmodels.Instrument) []*OrderRecord {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
 	if o.cache == nil {
 		o.cache = make(map[eventmodels.Instrument][]*OrderRecord)
 	}
@@ -77,10 +101,16 @@ func (o *OpenOrdersCache) Get(symbol eventmodels.Instrument) []*OrderRecord {
 }
 
 func (o *OpenOrdersCache) Commit(obj *OpenOrdersCache) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	o.cache = obj.cache
 }
 
 func (o *OpenOrdersCache) Copy() *OpenOrdersCache {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
 	copy := &OpenOrdersCache{}
 	copier.Copy(&copy.cache, o.cache)
 	return copy

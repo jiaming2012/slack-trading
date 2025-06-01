@@ -163,8 +163,8 @@ def add_supertrend_momentum_signal_target_set_v2(df: pd.DataFrame, min_max_windo
             max_price_idx = df.loc[mask, 'high'].idxmax()
             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
@@ -182,8 +182,8 @@ def add_supertrend_momentum_signal_target_set_v2(df: pd.DataFrame, min_max_windo
             max_price_idx = df.loc[mask, 'high'].idxmax()
             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']

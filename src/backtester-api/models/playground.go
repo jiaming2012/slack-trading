@@ -292,7 +292,10 @@ func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*OrderRecord
 }
 
 func (p *Playground) GetOpenOrder(id uint) *OrderRecord {
-	for _, orders := range p.openOrdersCache.Iter() {
+	cache, done := p.openOrdersCache.Iter()
+	defer done()
+
+	for _, orders := range cache {
 		for _, order := range orders {
 			if order.ID == id {
 				return order
@@ -483,7 +486,10 @@ func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFill
 
 func (p *Playground) updateOpenOrdersCache(openOrdersCache *OpenOrdersCache, newOrder *OrderRecord) error {
 	// check for close of open orders
-	for symbol, orders := range openOrdersCache.Iter() {
+	cache, done := p.openOrdersCache.Iter()
+	defer done()
+
+	for symbol, orders := range cache {
 		for i := len(orders) - 1; i >= 0; i-- {
 			qty, err := orders[i].GetRemainingOpenQuantity()
 			if err != nil {
@@ -903,7 +909,10 @@ func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionCac
 	}
 
 	position := make(map[string]Position)
-	for symbol, orders := range openOrdersCache.Iter() {
+	cache, done := openOrdersCache.Iter()
+	defer done()
+
+	for symbol, orders := range cache {
 		for _, order := range orders {
 			if order == nil {
 				continue
@@ -988,7 +997,13 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	for _, req := range closeByRequests {
 		// todo: used to reflect req.Quantity, but it should be trade.Quantity
 		// closeBy := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
-		req.Order.ClosedBy = append(req.Order.ClosedBy, trade)
+		if req.Quantity != trade.Quantity {
+			partialTrade := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
+			partialTrade.ParentTrade = trade
+			req.Order.ClosedBy = append(req.Order.ClosedBy, partialTrade)
+		} else {
+			req.Order.ClosedBy = append(req.Order.ClosedBy, trade)
+		}
 	}
 
 	openOrdersCacheCopy := p.openOrdersCache.Copy()
@@ -1021,6 +1036,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 	// update the caches
 	p.openOrdersCache.Commit(openOrdersCacheCopy)
+
 	p.positionCache.Commit(positionCacheCopy)
 
 	if orderFillEntry.Trade != nil {

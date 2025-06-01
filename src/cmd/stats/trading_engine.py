@@ -154,7 +154,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if lower_bound < sl_buffer:
             raise ValueError(f"[OrderSide.BUY] Too small: diff(current_price, min_value): {current_price - min_value} < sl_buffer: {sl_buffer}")
         
-        sl_target = current_price - lower_bound
+        sl_target = lower_bound
         
         max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
         upper_bound = max_value + (max_value_margin_of_error * tp_confidence_weight)
@@ -162,7 +162,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if upper_bound < tp_buffer:
             raise ValueError(f"[OrderSide.BUY] Too small: upper_bound: {upper_bound} - current_price: {current_price} < tp_buffer: {tp_buffer}")
         
-        tp_target = current_price + upper_bound
+        tp_target = upper_bound
         
     elif side == OrderSide.SELL_SHORT:
         max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
@@ -171,7 +171,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if upper_bound < sl_buffer:
             raise ValueError(f"[OrderSide.SELL_SHORT] Too small: upper_bound: {upper_bound} - current_price: {current_price} < sl_buffer: {sl_buffer}")
         
-        sl_target = current_price + upper_bound
+        sl_target = upper_bound
         
         min_value_margin_of_error = calculate_margin_of_error(0.95, signal.min_price_prediction_mse, signal.min_price_prediction_n)
         lower_bound = min_value - (min_value_margin_of_error * tp_confidence_weight)
@@ -179,7 +179,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if lower_bound < tp_buffer:
             raise ValueError(f"[OrderSide.SELL_SHORT] Too small: diff(current_price, lower_bound): {current_price - lower_bound} < tp_buffer: {tp_buffer}")
         
-        tp_target = current_price - lower_bound
+        tp_target = lower_bound
         
     else:
         raise ValueError("Invalid side")
@@ -235,8 +235,13 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 logger.info(f"playground (tstamp): {playground.timestamp} - close signal (tstamp): {s.Timestamp} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
             
             client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-            logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
+            
+            try:
+                resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                logger.info(f"Placed close order: ({resp.id}, {resp.external_id})", timestamp=playground.timestamp, trading_operation='close')
+            except Exception as e:
+                logger.error(f"Error placing close order: {e}", timestamp=playground.timestamp, trading_operation='close')
+                continue
 
         # check for open signals
         open_signals = open_strategy.tick(new_candles)
@@ -249,11 +254,15 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             logger.error(f"Multiple signals detected: {open_signals}")
             
         for s in open_signals:
-            if playground.timestamp - s.timestamp > timedelta(minutes=10):
+            ts = s.timestamp
+            if type(ts) is not datetime:
+                ts = ts.to_pydatetime()
+                
+            if playground.timestamp - ts > timedelta(minutes=10):
                 logger.warning(f"Ignoring open signal: diff - {playground.timestamp - s.timestamp} > 10: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
                 continue
             else:
-                logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - s.timestamp}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - ts}", timestamp=playground.timestamp, trading_operation='process_open_signal')
               
             if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
                 side = s.kwargs['side']
@@ -261,7 +270,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position < 0:
                     qty = abs(position)
                     side = OrderSide.BUY_TO_COVER
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
 
@@ -270,7 +279,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
                 if position > 0:
                     qty = position
                     side = OrderSide.SELL
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
                     resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                     logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                     
@@ -438,7 +447,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             timespan_multiplier=5,
             timespan_unit='minute',
             indicators=["supertrend", "doji", "hammer"],
-            history_in_days=10 # Change back to 365
+            history_in_days=365
         )
     else:
         ltf_repo = Repository(
@@ -446,7 +455,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             timespan_multiplier=5,
             timespan_unit='minute',
             indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-            history_in_days=10
+            history_in_days=365
         )
         
     ltf_period = ltf_repo.timespan_multiplier * get_timespan_unit(ltf_repo.timespan_unit)

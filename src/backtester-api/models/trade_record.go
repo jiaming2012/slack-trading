@@ -8,17 +8,19 @@ import (
 
 type TradeRecord struct {
 	gorm.Model
-	OrderID          *uint     `gorm:"column:order_id;index:idx_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
-	ReconcileOrderID *uint     `gorm:"column:reconcile_order_id;index:idx_reconcile_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
-	Timestamp        time.Time `gorm:"column:timestamp;type:timestamptz;not null"`
-	Quantity         float64   `gorm:"column:quantity;type:numeric;not null"`
-	Price            float64   `gorm:"column:price;type:numeric;not null"`
+	ParentTradeID    *uint        `gorm:"column:parent_trade_id;index;"`
+	ParentTrade      *TradeRecord `gorm:"foreignKey:ParentTradeID;references:ID;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
+	OrderID          *uint        `gorm:"column:order_id;index:idx_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
+	ReconcileOrderID *uint        `gorm:"column:reconcile_order_id;index:idx_reconcile_order_id;constraint:OnDelete:SET NULL,OnUpdate:CASCADE;"`
+	Timestamp        time.Time    `gorm:"column:timestamp;type:timestamptz;not null"`
+	Quantity         float64      `gorm:"column:quantity;type:numeric;not null"`
+	Price            float64      `gorm:"column:price;type:numeric;not null"`
 }
 
 func (tr *TradeRecord) UpdateOrder(order *OrderRecord) {
 	if order.LiveAccountType == LiveAccountTypeSimulator {
-		return
-	} 
+		return // TODO: put an identifier in the trade record to indicate that this is a simulated trade
+	}
 
 	if order.LiveAccountType == LiveAccountTypeReconcilation {
 		tr.ReconcileOrderID = &order.ID
