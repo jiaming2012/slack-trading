@@ -17,6 +17,7 @@ class OpenSignal:
 @dataclass
 class OpenSignalV2:
     name: OpenSignalName
+    symbol: str
     timestamp: pd.Timestamp
     max_price_prediction: float
     min_price_prediction: float
@@ -31,6 +32,7 @@ class OpenSignalV2:
 @dataclass
 class OpenSignalV3:
     name: OpenSignalName
+    symbol: str
     timestamp: pd.Timestamp
     kwargs: dict
     additional_equity_risk: float

@@ -44,13 +44,10 @@ class BaseOpenStrategy(ABC):
         self.tp_buffer = tp_buffer
         self.sl_shift = sl_shift
         self.tp_shift = tp_shift
+        self.symbol = None
     
-        
-    def is_complete(self):
-        return self.playground.is_backtest_complete()
-    
-    def update_price_feed(self, tick_delta: List[TickDelta]) -> List[Candle]:
-        new_candles = self.parse_new_candles(tick_delta)
+    def update_price_feed(self, new_candles: List[Candle]) -> None:
+        # new_candles = self.parse_new_candles(tick_delta)
         
         for new_candle in new_candles:
             # Convert the Protocol Buffer message to a dictionary
@@ -79,7 +76,7 @@ class BaseOpenStrategy(ABC):
             else:
                 raise Exception(f"Unsupported period: {new_candle})")
             
-        return new_candles
+        return
     
     @abstractmethod        
     def get_sl_shift(self):
@@ -110,6 +107,10 @@ class BaseOpenStrategy(ABC):
         for delta in tick_delta:
             if hasattr(delta, 'new_candles'):
                 for c in delta.new_candles:
+                    if c.symbol != self.symbol:
+                        logger.error(f"Received candle for different symbol: {c.symbol} != {self.symbol}", timestamp=self.timestamp, trading_operation=None)
+                        continue
+                    
                     new_candles.append(c)
             
         return new_candles

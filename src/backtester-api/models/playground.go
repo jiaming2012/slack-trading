@@ -1213,6 +1213,20 @@ func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.Equ
 	return p.appendStat(currentTime, positions)
 }
 
+func (p *Playground) ResetOrderIds() {
+	for _, o := range p.account.PendingOrders {
+		o.ID = 0
+	}
+
+	for _, o := range p.account.Orders {
+		o.ID = 0
+	}
+
+	for _, o := range p.account.NewOrders {
+		o.ID = 0
+	}
+}
+
 func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	if isPreview {
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
@@ -1629,7 +1643,7 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOr
 		}
 	} else if positionQuantity < 0 {
 		if side == TradierOrderSideBuy {
-			return fmt.Errorf("cannot buy when short position of %.2f exists: must sell to close", positionQuantity)
+			return fmt.Errorf("cannot buy when short position of %.2f exists: must buy to cover", positionQuantity)
 		}
 
 		if side == TradierOrderSideSell {

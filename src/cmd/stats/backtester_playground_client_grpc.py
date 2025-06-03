@@ -95,6 +95,9 @@ class PlaygroundNotFoundException(Exception):
 class InvalidParametersException(Exception):
     pass
 
+class PlaceOrderSideNotAllowedException(Exception):
+    pass
+
 def set_nested_value(d, key1, key2, value):
     if key1 not in d:
         d[key1] = {}
@@ -109,6 +112,10 @@ class BacktesterPlaygroundClient:
         if isinstance(e, TwirpServerException):
             # Check for specific error codes that are retryable
             if e.message.find('volume to close exceeds open volume') >= 0:
+                return False
+            
+            if e.message.find('PlaceOrder: side not allowed') >= 0:
+                e.detailed_error = PlaceOrderSideNotAllowedException(e.message)
                 return False
             
         return True
@@ -129,6 +136,8 @@ class BacktesterPlaygroundClient:
                 
                 if not self.is_retryable_exception(e):
                     self.logger.error(f"{caller} network call failed with non-retryable exception: {e}. Giving up.")
+                    if e.detailed_error:
+                        raise e.detailed_error
                     raise e
                 
                 if retries > MAX_RETRIES:
@@ -199,7 +208,7 @@ class BacktesterPlaygroundClient:
         if self.symbol is None:
             raise Exception('Symbol not found in repository')
 
-        self.client = PlaygroundServiceClient(self.host, timeout=60)
+        self.client = PlaygroundServiceClient(self.host, timeout=180)
         self.ltf_seconds = self.get_repository_seconds('ltf')
         self.htf_seconds = self.get_repository_seconds('htf')
 

@@ -97,7 +97,8 @@ class SimpleOpenStrategyV3(BaseSimpleOpenStrategy):
                     realized_profit = self.playground.get_realized_profit()
                     print(f"Realized profit: {realized_profit}")
                     
-                    symbol = self.playground.symbol
+                    raise NotImplementedError("This strategy does not have a symbol attribute yet")
+                
                     open_trade_count = len(self.playground.fetch_open_orders(symbol))
                     print(f"Open trade count: {open_trade_count}")
                     

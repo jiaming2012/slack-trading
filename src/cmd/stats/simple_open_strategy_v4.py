@@ -22,6 +22,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
         
         super().__init__(playground, modelUpdateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
+        self.symbol = symbol
         self.logger = logger.bind(symbol=symbol)
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
         self.factory_meta = {}
@@ -92,7 +93,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
                     realized_profit = self.playground.get_realized_profit()
                     self.logger.trace(f"Realized profit: {realized_profit}")
                     
-                    symbol = self.playground.symbol
+                    symbol = self.symbol
                     open_trade_count = len(self.playground.fetch_open_orders(symbol))
                     self.logger.trace(f"Open trade count: {open_trade_count}")
                     
@@ -102,7 +103,8 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
                     
                     open_signals.append(
                         OpenSignalV2(
-                            open_signal, 
+                            open_signal,
+                            symbol,
                             tstamp, 
                             max_price_prediction, 
                             min_price_prediction,
