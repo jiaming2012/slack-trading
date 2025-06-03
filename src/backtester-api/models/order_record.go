@@ -144,7 +144,7 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 	}
 
 	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
-		return false, fmt.Errorf("trade quantity exceeds order quantity")
+		return false, fmt.Errorf("trade quantity (%.2f + %.2f) exceeds order quantity (%.2f)", trade.Quantity, filledQuantity, o.AbsoluteQuantity)
 	}
 
 	if o.LiveAccountType == LiveAccountTypeReconcilation {

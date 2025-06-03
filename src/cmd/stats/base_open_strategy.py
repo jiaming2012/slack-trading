@@ -26,29 +26,28 @@ class BaseOpenStrategy(ABC):
         self.playground = playground
         self.timestamp = playground.timestamp
         
-        historical_start_date, historical_end_date = self.get_previous_year_date_range(playground.ltf_seconds)
-        candles_ltf = playground.fetch_candles_v2(playground.ltf_seconds, historical_start_date, historical_end_date)
+        historical_start_date_ltf, historical_end_date_ltf = self.get_previous_year_date_range(playground.ltf_seconds)
+        candles_ltf = playground.fetch_candles_v2(playground.ltf_seconds, historical_start_date_ltf, historical_end_date_ltf)
         
-        historical_start_date, historical_end_date = self.get_previous_year_date_range(playground.htf_seconds)
-        candles_htf = playground.fetch_candles_v2(playground.htf_seconds, historical_start_date, historical_end_date)
+        historical_start_date_htf, historical_end_date_htf = self.get_previous_year_date_range(playground.htf_seconds)
+        candles_htf = playground.fetch_candles_v2(playground.htf_seconds, historical_start_date_htf, historical_end_date_htf)
         
         candles_ltf_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_ltf]
         candles_htf_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_htf]
         
         self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
         self.candles_htf = deque(candles_htf_dicts, maxlen=len(candles_htf_dicts)) 
+        
+        logger.info(f"Loaded {len(self.candles_ltf)} LTF candles and {len(self.candles_htf)} HTF candles", timestamp=self.timestamp, trading_operation=None)
 
         self.sl_buffer = sl_buffer
         self.tp_buffer = tp_buffer
         self.sl_shift = sl_shift
         self.tp_shift = tp_shift
+        self.symbol = None
     
-        
-    def is_complete(self):
-        return self.playground.is_backtest_complete()
-    
-    def update_price_feed(self, tick_delta: List[TickDelta]) -> List[Candle]:
-        new_candles = self.parse_new_candles(tick_delta)
+    def update_price_feed(self, new_candles: List[Candle]) -> None:
+        # new_candles = self.parse_new_candles(tick_delta)
         
         for new_candle in new_candles:
             # Convert the Protocol Buffer message to a dictionary
@@ -61,7 +60,7 @@ class BaseOpenStrategy(ABC):
                 
                 # append only if sorted by timestamp
                 if len(self.candles_ltf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}', timestamp=self.timestamp, trading_operation=None)
                     raise Exception("Candles (5m) are not sorted by timestamp")
                 
                 self.candles_ltf.append(new_candle_dict)
@@ -70,14 +69,14 @@ class BaseOpenStrategy(ABC):
                 
                 # append only if sorted by timestamp
                 if len(self.candles_htf) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
-                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}')
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}', timestamp=self.timestamp, trading_operation=None)
                     raise Exception("Candles (1h) are not sorted by timestamp")
                 
                 self.candles_htf.append(new_candle_dict)
             else:
                 raise Exception(f"Unsupported period: {new_candle})")
             
-        return new_candles
+        return
     
     @abstractmethod        
     def get_sl_shift(self):
@@ -108,6 +107,10 @@ class BaseOpenStrategy(ABC):
         for delta in tick_delta:
             if hasattr(delta, 'new_candles'):
                 for c in delta.new_candles:
+                    if c.symbol != self.symbol:
+                        logger.error(f"Received candle for different symbol: {c.symbol} != {self.symbol}", timestamp=self.timestamp, trading_operation=None)
+                        continue
+                    
                     new_candles.append(c)
             
         return new_candles

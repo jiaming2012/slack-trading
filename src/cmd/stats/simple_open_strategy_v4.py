@@ -22,6 +22,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
         
         super().__init__(playground, modelUpdateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
+        self.symbol = symbol
         self.logger = logger.bind(symbol=symbol)
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
         self.factory_meta = {}
@@ -92,7 +93,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
                     realized_profit = self.playground.get_realized_profit()
                     self.logger.trace(f"Realized profit: {realized_profit}")
                     
-                    symbol = self.playground.symbol
+                    symbol = self.symbol
                     open_trade_count = len(self.playground.fetch_open_orders(symbol))
                     self.logger.trace(f"Open trade count: {open_trade_count}")
                     
@@ -102,7 +103,8 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
                     
                     open_signals.append(
                         OpenSignalV2(
-                            open_signal, 
+                            open_signal,
+                            symbol,
                             tstamp, 
                             max_price_prediction, 
                             min_price_prediction,
@@ -163,8 +165,8 @@ def add_supertrend_momentum_signal_target_set_v2(df: pd.DataFrame, min_max_windo
             max_price_idx = df.loc[mask, 'high'].idxmax()
             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']
@@ -182,8 +184,8 @@ def add_supertrend_momentum_signal_target_set_v2(df: pd.DataFrame, min_max_windo
             max_price_idx = df.loc[mask, 'high'].idxmax()
             close_price_row = df.loc[mask].iloc[-1] if not df.loc[mask].empty else None
             
-            df.loc[idx, 'min_price_prediction'] = df.loc[idx, 'low'] - df.loc[min_price_idx, 'low']
-            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high'] - df.loc[idx, 'high']
+            df.loc[idx, 'min_price_prediction'] = df.loc[min_price_idx, 'low']
+            df.loc[idx, 'max_price_prediction'] = df.loc[max_price_idx, 'high']
             df.loc[idx, 'last_close_price'] = close_price_row['close'] if close_price_row is not None else None
             
             df.loc[idx, 'min_price_prediction_time'] = df.loc[min_price_idx, 'date']

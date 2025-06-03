@@ -1262,6 +1262,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 
 	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
 		externalId := playground.NextOrderID()
+		order.ID = externalId
 		req.ExternalOrderID = &externalId
 	}
 
@@ -1495,6 +1496,10 @@ func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNe
 }
 
 func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
+	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
+		playground.ResetOrderIds()
+	}
+
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var txErr error
 

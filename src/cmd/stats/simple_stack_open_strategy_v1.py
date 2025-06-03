@@ -31,6 +31,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
         self.max_open_count = max_open_count
         self.max_per_trade_risk_percentage = max_per_trade_risk_percentage
+        self.symbol = symbol
         self.factory_meta = {}
     
     def get_max_per_trade_risk_percentage(self):
@@ -83,15 +84,27 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
             
             past_signal_bars: List[SignalBar] = []
 
+            past_signal_direction = None
+
             for i in range(start_index, 0, 1):
                 if data_set.iloc[i]['superD_50_3'] == 1:
                     signal_criteria = data_set.iloc[i]['close'] < data_set.iloc[i]['open']
                     side = OrderSide.BUY
                     sl_buffer = self.sl_buffer * -1
+                    
+                    if past_signal_direction is None or past_signal_direction == OrderSide.SELL_SHORT:
+                        past_signal_bars = []
+                        past_signal_direction = side
+                        
                 elif data_set.iloc[i]['superD_50_3'] == -1:
                     signal_criteria = data_set.iloc[i]['close'] > data_set.iloc[i]['open']
                     side = OrderSide.SELL_SHORT
                     sl_buffer = self.sl_buffer
+                    
+                    if past_signal_direction is None or past_signal_direction == OrderSide.BUY:
+                        past_signal_bars = []
+                        past_signal_direction = side
+                        
                 else:
                     signal_criteria = False
                 
@@ -134,7 +147,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                     realized_profit = self.playground.get_realized_profit()
                     self.logger.trace(f"Realized profit: {realized_profit}")
                     
-                    symbol = self.playground.symbol
+                    symbol = self.symbol
                     open_trade_count = len(self.playground.fetch_open_orders(symbol))
                     self.logger.trace(f"Open trade count: {open_trade_count}")
                     
@@ -144,7 +157,8 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                     
                     open_signals.append(
                         OpenSignalV3(
-                            open_signal, 
+                            open_signal,
+                            symbol,
                             date, 
                             kwargs,
                             additional_equity_risk=additional_equity_risk,

@@ -5,7 +5,7 @@ from simple_stack_close_strategy import SimpleStackCloseStrategy
 from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalV3, OpenSignalName
 from playground_metrics import collect_data
 from rpc.playground_twirp import PlaygroundServiceClient
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException, PlaceOrderSideNotAllowedException
 from typing import List, Tuple
 from datetime import datetime, timedelta
 from scipy.stats import t
@@ -154,7 +154,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if lower_bound < sl_buffer:
             raise ValueError(f"[OrderSide.BUY] Too small: diff(current_price, min_value): {current_price - min_value} < sl_buffer: {sl_buffer}")
         
-        sl_target = current_price - lower_bound
+        sl_target = lower_bound
         
         max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
         upper_bound = max_value + (max_value_margin_of_error * tp_confidence_weight)
@@ -162,7 +162,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if upper_bound < tp_buffer:
             raise ValueError(f"[OrderSide.BUY] Too small: upper_bound: {upper_bound} - current_price: {current_price} < tp_buffer: {tp_buffer}")
         
-        tp_target = current_price + upper_bound
+        tp_target = upper_bound
         
     elif side == OrderSide.SELL_SHORT:
         max_value_margin_of_error = calculate_margin_of_error(0.95, signal.max_price_prediction_mse, signal.max_price_prediction_n)
@@ -171,7 +171,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if upper_bound < sl_buffer:
             raise ValueError(f"[OrderSide.SELL_SHORT] Too small: upper_bound: {upper_bound} - current_price: {current_price} < sl_buffer: {sl_buffer}")
         
-        sl_target = current_price + upper_bound
+        sl_target = upper_bound
         
         min_value_margin_of_error = calculate_margin_of_error(0.95, signal.min_price_prediction_mse, signal.min_price_prediction_n)
         lower_bound = min_value - (min_value_margin_of_error * tp_confidence_weight)
@@ -179,35 +179,49 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         if lower_bound < tp_buffer:
             raise ValueError(f"[OrderSide.SELL_SHORT] Too small: diff(current_price, lower_bound): {current_price - lower_bound} < tp_buffer: {tp_buffer}")
         
-        tp_target = current_price - lower_bound
+        tp_target = lower_bound
         
     else:
         raise ValueError("Invalid side")
         
-    return sl_target, tp_target
+    return sl_target, tp_target    
 
-
-
-def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategy: BaseOpenStrategy, close_strategy, twirp_host) -> Tuple[float, dict]:
-    sl_shift = open_strategy.get_sl_shift()
-    tp_shift = open_strategy.get_tp_shift()
-    sl_buffer = open_strategy.get_sl_buffer()
-    tp_buffer = open_strategy.get_tp_buffer()
+def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host) -> Tuple[float, dict]:
+    # sl_shift = open_strategy.get_sl_shift()
+    # tp_shift = open_strategy.get_tp_shift()
+    # sl_buffer = open_strategy.get_sl_buffer()
+    # tp_buffer = open_strategy.get_tp_buffer()
+    sl_shift = 0.0
+    tp_shift = 0.0
+    sl_buffer = 0.0
+    tp_buffer = 0.0
     
     i = 0
-    while not open_strategy.is_complete():
+    while not playground.is_backtest_complete():
         try:
+            new_candles_dict = {}
+            current_prices_dict = {symbol: None for symbol in symbols}
             tick_delta = playground.flush_new_state_buffer()
             for event in tick_delta:
                 for trade in event.new_trades:
-                    logger.info(f"New Fill: {symbol} - {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
-                
-            new_candles = open_strategy.update_price_feed(tick_delta)
+                    logger.info(f"New Fill: {trade.quantity} @ {trade.price} on {trade.create_date}", timestamp=playground.timestamp, trading_operation='new_trade')
+            
+                for candle in event.new_candles:
+                    if candle.symbol not in new_candles_dict:
+                        new_candles_dict[candle.symbol] = []
+                    new_candles_dict[candle.symbol].append(candle)
+                    
+            for open_strategy in open_strategies:
+                new_candles = new_candles_dict.get(open_strategy.symbol, [])
+                open_strategy.update_price_feed(new_candles)
+                new_candles_dict[open_strategy.symbol] = new_candles
              
-            current_candle = playground.get_current_candle(symbol, ltf_period)
-            current_price = current_candle.close
+                current_candle = playground.get_current_candle(open_strategy.symbol, ltf_period)
+                current_prices_dict[open_strategy.symbol] = current_candle.close
+                
         except Exception as e:
-            current_price = None
+            new_candles_dict = {} 
+            current_prices_dict = {symbol: None for symbol in symbols}
             logger.debug(f"warn: failed to update price feed: {e}")
             time.sleep(1)
             continue
@@ -226,7 +240,14 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         else:
             max_per_trade_risk_percentage = 0.06
             
-        close_signals = close_strategy.tick(current_price, kwargs)
+        
+        close_signals = []
+        for symbol in symbols:
+            current_price = current_prices_dict[symbol]
+            close_signals.extend(
+                close_strategy.tick(symbol, current_price, kwargs)
+            )
+            
         for s in close_signals:
             if playground.timestamp - s.Timestamp > timedelta(minutes=5):
                 logger.warning(f"Ignoring close signal: {s.Timestamp} - {s.Symbol} - {s.Side} - {s.Volume} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
@@ -234,96 +255,131 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
             else:
                 logger.info(f"playground (tstamp): {playground.timestamp} - close signal (tstamp): {s.Timestamp} - Diff: {playground.timestamp - s.Timestamp}", timestamp=playground.timestamp, trading_operation='close')
             
-            client_id = build_client_request_id(symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
-            resp = playground.place_order(s.Symbol, s.Volume, s.Side, current_price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-            logger.info(f"Placed close order: {resp.id}", timestamp=playground.timestamp, trading_operation='close')
-
-        # check for open signals
-        open_signals = open_strategy.tick(new_candles)
-        position = None
-        if len(open_signals) > 0:
-            pos = playground.account.get_position(symbol)
-            position = pos.quantity if pos else 0
-                
-        if len(open_signals) > 1:
-            logger.error(f"Multiple signals detected: {open_signals}")
-            
-        for s in open_signals:
-            if playground.timestamp - s.timestamp > timedelta(minutes=10):
-                logger.warning(f"Ignoring open signal: diff - {playground.timestamp - s.timestamp} > 10: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
-                continue
-            else:
-                logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - s.timestamp}", timestamp=playground.timestamp, trading_operation='process_open_signal')
-              
-            if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
-                side = s.kwargs['side']
-            elif s.name == OpenSignalName.CROSS_ABOVE_20:
-                if position < 0:
-                    qty = abs(position)
-                    side = OrderSide.BUY_TO_COVER
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-                    logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
-
-                side = OrderSide.BUY
-            elif s.name == OpenSignalName.CROSS_BELOW_80:
-                if position > 0:
-                    qty = position
-                    side = OrderSide.SELL
-                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)  
-                    resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-                    logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
-                    
-                side = OrderSide.SELL_SHORT
-            else:
-                logger.error(f"Unknown signal: {s.name}", timestamp=playground.timestamp, trading_operation='open')
-                continue
+            client_id = build_client_request_id(s.Symbol, s.Timestamp.strftime("%Y-%m-%d.%H:%M:%S"), s.Side, s.Volume)
             
             try:
-                additional_equity_at_risk = 0
-                max_allowable_free_margin_percentage = 0.65
-                
-                if isinstance(s, OpenSignalV3):
-                    count = s.kwargs['count']
-                    tag = f'SupertrendStackSignal-{count}'
-                    sl = s.kwargs['sl']
-                else:
-                    sl, tp = calculate_sl_tp(side, current_price, s, sl_shift, tp_shift, sl_buffer, tp_buffer)
-                    logger.info(f"calculated sl: {sl}, tp: {tp}", timestamp=playground.timestamp, trading_operation='open')
-                    if isinstance(s, OpenSignalV2):
-                        additional_equity_at_risk = s.additional_equity_risk
-                
-                    tag = build_tag(sl, tp, side)
-            
-                quantity = calculate_new_trade_quantity(logger, playground.account.equity, playground.account.free_margin, current_price, side, sl, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
-                    
-            except ValueError as e:
-                logger.warning(f"failed to calculate order quantity: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
-                continue
-            
-            try:
-                client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, quantity)
-                resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl, client_request_id=client_id)
-            except InvalidParametersException as e:
-                logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
-                continue
+                price = current_prices_dict[s.Symbol]
+                resp = playground.place_order(s.Symbol, s.Volume, s.Side, price, s.Reason, close_order_id=s.OrderId, raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                logger.info(f"Placed close order: ({resp.id}, {resp.external_id})", timestamp=playground.timestamp, trading_operation='close')
             except Exception as e:
-                logger.error(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
+                logger.error(f"Error placing close order: {e}", timestamp=playground.timestamp, trading_operation='close')
                 continue
+
+        # check for open signals        
+        for open_strategy in open_strategies:
+            new_candles = new_candles_dict[open_strategy.symbol]
+            open_signals = open_strategy.tick(new_candles)
+            position = None
+            if len(open_signals) > 0:
+                pos = playground.account.get_position(open_strategy.symbol)
+                position = pos.quantity if pos else 0
+                    
+            if len(open_signals) > 1:
+                logger.error(f"Multiple signals detected: {open_signals}")
+                
+            for s in open_signals:
+                symbol = s.symbol
+                ts = s.timestamp
+                
+                if symbol != open_strategy.symbol:
+                    logger.error(f"Signal symbol {symbol} does not match open strategy symbol {open_strategy.symbol}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                    continue
+                
+                if type(ts) is not datetime:
+                    ts = ts.to_pydatetime()
+                    
+                if playground.timestamp - ts > timedelta(minutes=10):
+                    logger.warning(f"Ignoring open signal: diff - {playground.timestamp - s.timestamp} > 10: {s.timestamp} - {symbol} - {side} - {qty}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                    continue
+                else:
+                    logger.info(f"playground (tstamp): {playground.timestamp} - open signal (tstamp): {s.timestamp} - Diff: {playground.timestamp - ts}", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                
+                if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
+                    side = s.kwargs['side']
+                    if position > 0 and side == OrderSide.SELL_SHORT:
+                        qty = position
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.SELL, qty)  
+                        resp = playground.place_order(symbol, qty, OrderSide.SELL, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                        logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
+                        
+                    elif position < 0 and side == OrderSide.BUY:
+                        qty = abs(position)
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.BUY_TO_COVER, qty)  
+                        resp = playground.place_order(symbol, qty, OrderSide.BUY_TO_COVER, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                        logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
+                        
+                elif s.name == OpenSignalName.CROSS_ABOVE_20:
+                    if position < 0:
+                        qty = abs(position)
+                        side = OrderSide.BUY_TO_COVER
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
+                        resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                        logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
+
+                    side = OrderSide.BUY
+                elif s.name == OpenSignalName.CROSS_BELOW_80:
+                    if position > 0:
+                        qty = position
+                        side = OrderSide.SELL
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
+                        resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                        logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
+                        
+                    side = OrderSide.SELL_SHORT
+                else:
+                    logger.error(f"Unknown signal: {s.name}", timestamp=playground.timestamp, trading_operation='open')
+                    continue
+                
+                try:
+                    additional_equity_at_risk = 0
+                    max_allowable_free_margin_percentage = 0.65
+                    
+                    if isinstance(s, OpenSignalV3):
+                        count = s.kwargs['count']
+                        tag = f'SupertrendStackSignal-{count}'
+                        sl = s.kwargs['sl']
+                    else:
+                        sl, tp = calculate_sl_tp(side, current_price, s, sl_shift, tp_shift, sl_buffer, tp_buffer)
+                        logger.info(f"calculated sl: {sl}, tp: {tp}", timestamp=playground.timestamp, trading_operation='open')
+                        if isinstance(s, OpenSignalV2):
+                            additional_equity_at_risk = s.additional_equity_risk
+                    
+                        tag = build_tag(sl, tp, side)
+                
+                    quantity = calculate_new_trade_quantity(logger, playground.account.equity, playground.account.free_margin, current_price, side, sl, max_per_trade_risk_percentage, max_allowable_free_margin_percentage, additional_equity_at_risk)
+                        
+                except ValueError as e:
+                    logger.warning(f"failed to calculate order quantity: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='error')
+                    continue
+                
+                try:
+                    attempt = 0
+                    client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, quantity)
+                    resp = playground.place_order(symbol, quantity, side, current_price, tag, sl=sl, client_request_id=client_id)
+                except InvalidParametersException as e:
+                    logger.warning(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
+                    continue
+                except PlaceOrderSideNotAllowedException as e:
+                    logger.warning(f"Error placing order: {e}. Skipping order ...", timestamp=playground.timestamp, trading_operation='open')
+                    continue
+                except Exception as e:
+                    logger.error(f"Error placing order: {e}", timestamp=playground.timestamp, trading_operation='open')
+                    continue
+                
+                logger.info(f"Placed open order: {resp.id}", timestamp=playground.timestamp, trading_operation='open')
             
-            logger.info(f"Placed open order: {resp.id}", timestamp=playground.timestamp, trading_operation='open')
-            
+        # tick the playground
         playground.tick(playground_tick_in_seconds, raise_exception=True)
         
     profit = playground.account.equity - initial_balance
     logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
     
     # fetch stats
-    orders = playground.fetch_orders()
-    position = playground.account.get_position(symbol)
-    from_date = playground.account.meta.start_date
+    # orders = playground.fetch_orders()
+    # position = playground.account.get_position(symbol)
+    # from_date = playground.account.meta.start_date
     
-    stats = collect_data(orders, position, from_date)
+    # stats = collect_data(orders, position, from_date)
     
     meta = {
         'profit': profit,
@@ -332,7 +388,7 @@ def run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, ini
         'sl_buffer': sl_buffer,
         'tp_buffer': tp_buffer,
         'equity': playground.account.equity,
-        'stats': stats
+        'stats': None
     }
     
     # playground.remove_from_server()
@@ -357,6 +413,16 @@ def build_client_version_tag(client_id: str) -> str:
         raise ValueError("version is None")
     
     return f"cli_v{version}"
+
+def parse_symbols(symbols: str) -> List[str]:
+    """
+        Parses a comma-separated string of symbols into a list.
+        e.g. "AAPL,GOOGL,MSFT" -> ["AAPL", "GOOGL", "MSFT"]
+    """
+    if not symbols:
+        raise ValueError("symbols is empty")
+    
+    return [s.strip() for s in symbols.split(' ') if s.strip()]
     
 def objective(logger, kwargs) -> Tuple[float, dict]:
     if kwargs is None:
@@ -375,7 +441,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     # input parameters
     # Read environment variables
     balance = float(os.getenv("BALANCE"))
-    symbol = os.getenv("SYMBOL")
+    symbols = parse_symbols(os.getenv("SYMBOL")) # TODO: Change to SYMBOLS
     twirp_host = os.getenv("TWIRP_HOST")
     playground_env = os.getenv("PLAYGROUND_ENV")
     live_account_type = os.getenv("LIVE_ACCOUNT_TYPE")
@@ -388,7 +454,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     # Check if the required environment variables are set
     if balance is None:
         raise ValueError("Environment variable BALANCE is not set")
-    if symbol is None:
+    if symbols is None:
         raise ValueError("Environment variable SYMBOL is not set")
     if twirp_host is None:
         raise ValueError("Environment variable TWIRP HOST is not set")
@@ -407,9 +473,9 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     #     raise ValueError("Environment variable OPTIMIZER_UPDATE_FREQUENCY is not set")
     
     if live_account_type is not None:
-        logger.info(f'starting {playground_env} playgound for {symbol} with account type {live_account_type}')
+        logger.info(f'starting {playground_env} playgound for {symbols} with account type {live_account_type}')
     else:
-        logger.info(f'starting {playground_env} playgound for {symbol}')
+        logger.info(f'starting {playground_env} playgound for {symbols}')
     
     if playground_env.lower() == "simulator":
         playground_tick_in_seconds = 300
@@ -418,7 +484,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
         repository_source = RepositorySource.POLYGON
         env = PlaygroundEnvironment.SIMULATOR
     
-        logger.info(f"initializing {env}: {symbol} playground from {start_date} to {stop_date} ...")
+        logger.info(f"initializing {env}: {symbols} playground from {start_date} to {stop_date} ...")
         
     elif playground_env.lower() == "live":
         playground_tick_in_seconds = 20  # too fast until we update position with pending orders that have not yet filled at broker
@@ -427,43 +493,53 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
         repository_source = None
         env = PlaygroundEnvironment.LIVE
         
-        logger.info(f"initializing {env}: {symbol} playground")
+        logger.info(f"initializing {env}: {symbols} playground")
         
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
+    ltf_repo_timespan_mutliplier = 5
+    ltf_repo_timespan_unit = 'minute'
+    repos = []
     if open_strategy_input == 'candlestick_open_strategy_v1':
-        ltf_repo = Repository(
-            symbol=symbol,
-            timespan_multiplier=5,
-            timespan_unit='minute',
-            indicators=["supertrend", "doji", "hammer"],
-            history_in_days=10 # Change back to 365
-        )
+        for symbol in symbols:
+            repos.append(Repository(
+                symbol=symbol,
+                timespan_multiplier=ltf_repo_timespan_mutliplier,
+                timespan_unit=ltf_repo_timespan_unit,
+                indicators=["supertrend", "doji", "hammer"],
+                history_in_days=365
+            ))
     else:
-        ltf_repo = Repository(
-            symbol=symbol,
-            timespan_multiplier=5,
-            timespan_unit='minute',
-            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-            history_in_days=10
-        )
+        for symbol in symbols:
+            repos.append(Repository(
+                symbol=symbol,
+                timespan_multiplier=ltf_repo_timespan_mutliplier,
+                timespan_unit=ltf_repo_timespan_unit,
+                indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+                history_in_days=365
+            ))
         
-    ltf_period = ltf_repo.timespan_multiplier * get_timespan_unit(ltf_repo.timespan_unit)
+    ltf_period = ltf_repo_timespan_mutliplier * get_timespan_unit(ltf_repo_timespan_unit)
     
-    htf_repo = Repository(
-        symbol=symbol,
-        timespan_multiplier=1,
-        timespan_unit='hour',
-        indicators=["supertrend"],
-        history_in_days=365
-    )
+    htf_repo_timespan_mutliplier = 1
+    htf_repo_timespan_unit = 'hour'
+    for symbol in symbols:
+        repos.append(
+            Repository(
+                symbol=symbol,
+                timespan_multiplier=htf_repo_timespan_mutliplier,
+                timespan_unit=htf_repo_timespan_unit,
+                indicators=["supertrend"],
+                history_in_days=365
+            )
+        )
     
     req = CreatePolygonPlaygroundRequest(
         balance=balance,
         start_date=start_date,
         stop_date=stop_date,
-        repositories=[ltf_repo, htf_repo],
+        repositories=repos,
         environment=env.value,
         tags=[symbol.lower(), open_strategy_input]
     )
@@ -483,63 +559,77 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     
     logger.info(f"created playground with id: {playground.id}")
     
-    if open_strategy_input == 'simple_open_strategy_v1':
-        from simple_open_strategy_v1 import SimpleOpenStrategy
-        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
-        
-        open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
-        
-    elif open_strategy_input == 'simple_open_strategy_v2':
-        from simple_open_strategy_v2 import SimpleOptimizedOpenStrategy
-        optimizer_update_frequency = None
-        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
-        
-        n_calls = os.getenv("N_CALLS")
-        if n_calls is None:
-            raise ValueError("Environment variable N_CALLS is not set")
-        n_calls = int(n_calls)
-        
-        open_strategy = SimpleOptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
-        
-    elif open_strategy_input == 'simple_open_strategy_v3':
-        from simple_open_strategy_v3 import SimpleOpenStrategyV3
-        additional_profit_risk_percentage = 0.25
-        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
-        
-        open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
-        
-    elif open_strategy_input == 'simple_open_strategy_v4':
-        from simple_open_strategy_v4 import SimpleOpenStrategyV4
-        additional_profit_risk_percentage = 0.0
-        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
-        
-        open_strategy = SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, symbol, logger, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+    open_strategies = []
     
-    elif open_strategy_input == 'candlestick_open_strategy_v1':
-        from candlestick_open_strategy_v1 import CandlestickOpenStrategy
-        min_max_window_in_hours = 24
-        model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+    for symbol in symbols:
+        if open_strategy_input == 'simple_open_strategy_v1':
+            raise NotImplementedError("simple_open_strategy_v1 is not implemented yet")
+            # from simple_open_strategy_v1 import SimpleOpenStrategy
+            # model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+            
+            # open_strategy = SimpleOpenStrategy(playground, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+            
+        elif open_strategy_input == 'simple_open_strategy_v2':
+            raise NotImplementedError("simple_open_strategy_v2 is not implemented yet")
+            # from simple_open_strategy_v2 import SimpleOptimizedOpenStrategy
+            # optimizer_update_frequency = None
+            # model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+            
+            # n_calls = os.getenv("N_CALLS")
+            # if n_calls is None:
+            #     raise ValueError("Environment variable N_CALLS is not set")
+            # n_calls = int(n_calls)
+            
+            # open_strategy = SimpleOptimizedOpenStrategy(playground, model_update_frequency, optimizer_update_frequency, n_calls)
+            
+        elif open_strategy_input == 'simple_open_strategy_v3':
+            raise NotImplementedError("simple_open_strategy_v3 is not implemented yet")
+            # from simple_open_strategy_v3 import SimpleOpenStrategyV3
+            # additional_profit_risk_percentage = 0.25
+            # model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+            
+            # open_strategy = SimpleOpenStrategyV3(playground, additional_profit_risk_percentage, model_update_frequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+            
+        elif open_strategy_input == 'simple_open_strategy_v4':
+            from simple_open_strategy_v4 import SimpleOpenStrategyV4
+            additional_profit_risk_percentage = 0.0
+            model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+            
+            open_strategies.append(
+                SimpleOpenStrategyV4(playground, additional_profit_risk_percentage, model_update_frequency, symbol, logger, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+            )
         
-        open_strategy = CandlestickOpenStrategy(playground, model_update_frequency, min_max_window_in_hours)
-    
-    elif open_strategy_input == 'simple_stack_open_strategy_v1':
-        from simple_stack_open_strategy_v1 import SimpleStackOpenStrategyV1
-        additional_profit_risk_percentage = 0.0
-        max_open_count = int(kwargs['max_open_count'])
-        target_risk_to_reward = float(kwargs['target_risk_to_reward'])
-        max_per_trade_risk_percentage = float(kwargs['max_per_trade_risk_percentage'])
-        open_strategy = SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer)
+        elif open_strategy_input == 'candlestick_open_strategy_v1':
+            raise NotImplementedError("candlestick_open_strategy_v1 is not implemented yet")
+            # from candlestick_open_strategy_v1 import CandlestickOpenStrategy
+            # min_max_window_in_hours = 24
+            # model_update_frequency = os.getenv("MODEL_UPDATE_FREQUENCY")
+            
+            # open_strategies.append(
+            #     CandlestickOpenStrategy(playground, model_update_frequency, min_max_window_in_hours)
+            # )
+        
+        elif open_strategy_input == 'simple_stack_open_strategy_v1':
+            from simple_stack_open_strategy_v1 import SimpleStackOpenStrategyV1
+            additional_profit_risk_percentage = 0.0
+            max_open_count = int(kwargs['max_open_count'])
+            target_risk_to_reward = float(kwargs['target_risk_to_reward'])
+            max_per_trade_risk_percentage = float(kwargs['max_per_trade_risk_percentage'])
+            
+            open_strategies.append(
+                SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer)
+            )
 
-    else:
-        logger.error(f"Invalid open strategy: {open_strategy_input}")
-        raise ValueError(f"Invalid open strategy: {open_strategy_input}")
-    
+        else:
+            logger.error(f"Invalid open strategy: {open_strategy_input}")
+            raise ValueError(f"Invalid open strategy: {open_strategy_input}")
+        
     if open_strategy_input == 'simple_stack_open_strategy_v1':
         close_strategy = SimpleStackCloseStrategy(playground, logger, max_open_count, target_risk_to_reward)
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     
-    return run_strategy(symbol, playground, ltf_period, playground_tick_in_seconds, balance, open_strategy, close_strategy, twirp_host)
+    return run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
