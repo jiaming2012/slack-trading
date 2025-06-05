@@ -6,7 +6,7 @@ module.exports = {
     autorestart: true,
     watch: false,
     instances: 1,
-    max_memory_restart: '0',
+    max_memory_restart: '2G',
     env: {
       BALANCE: '20000',
       SYMBOL: 'TSLA COIN NVDA AAPL META',
