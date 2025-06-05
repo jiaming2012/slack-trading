@@ -22,15 +22,19 @@ class BaseOpenStrategy(ABC):
         
         return previous_year_start, previous_year_end
     
-    def __init__(self, playground, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0):
+    def __init__(self, playground, symbol, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0):
+        if type(symbol) is not str:
+            raise Exception(f"Symbol must be a string, got {type(symbol)}")
+        
         self.playground = playground
         self.timestamp = playground.timestamp
+        self.symbol = symbol
         
         historical_start_date_ltf, historical_end_date_ltf = self.get_previous_year_date_range(playground.ltf_seconds)
-        candles_ltf = playground.fetch_candles_v2(playground.ltf_seconds, historical_start_date_ltf, historical_end_date_ltf)
+        candles_ltf = playground.fetch_candles_v2(symbol, playground.ltf_seconds, historical_start_date_ltf, historical_end_date_ltf)
         
         historical_start_date_htf, historical_end_date_htf = self.get_previous_year_date_range(playground.htf_seconds)
-        candles_htf = playground.fetch_candles_v2(playground.htf_seconds, historical_start_date_htf, historical_end_date_htf)
+        candles_htf = playground.fetch_candles_v2(symbol, playground.htf_seconds, historical_start_date_htf, historical_end_date_htf)
         
         candles_ltf_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_ltf]
         candles_htf_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_htf]
@@ -135,8 +139,8 @@ class BaseSimpleOpenStrategy(BaseOpenStrategy):
         self.previous_day = current_day
         return result
     
-    def __init__(self, playground, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
-        super().__init__(playground, sl_shift, tp_shift, sl_buffer, tp_buffer)
+    def __init__(self, playground, symbol: str, updateFrequency: str, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0, min_max_window_in_hours=4):
+        super().__init__(playground, symbol, sl_shift, tp_shift, sl_buffer, tp_buffer)
         
         self.previous_month = None
         self.previous_week = None

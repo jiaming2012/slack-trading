@@ -117,6 +117,13 @@ class SimpleStackCloseStrategy():
         for open_order in open_orders:
             tag = open_order.tag
             
+            if not tag.startswith('SupertrendStackSignal'):
+                continue
+            
+            if not open_order.symbol == symbol:
+                self.logger.error(f"SimpleStackCloseStrategy::Open order symbol mismatch: {open_order.symbol} != {symbol}")
+                continue
+            
             # Check SL
             if open_order.side == OrderSide.BUY.value:
                 if current_price <= open_order.stop_price:

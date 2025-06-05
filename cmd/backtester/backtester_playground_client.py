@@ -79,24 +79,23 @@ class RepositorySource(Enum):
 
 class BacktesterPlaygroundClient:
     def __init__(self, balance: float, symbol: str, start_date: str, stop_date: str, source: RepositorySource, filename: str = None, host: str = 'http://localhost:8080'):
-        self.symbol = symbol
-        self.host = host
+        raise NotImplementedError("This class is deprecated and will be removed in future versions.")
+    
+        # self.host = host
         
-        if source == RepositorySource.CSV:
-            self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
-        elif source == RepositorySource.POLYGON:
-            self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date)
-        else:
-            raise Exception('Invalid source')
+        # if source == RepositorySource.CSV:
+        #     self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
+        # elif source == RepositorySource.POLYGON:
+        #     self.id = self.create_playground_polygon(balance, symbol, start_date, stop_date)
+        # else:
+        #     raise Exception('Invalid source')
 
-        self.position = None
-
-        self.account = self.fetch_and_update_account_state()
-        self.current_candle = None
-        self._is_backtest_complete = False
-        self._initial_timestamp = None
-        self.timestamp = None
-        self._tick_delta_buffer = []
+        # self.account = self.fetch_and_update_account_state()
+        # self.current_candle = None
+        # self._is_backtest_complete = False
+        # self._initial_timestamp = None
+        # self.timestamp = None
+        # self._tick_delta_buffer = []
         
     def flush_tick_delta_buffer(self) -> List[object]:
         buffer = self._tick_delta_buffer
@@ -126,113 +125,110 @@ class BacktesterPlaygroundClient:
                 ) for symbol, position in obj['positions'].items()
             }
         )
-        
-        # Update the client state
-        self.position = acc.get_position_float(self.symbol)
             
         return acc
     
-    def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
-        current_date = trade.create_date
-        while True:
-            future_date = current_date + timedelta(hours=1)  # use library for next day
-            candles = self.fetch_candles(current_date, future_date)
+    # def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
+    #     current_date = trade.create_date
+    #     while True:
+    #         future_date = current_date + timedelta(hours=1)  # use library for next day
+    #         candles = self.fetch_candles(current_date, future_date)
             
-            if len(candles) == 0:
-                break
+    #         if len(candles) == 0:
+    #             break
             
-            for candle in candles:
-                if trade.quantity > 0:
-                    if candle.low <= sl:
-                        return -abs(trade.quantity * (sl - trade.price))
-                    elif candle.high >= tp:
-                        return abs(trade.quantity * (tp - trade.price))
-                elif trade.quantity < 0:
-                    if candle.high >= sl:
-                        return -abs(trade.quantity * (sl - trade.price))
-                    elif candle.low <= tp:
-                        return abs(trade.quantity * (tp - trade.price))
+    #         for candle in candles:
+    #             if trade.quantity > 0:
+    #                 if candle.low <= sl:
+    #                     return -abs(trade.quantity * (sl - trade.price))
+    #                 elif candle.high >= tp:
+    #                     return abs(trade.quantity * (tp - trade.price))
+    #             elif trade.quantity < 0:
+    #                 if candle.high >= sl:
+    #                     return -abs(trade.quantity * (sl - trade.price))
+    #                 elif candle.low <= tp:
+    #                     return abs(trade.quantity * (tp - trade.price))
                 
-            current_date = future_date
+    #         current_date = future_date
             
-        return 0
+    #     return 0
     
-    def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float, commission: float) -> float:
-        new_trades = current_state.get('new_trades')
-        if not new_trades or len(new_trades) == 0:
-            return 0
+    # def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float, commission: float) -> float:
+    #     new_trades = current_state.get('new_trades')
+    #     if not new_trades or len(new_trades) == 0:
+    #         return 0
         
-        reward = -commission
+    #     reward = -commission
         
-        for trade in new_trades:
-            if trade['symbol'] == self.symbol:
-                qty = trade['quantity']
-                prc = trade['price']
+    #     for trade in new_trades:
+    #         if trade['symbol'] == self.symbol:
+    #             qty = trade['quantity']
+    #             prc = trade['price']
             
-                if qty > 0:
-                    sl_prc = prc - sl
-                    tp_prc = prc + tp
-                elif qty < 0:
-                    sl_prc = prc + sl
-                    tp_prc = prc - tp
-                else:
-                    continue
+    #             if qty > 0:
+    #                 sl_prc = prc - sl
+    #                 tp_prc = prc + tp
+    #             elif qty < 0:
+    #                 sl_prc = prc + sl
+    #                 tp_prc = prc - tp
+    #             else:
+    #                 continue
                 
-                reward += self.calculate_future_pl(
-                    Trade(
-                        symbol=trade['symbol'],
-                        quantity=trade['quantity'],
-                        price=prc,
-                        create_date=datetime.fromisoformat(trade['create_date'])
-                    ),
-                    sl_prc,
-                    tp_prc
-                )
+    #             reward += self.calculate_future_pl(
+    #                 Trade(
+    #                     symbol=trade['symbol'],
+    #                     quantity=trade['quantity'],
+    #                     price=prc,
+    #                     create_date=datetime.fromisoformat(trade['create_date'])
+    #                 ),
+    #                 sl_prc,
+    #                 tp_prc
+    #             )
         
-        return reward
+    #     return reward
     
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles(self, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
-        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
-        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+    # def fetch_candles(self, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
+    #     fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+    #     toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
         
-       # Manually insert the colon in the timezone offset
-        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
-        toStr = toStr[:-2] + ':' + toStr[-2:]
+    #    # Manually insert the colon in the timezone offset
+    #     fromStr = fromStr[:-2] + ':' + fromStr[-2:]
+    #     toStr = toStr[:-2] + ':' + toStr[-2:]
         
-        query_params = urlencode({
-            'symbol': self.symbol,
-            'from': fromStr,
-            'to': toStr
-        })
+    #     query_params = urlencode({
+    #         'symbol': self.symbol,
+    #         'from': fromStr,
+    #         'to': toStr
+    #     })
                 
-        response = requests.get(
-            f'{self.host}/playground/{self.id}/candles?{query_params}'
-        )
+    #     response = requests.get(
+    #         f'{self.host}/playground/{self.id}/candles?{query_params}'
+    #     )
         
-        if response.status_code != 200:
-            raise Exception(response.text)
+    #     if response.status_code != 200:
+    #         raise Exception(response.text)
         
-        resp = response.json()
+    #     resp = response.json()
         
-        candles_data = resp.get('candles')
-        if not candles_data:
-            return []
+    #     candles_data = resp.get('candles')
+    #     if not candles_data:
+    #         return []
         
-        candles = [
-            Candle(
-                open=candle['open'],
-                high=candle['high'],
-                low=candle['low'],
-                close=candle['close'],
-                volume=candle['volume'],
-                datetime=candle['datetime']
-            ) for candle in candles_data
-        ]
+    #     candles = [
+    #         Candle(
+    #             open=candle['open'],
+    #             high=candle['high'],
+    #             low=candle['low'],
+    #             close=candle['close'],
+    #             volume=candle['volume'],
+    #             datetime=candle['datetime']
+    #         ) for candle in candles_data
+    #     ]
         
-        return candles
+    #     return candles
     
     def preview_tick(self, seconds: int) -> object:
         response = requests.post(

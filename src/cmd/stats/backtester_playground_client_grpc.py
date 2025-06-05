@@ -153,13 +153,13 @@ class BacktesterPlaygroundClient:
     def set_current_candle(self, symbol: str, period: int, bar: Bar):        
         set_nested_value(self.current_candles, symbol, period, bar)
                 
-    def fetch_most_recent_bar(self, period: int, now: datetime) -> Bar:
+    def fetch_most_recent_bar(self, symbol: str, period: int, now: datetime) -> Bar:
         # Calculate three days ago
         three_days_ago = now - timedelta(days=3)
         
-        bars = self.fetch_candles_v3(period, three_days_ago)
+        bars = self.fetch_candles_v3(symbol, period, three_days_ago)
         if not bars or len(bars) == 0:
-            raise Exception(f"No bars found for symbol {self.symbol} and period {period}")
+            raise Exception(f"No bars found for symbol {symbol} and period {period}")
         
         return bars[-1]
     
@@ -193,22 +193,14 @@ class BacktesterPlaygroundClient:
                 
     def __init__(self, req: CreatePolygonPlaygroundRequest, live_account_type: LiveAccountType, source: RepositorySource, logger, twirp_host: str = 'http://localhost:5051'):
         self.host = twirp_host 
-        self.symbol = None
         
         if not isinstance(logger, loguru_logger.__class__):
             raise Exception('Invalid logger: must be an instance of loguru logger')
         
         self.logger = logger
         self.repositories = req.repositories
-        for repo in req.repositories:
-            self.symbol = repo.symbol
-            if self.symbol is not None and repo.symbol != self.symbol:
-                raise Exception('Multiple symbols found in repository')
-            
-        if self.symbol is None:
-            raise Exception('Symbol not found in repository')
 
-        self.client = PlaygroundServiceClient(self.host, timeout=180)
+        self.client = PlaygroundServiceClient(self.host, timeout=600)
         self.ltf_seconds = self.get_repository_seconds('ltf')
         self.htf_seconds = self.get_repository_seconds('htf')
 
@@ -232,8 +224,6 @@ class BacktesterPlaygroundClient:
             
         else:
             raise Exception(f'Invalid source {source} and environment {req.environment}')
-
-        self.position = None
 
         self.account = self._fetch_and_update_account_state()
         self._is_backtest_complete = False
@@ -312,91 +302,92 @@ class BacktesterPlaygroundClient:
         except Exception as e:
             self.logger.exception("Failed to connect to gRPC service (fetch_and_update_account_state)", timestamp=self.timestamp)
             raise e
+                
+        positions = {}
+        for k, v in response.positions.items():
+            positions[k] = Position(
+                symbol=k,
+                quantity=v.quantity,
+                cost_basis=v.cost_basis,
+                maintenance_margin=v.maintenance_margin,
+                pl=v.pl
+            )
         
         acc = Account(
             balance=response.balance,
             equity=response.equity,
             free_margin=response.free_margin,
-            positions={
-                symbol: Position(
-                    symbol=symbol,
-                    quantity=position.quantity,
-                    cost_basis=position.cost_basis,
-                    maintenance_margin=position.maintenance_margin,
-                    pl=position.pl
-                ) for symbol, position in response.positions.items()
-            },
+            positions=positions,
             meta=response.meta
         )
-        
-        # Update the client state
-        self.position = acc.get_position_float(self.symbol)
             
         return acc
     
-    def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
-        current_date = trade.create_date
-        while True:
-            future_date = current_date + timedelta(hours=1)  # use library for next day
-            candles = self.fetch_candles(current_date, future_date)
+    # def calculate_future_pl(self, trade: Trade, sl: float, tp: float) -> float:
+    #     current_date = trade.create_date
+    #     while True:
+    #         future_date = current_date + timedelta(hours=1)  # use library for next day
+    #         candles = self.fetch_candles(current_date, future_date)
             
-            if len(candles) == 0:
-                break
+    #         if len(candles) == 0:
+    #             break
             
-            for candle in candles:
-                if trade.quantity > 0:
-                    if candle.low <= sl:
-                        return -abs(trade.quantity * (sl - trade.price))
-                    elif candle.high >= tp:
-                        return abs(trade.quantity * (tp - trade.price))
-                elif trade.quantity < 0:
-                    if candle.high >= sl:
-                        return -abs(trade.quantity * (sl - trade.price))
-                    elif candle.low <= tp:
-                        return abs(trade.quantity * (tp - trade.price))
+    #         for candle in candles:
+    #             if trade.quantity > 0:
+    #                 if candle.low <= sl:
+    #                     return -abs(trade.quantity * (sl - trade.price))
+    #                 elif candle.high >= tp:
+    #                     return abs(trade.quantity * (tp - trade.price))
+    #             elif trade.quantity < 0:
+    #                 if candle.high >= sl:
+    #                     return -abs(trade.quantity * (sl - trade.price))
+    #                 elif candle.low <= tp:
+    #                     return abs(trade.quantity * (tp - trade.price))
                 
-            current_date = future_date
+    #         current_date = future_date
             
-        return 0
+    #     return 0
     
     def fetch_reward_from_new_trades(self, current_state, sl: float, tp: float, commission: float) -> float:
-        new_trades = current_state.new_trades
-        if not new_trades or len(new_trades) == 0:
-            return 0
+        raise NotImplementedError("This method has been deprecated and is not implemented in the base class")
         
-        reward = -commission
+        # new_trades = current_state.new_trades
+        # if not new_trades or len(new_trades) == 0:
+        #     return 0
         
-        for trade in new_trades:
-            if trade['symbol'] == self.symbol:
-                qty = trade['quantity']
-                prc = trade['price']
+        # reward = -commission
+        
+        # for trade in new_trades:
+        #     if trade['symbol'] == self.symbol:
+        #         qty = trade['quantity']
+        #         prc = trade['price']
             
-                if qty > 0:
-                    sl_prc = prc - sl
-                    tp_prc = prc + tp
-                elif qty < 0:
-                    sl_prc = prc + sl
-                    tp_prc = prc - tp
-                else:
-                    continue
+        #         if qty > 0:
+        #             sl_prc = prc - sl
+        #             tp_prc = prc + tp
+        #         elif qty < 0:
+        #             sl_prc = prc + sl
+        #             tp_prc = prc - tp
+        #         else:
+        #             continue
                 
-                reward += self.calculate_future_pl(
-                    Trade(
-                        symbol=trade['symbol'],
-                        quantity=trade['quantity'],
-                        price=prc,
-                        create_date=isoparse(trade['create_date'])
-                    ),
-                    sl_prc,
-                    tp_prc
-                )
+        #         reward += self.calculate_future_pl(
+        #             Trade(
+        #                 symbol=trade['symbol'],
+        #                 quantity=trade['quantity'],
+        #                 price=prc,
+        #                 create_date=isoparse(trade['create_date'])
+        #             ),
+        #             sl_prc,
+        #             tp_prc
+        #         )
         
-        return reward
+        # return reward
     
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles_v3(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+    def fetch_candles_v3(self, symbol: str, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
         '''
         This version is used bc timestamps created from python doesn't work with v2
         '''
@@ -405,7 +396,7 @@ class BacktesterPlaygroundClient:
                         
         req = GetCandlesRequest(
                 playground_id=self.id,
-                symbol=self.symbol,
+                symbol=symbol,
                 period_in_seconds=period_in_seconds,
                 fromRTF3339=fromStr            
             )
@@ -424,7 +415,7 @@ class BacktesterPlaygroundClient:
         
         return response.bars
     
-    def fetch_candles_v2(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+    def fetch_candles_v2(self, symbol: str, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
         fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
         
        # Manually insert the colon in the timezone offset
@@ -432,9 +423,10 @@ class BacktesterPlaygroundClient:
                         
         req = GetCandlesRequest(
                 playground_id=self.id,
-                symbol=self.symbol,
+                symbol=symbol,
                 period_in_seconds=period_in_seconds,
-                fromRTF3339=fromStr            )
+                fromRTF3339=fromStr
+            )
     
         if timestampTo is not None:
             toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
@@ -453,43 +445,43 @@ class BacktesterPlaygroundClient:
         
         return response.bars
     
-    def fetch_candles(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
-        fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
-        toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
+    # def fetch_candles(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
+    #     fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
+    #     toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
         
-       # Manually insert the colon in the timezone offset
-        fromStr = fromStr[:-2] + ':' + fromStr[-2:]
-        toStr = toStr[:-2] + ':' + toStr[-2:]
+    #    # Manually insert the colon in the timezone offset
+    #     fromStr = fromStr[:-2] + ':' + fromStr[-2:]
+    #     toStr = toStr[:-2] + ':' + toStr[-2:]
                         
-        try:
-            response = self.network_call_with_retry('fetch_candles', self.client.GetCandles, GetCandlesRequest(
-                playground_id=self.id,
-                symbol=self.symbol,
-                period_in_seconds=period_in_seconds,
-                fromRTF3339=fromStr,
-                toRTF3339=toStr
-            ))
+    #     try:
+    #         response = self.network_call_with_retry('fetch_candles', self.client.GetCandles, GetCandlesRequest(
+    #             playground_id=self.id,
+    #             symbol=self.symbol,
+    #             period_in_seconds=period_in_seconds,
+    #             fromRTF3339=fromStr,
+    #             toRTF3339=toStr
+    #         ))
         
-        except Exception as e:
-            self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
-            raise e
+    #     except Exception as e:
+    #         self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
+    #         raise e
         
-        candles_data = response.bars
-        if not candles_data:
-            return []
+    #     candles_data = response.bars
+    #     if not candles_data:
+    #         return []
         
-        candles = [
-            Candle(
-                open=candle.open,
-                high=candle.high,
-                low=candle.low,
-                close=candle.close,
-                volume=candle.volume,
-                datetime=candle.datetime,
-            ) for candle in candles_data
-        ]
+    #     candles = [
+    #         Candle(
+    #             open=candle.open,
+    #             high=candle.high,
+    #             low=candle.low,
+    #             close=candle.close,
+    #             volume=candle.volume,
+    #             datetime=candle.datetime,
+    #         ) for candle in candles_data
+    #     ]
         
-        return candles
+    #     return candles
     
     def preview_tick(self, seconds: int) -> object:
         request = NextTickRequest(
@@ -589,16 +581,16 @@ class BacktesterPlaygroundClient:
             request.close_order_id = close_order_id
                         
         try:
-            self.logger.debug(f"position={self.position} environment={self.environment} Placing order: {request}", trading_operation='place_order', timestamp=self.timestamp)
+            self.logger.debug(f"environment={self.environment} Placing order: {request}", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
             if self.environment == PlaygroundEnvironment.SIMULATOR.value:
                 if with_tick:
-                    self.logger.info(f"position={self.position} Placing order with tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
+                    self.logger.info(f"Placing order with tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
                     self.tick(0, raise_exception=True)
             else:
-                self.logger.info(f"position={self.position} environment={self.environment} Placing order without tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
+                self.logger.info(f"environment={self.environment} Placing order without tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
                 self.logger.info("sleeping for 3 seconds ...")
                 time.sleep(3)
                 self.logger.info("waking up")
@@ -670,116 +662,6 @@ if __name__ == '__main__':
         
         print('tick_delta #1: ', tick_delta)
         
-        invalid_orders = tick_delta.invalid_orders
-        
-        found_insufficient_free_margin = False
-        if invalid_orders:
-            for order in invalid_orders:
-                if order.reject_reason and order.reject_reason.find('insufficient free margin') >= 0:
-                    found_insufficient_free_margin = True
-                    break
-        
-        print('L1: found_insufficient_free_margin: ', found_insufficient_free_margin)
-        
-        account = playground_client._fetch_and_update_account_state()
-        
-        print('L1: account: ', account)
-        
-        playground_client.tick(360000)
-        
-        tick_delta = playground_client.flush_new_state_buffer()[0]
-        
-        print('tick_delta #2: ', tick_delta)
-        
-        invalid_orders = tick_delta.invalid_orders
-        
-        found_insufficient_free_margin = False
-        if invalid_orders:
-            for order in invalid_orders:
-                if order['reject_reason'] and order['reject_reason'].find('insufficient free margin') >= 0:
-                    found_insufficient_free_margin = True
-                    break
-        
-        print('L2: found_insufficient_free_margin: ', found_insufficient_free_margin)
-
-        found_liquidation = False
-        if tick_delta.events:
-            for event in tick_delta.events:
-                if event.type == 'liquidation':
-                    found_liquidation = True
-                    break
-                
-        print('L2: found_liquidation: ', found_liquidation)
-
-        account = playground_client._fetch_and_update_account_state()
-        
-        print('L2: account: ', account)
-        
-        print('L2: position: ', playground_client.position)
-        
-        result = playground_client.place_order('AAPL', 3, OrderSide.SELL_SHORT)
-        
-        playground_client.tick(360000)
-                
-        tick_delta = playground_client.flush_new_state_buffer()[0]
-        
-        print('tick_delta #3: ', tick_delta)
-        
-        account = playground_client._fetch_and_update_account_state()
-        
-        print('L3: account: ', account)
-        
-        print('L3: position: ', playground_client.position)
-        
-        playground_client.tick(60000)
-        
-        tick_delta = playground_client.flush_new_state_buffer()[0]
-        
-        print('tick_delta #3.1: ', tick_delta)
-        
-        playground_client.tick(60000)
-        
-        tick_delta = playground_client.flush_new_state_buffer()[0]
-        
-        print('tick_delta #3.2: ', tick_delta)
-        
-        found_liquidation = False
-        if tick_delta.events:
-            for event in tick_delta.events:
-                if event.type == 'liquidation':
-                    found_liquidation = True
-                    break
-                
-        print('L3.1: found_liquidation: ', found_liquidation)
-        
-        playground_client.tick(120000)
-        
-        tick_delta = playground_client.flush_new_state_buffer()[0]
-        
-        print('tick_delta #3.3: ', tick_delta)
-        
-        found_liquidation = False
-        if tick_delta.events:
-            for event in tick_delta.events:
-                if event.type == 'liquidation':
-                    found_liquidation = True
-                    break
-                
-        print('L3.2: found_liquidation: ', found_liquidation)
-        
-        tick_delta = playground_client.tick(120000)
-        
-        print('tick_delta #3.4: ', tick_delta)
-                
-        account = playground_client._fetch_and_update_account_state()
-        
-        print('L4: account: ', account)
-        
-        print('L4: position: ', playground_client.position)
-        
-        candles = playground_client.fetch_candles(isoparse('2021-01-04T09:30:00-05:00'), isoparse('2021-01-04T10:31:00-05:00'))
-        
-        print('candles: ', candles)
                 
         
     except Exception as e:

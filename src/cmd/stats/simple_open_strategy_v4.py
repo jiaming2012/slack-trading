@@ -20,7 +20,7 @@ class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):
         if modelUpdateFrequency is None:
             raise ValueError("Environment variable MODEL_UPDATE_FREQUENCY is not set")
         
-        super().__init__(playground, modelUpdateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
+        super().__init__(playground, symbol, modelUpdateFrequency, sl_shift, tp_shift, sl_buffer, tp_buffer, min_max_window_in_hours)
         
         self.symbol = symbol
         self.logger = logger.bind(symbol=symbol)

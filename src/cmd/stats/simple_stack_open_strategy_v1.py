@@ -25,7 +25,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
         sl_shift = 0.0
         tp_shift = 0.0
         
-        super().__init__(playground, sl_shift, tp_shift, sl_buffer, tp_buffer)
+        super().__init__(playground, symbol, sl_shift, tp_shift, sl_buffer, tp_buffer)
         
         self.logger = logger.bind(symbol=symbol)
         self.additional_profit_risk_percentage = additional_profit_risk_percentage
@@ -118,7 +118,8 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                         past_signal_bars.append(new_bar)
                         
                         if i == -1:
-                            sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
+                            # Previously used ltf data 'superT_50_3', but now we use htf data 
+                            sl = data_set.iloc[i]['superT_htf_50_3'] + sl_buffer
                             logger.info(f"[LIVE] Signal criteria met at index {i}: {data_set.iloc[i]['date']}, with sl: {sl}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                             return OpenSignalName.SUPERTREND_STACK_SIGNAL, data_set, { 'count': len(past_signal_bars), 'sl': sl, 'side': side }
                         else:

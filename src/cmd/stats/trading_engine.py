@@ -243,9 +243,9 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
         
         close_signals = []
         for symbol in symbols:
-            current_price = current_prices_dict[symbol]
+            prc = current_prices_dict[symbol]
             close_signals.extend(
-                close_strategy.tick(symbol, current_price, kwargs)
+                close_strategy.tick(symbol, prc, kwargs)
             )
             
         for s in close_signals:
@@ -298,13 +298,15 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
                     side = s.kwargs['side']
                     if position > 0 and side == OrderSide.SELL_SHORT:
                         qty = position
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.SELL, qty)  
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.SELL, qty)
+                        current_price = current_prices_dict[symbol]
                         resp = playground.place_order(symbol, qty, OrderSide.SELL, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                         logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                         
                     elif position < 0 and side == OrderSide.BUY:
                         qty = abs(position)
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.BUY_TO_COVER, qty)  
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.BUY_TO_COVER, qty)
+                        current_price = current_prices_dict[symbol]
                         resp = playground.place_order(symbol, qty, OrderSide.BUY_TO_COVER, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                         logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
                         
@@ -312,7 +314,8 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
                     if position < 0:
                         qty = abs(position)
                         side = OrderSide.BUY_TO_COVER
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)
+                        current_price = current_prices_dict[symbol]
                         resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                         logger.info(f"Placed close all order: CROSS_ABOVE_20 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
 
@@ -321,7 +324,8 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
                     if position > 0:
                         qty = position
                         side = OrderSide.SELL
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)  
+                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), side, qty)
+                        current_price = current_prices_dict[symbol]
                         resp = playground.place_order(symbol, qty, side, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
                         logger.info(f"Placed close all order: CROSS_BELOW_80 - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                         
@@ -333,6 +337,7 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
                 try:
                     additional_equity_at_risk = 0
                     max_allowable_free_margin_percentage = 0.65
+                    current_price = current_prices_dict[symbol]
                     
                     if isinstance(s, OpenSignalV3):
                         count = s.kwargs['count']
@@ -551,17 +556,16 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
     playground.tick(0, raise_exception=True)  # initialize the playground
-    
-    # todo: this ideally would happen inside BacktesterPlaygroundClient
-    current_bar = playground.fetch_most_recent_bar(ltf_period, playground.timestamp)
-    
-    playground.set_current_candle(symbol, ltf_period, current_bar)
-    
+            
     logger.info(f"created playground with id: {playground.id}")
     
     open_strategies = []
     
     for symbol in symbols:
+        # TODO: this ideally would happen inside BacktesterPlaygroundClient
+        current_bar = playground.fetch_most_recent_bar(symbol, ltf_period, playground.timestamp)
+        playground.set_current_candle(symbol, ltf_period, current_bar)
+        
         if open_strategy_input == 'simple_open_strategy_v1':
             raise NotImplementedError("simple_open_strategy_v1 is not implemented yet")
             # from simple_open_strategy_v1 import SimpleOpenStrategy
