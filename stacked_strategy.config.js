@@ -2,13 +2,13 @@ module.exports = {
   apps : [{
     name: 'stacked-strategy',
     cmd: 'src/cmd/stats/trading_engine.py',
-    args: '--max-open-count 3 --target-risk-to-reward 1.9 --max-per-trade-risk-percentage 0.08',
+    args: '--max-open-count 3 --target-risk-to-reward 1.9 --max-per-trade-risk-percentage 0.06',
     autorestart: true,
     watch: false,
     instances: 1,
     max_memory_restart: '1G',
     env: {
-      BALANCE: '10000',
+      BALANCE: '20000',
       SYMBOL: 'TSLA COIN NVDA AAPL META',
       OPEN_STRATEGY: 'simple_stack_open_strategy_v1',
       MODEL_UPDATE_FREQUENCY: 'daily',
