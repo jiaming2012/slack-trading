@@ -14,7 +14,7 @@ module.exports = {
       MODEL_UPDATE_FREQUENCY: 'daily',
       OPTIMIZER_UPDATE_FREQUENCY: 'weekly',
       TWIRP_HOST: 'http://45.77.223.21',
-      PLAYGROUND_CLIENT_ID: 'stacked-strategy-1',
+      PLAYGROUND_CLIENT_ID: 'stacked-strategy-2',
       N_CALLS: '30',
     },
     env_simulation: {},
