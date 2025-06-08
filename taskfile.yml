@@ -12,18 +12,27 @@ tasks:
       - 'docker volume prune -f'
     dir: ${PROJECTS_DIR}/slack-trading
 
+  conda:init:
+    cmds:
+      - 'echo $(conda info | grep "active env location" | cut -d ":" -f2- | xargs) >> ~/.zshrc'
+      - source ~/.zshrc
+    dir: ${PROJECTS_DIR}/slack-trading
+
+  conda:create:
+    cmds:
+      - 'conda env create -f trading_env.yml'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   conda:list:
     cmds:
       - 'conda env list'
 
-  conda:update:grodt:
+  conda:update:
     cmds:
-      - 'conda update conda'
-      - 'conda update --all'
-      - 'conda env export > conda-env.yaml'
+      - 'conda env update -f trading_env.yml --name trading --prune'
     dir: ${PROJECTS_DIR}/slack-trading
 
-  conda:update:trading:
+  conda:export:
     cmds:
       - 'conda update conda'
       - 'conda update --all'
