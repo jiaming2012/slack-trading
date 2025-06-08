@@ -537,7 +537,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
+            "python": "${env:CONDA_HOME}/envs/trading/bin/python3",
             "env": {
                 "BALANCE": "15000",
                 "SYMBOL": "COIN",
