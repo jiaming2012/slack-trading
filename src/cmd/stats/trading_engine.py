@@ -396,9 +396,9 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
         'stats': None
     }
     
-    # playground.remove_from_server()
+    playground.remove_from_server()
     
-    # logger.info(f"Removed playground: {playground.id}")
+    logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
 
@@ -619,9 +619,10 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             max_open_count = int(kwargs['max_open_count'])
             target_risk_to_reward = float(kwargs['target_risk_to_reward'])
             max_per_trade_risk_percentage = float(kwargs['max_per_trade_risk_percentage'])
+            use_htf_data = kwargs.get('use_htf_data', False)
             
             open_strategies.append(
-                SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer)
+                SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer, use_htf_data=use_htf_data)
             )
 
         else:
@@ -645,6 +646,8 @@ if __name__ == "__main__":
     args.add_argument("--sl-buffer", type=float, default=0.0)
     args.add_argument("--tp-buffer", type=float, default=0.0)
     args.add_argument("--min-max-window-in-hours", type=int, default=4)
+    args.add_argument("--use-htf-data", default=False, help="Use higher time frame data for the open strategy")
+    
     args = args.parse_args()
         
     kwargs = {k:v for k, v in vars(args).items() if v is not None}

@@ -21,7 +21,7 @@ class SignalBar:
 
 # V4: Targets a specific risk/reward
 class SimpleStackOpenStrategyV1(BaseOpenStrategy):
-    def __init__(self, playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0):
+    def __init__(self, playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0, use_htf_data=False):
         sl_shift = 0.0
         tp_shift = 0.0
         
@@ -32,6 +32,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
         self.max_open_count = max_open_count
         self.max_per_trade_risk_percentage = max_per_trade_risk_percentage
         self.symbol = symbol
+        self.use_htf_data = use_htf_data
         self.factory_meta = {}
     
     def get_max_per_trade_risk_percentage(self):
@@ -118,8 +119,16 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                         past_signal_bars.append(new_bar)
                         
                         if i == -1:
-                            # Previously used ltf data 'superT_50_3', but now we use htf data 
-                            sl = data_set.iloc[i]['superT_htf_50_3'] + sl_buffer
+                            if self.use_htf_data:
+                                ltf_side = data_set.iloc[i]['superD_50_3']
+                                if ltf_side != data_set.iloc[i]['superD_htf_50_3']:
+                                    logger.debug(f"LTF side {ltf_side} does not match HTF side {data_set.iloc[i]['superD_htf_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
+                                    continue
+                            
+                                sl = data_set.iloc[i]['superT_htf_50_3'] + sl_buffer
+                            else:
+                                sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
+                                
                             logger.info(f"[LIVE] Signal criteria met at index {i}: {data_set.iloc[i]['date']}, with sl: {sl}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                             return OpenSignalName.SUPERTREND_STACK_SIGNAL, data_set, { 'count': len(past_signal_bars), 'sl': sl, 'side': side }
                         else:

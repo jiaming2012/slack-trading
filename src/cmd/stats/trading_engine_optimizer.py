@@ -103,7 +103,7 @@ class TradingEngineOptimizer:
         self.n_calls = kwargs['n_calls']
 
     # TODO: Maybe this can be imported
-    def fn(self, max_open_count: int, target_risk_to_reward: float, max_per_trade_risk_percentage: float, sl_buffer: float, tp_buffer: float):
+    def fn(self, max_open_count: int, target_risk_to_reward: float, max_per_trade_risk_percentage: float, sl_buffer: float=0.0, tp_buffer: float=0.0):
         global counter
         kwargs = {
             'sl_buffer': sl_buffer,
@@ -141,10 +141,10 @@ class TradingEngineOptimizer:
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
     
-    args.add_argument("--sl-buffer-lbound", type=float, default=0.0)
-    args.add_argument("--sl-buffer-ubound", type=float, default=0.0)
-    args.add_argument("--tp-buffer-lbound", type=float, default=0.0)
-    args.add_argument("--tp-buffer-ubound", type=float, default=0.0)
+    # args.add_argument("--sl-buffer-lbound", type=float, default=None)
+    # args.add_argument("--sl-buffer-ubound", type=float, default=None)
+    # args.add_argument("--tp-buffer-lbound", type=float, default=None)
+    # args.add_argument("--tp-buffer-ubound", type=float, default=None)
     args.add_argument("--max-open-count-lbound", type=int, default=1)
     args.add_argument("--max-open-count-ubound", type=int, default=10)
     args.add_argument("--target-risk-to-reward-lbound", type=float, default=0.5)
@@ -152,6 +152,7 @@ if __name__ == '__main__':
     args.add_argument("--max-per-trade-risk-percentage-lbound", type=float, default=0.02)
     args.add_argument("--max-per-trade-risk-percentage-ubound", type=float, default=0.1)
     args.add_argument("--n-calls", type=int, default=15)
+    args.add_argument("--use-htf-data", action='store_true', default=False, help="Use high time frame data for optimization")
     
     args = args.parse_args()
     
