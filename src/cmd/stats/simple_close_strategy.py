@@ -48,7 +48,7 @@ class SimpleCloseStrategy():
         self.symbols = playground.account.meta.symbols
         self.playground = playground
         
-    def tick(self, current_price: float, kwargs: dict) -> List[CloseSignal]:
+    def tick(self, symbol: str, current_price: float, kwargs: dict) -> List[CloseSignal]:
         signals = []
         if not current_price:
             return signals
@@ -57,8 +57,8 @@ class SimpleCloseStrategy():
         if period is None:
             raise ValueError("Period is not set")
         
-        for symbol in self.symbols:
-            open_orders: List[Order] = self.playground.fetch_open_orders(symbol)
+        for sym in self.symbols:
+            open_orders: List[Order] = self.playground.fetch_open_orders(sym)
             for open_order in open_orders:
                 tag = open_order.tag
                 
@@ -67,23 +67,23 @@ class SimpleCloseStrategy():
                 except ValueError:
                     continue
                 
-                current_candle = self.playground.get_current_candle(symbol, period)
+                current_candle = self.playground.get_current_candle(sym, period)
                 candle_dt = isoparse(current_candle.datetime)
                 ts = datetime.now(tz=candle_dt.tzinfo)
                 if open_order.side == OrderSide.BUY.value:
                     if current_price <= sl:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'sl'))
+                        signals.append(CloseSignal(ts, open_order.id, sym, OrderSide.SELL, abs(qty), 'sl'))
                     elif current_price >= tp:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'tp'))
+                        signals.append(CloseSignal(ts, open_order.id, sym, OrderSide.SELL, abs(qty), 'tp'))
                 elif open_order.side == OrderSide.SELL_SHORT.value:
                     if current_price >= sl:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
+                        signals.append(CloseSignal(ts, open_order.id, sym, OrderSide.BUY_TO_COVER, abs(qty), 'sl'))
                     elif current_price <= tp:
                         qty = calc_remaining_open_quantity(open_order)
-                        signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'tp'))
+                        signals.append(CloseSignal(ts, open_order.id, sym, OrderSide.BUY_TO_COVER, abs(qty), 'tp'))
                 else:
                     raise ValueError("Invalid side")
                 
