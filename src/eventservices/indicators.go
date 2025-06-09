@@ -39,7 +39,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	// pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
 
 	// Use anaconda python
-	pythonInterp := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
+	pythonInterp := path.Join(anacondaHome, "envs", "trading", "bin", "python3")
 
 	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
 	var cmdArgs []string

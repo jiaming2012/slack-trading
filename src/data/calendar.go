@@ -27,7 +27,7 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 		return nil, fmt.Errorf("FetchCalendar: error getting ANACONDA_HOME: %w", err)
 	}
 
-	interpreter := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
+	interpreter := path.Join(anacondaHome, "envs", "trading", "bin", "python3")
 	scriptDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "pandas_market_calendars", "main.py")
 	startDateArg := startDate.ToString()
 	endDateArg := endDate.ToString()

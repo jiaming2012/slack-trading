@@ -12,10 +12,19 @@ tasks:
       - 'docker volume prune -f'
     dir: ${PROJECTS_DIR}/slack-trading
 
+  env:generate:
+    cmds:
+      - 'rm -f .env.machine'
+      - 'touch .env.machine'
+      - 'echo PROJECTS_DIR=\"${PROJECTS_DIR}\" >> .env.machine'
+      - 'echo ANACONDA_HOME=\"$(conda info --base)\" >> .env.machine'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   conda:init:
     cmds:
-      - 'echo $(conda info | grep "active env location" | cut -d ":" -f2- | xargs) >> ~/.zshrc'
-      - source ~/.zshrc
+      - 'task env:generate'
+      - 'rm -f miniconda3'
+      - 'ln -s $(conda info --base) miniconda3'
     dir: ${PROJECTS_DIR}/slack-trading
 
   conda:create:

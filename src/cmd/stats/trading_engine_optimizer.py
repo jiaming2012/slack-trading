@@ -111,6 +111,7 @@ class TradingEngineOptimizer:
             'max_open_count': max_open_count,
             'target_risk_to_reward': target_risk_to_reward,
             'max_per_trade_risk_percentage': max_per_trade_risk_percentage,
+            'use_htf_data': True
         }
         
         logger.info(f"Running optimization with kwargs: {kwargs}")

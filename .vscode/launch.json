@@ -4,15 +4,14 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Launch Go Program",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/integration_testing/postgres_test.go",
-            "env": {
-                "PROJECTS_DIR": "/Users/jamal/projects",
-            }
+            "env": {}
         },
         {
             "name": "[DEV] eventmain/main.go",
@@ -26,7 +25,6 @@
                 "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic OTYxOTAwOmdsY19leUp2SWpvaU1URTFNall5TkNJc0ltNGlPaUp6ZEdGamF5MDVOakU1TURBdGIzUnNjQzEzY21sMFpTMW5jbTlrZEMxelpYSjJhV05sSWl3aWF5STZJbEZ4ZWpRMWFYSTBRVFJXV0hOTU5EVXlaVVV6TmtVMVlTSXNJbTBpT25zaWNpSTZJbkJ5YjJRdGRYTXRaV0Z6ZEMwd0luMTk=",
                 "GO_ENV": "development",
                 "DRY_RUN": "false",
-                "PROJECTS_DIR": "/Users/jamal/projects"
             }
         },
         {
@@ -37,8 +35,7 @@
             "program": "${workspaceFolder}/src/eventmain/main.go",
             "env": {
                 "GO_ENV": "production",
-                "DRY_RUN": "true",
-                "PROJECTS_DIR": "/Users/jamal/projects"
+                "DRY_RUN": "true"
             }
         },
         {
@@ -325,7 +322,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "3000",
                 "SYMBOL": "META",
@@ -351,7 +348,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "AAPL",
@@ -379,7 +376,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/jenk_breaks.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
         },
         {
             "name": "trading engine - coin - simulator",
@@ -387,7 +384,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "5000",
                 "SYMBOL": "COIN",
@@ -395,7 +392,7 @@
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
-                "START_DATE": "2025-05-01",
+                "START_DATE": "2025-01-01",
                 "STOP_DATE": "2025-05-30",
                 "MODEL_UPDATE_FREQUENCY": "daily",
                 "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
@@ -404,8 +401,8 @@
             "args": [
                 // "--sl-shift", "1",
                 "--max-open-count", "3",
-                "--target-risk-to-reward", "1.9",
-                "--max-per-trade-risk-percentage", "0.035",
+                "--target-risk-to-reward", "2.18",
+                "--max-per-trade-risk-percentage", "0.02",
                 "--use-htf-data", "true",
             ]
         },
@@ -415,7 +412,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "15000",
                 "SYMBOL": "TSLA COIN NVDA AAPL META",
@@ -442,7 +439,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "TSLA COIN NVDA AAPL META",
@@ -497,7 +494,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/playground_metrics.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python3",
+            "python": "miniconda3/envs/trading/bin/python3",
             "args": [
                 "--tags", "cli_v14",
                 "--twirp-host", "http://45.77.223.21",
@@ -511,7 +508,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
-            "python": "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python": "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "3000",
                 "SYMBOL": "COIN",
@@ -537,7 +534,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
             "console": "integratedTerminal",
-            "python": "${env:CONDA_HOME}/envs/trading/bin/python3",
+            "python": "miniconda3/envs/trading/bin/python3",
             "env": {
                 "BALANCE": "15000",
                 "SYMBOL": "COIN",
@@ -617,7 +614,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/simple_open_strategy_v4.py",
             "console": "integratedTerminal",
-            "python":  "/Users/jamal/miniconda3/envs/trading/bin/python",
+            "python":  "miniconda3/envs/trading/bin/python",
             "env": {
                 "BALANCE": "10000",
                 "SYMBOL": "AAPL",

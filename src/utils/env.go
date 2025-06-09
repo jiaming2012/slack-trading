@@ -53,7 +53,6 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 
 	log.Infof("Using go environment: %s", goEnvironment)
 
-	envFile := filepath.Join(envDir, ".env")
 	// if goEnvironment == "production" {
 	// 	// load secrets file
 	// 	if err := godotenv.Load(filepath.Join(envDir, PROD_ENV_SECRETS_FILENAME)); err != nil {
@@ -72,9 +71,17 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 		originalEnv["EVENTSTOREDB_URL"] = os.Getenv("EVENTSTOREDB_URL")
 	}
 
+	envFile := filepath.Join(envDir, ".env")
+
 	// Load the specified .env file
 	if err := godotenv.Load(envFile); err != nil {
 		return fmt.Errorf("failed to load %s file: %v", envFile, err)
+	}
+
+	envFileMachine := filepath.Join(envDir, ".env.machine")
+
+	if err := godotenv.Load(envFileMachine); err != nil {
+		return fmt.Errorf("failed to load %s file: %v", envFileMachine, err)
 	}
 
 	if goEnvironment == "test" {
