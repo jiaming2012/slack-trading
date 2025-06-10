@@ -125,9 +125,7 @@ class SimpleStackOpenStrategyV1(BaseOpenStrategy):
                                     logger.debug(f"LTF side {ltf_side} does not match HTF side {data_set.iloc[i]['superD_htf_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                                     continue
                             
-                                sl = data_set.iloc[i]['superT_htf_50_3'] + sl_buffer
-                            else:
-                                sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
+                            sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
                                 
                             logger.info(f"[LIVE] Signal criteria met at index {i}: {data_set.iloc[i]['date']}, with sl: {sl}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                             return OpenSignalName.SUPERTREND_STACK_SIGNAL, data_set, { 'count': len(past_signal_bars), 'sl': sl, 'side': side }
