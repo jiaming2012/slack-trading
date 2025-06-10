@@ -4,15 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
-        {
-            "name": "Launch Go Program",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/integration_testing/postgres_test.go",
-            "env": {}
-        },
         {
             "name": "[DEV] eventmain/main.go",
             "type": "go",
@@ -39,17 +30,6 @@
             }
         },
         {
-            "name": "[DEV] cmd/parse_tradier_orders_csv/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/parse_tradier_orders_csv/main.go",
-            "env": {
-                "GO_ENV": "development"
-            },
-            "args": ["--inDir", "/Users/jamal/Downloads/orders_2024-06-01_2024-07-23.csv", "--ignoreSymbols", "VIX"]
-        },
-        {
             "name": "[DEV] cmd/stats/clean_data_pdf/main.go",
             "type": "go",
             "request": "launch",
@@ -61,140 +41,11 @@
             "args": ["SPX", "15", "4,8,16,24,96,192,288,480,672"]
         },
         {
-            "name": "[DEV] cmd/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/stats/transform_data/supertrend_4h_1h_stoch_rsi_15m_up/main.go",
-            "env": {
-                "GO_ENV": "development"
-            },
-            "args": ["--starts-at", "2024-05-01T09:30:00", "--ends-at", "2024-05-31T16:00:00"]
-        },
-        {
-            "name": "[DEV] cmd/fetch_orders/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/fetch_orders/main.go",
-            "args": ["--orderIDs", "12194526,12194663,12194667,12216758,12216761,12216764,12848708,12848754,12857574,12857578,12857638,12857641,12860120,12860124,12860191,12860194,12874129,12874133,12875828,12875831,12890143,12890146,12890150,12913961,12913964,12926649,12946152,12946155,12982632,12982635,12982972,12982976,12994450,12994453,12994671,12994674,13001489,13001519,13001522,13007047,13007148,13036485,13036583,13047946,13048008,13065805,13065808,13065857,13065860,13086384,13086387,13086390,13099021,13099024,13099027,13147657,13156779,13156782,13158850,13158853,13158856,13170961,13170964,13174448,13174451,13174470,13179634,13281066,13281069,13281191,13287779,13287782,13287887", "--go-env", "development"]
-        },
-        {
-            "name": "[DEV] cmd/fetch_market_data/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/fetch_market_data/main.go",
-            "args": ["--orderIDs", "13168704", "--go-env", "dev"]
-        },
-        {
-            "name": "[DEV] cmd/import_signals/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/import_signals/main.go",
-        },
-        {
-            "name": "[DEV] cmd/backtester/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/backtester/src/main.go",
-            "args": ["--outDir", "/Users/jamal/projects/grodt", "--symbol", "SPX", "--start-at", "2420"]
-        },
-        {
             "name": "[DEV] cmd/tick_generator/clean_data_pdf_signals/main.go",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/src/cmd/tick_generator/clean_data_pdf_signals/main.go",
-            "env": {
-                "GO_ENV": "development"
-            }
-        },
-        {
-            "name": "[DEV] stats/import_data/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/stats/import_data/main.go",
-            "env": {
-                "GO_ENV": "development"
-            },
-            "args": ["candles-SPX-15", "2024-05-01", "2024-05-31"]
-        },
-        {
-            "name": "[DEV] import_trading_view_data/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/import_trading_view_data/main.go",
-            "env": {
-                "GO_ENV": "development"
-            },
-            "args": ["candles-SPX-15"]
-        },
-        {
-            "name": "[PROD] import_trading_view_data/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/import_trading_view_data/main.go",
-            "env": {
-                "GO_ENV": "production"
-            },
-            "args": ["candles-SPX-15"]
-        },
-        {
-            "name": "[DEV] esdb_export_to_csv/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/stats/esdb_export_to_csv/main.go",
-            "env": {
-                "GO_ENV": "development"
-            },
-            "args": ["candles-SPX-15"]
-        },
-        {
-            "name": "[DEV] eventticksreader/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventticksreader/main.go",
-            "env": {
-                "GO_ENV": "development"
-            }
-        },
-        {
-            "name": "[PROD] eventstreamutilities/main.go",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventstreamutilities/main.go",
-            "args": ["FETCH_AND_STORE_TRADIER_OPTIONS", "coin", "10,20", "10.0", "5"],
-            "env": {
-                "GO_ENV": "production"
-            }
-        },
-        {
-            "name": "[DEV] eventstreamutilities/start-tracking",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventstreamutilities/main.go",
-            "args": ["START_TRACKING", "tost", "10,20,30", "10.0", "5", "test"],
-            "env": {
-                "GO_ENV": "development"
-            }
-        },
-        {
-            "name": "[DEV] eventstreamutilities/stop-tracking",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/src/eventstreamutilities/main.go",
-            "args": ["STOP_TRACKING", "tost", "test"],
             "env": {
                 "GO_ENV": "development"
             }
@@ -230,58 +81,6 @@
             ]
         },
         {
-            "name": "proximal policy optimization",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-        },
-        {
-            "name": "proximal policy optimization v13",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v13.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                "--symbol", "TSLA",
-                "--start-date", "2024-03-18",
-                "--end-date", "2024-11-13",
-                "--timesteps", "4500",
-                "--host", "http://127.0.0.1:5051"
-            ]
-        },
-        {
-            "name": "proximal policy optimization v14",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/proximal_policy_optimization_v14.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                "--symbol", "COIN",
-                "--start-date", "2024-09-03",
-                "--end-date", "2024-11-13",
-                "--host", "http://127.0.0.1:5051",
-                "--iterations", "4500"
-            ]
-        },
-        {
-            "name": "proximal policy optimization [validate]",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/validate_model.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-            "args": [
-                "--model", "ppo_model_v6-2024-10-23-05-15-50.zip",
-                "--symbol", "COIN",
-                "--start-date", "2024-06-03",
-                "--end-date", "2024-09-30"
-            ]
-        },
-        {
             "name": "plot_playground",
             "type": "debugpy",
             "request": "launch",
@@ -305,41 +104,6 @@
                 "--start-date", "2024-08-01",
                 "--end-date", "2024-08-31",
                 "--eventFn", "random"
-            ]
-        },
-        {
-            "name": "open strategy",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/open_strategy.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
-            "args": []
-        },
-        {
-            "name": "trading engine",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
-            "console": "integratedTerminal",
-            "python": "miniconda3/envs/trading/bin/python",
-            "env": {
-                "BALANCE": "3000",
-                "SYMBOL": "META",
-                "PLAYGROUND_CLIENT_ID": "supertrend1-meta-paper-9",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                "TWIRP_HOST": "http://localhost:5051",
-                "PLAYGROUND_ENV": "live",
-                "OPEN_STRATEGY": "simple_open_strategy_v4",
-                // "START_DATE": "2024-12-23",
-                // "STOP_DATE": "2024-12-28",
-                "LIVE_ACCOUNT_TYPE": "paper",
-                "MODEL_UPDATE_FREQUENCY": "daily",
-                "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
-                "N_CALLS": "30"
-            },
-            "args": [
-                "--min-max-window-in-hours", "12"            
             ]
         },
         {
@@ -379,47 +143,19 @@
             "python": "miniconda3/envs/trading/bin/python",
         },
         {
-            "name": "trading engine - coin - simulator",
+            "name": "trading engine - simple stack - simulator - v2",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
             "console": "integratedTerminal",
             "python": "miniconda3/envs/trading/bin/python",
             "env": {
-                "BALANCE": "5000",
+                "BALANCE": "20000",
                 "SYMBOL": "COIN",
                 // "TWIRP_HOST": "http://45.77.223.21",
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
-                "START_DATE": "2025-01-01",
-                "STOP_DATE": "2025-05-30",
-                "MODEL_UPDATE_FREQUENCY": "daily",
-                "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
-                "N_CALLS": "30"
-            },
-            "args": [
-                // "--sl-shift", "1",
-                "--max-open-count", "3",
-                "--target-risk-to-reward", "2.18",
-                "--max-per-trade-risk-percentage", "0.02",
-                "--use-htf-data", "true",
-            ]
-        },
-        {
-            "name": "trading engine - all - simulator",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
-            "console": "integratedTerminal",
-            "python": "miniconda3/envs/trading/bin/python",
-            "env": {
-                "BALANCE": "15000",
-                "SYMBOL": "TSLA COIN NVDA AAPL META",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                "TWIRP_HOST": "http://localhost:5051",
-                "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_stack_open_strategy_v1",
+                "OPEN_STRATEGY": "simple_stack_open_strategy_v2",
                 "START_DATE": "2025-05-01",
                 "STOP_DATE": "2025-05-30",
                 "MODEL_UPDATE_FREQUENCY": "daily",
@@ -461,22 +197,6 @@
                 "--target-risk-to-reward", "1.9",
                 "--max-per-trade-risk-percentage", "0.08",
             ]
-        },
-        {
-            "name": "backtester playground client",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
-        },
-        {
-            "name": "backtester playground client (grpc)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/cmd/backtester/backtester_playground_client_grpc.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/backtester/venv/bin/python",
         },
         {
             "name": "generate_data",
@@ -529,7 +249,7 @@
             ]
         },
         {
-            "name": "trading engine - all - optimizer",
+            "name": "trading engine - stack v1 - optimizer",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
@@ -560,53 +280,35 @@
             ]
         },
         {
-            "name": "simple_open_strategy_v2",
+            "name": "trading engine - stack v2 - optimizer",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/simple_open_strategy_v2.py",
+            "program": "${workspaceFolder}/src/cmd/stats/trading_engine_optimizer.py",
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
+            "python": "miniconda3/envs/trading/bin/python3",
             "env": {
-                "BALANCE": "10000",
-                "SYMBOL": "AAPL",
+                "BALANCE": "15000",
+                "SYMBOL": "COIN",
                 // "TWIRP_HOST": "http://45.77.223.21",
-                // "TWIRP_HOST": "http://localhost:5051",
+                "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
-                "LIVE_ACCOUNT_TYPE": "paper",
-                "OPEN_STRATEGY": "simple_open_strategy_v1",
-                // "START_DATE": "2024-10-21",
-                // "STOP_DATE": "2025-01-24",
-                "MODEL_UPDATE_FREQUENCY": "monthly",
-            }
-        },
-        {
-            "name": "simple_close_strategy",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/simple_close_strategy.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
-            "env": {
-                "BALANCE": "10000",
-                "SYMBOL": "AAPL",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                // "TWIRP_HOST": "http://localhost:5051",
-                "PLAYGROUND_ENV": "simulator",
-                "LIVE_ACCOUNT_TYPE": "paper",
-                "OPEN_STRATEGY": "simple_open_strategy_v1",
-                // "START_DATE": "2024-10-21",
-                // "STOP_DATE": "2025-01-24",
-                "MODEL_UPDATE_FREQUENCY": "monthly",
-            }
-        },
-        {
-            "name": "simple_stack_open_strategy_v1",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/simple_stack_open_strategy_v1.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/cmd/stats-sandbox/myenv/bin/python",
-            "env": {}
+                "OPEN_STRATEGY": "simple_stack_open_strategy_v2",
+                "START_DATE": "2025-05-01",
+                "STOP_DATE": "2025-05-30",
+                "LIVE_ACCOUNT_TYPE": "simulation",
+                "MODEL_UPDATE_FREQUENCY": "daily",
+                "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
+                "N_CALLS:": "25"
+            },
+            "args": [
+                "--max-open-count-lbound", "2",
+                "--max-open-count-ubound", "8",
+                "--target-risk-to-reward-lbound", "0.25",
+                "--target-risk-to-reward-ubound", "1",
+                "--max-per-trade-risk-percentage-lbound", "0.005",
+                "--max-per-trade-risk-percentage-ubound", "0.03",
+                "--n-calls", "25",
+            ]
         },
         {
             "name": "simple_open_strategy_v4",
@@ -627,43 +329,6 @@
                 // "STOP_DATE": "2025-01-24",
                 "MODEL_UPDATE_FREQUENCY": "monthly",
             }
-        },
-        {
-            "name": "tengine - simple_open_strategy_v3",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/trading_engine.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python",
-            "env": {
-                "BALANCE": "3000",
-                "SYMBOL": "NVDA",
-                // "TWIRP_HOST": "http://45.77.223.21",
-                "TWIRP_HOST": "http://localhost:5051",
-                "PLAYGROUND_ENV": "simulator",
-                "OPEN_STRATEGY": "simple_open_strategy_v3",
-                "START_DATE": "2024-01-04",
-                "STOP_DATE": "2025-01-31",
-                "MODEL_UPDATE_FREQUENCY": "weekly",
-                "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
-                "N_CALLS": "40"
-            }
-        },
-        {
-            "name": "backtester api realized profits integration test",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_realized_profits_integration_test.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python"
-        },
-        {
-            "name": "backtester api positions integration test",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/testing/backtester_api_simulation_positions_integration_test.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/src/cmd/stats/env/bin/python"
         }
     ]
 }

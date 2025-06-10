@@ -503,58 +503,80 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     else:
         raise ValueError(f"Invalid environment: {playground_env}")
     
-    ltf_repo_timespan_mutliplier = 5
+    
     ltf_repo_timespan_unit = 'minute'
-    repos = []
-    if open_strategy_input == 'candlestick_open_strategy_v1':
-        for symbol in symbols:
-            repos.append(Repository(
-                symbol=symbol,
-                timespan_multiplier=ltf_repo_timespan_mutliplier,
-                timespan_unit=ltf_repo_timespan_unit,
-                indicators=["supertrend", "doji", "hammer"],
-                history_in_days=365
-            ))
-    else:
-        for symbol in symbols:
-            repos.append(Repository(
-                symbol=symbol,
-                timespan_multiplier=ltf_repo_timespan_mutliplier,
-                timespan_unit=ltf_repo_timespan_unit,
-                indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
-                history_in_days=365
-            ))
-        
+    ltf_repo_timespan_mutliplier = 5
     ltf_period = ltf_repo_timespan_mutliplier * get_timespan_unit(ltf_repo_timespan_unit)
     
-    htf_repo_timespan_mutliplier = 1
-    htf_repo_timespan_unit = 'hour'
-    for symbol in symbols:
-        repos.append(
-            Repository(
-                symbol=symbol,
-                timespan_multiplier=htf_repo_timespan_mutliplier,
-                timespan_unit=htf_repo_timespan_unit,
-                indicators=["supertrend"],
-                history_in_days=365
-            )
+    if open_strategy_input == 'simple_stack_open_strategy_v2':
+        from simple_stack_open_strategy_v2 import SimpleStackOpenStrategyV2
+        
+        repos = []
+        for s in symbols:
+            repos.extend(SimpleStackOpenStrategyV2.get_repositories(s, start_date, stop_date))
+            
+        tags = [s.lower() for s in symbols]
+        tags.append(open_strategy_input)
+        
+        req = CreatePolygonPlaygroundRequest(
+            balance=balance,
+            start_date=start_date,
+            stop_date=stop_date,
+            repositories=repos,
+            environment=env.value,
+            tags=tags
         )
-    
-    req = CreatePolygonPlaygroundRequest(
-        balance=balance,
-        start_date=start_date,
-        stop_date=stop_date,
-        repositories=repos,
-        environment=env.value,
-        tags=[symbol.lower(), open_strategy_input]
-    )
-    
+        
+    else:        
+        repos = []
+        if open_strategy_input == 'candlestick_open_strategy_v1':
+            for symbol in symbols:
+                repos.append(Repository(
+                    symbol=symbol,
+                    timespan_multiplier=ltf_repo_timespan_mutliplier,
+                    timespan_unit=ltf_repo_timespan_unit,
+                    indicators=["supertrend", "doji", "hammer"],
+                    history_in_days=365
+                ))
+        else:
+            for symbol in symbols:
+                repos.append(Repository(
+                    symbol=symbol,
+                    timespan_multiplier=ltf_repo_timespan_mutliplier,
+                    timespan_unit=ltf_repo_timespan_unit,
+                    indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+                    history_in_days=365
+                ))
+                    
+        htf_repo_timespan_mutliplier = 1
+        htf_repo_timespan_unit = 'hour'
+        for symbol in symbols:
+            repos.append(
+                Repository(
+                    symbol=symbol,
+                    timespan_multiplier=htf_repo_timespan_mutliplier,
+                    timespan_unit=htf_repo_timespan_unit,
+                    indicators=["supertrend"],
+                    history_in_days=365
+                )
+            )
+        
+        req = CreatePolygonPlaygroundRequest(
+            balance=balance,
+            start_date=start_date,
+            stop_date=stop_date,
+            repositories=repos,
+            environment=env.value,
+            tags=[symbol.lower(), open_strategy_input]
+        )
+        
     if playground_client_id is not None:
         req.client_id = playground_client_id
         req.tags.append(build_client_version_tag(playground_client_id))
         logger.info(f"using playground client id: {playground_client_id}")
     
     playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
+        
     playground.tick(0, raise_exception=True)  # initialize the playground
             
     logger.info(f"created playground with id: {playground.id}")
@@ -623,6 +645,17 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             
             open_strategies.append(
                 SimpleStackOpenStrategyV1(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer, use_htf_data=use_htf_data)
+            )
+            
+        elif open_strategy_input == 'simple_stack_open_strategy_v2':
+            from simple_stack_open_strategy_v2 import SimpleStackOpenStrategyV2
+            additional_profit_risk_percentage = 0.0
+            max_open_count = int(kwargs['max_open_count'])
+            target_risk_to_reward = float(kwargs['target_risk_to_reward'])
+            max_per_trade_risk_percentage = float(kwargs['max_per_trade_risk_percentage'])
+            
+            open_strategies.append(
+                SimpleStackOpenStrategyV2(playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol, logger, sl_buffer, tp_buffer)
             )
 
         else:

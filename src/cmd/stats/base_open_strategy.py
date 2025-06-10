@@ -42,6 +42,14 @@ class BaseOpenStrategy(ABC):
         self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
         self.candles_htf = deque(candles_htf_dicts, maxlen=len(candles_htf_dicts)) 
         
+        if playground.htf_seconds_weekly is not None:
+            historical_start_date_htf_weekly, historical_end_date_htf_weekly = self.get_previous_year_date_range(playground.htf_seconds_weekly)
+            candles_htf_weekly = playground.fetch_candles_v2(symbol, playground.htf_seconds_weekly, historical_start_date_htf_weekly, historical_end_date_htf_weekly)
+            candles_htf_weekly_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_htf_weekly]
+            self.candles_htf_weekly = deque(candles_htf_weekly_dicts, maxlen=len(candles_htf_weekly_dicts))
+            
+            logger.info(f"Loaded {len(self.candles_htf_weekly)} HTF weekly candles", timestamp=self.timestamp, trading_operation=None)
+            
         logger.info(f"Loaded {len(self.candles_ltf)} LTF candles and {len(self.candles_htf)} HTF candles", timestamp=self.timestamp, trading_operation=None)
 
         self.sl_buffer = sl_buffer

@@ -177,9 +177,13 @@ class BacktesterPlaygroundClient:
                     ltf = val * unit_multiplier
                     
             return ltf
+        
         elif tf == 'htf':
             htf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
             for i, repo in enumerate(self.repositories):
+                if repo.timespan_unit == 'weekly':
+                    continue
+                
                 unit_multiplier = get_timespan_unit(repo.timespan_unit)
                 val = repo.timespan_multiplier
                 if val * unit_multiplier > htf:
@@ -187,6 +191,21 @@ class BacktesterPlaygroundClient:
                     htf = val * unit_multiplier
                     
             return htf
+        
+        elif tf == 'htf_weekly':
+            htf_weekly = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
+            for i, repo in enumerate(self.repositories):
+                if repo.timespan_unit == 'weekly':                
+                    unit_multiplier = get_timespan_unit(repo.timespan_unit)
+                    val = repo.timespan_multiplier
+                    if val * unit_multiplier > htf_weekly:
+                        self.logger.debug(f"{unit_multiplier * val} > {htf_weekly}:htf_weekly for {repo.symbol}")
+                        htf_weekly = val * unit_multiplier
+                        
+                return htf_weekly
+            
+            raise Exception('No weekly repository found')
+        
         else:
             raise Exception(f'Invalid timespan multiplier {tf}')
         
@@ -203,6 +222,7 @@ class BacktesterPlaygroundClient:
         self.client = PlaygroundServiceClient(self.host, timeout=600)
         self.ltf_seconds = self.get_repository_seconds('ltf')
         self.htf_seconds = self.get_repository_seconds('htf')
+        self.htf_seconds_weekly = self.get_repository_seconds('htf_weekly')
 
         if source == RepositorySource.CSV:
             # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
