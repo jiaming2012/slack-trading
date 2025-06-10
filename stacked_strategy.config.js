@@ -26,6 +26,6 @@ module.exports = {
       PLAYGROUND_ENV: 'live',
       LIVE_ACCOUNT_TYPE: 'margin',
     },
-    interpreter: 'anaconda/envs/trading/bin/python',
+    interpreter: 'miniconda3/envs/trading/bin/python',
   }]
 };
