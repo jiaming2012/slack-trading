@@ -328,6 +328,24 @@ tasks:
       - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/cmd/stats/playground_pb2.py'
       - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/cmd/stats/playground_twirp.py'
 
+  optimize:
+    cmds:
+      - 'miniconda3/envs/trading/bin/python src/cmd/stats/trading_engine_optimizer.py --max-open-count-lbound 2 --max-open-count-ubound 8 --target-risk-to-reward-lbound 0.8 --target-risk-to-reward-ubound 2.5 --max-per-trade-risk-percentage-lbound 0.005 --max-per-trade-risk-percentage-ubound 0.035 --n-calls 25'
+    env:
+      BALANCE: "15000"
+      SYMBOL: "{{.SYMBOL}}"
+      TWIRP_HOST: "http://localhost:5051"
+      PLAYGROUND_ENV: "simulator"
+      OPEN_STRATEGY: "simple_stack_open_strategy_v2"
+      START_DATE: "2025-01-01"
+      STOP_DATE: "2025-04-30"
+      LIVE_ACCOUNT_TYPE: "simulation"
+      MODEL_UPDATE_FREQUENCY: "daily"
+      OPTIMIZER_UPDATE_FREQUENCY: "weekly"
+      N_CALLS: "25"
+    vars:
+      SYMBOL: ""
+
   sim:all:
     cmds:
       - 'miniconda3/envs/trading/bin/python src/cmd/stats/trading_engine.py --max-open-count 3 --target-risk-to-reward 2.18 --max-per-trade-risk-percentage 0.02 --use-htf-data true'
@@ -336,7 +354,7 @@ tasks:
       SYMBOL: "{{.symbol}}"
       TWIRP_HOST: "http://localhost:5051"
       PLAYGROUND_ENV: "simulator"
-      OPEN_STRATEGY: "simple_stack_open_strategy_v1"
+      OPEN_STRATEGY: "simple_stack_open_strategy_v2"
       START_DATE: "2025-01-01"
       STOP_DATE: "2025-05-30"
       MODEL_UPDATE_FREQUENCY: "daily"

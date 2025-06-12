@@ -123,12 +123,13 @@ def add_supertrend_momentum_signal_target_set(df: pd.DataFrame, min_max_window_i
     
     return filtered_df
 
-def add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_weekly) -> pd.DataFrame:
+def add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_daily, htf_data_weekly) -> pd.DataFrame:
     # Convert the 'Date' column to a datetime object
     exchange_tz = 'America/New_York'
     
     ltf_data['date'] = pd.to_datetime(ltf_data['datetime'], utc=True).dt.tz_convert(exchange_tz)
     htf_data['date'] = pd.to_datetime(htf_data['datetime'], utc=True).dt.tz_convert(exchange_tz)
+    htf_data_daily['date'] = pd.to_datetime(htf_data_daily['datetime'], utc=True).dt.tz_convert(exchange_tz)
     htf_data_weekly['date'] = pd.to_datetime(htf_data_weekly['datetime'], utc=True).dt.tz_convert(exchange_tz)
     
     # Rename columns of supertrend_ltf
@@ -137,6 +138,14 @@ def add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_w
         'superD_50_3': 'superD_htf_50_3',
         'superS_50_3': 'superS_htf_50_3',
         'superL_50_3': 'superL_htf_50_3'
+    })
+
+    # Rename columns of supertrend_daily
+    htf_data_daily = htf_data_daily.rename(columns={
+        'superT_50_3': 'superT_htf_daily_50_3',
+        'superD_50_3': 'superD_htf_daily_50_3',
+        'superS_50_3': 'superS_htf_daily_50_3',
+        'superL_50_3': 'superL_htf_daily_50_3'
     })
     
     # Rename columns of supertrend_weekly
@@ -150,6 +159,13 @@ def add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_w
     df = pd.merge_asof(
         ltf_data,
         htf_data[['date', 'superT_htf_50_3', 'superD_htf_50_3', 'superS_htf_50_3', 'superL_htf_50_3']],
+        on='date',
+        direction='backward'  # Ensure each ltf_data row is matched with the most recent previous htf_df row
+    )
+
+    df = pd.merge_asof(
+        df.sort_values('date'),
+        htf_data_daily[['date', 'superT_htf_daily_50_3', 'superD_htf_daily_50_3', 'superS_htf_daily_50_3', 'superL_htf_daily_50_3']].sort_values('date'),
         on='date',
         direction='backward'  # Ensure each ltf_data row is matched with the most recent previous htf_df row
     )

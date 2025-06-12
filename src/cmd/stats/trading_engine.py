@@ -186,7 +186,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         
     return sl_target, tp_target    
 
-def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host) -> Tuple[float, dict]:
+def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True) -> Tuple[float, dict]:
     # sl_shift = open_strategy.get_sl_shift()
     # tp_shift = open_strategy.get_tp_shift()
     # sl_buffer = open_strategy.get_sl_buffer()
@@ -297,19 +297,23 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
                 if s.name == OpenSignalName.SUPERTREND_STACK_SIGNAL:
                     side = s.kwargs['side']
                     if position > 0 and side == OrderSide.SELL_SHORT:
-                        qty = position
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.SELL, qty)
-                        current_price = current_prices_dict[symbol]
-                        resp = playground.place_order(symbol, qty, OrderSide.SELL, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-                        logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
+                        logger.info(f"Ignoring SUPERTREND_STACK_SIGNAL: position > 0 and side == OrderSide.SELL_SHORT", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                        continue
+                    #     qty = position
+                    #     client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.SELL, qty)
+                    #     current_price = current_prices_dict[symbol]
+                    #     resp = playground.place_order(symbol, qty, OrderSide.SELL, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                    #     logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_long')
                         
                     elif position < 0 and side == OrderSide.BUY:
-                        qty = abs(position)
-                        client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.BUY_TO_COVER, qty)
-                        current_price = current_prices_dict[symbol]
-                        resp = playground.place_order(symbol, qty, OrderSide.BUY_TO_COVER, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
-                        logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
-                        
+                        logger.info(f"Ignoring SUPERTREND_STACK_SIGNAL: position < 0 and side == OrderSide.BUY", timestamp=playground.timestamp, trading_operation='process_open_signal')
+                        continue
+                    #     qty = abs(position)
+                    #     client_id = build_client_request_id(symbol, s.timestamp.strftime("%Y-%m-%d.%H:%M:%S"), OrderSide.BUY_TO_COVER, qty)
+                    #     current_price = current_prices_dict[symbol]
+                    #     resp = playground.place_order(symbol, qty, OrderSide.BUY_TO_COVER, current_price, 'close-all', raise_exception=True, with_tick=True, sl=None, client_request_id=client_id)
+                    #     logger.info(f"Placed close all order: SUPERTREND_STACK_SIGNAL - {resp.id}", timestamp=playground.timestamp, trading_operation='close_short')
+                    
                 elif s.name == OpenSignalName.CROSS_ABOVE_20:
                     if position < 0:
                         qty = abs(position)
@@ -396,9 +400,11 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
         'stats': None
     }
     
-    playground.remove_from_server()
-    
-    logger.info(f"Removed playground: {playground.id}")
+    logger.info(f"Done with playground: {playground.id} - profit: {profit:.2f} - equity: {playground.account.equity:.2f}", timestamp=playground.timestamp, trading_operation='done')
+
+    if remove_playground_when_done:
+        playground.remove_from_server()
+        logger.info(f"Removed playground: {playground.id}")
     
     return profit, meta
 
@@ -455,6 +461,9 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     stop_date = os.getenv("STOP_DATE")
     # optimizer_update_frequency = os.getenv("OPTIMIZER_UPDATE_FREQUENCY")
     playground_client_id = os.getenv("PLAYGROUND_CLIENT_ID")
+    remove_playground_when_done = os.getenv("REMOVE_PLAYGROUND_WHEN_DONE", "true").lower() == "true"
+
+    logger.info(f"Remove playground when done: {remove_playground_when_done}", trading_operation='remove_playground')
 
     # Check if the required environment variables are set
     if balance is None:
@@ -662,12 +671,12 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             logger.error(f"Invalid open strategy: {open_strategy_input}")
             raise ValueError(f"Invalid open strategy: {open_strategy_input}")
         
-    if open_strategy_input == 'simple_stack_open_strategy_v1':
+    if open_strategy_input == 'simple_stack_open_strategy_v1' or open_strategy_input == 'simple_stack_open_strategy_v2':
         close_strategy = SimpleStackCloseStrategy(playground, logger, max_open_count, target_risk_to_reward)
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     
-    return run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host)
+    return run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()

@@ -41,6 +41,14 @@ class BaseOpenStrategy(ABC):
         
         self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
         self.candles_htf = deque(candles_htf_dicts, maxlen=len(candles_htf_dicts)) 
+
+        if playground.htf_seconds_daily is not None:
+            historical_start_date_htf_daily, historical_end_date_htf_daily = self.get_previous_year_date_range(playground.htf_seconds_daily)
+            candles_htf_daily = playground.fetch_candles_v2(symbol, playground.htf_seconds_daily, historical_start_date_htf_daily, historical_end_date_htf_daily)
+            candles_htf_daily_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_htf_daily]
+            self.candles_htf_daily = deque(candles_htf_daily_dicts, maxlen=len(candles_htf_daily_dicts))
+            
+            logger.info(f"Loaded {len(self.candles_htf_daily)} HTF daily candles", timestamp=self.timestamp, trading_operation=None)
         
         if playground.htf_seconds_weekly is not None:
             historical_start_date_htf_weekly, historical_end_date_htf_weekly = self.get_previous_year_date_range(playground.htf_seconds_weekly)
@@ -85,6 +93,32 @@ class BaseOpenStrategy(ABC):
                     raise Exception("Candles (1h) are not sorted by timestamp")
                 
                 self.candles_htf.append(new_candle_dict)
+            elif new_candle.period == self.playground.htf_seconds_daily:
+                if not hasattr(self, 'candles_htf_daily'):
+                    logger.error("HTF daily candles are not loaded", timestamp=self.timestamp, trading_operation=None)
+                    raise Exception("HTF daily candles are not loaded")
+                
+                prev_candle_timestamp_utc = pd.Timestamp(self.candles_htf_daily[-1]['datetime'])
+                
+                # append only if sorted by timestamp
+                if len(self.candles_htf_daily) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}', timestamp=self.timestamp, trading_operation=None)
+                    raise Exception("Candles (1d) are not sorted by timestamp")
+                
+                self.candles_htf_daily.append(new_candle_dict)
+            elif new_candle.period == self.playground.htf_seconds_weekly:
+                if not hasattr(self, 'candles_htf_weekly'):
+                    logger.error("HTF weekly candles are not loaded", timestamp=self.timestamp, trading_operation=None)
+                    raise Exception("HTF weekly candles are not loaded")
+                
+                prev_candle_timestamp_utc = pd.Timestamp(self.candles_htf_weekly[-1]['datetime'])
+                
+                # append only if sorted by timestamp
+                if len(self.candles_htf_weekly) > 0 and prev_candle_timestamp_utc > new_candle_timestamp_utc:
+                    logger.error(f'{prev_candle_timestamp_utc} > {new_candle_timestamp_utc}', timestamp=self.timestamp, trading_operation=None)
+                    raise Exception("Candles (1w) are not sorted by timestamp")
+                
+                self.candles_htf_weekly.append(new_candle_dict)
             else:
                 raise Exception(f"Unsupported period: {new_candle})")
             

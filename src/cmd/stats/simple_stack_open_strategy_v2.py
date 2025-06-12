@@ -31,6 +31,14 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             indicators=["supertrend"],
             history_in_days=365
         )
+
+        htf_repo_daily = Repository(
+            symbol=symbol,
+            timespan_multiplier=1,
+            timespan_unit='day',
+            indicators=["supertrend"],
+            history_in_days=365
+        )
     
         htf_repo = Repository(
             symbol=symbol,
@@ -48,7 +56,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             history_in_days=10
         )
         
-        return [ltf_repo, htf_repo, htf_repo_weekly]
+        return [ltf_repo, htf_repo, htf_repo_daily, htf_repo_weekly]
     
     def __init__(self, playground, max_open_count, max_per_trade_risk_percentage, additional_profit_risk_percentage, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0):
         sl_shift = 0.0
@@ -104,11 +112,11 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             
         return False
 
-    def check_for_new_signal(self, ltf_data: pd.DataFrame, htf_data: pd.DataFrame, htf_data_weekly: pd.DataFrame) -> Tuple[OpenSignalName, pd.DataFrame, dict]:
+    def check_for_new_signal(self, ltf_data: pd.DataFrame, htf_data: pd.DataFrame, htf_data_daily: pd.DataFrame, htf_data_weekly: pd.DataFrame) -> Tuple[OpenSignalName, pd.DataFrame, dict]:
         data_set = None
         
-        if len(ltf_data) > 0 and len(htf_data) > 0 and len(htf_data_weekly) > 0:
-            data_set = add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_weekly)
+        if len(ltf_data) > 0 and len(htf_data) > 0 and len(htf_data_daily) and len(htf_data_weekly) > 0:
+            data_set = add_supertrend_momentum_signal_feature_set_v2(ltf_data, htf_data, htf_data_daily, htf_data_weekly)
             
             start_index = self.find_supertrend_start(data_set)
             
@@ -153,12 +161,16 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
                                 if ltf_side != data_set.iloc[i]['superD_htf_50_3']:
                                     logger.debug(f"LTF side {ltf_side} does not match HTF side {data_set.iloc[i]['superD_htf_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                                     continue
+
+                                if ltf_side != data_set.iloc[i]['superD_htf_daily_50_3']:
+                                    logger.debug(f"LTF side {ltf_side} does not match Daily HTF side {data_set.iloc[i]['superD_htf_daily_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
+                                    continue
                                 
                                 if ltf_side != data_set.iloc[i]['superD_htf_weekly_50_3']:
                                     logger.debug(f"LTF side {ltf_side} does not match Weekly HTF side {data_set.iloc[i]['superD_htf_weekly_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                                     continue
                             
-                                sl = data_set.iloc[i]['superT_htf_weekly_50_3'] + sl_buffer
+                                sl = data_set.iloc[i]['superT_htf_daily_50_3'] + sl_buffer
                             else:
                                 sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
                                 
@@ -173,6 +185,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
     def tick(self, new_candles: List[Candle]) -> List[OpenSignalV3]:
         ltf_data = pd.DataFrame(self.candles_ltf)
         htf_data = pd.DataFrame(self.candles_htf)
+        htf_data_daily = pd.DataFrame(self.candles_htf_daily)
         htf_data_weekly = pd.DataFrame(self.candles_htf_weekly)
         
         open_signals = []
@@ -181,7 +194,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if c.period == self.playground.ltf_seconds:
-                open_signal, self.feature_set, kwargs = self.check_for_new_signal(ltf_data, htf_data, htf_data_weekly)
+                open_signal, self.feature_set, kwargs = self.check_for_new_signal(ltf_data, htf_data, htf_data_daily, htf_data_weekly)
                 if open_signal:
                     self.logger.debug(f"new signal: {open_signal.name}: {kwargs}")
                     

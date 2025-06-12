@@ -113,16 +113,11 @@ class SimpleStackCloseStrategy():
         else:
             ts = datetime.now(tz=candle_dt.tzinfo)
             
-        open_orders: List[Order] = self.playground.fetch_open_orders(symbol)   
+        open_orders: List[Order] = self.playground.fetch_open_orders(symbol)
+        open_orders = [order for order in open_orders if order.tag and order.tag.startswith('SupertrendStackSignal')]
+        open_orders = [order for order in open_orders if order.symbol == symbol]
         for open_order in open_orders:
-            tag = open_order.tag
-            
-            if not tag.startswith('SupertrendStackSignal'):
-                continue
-            
-            if not open_order.symbol == symbol:
-                self.logger.error(f"SimpleStackCloseStrategy::Open order symbol mismatch: {open_order.symbol} != {symbol}")
-                continue
+            # tag = open_order.tag
             
             # Check SL
             if open_order.side == OrderSide.BUY.value:
@@ -139,39 +134,39 @@ class SimpleStackCloseStrategy():
                 raise ValueError("Check SL: Invalid side")
             
             # Check TP
-            try:
-                count = parse_order_tag(tag)
-            except ValueError:
-                self.logger.error(f"Invalid tag format: {tag}")
-                continue
+            # try:
+            #     count = parse_order_tag(tag)
+            # except ValueError:
+            #     self.logger.error(f"Invalid tag format: {tag}")
+            #     continue
             
-            if count >= self.max_open_count:
-                tp = target_tp_for_reward_ratio(open_orders, self.target_risk_to_reward)
-                if open_order.side == OrderSide.BUY.value:
-                    tp += kwargs['tp_buffer']
-                    if current_price >= tp:
-                        total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
-                        signals.append(CloseSignal(ts, None, symbol, OrderSide.SELL, abs(total_qty), 'tp'))
-                        continue
-                elif open_order.side == OrderSide.SELL_SHORT.value:
-                    tp -= kwargs['tp_buffer']
-                    if current_price <= tp:
-                        total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
-                        signals.append(CloseSignal(ts, None, symbol, OrderSide.BUY_TO_COVER, abs(total_qty), 'tp'))
-                        continue
-                else:
-                    raise ValueError("Check TP: Invalid side")
+            # if count >= self.max_open_count:
+            tp = target_tp_for_reward_ratio(open_orders, self.target_risk_to_reward)
+            if open_order.side == OrderSide.BUY.value:
+                tp += kwargs['tp_buffer']
+                if current_price >= tp:
+                    total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
+                    signals.append(CloseSignal(ts, None, symbol, OrderSide.SELL, abs(total_qty), 'tp'))
+                    continue
+            elif open_order.side == OrderSide.SELL_SHORT.value:
+                tp -= kwargs['tp_buffer']
+                if current_price <= tp:
+                    total_qty = sum(calc_remaining_open_quantity(order) for order in open_orders)
+                    signals.append(CloseSignal(ts, None, symbol, OrderSide.BUY_TO_COVER, abs(total_qty), 'tp'))
+                    continue
+            else:
+                raise ValueError("Check TP: Invalid side")
                 
             # Check if the supertrend direction has changed
-            if open_order.side == OrderSide.BUY.value and supertrend_direction == -1:
-                qty = calc_remaining_open_quantity(open_order)
-                signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'supertrend'))
-                continue
+            # if open_order.side == OrderSide.BUY.value and supertrend_direction == -1:
+            #     qty = calc_remaining_open_quantity(open_order)
+            #     signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.SELL, abs(qty), 'supertrend'))
+            #     continue
             
-            if open_order.side == OrderSide.SELL_SHORT.value and supertrend_direction == 1:
-                qty = calc_remaining_open_quantity(open_order)
-                signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'supertrend'))
-                continue
+            # if open_order.side == OrderSide.SELL_SHORT.value and supertrend_direction == 1:
+            #     qty = calc_remaining_open_quantity(open_order)
+            #     signals.append(CloseSignal(ts, open_order.id, symbol, OrderSide.BUY_TO_COVER, abs(qty), 'supertrend'))
+            #     continue
                     
                 
         return signals
