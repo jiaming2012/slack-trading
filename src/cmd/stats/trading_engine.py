@@ -186,7 +186,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         
     return sl_target, tp_target    
 
-def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True) -> Tuple[float, dict]:
+def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True) -> Tuple[float, dict]:
     # sl_shift = open_strategy.get_sl_shift()
     # tp_shift = open_strategy.get_tp_shift()
     # sl_buffer = open_strategy.get_sl_buffer()
@@ -244,6 +244,8 @@ def run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, in
         close_signals = []
         for symbol in symbols:
             prc = current_prices_dict[symbol]
+            current_daily_candle = playground.get_current_candle(symbol, daily_period)
+            kwargs['supertrend_direction'] = current_daily_candle.superD_50_3
             close_signals.extend(
                 close_strategy.tick(symbol, prc, kwargs)
             )
@@ -516,6 +518,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     ltf_repo_timespan_unit = 'minute'
     ltf_repo_timespan_mutliplier = 5
     ltf_period = ltf_repo_timespan_mutliplier * get_timespan_unit(ltf_repo_timespan_unit)
+    daily_period = get_timespan_unit('day')
     
     if open_strategy_input == 'simple_stack_open_strategy_v2':
         from simple_stack_open_strategy_v2 import SimpleStackOpenStrategyV2
@@ -676,7 +679,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     
-    return run_strategy(symbols, playground, ltf_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done)
+    return run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()

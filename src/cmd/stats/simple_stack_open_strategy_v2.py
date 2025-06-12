@@ -20,7 +20,7 @@ class SignalBar:
     close: float
 
 # Targets a specific risk/reward
-# V2 add Weekly supertrend
+# V2 adds Daily and Weekly supertrend
 class SimpleStackOpenStrategyV2(BaseOpenStrategy):
     @classmethod
     def get_repositories(cls, symbol: str, start_date: datetime, end_date: datetime) -> List[Repository]:
