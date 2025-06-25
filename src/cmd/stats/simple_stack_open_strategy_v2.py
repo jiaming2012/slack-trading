@@ -112,7 +112,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             
         return False
 
-    def check_for_new_signal(self, ltf_data: pd.DataFrame, htf_data: pd.DataFrame, htf_data_daily: pd.DataFrame, htf_data_weekly: pd.DataFrame) -> Tuple[OpenSignalName, pd.DataFrame, dict]:
+    def check_for_new_signal(self, ltf_data: pd.DataFrame, htf_data: pd.DataFrame, htf_data_daily: pd.DataFrame, htf_data_weekly: pd.DataFrame, open_trade_count: int) -> Tuple[OpenSignalName, pd.DataFrame, dict]:
         data_set = None
         
         if len(ltf_data) > 0 and len(htf_data) > 0 and len(htf_data_daily) and len(htf_data_weekly) > 0:
@@ -124,6 +124,10 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
 
             past_signal_direction = None
 
+            if open_trade_count >= self.max_open_count:
+                logger.trace(f"Signal constraint: {past_signal_bars} already met for current supertrend", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
+                return None, data_set, None   
+            
             for i in range(start_index, 0, 1):
                 if data_set.iloc[i]['superD_50_3'] == 1:
                     signal_criteria = data_set.iloc[i]['close'] < data_set.iloc[i]['open']
@@ -145,10 +149,6 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
                         
                 else:
                     signal_criteria = False
-                
-                if len(past_signal_bars) >= self.max_open_count:
-                    logger.trace(f"Signal constraint: {past_signal_bars} already met for current supertrend", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
-                    break    
                 
                 if signal_criteria:
                     new_bar = SignalBar(data_set.iloc[i]['open'], data_set.iloc[i]['close'])
@@ -194,7 +194,13 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if c.period == self.playground.ltf_seconds:
-                open_signal, self.feature_set, kwargs = self.check_for_new_signal(ltf_data, htf_data, htf_data_daily, htf_data_weekly)
+                symbol = self.symbol
+
+                open_trade_count = len(self.playground.fetch_open_orders(symbol))
+                
+                self.logger.trace(f"Open trade count: {open_trade_count}")
+                
+                open_signal, self.feature_set, kwargs = self.check_for_new_signal(ltf_data, htf_data, htf_data_daily, htf_data_weekly, open_trade_count)
                 if open_signal:
                     self.logger.debug(f"new signal: {open_signal.name}: {kwargs}")
                     
@@ -204,12 +210,8 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
                     realized_profit = self.playground.get_realized_profit()
                     self.logger.trace(f"Realized profit: {realized_profit}")
                     
-                    symbol = self.symbol
-                    open_trade_count = len(self.playground.fetch_open_orders(symbol))
-                    self.logger.trace(f"Open trade count: {open_trade_count}")
-                    
                     additional_equity_risk = 0
-                    if realized_profit > 0 and open_trade_count < 2:
+                    if realized_profit > 0:
                         additional_equity_risk = realized_profit * self.additional_profit_risk_percentage
                     
                     open_signals.append(

@@ -186,7 +186,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         
     return sl_target, tp_target    
 
-def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True) -> Tuple[float, dict]:
+def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True, program_kwargs={}) -> Tuple[float, dict]:
     # sl_shift = open_strategy.get_sl_shift()
     # tp_shift = open_strategy.get_tp_shift()
     # sl_buffer = open_strategy.get_sl_buffer()
@@ -195,6 +195,7 @@ def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_
     tp_shift = 0.0
     sl_buffer = 0.0
     tp_buffer = 0.0
+    profit = 0.0
     
     i = 0
     while not playground.is_backtest_complete():
@@ -383,7 +384,7 @@ def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_
         playground.tick(playground_tick_in_seconds, raise_exception=True)
         
     profit = playground.account.equity - initial_balance
-    logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and (sl_shift, tp_shift, sl_buffer, tp_buffer) of ({sl_shift}, {tp_shift}, {sl_buffer}, {tp_buffer})")
+    logger.info(f"Playground: {playground.id} completed with profit of {profit:.2f} and kwargs: {str(program_kwargs.items())}", timestamp=playground.timestamp, trading_operation='done')
     
     # fetch stats
     # orders = playground.fetch_orders()
@@ -443,6 +444,8 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     
     if type(kwargs) is not dict:
         raise ValueError("kwargs is not a dict")
+    
+    original_kwargs = kwargs.copy()
     
     # default parameters
     sl_shift = kwargs.get('sl_shift', 0.0)
@@ -679,7 +682,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     
-    return run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done)
+    return run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done, original_kwargs)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()

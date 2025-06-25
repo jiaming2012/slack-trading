@@ -346,9 +346,9 @@ tasks:
     vars:
       SYMBOL: ""
 
-  sim:all:
+  sim:
     cmds:
-      - 'miniconda3/envs/trading/bin/python src/cmd/stats/trading_engine.py --max-open-count 3 --target-risk-to-reward 2.18 --max-per-trade-risk-percentage 0.02 --use-htf-data true'
+      - 'miniconda3/envs/trading/bin/python src/cmd/stats/trading_engine.py --max-open-count 4 --target-risk-to-reward 1.19 --max-per-trade-risk-percentage 0.02 --use-htf-data true'
     env:
       BALANCE: "20000"
       SYMBOL: "{{.symbol}}"
@@ -356,10 +356,11 @@ tasks:
       PLAYGROUND_ENV: "simulator"
       OPEN_STRATEGY: "simple_stack_open_strategy_v2"
       START_DATE: "2025-01-01"
-      STOP_DATE: "2025-05-30"
+      STOP_DATE: "2025-04-30"
       MODEL_UPDATE_FREQUENCY: "daily"
       OPTIMIZER_UPDATE_FREQUENCY: "weekly"
       N_CALLS: "30"
+      REMOVE_PLAYGROUND_WHEN_DONE: "false"
     vars:
-      symbol: "COIN TSLA META NVDA AAPL"
+      symbol: ""
     dir: ${PROJECTS_DIR}/slack-trading

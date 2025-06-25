@@ -166,8 +166,8 @@
             "args": [
                 // "--sl-shift", "1",
                 "--max-open-count", "4",
-                "--target-risk-to-reward", "1.85",
-                "--max-per-trade-risk-percentage", "0.0063",
+                "--target-risk-to-reward", "1.2",
+                "--max-per-trade-risk-percentage", "0.0061",
             ]
         },
         {
@@ -302,10 +302,10 @@
                 "N_CALLS:": "25"
             },
             "args": [
-                "--max-open-count-lbound", "2",
-                "--max-open-count-ubound", "8",
-                "--target-risk-to-reward-lbound", "0.8",
-                "--target-risk-to-reward-ubound", "2.5",
+                "--max-open-count-lbound", "3",
+                "--max-open-count-ubound", "6",
+                "--target-risk-to-reward-lbound", "0.1",
+                "--target-risk-to-reward-ubound", "1.9",
                 "--max-per-trade-risk-percentage-lbound", "0.005",
                 "--max-per-trade-risk-percentage-ubound", "0.03",
                 "--n-calls", "25",
