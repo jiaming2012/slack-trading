@@ -140,6 +140,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.MockFillOrderRequest"),
 				output=_sym_db.GetSymbol("playground.EmptyResponse"),
 			),
+			"GetOptionsLadder": Endpoint(
+				service_name="PlaygroundService",
+				name="GetOptionsLadder",
+				function=getattr(service, "GetOptionsLadder"),
+				input=_sym_db.GetSymbol("playground.GetOptionsLadderRequest"),
+				output=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -294,6 +301,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+			**kwargs,
+		)
+
+	def GetOptionsLadder(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetOptionsLadder",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
 			**kwargs,
 		)
 
@@ -467,6 +483,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetOptionsLadder(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetOptionsLadder",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
 				session=session,
 				**kwargs,
 			)

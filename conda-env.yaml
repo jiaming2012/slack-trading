@@ -21,3 +21,5 @@ dependencies:
   - urllib3
   - websockets
   - pandas_market_calendars
+  - pip:
+    - twirp

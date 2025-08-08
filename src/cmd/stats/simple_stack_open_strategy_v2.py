@@ -36,7 +36,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             symbol=symbol,
             timespan_multiplier=1,
             timespan_unit='day',
-            indicators=["supertrend"],
+            indicators=["supertrend", "atr"],
             history_in_days=365
         )
     
@@ -52,7 +52,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
             symbol=symbol,
             timespan_multiplier=5,
             timespan_unit='minute',
-            indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+            indicators=["supertrend", "doji", "hammer", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80", "psar"],
             history_in_days=10
         )
         
@@ -170,7 +170,7 @@ class SimpleStackOpenStrategyV2(BaseOpenStrategy):
                                     logger.debug(f"LTF side {ltf_side} does not match Weekly HTF side {data_set.iloc[i]['superD_htf_weekly_50_3']} at index {i}", trading_operation="check_for_new_signal", timestamp=self.playground.timestamp)
                                     continue
                             
-                                sl = data_set.iloc[i]['superT_htf_daily_50_3'] + sl_buffer
+                                sl = data_set.iloc[i]['superT_htf_50_3'] + sl_buffer
                             else:
                                 sl = data_set.iloc[i]['superT_50_3'] + sl_buffer
                                 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -254,12 +255,21 @@ func filterOptionContractsV3(contractMap map[time.Time][]eventmodels.OptionContr
 	}
 
 	var expirationDates []time.Time
+	
+	outer_loop:
 	for _, days := range expirationInDays {
 		targetExpirationDate := now.AddDate(0, 0, days).Format("2006-01-02")
 
 		contractsExpirationDate, contracts, err := findOptionContractsGroupedByExpirationV3(targetExpirationDate, contractMap)
 		if err != nil {
 			continue
+		}
+
+		for _, date := range expirationDates {
+			if date.Equal(contractsExpirationDate) {
+				log.Infof("filterOptionContractsV3: skipping already processed expiration date %s", contractsExpirationDate.Format("2006-01-02"))
+				continue outer_loop
+			}
 		}
 
 		expirationDates = append(expirationDates, contractsExpirationDate)

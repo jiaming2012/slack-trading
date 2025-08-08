@@ -63,7 +63,6 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 
 	// Unmarshall the json output from create_indicators.py
 	var data []*eventmodels.AggregateBarWithIndicators
-
 	if err = json.Unmarshal(out.Bytes(), &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON output from create_indicators.py: %v", err)
 	}

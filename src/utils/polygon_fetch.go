@@ -48,7 +48,7 @@ func FetchRecursively[T any](url, apiKey string, fetchDataFn eventmodels.FetchDa
 		}
 
 		if len(aggregateResult.Results) == 0 {
-			return nil, fmt.Errorf("FetchRecursively: no results found")
+			log.Warn("FetchRecursively: no results found")
 		}
 
 		if isDone {

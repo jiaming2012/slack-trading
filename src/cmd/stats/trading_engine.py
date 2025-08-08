@@ -2,6 +2,7 @@ from loguru import logger
 from base_open_strategy import BaseOpenStrategy
 from simple_close_strategy import SimpleCloseStrategy
 from simple_stack_close_strategy import SimpleStackCloseStrategy
+from stack_close_strategy_psar import StackCloseStrategyPsar
 from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalV3, OpenSignalName
 from playground_metrics import collect_data
 from rpc.playground_twirp import PlaygroundServiceClient
@@ -232,21 +233,27 @@ def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_
         kwargs = {
             'period': ltf_period,
             'playground': playground,
-        }
-        
-        if isinstance(close_strategy, SimpleStackCloseStrategy):
-            kwargs['supertrend_direction'] = current_candle.superD_50_3
-            kwargs['tp_buffer'] = tp_buffer
-            max_per_trade_risk_percentage = open_strategy.get_max_per_trade_risk_percentage()
-        else:
-            max_per_trade_risk_percentage = 0.06
-            
+        }    
         
         close_signals = []
         for symbol in symbols:
             prc = current_prices_dict[symbol]
+            current_ltf_candle = playground.get_current_candle(symbol, ltf_period)
             current_daily_candle = playground.get_current_candle(symbol, daily_period)
-            kwargs['supertrend_direction'] = current_daily_candle.superD_50_3
+            
+            if isinstance(close_strategy, SimpleStackCloseStrategy):
+                kwargs['supertrend_direction'] = current_daily_candle.superD_50_3
+                kwargs['tp_buffer'] = tp_buffer
+                max_per_trade_risk_percentage = open_strategy.get_max_per_trade_risk_percentage()
+            elif isinstance(close_strategy, StackCloseStrategyPsar):
+                kwargs['supertrend_direction'] = current_daily_candle.superD_50_3
+                kwargs['psar_long_value'] = current_ltf_candle.psar_long_value
+                kwargs['psar_short_value'] = current_ltf_candle.psar_short_value
+                kwargs['atr'] = current_daily_candle.atr_14
+                max_per_trade_risk_percentage = open_strategy.get_max_per_trade_risk_percentage()
+            else:
+                max_per_trade_risk_percentage = 0.06
+            
             close_signals.extend(
                 close_strategy.tick(symbol, prc, kwargs)
             )
@@ -559,7 +566,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
                     symbol=symbol,
                     timespan_multiplier=ltf_repo_timespan_mutliplier,
                     timespan_unit=ltf_repo_timespan_unit,
-                    indicators=["supertrend", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
+                    indicators=["supertrend", "doji", "hammer", "stochrsi", "moving_averages", "lag_features", "atr", "stochrsi_cross_above_20", "stochrsi_cross_below_80"],
                     history_in_days=365
                 ))
                     
@@ -677,8 +684,11 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
             logger.error(f"Invalid open strategy: {open_strategy_input}")
             raise ValueError(f"Invalid open strategy: {open_strategy_input}")
         
-    if open_strategy_input == 'simple_stack_open_strategy_v1' or open_strategy_input == 'simple_stack_open_strategy_v2':
+    if open_strategy_input == 'simple_stack_open_strategy_v1':
         close_strategy = SimpleStackCloseStrategy(playground, logger, max_open_count, target_risk_to_reward)
+    elif open_strategy_input == 'simple_stack_open_strategy_v2':
+        atr_multiplier = 0.6
+        close_strategy = StackCloseStrategyPsar(playground, logger, atr_multiplier=atr_multiplier)
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     

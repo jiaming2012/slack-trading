@@ -228,10 +228,10 @@ class BacktesterPlaygroundClient:
         self.repositories = req.repositories
 
         self.client = PlaygroundServiceClient(self.host, timeout=600)
-        self.ltf_seconds = self.get_repository_seconds('ltf')
-        self.htf_seconds = self.get_repository_seconds('htf')
-        self.htf_seconds_daily = self.get_repository_seconds('htf_daily')
-        self.htf_seconds_weekly = self.get_repository_seconds('htf_weekly')
+        # self.ltf_seconds = self.get_repository_seconds('ltf')
+        # self.htf_seconds = self.get_repository_seconds('htf')
+        # self.htf_seconds_daily = self.get_repository_seconds('htf_daily')
+        # self.htf_seconds_weekly = self.get_repository_seconds('htf_weekly')
 
         if source == RepositorySource.CSV:
             # self.id = self.create_playground_csv(balance, symbol, start_date, stop_date, filename)
@@ -474,44 +474,6 @@ class BacktesterPlaygroundClient:
         
         return response.bars
     
-    # def fetch_candles(self, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime) -> List[Candle]:
-    #     fromStr = timestampFrom.strftime('%Y-%m-%dT%H:%M:%S%z')
-    #     toStr = timestampTo.strftime('%Y-%m-%dT%H:%M:%S%z')
-        
-    #    # Manually insert the colon in the timezone offset
-    #     fromStr = fromStr[:-2] + ':' + fromStr[-2:]
-    #     toStr = toStr[:-2] + ':' + toStr[-2:]
-                        
-    #     try:
-    #         response = self.network_call_with_retry('fetch_candles', self.client.GetCandles, GetCandlesRequest(
-    #             playground_id=self.id,
-    #             symbol=self.symbol,
-    #             period_in_seconds=period_in_seconds,
-    #             fromRTF3339=fromStr,
-    #             toRTF3339=toStr
-    #         ))
-        
-    #     except Exception as e:
-    #         self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
-    #         raise e
-        
-    #     candles_data = response.bars
-    #     if not candles_data:
-    #         return []
-        
-    #     candles = [
-    #         Candle(
-    #             open=candle.open,
-    #             high=candle.high,
-    #             low=candle.low,
-    #             close=candle.close,
-    #             volume=candle.volume,
-    #             datetime=candle.datetime,
-    #         ) for candle in candles_data
-    #     ]
-        
-    #     return candles
-    
     def preview_tick(self, seconds: int) -> object:
         request = NextTickRequest(
             playground_id=self.id,
@@ -634,11 +596,11 @@ class BacktesterPlaygroundClient:
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')
         
-    def preview_tick(self):
+    def preview_tick(self, seconds: int = 0):
         try:
             req = NextTickRequest(
                     playground_id=self.id,
-                    seconds=self.ltf_seconds,
+                    seconds=seconds,
                     is_preview=True,
                     request_id=str(uuid.uuid4())
                 )
@@ -646,7 +608,7 @@ class BacktesterPlaygroundClient:
             response = self.network_call_with_retry('preview_tick', self.client.NextTick, req)
             return response
         except Exception as e:
-            raise("Failed to preview tick:", e)
+            raise Exception("Failed to preview tick:", e)
     
     def create_live_playground(self, req: CreatePolygonPlaygroundRequest, account_type: LiveAccountType) -> str:
         try:

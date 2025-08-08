@@ -67,8 +67,8 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 		nextOptionExpDate := utils.DeriveNextFriday(signal.Timestamp)
 		// nextOptionExpDate := utils.DeriveNextExpiration(signal.Timestamp, config.OptionsYAML.ExpirationsInDays)
 
-		isHistorical := true
-		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, isHistorical, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
+		// isHistorical := true
+		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 		if err != nil {
 			log.Errorf("skipping event %v: failed to fetch option chain data: %v", signal, err)
@@ -193,7 +193,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
 
-	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonAPIKey)
+	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonAPIKey)
 
 	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,

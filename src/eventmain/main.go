@@ -258,7 +258,7 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	nextOptionExpDate := utils.DeriveNextFriday(event.Timestamp)
 	// nextOptionExpDate := utils.DeriveNextExpiration(event.Timestamp, optionConfig.ExpirationsInDays)
 
-	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, req.IsHistorical, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
+	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
 	if err != nil {
 		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
 	}
@@ -580,7 +580,7 @@ func run() {
 	pprofRouter.Handle("/mutex", pprof.Handler("mutex"))
 	pprofRouter.Handle("/threadcreate", pprof.Handler("threadcreate"))
 
-	optionsDataFetcher := eventservices.NewPolygonOptionsDataFetcher("https://api.polygon.io", polygonApiKey)
+	optionsDataFetcher := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
 
 	optionChainRequestExector := &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
@@ -668,6 +668,9 @@ func run() {
 	polygonTickDataMachine := eventservices.NewPolygonClient(polygonApiKey)
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
+
+	// Setup polygon options client
+	polygonOptionsClient := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
 
 	// Setup app version
 	appVersion := &eventservices.AppVersion{}
@@ -760,7 +763,7 @@ func run() {
 
 	// start the twirp server
 	go func() {
-		rpc.SetupTwirpServer(dbService)
+		rpc.SetupTwirpServer(polygonOptionsClient, dbService)
 	}()
 
 	// Create channel for shutdown signals.

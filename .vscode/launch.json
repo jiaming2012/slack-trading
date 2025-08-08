@@ -16,6 +16,7 @@
                 "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic OTYxOTAwOmdsY19leUp2SWpvaU1URTFNall5TkNJc0ltNGlPaUp6ZEdGamF5MDVOakU1TURBdGIzUnNjQzEzY21sMFpTMW5jbTlrZEMxelpYSjJhV05sSWl3aWF5STZJbEZ4ZWpRMWFYSTBRVFJXV0hOTU5EVXlaVVV6TmtVMVlTSXNJbTBpT25zaWNpSTZJbkJ5YjJRdGRYTXRaV0Z6ZEMwd0luMTk=",
                 "GO_ENV": "development",
                 "DRY_RUN": "false",
+                "PROJECTS_DIR": "/Users/jamal/projects"
             }
         },
         {
@@ -156,7 +157,7 @@
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",
                 "OPEN_STRATEGY": "simple_stack_open_strategy_v2",
-                "START_DATE": "2025-01-01",
+                "START_DATE": "2025-03-01",
                 "STOP_DATE": "2025-04-30",
                 "MODEL_UPDATE_FREQUENCY": "daily",
                 "OPTIMIZER_UPDATE_FREQUENCY": "weekly",
@@ -200,12 +201,13 @@
             ]
         },
         {
-            "name": "generate_data",
+            "name": "options_sandbox",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/src/cmd/stats/generate_data/main.go",
+            "program": "${workspaceFolder}/src/cmd/options_sandbox/main.go",
             "env": {
+                "PROJECTS_DIR": "/Users/jamal/projects",
                 "GO_ENV": "development"
             }
         },

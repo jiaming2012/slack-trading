@@ -25,6 +25,8 @@ type AggregateBarWithIndicators struct {
 	Sma200               float64   `json:"SMA_200"`
 	StochRsiCrossAbove20 bool      `json:"stochrsi_cross_above_20"`
 	StochRsiCrossBelow80 bool      `json:"stochrsi_cross_below_80"`
+	PsarLongValue        float64   `json:"PSARl_0.02_0.2"`
+	PsarShortValue       float64   `json:"PSARs_0.02_0.2"`
 	CloseLag1            float64   `json:"close_lag_1"`
 	CloseLag2            float64   `json:"close_lag_2"`
 	CloseLag3            float64   `json:"close_lag_3"`
@@ -91,6 +93,8 @@ func (a *AggregateBarWithIndicators) ToProto() *pb.Bar {
 		CloseLag_20:           a.CloseLag20,
 		CdlHammer:             a.Hammer,
 		CdlDoji_10_0_1:        a.Doji,
+		PsarLongValue:         a.PsarLongValue,
+		PsarShortValue:        a.PsarShortValue,
 	}
 }
 

@@ -20,6 +20,11 @@ tasks:
       - 'echo ANACONDA_HOME=\"$(conda info --base)\" >> .env.machine'
     dir: ${PROJECTS_DIR}/slack-trading
 
+  conda:activate:
+    cmds:
+      - 'conda activate trading_env'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   conda:init:
     cmds:
       - 'task env:generate'
@@ -43,7 +48,6 @@ tasks:
 
   conda:export:
     cmds:
-      - 'conda update conda'
       - 'conda update --all'
       - 'conda env export > conda-env-trading.yaml'
     dir: ${PROJECTS_DIR}/slack-trading

@@ -15,6 +15,11 @@ def calculate_stochrsi(df) -> pd.DataFrame:
     df = pd.concat([df, stochrsi], axis=1)
     return df
 
+def calculate_psar(df) -> pd.DataFrame:
+    psar = ta.psar(df['high'], df['low'], df['close'], af0=0.02, af=0.02, max_af=0.2)
+    df = pd.concat([df, psar], axis=1)
+    return df
+
 def calculate_moving_averages(df) -> pd.DataFrame:
     sma_50 = ta.sma(df['close'], length=50)
     sma_100 = ta.sma(df['close'], length=100)
@@ -82,6 +87,8 @@ def main():
             candlestick_indicators.append('doji')
         elif indicator == 'hammer':
             candlestick_indicators.append('hammer')
+        elif indicator == 'psar':
+            df = calculate_psar(df)
         else:
             raise Exception(f"Unsupported indicator: {indicator}")
     

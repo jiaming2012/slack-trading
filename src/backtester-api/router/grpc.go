@@ -17,14 +17,16 @@ import (
 )
 
 type Server struct {
-	cache     *models.RequestCache
-	dbService *data.DatabaseService
+	cache         *models.RequestCache
+	dbService     *data.DatabaseService
+	optionsClient *eventservices.PolygonOptionsClient
 }
 
-func NewServer(dbService *data.DatabaseService) *Server {
+func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService) *Server {
 	return &Server{
-		cache:     models.NewRequestCache(),
-		dbService: dbService,
+		cache:         models.NewRequestCache(),
+		dbService:     dbService,
+		optionsClient: optionsClient,
 	}
 }
 
@@ -195,6 +197,50 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 	}
 
 	return convertOrder(order, nil), nil
+}
+
+func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderRequest) (*pb.GetOptionsLadderResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
+	}
+
+	playground, err := s.dbService.GetPlayground(playgroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
+	}
+
+	symbol := eventmodels.StockSymbol(req.StockSymbol)
+
+	timestamp := playground.GetCurrentTime()
+
+	var expirationInDays []int
+	for _, days := range req.ExpirationInDays {
+		expirationInDays = append(expirationInDays, int(days))
+	}
+
+	resp, err := s.optionsClient.FetchOptionChainDataInputV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch options ladder: %v", err)
+	}
+
+	var contracts []*pb.OptionLadderContract
+	for _, contract := range resp.OptionContracts {
+		contracts = append(contracts, &pb.OptionLadderContract{
+			Symbol:         string(contract.Symbol),
+			ExpirationDate: string(contract.ExpirationDate),
+			Timestamp:      contract.Timestamp.Format(time.RFC3339),
+			Strike:         contract.Strike,
+			Type:           string(contract.OptionType),
+			Bid:            contract.Bid,
+			Ask:            contract.Ask,
+			ContractSize:   float64(contract.ContractSize),
+		})
+	}
+
+	return &pb.GetOptionsLadderResponse{
+		Contracts: contracts,
+	}, nil
 }
 
 func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest) (*pb.EmptyResponse, error) {

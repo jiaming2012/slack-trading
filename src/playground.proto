@@ -26,6 +26,30 @@ service PlaygroundService {
     rpc GetEquityReport(GetEquityReportRequest) returns (GetEquityReportResponse);
     rpc GetDailyTickerSummaryFromPolygon(GetDailyTickerSummaryFromPolygonRequest) returns (GetDailyTickerSummaryFromPolygonResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+    rpc GetOptionsLadder(GetOptionsLadderRequest) returns (GetOptionsLadderResponse);
+}
+
+message GetOptionsLadderRequest {
+    string playground_id = 1;
+    string stock_symbol = 2;
+    int32 max_no_of_strikes = 3;
+    double min_distance_between_strikes = 4;
+    repeated int32 expiration_in_days = 5;
+}
+
+message GetOptionsLadderResponse {
+    repeated OptionLadderContract contracts = 1;
+}
+
+message OptionLadderContract {
+    string symbol = 1;
+    string expiration_date = 2;
+    string timestamp = 3;
+    double strike = 4;
+    string type = 5; // "call" or "put"
+    double bid = 6;
+    double ask = 7;
+    double contract_size = 8;
 }
 
 message GetDailyTickerSummaryFromPolygonRequest {
@@ -318,6 +342,8 @@ message Bar {
     double close_lag_20 = 38;
     double cdl_hammer = 39;
     double cdl_doji_10_0_1 = 40;
+    double psar_long_value = 41;
+    double psar_short_value = 42;
 }
 
 message Candle {
