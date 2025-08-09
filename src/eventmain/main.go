@@ -258,7 +258,7 @@ func processSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	nextOptionExpDate := utils.DeriveNextFriday(event.Timestamp)
 	// nextOptionExpDate := utils.DeriveNextExpiration(event.Timestamp, optionConfig.ExpirationsInDays)
 
-	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(req.Symbol, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
+	data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainV1(req.Symbol, event.Timestamp, event.Timestamp, nextOptionExpDate, req.MaxNoOfStrikes, *req.MinDistanceBetweenStrikes, req.ExpirationsInDays)
 	if err != nil {
 		return fmt.Errorf("tradier executer: %v: failed to collect data: %v", event.Signal, err)
 	}

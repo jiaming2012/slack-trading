@@ -68,7 +68,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 		// nextOptionExpDate := utils.DeriveNextExpiration(signal.Timestamp, config.OptionsYAML.ExpirationsInDays)
 
 		// isHistorical := true
-		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainDataInput(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
+		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainV1(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays)
 
 		if err != nil {
 			log.Errorf("skipping event %v: failed to fetch option chain data: %v", signal, err)

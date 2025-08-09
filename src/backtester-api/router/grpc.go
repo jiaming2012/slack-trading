@@ -219,7 +219,7 @@ func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderR
 		expirationInDays = append(expirationInDays, int(days))
 	}
 
-	resp, err := s.optionsClient.FetchOptionChainDataInputV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays)
+	resp, err := s.optionsClient.FetchOptionChainV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch options ladder: %v", err)
 	}

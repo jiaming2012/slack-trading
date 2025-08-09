@@ -4,15 +4,25 @@ import "time"
 
 type PolygonBulkResponse struct {
 	Contracts []OptionContractV3
-	TicksMap  map[ExpirationDate][]*OptionChainTickDTO
+	TicksMap  map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO
 }
 
-func (r *PolygonBulkResponse) mergeMaps(other map[ExpirationDate][]*OptionChainTickDTO) {
-	for k, v := range other {
-		if existing, found := r.TicksMap[k]; found {
-			r.TicksMap[k] = append(existing, v...)
-		} else {
-			r.TicksMap[k] = v
+func (r *PolygonBulkResponse) mergeMaps(other map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO) {
+	if r.TicksMap == nil {
+		r.TicksMap = make(map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO)
+	}
+
+	for expDate, typeMap := range other {
+		if _, exists := r.TicksMap[expDate]; !exists {
+			r.TicksMap[expDate] = make(map[OptionType]map[float64][]*OptionChainTickDTO)
+		}
+		for optType, strikeMap := range typeMap {
+			if _, exists := r.TicksMap[expDate][optType]; !exists {
+				r.TicksMap[expDate][optType] = make(map[float64][]*OptionChainTickDTO)
+			}
+			for strike, ticks := range strikeMap {
+				r.TicksMap[expDate][optType][strike] = ticks
+			}
 		}
 	}
 }
@@ -23,13 +33,9 @@ func (r *PolygonBulkResponse) Merge(other *PolygonBulkResponse) {
 	}
 
 	r.Contracts = append(r.Contracts, other.Contracts...)
-	for k, v := range other.TicksMap {
-		r.TicksMap[k] = append(r.TicksMap[k], v...)
-	}
-
 	r.mergeMaps(other.TicksMap)
 }
 
-func (r *PolygonBulkResponse) GetOptionContractsV3(loc *time.Location, spread float64) ([]OptionContractV3, map[ExpirationDate][]*OptionChainTickDTO, error) {
+func (r *PolygonBulkResponse) GetOptionContractsV3(loc *time.Location, spread float64) ([]OptionContractV3, map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO, error) {
 	return r.Contracts, r.TicksMap, nil
 }

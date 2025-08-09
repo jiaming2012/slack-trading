@@ -362,16 +362,16 @@ func (fetcher *PolygonOptionsClient) maxExpirationInDays(expirationInDays []int)
 	return max
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainDataInputV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
 	expirationGTE := timestamp
 
 	maxDays := fetcher.maxExpirationInDays(expirationInDays)
 	expirationLTE := utils.DeriveNextFriday(timestamp.AddDate(0, 0, maxDays))
 
-	return fetcher.FetchOptionChainDataInput(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainDataInput(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
 	optionSpreadPerc := 0.005
 
 	request := eventmodels.PolygonDataBulkHistOptionOHLCRequest{
@@ -461,7 +461,7 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainDataInput(symbol eventmodel
 		ApiKey:    fetcher.ApiKey,
 	}
 
-	options, err := convertOptionsChain(
+	options, err := makeOptionsChain(
 		context.Background(),
 		symbol,
 		filteredOptions,
@@ -474,10 +474,27 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainDataInput(symbol eventmodel
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert options")
 	}
 
+	threshold := time.Duration(6.5 * float64(time.Hour))
+	options = filterOptionsBeforeTime(options, timestamp, threshold)
+
 	return &eventmodels.FetchOptionChainDataInput{
 		StockTickItemDTO: closestStockTickDTO,
 		OptionContracts:  options,
 	}, nil
+}
+
+func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, beforeTime time.Time, threshold time.Duration) []eventmodels.OptionContractV3 {
+	filtered := make([]eventmodels.OptionContractV3, 0)
+
+	for _, c := range contracts {
+		if c.Timestamp.Add(threshold).Before(beforeTime) {
+			continue
+		}
+
+		filtered = append(filtered, c)
+	}
+
+	return filtered
 }
 
 func convertToTimeMap(contracts []eventmodels.OptionContractV3) (map[time.Time][]eventmodels.OptionContractV3, error) {
@@ -499,7 +516,7 @@ func convertToTimeMap(contracts []eventmodels.OptionContractV3) (map[time.Time][
 }
 
 func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHLCRequest) (*eventmodels.PolygonBulkResponse, error) {
-	url := fmt.Sprintf("https://api.polygon.io/v3/reference/options/contracts")
+	url := "https://api.polygon.io/v3/reference/options/contracts"
 	polygonContracts, err := utils.FetchRecursively(url, req.ApiKey, fetchPolygonReferenceOptionsContracts(req.Root, req.ExpirationGreaterThanEqual, req.ExpirationLessThanEqual, req.IsExpired))
 	if err != nil {
 		return nil, fmt.Errorf("fetchPolygonBulkHistOptionOhlc: failed to fetch option contracts: %w", err)
@@ -519,7 +536,7 @@ func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHL
 		contracts = append(contracts, contract)
 	}
 
-	ticksMap := make(map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO)
+	ticksMap := make(map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO)
 
 	return &eventmodels.PolygonBulkResponse{
 		Contracts: contracts,

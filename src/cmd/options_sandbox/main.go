@@ -74,7 +74,7 @@ func fetch_chain_yesterday() {
 		log.Fatalf("Failed to load timezone: %v", err)
 	}
 
-	now := time.Date(2025, 8, 7, 13, 0, 0, 0, tz) // Example date for testing
+	now := time.Date(2025, 8, 7, 14, 44, 0, 0, tz) // Example date for testing
 	// nextOptionsExpirationDate := utils.DeriveNextFriday(now)
 	maxNoOfStrikes := 9
 	minDistanceBetweenStrikes := 1.0
@@ -85,7 +85,7 @@ func fetch_chain_yesterday() {
 	// 	panic(fmt.Sprintf("tradier executer: %v: failed to collect data: %v", "FetchOptionChainDataInput", err))
 	// }
 
-	data, err := optionsDataFetcher.FetchOptionChainDataInputV2(symbol, now, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+	data, err := optionsDataFetcher.FetchOptionChainV2(symbol, now, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 	if err != nil {
 		panic(fmt.Sprintf("tradier executer: %v: failed to collect data: %v", "FetchOptionChainDataInput", err))
 	}
@@ -126,7 +126,7 @@ func fetch_chain() {
 	minDistanceBetweenStrikes := 5.0
 	expirationInDays := []int{2, 5}
 
-	data, err := optionsDataFetcher.FetchOptionChainDataInput(symbol, now, now, nextOptionsExpirationDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+	data, err := optionsDataFetcher.FetchOptionChainV1(symbol, now, now, nextOptionsExpirationDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
 	if err != nil {
 		panic(fmt.Sprintf("tradier executer: %v: failed to collect data: %v", "FetchOptionChainDataInput", err))
 	}
@@ -136,6 +136,7 @@ func fetch_chain() {
 	}
 
 	if len(data.OptionContracts) == 0 {
+		// why is this happening?
 		panic(fmt.Sprintf("tradier executer: %v: no option chain data", "FetchOptionChainDataInput"))
 	}
 
