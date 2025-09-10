@@ -103,6 +103,7 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		Pl:                o.PreviousPosition.PL,
 		MaintenanceMargin: o.PreviousPosition.MaintenanceMargin,
 		CurrentPrice:      o.PreviousPosition.CurrentPrice,
+		Timestamp:         o.PreviousPosition.Timestamp,
 	}
 
 	var closeOrderId *uint64
@@ -445,6 +446,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 				Pl:                v.PL,
 				MaintenanceMargin: v.MaintenanceMargin,
 				CurrentPrice:      v.CurrentPrice,
+				Timestamp:         v.Timestamp,
 			}
 		}
 
@@ -598,9 +600,17 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
-	candles, err := s.fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get candles: %v", err)
+	var candles []*eventmodels.AggregateBarWithIndicators
+	if req.Symbol[:2] == "O:" {
+		candles, err = s.fetchOptionCandles(playgroundId, eventmodels.OptionSymbol(req.Symbol), period, from, to)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get option candles: %v", err)
+		}
+	} else {
+		candles, err = s.fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get candles: %v", err)
+		}
 	}
 
 	barsDTO := make([]*pb.Bar, 0)
@@ -777,6 +787,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			Pl:                v.PL,
 			MaintenanceMargin: v.MaintenanceMargin,
 			CurrentPrice:      v.CurrentPrice,
+			Timestamp:         v.Timestamp,
 		}
 	}
 
@@ -851,6 +862,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		closeOrderId = new(uint)
 		*closeOrderId = uint(*req.CloseOrderId)
 	}
+
 	order, webErr := s.dbService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
 		Symbol:          req.Symbol,
 		ClientRequestID: req.ClientRequestId,

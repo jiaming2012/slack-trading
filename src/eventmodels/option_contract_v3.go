@@ -19,6 +19,10 @@ type OptionContractV3 struct {
 	AverageFillPrice float64        `json:"average_fill_price"`
 }
 
+func (c *OptionContractV3) GetTicker() string {
+	return c.Symbol.GetTicker()
+}
+
 func (c *OptionContractV3) TimeUntilExpiration(now time.Time) time.Duration {
 	return c.Expiration.Sub(now)
 }

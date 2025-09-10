@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 func TestCalculateOptionOrderSpreadResult(t *testing.T) {
@@ -138,14 +139,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("call spread: both options expire out of the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -162,14 +163,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("call spread: both options expire in the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -186,14 +187,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("call spread: short option expires in the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.ThetaDataOptionTypeCall,
+			OptionType:  eventmodels.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -210,14 +211,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("put spread: both options expire out of the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -234,14 +235,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("put spread: both options expire in the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -258,14 +259,14 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	t.Run("put spread: short option expires in the money", func(t *testing.T) {
 		option1 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
 		option2 := eventmodels.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -281,7 +282,7 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		// flip the options
 		option1 = eventmodels.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 
 		side1 = "buy_to_open"
@@ -289,7 +290,7 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 
 		option2 = eventmodels.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.ThetaDataOptionTypePut,
+			OptionType:  eventmodels.OptionTypePut,
 		}
 
 		side2 = "sell_to_open"

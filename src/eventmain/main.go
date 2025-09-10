@@ -680,7 +680,7 @@ func run() {
 	polygonClient := eventservices.NewPolygonClient(polygonApiKey)
 
 	// Setup database service
-	dbService := data.NewDatabaseService(db, polygonClient)
+	dbService := data.NewDatabaseService(db, polygonClient, polygonOptionsClient)
 
 	// Setup brokers
 	brokerMap, err := getTradierBrokers()

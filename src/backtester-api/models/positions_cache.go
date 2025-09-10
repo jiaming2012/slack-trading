@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/jinzhu/copier"
 	logger "github.com/sirupsen/logrus"
 
@@ -11,7 +13,7 @@ type PositionsCache struct {
 	cache map[eventmodels.Instrument]*Position
 }
 
-func (o *PositionsCache) Update(symbol eventmodels.Instrument, pl float64, currentPrice float64) {
+func (o *PositionsCache) Update(symbol eventmodels.Instrument, pl float64, currentPrice float64, timestamp time.Time) {
 	if o.cache == nil {
 		logger.Warnf("PositionsCache is nil: ignoring update ...")
 		return
@@ -24,6 +26,7 @@ func (o *PositionsCache) Update(symbol eventmodels.Instrument, pl float64, curre
 	// Update the position with the new P&L and current price
 	o.cache[symbol].PL = pl
 	o.cache[symbol].CurrentPrice = currentPrice
+	o.cache[symbol].Timestamp = timestamp.Format(time.RFC3339)
 }
 
 func (o *PositionsCache) Set(symbol eventmodels.Instrument, position *Position) {

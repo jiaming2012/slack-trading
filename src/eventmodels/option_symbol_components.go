@@ -11,7 +11,7 @@ import (
 type OptionSymbolComponents struct {
 	Underlying  string
 	Expiration  time.Time
-	OptionType  ThetaDataOptionType
+	OptionType  OptionType
 	StrikePrice float64
 	Symbol      OptionSymbol
 }
@@ -39,7 +39,16 @@ func NewOptionSymbolComponents(ticker OptionSymbol) (*OptionSymbolComponents, er
 	if err != nil {
 		return nil, fmt.Errorf("invalid day in ticker: %s", matches[4])
 	}
-	optionType := matches[5]
+
+	var optionType OptionType
+	if matches[5] == "C" {
+		optionType = OptionTypeCall
+	} else if matches[5] == "P" {
+		optionType = OptionTypePut
+	} else {
+		return nil, fmt.Errorf("invalid option type in ticker: %s", matches[5])
+	}
+
 	strikePrice, err := strconv.ParseFloat(matches[6], 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid strike price in ticker: %s", matches[6])
@@ -55,7 +64,7 @@ func NewOptionSymbolComponents(ticker OptionSymbol) (*OptionSymbolComponents, er
 	return &OptionSymbolComponents{
 		Underlying:  underlying,
 		Expiration:  expiration,
-		OptionType:  ThetaDataOptionType(optionType),
+		OptionType:  optionType,
 		StrikePrice: strikePrice / 1000,
 		Symbol:      ticker,
 	}, nil
@@ -75,7 +84,16 @@ func NewOptionSymbolComponentsOld(ticker OptionSymbol) (*OptionSymbolComponents,
 	year, _ := strconv.Atoi(matches[2])
 	month, _ := strconv.Atoi(matches[3])
 	day, _ := strconv.Atoi(matches[4])
-	optionType := matches[5]
+
+	var optionType OptionType
+	if matches[5] == "C" {
+		optionType = OptionTypeCall
+	} else if matches[5] == "P" {
+		optionType = OptionTypePut
+	} else {
+		return nil, fmt.Errorf("invalid option type in ticker: %s", matches[5])
+	}
+
 	strikePrice, _ := strconv.ParseFloat(matches[6], 64)
 
 	// Construct the expiration date
@@ -88,7 +106,7 @@ func NewOptionSymbolComponentsOld(ticker OptionSymbol) (*OptionSymbolComponents,
 	return &OptionSymbolComponents{
 		Underlying:  underlying,
 		Expiration:  expiration,
-		OptionType:  ThetaDataOptionType(optionType),
+		OptionType:  optionType,
 		StrikePrice: strikePrice / 1000,
 		Symbol:      OptionSymbol(ticker),
 	}, nil

@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/models"
 	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
@@ -20,32 +21,33 @@ import (
 type Playground struct {
 	gorm.Model
 	Meta
-	ID                      uuid.UUID                                                      `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	account                 *BacktesterAccount                                             `gorm:"-"`
-	clock                   *Clock                                                         `gorm:"-"`
-	ClientID                *string                                                        `gorm:"column:client_id;type:text;unique"`
-	Balance                 float64                                                        `gorm:"column:balance;type:numeric;not null"`
-	BrokerName              *string                                                        `gorm:"column:broker;type:text"`
-	AccountID               *string                                                        `gorm:"column:account_id;type:text"`
-	Orders                  []*OrderRecord                                                 `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	EquityPlotRecords       []EquityPlotRecord                                             `gorm:"foreignKey:PlaygroundID;references:ID"`
-	ParentID                *uuid.UUID                                                     `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
-	Repositories            CandleRepositoryRecord                                         `gorm:"type:json"`
-	ReconcilePlaygroundID   *uuid.UUID                                                     `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
-	LiveAccountID           *uint                                                          `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
-	LiveAccount             ILiveAccount                                                   `gorm:"-"`
-	ReconcilePlayground     IReconcilePlayground                                           `gorm:"-"`
-	repos                   map[eventmodels.Instrument]map[time.Duration]*CandleRepository `gorm:"-"`
-	isBacktestComplete      bool                                                           `gorm:"-"`
-	positionCache           *PositionsCache                                                `gorm:"-"`
-	openOrdersCache         *OpenOrdersCache                                               `gorm:"-"`
-	newCandlesQueue         *eventmodels.FIFOQueue[*BacktesterCandle]                      `json:"-" gorm:"-"`
-	newTradesQueue          *eventmodels.FIFOQueue[*TradeRecord]                           `json:"-" gorm:"-"`
-	invalidOrdersQueue      *eventmodels.FIFOQueue[*OrderRecord]                           `json:"-" gorm:"-"`
-	minimumPeriod           time.Duration                                                  `gorm:"-"` // This is a new field
-	placeOrderMutex         *sync.Mutex                                                    `json:"-" gorm:"-"`
-	newOrdersQueueMutex     *sync.Mutex                                                    `json:"-" gorm:"-"`
-	pendingOrdersQueueMutex *sync.Mutex                                                    `json:"-" gorm:"-"`
+	ID                      uuid.UUID                                 `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	account                 *BacktesterAccount                        `gorm:"-"`
+	clock                   *Clock                                    `gorm:"-"`
+	ClientID                *string                                   `gorm:"column:client_id;type:text;unique"`
+	Balance                 float64                                   `gorm:"column:balance;type:numeric;not null"`
+	BrokerName              *string                                   `gorm:"column:broker;type:text"`
+	AccountID               *string                                   `gorm:"column:account_id;type:text"`
+	Orders                  []*OrderRecord                            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	EquityPlotRecords       []EquityPlotRecord                        `gorm:"foreignKey:PlaygroundID;references:ID"`
+	ParentID                *uuid.UUID                                `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
+	Repositories            CandleRepositoryRecord                    `gorm:"type:json"`
+	ReconcilePlaygroundID   *uuid.UUID                                `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
+	LiveAccountID           *uint                                     `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
+	LiveAccount             ILiveAccount                              `gorm:"-"`
+	ReconcilePlayground     IReconcilePlayground                      `gorm:"-"`
+	repos                   *CandleMasterRepository                   `gorm:"-"`
+	isBacktestComplete      bool                                      `gorm:"-"`
+	OptionsBroker           IOptionsBroker                            `gorm:"-"`
+	positionCache           *PositionsCache                           `gorm:"-"`
+	openOrdersCache         *OpenOrdersCache                          `gorm:"-"`
+	newCandlesQueue         *eventmodels.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
+	newTradesQueue          *eventmodels.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
+	invalidOrdersQueue      *eventmodels.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
+	minimumPeriod           time.Duration                             `gorm:"-"` // This is a new field
+	placeOrderMutex         *sync.Mutex                               `json:"-" gorm:"-"`
+	newOrdersQueueMutex     *sync.Mutex                               `json:"-" gorm:"-"`
+	pendingOrdersQueueMutex *sync.Mutex                               `json:"-" gorm:"-"`
 }
 
 func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
@@ -278,7 +280,7 @@ func (p *Playground) GetId() uuid.UUID {
 
 func (p *Playground) GetRepositories() []*CandleRepository {
 	repos := make([]*CandleRepository, 0)
-	for _, periodRepoMap := range p.repos {
+	for _, periodRepoMap := range p.repos.Iter() {
 		for _, repo := range periodRepoMap {
 			repos = append(repos, repo)
 		}
@@ -504,7 +506,7 @@ func (p *Playground) updateOpenOrdersCache(openOrdersCache *OpenOrdersCache, new
 	}
 
 	// check for new open orders
-	isOpen := newOrder.Side == TradierOrderSideBuy || newOrder.Side == TradierOrderSideSellShort
+	isOpen := newOrder.Side == TradierOrderSideBuy || newOrder.Side == TradierOrderSideSellShort || newOrder.Side == TradierOrderSideBuyToOpen || newOrder.Side == TradierOrderSideSellToOpen
 	if isOpen {
 		openOrdersCache.Add(newOrder)
 	}
@@ -552,6 +554,61 @@ func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, posi
 	}
 }
 
+func (p *Playground) getPriceAt(symbol eventmodels.Instrument, timestamp time.Time) (float64, error) {
+	repo, ok := p.repos.Get(symbol, p.minimumPeriod)
+	if !ok {
+		return 0, fmt.Errorf("getPriceAt: no repository found for symbol %s and period %s", symbol, p.minimumPeriod)
+	}
+
+	candle, err := repo.GetCandleAt(timestamp, 2*p.minimumPeriod)
+	if err != nil {
+		return 0, fmt.Errorf("getPriceAt: error getting candle at %s for symbol %s: %w", timestamp, symbol, err)
+	}
+
+	return candle.Close, nil
+}
+
+// todo: test this
+func (p *Playground) populateRepo(symbol eventmodels.OptionSymbol, from time.Time, to *time.Time) (*CandleRepository, error) {
+	candles, err := p.OptionsBroker.GetCandles(p.ID, symbol, p.minimumPeriod, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("populateRepo: error getting option candles: %w", err)
+	}
+
+	var repo *CandleRepository
+	var ok bool
+	if p.repos.HasInstrument(symbol) {
+		repo, ok = p.repos.Get(symbol, p.minimumPeriod)
+		if !ok {
+			return nil, fmt.Errorf("populateRepo: error getting candle repository: %w", err)
+		}
+
+		if err := repo.AddCandles(candles); err != nil {
+			return nil, fmt.Errorf("populateRepo: error adding candles to repository: %w", err)
+		}
+	} else {
+		var barsWithIndicators []*eventmodels.PolygonAggregateBarV2
+		for _, c := range candles {
+			barsWithIndicators = append(barsWithIndicators, c.ToPolygonAggregateBarV2())
+		}
+
+		indicators := []string{}
+		historyInDays := uint32(0)
+		repoSource := eventmodels.CandleRepositorySource{Type: "polygon"}
+
+		repo, err = NewCandleRepository(symbol, p.minimumPeriod, barsWithIndicators, indicators, nil, historyInDays, repoSource)
+		if err != nil {
+			return nil, fmt.Errorf("populateRepo: error creating candle repository: %w", err)
+		}
+
+		repo.SetStartingPosition(p.GetCurrentTime(), p.Environment, nil)
+
+		p.repos.Add(symbol, p.minimumPeriod, repo)
+	}
+
+	return repo, nil
+}
+
 func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eventmodels.Instrument]*Tick, error) {
 	result := make(map[eventmodels.Instrument]*Tick)
 
@@ -592,9 +649,30 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 		return result, nil
 	} else {
 		for _, symbol := range symbols {
-			repo, ok := p.repos[symbol][p.minimumPeriod]
-			if !ok {
-				return nil, fmt.Errorf("getCurrentPrice: symbol %s not found in repos", symbol)
+			var repo *CandleRepository
+			var ok bool
+
+			switch s := symbol.(type) {
+			case eventmodels.StockSymbol:
+				repo, ok = p.repos.Get(s, p.minimumPeriod)
+				if !ok {
+					return nil, fmt.Errorf("getCurrentPrice: no repository found for symbol %s and period %s", symbol, p.minimumPeriod)
+				}
+
+			case *eventmodels.OptionContractV3:
+				repo, ok = p.repos.Get(s, p.minimumPeriod)
+				if !ok {
+					from := p.clock.CurrentTime.Add(-p.minimumPeriod)
+					to := s.Expiration.Add(24 * time.Hour)
+
+					var err error
+					if repo, err = p.populateRepo(s.Symbol, from, &to); err != nil {
+						return nil, fmt.Errorf("getCurrentPrice: error populating repo: %w", err)
+					}
+				}
+
+			default:
+				return nil, fmt.Errorf("getCurrentPrice: unsupported symbol type: %T", symbol)
 			}
 
 			candle, err := repo.GetCurrentCandle()
@@ -959,9 +1037,9 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 			return nil, false, fmt.Errorf("fillOrder: %d is not market, found %s", order.ID, order.OrderType)
 		}
 
-		if order.Class != OrderRecordClassEquity {
-			log.Errorf("fillOrders: only equity orders are supported")
-			return nil, false, fmt.Errorf("fillOrders: only equity orders are supported")
+		if order.Class != OrderRecordClassEquity && order.Class != OrderRecordClassOption {
+			log.Errorf("fillOrders: only equity and option orders are supported")
+			return nil, false, fmt.Errorf("fillOrders: only equity and option orders are supported")
 		}
 
 		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity, false); err != nil {
@@ -1075,17 +1153,49 @@ func (p *Playground) GetCurrentTime() time.Time {
 }
 
 func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
-	result, err := p.getCurrentPrices([]eventmodels.Instrument{symbol})
-	if err != nil {
-		return 0, fmt.Errorf("error fetching current price: %w", err)
+	var optionSymbol *eventmodels.OptionSymbol
+
+	switch s := symbol.(type) {
+	case eventmodels.StockSymbol:
+		result, err := p.getCurrentPrices([]eventmodels.Instrument{symbol})
+		if err != nil {
+			return 0, fmt.Errorf("error fetching current price: %w", err)
+		}
+
+		tick, found := result[symbol]
+		if !found {
+			return 0, fmt.Errorf("symbol %s not found in result", symbol)
+		}
+
+		return tick.Value, nil
+	case eventmodels.OptionSymbol:
+		optionSymbol = &s
+	case *eventmodels.OptionContractV3:
+		optionSymbol = &s.Symbol
 	}
 
-	tick, found := result[symbol]
-	if !found {
-		return 0, fmt.Errorf("symbol %s not found in result", symbol)
+	if optionSymbol != nil {
+		// Start of trading day 9:30est
+		tz, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			return 0, fmt.Errorf("error loading timezone: %w", err)
+		}
+		from := time.Date(p.clock.CurrentTime.Year(), p.clock.CurrentTime.Month(), p.clock.CurrentTime.Day(), 9, 30, 0, 0, tz)
+		to := time.Date(p.clock.CurrentTime.Year(), p.clock.CurrentTime.Month(), p.clock.CurrentTime.Day(), 16, 0, 0, 0, tz)
+		candles, err := p.OptionsBroker.GetCandles(p.ID, *optionSymbol, p.minimumPeriod, from, &to)
+		if err != nil {
+			return 0, fmt.Errorf("error fetching option candles for %s: %w", symbol, err)
+		}
+
+		if len(candles) == 0 {
+			return 0, fmt.Errorf("no candles found for option %s: %w", symbol, models.ErrNoCandlesFound)
+		}
+
+		latestCandle := candles[len(candles)-1]
+		return latestCandle.Close, nil
 	}
 
-	return tick.Value, nil
+	return 0, fmt.Errorf("fetchCurrentPrice: unsupported symbol type %T", symbol)
 }
 
 func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*OrderRecord, error) {
@@ -1098,10 +1208,16 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	if position.Quantity > 0 {
 		externalId := p.account.NextOrderID()
-		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error creating order record: %w", err)
+		}
 	} else if position.Quantity < 0 {
 		externalId := p.account.NextOrderID()
-		order = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol, TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error creating order record: %w", err)
+		}
 	} else {
 		return nil, nil
 	}
@@ -1186,12 +1302,7 @@ func (p *Playground) checkForLiquidations(positionCache *PositionsCache) (*TickD
 }
 
 func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
-	symbolsRepo, ok := p.repos[symbol]
-	if !ok {
-		return nil, fmt.Errorf("symbol %s not found in repos", symbol)
-	}
-
-	repo, ok := symbolsRepo[period]
+	repo, ok := p.repos.Get(symbol, period)
 	if !ok {
 		return nil, fmt.Errorf("period %s not found in repos", period)
 	}
@@ -1227,12 +1338,30 @@ func (p *Playground) ResetOrderIds() {
 	}
 }
 
+func (p *Playground) DeleteRepository(symbol eventmodels.Instrument) {
+	p.repos.Delete(symbol)
+}
+
+func (p *Playground) CommitOrderQueue(orderExecutionRequests map[uint]ExecutionFillRequest) ([]*TradeRecord, []*OrderRecord, *PositionsCache, error) {
+	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(orderExecutionRequests, true)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error committing pending orders: %w", err)
+	}
+
+	positionCache, err := p.UpdatePositionCachePositions()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error getting position cache: %w", err)
+	}
+
+	return newTrades, invalidOrdersDTO, positionCache, nil
+}
+
 func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, error) {
 	if isPreview {
 		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
 
 		var newCandles []*BacktesterCandle
-		for instrument, periodRepoMap := range p.repos {
+		for instrument, periodRepoMap := range p.repos.Iter() {
 			for period, repo := range periodRepoMap {
 				newCandle, err := repo.FetchCandlesAtOrAfter(nextTick)
 				if err != nil {
@@ -1272,6 +1401,11 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 				continue
 			}
 
+			if errors.Is(err, models.ErrNoCandlesFound) {
+				log.Warnf("no candles found for %s @ %v", order.GetInstrument(), p.clock.CurrentTime)
+				continue
+			}
+			
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
@@ -1282,26 +1416,18 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}
 	}
 
-	// Commit pending orders
-	// TODO: remove positionCache from here
-	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(orderExecutionRequests, true)
+	newTrades, invalidOrdersDTO, positionCache, err := p.CommitOrderQueue(orderExecutionRequests)
 	if err != nil {
-		return nil, fmt.Errorf("error committing pending orders: %w", err)
+		return nil, fmt.Errorf("error updating order queue: %w", err)
 	}
-
+	
 	// Check for liquidations
-	var tickDeltaEvents []*TickDeltaEvent
-
-	positionCache, err := p.UpdatePositionCachePositions()
-	if err != nil {
-		return nil, fmt.Errorf("error getting position cache: %w", err)
-	}
-
 	liquidationEvents, err := p.checkForLiquidations(positionCache)
 	if err != nil {
 		return nil, fmt.Errorf("error checking for liquidations: %w", err)
 	}
-
+	
+	var tickDeltaEvents []*TickDeltaEvent
 	if liquidationEvents != nil {
 		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
 	}
@@ -1325,14 +1451,19 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}, nil
 	}
 
-	// Update the candle repos
+	// Update prices in candle repos
 	var newCandles []*BacktesterCandle
-	for instrument, periodRepoMap := range p.repos {
+	for instrument, periodRepoMap := range p.repos.Iter() {
 		for period, repo := range periodRepoMap {
 			newCandle, err := repo.Update(p.clock.CurrentTime)
+
 			if err != nil {
-				log.Warnf("repo.Next [%s]: %v", instrument, err)
-				return nil, fmt.Errorf("backtest complete: no more ticks")
+				if errors.Is(err, models.ErrOptionContractIsExpired) {
+
+				} else {
+					log.Warnf("repo.Next [%s]: %v", instrument, err)
+					return nil, fmt.Errorf("backtest complete: no more ticks")
+				}
 			}
 
 			if newCandle != nil {
@@ -1345,7 +1476,34 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}
 	}
 
-	p.updateAccountStats(p.GetCurrentTime())
+	// update option contracts
+	for instrument := range p.repos.Iter() {
+		switch s := instrument.(type) {
+		case *eventmodels.OptionContractV3:
+			isExpired := s.Expiration.Before(p.clock.CurrentTime) || s.Expiration.Equal(p.clock.CurrentTime)
+			if isExpired {
+				currentPrice, err := p.getPriceAt(s.UnderlyingSymbol, s.Expiration)
+				if err != nil {
+					log.Warnf("error getting current prices for %s: %v", s.UnderlyingSymbol, err)
+					continue
+				}
+
+				tickDeltaEvents = append(tickDeltaEvents, &TickDeltaEvent{
+					Type: TickDeltaEventTypeOptionExpired,
+					ExpiredOptionContractEvent: &ExpiredOptionContractEvent{
+						Symbol:                  s.Symbol,
+						UnderlyingPriceAtExpiry: currentPrice,
+					},
+				})
+			}
+		case eventmodels.OptionSymbol:
+			log.Fatal("option symbols not supported in simulateTick")
+		}
+	}
+
+	if _, err := p.updateAccountStats(p.GetCurrentTime()); err != nil {
+		return nil, fmt.Errorf("error updating account stats: %w", err)
+	}
 
 	return &TickDelta{
 		NewTrades:     newTrades,
@@ -1502,7 +1660,7 @@ func (p *Playground) UpdatePricesAndGetPositionCache() (*PositionsCache, error) 
 			}
 
 			pl := (currentPrice.Value - position.CostBasis) * position.Quantity
-			p.positionCache.Update(symbol, pl, currentPrice.Value)
+			p.positionCache.Update(symbol, pl, currentPrice.Value, currentPrice.Timestamp)
 		}
 
 		return p.positionCache, nil
@@ -1552,7 +1710,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 			totalQuantityMap[order.GetInstrument()] += order.GetFilledVolume()
 
 			if totalQuantityMap[order.GetInstrument()] != 0 {
-				if order.Side == TradierOrderSideBuy || order.Side == TradierOrderSideSellShort {
+				if order.Side == TradierOrderSideBuy || order.Side == TradierOrderSideSellShort || order.Side == TradierOrderSideBuyToOpen || order.Side == TradierOrderSideSellToOpen {
 					filledVolume := order.GetFilledVolume()
 					vwapMap[order.GetInstrument()] += order.GetAvgFillPrice() * filledVolume
 					totalOpenQuantityMap[order.GetInstrument()] += filledVolume
@@ -1594,6 +1752,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 		if found {
 			positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
 			positions[symbol].CurrentPrice = tick.Value
+			positions[symbol].Timestamp = p.GetCurrentTime().Format(time.RFC3339)
 		} else {
 			log.Warnf("getCurrentPrice [%s]: not found", symbol)
 			positions[symbol].PL = 0
@@ -1607,7 +1766,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 }
 
 func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error) {
-	repo, ok := p.repos[symbol][period]
+	repo, ok := p.repos.Get(symbol, period)
 	if !ok {
 		return nil, fmt.Errorf("GetTick: symbol %s not found in repos", symbol)
 	}
@@ -2000,12 +2159,12 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	if order.Class != OrderRecordClassEquity {
-		return nil, fmt.Errorf("only equity orders are supported")
+	if order.Class != OrderRecordClassEquity && order.Class != OrderRecordClassOption {
+		return nil, fmt.Errorf("only equity and option orders are supported")
 	}
 
 	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
-		if _, ok := p.repos[order.GetInstrument()]; !ok {
+		if ok := p.repos.HasInstrument(order.GetInstrument()); !ok && order.Class == OrderRecordClassEquity {
 			return nil, fmt.Errorf("symbol %s not found in repos", order.GetInstrument())
 		}
 	}
@@ -2193,11 +2352,29 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 		// set the feeds
 		for _, feed := range feeds {
+			feed.Sort()
+
 			if err := feed.SetStartingPosition(startAt, env, calendar); err != nil {
 				return fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
 			}
 
 			symbol := feed.GetSymbol()
+
+			if optionSymbol, ok := symbol.(eventmodels.OptionSymbol); ok {
+				components, err := optionSymbol.Components()
+				if err != nil {
+					return fmt.Errorf("error getting option components: %w", err)
+				}
+
+				symbol = &eventmodels.OptionContractV3{
+					Symbol:           optionSymbol,
+					UnderlyingSymbol: eventmodels.StockSymbol(components.Underlying),
+					Expiration:       components.Expiration,
+					ExpirationDate:   eventmodels.ExpirationDate(components.Expiration.Format("%Y-%m-%d")),
+					Strike:           components.StrikePrice,
+					OptionType:       components.OptionType,
+				}
+			}
 
 			// todo: remove antipattern of using map for repo. use a list instead
 			if _, found := repos[symbol]; !found {
@@ -2240,7 +2417,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.ClientID = clientID
 	playground.account = NewBacktesterAccount(balance, orders)
 	playground.clock = clock
-	playground.repos = repos
+	playground.repos = NewCandleMasterRepository(repos)
 	playground.Repositories = CandleRepositoryRecord(repositories)
 	playground.openOrdersCache = NewOpenOrdersCache()
 	playground.positionCache = NewPositionCache()
@@ -2250,6 +2427,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.placeOrderMutex = &sync.Mutex{}
 	playground.newOrdersQueueMutex = &sync.Mutex{}
 	playground.pendingOrdersQueueMutex = &sync.Mutex{}
+	playground.OptionsBroker = req.OptionsBroker
 
 	if _, err := playground.UpdatePositionCachePositions(); err != nil {
 		return fmt.Errorf("error getting positions: %w", err)
@@ -2258,7 +2436,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	return nil
 }
 
-func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) error {
+func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, optionsBroker IOptionsBroker, feeds ...(*CandleRepository)) error {
 	req := &PopulatePlaygroundRequest{
 		Account: CreateAccountRequest{
 			Source:  source,
@@ -2268,6 +2446,7 @@ func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountR
 		ClientID:       clientID,
 		InitialBalance: initialBalance,
 		BackfillOrders: orders,
+		OptionsBroker:  optionsBroker,
 		Tags:           tags,
 	}
 
@@ -2275,14 +2454,14 @@ func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountR
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, feeds ...(*CandleRepository)) (*Playground, error) {
+func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, optionsBroker IOptionsBroker, feeds ...(*CandleRepository)) (*Playground, error) {
 	playground := new(Playground)
 
 	if playgroundId != nil {
 		playground.ID = *playgroundId
 	}
 
-	if err := PopulatePlaygroundDeprecated(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, feeds...); err != nil {
+	if err := PopulatePlaygroundDeprecated(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, optionsBroker, feeds...); err != nil {
 		return nil, fmt.Errorf("error populating playground: %w", err)
 	}
 

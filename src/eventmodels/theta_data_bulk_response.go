@@ -58,10 +58,10 @@ func (r *ThetaDataBulkResponse) GetOptionContractsV3(loc *time.Location, spread 
 			Underlying:  string(dto.Contract.Root),
 			Expiration:  expiration,
 			StrikePrice: strike,
-			OptionType:  dto.Contract.Right,
+			OptionType:  optionType,
 		}
 
-		ticker, err := NewOptionSymbol(components)
+		ticker, err := NewOptionSymbolFromComponents(components)
 
 		if err != nil {
 			return nil, nil, fmt.Errorf("ThetaDataBulkResponse: GetOptionContractsV3: failed to create option ticker: %w", err)

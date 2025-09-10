@@ -78,11 +78,11 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 		return fmt.Errorf("failed to load %s file: %v", envFile, err)
 	}
 
-	envFileMachine := filepath.Join(envDir, ".env.machine")
+	// envFileMachine := filepath.Join(envDir, ".env.machine")
 
-	if err := godotenv.Load(envFileMachine); err != nil {
-		return fmt.Errorf("failed to load %s file: %v", envFileMachine, err)
-	}
+	// if err := godotenv.Load(envFileMachine); err != nil {
+	// 	return fmt.Errorf("failed to load %s file: %v", envFileMachine, err)
+	// }
 
 	if goEnvironment == "test" {
 		// override environment variables to use testconainer ports

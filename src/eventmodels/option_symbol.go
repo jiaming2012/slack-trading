@@ -7,6 +7,28 @@ import (
 
 type OptionSymbol string
 
+func (s OptionSymbol) ConvertToOptionContractV3() (*OptionContractV3, error) {
+	components, err := s.Components()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert option symbol to OptionContractV3: %w", err)
+	}
+
+	return &OptionContractV3{
+		Symbol:           s,
+		UnderlyingSymbol: StockSymbol(components.Underlying),
+		Expiration:       components.Expiration,
+		Strike:           components.StrikePrice,
+		OptionType:       components.OptionType,
+	}, nil
+}
+
+func (s OptionSymbol) GetTicker() string {
+	if strings.HasPrefix(string(s), "O:") {
+		return string(s)[2:]
+	}
+	return string(s)
+}
+
 func (s OptionSymbol) NoPrefix() string {
 	if strings.HasPrefix(string(s), "O:") {
 		return string(s)[2:]
@@ -16,7 +38,8 @@ func (s OptionSymbol) NoPrefix() string {
 }
 
 func (s OptionSymbol) Components() (*OptionSymbolComponents, error) {
-	components, err := NewOptionSymbolComponents(s)
+	symbol := s.NoPrefix()
+	components, err := NewOptionSymbolComponents(OptionSymbol(symbol))
 	if err != nil {
 		return nil, fmt.Errorf("OptionSymbol.Components: failed to parse option symbol: %w", err)
 	}
@@ -48,7 +71,7 @@ func (s OptionSymbol) Description() (string, error) {
 	return formatted, nil
 }
 
-func NewOptionSymbol(option OptionSymbolComponents) (OptionSymbol, error) {
+func NewOptionSymbolFromComponents(option OptionSymbolComponents) (OptionSymbol, error) {
 	// Validate the option type
 	if option.OptionType != "C" && option.OptionType != "P" {
 		return "", fmt.Errorf("invalid option type: %s", option.OptionType)

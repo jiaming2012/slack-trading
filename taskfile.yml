@@ -22,7 +22,7 @@ tasks:
 
   conda:activate:
     cmds:
-      - 'conda activate trading_env'
+      - 'conda activate grodt'
     dir: ${PROJECTS_DIR}/slack-trading
 
   conda:init:
@@ -34,7 +34,7 @@ tasks:
 
   conda:create:
     cmds:
-      - 'conda env create -f trading_env.yml'
+      - 'conda env create -f grodt.yml'
     dir: ${PROJECTS_DIR}/slack-trading
 
   conda:list:
@@ -43,7 +43,7 @@ tasks:
 
   conda:update:
     cmds:
-      - 'conda env update -f trading_env.yml --name trading --prune'
+      - 'conda env update -f grodt.yml --name trading --prune'
     dir: ${PROJECTS_DIR}/slack-trading
 
   conda:export:
@@ -149,6 +149,7 @@ tasks:
       - task test:e2e:live-account-multiple-open
       - task test:e2e:live-account-multiple-playgrounds
       - task test:e2e:live-account-reject-order
+      - task test:e2e:live-account-simulate-options
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
   test:e2e:live-account-get-open-orders:
@@ -209,7 +210,11 @@ tasks:
   test:e2e:live-account-cancel-order:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCancelOrder$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing 
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+  test:e2e:simulate-options:
+    cmds:
+      - 'go test -timeout 60s -v -count=1 -run ^TestSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
   metrics:token:
     cmds:

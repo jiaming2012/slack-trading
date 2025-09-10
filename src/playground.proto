@@ -257,6 +257,7 @@ message Position {
     double pl = 3;
     double maintenance_margin = 4;
     double current_price = 5;
+    string timestamp = 6;
 }
  
 message PlaceOrderRequest {

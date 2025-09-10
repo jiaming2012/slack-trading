@@ -3,13 +3,13 @@ package eventmodels
 import "time"
 
 type PolygonAggregateBarV2 struct {
-	Volume               float64   `json:"volume"`
-	VWAP                 float64   `json:"-"`
-	Open                 float64   `json:"open"`
-	Close                float64   `json:"close"`
-	High                 float64   `json:"high"`
-	Low                  float64   `json:"low"`
-	Timestamp            time.Time `json:"datetime"`
+	Volume    float64   `json:"volume"`
+	VWAP      float64   `json:"-"`
+	Open      float64   `json:"open"`
+	Close     float64   `json:"close"`
+	High      float64   `json:"high"`
+	Low       float64   `json:"low"`
+	Timestamp time.Time `json:"datetime"`
 }
 
 func (p *PolygonAggregateBarV2) GetTimestamp() time.Time {
@@ -34,6 +34,17 @@ func (p *PolygonAggregateBarV2) GetClose() float64 {
 
 func (p *PolygonAggregateBarV2) GetVolume() float64 {
 	return p.Volume
+}
+
+func (p *PolygonAggregateBarV2) ToAggregateBarWithIndicators() *AggregateBarWithIndicators {
+	return &AggregateBarWithIndicators{
+		Timestamp: p.Timestamp,
+		Open:      p.Open,
+		Close:     p.Close,
+		High:      p.High,
+		Low:       p.Low,
+		Volume:    p.Volume,
+	}
 }
 
 func (p *PolygonAggregateBarV2) ToDTO() PolygonAggregateBarV2DTO {

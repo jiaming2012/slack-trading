@@ -9,6 +9,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 
@@ -123,8 +124,15 @@ func FetchPolygonIndexChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 	return FetchPolygonStockChart(symbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
 }
 
-func FetchPolygonOptionAggregateBars(symbol string, from time.Time, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
-	url := fmt.Sprintf("https://api.polygon.io/v3/reference/options/contracts/%s/aggregates?from=%s&to=%s&limit=50000&sort=asc&apiKey=%s", symbol, from.Format("2006-01-02"), time.Now().Format("2006-01-02"), apiKey)
+func FetchPolygonOptionAggregateBars(symbol string, from time.Time, to *time.Time, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+	var toTimestamp time.Time
+	if to == nil {
+		toTimestamp = time.Now()
+	} else {
+		toTimestamp = *to
+	}
+
+	url := fmt.Sprintf("https://api.polygon.io/v2/aggs/ticker/%s/range/1/minute/%s/%s?apiKey=%s", symbol, from.Format("2006-01-02"), toTimestamp.Format("2006-01-02"), apiKey)
 	return FetchPolygonAggregateBars(false)(url, apiKey)
 }
 
@@ -265,6 +273,19 @@ func NewPolygonOptionsClient(baseUrl, apiKey string) *PolygonOptionsClient {
 		BaseURL: baseUrl,
 		ApiKey:  apiKey,
 	}
+}
+
+func (fetcher *PolygonOptionsClient) GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+	candles, err := FetchOptionCandles(fetcher, playgroundID, symbol, period, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("PolygonOptionsClient.GetCandles: failed to fetch option candles: %w", err)
+	}
+
+	return candles, nil
+}
+
+func (fetcher *PolygonOptionsClient) FetchPolygonOptionAggregateBars(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+	return FetchPolygonOptionAggregateBars(string(symbol), from, to, fetcher.ApiKey)
 }
 
 func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, projectDir string, signalName eventmodels.SignalName, bFindSpreads bool, startsAt, endsAt time.Time, ticker eventmodels.StockSymbol, goEnv string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, now time.Time) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
@@ -446,12 +467,6 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 	if err != nil {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market close: %w", err)
 	}
-
-	// todo: separate bid/ask and exec req price: kindle 0122
-	// nextDayMarketClose, err := eventmodels.ConvertToMarketClose(timestamp.Add(24 * time.Hour))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market close: %w", err)
-	// }
 
 	polygonOptionTickDataReq := &eventmodels.PolygonOptionTickDataRequest{
 		BaseURL:   fetcher.BaseURL,

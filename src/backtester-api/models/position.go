@@ -12,6 +12,7 @@ type Position struct {
 	PL                float64 `json:"pl"`
 	MaintenanceMargin float64 `json:"maintenance_margin"`
 	CurrentPrice      float64 `json:"current_price"`
+	Timestamp         string  `json:"timestamp"`
 }
 
 func (p *Position) Scan(value interface{}) error {

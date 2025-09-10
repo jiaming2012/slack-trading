@@ -20,6 +20,7 @@ type PopulatePlaygroundRequest struct {
 	EquityPlotRecords   []*eventmodels.EquityPlot             `json:"equity_plot_records"`
 	CreatedAt           time.Time                             `json:"created_at"`
 	Tags                []string                              `json:"tags"`
+	OptionsBroker       IOptionsBroker                        `json:"-"`
 	Calendar            *eventmodels.MarketCalendar           `json:"-"`
 	SaveToDB            bool                                  `json:"-"`
 	LiveAccount         ILiveAccount                          `json:"-"`

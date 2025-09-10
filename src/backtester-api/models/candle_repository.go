@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventservices"
+	"github.com/jiaming2012/slack-trading/src/models"
 )
 
 type CandleRepository struct {
@@ -28,6 +30,43 @@ type CandleRepository struct {
 	nextUpdateAt          *time.Time
 	source                eventmodels.CandleRepositorySource
 	mutex                 *sync.Mutex
+	optionComponents      *eventmodels.OptionSymbolComponents
+}
+
+func (r *CandleRepository) Count() int {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	return len(r.candlesWithIndicators)
+}
+
+func (r *CandleRepository) Sort() {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	sort.Slice(r.candlesWithIndicators, func(i, j int) bool {
+		return r.candlesWithIndicators[i].Timestamp.Before(r.candlesWithIndicators[j].Timestamp)
+	})
+}
+
+func (r *CandleRepository) AddCandles(candles []*eventmodels.AggregateBarWithIndicators) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	switch r.symbol.(type) {
+	case eventmodels.OptionSymbol:
+	case *eventmodels.OptionContractV3:
+	default:
+		return fmt.Errorf("AddCandles: unsupported symbol type: %T", r.symbol)
+	}
+
+	r.candlesWithIndicators = append(r.candlesWithIndicators, candles...)
+
+	sort.Slice(r.candlesWithIndicators, func(i, j int) bool {
+		return r.candlesWithIndicators[i].Timestamp.Before(r.candlesWithIndicators[j].Timestamp)
+	})
+
+	return nil
 }
 
 func (r *CandleRepository) SetNextUpdateAt(lastTstamp time.Time) time.Time {
@@ -102,6 +141,10 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
+	if len(r.candlesWithIndicators) == 0 {
+		return fmt.Errorf("no candles available to set starting position")
+	}
+
 	for i, candle := range r.candlesWithIndicators {
 		if candle.Timestamp.Equal(currentTime) || candle.Timestamp.After(currentTime) {
 			start := i
@@ -136,6 +179,21 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 	}
 
 	return fmt.Errorf("no candles found at or after %s", currentTime)
+}
+
+func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, candle := range r.candlesWithIndicators {
+		if candle.Timestamp.Equal(tstamp) || candle.Timestamp.After(tstamp) {
+			return candle, nil
+		}
+	}
+
+	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp)
+
+	return nil, nil
 }
 
 func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, error) {
@@ -208,19 +266,25 @@ func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time)
 	return candles, nil
 }
 
-func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) GetCandleAt(at time.Time, maxAge time.Duration) (*eventmodels.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	for _, candle := range r.candlesWithIndicators {
-		if candle.Timestamp.Equal(tstamp) || candle.Timestamp.After(tstamp) {
+		if candle.Timestamp.Equal(at) {
+			return candle, nil
+		}
+
+		if candle.Timestamp.After(at) {
+			if maxAge > 0 && candle.Timestamp.Before(at.Add(-maxAge)) {
+				return nil, fmt.Errorf("No candles found for %s at %s within max age %s", r.symbol, at, maxAge)
+			}
+
 			return candle, nil
 		}
 	}
 
-	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp)
-
-	return nil, nil
+	return nil, fmt.Errorf("No candles found for %s at or after %s", r.symbol, at)
 }
 
 func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
@@ -249,6 +313,12 @@ func (r *CandleRepository) GetCurrentCandle() (*eventmodels.AggregateBarWithIndi
 func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+
+	if r.optionComponents != nil {
+		if currentTime.After(r.optionComponents.Expiration) {
+			return nil, models.ErrOptionContractIsExpired
+		}
+	}
 
 	if r.position >= len(r.candlesWithIndicators) {
 		return nil, fmt.Errorf("no more candles")
@@ -328,6 +398,17 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		}
 	}
 
+	var optionComponents *eventmodels.OptionSymbolComponents
+	switch optSymbol := symbol.(type) {
+	case eventmodels.OptionSymbol:
+		components, err := optSymbol.Components()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get option symbol components: %v", err)
+		}
+
+		optionComponents = components
+	}
+
 	log.Debugf("adding newCandlesQueue(%p) to CandleRepository (%s, %s)", newCandlesQueue, symbol, period.String())
 
 	return &CandleRepository{
@@ -344,5 +425,6 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		historyInDays:         historyInDays,
 		source:                source,
 		mutex:                 &sync.Mutex{},
+		optionComponents:      optionComponents,
 	}, nil
 }

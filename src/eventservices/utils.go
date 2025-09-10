@@ -4,8 +4,33 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
+
+func FetchOptionCandles(client *PolygonOptionsClient, playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+	result, err := client.FetchPolygonOptionAggregateBars(playgroundID, symbol, period, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("fetchOptionCandles: failed to fetch option candles: %w", err)
+	}
+
+	var candles []*eventmodels.AggregateBarWithIndicators
+	for _, bar := range result.Results {
+		timestamp := time.UnixMilli(int64(bar.Time))
+		candles = append(candles, &eventmodels.AggregateBarWithIndicators{
+			Timestamp: timestamp,
+			Open:      bar.Open,
+			Close:     bar.Close,
+			High:      bar.High,
+			Low:       bar.Low,
+		})
+	}
+
+	// todo: add a cache for the candles
+
+	return candles, nil
+}
 
 func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (float64, error) {
 	var closestCandle *eventmodels.Candle

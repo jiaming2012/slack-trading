@@ -25,7 +25,11 @@ func (req *CreateOrderRequest) Validate() error {
 		return fmt.Errorf("invalid class: %w", err)
 	}
 
-	if err := req.Side.Validate(); err != nil {
+	if req.Class == OrderRecordClassOption && req.Symbol[:2] != "O:" {
+		return fmt.Errorf("invalid option symbol format: %s. Must start with 'O:'", req.Symbol)
+	}
+
+	if err := req.Side.Validate(req.Class); err != nil {
 		return fmt.Errorf("invalid side: %w", err)
 	}
 

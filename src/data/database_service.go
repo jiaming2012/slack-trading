@@ -68,9 +68,10 @@ type DatabaseService struct {
 	liveRepositories     map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository
 	brokerMap            map[models.CreateAccountRequestSource]models.IBroker
 	liveAccountsMutex    sync.Mutex
+	polygonOptionsBroker models.IOptionsBroker
 }
 
-func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *DatabaseService {
+func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient, optionsBroker models.IOptionsBroker) *DatabaseService {
 	return &DatabaseService{
 		db:                   db,
 		playgrounds:          make(map[uuid.UUID]*models.Playground),
@@ -80,6 +81,7 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient) *Datab
 		polygonClient:        polygonClient,
 		ordersCache:          make(map[uint]*models.OrderRecord),
 		tradesCache:          make(map[uint]*models.TradeRecord),
+		polygonOptionsBroker: optionsBroker,
 	}
 }
 
@@ -787,6 +789,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		}
 	}
 
+	req.OptionsBroker = s.polygonOptionsBroker
+
 	// create playground
 	if env == models.PlaygroundEnvironmentReconcile {
 		if req.LiveAccount == nil {
@@ -1271,10 +1275,10 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		req.ExternalOrderID,
 		req.ClientRequestID,
 		playground.GetId(),
+		req.Symbol,
 		req.Class,
 		playground.Meta.LiveAccountType,
 		createdOn,
-		eventmodels.StockSymbol(req.Symbol),
 		req.Side,
 		req.Quantity,
 		req.OrderType,

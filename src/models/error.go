@@ -2,6 +2,8 @@ package models
 
 import "fmt"
 
+var ErrOptionContractIsExpired = fmt.Errorf("option contract is expired")
+var ErrNoCandlesFound = fmt.Errorf("no candles found")
 var NoRequestParams = fmt.Errorf("no request params found")
 var BalanceOutOfRangeErr = fmt.Errorf("balance is out of range")
 var MaxLossPercentErr = fmt.Errorf("maxLossPercentage must be a value between 0 and 1")
@@ -31,7 +33,7 @@ var NoOfTradesMustBeZeroErr = fmt.Errorf("number of trades for a level with allo
 var NoClosePercentSetErr = fmt.Errorf("closing trades must have a closePercent set")
 var InvalidClosePercentErr = fmt.Errorf("close percent value must be be > 0 and <= 1")
 
-//var DuplicateCloseTradeErr = fmt.Errorf("volume of closing trade must be less than or equal to the sum of offset trade's volume")
+// var DuplicateCloseTradeErr = fmt.Errorf("volume of closing trade must be less than or equal to the sum of offset trade's volume")
 var BalanceGreaterThanZeroErr = fmt.Errorf("balance must be greater than zero")
 var OffsetTradesVolumeExceedsClosingTradeVolumeErr = fmt.Errorf("the sum of N-1 offsetting trades volume cannot be greater or equal to the closing trades volume")
 var NoOffsettingTradeErr = fmt.Errorf("closing trades must have at least one offsetting trade")

@@ -119,13 +119,13 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	}
 
 	var optionProfit1 OptionProfit
-	if option1.OptionType == eventmodels.ThetaDataOptionTypeCall {
+	if option1.OptionType == eventmodels.OptionTypeCall {
 		if underlyingClosePrcAtExpiry > option1.StrikePrice {
 			optionProfit1.IsInMoney = true
 		} else {
 			optionProfit1.IsInMoney = false
 		}
-	} else if option1.OptionType == eventmodels.ThetaDataOptionTypePut {
+	} else if option1.OptionType == eventmodels.OptionTypePut {
 		if underlyingClosePrcAtExpiry < option1.StrikePrice {
 			optionProfit1.IsInMoney = true
 		} else {
@@ -151,13 +151,13 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	}
 
 	var optionProfit2 OptionProfit
-	if option2.OptionType == eventmodels.ThetaDataOptionTypeCall {
+	if option2.OptionType == eventmodels.OptionTypeCall {
 		if underlyingClosePrcAtExpiry > option2.StrikePrice {
 			optionProfit2.IsInMoney = true
 		} else {
 			optionProfit2.IsInMoney = false
 		}
-	} else if option2.OptionType == eventmodels.ThetaDataOptionTypePut {
+	} else if option2.OptionType == eventmodels.OptionTypePut {
 		if underlyingClosePrcAtExpiry < option2.StrikePrice {
 			optionProfit2.IsInMoney = true
 		} else {
