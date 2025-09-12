@@ -21,8 +21,6 @@ func TestLiveAccountFilled(t *testing.T) {
 	// Start main app container
 	p := createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
 
-	fmt.Printf("Playground client: %v\n", p)
-
 	createLivePgResp, err := p.CreateLivePlayground(ctx, &playground.CreateLivePlaygroundRequest{
 		Balance:     10000,
 		Broker:      "tradier",

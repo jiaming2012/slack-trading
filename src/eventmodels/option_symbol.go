@@ -23,9 +23,6 @@ func (s OptionSymbol) ConvertToOptionContractV3() (*OptionContractV3, error) {
 }
 
 func (s OptionSymbol) GetTicker() string {
-	if strings.HasPrefix(string(s), "O:") {
-		return string(s)[2:]
-	}
 	return string(s)
 }
 
@@ -69,6 +66,13 @@ func (s OptionSymbol) Description() (string, error) {
 	formatted := fmt.Sprintf("%s %s $%s %s", components.Underlying, expiration, strikePrice, optionType)
 
 	return formatted, nil
+}
+
+func NewOptionSymbolFromString(s string) (OptionSymbol, error) {
+	if strings.HasPrefix(s, "O:") {
+		return OptionSymbol(s), nil
+	}
+	return "", fmt.Errorf("invalid option symbol format: %s", s)
 }
 
 func NewOptionSymbolFromComponents(option OptionSymbolComponents) (OptionSymbol, error) {

@@ -1,13 +1,14 @@
 package models
 
 import (
+	"log"
 	"time"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type CandleMasterRepository struct {
-	data          map[string]map[time.Duration]*CandleRepository
+	data           map[string]map[time.Duration]*CandleRepository
 	instrumentMeta map[string]eventmodels.Instrument
 }
 
@@ -19,9 +20,9 @@ func NewCandleMasterRepository(repos map[eventmodels.Instrument]map[time.Duratio
 		data[k.GetTicker()] = v
 		instrumentMeta[k.GetTicker()] = k
 	}
-	
+
 	return &CandleMasterRepository{
-		data:          data,
+		data:           data,
 		instrumentMeta: instrumentMeta,
 	}
 }
@@ -53,7 +54,20 @@ func (r *CandleMasterRepository) Get(instrument eventmodels.Instrument, period t
 func (r *CandleMasterRepository) Iter() map[eventmodels.Instrument]map[time.Duration]*CandleRepository {
 	out := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
 	for k, v := range r.data {
-		out[r.instrumentMeta[k]] = v
+		if instrument, found := r.instrumentMeta[k]; found {
+			out[instrument] = v
+		} else {
+			if optionSymbol, err := eventmodels.NewOptionSymbolFromString(k); err == nil {
+				optionContract, err := optionSymbol.ConvertToOptionContractV3()
+				if err != nil {
+					log.Fatalf("failed to convert option symbol to OptionContractV3 for key: %s, error: %v", k, err)
+				}
+
+				out[optionContract] = v
+			} else {
+				log.Fatalf("failed to find instrument metadata for key: %s", k)
+			}
+		}
 	}
 	return out
 }

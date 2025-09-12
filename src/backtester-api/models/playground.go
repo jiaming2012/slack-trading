@@ -1402,10 +1402,10 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 			}
 
 			if errors.Is(err, models.ErrNoCandlesFound) {
-				log.Warnf("no candles found for %s @ %v", order.GetInstrument(), p.clock.CurrentTime)
+				log.Warnf("simulateTick: no candles found for %s @ %v", order.GetInstrument(), p.clock.CurrentTime)
 				continue
 			}
-			
+
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
@@ -1420,13 +1420,13 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	if err != nil {
 		return nil, fmt.Errorf("error updating order queue: %w", err)
 	}
-	
+
 	// Check for liquidations
 	liquidationEvents, err := p.checkForLiquidations(positionCache)
 	if err != nil {
 		return nil, fmt.Errorf("error checking for liquidations: %w", err)
 	}
-	
+
 	var tickDeltaEvents []*TickDeltaEvent
 	if liquidationEvents != nil {
 		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
@@ -1908,7 +1908,7 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 
 	equityPlot, err := p.updateAccountStats(currentTime)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update account stats: %w", err)
+		log.Warnf("failed to update account stats: %v", err)
 	}
 
 	return &TickDelta{

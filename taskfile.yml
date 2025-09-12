@@ -149,7 +149,13 @@ tasks:
       - task test:e2e:live-account-multiple-open
       - task test:e2e:live-account-multiple-playgrounds
       - task test:e2e:live-account-reject-order
+      - task test:e2e:simulate-options
       - task test:e2e:live-account-simulate-options
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
+  test:e2e:live-account-simulate-options:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestLiveAccountSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
   test:e2e:live-account-get-open-orders:
