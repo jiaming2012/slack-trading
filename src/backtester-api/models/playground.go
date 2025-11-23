@@ -290,7 +290,7 @@ func (p *Playground) GetRepositories() []*CandleRepository {
 }
 
 func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*OrderRecord {
-	return p.openOrdersCache.Get(symbol)
+	return p.openOrdersCache.Get(symbol.GetTicker())
 }
 
 func (p *Playground) GetOpenOrder(id uint) *OrderRecord {
@@ -331,7 +331,7 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, positio
 		// margin check
 		freeMargin = p.GetFreeMarginFromPositionMap(positionCache)
 		initialMargin = calculateInitialMarginRequirement(orderQuantity, orderFillEntry.Price)
-		position := positionCache.Get(order.GetInstrument())
+		position := positionCache.Get(order.GetInstrument().GetTicker())
 
 		if position != nil {
 			if position.Quantity < 0 && orderQuantity > 0 {
@@ -532,7 +532,7 @@ func calcVwap(orders []*OrderRecord) float64 {
 }
 
 func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, positionCache *PositionsCache, symbol eventmodels.Instrument, trade *TradeRecord, isClose bool) {
-	position := positionCache.Get(symbol)
+	position := positionCache.Get(symbol.GetTicker())
 
 	totalQuantity := position.Quantity + trade.Quantity
 
@@ -541,7 +541,7 @@ func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, posi
 		positionCache.Delete(symbol)
 	} else {
 		if !isClose {
-			position.CostBasis = calcVwap(openOrdersCache.Get(symbol))
+			position.CostBasis = calcVwap(openOrdersCache.Get(symbol.GetTicker()))
 		}
 
 		// update the quantity
@@ -662,7 +662,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 			case *eventmodels.OptionContractV3:
 				repo, ok = p.repos.Get(s, p.minimumPeriod)
 				if !ok {
-					from := p.clock.CurrentTime.Add(-p.minimumPeriod)
+					from := s.Expiration.Add(-7 * 24 * time.Hour)
 					to := s.Expiration.Add(24 * time.Hour)
 
 					var err error
@@ -1015,9 +1015,9 @@ func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionCac
 		}
 
 		positionCache := positionCache.Get(symbol)
-
-		if positionCache.Quantity != position[symbol.GetTicker()].Quantity {
-			return fmt.Errorf("open orders cache symbol %s quantity %f does not match positions cache quantity %f", symbol, positionCache.Quantity, position[symbol.GetTicker()].Quantity)
+		fmt.Printf("position: %+v, positionCache: %+v\n", position[symbol], positionCache)
+		if positionCache.Quantity != position[symbol].Quantity {
+			return fmt.Errorf("open orders cache symbol %s quantity %f does not match positions cache quantity %f", symbol, positionCache.Quantity, position[symbol].Quantity)
 		}
 	}
 
@@ -1025,7 +1025,7 @@ func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionCac
 }
 
 func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFillEntry ExecutionFillRequest) (*TradeRecord, bool, error) {
-	position := p.positionCache.Get(order.GetInstrument())
+	position := p.positionCache.Get(order.GetInstrument().GetTicker())
 
 	if performChecks {
 		orderStatus := order.GetStatus()
@@ -1125,7 +1125,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 }
 
 func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRecord, previousPositionCache *PositionsCache) {
-	previousPosition := previousPositionCache.Get(symbol)
+	previousPosition := previousPositionCache.Get(symbol.GetTicker())
 
 	if previousPosition.Quantity > 0 {
 		if trade.Quantity < 0 {
@@ -1493,6 +1493,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 					ExpiredOptionContractEvent: &ExpiredOptionContractEvent{
 						Symbol:                  s.Symbol,
 						UnderlyingPriceAtExpiry: currentPrice,
+						Timestamp:               p.clock.CurrentTime,
 					},
 				})
 			}
@@ -1571,7 +1572,7 @@ func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool
 		}
 	}
 
-	position := positionCache.Get(symbol)
+	position := positionCache.Get(symbol.GetTicker())
 
 	return *position, nil
 }
@@ -2174,7 +2175,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return nil, fmt.Errorf("error getting positions: %w", err)
 	}
 
-	position := positionCache.Get(order.GetInstrument())
+	position := positionCache.Get(order.GetInstrument().GetTicker())
 
 	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
 		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity, true); err != nil {

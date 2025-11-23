@@ -1,6 +1,10 @@
 package models
 
-import "github.com/jiaming2012/slack-trading/src/eventmodels"
+import (
+	"time"
+
+	"github.com/jiaming2012/slack-trading/src/eventmodels"
+)
 
 type TickDelta struct {
 	NewTrades          []*TradeRecord          `json:"new_trades,omitempty"`
@@ -32,4 +36,5 @@ type LiquidationEvent struct {
 type ExpiredOptionContractEvent struct {
 	Symbol                  eventmodels.OptionSymbol `json:"symbol"`
 	UnderlyingPriceAtExpiry float64                  `json:"underlying_price_at_expiry"`
+	Timestamp               time.Time                `json:"timestamp"`
 }

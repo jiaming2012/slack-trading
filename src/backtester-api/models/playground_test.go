@@ -424,11 +424,11 @@ func TestValidateCache(t *testing.T) {
 		require.Equal(t, OrderRecordStatusFilled, order1.Status)
 
 		// Check position cache
-		position := playground.positionCache.Get(symbol)
+		position := playground.positionCache.Get(symbol.GetTicker())
 		require.Equal(t, 30.0, position.Quantity)
 
 		// Check open orders cache
-		openOrders := playground.openOrdersCache.Get(symbol)
+		openOrders := playground.openOrdersCache.Get(symbol.GetTicker())
 
 		require.Len(t, openOrders, 1)
 		require.Equal(t, order1.ID, openOrders[0].ID)
@@ -1310,7 +1310,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, 2, positionCache.Len())
 
 		// check first position
-		position1 := positionCache.Get(symbol1)
+		position1 := positionCache.Get(symbol1.GetTicker())
 		require.Equal(t, 6.0, position1.Quantity)
 		require.Less(t, position1.CostBasis-166.667, 0.01)
 		require.Equal(t, symbol1_Price, position1.CurrentPrice)
@@ -1320,7 +1320,7 @@ func TestBalance(t *testing.T) {
 		require.Greater(t, position1.MaintenanceMargin, 0.0)
 
 		// check second position
-		position2 := positionCache.Get(symbol2)
+		position2 := positionCache.Get(symbol2.GetTicker())
 		require.Equal(t, -5.0, position2.Quantity)
 		require.Less(t, position2.CostBasis-300.0, 0.01)
 		require.Equal(t, symbol2_Price, position2.CurrentPrice)
@@ -2558,7 +2558,7 @@ func TestFreeMargin(t *testing.T) {
 
 		positionCache, err := playground.UpdatePricesAndGetPositionCache()
 		require.NoError(t, err)
-		usedMargin := positionCache.Get(symbol).MaintenanceMargin
+		usedMargin := positionCache.Get(symbol.GetTicker()).MaintenanceMargin
 		require.Equal(t, 500.0, usedMargin)
 
 		freeMargin, err := playground.GetFreeMargin()

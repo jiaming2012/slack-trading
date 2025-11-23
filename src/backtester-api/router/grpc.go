@@ -700,18 +700,37 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 
 	tickDeltaEvents := make([]*pb.TickDeltaEvent, 0)
 	for _, event := range tick.Events {
-		var liquidationEvent *pb.LiquidationEvent
-
 		if event.LiquidationEvent != nil {
 			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced, nil)
 
-			liquidationEvent = &pb.LiquidationEvent{
+			liquidationEvent := &pb.LiquidationEvent{
 				OrdersPlaced: ordersPlaced,
 			}
 
 			tickDeltaEvents = append(tickDeltaEvents, &pb.TickDeltaEvent{
 				Type:             string(models.TickDeltaEventTypeLiquidation),
 				LiquidationEvent: liquidationEvent,
+			})
+		}
+
+		if event.ExpiredOptionContractEvent != nil {
+			components, err := event.ExpiredOptionContractEvent.Symbol.Components()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get option components: %v", err)
+			}
+
+			optionExpiredEvent := &pb.OptionExpirationEvent{
+				OptionSymbol:                string(components.Symbol.GetTicker()),
+				UnderlyingSymbol:            string(components.Underlying),
+				Timestamp:                   event.ExpiredOptionContractEvent.Timestamp.Format(time.RFC3339),
+				ExpirationDate:              components.Expiration.Format(time.RFC3339),
+				UnderlyingPriceAtExpiration: event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry,
+				Strike:                      components.StrikePrice,
+			}
+
+			tickDeltaEvents = append(tickDeltaEvents, &pb.TickDeltaEvent{
+				Type:                  string(models.TickDeltaEventTypeOptionExpired),
+				OptionExpirationEvent: optionExpiredEvent,
 			})
 		}
 	}

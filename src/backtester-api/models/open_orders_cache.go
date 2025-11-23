@@ -4,12 +4,10 @@ import (
 	"sync"
 
 	"github.com/jinzhu/copier"
-
-	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
 type OpenOrdersCache struct {
-	cache map[eventmodels.Instrument][]*OrderRecord
+	cache map[string][]*OrderRecord
 	mu    sync.RWMutex
 }
 
@@ -33,7 +31,7 @@ func (o *OpenOrdersCache) Len() int {
 	return size
 }
 
-func (o *OpenOrdersCache) Iter() (out map[eventmodels.Instrument][]*OrderRecord, done func()) {
+func (o *OpenOrdersCache) Iter() (out map[string][]*OrderRecord, done func()) {
 	if o.cache == nil {
 		return nil, nil
 	}
@@ -49,7 +47,7 @@ func (o *OpenOrdersCache) Iter() (out map[eventmodels.Instrument][]*OrderRecord,
 	return out, done
 }
 
-func (o *OpenOrdersCache) Delete(symbol eventmodels.Instrument, index int) {
+func (o *OpenOrdersCache) Delete(ticker string, index int) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -57,16 +55,16 @@ func (o *OpenOrdersCache) Delete(symbol eventmodels.Instrument, index int) {
 		return
 	}
 
-	if _, ok := o.cache[symbol]; !ok {
+	if _, ok := o.cache[ticker]; !ok {
 		return
 	}
 
-	if index < 0 || index >= len(o.cache[symbol]) {
+	if index < 0 || index >= len(o.cache[ticker]) {
 		return
 	}
 
 	// Remove the order at the specified index
-	o.cache[symbol] = append(o.cache[symbol][:index], o.cache[symbol][index+1:]...)
+	o.cache[ticker] = append(o.cache[ticker][:index], o.cache[ticker][index+1:]...)
 }
 
 func (o *OpenOrdersCache) Add(order *OrderRecord) {
@@ -74,25 +72,26 @@ func (o *OpenOrdersCache) Add(order *OrderRecord) {
 	defer o.mu.Unlock()
 
 	if o.cache == nil {
-		o.cache = make(map[eventmodels.Instrument][]*OrderRecord)
+		o.cache = make(map[string][]*OrderRecord)
 	}
 
-	if _, ok := o.cache[order.instrument]; !ok {
-		o.cache[order.instrument] = []*OrderRecord{}
+	if _, ok := o.cache[order.instrument.GetTicker()]; !ok {
+		o.cache[order.instrument.GetTicker()] = []*OrderRecord{}
 	}
 
 	// Append the order to the slice for the given symbol
-	o.cache[order.instrument] = append(o.cache[order.instrument], order)
+	o.cache[order.instrument.GetTicker()] = append(o.cache[order.instrument.GetTicker()], order)
 }
 
-func (o *OpenOrdersCache) Get(symbol eventmodels.Instrument) []*OrderRecord {
+func (o *OpenOrdersCache) Get(ticker string) []*OrderRecord {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
 	if o.cache == nil {
-		o.cache = make(map[eventmodels.Instrument][]*OrderRecord)
+		o.cache = make(map[string][]*OrderRecord)
 	}
-	result, found := o.cache[symbol]
+
+	result, found := o.cache[ticker]
 	if !found {
 		return []*OrderRecord{}
 	}
@@ -118,6 +117,6 @@ func (o *OpenOrdersCache) Copy() *OpenOrdersCache {
 
 func NewOpenOrdersCache() *OpenOrdersCache {
 	return &OpenOrdersCache{
-		cache: make(map[eventmodels.Instrument][]*OrderRecord),
+		cache: make(map[string][]*OrderRecord),
 	}
 }

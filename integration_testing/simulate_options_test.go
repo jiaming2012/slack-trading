@@ -23,8 +23,8 @@ func TestSimulateOptions(t *testing.T) {
 
 		pg, err := client.CreatePlayground(ctx, &playground.CreatePolygonPlaygroundRequest{
 			Balance:   10000.0,
-			StartDate: "2025-09-03",
-			StopDate:  "2025-09-06",
+			StartDate: "2025-09-04",
+			StopDate:  "2025-09-08",
 			Repositories: []*playground.Repository{
 				{
 					Symbol:             "AAPL",
@@ -65,12 +65,40 @@ func TestSimulateOptions(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.Nil(t, tickDelta.InvalidOrders)
 
 		require.Len(t, tickDelta.NewTrades, 1)
 		require.Equal(t, -1.0, tickDelta.NewTrades[0].Quantity)
 		require.Greater(t, tickDelta.NewTrades[0].Price, 0.0)
 
-		require.Fail(t, "finish the test case")
+		// tick - 1st day
+		_, err = client.NextTick(ctx, &playground.NextTickRequest{
+			PlaygroundId: pg.Id,
+			Seconds:      6.5 * 3600.0,
+			IsPreview:    false,
+			RequestId:    fmt.Sprintf("test-request-id-%s", uuid.New().String()),
+		})
+
+		require.NoError(t, err)
+		require.Nil(t, tickDelta.InvalidOrders)
+
+		// tick - 2nd day
+		tickDelta, err = client.NextTick(ctx, &playground.NextTickRequest{
+			PlaygroundId: pg.Id,
+			Seconds:      6.5 * 3600.0,
+			IsPreview:    false,
+			RequestId:    fmt.Sprintf("test-request-id-%s", uuid.New().String()),
+		})
+
+		require.NoError(t, err)
+		require.Nil(t, tickDelta.InvalidOrders)
+
+		require.Len(t, tickDelta.Events, 1)
+
+		require.Equal(t, "option_expired", tickDelta.Events[0].Type)
+		require.GreaterOrEqual(t, tickDelta.Events[0].OptionExpirationEvent.Timestamp, tickDelta.Events[0].OptionExpirationEvent.ExpirationDate)
+		require.Equal(t, 230.0, tickDelta.Events[0].OptionExpirationEvent.Strike)
+		require.Equal(t, 239.69, tickDelta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiration)
 	})
 
 	// t.Run("Buy an option from the ladder", func(t *testing.T) {

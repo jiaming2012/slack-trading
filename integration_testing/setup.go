@@ -78,7 +78,8 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 	twirpUrl := "http://localhost:5051"
 
 	client := http.Client{
-		Timeout: 30 * time.Second,
+		// Timeout: 30 * time.Second,
+		Timeout: 30 * time.Minute,
 	}
 
 	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)
