@@ -68,18 +68,18 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 	require.NoError(t, err)
 
 	// Create a Playground
-	// appContainerHost, err := appContainer.Host(ctx)
-	// require.NoError(t, err)
+	appContainerHost, err := appContainer.Host(ctx)
+	require.NoError(t, err)
 
-	// appContainerPort, err := appContainer.MappedPort(ctx, "5051/tcp")
-	// require.NoError(t, err)
+	appContainerPort, err := appContainer.MappedPort(ctx, "5051/tcp")
+	require.NoError(t, err)
 
-	// twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
-	twirpUrl := "http://localhost:5051"
+	twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
+	// twirpUrl := "http://localhost:5051"
 
 	client := http.Client{
-		// Timeout: 30 * time.Second,
-		Timeout: 30 * time.Minute,
+		Timeout: 30 * time.Second,
+		// Timeout: 30 * time.Minute,
 	}
 
 	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)

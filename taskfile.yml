@@ -137,6 +137,7 @@ tasks:
 
   test:e2e:
     cmds:
+      - task app:build-dev
       - task test:e2e:live-account-cancel-order
       - task test:e2e:live-account-close-duplicate-canceled
       - task test:e2e:live-account-close-duplicate-rejected
