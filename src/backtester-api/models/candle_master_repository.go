@@ -73,6 +73,7 @@ func (r *CandleMasterRepository) Iter() map[eventmodels.Instrument]map[time.Dura
 }
 
 func (r *CandleMasterRepository) Delete(instrument eventmodels.Instrument) {
-	delete(r.data, instrument.GetTicker())
-	delete(r.instrumentMeta, instrument.GetTicker())
+	ticker := instrument.GetTicker()
+	delete(r.data, ticker)
+	delete(r.instrumentMeta, ticker)
 }

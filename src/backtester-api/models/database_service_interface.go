@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -42,4 +44,6 @@ type IDatabaseService interface {
 	UpdatePlaygroundSession(playgroundSession *Playground) error
 	FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error)
 	FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*OrderRecord, error)
+	SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error
+	PlaceOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*OrderRecord, error)
 }

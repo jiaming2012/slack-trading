@@ -1236,7 +1236,7 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 		}
 	}
 
-	order, err := s.makeOrderRecord(playground, req, createdOn)
+	order, err := s.commitOrderRecord(playground, req, createdOn)
 	if err != nil {
 		return nil, eventmodels.NewWebError(500, "failed to place order", err)
 	}
@@ -1250,7 +1250,7 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 	return order, nil
 }
 
-func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *models.CreateOrderRequest, createdOn time.Time) (*models.OrderRecord, error) {
+func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *models.CreateOrderRequest, createdOn time.Time) (*models.OrderRecord, error) {
 	order := &models.OrderRecord{}
 	if req.Id != nil {
 		order.ID = *req.Id
@@ -1289,6 +1289,7 @@ func (s *DatabaseService) makeOrderRecord(playground *models.Playground, req *mo
 		models.OrderRecordStatusPending,
 		req.Tag,
 		req.CloseOrderId,
+		req.IsSystemOrder,
 	)
 
 	if req.IsAdjustment {
@@ -1368,10 +1369,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
 	}
 
-	positionsKV := map[string]*models.Position{}
-	for k, v := range positionCache.Iter() {
-		positionsKV[k.GetTicker()] = v
-	}
+	positionsKV := positionCache.Iter()
 
 	response := models.GetAccountResponse{
 		Meta:       internalPlayground.GetMeta(),

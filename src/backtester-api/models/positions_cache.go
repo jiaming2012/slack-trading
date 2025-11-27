@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -15,25 +16,21 @@ type PositionsCache struct {
 	instruments map[string]eventmodels.Instrument
 }
 
-func (o *PositionsCache) Update(symbol eventmodels.Instrument, pl float64, currentPrice float64, timestamp time.Time) {
+func (o *PositionsCache) Update(symbol string, pl float64, currentPrice float64, timestamp time.Time) {
 	if o.cache == nil {
 		logger.Warnf("PositionsCache is nil: ignoring update ...")
 		return
 	}
 
-	ticker := symbol.GetTicker()
-	if _, ok := o.cache[ticker]; !ok {
+	if _, ok := o.cache[symbol]; !ok {
 		logger.Warnf("PositionsCache: symbol %s not found: ignoring update ...", symbol)
 		return
 	}
 
-	// Ensure instruments is in sync
-	o.instruments[ticker] = symbol
-
 	// Update the position with the new P&L and current price
-	o.cache[ticker].PL = pl
-	o.cache[ticker].CurrentPrice = currentPrice
-	o.cache[ticker].Timestamp = timestamp.Format(time.RFC3339)
+	o.cache[symbol].PL = pl
+	o.cache[symbol].CurrentPrice = currentPrice
+	o.cache[symbol].Timestamp = timestamp.Format(time.RFC3339)
 }
 
 func (o *PositionsCache) Set(symbol eventmodels.Instrument, position *Position) {
@@ -59,21 +56,27 @@ func (o *PositionsCache) Len() int {
 	return len(o.cache)
 }
 
-func (o *PositionsCache) Iter() map[eventmodels.Instrument]*Position {
+func (o *PositionsCache) Iter() map[string]*Position {
+	return o.cache
+}
+
+func (o *PositionsCache) List() ([]eventmodels.Instrument, []*Position) {
 	if o.cache == nil {
-		return nil
+		return nil, nil
 	}
 
-	result := make(map[eventmodels.Instrument]*Position)
+	var instruments []eventmodels.Instrument
+	var positions []*Position
 	for k, v := range o.cache {
 		instrument, found := o.instruments[k]
 		if !found {
 			log.Fatalf("PositionsCache: instrument for ticker %s not found", k)
 		}
 
-		result[instrument] = v
+		instruments = append(instruments, instrument)
+		positions = append(positions, v)
 	}
-	return result
+	return instruments, positions
 }
 
 func (o *PositionsCache) Delete(symbol eventmodels.Instrument) {
@@ -148,19 +151,24 @@ func (o *PositionsCache) Exists(symbol eventmodels.Instrument) bool {
 	return found
 }
 
-func (o *PositionsCache) SetCache(cache map[eventmodels.Instrument]*Position) {
+func (o *PositionsCache) SetCache(cache map[string]*Position, positionToInstrumentsMap map[*Position]eventmodels.Instrument) error {
 	internal := make(map[string]*Position)
 	instruments := make(map[string]eventmodels.Instrument)
 
-	for k, v := range cache {
-		ticker := k.GetTicker()
+	for symbol, position := range cache {
+		instrument, found := positionToInstrumentsMap[position]
+		if !found {
+			return fmt.Errorf("PositionsCache.SetCache: instrument for position not found")
+		}
 
-		instruments[ticker] = k
-		internal[ticker] = v
+		instruments[symbol] = instrument
+		internal[symbol] = position
 	}
 
 	o.cache = internal
 	o.instruments = instruments
+
+	return nil
 }
 
 func (o *PositionsCache) Commit(obj *PositionsCache) {

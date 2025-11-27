@@ -19,6 +19,57 @@ type MockDatabase struct {
 	tradeNounce          uint
 }
 
+func (m *MockDatabase) SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
+	return nil
+}
+
+func (m *MockDatabase) PlaceOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*OrderRecord, error) {
+	playground, found := m.playgrounds[playgroundID]
+	if !found {
+		return nil, fmt.Errorf("MockDatabase: playground not found")
+	}
+
+	id := uint(0)
+	oRecord, err := NewOrderRecord(
+		id,
+		req.ExternalOrderID,
+		req.ClientRequestID,
+		playgroundID,
+		req.Class,
+		playground.LiveAccountType,
+		playground.GetCurrentTime(),
+		req.Symbol,
+		req.Side,
+		req.Quantity,
+		req.OrderType,
+		req.Duration,
+		req.RequestedPrice,
+		req.Price,
+		nil,
+		OrderRecordStatusPending,
+		req.Tag,
+		req.CloseOrderId,
+		req.IsSystemOrder,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("MockDatabase: failed to create new order record: %w", err)
+	}
+
+	changes, err := playground.PlaceOrder(oRecord)
+	if err != nil {
+		return nil, fmt.Errorf("MockDatabase: failed to place order: %w", err)
+	}
+
+	for _, change := range changes {
+		if err := change.Commit(nil); err != nil {
+			return nil, fmt.Errorf("MockDatabase: failed to commit order change: %w", err)
+		}
+	}
+
+	return oRecord, nil
+}
+
 func (m *MockDatabase) GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error) {
 	return nil, nil
 }

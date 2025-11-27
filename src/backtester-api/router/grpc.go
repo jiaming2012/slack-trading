@@ -349,9 +349,9 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 	}
 
 	var reconcilePositions []*pb.PositionReport
-	for instrument, p := range reconciliationPlaygroundPositionCache.Iter() {
+	for symbol, p := range reconciliationPlaygroundPositionCache.Iter() {
 		reconcilePositions = append(reconcilePositions, &pb.PositionReport{
-			Symbol:       instrument.GetTicker(),
+			Symbol:       symbol,
 			Quantity:     p.Quantity,
 			PlaygroundId: &req.ReconcilePlaygroundId,
 		})
@@ -370,9 +370,9 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		if err != nil {
 			return nil, fmt.Errorf("failed to get %s positions: %v", playgroundId, err)
 		}
-		for instrument, pos := range positionCache.Iter() {
+		for symbol, pos := range positionCache.Iter() {
 			livePlaygroundPositions = append(livePlaygroundPositions, &pb.PositionReport{
-				Symbol:       instrument.GetTicker(),
+				Symbol:       symbol,
 				Quantity:     pos.Quantity,
 				PlaygroundId: &playgroundId,
 			})
@@ -439,14 +439,14 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 		}
 
 		positionsDTO := make(map[string]*pb.Position)
-		for k, v := range positionCache.Iter() {
-			positionsDTO[k.GetTicker()] = &pb.Position{
-				Quantity:          v.Quantity,
-				CostBasis:         v.CostBasis,
-				Pl:                v.PL,
-				MaintenanceMargin: v.MaintenanceMargin,
-				CurrentPrice:      v.CurrentPrice,
-				Timestamp:         v.Timestamp,
+		for symbol, pos := range positionCache.Iter() {
+			positionsDTO[symbol] = &pb.Position{
+				Quantity:          pos.Quantity,
+				CostBasis:         pos.CostBasis,
+				Pl:                pos.PL,
+				MaintenanceMargin: pos.MaintenanceMargin,
+				CurrentPrice:      pos.CurrentPrice,
+				Timestamp:         pos.Timestamp,
 			}
 		}
 

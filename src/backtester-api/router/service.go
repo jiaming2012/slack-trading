@@ -53,72 +53,9 @@ func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPrevi
 		return nil, fmt.Errorf("playground not found")
 	}
 
-	tickDelta, err := playground.Tick(duration, isPreview)
+	tickDelta, err := playground.Tick(duration, isPreview, s.dbService)
 	if err != nil {
 		return nil, fmt.Errorf("failed to tick: %v", err)
-	}
-
-	// Close expired option contracts repos
-	executionRequests := make(map[uint]models.ExecutionFillRequest)
-	for _, event := range tickDelta.Events {
-		if event.Type == models.TickDeltaEventTypeOptionExpired {
-			openOrders := playground.GetOpenOrders(event.ExpiredOptionContractEvent.Symbol)
-			for _, o := range openOrders {
-				components, err := event.ExpiredOptionContractEvent.Symbol.Components()
-				if err != nil {
-					return nil, fmt.Errorf("failed to get symbol components: %w", err)
-				}
-
-				var closePriceAtExpiration float64
-				if components.OptionType == eventmodels.OptionTypeCall {
-					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry > components.StrikePrice {
-						closePriceAtExpiration = event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry - components.StrikePrice
-					} else {
-						closePriceAtExpiration = 0
-					}
-				} else if components.OptionType == eventmodels.OptionTypePut {
-					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry < components.StrikePrice {
-						closePriceAtExpiration = components.StrikePrice - event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry
-					} else {
-						closePriceAtExpiration = 0
-					}
-				} else {
-					return nil, fmt.Errorf("unknown option type: %s", components.OptionType)
-				}
-
-				closeOrderRequest, err := o.CreateCloseOrderRequest(playground.GetCurrentTime(), closePriceAtExpiration, "auto-closed-on-expiration")
-				if err != nil {
-					return nil, fmt.Errorf("failed to create close order request: %w", err)
-				}
-
-				closeOrder, closeErr := s.dbService.PlaceOrder(playgroundID, closeOrderRequest)
-				if closeErr != nil {
-					return nil, fmt.Errorf("failed to place close order: %w", closeErr)
-				}
-
-				executionRequests[closeOrder.ID] = models.ExecutionFillRequest{
-					Price:    closeOrder.RequestedPrice,
-					Time:     playground.GetCurrentTime(),
-					Quantity: closeOrder.GetQuantity(),
-				}
-			}
-
-			playground.DeleteRepository(event.ExpiredOptionContractEvent.Symbol)
-		}
-	}
-
-	newTrade, invalidOrders, _, err := playground.CommitOrderQueue(executionRequests)
-	if err != nil {
-		return nil, fmt.Errorf("failed to commit order queue: %w", err)
-	}
-
-	tickDelta.NewTrades = append(tickDelta.NewTrades, newTrade...)
-	tickDelta.InvalidOrders = append(tickDelta.InvalidOrders, invalidOrders...)
-
-	if playground.GetMeta().Environment == models.PlaygroundEnvironmentLive {
-		if err := s.dbService.SaveEquityPlotRecord(playgroundID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
-			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
-		}
 	}
 
 	return tickDelta, nil

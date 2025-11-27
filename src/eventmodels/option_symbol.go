@@ -19,6 +19,7 @@ func (s OptionSymbol) ConvertToOptionContractV3() (*OptionContractV3, error) {
 		Expiration:       components.Expiration,
 		Strike:           components.StrikePrice,
 		OptionType:       components.OptionType,
+		ContractSize:     100,
 	}, nil
 }
 

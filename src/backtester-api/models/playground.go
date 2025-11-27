@@ -360,7 +360,6 @@ func (p *Playground) commitTradableOrderToOrderQueue(order *OrderRecord, positio
 	if performMarginCheck && freeMargin <= initialMargin {
 		order.Reject(fmt.Errorf("%s: free_margin (%.2f) <= initial_margin (%.2f)", ErrInsufficientFreeMargin.Error(), freeMargin, initialMargin))
 		return fmt.Errorf("commitTradableOrderToOrderQueue: order %d has insufficient free margin", order.ID)
-
 	}
 
 	return nil
@@ -413,7 +412,7 @@ func (p *Playground) CommitPendingOrder(order *OrderRecord, positionCache *Posit
 	return nil, nil, nil, fmt.Errorf("order %d not found in pending orders", order.ID)
 }
 
-func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
+func (p *Playground) commitPendingOrders(executionFillMap map[*OrderRecord]ExecutionFillRequest, performChecks bool) (newTrades []*TradeRecord, invalidOrders []*OrderRecord, err error) {
 	pendingOrders := make([]*OrderRecord, len(p.account.PendingOrders))
 
 	copy(pendingOrders, p.account.PendingOrders)
@@ -432,21 +431,26 @@ func (p *Playground) commitPendingOrders(executionFillMap map[uint]ExecutionFill
 		// 	continue
 		// }
 
-		orderFillEntry, found := executionFillMap[order.ID]
+		orderFillEntry, found := executionFillMap[order]
 		if !found {
 			log.Warnf("error finding order filled entry price for order: %v", order.ID)
 			continue
 		}
 
-		positionCache, err := p.UpdatePositionCachePositions()
-		if err != nil {
-			order.Reject(err)
-			invalidOrders = append(invalidOrders, order)
-			log.Errorf("error updating position cache: %v", err)
-			if err := p.AddToOrderQueue(order); err != nil {
-				return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after UpdatePositionCachePositions(): %v", err)
-			}
-			continue
+		// positionCache, err := p.UpdatePositionCachePositions()
+		positionCache := p.GetPositionCache()
+		// if err != nil {
+		// 	order.Reject(err)
+		// 	invalidOrders = append(invalidOrders, order)
+		// 	log.Errorf("error updating position cache: %v", err)
+		// 	if err := p.AddToOrderQueue(order); err != nil {
+		// 		return nil, nil, fmt.Errorf("commitPendingOrders: error adding order to order queue after UpdatePositionCachePositions(): %v", err)
+		// 	}
+		// 	continue
+		// }
+
+		if order.GetIsSystemOrder() {
+			performChecks = false
 		}
 
 		if err := p.commitTradableOrderToOrderQueue(order, positionCache, orderFillEntry, performChecks); err != nil {
@@ -609,12 +613,12 @@ func (p *Playground) populateRepo(symbol eventmodels.OptionSymbol, from time.Tim
 	return repo, nil
 }
 
-func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eventmodels.Instrument]*Tick, error) {
-	result := make(map[eventmodels.Instrument]*Tick)
+func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[string]*Tick, error) {
+	result := make(map[string]*Tick)
 
 	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
 		if len(symbols) == 0 {
-			return map[eventmodels.Instrument]*Tick{}, nil
+			return map[string]*Tick{}, nil
 		}
 
 		broker := p.GetLiveAccount().GetBroker()
@@ -628,19 +632,9 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 		}
 
 		for _, q := range quotes {
-			var symbol eventmodels.Instrument
-
-			switch q.Type {
-			case "stock":
-				symbol = eventmodels.NewStockSymbol(q.Symbol)
-			default:
-				return nil, fmt.Errorf("getCurrentPrice: unknown quote type: %s", q.Type)
-			}
-
 			ts := time.Unix(q.TradeDate, 0)
-
-			result[symbol] = &Tick{
-				Symbol:    symbol,
+			result[q.Symbol] = &Tick{
+				Symbol:    q.Symbol,
 				Timestamp: ts,
 				Value:     q.Last,
 			}
@@ -656,7 +650,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 			case eventmodels.StockSymbol:
 				repo, ok = p.repos.Get(s, p.minimumPeriod)
 				if !ok {
-					return nil, fmt.Errorf("getCurrentPrice: no repository found for symbol %s and period %s", symbol, p.minimumPeriod)
+					return nil, fmt.Errorf("getCurrentPrice: no repository found for symbol %s and period %s", s, p.minimumPeriod)
 				}
 
 			case *eventmodels.OptionContractV3:
@@ -684,8 +678,9 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[eve
 				return nil, ErrCurrentPriceNotSet
 			}
 
-			result[symbol] = &Tick{
-				Symbol:    symbol,
+			ticker := symbol.GetTicker()
+			result[ticker] = &Tick{
+				Symbol:    ticker,
 				Timestamp: candle.Timestamp,
 				Value:     candle.Close,
 			}
@@ -909,7 +904,7 @@ func (p *Playground) closeOpenOrder(order *OrderRecord, openOrder *OrderRecord, 
 	return volumeToClose, nil
 }
 
-func (p *Playground) addClosesInfoToOrder(order *OrderRecord, position *Position) error {
+func (p *Playground) setCloseInfoToOrder(order *OrderRecord, position *Position) error {
 	orderQty := order.GetQuantity()
 
 	// check if the order is a close order
@@ -1066,7 +1061,8 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		return nil, false, fmt.Errorf("fillOrder: error filling order: %w", err)
 	}
 
-	closeByRequests, err := p.getCloseByRequests(order, position)
+	setCloseInfo := true
+	closeByRequests, err := p.getCloseByRequests(order, position, setCloseInfo)
 	if err != nil {
 		return nil, false, fmt.Errorf("fillOrder: error getting close by requests: %w", err)
 	}
@@ -1127,9 +1123,19 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRecord, previousPositionCache *PositionsCache) {
 	previousPosition := previousPositionCache.Get(symbol.GetTicker())
 
+	isOptionContract := false
+	switch symbol.(type) {
+	case eventmodels.OptionSymbol, *eventmodels.OptionContractV3:
+		isOptionContract = true
+	}
+
 	if previousPosition.Quantity > 0 {
 		if trade.Quantity < 0 {
 			closeQuantity := math.Min(previousPosition.Quantity, math.Abs(trade.Quantity))
+			if isOptionContract {
+				closeQuantity *= 100
+			}
+
 			pl := (trade.Price - previousPosition.CostBasis) * closeQuantity
 			log.Debugf("(%.2f, %.2f, %.2f) [SELL] pl: %.2f, balance %f -> %f", trade.Price, previousPosition.CostBasis, closeQuantity, pl, p.account.Balance, p.account.Balance+pl)
 			p.account.Balance += pl
@@ -1137,6 +1143,10 @@ func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRe
 	} else if previousPosition.Quantity < 0 {
 		if trade.Quantity > 0 {
 			closeQuantity := math.Min(math.Abs(previousPosition.Quantity), trade.Quantity)
+			if isOptionContract {
+				closeQuantity *= 100
+			}
+
 			pl := (previousPosition.CostBasis - trade.Price) * closeQuantity
 			log.Debugf("(%.2f, %.2f, %.2f) [COVER] pl: %.2f, balance %f -> %f", trade.Price, previousPosition.CostBasis, closeQuantity, pl, p.account.Balance, p.account.Balance+pl)
 			p.account.Balance += pl
@@ -1162,7 +1172,7 @@ func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 			return 0, fmt.Errorf("error fetching current price: %w", err)
 		}
 
-		tick, found := result[symbol]
+		tick, found := result[s.GetTicker()]
 		if !found {
 			return 0, fmt.Errorf("symbol %s not found in result", symbol)
 		}
@@ -1208,13 +1218,14 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	if position.Quantity > 0 {
 		externalId := p.account.NextOrderID()
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		isSystemOrder := true
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
 	} else if position.Quantity < 0 {
 		externalId := p.account.NextOrderID()
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil)
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, false)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
@@ -1224,7 +1235,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 	p.AddToPendingOrdersQueue(order)
 
-	orderFillPriceMap := map[uint]ExecutionFillRequest{}
+	orderFillPriceMap := map[*OrderRecord]ExecutionFillRequest{}
 
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
@@ -1232,7 +1243,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderFillPriceMap[order.ID] = ExecutionFillRequest{
+		orderFillPriceMap[order] = ExecutionFillRequest{
 			Price:    price,
 			Quantity: order.GetQuantity(),
 			Time:     p.clock.CurrentTime,
@@ -1342,7 +1353,7 @@ func (p *Playground) DeleteRepository(symbol eventmodels.Instrument) {
 	p.repos.Delete(symbol)
 }
 
-func (p *Playground) CommitOrderQueue(orderExecutionRequests map[uint]ExecutionFillRequest) ([]*TradeRecord, []*OrderRecord, *PositionsCache, error) {
+func (p *Playground) CommitOrderQueue(orderExecutionRequests map[*OrderRecord]ExecutionFillRequest) ([]*TradeRecord, []*OrderRecord, *PositionsCache, error) {
 	newTrades, invalidOrdersDTO, err := p.commitPendingOrders(orderExecutionRequests, true)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error committing pending orders: %w", err)
@@ -1392,7 +1403,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	p.account.mutex.Lock()
 	defer p.account.mutex.Unlock()
 
-	orderExecutionRequests := make(map[uint]ExecutionFillRequest)
+	orderExecutionRequests := make(map[*OrderRecord]ExecutionFillRequest)
 	for _, order := range p.account.PendingOrders {
 		price, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
 		if err != nil {
@@ -1409,7 +1420,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
 
-		orderExecutionRequests[order.ID] = ExecutionFillRequest{
+		orderExecutionRequests[order] = ExecutionFillRequest{
 			Price:    price,
 			Time:     p.clock.CurrentTime,
 			Quantity: order.GetQuantity(),
@@ -1515,15 +1526,115 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	}, nil
 }
 
-func (p *Playground) Tick(d time.Duration, isPreview bool) (*TickDelta, error) {
+func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseService) (*TickDelta, error) {
 	switch p.Meta.Environment {
 	case PlaygroundEnvironmentLive:
-		return p.liveTick(d, isPreview)
+		delta, err := p.liveTick(d, isPreview)
+		if err != nil {
+			return nil, fmt.Errorf("error in live tick: %w", err)
+		}
+
+		if dbService != nil { // todo: make dbService non-nilable: currently nil to not break old tests
+			delta, err = p.postTickProcessing(delta, dbService)
+			if err != nil {
+				return nil, fmt.Errorf("error in post tick processing: %w", err)
+			}
+		}
+
+		return delta, nil
+
 	case PlaygroundEnvironmentSimulator:
-		return p.simulateTick(d, isPreview)
+		delta, err := p.simulateTick(d, isPreview)
+		if err != nil {
+			return nil, fmt.Errorf("error simulating tick: %w", err)
+		}
+
+		if dbService != nil { // todo: make dbService non-nilable: currently nil to not break old tests
+			delta, err = p.postTickProcessing(delta, dbService)
+			if err != nil {
+				return nil, fmt.Errorf("error in post tick processing: %w", err)
+			}
+		}
+
+		return delta, nil
+
 	default:
 		return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.Environment)
 	}
+}
+
+func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabaseService) (*TickDelta, error) {
+	// Close expired option contracts repos
+	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
+	for _, event := range tickDelta.Events {
+		if event.Type == TickDeltaEventTypeOptionExpired {
+			openOrders := p.GetOpenOrders(event.ExpiredOptionContractEvent.Symbol)
+			for _, o := range openOrders {
+				components, err := event.ExpiredOptionContractEvent.Symbol.Components()
+				if err != nil {
+					return nil, fmt.Errorf("failed to get symbol components: %w", err)
+				}
+
+				var closePriceAtExpiration float64
+				switch components.OptionType {
+				case eventmodels.OptionTypeCall:
+					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry > components.StrikePrice {
+						closePriceAtExpiration = event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry - components.StrikePrice
+					} else {
+						closePriceAtExpiration = 0
+					}
+
+				case eventmodels.OptionTypePut:
+					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry < components.StrikePrice {
+						closePriceAtExpiration = components.StrikePrice - event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry
+					} else {
+						closePriceAtExpiration = 0
+					}
+
+				default:
+					return nil, fmt.Errorf("unknown option type: %s", components.OptionType)
+				}
+
+				exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), closePriceAtExpiration, "auto-closed-on-expiration")
+				if err != nil {
+					return nil, fmt.Errorf("failed to create close order request: %w", err)
+				}
+
+				for _, orderRequest := range exercisedOptionOrderRequests {
+					placeOrderResult, placeOrderErr := dbService.PlaceOrder(p.ID, orderRequest)
+					if placeOrderErr != nil {
+						return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
+					}
+
+					executionRequests[placeOrderResult] = ExecutionFillRequest{
+						Price:    placeOrderResult.RequestedPrice,
+						Time:     p.GetCurrentTime(),
+						Quantity: placeOrderResult.GetQuantity(),
+					}
+				}
+			}
+
+			p.DeleteRepository(event.ExpiredOptionContractEvent.Symbol)
+		}
+
+		// todo: in order to handle multiple events in a single tick, we need to commit after each event
+	}
+
+	newTrades, invalidOrders, _, err := p.CommitOrderQueue(executionRequests)
+	if err != nil {
+		return nil, fmt.Errorf("failed to commit order queue: %w", err)
+	}
+
+	tickDelta.NewTrades = append(tickDelta.NewTrades, newTrades...)
+	tickDelta.InvalidOrders = append(tickDelta.InvalidOrders, invalidOrders...)
+
+	if p.GetMeta().Environment == PlaygroundEnvironmentLive {
+		if err := dbService.SaveEquityPlotRecord(p.ID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
+			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
+		}
+	}
+
+	return tickDelta, nil
 }
 
 func (p *Playground) GetMeta() Meta {
@@ -1637,19 +1748,11 @@ func (p *Playground) getNetTrades(trades []*TradeRecord) []*TradeRecord {
 	return netTrades
 }
 
-func getKeysFromMap(m map[eventmodels.Instrument]*Position) []eventmodels.Instrument {
-	keys := make([]eventmodels.Instrument, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
 func (p *Playground) UpdatePricesAndGetPositionCache() (*PositionsCache, error) {
 	if p.positionCache != nil {
 		// update pl
-		symbols := getKeysFromMap(p.positionCache.Iter())
-		currentPrices, err := p.getCurrentPrices(symbols)
+		instruments, _ := p.positionCache.List()
+		currentPrices, err := p.getCurrentPrices(instruments)
 		if err != nil {
 			return nil, fmt.Errorf("getCurrentPrice: %w", err)
 		}
@@ -1671,61 +1774,88 @@ func (p *Playground) UpdatePricesAndGetPositionCache() (*PositionsCache, error) 
 }
 
 func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
-	positions := make(map[eventmodels.Instrument]*Position)
+	positions := make(map[string]*Position)
+	instruments := make([]eventmodels.Instrument, 0)
+	uniqueInstruments := make(map[string]eventmodels.Instrument)
+	positionToInstrumentMap := make(map[*Position]eventmodels.Instrument)
 
-	allTrades := make(map[eventmodels.Instrument][]*TradeRecord)
+	allTrades := make(map[string][]*TradeRecord)
 	for _, order := range p.account.Orders {
-		_, ok := positions[order.GetInstrument()]
-		if !ok {
-			positions[order.GetInstrument()] = &Position{}
+		instrument := order.GetInstrument()
+		ticker := instrument.GetTicker()
+
+		if _, exists := uniqueInstruments[ticker]; !exists {
+			instruments = append(instruments, instrument)
+			uniqueInstruments[ticker] = instrument
 		}
+
+		_, ok := positions[ticker]
+		if !ok {
+			positions[ticker] = &Position{}
+		}
+
+		positionToInstrumentMap[positions[ticker]] = instrument
 
 		orderStatus := order.GetStatus()
 		if orderStatus.IsFilled() {
 			filledQty := order.GetFilledVolume()
-			positions[order.GetInstrument()].Quantity += filledQty
-			allTrades[order.GetInstrument()] = append(allTrades[order.GetInstrument()], order.Trades...)
+			positions[ticker].Quantity += filledQty
+			allTrades[ticker] = append(allTrades[ticker], order.Trades...)
 		}
 	}
 
 	// remove positions with zero quantity
-	for symbol, position := range positions {
+	var markForDeletion []int
+	for k, instrument := range instruments {
+		symbol := instrument.GetTicker()
+		position, found := positions[symbol]
+		if !found {
+			return nil, fmt.Errorf("position not found for symbol %s", symbol)
+		}
+
 		if position.Quantity == 0 {
 			delete(positions, symbol)
+			markForDeletion = append(markForDeletion, k)
 		}
 	}
 
-	vwapMap := make(map[eventmodels.Instrument]float64)
-	totalQuantityMap := make(map[eventmodels.Instrument]float64)
-	totalOpenQuantityMap := make(map[eventmodels.Instrument]float64)
+	// delete instruments with zero quantity positions
+	for i := len(markForDeletion) - 1; i >= 0; i-- {
+		idx := markForDeletion[i]
+		instruments = append(instruments[:idx], instruments[idx+1:]...)
+	}
+
+	vwapMap := make(map[string]float64)
+	totalQuantityMap := make(map[string]float64)
+	totalOpenQuantityMap := make(map[string]float64)
 	for _, order := range p.account.Orders {
-		_, ok := vwapMap[order.GetInstrument()]
+		ticker := order.GetInstrument().GetTicker()
+		_, ok := vwapMap[ticker]
 		if !ok {
-			vwapMap[order.GetInstrument()] = 0.0
-			totalQuantityMap[order.GetInstrument()] = 0.0
-			totalOpenQuantityMap[order.GetInstrument()] = 0.0
+			vwapMap[ticker] = 0.0
+			totalQuantityMap[ticker] = 0.0
+			totalOpenQuantityMap[ticker] = 0.0
 		}
 
 		orderStatus := order.GetStatus()
 		if orderStatus == OrderRecordStatusFilled || orderStatus == OrderRecordStatusPartiallyFilled {
-			totalQuantityMap[order.GetInstrument()] += order.GetFilledVolume()
+			totalQuantityMap[ticker] += order.GetFilledVolume()
 
-			if totalQuantityMap[order.GetInstrument()] != 0 {
+			if totalQuantityMap[ticker] != 0 {
 				if order.Side == TradierOrderSideBuy || order.Side == TradierOrderSideSellShort || order.Side == TradierOrderSideBuyToOpen || order.Side == TradierOrderSideSellToOpen {
 					filledVolume := order.GetFilledVolume()
-					vwapMap[order.GetInstrument()] += order.GetAvgFillPrice() * filledVolume
-					totalOpenQuantityMap[order.GetInstrument()] += filledVolume
+					vwapMap[ticker] += order.GetAvgFillPrice() * filledVolume
+					totalOpenQuantityMap[ticker] += filledVolume
 				}
 			} else {
-				vwapMap[order.GetInstrument()] = 0
-				totalOpenQuantityMap[order.GetInstrument()] = 0
+				vwapMap[ticker] = 0
+				totalOpenQuantityMap[ticker] = 0
 			}
 		}
 	}
 
 	// calculate positions
-	symbols := getKeysFromMap(positions)
-	currentPrices, err := p.getCurrentPrices(symbols)
+	currentPrices, err := p.getCurrentPrices(instruments)
 	if err != nil {
 		return nil, fmt.Errorf("getCurrentPrice: %w", err)
 	}
@@ -1751,7 +1881,20 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 		// calculate pl
 		tick, found := currentPrices[symbol]
 		if found {
-			positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
+			instrument, ok := uniqueInstruments[symbol]
+			if !ok {
+				return nil, fmt.Errorf("instrument not found for symbol %s", symbol)
+			}
+
+			switch instrument.(type) {
+			case *eventmodels.OptionContractV3, eventmodels.OptionSymbol:
+				positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity * 100
+			case eventmodels.StockSymbol:
+				positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
+			default:
+				return nil, fmt.Errorf("unsupported instrument type for symbol %s", symbol)
+			}
+
 			positions[symbol].CurrentPrice = tick.Value
 			positions[symbol].Timestamp = p.GetCurrentTime().Format(time.RFC3339)
 		} else {
@@ -1761,7 +1904,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 	}
 
 	// set the cache
-	p.positionCache.SetCache(positions)
+	p.positionCache.SetCache(positions, positionToInstrumentMap)
 
 	return p.positionCache, nil
 }
@@ -2067,14 +2210,16 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 	return changes, nil
 }
 
-func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position) ([]*CloseByRequest, error) {
+func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, setCloseInfo bool) ([]*CloseByRequest, error) {
 	var closeByRequests []*CloseByRequest
 
 	// reconciliation playgrounds do not have close orders
 	if order.LiveAccountType != LiveAccountTypeReconcilation {
-		// mutates the order to add closes info
-		if err := p.addClosesInfoToOrder(order, position); err != nil {
-			return nil, fmt.Errorf("placeOrder: error adding closes info to order: %w", err)
+		if setCloseInfo {
+			// mutates the order to add closes info
+			if err := p.setCloseInfoToOrder(order, position); err != nil {
+				return nil, fmt.Errorf("placeOrder: error adding closes info to order: %w", err)
+			}
 		}
 
 		if order.IsClose {
@@ -2199,7 +2344,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 			order.RequestedPrice = math.Abs(position.CostBasis)
 		}
 	} else {
-		if order.RequestedPrice <= 0 {
+		if order.Class == OrderRecordClassEquity && order.RequestedPrice <= 0 {
 			return nil, fmt.Errorf("requested price must be greater than 0")
 		}
 	}
@@ -2216,7 +2361,8 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return nil, fmt.Errorf("invalid tag: %w", err)
 	}
 
-	if _, err := p.getCloseByRequests(order, position); err != nil {
+	setCloseInfo := false
+	if _, err := p.getCloseByRequests(order, position, setCloseInfo); err != nil {
 		return nil, fmt.Errorf("error getting close by requests: %w", err)
 	}
 

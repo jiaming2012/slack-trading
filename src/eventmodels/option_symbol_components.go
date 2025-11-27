@@ -14,6 +14,7 @@ type OptionSymbolComponents struct {
 	OptionType  OptionType
 	StrikePrice float64
 	Symbol      OptionSymbol
+	Multiplier  int
 }
 
 // NewOptionSymbolComponents parses an option ticker into its components
@@ -67,6 +68,7 @@ func NewOptionSymbolComponents(ticker OptionSymbol) (*OptionSymbolComponents, er
 		OptionType:  optionType,
 		StrikePrice: strikePrice / 1000,
 		Symbol:      ticker,
+		Multiplier:  100,
 	}, nil
 }
 
@@ -109,5 +111,6 @@ func NewOptionSymbolComponentsOld(ticker OptionSymbol) (*OptionSymbolComponents,
 		OptionType:  optionType,
 		StrikePrice: strikePrice / 1000,
 		Symbol:      OptionSymbol(ticker),
+		Multiplier:  100,
 	}, nil
 }

@@ -147,7 +147,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order before market open
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -160,7 +160,7 @@ func TestCalendar(t *testing.T) {
 		require.Equal(t, startTime, order1.Timestamp)
 
 		// tick
-		_, err = playground.Tick(time.Minute, false)
+		_, err = playground.Tick(time.Minute, false, nil)
 		require.NoError(t, err)
 
 		// expect: order is filled at market open

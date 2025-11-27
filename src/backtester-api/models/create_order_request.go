@@ -18,6 +18,7 @@ type CreateOrderRequest struct {
 	Tag             string              `json:"tag"`
 	CloseOrderId    *uint               `json:"close_order_id"`
 	IsAdjustment    bool                `json:"is_adjustment"`
+	IsSystemOrder   bool                `json:"is_system_order"`
 }
 
 func (req *CreateOrderRequest) Validate() error {

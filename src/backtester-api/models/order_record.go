@@ -33,6 +33,7 @@ type OrderRecord struct {
 	IsAdjustment     bool                   `gorm:"column:is_adjustment" copier:"must,nopanic"`
 	IsClose          bool                   `gorm:"-" copier:"must,nopanic"`
 	CloseOrderId     *uint                  `gorm:"column:close_order_id" copier:"must,nopanic"`
+	IsSystemOrder    bool                   `gorm:"column:is_system_order" copier:"must,nopanic"`
 	Closes           []*OrderRecord         `gorm:"many2many:order_closes" copier:"must,nopanic"`
 	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by" copier:"must,nopanic"`
 	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles" copier:"must,nopanic"`
@@ -42,7 +43,11 @@ type OrderRecord struct {
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
 }
 
-func (o *OrderRecord) CreateCloseOrderRequest(timestamp time.Time, requestedPrice float64, tag string) (*CreateOrderRequest, error) {
+func (o *OrderRecord) GetIsSystemOrder() bool {
+	return o.IsSystemOrder
+}
+
+func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, timestamp time.Time, requestedPrice float64, tag string) ([]*CreateOrderRequest, error) {
 	if o.IsClose {
 		return nil, fmt.Errorf("CreateCloseOrder: open order %d is not marked as close", o.ID)
 	}
@@ -56,6 +61,7 @@ func (o *OrderRecord) CreateCloseOrderRequest(timestamp time.Time, requestedPric
 		return nil, fmt.Errorf("CreateCloseOrder: failed to get remaining open quantity: %w", err)
 	}
 
+	var stockOrderRequest *CreateOrderRequest
 	var side TradierOrderSide
 	switch o.Class {
 	case OrderRecordClassEquity:
@@ -71,23 +77,84 @@ func (o *OrderRecord) CreateCloseOrderRequest(timestamp time.Time, requestedPric
 			side = TradierOrderSideSellToClose
 		} else if openQty < 0 {
 			side = TradierOrderSideBuyToClose
+
+			// option expired ITM
+			if requestedPrice > 0 {
+				optionContract, ok := o.GetInstrument().(*eventmodels.OptionContractV3)
+
+				if !ok {
+					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
+				}
+
+				if optionContract.OptionType == eventmodels.OptionTypeCall {
+					stockOpenQty := 0.0
+					currentPosition := positionCache.Get(optionContract.UnderlyingSymbol.GetTicker())
+					if currentPosition != nil {
+						stockOpenQty = math.Abs(currentPosition.Quantity)
+					}
+
+					sellQty := math.Abs(openQty) * float64(optionContract.ContractSize)
+					// exercise call option
+					// 1: sell underlying stock if any existing qty to sell
+					if stockOpenQty > 0 {
+						stockOrderRequest = &CreateOrderRequest{
+							Symbol:         string(optionContract.UnderlyingSymbol),
+							Class:          OrderRecordClassEquity,
+							Quantity:       math.Min(sellQty, stockOpenQty),
+							Side:           TradierOrderSideSell,
+							OrderType:      Market,
+							Duration:       Day,
+							RequestedPrice: optionContract.Strike,
+							Tag:            fmt.Sprintf("exercise-call-option-%d", o.ID),
+							IsAdjustment:   false,
+							IsSystemOrder:  true,
+						}
+					}
+
+					// 2: sell short if any remaining qty to sell
+					remainingSellQty := sellQty - stockOpenQty
+					if remainingSellQty > 0 {
+						stockOrderRequest = &CreateOrderRequest{
+							Symbol:         string(optionContract.UnderlyingSymbol),
+							Class:          OrderRecordClassEquity,
+							Quantity:       remainingSellQty,
+							Side:           TradierOrderSideSellShort,
+							OrderType:      Market,
+							Duration:       Day,
+							RequestedPrice: optionContract.Strike,
+							Tag:            fmt.Sprintf("exercise-call-option-%d", o.ID),
+							IsAdjustment:   false,
+							IsSystemOrder:  true,
+						}
+					}
+				}
+			}
 		} else {
 			return nil, fmt.Errorf("CreateCloseOrder: open order %d has no remaining open quantity", o.ID)
 		}
 	}
 
-	return &CreateOrderRequest{
-		Symbol:         o.Symbol,
-		Class:          o.Class,
-		Quantity:       math.Abs(openQty),
-		Side:           side,
-		OrderType:      Market,
-		Duration:       Day,
-		RequestedPrice: requestedPrice,
-		Tag:            tag,
-		CloseOrderId:   &o.ID,
-		IsAdjustment:   false,
-	}, nil
+	closeOrderRequests := []*CreateOrderRequest{
+		{
+			Symbol:         o.Symbol,
+			Class:          o.Class,
+			Quantity:       math.Abs(openQty),
+			Side:           side,
+			OrderType:      Market,
+			Duration:       Day,
+			RequestedPrice: 0.0,
+			Tag:            tag,
+			CloseOrderId:   &o.ID,
+			IsAdjustment:   false,
+			IsSystemOrder:  true,
+		},
+	}
+
+	if stockOrderRequest != nil {
+		closeOrderRequests = append(closeOrderRequests, stockOrderRequest)
+	}
+
+	return closeOrderRequests, nil
 }
 
 func (o *OrderRecord) GetTrades() []*TradeRecord {
@@ -170,7 +237,7 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 		return false, ErrTradingNotAllowed
 	}
 
-	if trade.Price <= 0 {
+	if o.Class == OrderRecordClassEquity && trade.Price <= 0 {
 		return false, fmt.Errorf("trade price must be greater than 0")
 	}
 
@@ -189,8 +256,10 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 		return true, ErrOrderAlreadyFilled
 	}
 
-	if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
-		return false, fmt.Errorf("trade quantity (%.2f + %.2f) exceeds order quantity (%.2f)", trade.Quantity, filledQuantity, o.AbsoluteQuantity)
+	if o.Class == OrderRecordClassEquity {
+		if math.Abs(trade.Quantity+filledQuantity) > o.AbsoluteQuantity {
+			return false, fmt.Errorf("trade quantity (%.2f + %.2f) exceeds order quantity (%.2f)", trade.Quantity, filledQuantity, o.AbsoluteQuantity)
+		}
 	}
 
 	if o.LiveAccountType == LiveAccountTypeReconcilation {
@@ -364,6 +433,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 		from.Status,
 		from.Tag,
 		from.CloseOrderId,
+		from.IsSystemOrder,
 	)
 
 	if err != nil {
@@ -373,7 +443,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	return record
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) (*OrderRecord, error) {
+func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool) (*OrderRecord, error) {
 	order := &OrderRecord{
 		Model: gorm.Model{ID: id},
 	}
@@ -397,6 +467,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 		status,
 		tag,
 		closeOrderId,
+		isSystemOrder,
 	)
 
 	if err != nil {
@@ -406,7 +477,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 	return order, nil
 }
 
-func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint) error {
+func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool) error {
 	instrument, err := eventmodels.NewInstrument(string(class), symbol)
 	if err != nil {
 		return fmt.Errorf("makeOrderRecord: failed to create instrument for class %s and symbol %s: %w", class, symbol, err)
@@ -434,6 +505,7 @@ func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_req
 	order.Closes = []*OrderRecord{}
 	order.CloseOrderId = closeOrderId
 	order.IsAdjustment = false
+	order.IsSystemOrder = isSystemOrder
 
 	return nil
 }

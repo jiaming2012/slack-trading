@@ -56,13 +56,24 @@ func calculateInitialMarginRequirement(stockQuantity, stockPrice float64) float6
 	return 0
 }
 
+func GetInstrument(symbol string) eventmodels.Instrument {
+	if _, err := eventmodels.NewOptionSymbolFromString(symbol); err == nil {
+		return eventmodels.OptionSymbol(symbol)
+	} else {
+		return eventmodels.StockSymbol(symbol)
+	}
+}
+
 func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.Instrument, []*Position) {
-	sortedSymbols := make([]eventmodels.Instrument, 0)
+	sortedInstruments := make([]eventmodels.Instrument, 0)
 	sortedPositions := make([]*Position, 0)
 
-	for symbol, position := range positionCache.Iter() {
-		if len(sortedSymbols) == 0 {
-			sortedSymbols = append(sortedSymbols, symbol)
+	instruments, positions := positionCache.List()
+	for i, instrument := range instruments {
+		position := positions[i]
+		
+		if len(sortedInstruments) == 0 {
+			sortedInstruments = append(sortedInstruments, instrument)
 			sortedPositions = append(sortedPositions, position)
 			continue
 		}
@@ -70,12 +81,12 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 		insertPositionSize := math.Abs(position.Quantity) * position.CostBasis
 
 		foundInsertionPoint := false
-		for i := range sortedSymbols {
+		for i := range sortedInstruments {
 			sortedPosition := sortedPositions[i]
 			sortedPositionSize := math.Abs(sortedPosition.Quantity) * sortedPosition.CostBasis
 
 			if insertPositionSize > sortedPositionSize {
-				sortedSymbols = append(sortedSymbols[:i], append([]eventmodels.Instrument{symbol}, sortedSymbols[i:]...)...)
+				sortedInstruments = append(sortedInstruments[:i], append([]eventmodels.Instrument{instrument}, sortedInstruments[i:]...)...)
 				sortedPositions = append(sortedPositions[:i], append([]*Position{position}, sortedPositions[i:]...)...)
 				foundInsertionPoint = true
 				break
@@ -83,10 +94,10 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 		}
 
 		if !foundInsertionPoint {
-			sortedSymbols = append(sortedSymbols, symbol)
+			sortedInstruments = append(sortedInstruments, instrument)
 			sortedPositions = append(sortedPositions, position)
 		}
 	}
 
-	return sortedSymbols, sortedPositions
+	return sortedInstruments, sortedPositions
 }
