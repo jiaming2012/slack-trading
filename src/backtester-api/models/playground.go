@@ -1162,22 +1162,39 @@ func (p *Playground) GetCurrentTime() time.Time {
 	return p.clock.CurrentTime
 }
 
-func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
+func (p *Playground) FetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
+	lastCandle, err := p.FetchCurrentCandle(ctx, symbol)
+	if err != nil {
+		return 0, fmt.Errorf("error fetching current candle: %w", err)
+	}
+
+	return lastCandle.Close, nil
+}
+
+func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol eventmodels.Instrument) (*eventmodels.AggregateBarWithIndicators, error) {
 	var optionSymbol *eventmodels.OptionSymbol
 
 	switch s := symbol.(type) {
 	case eventmodels.StockSymbol:
 		result, err := p.getCurrentPrices([]eventmodels.Instrument{symbol})
 		if err != nil {
-			return 0, fmt.Errorf("error fetching current price: %w", err)
+			return nil, fmt.Errorf("error fetching current price: %w", err)
 		}
 
 		tick, found := result[s.GetTicker()]
 		if !found {
-			return 0, fmt.Errorf("symbol %s not found in result", symbol)
+			return nil, fmt.Errorf("symbol %s not found in result", symbol)
 		}
 
-		return tick.Value, nil
+		// todo: should be refactor to use a stockBroker interface to get candles
+		return &eventmodels.AggregateBarWithIndicators{
+			Timestamp: tick.Timestamp,
+			Open:      tick.Value,
+			High:      tick.Value,
+			Low:       tick.Value,
+			Close:     tick.Value,
+			Volume:    0,
+		}, nil
 	case eventmodels.OptionSymbol:
 		optionSymbol = &s
 	case *eventmodels.OptionContractV3:
@@ -1188,30 +1205,30 @@ func (p *Playground) fetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 		// Start of trading day 9:30est
 		tz, err := time.LoadLocation("America/New_York")
 		if err != nil {
-			return 0, fmt.Errorf("error loading timezone: %w", err)
+			return nil, fmt.Errorf("error loading timezone: %w", err)
 		}
 		from := time.Date(p.clock.CurrentTime.Year(), p.clock.CurrentTime.Month(), p.clock.CurrentTime.Day(), 9, 30, 0, 0, tz)
 		to := time.Date(p.clock.CurrentTime.Year(), p.clock.CurrentTime.Month(), p.clock.CurrentTime.Day(), 16, 0, 0, 0, tz)
 		candles, err := p.OptionsBroker.GetCandles(p.ID, *optionSymbol, p.minimumPeriod, from, &to)
 		if err != nil {
-			return 0, fmt.Errorf("error fetching option candles for %s: %w", symbol, err)
+			return nil, fmt.Errorf("error fetching option candles for %s: %w", symbol, err)
 		}
 
 		if len(candles) == 0 {
-			return 0, fmt.Errorf("no candles found for option %s: %w", symbol, models.ErrNoCandlesFound)
+			return nil, fmt.Errorf("no candles found for option %s: %w", symbol, models.ErrNoCandlesFound)
 		}
 
 		latestCandle := candles[len(candles)-1]
-		return latestCandle.Close, nil
+		return latestCandle, nil
 	}
 
-	return 0, fmt.Errorf("fetchCurrentPrice: unsupported symbol type %T", symbol)
+	return nil, fmt.Errorf("fetchCurrentPrice: unsupported symbol type %T", symbol)
 }
 
 func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*OrderRecord, error) {
 	var order *OrderRecord
 
-	requestedPrice, err := p.fetchCurrentPrice(context.Background(), symbol)
+	requestedPrice, err := p.FetchCurrentPrice(context.Background(), symbol)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching price: %w", err)
 	}
@@ -1238,7 +1255,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	orderFillPriceMap := map[*OrderRecord]ExecutionFillRequest{}
 
 	for _, order := range p.account.PendingOrders {
-		price, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
+		price, err := p.FetchCurrentPrice(context.Background(), order.GetInstrument())
 		if err != nil {
 			return nil, fmt.Errorf("error fetching price: %w", err)
 		}
@@ -1405,7 +1422,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 	orderExecutionRequests := make(map[*OrderRecord]ExecutionFillRequest)
 	for _, order := range p.account.PendingOrders {
-		price, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
+		price, err := p.FetchCurrentPrice(context.Background(), order.GetInstrument())
 		if err != nil {
 			if errors.Is(err, ErrCurrentPriceNotSet) {
 				log.Warn("current price not set")
@@ -2333,7 +2350,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 			if position.CurrentPrice > 0 {
 				order.RequestedPrice = position.CurrentPrice
 			} else {
-				prc, err := p.fetchCurrentPrice(context.Background(), order.GetInstrument())
+				prc, err := p.FetchCurrentPrice(context.Background(), order.GetInstrument())
 				if err != nil {
 					return nil, fmt.Errorf("error current fetching price: %w", err)
 				}

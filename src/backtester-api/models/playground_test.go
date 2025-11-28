@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"math"
 	"testing"
 	"time"
@@ -14,8 +15,8 @@ import (
 )
 
 func TestOptions(t *testing.T) {
-	symbol1 := eventmodels.StockSymbol("AAPL")
-	symbol2 := eventmodels.OptionSymbol("AAPL250905C230000")
+	stockSymbol := eventmodels.StockSymbol("AAPL")
+	optionSymbol := eventmodels.OptionSymbol("AAPL250905C230000")
 
 	period := time.Minute
 	tz, err := time.LoadLocation("America/New_York")
@@ -50,6 +51,173 @@ func TestOptions(t *testing.T) {
 		},
 	}
 
+	t.Run("sell a call option - buy back before expiration", func(t *testing.T) {
+		clock := NewClock(startTime, endTime, nil)
+
+		priceAtExpiration := 235.0
+		timeBeforeExpiration := t2
+		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+			{
+				Timestamp: startTime,
+				Close:     210,
+			},
+			{
+				Timestamp: t1,
+				Close:     220.0,
+			},
+			{
+				Timestamp: timeBeforeExpiration,
+				Close:     240.0,
+			},
+			{
+				Timestamp: expirationTime,
+				Close:     priceAtExpiration,
+			},
+			{
+				Timestamp: t3,
+				Close:     240.0,
+			},
+		}
+
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		require.NoError(t, err)
+
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		require.NoError(t, err)
+
+		balance := 10000.0
+
+		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		require.NoError(t, err)
+		require.NotEmpty(t, playground)
+
+		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+
+		// create mock options broker
+		var bars []*eventmodels.AggregateBarWithIndicators
+		for _, c := range candles2 {
+			bars = append(bars, c.ToAggregateBarWithIndicators())
+		}
+		data[optionSymbol] = bars
+
+		mockOptionsBroker := &MockOptionsBroker{
+			data: data,
+		}
+
+		playground.OptionsBroker = mockOptionsBroker
+
+		// create mock dbService
+		mockDBService := NewMockDatabase()
+		err = mockDBService.SavePlaygroundSession(playground)
+		require.NoError(t, err)
+
+		// assert: two repos - stock & option
+		_, ok := playground.repos.Get(stockSymbol, period)
+		require.True(t, ok)
+		_, ok = playground.repos.Get(optionSymbol, period)
+		require.True(t, ok)
+
+		// sell option
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
+		require.NoError(t, err)
+
+		changes, err := playground.PlaceOrder(order1)
+		require.NoError(t, err)
+		require.Len(t, changes, 1)
+		err = changes[0].Commit(nil)
+		require.NoError(t, err)
+
+		originalBalance := playground.GetBalance()
+
+		// tick
+		delta, err := playground.Tick(0*time.Minute, false, mockDBService)
+		require.NoError(t, err)
+		require.Len(t, delta.NewTrades, 1)
+		require.Equal(t, -1.0, delta.NewTrades[0].Quantity)
+		require.Len(t, playground.GetAllOrders(), 1)
+		require.Equal(t, originalBalance, playground.GetBalance())
+		
+		optionOpenPrice := delta.NewTrades[0].Price
+		require.Equal(t, optionSellPrice, optionOpenPrice)
+
+		// tick to time t2, with price @ 240.0
+		components, err := optionSymbol.Components()
+		require.NoError(t, err)
+		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
+		require.Equal(t, 230.0, components.StrikePrice)
+		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+
+		delta, err = playground.Tick(48*time.Hour, false, mockDBService)
+		require.NoError(t, err)
+		require.Len(t, delta.Events, 0)
+
+		stockPrice, err := playground.FetchCurrentPrice(context.Background(), stockSymbol)
+		require.NoError(t, err)
+		require.Equal(t, 240.0, stockPrice)
+
+		optionPrice, err := playground.FetchCurrentCandle(context.Background(), optionSymbol)
+		require.NoError(t, err)
+		require.Equal(t, 18.00, optionPrice.Close)
+		require.Equal(t, timeBeforeExpiration, optionPrice.Timestamp)
+
+		positions := playground.GetPositionCache()
+		currentPL := positions.Get(optionSymbol.GetTicker()).PL
+		require.Equal(t, (optionOpenPrice-18.00)*100, currentPL)
+		equity := playground.GetEquity(positions)
+		require.Equal(t, originalBalance+currentPL, equity) // balance + premium + floating P&L
+
+		// buy back option before expiration
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToClose, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
+		require.NoError(t, err)
+		changes, err = playground.PlaceOrder(order2)
+		require.NoError(t, err)
+		require.Len(t, changes, 1)
+		err = changes[0].Commit(nil)
+		require.NoError(t, err)
+
+		delta, err = playground.Tick(0*time.Second, false, mockDBService)
+		require.NoError(t, err)
+		require.Len(t, delta.Events, 0)
+
+		// assert: open option position is closed
+		position := playground.positionCache.Get(optionSymbol.GetTicker())
+		require.Equal(t, 0.0, position.Quantity)
+		require.Equal(t, 0.0, position.CostBasis)
+		require.Equal(t, 0.0, position.PL)
+
+		// assert: order #2 closes order #1
+		orders := playground.GetAllOrders()
+		require.Len(t, orders, 2)
+
+		require.Len(t, orders[0].ClosedBy, 1)
+		require.Len(t, orders[1].Trades, 1)
+		require.Equal(t, orders[1].Trades[0], orders[0].ClosedBy[0])
+		require.Len(t, orders[1].Closes, 1)
+		require.Equal(t, orders[0], orders[1].Closes[0])
+		
+		require.Len(t, playground.GetOpenOrders(stockSymbol), 0)
+		require.Len(t, playground.GetOpenOrders(optionSymbol), 0)
+
+		// tick to expiration
+		delta, err = playground.Tick(24*time.Hour, false, mockDBService)
+		require.NoError(t, err)
+		require.Len(t, delta.Events, 1)
+
+		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+
+		// assert: option is not exercised since it was bought back before expiration
+		orders = playground.GetAllOrders()
+		require.Len(t, orders, 2)
+
+		// assert: expired option repo is removed
+		_, ok = playground.repos.Get(stockSymbol, period)
+		require.True(t, ok)
+		_, ok = playground.repos.Get(optionSymbol, period)
+		require.False(t, ok)
+	})
+
 	t.Run("sell a call option - expire out of the money", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
@@ -77,10 +245,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -96,7 +264,7 @@ func TestOptions(t *testing.T) {
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
-		data[symbol2] = bars
+		data[optionSymbol] = bars
 
 		mockOptionsBroker := &MockOptionsBroker{
 			data: data,
@@ -110,7 +278,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -131,7 +299,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, originalBalance, playground.GetBalance())
 
 		// tick to expiration
-		components, err := symbol2.Components()
+		components, err := optionSymbol.Components()
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
@@ -142,17 +310,17 @@ func TestOptions(t *testing.T) {
 		require.Len(t, delta.Events, 1)
 
 		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, symbol2, delta.Events[0].ExpiredOptionContractEvent.Symbol)
+		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
 		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
 		require.Len(t, orders, 2)
-		require.Len(t, playground.GetOpenOrders(symbol1), 0)
-		require.Len(t, playground.GetOpenOrders(symbol2), 0)
+		require.Len(t, playground.GetOpenOrders(stockSymbol), 0)
+		require.Len(t, playground.GetOpenOrders(optionSymbol), 0)
 
 		// assert: open option position is closed
-		position := playground.positionCache.Get(symbol2.GetTicker())
+		position := playground.positionCache.Get(optionSymbol.GetTicker())
 		require.Equal(t, 0.0, position.Quantity)
 		require.Equal(t, 0.0, position.CostBasis)
 		require.Equal(t, 0.0, position.PL)
@@ -199,10 +367,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -218,7 +386,7 @@ func TestOptions(t *testing.T) {
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
-		data[symbol2] = bars
+		data[optionSymbol] = bars
 
 		mockOptionsBroker := &MockOptionsBroker{
 			data: data,
@@ -232,13 +400,13 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// assert: two repos - stock & option
-		_, ok := playground.repos.Get(symbol1, period)
+		_, ok := playground.repos.Get(stockSymbol, period)
 		require.True(t, ok)
-		_, ok = playground.repos.Get(symbol2, period)
+		_, ok = playground.repos.Get(optionSymbol, period)
 		require.True(t, ok)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -259,7 +427,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, originalBalance, playground.GetBalance())
 
 		// tick to expiration
-		components, err := symbol2.Components()
+		components, err := optionSymbol.Components()
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
@@ -270,7 +438,7 @@ func TestOptions(t *testing.T) {
 		require.Len(t, delta.Events, 1)
 
 		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, symbol2, delta.Events[0].ExpiredOptionContractEvent.Symbol)
+		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
 		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
@@ -278,13 +446,13 @@ func TestOptions(t *testing.T) {
 		require.Len(t, orders, 3)
 
 		// assert: open option position is closed
-		position := playground.positionCache.Get(symbol2.GetTicker())
+		position := playground.positionCache.Get(optionSymbol.GetTicker())
 		require.Equal(t, 0.0, position.Quantity)
 		require.Equal(t, 0.0, position.CostBasis)
 		require.Equal(t, 0.0, position.PL)
 
-		require.Len(t, playground.GetOpenOrders(symbol1), 1)
-		require.Len(t, playground.GetOpenOrders(symbol2), 0)
+		require.Len(t, playground.GetOpenOrders(stockSymbol), 1)
+		require.Len(t, playground.GetOpenOrders(optionSymbol), 0)
 
 		// assert: order #2 closes order #1
 		require.Len(t, orders[0].ClosedBy, 1)
@@ -294,14 +462,14 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, orders[0], orders[1].Closes[0])
 
 		// assert: fulfilled stock order is created
-		position = playground.positionCache.Get(symbol1.GetTicker())
+		position = playground.positionCache.Get(stockSymbol.GetTicker())
 		require.Equal(t, -100.0, position.Quantity)
 		require.Equal(t, components.StrikePrice, position.CostBasis)
 		require.Equal(t, (position.CostBasis-position.CurrentPrice)*math.Abs(position.Quantity), position.PL)
 
 		require.Equal(t, TradierOrderSideSellShort, orders[2].Side)
 		require.Equal(t, OrderRecordStatusFilled, orders[2].Status)
-		require.Equal(t, symbol1.GetTicker(), orders[2].Symbol)
+		require.Equal(t, stockSymbol.GetTicker(), orders[2].Symbol)
 		require.Equal(t, 100.0, orders[2].AbsoluteQuantity)
 		require.Len(t, orders[2].Trades, 1)
 		require.Equal(t, -float64(100), orders[2].Trades[0].Quantity)
@@ -315,9 +483,9 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, originalBalance+premiumCollected+position.PL, playground.GetEquity(playground.GetPositionCache()))
 
 		// assert: expired option repo is removed
-		_, ok = playground.repos.Get(symbol1, period)
+		_, ok = playground.repos.Get(stockSymbol, period)
 		require.True(t, ok)
-		_, ok = playground.repos.Get(symbol2, period)
+		_, ok = playground.repos.Get(optionSymbol, period)
 		require.False(t, ok)
 	})
 }
