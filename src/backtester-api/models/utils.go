@@ -71,7 +71,7 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 	instruments, positions := positionCache.List()
 	for i, instrument := range instruments {
 		position := positions[i]
-		
+
 		if len(sortedInstruments) == 0 {
 			sortedInstruments = append(sortedInstruments, instrument)
 			sortedPositions = append(sortedPositions, position)
@@ -100,4 +100,15 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 	}
 
 	return sortedInstruments, sortedPositions
+}
+
+func GetClass(symbol eventmodels.Instrument) OrderRecordClass {
+	switch symbol.(type) {
+	case eventmodels.StockSymbol:
+		return OrderRecordClassEquity
+	case eventmodels.OptionSymbol, *eventmodels.OptionContractV3:
+		return OrderRecordClassOption
+	default:
+		return OrderRecordClassUnknown
+	}
 }

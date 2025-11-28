@@ -5,8 +5,9 @@ import "fmt"
 type OrderRecordClass string
 
 const (
-	OrderRecordClassEquity OrderRecordClass = "equity"
-	OrderRecordClassOption OrderRecordClass = "option"
+	OrderRecordClassEquity  OrderRecordClass = "equity"
+	OrderRecordClassOption  OrderRecordClass = "option"
+	OrderRecordClassUnknown OrderRecordClass = "unknown"
 )
 
 func (c OrderRecordClass) Validate() error {

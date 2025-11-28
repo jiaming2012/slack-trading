@@ -43,6 +43,35 @@ type OrderRecord struct {
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
 }
 
+func (o *OrderRecord) GetRealizedPL() float64 {
+	realizedPL := 0.0
+	vwap := o.GetAvgFillPrice()
+
+	if o.Side == TradierOrderSideBuy || o.Side == TradierOrderSideBuyToOpen {
+		for _, trade := range o.ClosedBy {
+			if trade.Quantity > 0 {
+				continue
+			}
+
+			realizedPL += (trade.Price - vwap) * math.Abs(trade.Quantity)
+		}
+	} else if o.Side == TradierOrderSideSellShort || o.Side == TradierOrderSideSellToOpen {
+		for _, trade := range o.ClosedBy {
+			if trade.Quantity < 0 {
+				continue
+			}
+
+			realizedPL += (vwap - trade.Price) * trade.Quantity
+		}
+	}
+
+	if o.Class == OrderRecordClassOption {
+		realizedPL *= 100
+	}
+
+	return realizedPL
+}
+
 func (o *OrderRecord) GetIsSystemOrder() bool {
 	return o.IsSystemOrder
 }

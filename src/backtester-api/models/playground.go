@@ -1953,6 +1953,10 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOr
 		}
 	}
 
+	if err := side.Validate(GetClass(symbol)); err != nil {
+		return fmt.Errorf("invalid side: %w", err)
+	}
+
 	if positionQuantity > 0 {
 		if side == TradierOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when long position of %.2f exists: must sell to close", positionQuantity)
@@ -2265,7 +2269,7 @@ func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, 
 					volumeToClose -= quantity
 
 					sign := 1.0
-					if o.Side == TradierOrderSideBuy {
+					if o.Side.IsLongOpen() {
 						sign = -1.0
 					}
 

@@ -15,6 +15,15 @@ const (
 	TradierOrderSideSellToClose TradierOrderSide = "sell_to_close"
 )
 
+func (s TradierOrderSide) IsLongOpen() bool {
+	switch s {
+	case TradierOrderSideBuy, TradierOrderSideBuyToOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s TradierOrderSide) Validate(class OrderRecordClass) error {
 	switch class {
 	case OrderRecordClassEquity:
