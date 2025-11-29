@@ -1556,6 +1556,8 @@ func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseSe
 			if err != nil {
 				return nil, fmt.Errorf("error in post tick processing: %w", err)
 			}
+		} else {
+			log.Warn("dbService is nil in live tick")
 		}
 
 		return delta, nil
@@ -1571,6 +1573,8 @@ func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseSe
 			if err != nil {
 				return nil, fmt.Errorf("error in post tick processing: %w", err)
 			}
+		} else {
+			log.Warn("dbService is nil in simulator tick")
 		}
 
 		return delta, nil
@@ -2298,7 +2302,7 @@ func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, 
 				volumeToClose -= quantity
 
 				sign := 1.0
-				if o.Side == TradierOrderSideBuy {
+				if o.Side.IsLongOpen() {
 					sign = -1.0
 				}
 

@@ -104,6 +104,31 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 	case OrderRecordClassOption:
 		if openQty > 0 {
 			side = TradierOrderSideSellToClose
+
+			// option expired ITM
+			if requestedPrice > 0 {
+				optionContract, ok := o.GetInstrument().(*eventmodels.OptionContractV3)
+
+				if !ok {
+					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
+				}
+
+				if optionContract.OptionType == eventmodels.OptionTypeCall {
+					buyQty := math.Abs(openQty) * float64(optionContract.ContractSize)
+					stockOrderRequest = &CreateOrderRequest{
+						Symbol:         string(optionContract.UnderlyingSymbol),
+						Class:          OrderRecordClassEquity,
+						Quantity:       buyQty,
+						Side:           TradierOrderSideBuy,
+						OrderType:      Market,
+						Duration:       Day,
+						RequestedPrice: optionContract.Strike,
+						Tag:            fmt.Sprintf("exercise-call-option-%d", o.ID),
+						IsAdjustment:   false,
+						IsSystemOrder:  true,
+					}
+				}
+			}
 		} else if openQty < 0 {
 			side = TradierOrderSideBuyToClose
 
