@@ -20,13 +20,15 @@ type TickDeltaEvent struct {
 	Type                       TickDeltaEventType          `json:"type"`
 	LiquidationEvent           *LiquidationEvent           `json:"liquidation_event,omitempty"`
 	ExpiredOptionContractEvent *ExpiredOptionContractEvent `json:"expired_option_contract_event,omitempty"`
+	OptionAssignmentEvent      *OptionAssignmentEvent      `json:"option_assignment_event,omitempty"`
 }
 
 type TickDeltaEventType string
 
 const (
-	TickDeltaEventTypeLiquidation   TickDeltaEventType = "liquidation"
-	TickDeltaEventTypeOptionExpired TickDeltaEventType = "option_expired"
+	TickDeltaEventTypeLiquidation    TickDeltaEventType = "liquidation"
+	TickDeltaEventTypeOptionExpired  TickDeltaEventType = "option_expired"
+	TickDeltaEventTypeOptionAssigned TickDeltaEventType = "option_assigned"
 )
 
 type LiquidationEvent struct {
@@ -37,4 +39,12 @@ type ExpiredOptionContractEvent struct {
 	Symbol                  eventmodels.OptionSymbol `json:"symbol"`
 	UnderlyingPriceAtExpiry float64                  `json:"underlying_price_at_expiry"`
 	Timestamp               time.Time                `json:"timestamp"`
+}
+
+type OptionAssignmentEvent struct {
+	OrderId          uint                   `json:"order_id"`
+	Symbol           eventmodels.Instrument `json:"symbol"`
+	AssignedQuantity float64                `json:"assigned_quantity"`
+	AssignmentPrice  float64                `json:"assignment_price"`
+	Timestamp        time.Time              `json:"timestamp"`
 }

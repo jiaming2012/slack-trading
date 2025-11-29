@@ -10,11 +10,14 @@ import (
 )
 
 type MockBroker struct {
-	requests     []*PlaceEquityTradeRequest
-	orders       []*eventmodels.TradierOrder
-	orderId      uint
-	executePrice float64
-	source       ILiveAccountSource
+	requests []*PlaceEquityTradeRequest
+	orders   []*eventmodels.TradierOrder
+	orderId  uint
+	source   ILiveAccountSource
+}
+
+func (b *MockBroker) ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (b *MockBroker) GetSource() ILiveAccountSource {

@@ -21,33 +21,80 @@ import (
 type Playground struct {
 	gorm.Model
 	Meta
-	ID                      uuid.UUID                                 `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	account                 *BacktesterAccount                        `gorm:"-"`
-	clock                   *Clock                                    `gorm:"-"`
-	ClientID                *string                                   `gorm:"column:client_id;type:text;unique"`
-	Balance                 float64                                   `gorm:"column:balance;type:numeric;not null"`
-	BrokerName              *string                                   `gorm:"column:broker;type:text"`
-	AccountID               *string                                   `gorm:"column:account_id;type:text"`
-	Orders                  []*OrderRecord                            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	EquityPlotRecords       []EquityPlotRecord                        `gorm:"foreignKey:PlaygroundID;references:ID"`
-	ParentID                *uuid.UUID                                `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
-	Repositories            CandleRepositoryRecord                    `gorm:"type:json"`
-	ReconcilePlaygroundID   *uuid.UUID                                `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
-	LiveAccountID           *uint                                     `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
-	LiveAccount             ILiveAccount                              `gorm:"-"`
-	ReconcilePlayground     IReconcilePlayground                      `gorm:"-"`
-	repos                   *CandleMasterRepository                   `gorm:"-"`
-	isBacktestComplete      bool                                      `gorm:"-"`
-	OptionsBroker           IOptionsBroker                            `gorm:"-"`
-	positionCache           *PositionsCache                           `gorm:"-"`
-	openOrdersCache         *OpenOrdersCache                          `gorm:"-"`
-	newCandlesQueue         *eventmodels.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
-	newTradesQueue          *eventmodels.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
-	invalidOrdersQueue      *eventmodels.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
-	minimumPeriod           time.Duration                             `gorm:"-"` // This is a new field
-	placeOrderMutex         *sync.Mutex                               `json:"-" gorm:"-"`
-	newOrdersQueueMutex     *sync.Mutex                               `json:"-" gorm:"-"`
-	pendingOrdersQueueMutex *sync.Mutex                               `json:"-" gorm:"-"`
+	ID                          uuid.UUID                                 `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	account                     *BacktesterAccount                        `gorm:"-"`
+	clock                       *Clock                                    `gorm:"-"`
+	ClientID                    *string                                   `gorm:"column:client_id;type:text;unique"`
+	Balance                     float64                                   `gorm:"column:balance;type:numeric;not null"`
+	BrokerName                  *string                                   `gorm:"column:broker;type:text"`
+	AccountID                   *string                                   `gorm:"column:account_id;type:text"`
+	Orders                      []*OrderRecord                            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	EquityPlotRecords           []EquityPlotRecord                        `gorm:"foreignKey:PlaygroundID;references:ID"`
+	ParentID                    *uuid.UUID                                `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
+	Repositories                CandleRepositoryRecord                    `gorm:"type:json"`
+	ReconcilePlaygroundID       *uuid.UUID                                `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
+	LiveAccountID               *uint                                     `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
+	LiveAccount                 ILiveAccount                              `gorm:"-"`
+	ReconcilePlayground         IReconcilePlayground                      `gorm:"-"`
+	repos                       *CandleMasterRepository                   `gorm:"-"`
+	isBacktestComplete          bool                                      `gorm:"-"`
+	OptionsBroker               IOptionsBroker                            `gorm:"-"`
+	positionCache               *PositionsCache                           `gorm:"-"`
+	openOrdersCache             *OpenOrdersCache                          `gorm:"-"`
+	newCandlesQueue             *eventmodels.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
+	newTradesQueue              *eventmodels.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
+	invalidOrdersQueue          *eventmodels.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
+	minimumPeriod               time.Duration                             `gorm:"-"` // This is a new field
+	placeOrderMutex             *sync.Mutex                               `json:"-" gorm:"-"`
+	newOrdersQueueMutex         *sync.Mutex                               `json:"-" gorm:"-"`
+	pendingOrdersQueueMutex     *sync.Mutex                               `json:"-" gorm:"-"`
+	exerciseOptionsRequestQueue *ExerciseOptionRequestQueue               `json:"-" gorm:"-"`
+}
+
+func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPrice float64) error {
+	if p.OptionsBroker == nil {
+		return fmt.Errorf("no options broker available")
+	}
+
+	order, err := p.GetOrder(orderId)
+	if err != nil {
+		return fmt.Errorf("failed to get order: %w: %w", err, ErrOptionAssignmentOrderNotFound)
+	}
+
+	if assignedQuantity <= 0 {
+		return fmt.Errorf("assigned quantity must be greater than zero")
+	}
+
+	remainingQty, err := order.GetRemainingOpenQuantity()
+	if err != nil {
+		return fmt.Errorf("failed to get remaining open quantity: %w", err)
+	}
+
+	if assignedQuantity > math.Abs(remainingQty) {
+		return fmt.Errorf("assigned quantity exceeds remaining open quantity: %w", ErrOptionAssignmentInvalidQuantity)
+	}
+
+	optionContract, ok := order.GetInstrument().(*eventmodels.OptionContractV3)
+	if !ok {
+		return fmt.Errorf("order instrument is not an option contract")
+	}
+
+	switch optionContract.OptionType {
+	case eventmodels.OptionTypeCall:
+		if assignedPrice < optionContract.Strike {
+			return fmt.Errorf("assigned price %.2f is below strike price %.2f for a call option: %w", assignedPrice, optionContract.Strike, ErrOptionAssignmentInvalidPrice)
+		}
+	default:
+		return fmt.Errorf("exercise option not yet implement for %T", optionContract.OptionType)
+	}
+
+	p.exerciseOptionsRequestQueue.Enqueue(&eventmodels.ExerciseOptionRequest{
+		Order:            order,
+		AssignedQuantity: assignedQuantity,
+		AssignmentPrice:  assignedPrice,
+	})
+
+	return nil
 }
 
 func (p *Playground) GetPlaceOrderLock() *sync.Mutex {
@@ -1530,6 +1577,23 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}
 	}
 
+	// check option assignments
+	exerciseOptionsRequests := p.exerciseOptionsRequestQueue.Drain()
+	for _, req := range exerciseOptionsRequests {
+		order := req.Order.(*OrderRecord)
+
+		tickDeltaEvents = append(tickDeltaEvents, &TickDeltaEvent{
+			Type: TickDeltaEventTypeOptionAssigned,
+			OptionAssignmentEvent: &OptionAssignmentEvent{
+				OrderId:          order.ID,
+				Symbol:           order.GetInstrument(),
+				AssignedQuantity: req.AssignedQuantity,
+				AssignmentPrice:  req.AssignmentPrice,
+				Timestamp:        p.clock.CurrentTime,
+			},
+		})
+	}
+
 	if _, err := p.updateAccountStats(p.GetCurrentTime()); err != nil {
 		return nil, fmt.Errorf("error updating account stats: %w", err)
 	}
@@ -1588,6 +1652,33 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 	// Close expired option contracts repos
 	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
 	for _, event := range tickDelta.Events {
+		if event.Type == TickDeltaEventTypeOptionAssigned {
+			o := p.GetOpenOrder(event.OptionAssignmentEvent.OrderId)
+			if o == nil {
+				return nil, fmt.Errorf("failed to find open order for option assignment event: %d", event.OptionAssignmentEvent.OrderId)
+			}
+
+			requestedPrice := event.OptionAssignmentEvent.AssignmentPrice
+			requestedQuantity := event.OptionAssignmentEvent.AssignedQuantity
+			exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), requestedPrice, &requestedQuantity, "auto-closed-on-early-assignment")
+			if err != nil {
+				return nil, fmt.Errorf("failed to create close order request: %w", err)
+			}
+
+			for _, orderRequest := range exercisedOptionOrderRequests {
+				placeOrderResult, placeOrderErr := dbService.PlaceOrder(p.ID, orderRequest)
+				if placeOrderErr != nil {
+					return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
+				}
+
+				executionRequests[placeOrderResult] = ExecutionFillRequest{
+					Price:    placeOrderResult.RequestedPrice,
+					Time:     p.GetCurrentTime(),
+					Quantity: placeOrderResult.GetQuantity(),
+				}
+			}
+		}
+
 		if event.Type == TickDeltaEventTypeOptionExpired {
 			openOrders := p.GetOpenOrders(event.ExpiredOptionContractEvent.Symbol)
 			for _, o := range openOrders {
@@ -1616,7 +1707,7 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 					return nil, fmt.Errorf("unknown option type: %s", components.OptionType)
 				}
 
-				exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), closePriceAtExpiration, "auto-closed-on-expiration")
+				exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), closePriceAtExpiration, nil, "auto-closed-on-expiration")
 				if err != nil {
 					return nil, fmt.Errorf("failed to create close order request: %w", err)
 				}
@@ -2600,6 +2691,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	playground.newOrdersQueueMutex = &sync.Mutex{}
 	playground.pendingOrdersQueueMutex = &sync.Mutex{}
 	playground.OptionsBroker = req.OptionsBroker
+	playground.exerciseOptionsRequestQueue = NewExerciseOptionRequestQueue()
 
 	if _, err := playground.UpdatePositionCachePositions(); err != nil {
 		return fmt.Errorf("error getting positions: %w", err)

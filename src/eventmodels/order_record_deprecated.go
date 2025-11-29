@@ -1,6 +1,6 @@
 package eventmodels
 
-type OrderRecord struct {
+type OrderRecordDeprecated struct {
 	Underlying StockSymbol
 	Spread     *OptionSpreadContractDTO
 	Quantity   float64

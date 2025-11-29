@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,4 +11,5 @@ import (
 
 type IOptionsBroker interface {
 	GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
+	ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error
 }

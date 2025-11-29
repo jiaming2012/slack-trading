@@ -275,6 +275,10 @@ func NewPolygonOptionsClient(baseUrl, apiKey string) *PolygonOptionsClient {
 	}
 }
 
+func (fetcher *PolygonOptionsClient) ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error {
+	return fmt.Errorf("ExerciseOption: not implemented for live polygon options broker")
+}
+
 func (fetcher *PolygonOptionsClient) GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
 	candles, err := FetchOptionCandles(fetcher, playgroundID, symbol, period, from, to)
 	if err != nil {

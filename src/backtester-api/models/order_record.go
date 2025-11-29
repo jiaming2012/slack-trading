@@ -76,7 +76,7 @@ func (o *OrderRecord) GetIsSystemOrder() bool {
 	return o.IsSystemOrder
 }
 
-func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, timestamp time.Time, requestedPrice float64, tag string) ([]*CreateOrderRequest, error) {
+func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, timestamp time.Time, requestedPrice float64, requestedQuantity *float64, tag string) ([]*CreateOrderRequest, error) {
 	if o.IsClose {
 		return nil, fmt.Errorf("CreateCloseOrder: open order %d is not marked as close", o.ID)
 	}
@@ -89,6 +89,8 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 	if err != nil {
 		return nil, fmt.Errorf("CreateCloseOrder: failed to get remaining open quantity: %w", err)
 	}
+
+	optionCloseQty := openQty
 
 	var stockOrderRequest *CreateOrderRequest
 	var side TradierOrderSide
@@ -114,7 +116,21 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 				}
 
 				if optionContract.OptionType == eventmodels.OptionTypeCall {
-					buyQty := math.Abs(openQty) * float64(optionContract.ContractSize)
+					var buyQty float64
+					if requestedQuantity != nil {
+						if *requestedQuantity < 0 {
+							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
+						}
+
+						if *requestedQuantity > openQty {
+							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than open quantity")
+						}
+
+						optionCloseQty = *requestedQuantity
+					}
+
+					buyQty = math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+
 					stockOrderRequest = &CreateOrderRequest{
 						Symbol:         string(optionContract.UnderlyingSymbol),
 						Class:          OrderRecordClassEquity,
@@ -147,7 +163,21 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 						stockOpenQty = math.Abs(currentPosition.Quantity)
 					}
 
-					sellQty := math.Abs(openQty) * float64(optionContract.ContractSize)
+					var sellQty float64
+					if requestedQuantity != nil {
+						if *requestedQuantity < 0 {
+							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
+						}
+
+						if *requestedQuantity > math.Abs(openQty) {
+							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than (sell) open quantity")
+						}
+
+						optionCloseQty = *requestedQuantity
+					}
+
+					sellQty = math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+
 					// exercise call option
 					// 1: sell underlying stock if any existing qty to sell
 					if stockOpenQty > 0 {
@@ -192,7 +222,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 		{
 			Symbol:         o.Symbol,
 			Class:          o.Class,
-			Quantity:       math.Abs(openQty),
+			Quantity:       math.Abs(optionCloseQty),
 			Side:           side,
 			OrderType:      Market,
 			Duration:       Day,

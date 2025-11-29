@@ -39,7 +39,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 	log.Infof("waiting for signal triggered events\n")
 
-	var allTrades []*eventmodels.OrderRecord
+	var allTrades []*eventmodels.OrderRecordDeprecated
 	errCh := make(chan error)
 
 	go func() {

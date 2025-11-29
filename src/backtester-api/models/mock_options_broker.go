@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 
 type MockOptionsBroker struct {
 	data map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators
+}
+
+func (b *MockOptionsBroker) ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error {
+	return fmt.Errorf("not implemented")
 }
 
 func (b *MockOptionsBroker) GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
