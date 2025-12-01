@@ -228,7 +228,7 @@ class BacktesterPlaygroundClient:
         self.repositories = req.repositories
 
         self.client = PlaygroundServiceClient(self.host, timeout=600)
-        # self.ltf_seconds = self.get_repository_seconds('ltf')
+        self.ltf_seconds = self.get_repository_seconds('ltf')
         # self.htf_seconds = self.get_repository_seconds('htf')
         # self.htf_seconds_daily = self.get_repository_seconds('htf_daily')
         # self.htf_seconds_weekly = self.get_repository_seconds('htf_weekly')
