@@ -218,6 +218,7 @@ tasks:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCancelOrder$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+  
   test:e2e:simulate-options:
     cmds:
       - 'go test -timeout 60s -v -count=1 -run ^TestSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'

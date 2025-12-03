@@ -5,7 +5,8 @@ import pandas as pd
 class OpenSignalName(Enum):
     CROSS_ABOVE_20 = 1
     CROSS_BELOW_80 = 2
-    SUPERTREND_STACK_SIGNAL = 3 
+    SUPERTREND_STACK_SIGNAL = 3
+    LONG_OPTION_ENTRY = 4
 
 @dataclass
 class OpenSignal:

@@ -1,9 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple
 from loguru import logger
+from dateutil.parser import isoparse
 
 import pandas as pd
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment
+from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment, OrderSide
+from rpc.playground_pb2 import GetOptionsLadderRequest, OptionLadderContract
 from base_open_strategy_v2 import BaseOpenStrategyV2
 from trading_engine_types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
@@ -73,22 +75,71 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
             
     #     return False
 
-    def check_for_new_signal(self, ltf_data: pd.DataFrame, htf_data: pd.DataFrame, htf_data_daily: pd.DataFrame, htf_data_weekly: pd.DataFrame, open_trade_count: int) -> Tuple[OpenSignalName, pd.DataFrame, dict]:
-        data_set = None
-                           
-        return None, data_set, None
+    def check_for_new_signal(self) -> OpenSignalName:
+        latest_candle = self.candles_ltf.iloc[self.candles_ltf_idx - 1]
+        signal = None
+        # Only check for new signals on Mondays
+        dt = isoparse(latest_candle['datetime'])
+        if dt.weekday() == 0:
+            signal = OpenSignalName.LONG_OPTION_ENTRY
+        
+        return signal
+
+    def find_next_friday(self, current_date: datetime) -> int:
+        days_ahead = 4 - current_date.weekday()  # Friday is 4
+        if days_ahead <= 0:
+            days_ahead += 7
+        return days_ahead
     
+    def find_target_option_contract(self, current_price, contracts) -> OptionLadderContract:
+        closest_contract = None
+        smallest_diff = float('inf')
+        
+        for contract in contracts:
+            if contract.type != 'call':
+                continue
+            
+            strike_price = contract.strike
+            diff = abs(strike_price - current_price)
+            if diff < smallest_diff:
+                smallest_diff = diff
+                closest_contract = contract
+                
+        return closest_contract
+                               
     def tick(self, tick_delta) -> List[OpenSignalV3]:        
-        ltf_data = pd.DataFrame(self.candles_ltf)
         new_candles: List[Candle] = tick_delta.new_candles if hasattr(tick_delta, 'new_candles') else []
+        
         open_signals = []
         for c in new_candles:
             self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
-            if c.period == self.playground.ltf_seconds:
-                symbol = self.symbol                
-                    
+            if not c.period == self.playground.ltf_seconds:
+                continue
+            
+            self.logger.trace(f"Processing LTF candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
+                
+            self.append_candle(c.bar)
+            
+            signal_name = self.check_for_new_signal()
+
+            if signal_name == OpenSignalName.LONG_OPTION_ENTRY:
+                print(f"New signal detected: {signal_name}")
+                
+                open_signal = OpenSignalV3(
+                    name=signal_name,
+                    symbol=self.symbol,
+                    timestamp=self.playground.timestamp,
+                    kwargs={
+                        "current_price": c.bar.close,
+                    },
+                    additional_equity_risk=0.0
+                )
+                
+                open_signals.append(open_signal)
+
         return open_signals
+    
 
 if __name__ == "__main__":
     balance = 30000
@@ -120,7 +171,39 @@ if __name__ == "__main__":
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
         for tick_delta in tick_deltas:
-            strategy.tick(tick_delta)
+            open_signals = strategy.tick(tick_delta)
+            
+            for signal in open_signals:
+                expiration_in_days = strategy.find_next_friday(signal.timestamp)
+                
+                request = GetOptionsLadderRequest(
+                    playground_id=playground.id,
+                    stock_symbol=signal.symbol,
+                    max_no_of_strikes=5,
+                    min_distance_between_strikes=1.0,
+                    expiration_in_days=[expiration_in_days]
+                )
+                
+                response = playground.fetch_ladder(request)
+                if response:
+                    target_contract = strategy.find_target_option_contract(
+                        current_price=signal.kwargs['current_price'],
+                        contracts=response.contracts
+                    )
+                    
+                    if target_contract is None:
+                        logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.kwargs['current_price']}")
+                        continue
+                    
+                    playground.place_order(
+                        target_contract.symbol, 
+                        1, 
+                        OrderSide.SELL_TO_OPEN,
+                        'option'
+                    )
+                    
+                    logger.info(f"Open Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
+                
         playground.tick(playground.ltf_seconds)
         
 

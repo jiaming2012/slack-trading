@@ -25,6 +25,14 @@ class BaseOpenStrategyV2(ABC):
         
         return previous_year_start, previous_year_end
     
+    def append_candle(self, candle: Candle):
+        if self.candles_ltf_idx >= len(self.candles_ltf):
+            new_size = len(self.ltf_data) * 2
+            self.candles_ltf = self.candles_ltf.reindex(range(new_size))
+            
+        self.candles_ltf.iloc[self.candles_ltf_idx] = MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
+        self.candles_ltf_idx += 1
+            
     def __init__(self, playground, symbol, sl_shift=0.0, tp_shift=0.0, sl_buffer=0.0, tp_buffer=0.0):
         if type(symbol) is not str:
             raise Exception(f"Symbol must be a string, got {type(symbol)}")
@@ -35,10 +43,17 @@ class BaseOpenStrategyV2(ABC):
         
         historical_start_date_ltf, historical_end_date_ltf = self.get_previous_year_date_range(playground.ltf_seconds)
         candles_ltf = playground.fetch_candles_v2(symbol, playground.ltf_seconds, historical_start_date_ltf, historical_end_date_ltf)
-                
-        candles_ltf_dicts = [MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True) for candle in candles_ltf]
         
-        self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
+        if len(candles_ltf) == 0:
+            raise Exception(f"No LTF candles found for symbol {symbol} from {historical_start_date_ltf} to {historical_end_date_ltf}")
+        
+        candles_ltf_dict = MessageToDict(candles_ltf[0], always_print_fields_with_no_presence=True, preserving_proto_field_name=True)
+        
+        self.candles_ltf = pd.DataFrame(index=range(len(candles_ltf) * 2), columns=candles_ltf_dict.keys())
+        self.candles_ltf_idx = 0
+        for c in candles_ltf:
+            self.append_candle(c)
+        # self.candles_ltf = deque(candles_ltf_dicts, maxlen=len(candles_ltf_dicts))
             
         logger.info(f"Loaded {len(self.candles_ltf)} LTF candles", timestamp=self.timestamp, trading_operation=None)
 

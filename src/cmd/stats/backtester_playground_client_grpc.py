@@ -120,7 +120,15 @@ class BacktesterPlaygroundClient:
             
         return True
     
-    
+    def fetch_ladder(self, request):        
+        try:
+            response = self.network_call_with_retry('fetch_ladder', self.client.GetOptionsLadder, request)
+        except Exception as e:
+            self.logger.exception("failed to connect to gRPC service (fetch_ladder)", timestamp=self.timestamp)
+            raise e
+        
+        return response
+        
     def network_call_with_retry(self, caller, client, request, backoff=2, max_backoff=60):
         retries = 0
         while True:
@@ -538,15 +546,15 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, asset_class: str, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None) -> object:
         if quantity == 0:
             return
         
         free_margin_over_equity = self.get_free_margin_over_equity()
         if free_margin_over_equity < 0.2:
-            if quantity > 0 and side == OrderSide.BUY:
+            if quantity > 0 and side in [OrderSide.BUY, OrderSide.BUY_TO_OPEN]:
                 raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place long order')
-            elif quantity < 0 and side == OrderSide.SELL_SHORT:
+            elif quantity < 0 and side in [OrderSide.SELL_SHORT, OrderSide.SELL_TO_OPEN]:
                 raise InvalidParametersException(f'Insufficient free margin (={free_margin_over_equity * 100:.2f}%) to place short order')
   
         if client_request_id is None:
@@ -555,7 +563,7 @@ class BacktesterPlaygroundClient:
         request = PlaceOrderRequest(
             playground_id=self.id,
             symbol=symbol,
-            asset_class='equity',
+            asset_class=asset_class,
             quantity=quantity,
             side=side.value,
             type='market',
