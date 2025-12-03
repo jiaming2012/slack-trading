@@ -713,8 +713,8 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 			})
 		}
 
-		if event.ExpiredOptionContractEvent != nil {
-			components, err := event.ExpiredOptionContractEvent.Symbol.Components()
+		if event.OptionExpirationEvent != nil {
+			components, err := event.OptionExpirationEvent.Symbol.Components()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get option components: %v", err)
 			}
@@ -722,9 +722,9 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 			optionExpiredEvent := &pb.OptionExpirationEvent{
 				OptionSymbol:                string(components.Symbol.GetTicker()),
 				UnderlyingSymbol:            string(components.Underlying),
-				Timestamp:                   event.ExpiredOptionContractEvent.Timestamp.Format(time.RFC3339),
+				Timestamp:                   event.OptionExpirationEvent.Timestamp.Format(time.RFC3339),
 				ExpirationDate:              components.Expiration.Format(time.RFC3339),
-				UnderlyingPriceAtExpiration: event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry,
+				UnderlyingPriceAtExpiration: event.OptionExpirationEvent.UnderlyingPriceAtExpiry,
 				Strike:                      components.StrikePrice,
 			}
 
@@ -835,6 +835,58 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	log.Debugf("%v: GetAccount:Orders Count: %d", requestUUID, len(ordersDTO))
 	log.Tracef("%v: GetAccount:end", requestUUID)
 
+	var events []*pb.TickDeltaEvent
+	for _, event := range account.Events {
+		if event.LiquidationEvent != nil {
+			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced, nil)
+
+			liquidationEvent := &pb.LiquidationEvent{
+				OrdersPlaced: ordersPlaced,
+			}
+
+			events = append(events, &pb.TickDeltaEvent{
+				Type:             string(models.TickDeltaEventTypeLiquidation),
+				LiquidationEvent: liquidationEvent,
+			})
+		}
+
+		if event.OptionExpirationEvent != nil {
+			components, err := event.OptionExpirationEvent.Symbol.Components()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get option components: %v", err)
+			}
+
+			optionExpiredEvent := &pb.OptionExpirationEvent{
+				OptionSymbol:                string(components.Symbol.GetTicker()),
+				UnderlyingSymbol:            string(components.Underlying),
+				Timestamp:                   event.OptionExpirationEvent.Timestamp.Format(time.RFC3339),
+				ExpirationDate:              components.Expiration.Format(time.RFC3339),
+				UnderlyingPriceAtExpiration: event.OptionExpirationEvent.UnderlyingPriceAtExpiry,
+				Strike:                      components.StrikePrice,
+			}
+
+			events = append(events, &pb.TickDeltaEvent{
+				Type:                  string(models.TickDeltaEventTypeOptionExpired),
+				OptionExpirationEvent: optionExpiredEvent,
+			})
+		}
+
+		if event.OptionAssignmentEvent != nil {
+			optionAssignedEvent := &pb.OptionAssignmentEvent{
+				OrderId:          uint64(event.OptionAssignmentEvent.OrderId),
+				Symbol:           event.OptionAssignmentEvent.Symbol.GetTicker(),
+				Timestamp:        event.OptionAssignmentEvent.Timestamp.Format(time.RFC3339),
+				AssignedQuantity: event.OptionAssignmentEvent.AssignedQuantity,
+				AssignedPrice:    event.OptionAssignmentEvent.AssignedPrice,
+			}
+
+			events = append(events, &pb.TickDeltaEvent{
+				Type:                  string(models.TickDeltaEventTypeOptionAssigned),
+				OptionAssignmentEvent: optionAssignedEvent,
+			})
+		}
+	}
+
 	return &pb.GetAccountResponse{
 		Meta: &pb.AccountMeta{
 			PlaygroundId:          account.Meta.PlaygroundId,
@@ -853,6 +905,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		FreeMargin: account.FreeMargin,
 		Positions:  positions,
 		Orders:     ordersDTO,
+		Events:     events,
 	}, nil
 }
 

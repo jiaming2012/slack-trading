@@ -336,7 +336,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, order2.ID, delta.Events[0].OptionAssignmentEvent.OrderId)
 		require.Equal(t, optionSymbol.GetTicker(), delta.Events[0].OptionAssignmentEvent.Symbol.GetTicker())
 		require.Equal(t, 1.0, delta.Events[0].OptionAssignmentEvent.AssignedQuantity)
-		require.Equal(t, optionAssignmentPrice, delta.Events[0].OptionAssignmentEvent.AssignmentPrice)
+		require.Equal(t, optionAssignmentPrice, delta.Events[0].OptionAssignmentEvent.AssignedPrice)
 
 		// assert: open option position is closed
 		position := playground.positionCache.Get(optionSymbol.GetTicker())
@@ -455,7 +455,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, order2.ID, delta.Events[0].OptionAssignmentEvent.OrderId)
 		require.Equal(t, optionSymbol.GetTicker(), delta.Events[0].OptionAssignmentEvent.Symbol.GetTicker())
 		require.Equal(t, 1.0, delta.Events[0].OptionAssignmentEvent.AssignedQuantity)
-		require.Equal(t, optionAssignmentPrice, delta.Events[0].OptionAssignmentEvent.AssignmentPrice)
+		require.Equal(t, optionAssignmentPrice, delta.Events[0].OptionAssignmentEvent.AssignedPrice)
 
 		// assert: open option position is closed
 		position := playground.positionCache.Get(optionSymbol.GetTicker())
@@ -639,9 +639,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: option is not exercised since it was bought back before expiration
 		orders = playground.GetAllOrders()
@@ -747,9 +747,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -875,9 +875,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -1080,9 +1080,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: option is not exercised since it was bought back before expiration
 		orders = playground.GetAllOrders()
@@ -1188,9 +1188,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -1334,9 +1334,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, stockPriceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, stockPriceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -1489,9 +1489,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.Events, 1)
 
-		require.NotNil(t, delta.Events[0].ExpiredOptionContractEvent)
-		require.Equal(t, optionSymbol, delta.Events[0].ExpiredOptionContractEvent.Symbol)
-		require.Equal(t, priceAtExpiration, delta.Events[0].ExpiredOptionContractEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
+		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
+		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()

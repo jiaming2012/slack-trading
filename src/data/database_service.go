@@ -1377,6 +1377,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 		Equity:     internalPlayground.GetEquity(positionCache),
 		FreeMargin: internalPlayground.GetFreeMarginFromPositionMap(positionCache),
 		Positions:  positionsKV,
+		Events:     internalPlayground.Events,
 	}
 
 	if fetchOrders {

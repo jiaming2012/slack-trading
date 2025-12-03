@@ -231,6 +231,13 @@ message CreatePlaygroundResponse {
     string id = 1;
 }
 
+message TickDeltaEvent {
+    string type = 1;
+    optional LiquidationEvent liquidation_event = 2;
+    optional OptionExpirationEvent option_expiration_event = 3;
+    optional OptionAssignmentEvent option_assignment_event = 4;
+}
+
 message GetAccountRequest {
     string playground_id = 1;
     bool fetch_orders = 2;
@@ -249,6 +256,7 @@ message GetAccountResponse {
     double free_margin = 4;
     repeated Order orders = 5;
     map<string, Position> positions = 6;
+    repeated TickDeltaEvent events = 7;
 }
 
 message Position {
@@ -306,10 +314,12 @@ message OptionExpirationEvent {
     double strike = 6;
 }
 
-message TickDeltaEvent {
-    string type = 1;
-    LiquidationEvent liquidation_event = 2;
-    OptionExpirationEvent option_expiration_event = 3;
+message OptionAssignmentEvent {
+    uint64 order_id = 1;
+    string symbol = 2;
+    double assigned_quantity = 3;
+    double assigned_price = 4;
+    string timestamp = 5;
 }
 
 message Bar {

@@ -38,6 +38,7 @@ type Playground struct {
 	ReconcilePlayground         IReconcilePlayground                      `gorm:"-"`
 	repos                       *CandleMasterRepository                   `gorm:"-"`
 	isBacktestComplete          bool                                      `gorm:"-"`
+	Events                      []*TickDeltaEvent                         `gorm:"-"`
 	OptionsBroker               IOptionsBroker                            `gorm:"-"`
 	positionCache               *PositionsCache                           `gorm:"-"`
 	openOrdersCache             *OpenOrdersCache                          `gorm:"-"`
@@ -1565,7 +1566,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 				tickDeltaEvents = append(tickDeltaEvents, &TickDeltaEvent{
 					Type: TickDeltaEventTypeOptionExpired,
-					ExpiredOptionContractEvent: &ExpiredOptionContractEvent{
+					OptionExpirationEvent: &OptionExpirationEvent{
 						Symbol:                  s.Symbol,
 						UnderlyingPriceAtExpiry: currentPrice,
 						Timestamp:               p.clock.CurrentTime,
@@ -1588,7 +1589,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 				OrderId:          order.ID,
 				Symbol:           order.GetInstrument(),
 				AssignedQuantity: req.AssignedQuantity,
-				AssignmentPrice:  req.AssignmentPrice,
+				AssignedPrice:    req.AssignmentPrice,
 				Timestamp:        p.clock.CurrentTime,
 			},
 		})
@@ -1649,6 +1650,9 @@ func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseSe
 }
 
 func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabaseService) (*TickDelta, error) {
+	// Record all events
+	p.Events = append(p.Events, tickDelta.Events...)
+
 	// Close expired option contracts repos
 	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
 	for _, event := range tickDelta.Events {
@@ -1658,7 +1662,7 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 				return nil, fmt.Errorf("failed to find open order for option assignment event: %d", event.OptionAssignmentEvent.OrderId)
 			}
 
-			requestedPrice := event.OptionAssignmentEvent.AssignmentPrice
+			requestedPrice := event.OptionAssignmentEvent.AssignedPrice
 			requestedQuantity := event.OptionAssignmentEvent.AssignedQuantity
 			exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), requestedPrice, &requestedQuantity, "auto-closed-on-early-assignment")
 			if err != nil {
@@ -1680,9 +1684,9 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 		}
 
 		if event.Type == TickDeltaEventTypeOptionExpired {
-			openOrders := p.GetOpenOrders(event.ExpiredOptionContractEvent.Symbol)
+			openOrders := p.GetOpenOrders(event.OptionExpirationEvent.Symbol)
 			for _, o := range openOrders {
-				components, err := event.ExpiredOptionContractEvent.Symbol.Components()
+				components, err := event.OptionExpirationEvent.Symbol.Components()
 				if err != nil {
 					return nil, fmt.Errorf("failed to get symbol components: %w", err)
 				}
@@ -1690,15 +1694,15 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 				var closePriceAtExpiration float64
 				switch components.OptionType {
 				case eventmodels.OptionTypeCall:
-					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry > components.StrikePrice {
-						closePriceAtExpiration = event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry - components.StrikePrice
+					if event.OptionExpirationEvent.UnderlyingPriceAtExpiry > components.StrikePrice {
+						closePriceAtExpiration = event.OptionExpirationEvent.UnderlyingPriceAtExpiry - components.StrikePrice
 					} else {
 						closePriceAtExpiration = 0
 					}
 
 				case eventmodels.OptionTypePut:
-					if event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry < components.StrikePrice {
-						closePriceAtExpiration = components.StrikePrice - event.ExpiredOptionContractEvent.UnderlyingPriceAtExpiry
+					if event.OptionExpirationEvent.UnderlyingPriceAtExpiry < components.StrikePrice {
+						closePriceAtExpiration = components.StrikePrice - event.OptionExpirationEvent.UnderlyingPriceAtExpiry
 					} else {
 						closePriceAtExpiration = 0
 					}
@@ -1723,10 +1727,28 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 						Time:     p.GetCurrentTime(),
 						Quantity: placeOrderResult.GetQuantity(),
 					}
+
+					if orderRequest.Class == OrderRecordClassEquity {
+						multiplier := 1.0
+						if orderRequest.Side == TradierOrderSideSell || orderRequest.Side == TradierOrderSideSellShort {
+							multiplier = -1.0
+						}
+
+						p.Events = append(p.Events, &TickDeltaEvent{
+							Type: TickDeltaEventTypeOptionAssigned,
+							OptionAssignmentEvent: &OptionAssignmentEvent{
+								OrderId:          placeOrderResult.ID,
+								Symbol:           placeOrderResult.GetInstrument(),
+								AssignedQuantity: orderRequest.Quantity * multiplier,
+								AssignedPrice:    orderRequest.RequestedPrice,
+								Timestamp:        p.GetCurrentTime(),
+							},
+						})
+					}
 				}
 			}
 
-			p.DeleteRepository(event.ExpiredOptionContractEvent.Symbol)
+			p.DeleteRepository(event.OptionExpirationEvent.Symbol)
 		}
 
 		// todo: in order to handle multiple events in a single tick, we need to commit after each event
