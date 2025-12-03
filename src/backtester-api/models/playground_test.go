@@ -873,11 +873,15 @@ func TestOptions(t *testing.T) {
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
-		require.Len(t, delta.Events, 1)
+		require.Len(t, delta.Events, 2)
 
 		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
 		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
 		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
+		require.NotNil(t, delta.Events[1].OptionAssignmentEvent)
+		require.Equal(t, stockSymbol, delta.Events[1].OptionAssignmentEvent.Symbol)
+		require.Equal(t, 200.0, delta.Events[1].OptionAssignmentEvent.AssignedQuantity)
+		require.Equal(t, components.StrikePrice, delta.Events[1].OptionAssignmentEvent.AssignedPrice)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -1332,11 +1336,16 @@ func TestOptions(t *testing.T) {
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
-		require.Len(t, delta.Events, 1)
+		require.Len(t, delta.Events, 2)
 
 		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
 		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
 		require.Equal(t, stockPriceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
+
+		require.NotNil(t, delta.Events[1].OptionAssignmentEvent)
+		require.Equal(t, stockSymbol, delta.Events[1].OptionAssignmentEvent.Symbol)
+		require.Equal(t, -100.0, delta.Events[1].OptionAssignmentEvent.AssignedQuantity)
+		require.Equal(t, components.StrikePrice, delta.Events[1].OptionAssignmentEvent.AssignedPrice)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()
@@ -1487,11 +1496,16 @@ func TestOptions(t *testing.T) {
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
-		require.Len(t, delta.Events, 1)
+		require.Len(t, delta.Events, 2)
 
 		require.NotNil(t, delta.Events[0].OptionExpirationEvent)
 		require.Equal(t, optionSymbol, delta.Events[0].OptionExpirationEvent.Symbol)
 		require.Equal(t, priceAtExpiration, delta.Events[0].OptionExpirationEvent.UnderlyingPriceAtExpiry)
+
+		require.NotNil(t, delta.Events[1].OptionAssignmentEvent)
+		require.Equal(t, stockSymbol, delta.Events[1].OptionAssignmentEvent.Symbol)
+		require.Equal(t, -100.0, delta.Events[1].OptionAssignmentEvent.AssignedQuantity)
+		require.Equal(t, components.StrikePrice, delta.Events[1].OptionAssignmentEvent.AssignedPrice)
 
 		// assert: expiration trade is placed
 		orders := playground.GetAllOrders()

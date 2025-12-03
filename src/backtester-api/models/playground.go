@@ -1652,6 +1652,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseSe
 func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabaseService) (*TickDelta, error) {
 	// Record all events
 	p.Events = append(p.Events, tickDelta.Events...)
+	var optionAssignmentEvents []*TickDeltaEvent
 
 	// Close expired option contracts repos
 	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
@@ -1734,7 +1735,7 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 							multiplier = -1.0
 						}
 
-						p.Events = append(p.Events, &TickDeltaEvent{
+						optionAssignmentEvents = append(optionAssignmentEvents, &TickDeltaEvent{
 							Type: TickDeltaEventTypeOptionAssigned,
 							OptionAssignmentEvent: &OptionAssignmentEvent{
 								OrderId:          placeOrderResult.ID,
@@ -1744,6 +1745,8 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 								Timestamp:        p.GetCurrentTime(),
 							},
 						})
+
+						p.Events = append(p.Events, optionAssignmentEvents[len(optionAssignmentEvents)-1])
 					}
 				}
 			}
@@ -1753,6 +1756,9 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 		// todo: in order to handle multiple events in a single tick, we need to commit after each event
 	}
+
+	// Append all option assignment events to the playground events
+	tickDelta.Events = append(tickDelta.Events, optionAssignmentEvents...)
 
 	newTrades, invalidOrders, _, err := p.CommitOrderQueue(executionRequests)
 	if err != nil {
