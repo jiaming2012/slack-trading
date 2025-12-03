@@ -494,6 +494,8 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 	}
 
 	threshold := time.Duration(6.5 * float64(time.Hour))
+
+	// use the option's timestamp filter out data that is too old
 	options = filterOptionsBeforeTime(options, timestamp, threshold)
 
 	return &eventmodels.FetchOptionChainDataInput{

@@ -10,7 +10,7 @@ import (
 )
 
 type MockBroker struct {
-	requests []*PlaceEquityTradeRequest
+	requests []*PlaceOrderRequest
 	orders   []*eventmodels.TradierOrder
 	orderId  uint
 	source   ILiveAccountSource
@@ -34,7 +34,7 @@ func (b *MockBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) 
 	return nil, nil
 }
 
-func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceEquityTradeRequest) {
+func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceOrderRequest) {
 	o := &eventmodels.TradierOrder{
 		Symbol:                    req.Symbol,
 		AbsoluteQuantity:          float64(req.Quantity),
@@ -87,7 +87,7 @@ func (b *MockBroker) FillOrder(orderId uint, price float64, status string) error
 	return fmt.Errorf("order not found")
 }
 
-func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceEquityTradeRequest) (map[string]interface{}, error) {
+func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (map[string]interface{}, error) {
 	b.requests = append(b.requests, req)
 	resp := map[string]interface{}{
 		"order": map[string]interface{}{
@@ -131,11 +131,11 @@ func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*eve
 	return nil, fmt.Errorf("order not found")
 }
 
-func NewMockBroker(orderIdStartIndex uint, existingOrders []*PlaceEquityTradeRequest) *MockBroker {
+func NewMockBroker(orderIdStartIndex uint, existingOrders []*PlaceOrderRequest) *MockBroker {
 	source := NewMockLiveAccountSource()
 
 	broker := &MockBroker{
-		requests: make([]*PlaceEquityTradeRequest, 0),
+		requests: make([]*PlaceOrderRequest, 0),
 		orders:   make([]*eventmodels.TradierOrder, 0),
 		orderId:  orderIdStartIndex,
 		source:   source,

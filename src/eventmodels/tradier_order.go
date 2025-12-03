@@ -32,9 +32,9 @@ type TradierOrder struct {
 }
 
 func (o TradierOrder) GetExecFillQuantity() float64 {
-	if o.Side == "buy" || o.Side == "buy_to_cover" {
+	if o.Side == "buy" || o.Side == "buy_to_cover" || o.Side == "buy_to_open" || o.Side == "buy_to_close" {
 		return math.Abs(o.AbsoluteExecQuantity)
-	} else if o.Side == "sell" || o.Side == "sell_short" {
+	} else if o.Side == "sell" || o.Side == "sell_short" || o.Side == "sell_to_open" || o.Side == "sell_to_close" {
 		return -math.Abs(o.AbsoluteExecQuantity)
 	} else {
 		log.Fatalf("TradierOrder.GetExecFillQuantity: invalid side: %s", o.Side)

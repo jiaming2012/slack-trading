@@ -47,7 +47,7 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 	if hasOppositeSides {
 		if position.Quantity >= 0 {
 			switch order.Side {
-			case TradierOrderSideSell, TradierOrderSideSellShort:
+			case TradierOrderSideSell, TradierOrderSideSellShort, TradierOrderSideSellToOpen, TradierOrderSideSellToClose:
 				sell_qty := math.Min(position.Quantity, order.AbsoluteQuantity)
 				if sell_qty > 0 {
 					o1 := CopyOrderRecord(r.GetId(), 0, order, LiveAccountTypeReconcilation)
@@ -67,7 +67,7 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 			}
 		} else {
 			switch order.Side {
-			case TradierOrderSideBuy, TradierOrderSideBuyToCover:
+			case TradierOrderSideBuy, TradierOrderSideBuyToCover, TradierOrderSideBuyToOpen, TradierOrderSideBuyToClose:
 				buy_qty := math.Min(-position.Quantity, order.AbsoluteQuantity)
 				if buy_qty > 0 {
 					o1 := CopyOrderRecord(r.GetId(), 0, order, LiveAccountTypeReconcilation)
@@ -91,12 +91,16 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 		o := CopyOrderRecord(r.GetId(), 0, order, LiveAccountTypeReconcilation)
 
 		switch order.Side {
-		case TradierOrderSideBuy, TradierOrderSideSellShort:
+		case TradierOrderSideBuy, TradierOrderSideSellShort, TradierOrderSideBuyToOpen, TradierOrderSideSellToOpen:
 			break
 		case TradierOrderSideSell:
 			o.Side = TradierOrderSideSellShort
 		case TradierOrderSideBuyToCover:
 			o.Side = TradierOrderSideBuy
+		case TradierOrderSideSellToClose:
+			o.Side = TradierOrderSideSellToOpen
+		case TradierOrderSideBuyToClose:
+			o.Side = TradierOrderSideBuyToOpen
 		default:
 			return nil, nil, fmt.Errorf("ReconcilePlayground: invalid order side: %s, with position: %.2f", order.Side, position.Quantity)
 		}

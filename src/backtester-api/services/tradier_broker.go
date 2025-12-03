@@ -150,7 +150,7 @@ func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType models.LiveAcco
 	return order, nil
 }
 
-func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
 	resp, err := PlaceOrder(ctx, b.ordersUrl, b.tradesToken, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order: %w", err)
@@ -351,7 +351,7 @@ func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.Tra
 	return orders, nil
 }
 
-func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceEquityTradeRequest) (map[string]interface{}, error) {
+func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
 	if req.Quantity <= 0 {
 		return nil, fmt.Errorf("PlaceOrder: quantity must be positive")
 	}
@@ -370,12 +370,16 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceEquityT
 	symbol := strings.ToUpper(req.Symbol)
 
 	q := httpReq.URL.Query()
-	q.Add("class", "equity")
+	q.Add("class", string(req.Class))
 	q.Add("type", string(req.OrderType))
 	q.Add("duration", string(eventmodels.TradeDurationDay))
 	q.Add("symbol", symbol)
 	q.Add("quantity", quantityStr)
 	q.Add("side", string(req.Side))
+
+	if req.OptionSymbol != nil {
+		q.Add("option_symbol", *req.OptionSymbol)
+	}
 
 	if req.Tag != "" {
 		q.Add("tag", req.Tag)

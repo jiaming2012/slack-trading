@@ -27,7 +27,7 @@ class BaseOpenStrategyV2(ABC):
     
     def append_candle(self, candle: Candle):
         if self.candles_ltf_idx >= len(self.candles_ltf):
-            new_size = len(self.ltf_data) * 2
+            new_size = len(self.candles_ltf) * 2
             self.candles_ltf = self.candles_ltf.reindex(range(new_size))
             
         self.candles_ltf.iloc[self.candles_ltf_idx] = MessageToDict(candle, always_print_fields_with_no_presence=True, preserving_proto_field_name=True)

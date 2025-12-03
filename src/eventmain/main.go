@@ -703,9 +703,9 @@ func run() {
 		log.Fatalf("failed to fetch pending mock orders: %v", err)
 	}
 
-	var existsingOrders []*models.PlaceEquityTradeRequest
+	var existsingOrders []*models.PlaceOrderRequest
 	for _, order := range pendingMockOrders {
-		existsingOrders = append(existsingOrders, &models.PlaceEquityTradeRequest{
+		existsingOrders = append(existsingOrders, &models.PlaceOrderRequest{
 			OrderID:   order.ExternalOrderID,
 			Symbol:    order.Symbol,
 			Quantity:  int(order.AbsoluteQuantity),

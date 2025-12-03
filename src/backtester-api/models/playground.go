@@ -693,6 +693,8 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 		for _, symbol := range symbols {
 			var repo *CandleRepository
 			var ok bool
+			var optionSymbol eventmodels.OptionSymbol
+			var expiration time.Time
 
 			switch s := symbol.(type) {
 			case eventmodels.StockSymbol:
@@ -701,20 +703,35 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 					return nil, fmt.Errorf("getCurrentPrice: no repository found for symbol %s and period %s", s, p.minimumPeriod)
 				}
 
-			case *eventmodels.OptionContractV3:
-				repo, ok = p.repos.Get(s, p.minimumPeriod)
-				if !ok {
-					from := s.Expiration.Add(-7 * 24 * time.Hour)
-					to := s.Expiration.Add(24 * time.Hour)
-
-					var err error
-					if repo, err = p.populateRepo(s.Symbol, from, &to); err != nil {
-						return nil, fmt.Errorf("getCurrentPrice: error populating repo: %w", err)
-					}
+			case eventmodels.OptionSymbol:
+				optionSymbol = s
+				components, err := s.Components()
+				if err != nil {
+					return nil, fmt.Errorf("getCurrentPrice: error getting option components: %w", err)
 				}
+
+				expiration = components.Expiration
+			
+			case *eventmodels.OptionContractV3:
+				optionSymbol = s.Symbol
+				expiration = s.Expiration
 
 			default:
 				return nil, fmt.Errorf("getCurrentPrice: unsupported symbol type: %T", symbol)
+			}
+
+			// for option symbols, check if repo exists, if not, populate it
+			if repo == nil {
+				repo, ok = p.repos.Get(optionSymbol, p.minimumPeriod)
+				if !ok {
+					from := expiration.Add(-7 * 24 * time.Hour)
+					to := expiration.Add(24 * time.Hour)
+
+					var err error
+					if repo, err = p.populateRepo(optionSymbol, from, &to); err != nil {
+						return nil, fmt.Errorf("getCurrentPrice: error populating repo: %w", err)
+					}
+				}
 			}
 
 			candle, err := repo.GetCurrentCandle()

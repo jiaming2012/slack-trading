@@ -62,9 +62,12 @@ func (a *LiveAccount) FetchCurrentPrice(ctx context.Context, symbol eventmodels.
 }
 
 func (a *LiveAccount) PlaceOrder(order *OrderRecord) error {
-	ticker := order.GetInstrument().GetTicker()
+	instrument := order.GetInstrument()
 	qty := int(order.AbsoluteQuantity)
-	req := NewPlaceEquityOrderRequest(ticker, qty, order.Side, order.OrderType, order.Tag, false)
+	req, err := NewPlaceOrderRequest(instrument, qty, order.Side, order.OrderType, order.Tag, false)
+	if err != nil {
+		return fmt.Errorf("failed to create place order request: %w", err)
+	}
 
 	resp, err := a.Broker.PlaceOrder(context.Background(), req)
 	if err != nil {
