@@ -123,6 +123,8 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 }
 
 func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, optionChainTickMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest) error {
+	log.Debugf("populateTickDataToOptionChainMap: start populating tick data to option chain map for %d contracts", len(contracts))
+
 	for _, c := range contracts {
 		url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), polygonTickDataReq.EndDate.Format("2006-01-02"))
 		isHistorical := true
@@ -163,6 +165,8 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 
 			optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike] = append(optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike], &tick)
 		}
+
+		time.Sleep(50 * time.Millisecond) // To avoid hitting rate limits
 	}
 
 	// Sort the ticks for each expiration date, option type, and strike

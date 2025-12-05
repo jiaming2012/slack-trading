@@ -45,6 +45,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 				"POSTGRES_PORT":    "5432",
 				"ANACONDA_HOME":    "/opt/conda",
 				"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
+				"LOG_LEVEL":        "debug",
 			},
 			WaitingFor: wait.ForAll(
 				wait.ForExposedPort(),

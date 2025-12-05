@@ -352,12 +352,6 @@ func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.Tra
 }
 
 func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
-	if req.Quantity <= 0 {
-		return nil, fmt.Errorf("PlaceOrder: quantity must be positive")
-	}
-
-	quantityStr := strconv.Itoa(req.Quantity)
-
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -370,23 +364,36 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRe
 	symbol := strings.ToUpper(req.Symbol)
 
 	q := httpReq.URL.Query()
-	q.Add("class", string(req.Class))
+	q.Add("symbol", symbol)
 	q.Add("type", string(req.OrderType))
 	q.Add("duration", string(eventmodels.TradeDurationDay))
-	q.Add("symbol", symbol)
-	q.Add("quantity", quantityStr)
-	q.Add("side", string(req.Side))
-
-	if req.OptionSymbol != nil {
-		q.Add("option_symbol", *req.OptionSymbol)
-	}
-
+	
 	if req.Tag != "" {
 		q.Add("tag", req.Tag)
 	}
 
 	if req.DryRun {
 		q.Add("preview", "true")
+	}
+
+	switch req.Class {
+	case models.OrderRecordClassEquity:
+		q.Add("quantity", strconv.Itoa(req.Quantities[0]))
+		q.Add("side", string(req.Sides[0]))
+		q.Add("class", string(req.Class))
+	case models.OrderRecordClassOption:
+		q.Add("quantity", strconv.Itoa(req.Quantities[0]))
+		q.Add("option_symbol", req.OptionSymbols[0])
+		q.Add("class", string(req.Class))
+	case models.OrderRecordClassMultiLegOption:
+		for index, optionSymbol := range req.OptionSymbols {
+			q.Add(fmt.Sprintf("option_symbols[%d]", index), optionSymbol)
+			q.Add(fmt.Sprintf("quantity[%d]", index), strconv.Itoa(req.Quantities[index]))
+			q.Add(fmt.Sprintf("side[%d]", index), string(req.Sides[index]))
+		}
+		q.Add("class", string(models.OrderRecordClassOption))
+	default:
+		return nil, fmt.Errorf("PlaceOrder: unsupported order class: %s", req.Class)
 	}
 
 	httpReq.URL.RawQuery = q.Encode()

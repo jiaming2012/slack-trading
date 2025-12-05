@@ -15,6 +15,7 @@ service PlaygroundService {
     rpc GetOrder(GetOrderRequest) returns (Order);
     rpc NextTick(NextTickRequest) returns (TickDelta);
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
+    rpc PlaceMultiLegOrder(PlaceMultiLegOrderRequest) returns (PlaceMultiLegOrderResponse);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
     rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
@@ -29,12 +30,17 @@ service PlaygroundService {
     rpc GetOptionsLadder(GetOptionsLadderRequest) returns (GetOptionsLadderResponse);
 }
 
+message PlaceMultiLegOrderResponse {
+    repeated Order orders = 1;
+}
+
 message GetOptionsLadderRequest {
     string playground_id = 1;
     string stock_symbol = 2;
     int32 max_no_of_strikes = 3;
     double min_distance_between_strikes = 4;
     repeated int32 expiration_in_days = 5;
+    double max_tick_age_in_minutes = 6;
 }
 
 message GetOptionsLadderResponse {
@@ -266,6 +272,26 @@ message Position {
     double maintenance_margin = 4;
     double current_price = 5;
     string timestamp = 6;
+}
+
+message MultiLegOrderLeg {
+    string symbol = 1;
+    string asset_class = 2;
+    double quantity = 3;
+    string side = 4;
+    string tag = 5;
+    optional uint64 close_order_id = 6;
+}
+
+message PlaceMultiLegOrderRequest {
+    string playground_id = 1;
+    repeated MultiLegOrderLeg legs = 2;
+    string type = 3;
+    string duration = 4;
+    double requested_price = 5;
+    optional double price = 6;
+    bool is_adjustment = 7;
+    optional string client_request_id = 8;
 }
  
 message PlaceOrderRequest {

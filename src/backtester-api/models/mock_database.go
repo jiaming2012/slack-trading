@@ -23,11 +23,26 @@ func (m *MockDatabase) SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp ti
 	return nil
 }
 
-func (m *MockDatabase) PlaceOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*OrderRecord, error) {
+func (m *MockDatabase) PlaceOrder(playgroundID uuid.UUID, requests *CreateOrderRequest) (*OrderRecord, error) {
+	orders, err := m.PlaceOrders(playgroundID, []*CreateOrderRequest{requests})
+	if err != nil {
+		return nil, fmt.Errorf("PlaceOrder: %w", err)
+	}
+
+	return orders[0], nil
+}
+
+func (m *MockDatabase) PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrderRequest) ([]*OrderRecord, error) {
 	playground, found := m.playgrounds[playgroundID]
 	if !found {
 		return nil, fmt.Errorf("MockDatabase: playground not found")
 	}
+
+	if len(requests) != 1 {
+		return nil, fmt.Errorf("MockDatabase: not implemented yet - only one order request is supported in mock environment")
+	}
+
+	req := requests[0]
 
 	id := uint(0)
 	oRecord, err := NewOrderRecord(
@@ -67,7 +82,7 @@ func (m *MockDatabase) PlaceOrder(playgroundID uuid.UUID, req *CreateOrderReques
 		}
 	}
 
-	return oRecord, nil
+	return []*OrderRecord{oRecord}, nil
 }
 
 func (m *MockDatabase) GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error) {
@@ -101,16 +116,19 @@ func (m *MockDatabase) RejectOrder(order *OrderRecord, reason string) error {
 	return nil
 }
 
-func (m *MockDatabase) GetOrderByClientId(clientId string) (*OrderRecord, error) {
+func (m *MockDatabase) GetOrdersByClientId(clientId string) ([]*OrderRecord, error) {
+	var result []*OrderRecord
 	for _, orders := range m.orderRecords {
 		for _, order := range orders {
 			if *order.ClientRequestID == clientId {
-				return order, nil
+				result = append(result, order)
 			}
 		}
 	}
-
-	return nil, fmt.Errorf("MockDatabase: order not found using clientId")
+	if len(result) == 0 {
+		return nil, fmt.Errorf("MockDatabase: order not found using clientId")
+	}
+	return result, nil
 }
 
 func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {

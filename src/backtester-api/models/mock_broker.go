@@ -37,13 +37,13 @@ func (b *MockBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) 
 func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceOrderRequest) {
 	o := &eventmodels.TradierOrder{
 		Symbol:                    req.Symbol,
-		AbsoluteQuantity:          float64(req.Quantity),
-		Side:                      string(req.Side),
+		AbsoluteQuantity:          float64(req.Quantities[0]),
+		Side:                      string(req.Sides[0]),
 		Type:                      string(req.OrderType),
 		Status:                    string(OrderRecordStatusPending),
 		AvgFillPrice:              0,
 		LastFillPrice:             0,
-		AbsoluteRemainingQuantity: float64(req.Quantity),
+		AbsoluteRemainingQuantity: float64(req.Quantities[0]),
 	}
 
 	// need to get the external order id. Maybe place it on the live order?

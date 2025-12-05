@@ -111,20 +111,20 @@ func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveA
 	return items, nil
 }
 
-func (s *DatabaseService) GetOrderByClientId(clientId string) (*models.OrderRecord, error) {
+func (s *DatabaseService) GetOrdersByClientId(clientId string) ([]*models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var order *models.OrderRecord
-	if err := s.db.Where("client_request_id = ?", clientId).First(&order).Error; err != nil {
+	var orders []*models.OrderRecord
+	if err := s.db.Where("client_request_id = ?", clientId).Error; err != nil {
 		return nil, fmt.Errorf("failed to get order: %w", err)
 	}
 
-	if order == nil {
+	if len(orders) == 0 {
 		return nil, fmt.Errorf("failed to find order with client id: %s", clientId)
 	}
 
-	return order, nil
+	return orders, nil
 }
 
 func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
@@ -1212,13 +1212,18 @@ func (s *DatabaseService) RejectOrder(order *models.OrderRecord, reason string) 
 	return nil
 }
 
-func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateOrderRequest) (*models.OrderRecord, error) {
+func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, requests *models.CreateOrderRequest) (*models.OrderRecord, error) {
+	orders, err := s.PlaceOrders(playgroundID, []*models.CreateOrderRequest{requests})
+	if err != nil {
+		return nil, fmt.Errorf("PlaceOrder: %w", err)
+	}
+
+	return orders[0], nil
+}
+
+func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models.CreateOrderRequest) ([]*models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if err := req.Validate(); err != nil {
-		return nil, eventmodels.NewWebError(400, "invalid request", err)
-	}
 
 	playground, err := s.fetchPlayground(playgroundID)
 	if err != nil {
@@ -1228,26 +1233,36 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, req *models.CreateO
 	playground.GetPlaceOrderLock().Lock()
 	defer playground.GetPlaceOrderLock().Unlock()
 
+	for _, req := range requests {
+		if err := req.Validate(); err != nil {
+			return nil, eventmodels.NewWebError(400, "invalid request", err)
+		}
+
+		if req.CloseOrderId != nil {
+			if err := s.checkPendingCloses(playground, *req.CloseOrderId); err != nil {
+				return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
+			}
+		}
+	}
+
+	var orders []*models.OrderRecord
 	createdOn := playground.GetCurrentTime()
-
-	if req.CloseOrderId != nil {
-		if err := s.checkPendingCloses(playground, *req.CloseOrderId); err != nil {
-			return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
+	for _, req := range requests {
+		order, err := s.commitOrderRecord(playground, req, createdOn)
+		if err != nil {
+			return nil, eventmodels.NewWebError(500, "failed to place order", err)
 		}
-	}
 
-	order, err := s.commitOrderRecord(playground, req, createdOn)
-	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to place order", err)
-	}
-
-	if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
-		if err := s.waitForOrderRecord(order.ID); err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
+			if err := s.waitForOrderRecord(order.ID); err != nil {
+				return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+			}
 		}
+
+		orders = append(orders, order)
 	}
 
-	return order, nil
+	return orders, nil
 }
 
 func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *models.CreateOrderRequest, createdOn time.Time) (*models.OrderRecord, error) {

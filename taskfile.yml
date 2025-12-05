@@ -154,6 +154,11 @@ tasks:
       - task test:e2e:live-account-simulate-options
     dir: ${PROJECTS_DIR}/slack-trading/integration_testing
 
+  test:e2e:tradier-place-spread:
+    cmds:
+      - 'go test -timeout 60s -count=1 -run ^TestTradierPlaceSpread$ github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+
   test:e2e:live-account-simulate-options:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'

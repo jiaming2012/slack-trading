@@ -711,7 +711,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 				}
 
 				expiration = components.Expiration
-			
+
 			case *eventmodels.OptionContractV3:
 				optionSymbol = s.Symbol
 				expiration = s.Expiration
@@ -1688,10 +1688,12 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 			}
 
 			for _, orderRequest := range exercisedOptionOrderRequests {
-				placeOrderResult, placeOrderErr := dbService.PlaceOrder(p.ID, orderRequest)
+				placeOrderResults, placeOrderErr := dbService.PlaceOrders(p.ID, []*CreateOrderRequest{orderRequest})
 				if placeOrderErr != nil {
 					return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
 				}
+
+				placeOrderResult := placeOrderResults[0]
 
 				executionRequests[placeOrderResult] = ExecutionFillRequest{
 					Price:    placeOrderResult.RequestedPrice,
@@ -1735,10 +1737,12 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 				}
 
 				for _, orderRequest := range exercisedOptionOrderRequests {
-					placeOrderResult, placeOrderErr := dbService.PlaceOrder(p.ID, orderRequest)
+					placeOrderResults, placeOrderErr := dbService.PlaceOrders(p.ID, []*CreateOrderRequest{orderRequest})
 					if placeOrderErr != nil {
 						return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
 					}
+
+					placeOrderResult := placeOrderResults[0]
 
 					executionRequests[placeOrderResult] = ExecutionFillRequest{
 						Price:    placeOrderResult.RequestedPrice,

@@ -250,7 +250,7 @@ func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmode
 		}
 
 		if dto.Status == "DELAYED" {
-			log.Warnf("FetchPolygonAggregateBars: response status is DELAYED, this might be due to the API rate limit or other issues. URL: %s", req.URL.String())
+			log.Warnf("FetchPolygonAggregateBars: (%d results) response status is DELAYED, this might be due to the API rate limit or other issues. URL: %s", len(dto.Results), req.URL.String())
 		}
 
 		return &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
@@ -387,16 +387,20 @@ func (fetcher *PolygonOptionsClient) maxExpirationInDays(expirationInDays []int)
 	return max
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration) (*eventmodels.FetchOptionChainDataInput, error) {
 	expirationGTE := timestamp
 
 	maxDays := fetcher.maxExpirationInDays(expirationInDays)
 	expirationLTE := utils.DeriveNextFriday(timestamp.AddDate(0, 0, maxDays))
 
-	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays)
+	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge)
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration) (*eventmodels.FetchOptionChainDataInput, error) {
+	if maxTickAge <= 0 {
+		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: maxTickAge must be greater than 0")
+	}
+
 	optionSpreadPerc := 0.005
 
 	request := eventmodels.PolygonDataBulkHistOptionOHLCRequest{
@@ -493,10 +497,8 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert options")
 	}
 
-	threshold := time.Duration(6.5 * float64(time.Hour))
-
 	// use the option's timestamp filter out data that is too old
-	options = filterOptionsBeforeTime(options, timestamp, threshold)
+	options = filterOptionsBeforeTime(options, timestamp, maxTickAge)
 
 	return &eventmodels.FetchOptionChainDataInput{
 		StockTickItemDTO: closestStockTickDTO,

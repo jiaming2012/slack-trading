@@ -63,6 +63,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.PlaceOrderRequest"),
 				output=_sym_db.GetSymbol("playground.Order"),
 			),
+			"PlaceMultiLegOrder": Endpoint(
+				service_name="PlaygroundService",
+				name="PlaceMultiLegOrder",
+				function=getattr(service, "PlaceMultiLegOrder"),
+				input=_sym_db.GetSymbol("playground.PlaceMultiLegOrderRequest"),
+				output=_sym_db.GetSymbol("playground.PlaceMultiLegOrderResponse"),
+			),
 			"GetAccount": Endpoint(
 				service_name="PlaygroundService",
 				name="GetAccount",
@@ -202,6 +209,15 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.Order"),
+			**kwargs,
+		)
+
+	def PlaceMultiLegOrder(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/PlaceMultiLegOrder",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.PlaceMultiLegOrderResponse"),
 			**kwargs,
 		)
 
@@ -373,6 +389,16 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.Order"),
+				session=session,
+				**kwargs,
+			)
+
+		async def PlaceMultiLegOrder(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/PlaceMultiLegOrder",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.PlaceMultiLegOrderResponse"),
 				session=session,
 				**kwargs,
 			)

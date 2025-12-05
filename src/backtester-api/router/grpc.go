@@ -220,7 +220,8 @@ func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderR
 		expirationInDays = append(expirationInDays, int(days))
 	}
 
-	resp, err := s.optionsClient.FetchOptionChainV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays)
+	maxTickAge := time.Duration(float64(req.MaxTickAgeInMinutes) * float64(time.Minute))
+	resp, err := s.optionsClient.FetchOptionChainV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays, maxTickAge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch options ladder: %v", err)
 	}
@@ -909,24 +910,104 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	}, nil
 }
 
-func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
-	log.Infof("%v: PlaceOrder:start", req.ClientRequestId)
+func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOrderRequest) (*pb.PlaceMultiLegOrderResponse, error) {
+	if orders, err := s.checkOrderExists(ctx, req.ClientRequestId); len(orders) > 0 || err != nil {
+		if err != nil {
+			return nil, fmt.Errorf("PlaceMultiLegOrder: %v", err)
+		}
+
+		return &pb.PlaceMultiLegOrderResponse{
+			Orders: orders,
+		}, nil
+	}
 
 	playgroundID, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
-	if req.ClientRequestId != nil {
-		if order, _ := s.dbService.GetOrderByClientId(*req.ClientRequestId); order != nil {
-			log.Infof("%v: PlaceOrder:Order already exists", req.ClientRequestId)
-
-			orderDTO := convertOrder(order, nil)
-
-			log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
-
-			return orderDTO, nil
+	// todo: handle limit order and requested price, which is a
+	// combination of multiple orders
+	var requests []*models.CreateOrderRequest
+	for _, leg := range req.Legs {
+		var closeOrderId *uint
+		if leg.CloseOrderId != nil {
+			closeOrderId = new(uint)
+			*closeOrderId = uint(*leg.CloseOrderId)
 		}
+
+		requests = append(requests, &models.CreateOrderRequest{
+			Symbol:          leg.Symbol,
+			ClientRequestID: req.ClientRequestId,
+			Class:           models.OrderRecordClass(leg.AssetClass),
+			Quantity:        leg.Quantity,
+			Side:            models.TradierOrderSide(leg.Side),
+			OrderType:       models.OrderRecordType(req.Type),
+			Duration:        models.OrderRecordDuration(req.Duration),
+			Tag:             leg.Tag,
+			CloseOrderId:    closeOrderId,
+			IsAdjustment:    false,
+		})
+	}
+
+	orders, err := s.dbService.PlaceOrders(playgroundID, requests)
+	if err != nil {
+		return nil, fmt.Errorf("PlaceMultiLegOrder: %v", err)
+	}
+
+	var resultOrders []*pb.Order
+	for _, order := range orders {
+		orderDTO := convertOrder(order, nil)
+		resultOrders = append(resultOrders, orderDTO)
+
+		log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
+	}
+
+	return &pb.PlaceMultiLegOrderResponse{
+		Orders: resultOrders,
+	}, nil
+}
+
+func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) ([]*pb.Order, error) {
+	if clientRequestId != nil {
+		log.Infof("%v: checkOrderExists:start", *clientRequestId)
+
+		orders, err := s.dbService.GetOrdersByClientId(*clientRequestId)
+		if err != nil {
+			return nil, fmt.Errorf("checkOrderExists: %v", err)
+		}
+
+		if len(orders) > 0 {
+			var results []*pb.Order
+			for _, order := range orders {
+				log.Infof("%v: checkOrderExists:Order already exists", *clientRequestId)
+				orderDTO := convertOrder(order, nil)
+				results = append(results, orderDTO)
+			}
+
+			return results, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
+	if orders, err := s.checkOrderExists(ctx, req.ClientRequestId); len(orders) > 0 || err != nil {
+		if err != nil {
+			return nil, fmt.Errorf("PlaceOrder: %v", err)
+		}
+
+		if len(orders) > 1 {
+			return nil, fmt.Errorf("PlaceOrder: multiple orders found with same client request id")
+		}
+
+		return orders[0], nil
+	}
+
+	playgroundID, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse playground id: %v", err)
 	}
 
 	var closeOrderId *uint

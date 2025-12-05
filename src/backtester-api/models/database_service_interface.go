@@ -15,7 +15,7 @@ type IDatabaseService interface {
 	GetPlayground(playgroundID uuid.UUID) (*Playground, error)
 	GetLiveAccount(source CreateAccountRequestSource) (ILiveAccount, error)
 	GetOrder(id uint) (*OrderRecord, error)
-	GetOrderByClientId(clientId string) (*OrderRecord, error)
+	GetOrdersByClientId(clientId string) ([]*OrderRecord, error)
 	GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot, error)
 	FetchReconcilePlayground(source CreateAccountRequestSource) (IReconcilePlayground, bool, error)
 	FetchReconcilePlaygroundByOrder(order *OrderRecord) (IReconcilePlayground, bool, error)
@@ -45,5 +45,5 @@ type IDatabaseService interface {
 	FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*TradeRecord, error)
 	FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*OrderRecord, error)
 	SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error
-	PlaceOrder(playgroundID uuid.UUID, req *CreateOrderRequest) (*OrderRecord, error)
+	PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrderRequest) ([]*OrderRecord, error)
 }
