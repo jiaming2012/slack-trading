@@ -86,7 +86,7 @@ func fetch_chain_yesterday() {
 	// }
 
 	maxTickAge := time.Duration(6.5 * float64(time.Minute))
-	data, err := optionsDataFetcher.FetchOptionChainV2(symbol, now, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge)
+	data, err := optionsDataFetcher.FetchOptionChainV2(symbol, now, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge, nil, nil)
 	if err != nil {
 		panic(fmt.Sprintf("tradier executer: %v: failed to collect data: %v", "FetchOptionChainDataInput", err))
 	}
@@ -128,7 +128,7 @@ func fetch_chain() {
 	expirationInDays := []int{2, 5}
 
 	maxTickAge := time.Duration(float64(6.5) * float64(time.Hour))
-	data, err := optionsDataFetcher.FetchOptionChainV1(symbol, now, now, nextOptionsExpirationDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge)
+	data, err := optionsDataFetcher.FetchOptionChainV1(symbol, now, now, nextOptionsExpirationDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge, nil, nil)
 	if err != nil {
 		panic(fmt.Sprintf("tradier executer: %v: failed to collect data: %v", "FetchOptionChainDataInput", err))
 	}

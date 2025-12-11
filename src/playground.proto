@@ -17,7 +17,8 @@ service PlaygroundService {
     rpc PlaceOrder(PlaceOrderRequest) returns (Order);
     rpc PlaceMultiLegOrder(PlaceMultiLegOrderRequest) returns (PlaceMultiLegOrderResponse);
     rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
-    rpc GetCandles(GetCandlesRequest) returns (GetCandlesResponse);
+    rpc GetCandlesFromRepo(GetCandlesRequest) returns (GetCandlesResponse);
+    rpc GetCandlesFromDataSource(GetCandlesRequest) returns (GetCandlesResponse);
     rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
     rpc SavePlayground(SavePlaygroundRequest) returns (EmptyResponse);
     rpc DeletePlayground(DeletePlaygroundRequest) returns (EmptyResponse);
@@ -41,6 +42,7 @@ message GetOptionsLadderRequest {
     double min_distance_between_strikes = 4;
     repeated int32 expiration_in_days = 5;
     double max_tick_age_in_minutes = 6;
+    optional double base_strike_price = 7;
 }
 
 message GetOptionsLadderResponse {
@@ -227,6 +229,7 @@ message GetCandlesRequest {
     int32 period_in_seconds = 3;
     string fromRTF3339 = 4;
     optional string toRTF3339 = 5;
+    optional bool calculate_is_extended_hours = 6;
 }
 
 message GetCandlesResponse {
@@ -391,6 +394,7 @@ message Bar {
     double cdl_doji_10_0_1 = 40;
     double psar_long_value = 41;
     double psar_short_value = 42;
+    optional bool is_extended_hours = 43;
 }
 
 message Candle {

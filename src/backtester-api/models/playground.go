@@ -2581,6 +2581,10 @@ func (p *Playground) GetLiveAccount() ILiveAccount {
 	return p.LiveAccount
 }
 
+func (p *Playground) GetCalendarRepository() eventmodels.CalendarRepository {
+	return p.clock.GetCalendarRepository()
+}
+
 func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccount = account
 

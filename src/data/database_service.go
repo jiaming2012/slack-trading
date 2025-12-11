@@ -121,7 +121,7 @@ func (s *DatabaseService) GetOrdersByClientId(clientId string) ([]*models.OrderR
 	}
 
 	if len(orders) == 0 {
-		return nil, fmt.Errorf("failed to find order with client id: %s", clientId)
+		return []*models.OrderRecord{}, nil
 	}
 
 	return orders, nil
@@ -956,10 +956,11 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 	toDate := time.Date(stop.Year, time.Month(stop.Month), stop.Day, 16, 0, 0, 0, loc)
 
 	// create calendar
+	calendarStartDate := fromDate.AddDate(0, 0, -7)
 	startDate := eventmodels.PolygonDate{
-		Year:  start.Year,
-		Month: start.Month,
-		Day:   start.Day,
+		Year:  calendarStartDate.Year(),
+		Month: int(calendarStartDate.Month()),
+		Day:   calendarStartDate.Day(),
 	}
 
 	endDate := eventmodels.PolygonDate{

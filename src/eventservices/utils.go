@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
@@ -42,6 +43,10 @@ func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (fl
 		closestCandle = candle
 	}
 
+	if closestCandle == nil {
+		return 0, fmt.Errorf("no candle found before or at %v", at)
+	}
+
 	return closestCandle.Open, nil
 }
 
@@ -68,40 +73,61 @@ func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 }
 
 func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
-	resp, err := FetchPolygonStockChart(req.Root, 1, "minute", at.AddDate(0, 0, -1), at.AddDate(0, 0, 1), req.ApiKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
-	}
+	var targetPrice *float64
+	maxAttempts := 10
 
-	var candlesNearPriceDTO []*eventmodels.CandleDTO
-	for _, c := range resp.Results {
-		dto, err := c.ToCandleDTO()
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		resp, err := FetchPolygonStockChart(req.Root, 1, "minute", at.AddDate(0, 0, -1), at.AddDate(0, 0, 1), req.ApiKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert to candle dto: %w", err)
+			return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
 		}
 
-		candlesNearPriceDTO = append(candlesNearPriceDTO, dto)
-	}
+		var candlesNearPriceDTO []*eventmodels.CandleDTO
+		for _, c := range resp.Results {
+			dto, err := c.ToCandleDTO()
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert to candle dto: %w", err)
+			}
 
-	var candles []*eventmodels.Candle
-	for _, dto := range candlesNearPriceDTO {
-		c, err := dto.ToCandle(time.UTC)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert dto to candle: %w", err)
+			candlesNearPriceDTO = append(candlesNearPriceDTO, dto)
 		}
 
-		candles = append(candles, &c)
+		var candles []*eventmodels.Candle
+		for _, dto := range candlesNearPriceDTO {
+			c, err := dto.ToCandle(time.UTC)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert dto to candle: %w", err)
+			}
+
+			candles = append(candles, &c)
+		}
+
+		closestPrice, err := findClosestPriceBeforeOrAt(candles, at)
+		if err != nil {
+			log.Debugf("attempt %d: failed to find closest price before or at %v: %v", attempt+1, at, err)
+			for {
+				at = at.AddDate(0, 0, -1)
+				if at.Weekday() != time.Saturday && at.Weekday() != time.Sunday {
+					break
+				}
+			}
+			
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+
+		targetPrice = &closestPrice
+		break
 	}
 
-	closestPrice, err := findClosestPriceBeforeOrAt(candles, at)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find closest candle: %w", err)
+	if targetPrice == nil {
+		return nil, fmt.Errorf("failed to find closest price before or at %v after %d attempts", at, maxAttempts)
 	}
 
 	return &eventmodels.StockTickItemDTO{
 		Timestamp: at,
 		Symbol:    string(req.Root),
-		Bid:       closestPrice,
-		Ask:       closestPrice * (1 + spreadPerc),
+		Bid:       *targetPrice,
+		Ask:       *targetPrice * (1 + spreadPerc),
 	}, nil
 }

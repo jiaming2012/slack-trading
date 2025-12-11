@@ -161,6 +161,19 @@ class BacktesterPlaygroundClient:
     def set_current_candle(self, symbol: str, period: int, bar: Bar):        
         set_nested_value(self.current_candles, symbol, period, bar)
                 
+    def fetch_closest_bar(self, symbol: str, period: int, timestamp: datetime) -> Bar:
+        fromTimestamp = timestamp - timedelta(days=3)
+        toTimestamp = timestamp + timedelta(minutes=1)
+        
+        bars = self.fetch_candles_v3(symbol, period, fromTimestamp, toTimestamp)
+        if not bars or len(bars) == 0:
+            raise Exception(f"No bars found for symbol {symbol} and period {period}")
+        
+        for bar in reversed(bars):
+            bar_time = isoparse(bar.datetime).astimezone(ZoneInfo("America/New_York"))
+            if bar_time <= timestamp:
+                return bar
+                
     def fetch_most_recent_bar(self, symbol: str, period: int, now: datetime) -> Bar:
         # Calculate three days ago
         three_days_ago = now - timedelta(days=3)
@@ -188,10 +201,7 @@ class BacktesterPlaygroundClient:
         
         elif tf == 'htf':
             htf = self.repositories[0].timespan_multiplier * get_timespan_unit(self.repositories[0].timespan_unit)
-            for i, repo in enumerate(self.repositories):
-                if repo.timespan_unit in ['day', 'week']:
-                    continue
-                
+            for i, repo in enumerate(self.repositories):                
                 unit_multiplier = get_timespan_unit(repo.timespan_unit)
                 val = repo.timespan_multiplier
                 if val * unit_multiplier > htf:
@@ -237,7 +247,7 @@ class BacktesterPlaygroundClient:
 
         self.client = PlaygroundServiceClient(self.host, timeout=600)
         self.ltf_seconds = self.get_repository_seconds('ltf')
-        # self.htf_seconds = self.get_repository_seconds('htf')
+        self.htf_seconds = self.get_repository_seconds('htf')
         # self.htf_seconds_daily = self.get_repository_seconds('htf_daily')
         # self.htf_seconds_weekly = self.get_repository_seconds('htf_weekly')
 
@@ -424,7 +434,7 @@ class BacktesterPlaygroundClient:
     def is_backtest_complete(self) -> bool:
         return self._is_backtest_complete
     
-    def fetch_candles_v3(self, symbol: str, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None) -> List[Bar]:
+    def fetch_candles_v3(self, symbol: str, period_in_seconds: int, timestampFrom: datetime, timestampTo: datetime = None, calculate_is_extended_hours: bool = False) -> List[Bar]:
         '''
         This version is used bc timestamps created from python doesn't work with v2
         '''
@@ -442,9 +452,12 @@ class BacktesterPlaygroundClient:
             timestampToUtc = timestampTo.replace(tzinfo=ZoneInfo('UTC'))
             toStr = timestampToUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
             req.toRTF3339 = toStr
+            
+        if calculate_is_extended_hours:
+            req.calculate_is_extended_hours = True
                         
         try:
-            response = self.network_call_with_retry('fetch_candles_v3', self.client.GetCandles, req)
+            response = self.network_call_with_retry('fetch_candles_v3', self.client.GetCandlesFromRepo, req)
         
         except Exception as e:
             self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)
@@ -474,7 +487,7 @@ class BacktesterPlaygroundClient:
             req.toRTF3339 = toStr
                         
         try:
-            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandles, req)
+            response = self.network_call_with_retry('fetch_candles_v2', self.client.GetCandlesFromRepo, req)
         
         except Exception as e:
             self.logger.exception("Failed to connect to gRPC service (fetch_candles)", timestamp=self.timestamp)

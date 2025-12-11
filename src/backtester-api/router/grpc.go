@@ -221,7 +221,7 @@ func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderR
 	}
 
 	maxTickAge := time.Duration(float64(req.MaxTickAgeInMinutes) * float64(time.Minute))
-	resp, err := s.optionsClient.FetchOptionChainV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays, maxTickAge)
+	resp, err := s.optionsClient.FetchOptionChainV2(symbol, timestamp, int(req.MaxNoOfStrikes), req.MinDistanceBetweenStrikes, expirationInDays, maxTickAge, req.BaseStrikePrice, playground.GetCalendarRepository())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch options ladder: %v", err)
 	}
@@ -578,7 +578,11 @@ func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest
 	}, nil
 }
 
-func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
+func (s *Server) GetCandlesFromDataSource(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
+	panic("not implemented")
+}
+
+func (s *Server) GetCandlesFromRepo(ctx context.Context, req *pb.GetCandlesRequest) (*pb.GetCandlesResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
@@ -601,6 +605,22 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
+	var calendar *eventmodels.CalendarRepository
+	if req.CalculateIsExtendedHours != nil && *req.CalculateIsExtendedHours {
+		_from := eventmodels.NewPolygonDateFromTime(from)
+		if to == nil {
+			return nil, fmt.Errorf("createClock: to date must be provided when calculating extended hours")
+		}
+
+		_to := eventmodels.NewPolygonDateFromTime(*to)
+		c, err := data.FetchCalendarMap(*_from, *_to)
+		if err != nil {
+			return nil, fmt.Errorf("createClock: failed to fetch calendar: %w", err)
+		}
+
+		calendar = &c
+	}
+
 	var candles []*eventmodels.AggregateBarWithIndicators
 	if req.Symbol[:2] == "O:" {
 		candles, err = s.fetchOptionCandles(playgroundId, eventmodels.OptionSymbol(req.Symbol), period, from, to)
@@ -617,13 +637,16 @@ func (s *Server) GetCandles(ctx context.Context, req *pb.GetCandlesRequest) (*pb
 	barsDTO := make([]*pb.Bar, 0)
 	for _, c := range candles {
 		barsDTO = append(barsDTO, c.ToProto())
+		if calendar != nil {
+			isExtendedHours := !calendar.IsMarketOpen(c.Timestamp)
+			barsDTO[len(barsDTO)-1].IsExtendedHours = &isExtendedHours
+		}
 	}
 
 	return &pb.GetCandlesResponse{
 		Bars: barsDTO,
 	}, nil
 }
-
 func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
 	log.Tracef("%v: NextTick:start", req.RequestId)
 	defer log.Tracef("%v: NextTick:end", req.RequestId)

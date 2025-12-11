@@ -77,10 +77,17 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetAccountRequest"),
 				output=_sym_db.GetSymbol("playground.GetAccountResponse"),
 			),
-			"GetCandles": Endpoint(
+			"GetCandlesFromRepo": Endpoint(
 				service_name="PlaygroundService",
-				name="GetCandles",
-				function=getattr(service, "GetCandles"),
+				name="GetCandlesFromRepo",
+				function=getattr(service, "GetCandlesFromRepo"),
+				input=_sym_db.GetSymbol("playground.GetCandlesRequest"),
+				output=_sym_db.GetSymbol("playground.GetCandlesResponse"),
+			),
+			"GetCandlesFromDataSource": Endpoint(
+				service_name="PlaygroundService",
+				name="GetCandlesFromDataSource",
+				function=getattr(service, "GetCandlesFromDataSource"),
 				input=_sym_db.GetSymbol("playground.GetCandlesRequest"),
 				output=_sym_db.GetSymbol("playground.GetCandlesResponse"),
 			),
@@ -230,9 +237,18 @@ class PlaygroundServiceClient(TwirpClient):
 			**kwargs,
 		)
 
-	def GetCandles(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+	def GetCandlesFromRepo(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
 		return self._make_request(
-			url=F"{server_path_prefix}/playground.PlaygroundService/GetCandles",
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetCandlesFromRepo",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),
+			**kwargs,
+		)
+
+	def GetCandlesFromDataSource(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetCandlesFromDataSource",
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),
@@ -413,9 +429,19 @@ if _async_available:
 				**kwargs,
 			)
 
-		async def GetCandles(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+		async def GetCandlesFromRepo(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
 			return await self._make_request(
-				url=F"{server_path_prefix}/playground.PlaygroundService/GetCandles",
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetCandlesFromRepo",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetCandlesFromDataSource(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetCandlesFromDataSource",
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetCandlesResponse"),

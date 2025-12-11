@@ -25,7 +25,7 @@ func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestE
 		// nextOptionsExpirationDate := utils.DeriveNextExpiration(expirationGTE, req.ExpirationsInDays)
 
 		maxTickAge := time.Duration(6.5 * float64(time.Minute))
-		data, err := s.OptionsDataFetcher.FetchOptionChainV1(req.Symbol, now, expirationGTE, nextOptionsExpirationDate, 0, 0, []int{}, maxTickAge)
+		data, err := s.OptionsDataFetcher.FetchOptionChainV1(req.Symbol, now, expirationGTE, nextOptionsExpirationDate, 0, 0, []int{}, maxTickAge, nil, nil)
 
 		if err != nil {
 			errorCh <- fmt.Errorf("tradier executer: %v: failed to collect data: %v", req.Symbol, err)

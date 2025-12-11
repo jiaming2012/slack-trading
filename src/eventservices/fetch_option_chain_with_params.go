@@ -32,11 +32,8 @@ func FetchTradierMarketData(ctx context.Context, optionsByExpirationURL, stockUR
 	return optionsDTO, stockTickDTO, nil
 }
 
-func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3, stockTickDTO *eventmodels.StockTickItemDTO, expirationInDays []int, optionTypes []eventmodels.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
-	stockPrice := (stockTickDTO.Bid + stockTickDTO.Ask) / 2
-
-	expirationDates, filteredOptions := filterOptionContractsV3(optionContracts, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, stockPrice, now)
-
+func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3, baseStrikePrice float64, expirationInDays []int, optionTypes []eventmodels.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
+	expirationDates, filteredOptions := filterOptionContractsV3(optionContracts, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, baseStrikePrice, now)
 	return expirationDates, filteredOptions
 }
 

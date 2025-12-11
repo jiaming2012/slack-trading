@@ -387,16 +387,16 @@ func (fetcher *PolygonOptionsClient) maxExpirationInDays(expirationInDays []int)
 	return max
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo eventmodels.CalendarRepository) (*eventmodels.FetchOptionChainDataInput, error) {
 	expirationGTE := timestamp
 
 	maxDays := fetcher.maxExpirationInDays(expirationInDays)
 	expirationLTE := utils.DeriveNextFriday(timestamp.AddDate(0, 0, maxDays))
 
-	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge)
+	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge, baseStrikePrice, calendarRepo)
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo eventmodels.CalendarRepository) (*eventmodels.FetchOptionChainDataInput, error) {
 	if maxTickAge <= 0 {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: maxTickAge must be greater than 0")
 	}
@@ -456,9 +456,14 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to find closest stock tick: %w", err)
 	}
 
+	if baseStrikePrice == nil {
+		avgCurrentPrc := (closestStockTickDTO.Bid + closestStockTickDTO.Ask) / 2
+		baseStrikePrice = &avgCurrentPrc
+	}
+
 	_, filteredOptions := FilterOptions(
 		optionTickByExpirationTimeMap,
-		closestStockTickDTO,
+		*baseStrikePrice,
 		expirationInDays,
 		optionTypes,
 		minDistanceBetweenStrikes,
@@ -478,7 +483,7 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 
 	polygonOptionTickDataReq := &eventmodels.PolygonOptionTickDataRequest{
 		BaseURL:   fetcher.BaseURL,
-		StartDate: marketOpen.AddDate(0, 0, -1),
+		StartDate: marketOpen.AddDate(0, 0, -3),
 		EndDate:   marketClose,
 		Spread:    optionSpreadPerc,
 		ApiKey:    fetcher.ApiKey,
@@ -498,7 +503,7 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 	}
 
 	// use the option's timestamp filter out data that is too old
-	options = filterOptionsBeforeTime(options, timestamp, maxTickAge)
+	options = filterOptionsBeforeTime(options, timestamp, maxTickAge, calendarRepo)
 
 	return &eventmodels.FetchOptionChainDataInput{
 		StockTickItemDTO: closestStockTickDTO,
@@ -506,11 +511,27 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 	}, nil
 }
 
-func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, beforeTime time.Time, threshold time.Duration) []eventmodels.OptionContractV3 {
+func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, targetTime time.Time, threshold time.Duration, calendarRepo eventmodels.CalendarRepository) []eventmodels.OptionContractV3 {
 	filtered := make([]eventmodels.OptionContractV3, 0)
 
 	for _, c := range contracts {
-		if c.Timestamp.Add(threshold).Before(beforeTime) {
+		// skip if the option's timestamp + threshold is before the target time, unless timestamp + threshold
+		// occurs when the market is closed
+		optionTimestamp := c.Timestamp.Add(threshold)
+		isOpen := calendarRepo.IsMarketOpen(optionTimestamp)
+
+		if !isOpen {
+			calendar, err := calendarRepo.GetNextMarketOpen(optionTimestamp)
+			if err == nil {
+				optionTimestamp = calendar.MarketOpen
+			} else {
+				log.Warnf("filterOptionsBeforeTime: failed to get next market open for option %v at time %v: %v", c.Symbol, optionTimestamp, err)
+			}
+		} else {
+			log.Warnf("filterOptionsBeforeTime: calendar not found for date %v, assuming market is open", optionTimestamp.Format("2006-01-02"))
+		}
+
+		if optionTimestamp.Before(targetTime) {
 			continue
 		}
 

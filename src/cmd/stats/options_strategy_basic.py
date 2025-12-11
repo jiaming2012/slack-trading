@@ -181,7 +181,8 @@ if __name__ == "__main__":
                     stock_symbol=signal.symbol,
                     max_no_of_strikes=5,
                     min_distance_between_strikes=1.0,
-                    expiration_in_days=[expiration_in_days]
+                    expiration_in_days=[expiration_in_days],
+                    max_tick_age_in_minutes=390
                 )
                 
                 response = playground.fetch_ladder(request)

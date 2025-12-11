@@ -69,7 +69,7 @@ func Exec_Backtesterfunc(ctx context.Context, signalCh <-chan eventmodels.Signal
 
 		// isHistorical := true
 		maxTickAge := time.Duration(6.5 * float64(time.Minute))
-		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainV1(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays, maxTickAge)
+		data, err := optionsRequestExecutor.OptionsDataFetcher.FetchOptionChainV1(signal.Symbol, signal.Timestamp, signal.Timestamp, nextOptionExpDate, maxNoOfStrikes, minDistanceBetweenStrikes, expirationsInDays, maxTickAge, nil, nil)
 
 		if err != nil {
 			log.Errorf("skipping event %v: failed to fetch option chain data: %v", signal, err)
@@ -153,6 +153,7 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	optionsExpirationURL := os.Getenv("TRADIER_OPTION_EXPIRATIONS_URL")
 	optionChainURL := os.Getenv("TRADIER_OPTION_CHAIN_URL")
 	polygonAPIKey := os.Getenv("POLYGON_API_KEY")
+	// calendarURL, err := utils.GetEnv("TRADIER_MARKET_CALENDAR_URL")
 
 	optionConfig, err := optionsConfig.GetOption(symbol)
 	if err != nil {
@@ -193,6 +194,12 @@ func Exec(ctx context.Context, wg *sync.WaitGroup, symbol eventmodels.StockSymbo
 	streamName := eventmodels.StreamName(fmt.Sprintf("backtest-signals-%s", symbol))
 	trackersClientV3 := eventconsumers.NewESDBConsumerStreamV2(wg, eventStoreDbURL, &eventmodels.TrackerV3{}, streamName)
 	trackerV3OptionEVConsumer := eventconsumers.NewTrackerConsumerV3(trackersClientV3)
+
+	// nowUTC := time.Now().UTC()
+	// calendar, err := eventservices.FetchMarketCalendar(calendarURL, brokerBearerToken, nowUTC)
+	// if err != nil {
+	// 	log.Fatalf("Failed to fetch market calendar: %v", err)
+	// }
 
 	polygonOptionsDataFetcher := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonAPIKey)
 

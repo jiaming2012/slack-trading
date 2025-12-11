@@ -54,8 +54,8 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 	return result, nil
 }
 
-func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
-	scheduleMap := make(map[string]*eventmodels.Calendar)
+func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (eventmodels.CalendarRepository, error) {
+	repo := eventmodels.NewCalendarRepository()
 
 	schedules, err := FetchCalendar(startDate, endDate)
 	if err != nil {
@@ -63,10 +63,10 @@ func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (map[string]*e
 	}
 
 	for _, schedule := range schedules {
-		scheduleMap[schedule.Date] = schedule
+		repo.SetCalendar(schedule.Date, schedule)
 	}
 
-	return scheduleMap, nil
+	return repo, nil
 }
 
 func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
