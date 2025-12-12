@@ -41,6 +41,7 @@ type OrderRecord struct {
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
+	Attributes       map[string]string      `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
 func (o *OrderRecord) GetRealizedPL() float64 {
@@ -518,6 +519,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 		from.Tag,
 		from.CloseOrderId,
 		from.IsSystemOrder,
+		from.Attributes,
 	)
 
 	if err != nil {
@@ -527,7 +529,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	return record
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool) (*OrderRecord, error) {
+func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string) (*OrderRecord, error) {
 	order := &OrderRecord{
 		Model: gorm.Model{ID: id},
 	}
@@ -552,6 +554,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 		tag,
 		closeOrderId,
 		isSystemOrder,
+		attributes,
 	)
 
 	if err != nil {
@@ -561,7 +564,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 	return order, nil
 }
 
-func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool) error {
+func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string) error {
 	instrument, err := eventmodels.NewInstrument(string(class), symbol)
 	if err != nil {
 		return fmt.Errorf("makeOrderRecord: failed to create instrument for class %s and symbol %s: %w", class, symbol, err)
@@ -590,6 +593,7 @@ func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_req
 	order.CloseOrderId = closeOrderId
 	order.IsAdjustment = false
 	order.IsSystemOrder = isSystemOrder
+	order.Attributes = attributes
 
 	return nil
 }

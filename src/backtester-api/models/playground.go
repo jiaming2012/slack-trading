@@ -478,6 +478,10 @@ func (p *Playground) commitPendingOrders(executionFillMap map[*OrderRecord]Execu
 		// 	log.Debugf("order %d not filled because it is not between market hours", order.ID)
 		// 	continue
 		// }
+		if !order.Status.IsTradingAllowed() {
+			invalidOrders = append(invalidOrders, order)
+			continue
+		}
 
 		orderFillEntry, found := executionFillMap[order]
 		if !found {
@@ -1301,13 +1305,13 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 	if position.Quantity > 0 {
 		externalId := p.account.NextOrderID()
 		isSystemOrder := true
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder)
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
 	} else if position.Quantity < 0 {
 		externalId := p.account.NextOrderID()
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, false)
+		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, false, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
@@ -1417,20 +1421,6 @@ func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.Equ
 	return p.appendStat(currentTime, positions)
 }
 
-func (p *Playground) ResetOrderIds() {
-	for _, o := range p.account.PendingOrders {
-		o.ID = 0
-	}
-
-	for _, o := range p.account.Orders {
-		o.ID = 0
-	}
-
-	for _, o := range p.account.NewOrders {
-		o.ID = 0
-	}
-}
-
 func (p *Playground) DeleteRepository(symbol eventmodels.Instrument) {
 	p.repos.Delete(symbol)
 }
@@ -1495,6 +1485,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 			}
 
 			if errors.Is(err, models.ErrNoCandlesFound) {
+				order.Reject(err)
 				log.Warnf("simulateTick: no candles found for %s @ %v", order.GetInstrument(), p.clock.CurrentTime)
 				continue
 			}

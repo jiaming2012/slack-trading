@@ -13,7 +13,7 @@ func TestRollbackOrder(t *testing.T) {
 	t.Run("rollback an order", func(t *testing.T) {
 		symbol1 := "AAPL"
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, symbol1, TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
 		trade := NewTradeRecord(order, startTime, 30, 0.01)
 		_, err = order.Fill(trade)
 

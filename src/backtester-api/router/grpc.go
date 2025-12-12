@@ -132,6 +132,7 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		Reconciles:       reconciles,
 		PreviousPosition: previousPosition,
 		CloseOrderId:     closeOrderId,
+		Attributes:       o.Attributes,
 	}
 
 	if o.Price != nil {
@@ -541,6 +542,8 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 }
 
 func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.EmptyResponse, error) {
+	panic("saving simulation orders with the same IDs causes previous orders to be overwritten")
+
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
@@ -1053,6 +1056,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		Tag:             req.Tag,
 		CloseOrderId:    closeOrderId,
 		IsAdjustment:    req.IsAdjustment,
+		Attributes:      req.Attributes,
 	})
 
 	if webErr != nil {

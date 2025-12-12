@@ -31,10 +31,10 @@ func saveOrderRecordsTx(_db *gorm.DB, orders []*models.OrderRecord, forceNew boo
 					return fmt.Errorf("saveOrderRecordsTx: order ID is 0")
 				}
 
-				var existing models.OrderRecord
-				if err := tx.First(&existing, order.ID).Error; err != nil {
-					return fmt.Errorf("saveOrderRecordsTx: failed to find existing order: %w", err)
-				}
+				// var existing models.OrderRecord
+				// if err := tx.First(&existing, order.ID).Error; err != nil {
+				// 	return fmt.Errorf("saveOrderRecordsTx: failed to find existing order: %w", err)
+				// }
 
 				if err := tx.Save(order).Error; err != nil {
 					return fmt.Errorf("saveOrderRecordsTx: failed to update order: %w", err)

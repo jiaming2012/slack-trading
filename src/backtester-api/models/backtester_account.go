@@ -43,5 +43,6 @@ func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAcc
 		Orders:        activeOrders,
 		PendingOrders: pendingOrders,
 		NewOrders:     newOrders,
+		OrderNonce:    1,
 	}
 }

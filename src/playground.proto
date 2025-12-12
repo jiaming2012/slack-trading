@@ -312,6 +312,7 @@ message PlaceOrderRequest {
     bool is_adjustment = 12;
     optional string client_request_id = 13;
     optional double sl = 14;
+    map<string, string> attributes = 15;
 }
 
 message NextTickRequest {
@@ -435,5 +436,6 @@ message Order {
     optional string client_request_id = 20;
     Position previous_position = 21;
     optional uint64 close_order_id = 22;
+    map<string, string> attributes = 23;
 }
 
