@@ -1,6 +1,8 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"math"
 	"time"
@@ -10,6 +12,32 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
+
+type Attributes map[string]string
+
+func (a *Attributes) Scan(value interface{}) error {
+	if value == nil {
+		*a = make(map[string]string)
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, a)
+	case string:
+		return json.Unmarshal([]byte(v), a)
+	default:
+		return fmt.Errorf("unsupported type for Attributes: %T", value)
+	}
+}
+
+func (a Attributes) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	return json.Marshal(a)
+}
 
 type OrderRecord struct {
 	gorm.Model
@@ -41,7 +69,7 @@ type OrderRecord struct {
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
-	Attributes       map[string]string      `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
+	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
 func (o *OrderRecord) GetRealizedPL() float64 {

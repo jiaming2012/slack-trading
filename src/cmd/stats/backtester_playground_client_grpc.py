@@ -184,6 +184,13 @@ class BacktesterPlaygroundClient:
         
         return bars[-1]
     
+    def get_options_quantity(self, underlying_symbol: str) -> int:
+        qty = 0
+        for symbol, position in self.account.positions.items():
+            if symbol.startswith(f'O:{underlying_symbol}') and (('C' in symbol) or ('P' in symbol)):
+                qty += int(position.quantity)
+        return qty
+    
     def get_repository_seconds(self, tf: str = 'ltf') -> Repository:            
         if len(self.repositories) == 0:
             raise Exception('No repositories found')
@@ -559,7 +566,7 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, asset_class: str, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, asset_class: str, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None, attributes=None) -> object:
         if quantity == 0:
             return
         
@@ -591,9 +598,16 @@ class BacktesterPlaygroundClient:
         
         if close_order_id:
             request.close_order_id = close_order_id
+            
+        if attributes:
+            if request.attributes is None:
+                request.attributes = {}
+                    
+            for k, v in attributes.items():
+                request.attributes[k] = v
                         
         try:
-            self.logger.debug(f"environment={self.environment} Placing order: {request}", trading_operation='place_order', timestamp=self.timestamp)
+            self.logger.debug(f"environment={self.environment} Placing {request.quantity} order: {request.symbol} / {request.side}", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             

@@ -25,7 +25,66 @@ class OpenSignalV4:
     ltf_supertrend_count: int
     ltf_supertrend_value: float
     ltf_supertrend_direction: int
-    ev: float
+    expected_volatility: float
+    
+def calculate_expected_profit_binomial_american(S0, P2, P3, sigma, T, r, N=100):
+        """
+        Calculates the expected profit of selling an American call option.
+        Uses the Cox-Ross-Rubinstein (CRR) Binomial Pricing Model adapted for early exercise.
+
+        Args:
+            S0 (float): Current stock price.
+            P2 (float): Strike price of the call option.
+            P3 (float): Premium received for selling the option today (user input).
+            sigma (float): Annualized volatility.
+            T (float): Time to expiration in years.
+            r (float): Annualized risk-free interest rate.
+            N (int): Number of time steps.
+
+        Returns:
+            float: The expected profit of selling the call option.
+        """
+        
+        dt = T / N  
+        u = math.exp(sigma * math.sqrt(dt))
+        d = 1 / u
+        p = (math.exp(r * dt) - d) / (u - d) 
+        discount_factor = math.exp(-r * dt)
+
+        # Initialize stock prices and option values at final time step (T)
+        option_values = [0.0] * (N + 1)
+        for i in range(N + 1):
+            stock_price_at_T = S0 * (u**(N - i)) * (d**i)
+            option_values[i] = max(0.0, stock_price_at_T - P2)
+
+        # Work backwards through the tree
+        for j in range(N - 1, -1, -1):
+            # Calculate stock prices at the current step (needed for early exercise check)
+            current_step_prices = [S0 * (u**(j - i)) * (d**i) for i in range(j + 1)]
+
+            for i in range(j + 1):
+                # Calculate expected future value (from the next step's values)
+                expected_future_value = p * option_values[i] + (1 - p) * option_values[i+1]
+                discounted_future_value = expected_future_value * discount_factor
+                
+                # --- American Option Logic ---
+                # The option holder can choose to exercise *now* or wait.
+                # The value of the option is the maximum of the immediate exercise value
+                # and the value of waiting (discounted future value).
+                immediate_exercise_value = max(0.0, current_step_prices[i] - P2)
+                option_values[i] = max(immediate_exercise_value, discounted_future_value)
+                # ---------------------------
+                
+            # Resize the option_values list for the next iteration backwards
+            option_values = option_values[:j+1]
+
+        # The value at the first node (index 0) is the fair price of the call today
+        fair_call_price_V_call = option_values[0]
+        
+        # Calculate Expected Profit (Premium Received - Fair Value)
+        expected_profit = P3 - fair_call_price_V_call
+        
+        return expected_profit
     
 class OptionsStrategyBasic(BaseOpenStrategyV2):
     @classmethod
@@ -59,6 +118,53 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         self.use_htf_data = True
         self.candles = []
     
+    
+    # Deprecated chatgpt version in favor of google version
+    # def calculate_expected_profit_binomial_american(self, stock_price, strike_price, premium_received, T, r, N):
+    #     """
+    #     Calculates the expected profit of selling an American call option.
+    #     Uses the Cox-Ross-Rubinstein (CRR) Binomial Pricing Model adapted for early exercise.
+
+    #     Args:
+    #         stock_price (float): Current stock price.
+    #         strike_price (float): Strike price of the call option.
+    #         premium_received (float): Premium received for selling the option today (user input).
+    #         T (float): Time to expiration in years.
+    #         r (float): Annualized risk-free interest rate.
+    #         N (int): Number of time steps.
+
+    #     Returns:
+    #         float: The expected profit of selling the call option.
+    #     """
+        
+    #     dt = T / N
+    #     sigma = self.playground.stats.calculate_local_model_volatility(stock_price)
+    #     u = math.exp(sigma * math.sqrt(dt))
+    #     d = 1 / u
+    #     p = (math.exp(r * dt) - d) / (u - d)
+
+    #     # Initialize asset prices at maturity
+    #     asset_prices = [0.0] * (N + 1)
+    #     for i in range(N + 1):
+    #         asset_prices[i] = stock_price * (u ** (N - i)) * (d ** i)
+
+    #     # Initialize option values at maturity
+    #     option_values = [0.0] * (N + 1)
+    #     for i in range(N + 1):
+    #         option_values[i] = max(0, asset_prices[i] - strike_price)
+
+    #     # Backward induction for option price at earlier nodes
+    #     for j in range(N - 1, -1, -1):
+    #         for i in range(j + 1):
+    #             option_values[i] = math.exp(-r * dt) * (p * option_values[i] + (1 - p) * option_values[i + 1])
+    #             # Check for early exercise
+    #             exercise_value = asset_prices[i] - strike_price
+    #             option_values[i] = max(option_values[i], exercise_value)
+
+    #     expected_profit = premium_received - option_values[0]
+    #     return expected_profit
+    
+    
     def check_for_new_signal(self, new_candle: pd.DataFrame):
         st_direction = new_candle.superD_50_3
         for i in range(self.candles_ltf_idx-1, 0, -1):
@@ -75,11 +181,10 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                     ltf_supertrend_count=ltf_supertrend_count,
                     ltf_supertrend_value=ltf_supertrend_value,
                     ltf_supertrend_direction=st_direction,
-                    ev=0.0
+                    expected_volatility=0.0,
                 )
                 
-                ev = self.playground.stats.calculate_local_model_ev(signal)
-                signal.ev = ev
+                signal.expected_volatility = self.playground.stats.calculate_local_model_volatility(signal)
                 
                 return signal
         
@@ -190,9 +295,6 @@ def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
             open_signals = strategy.tick(tick_delta)
             
             for signal in open_signals:
-                # calculate EV
-                
-                
                 expiration_in_days = strategy.find_next_friday(signal.timestamp)
                 
                 request = GetOptionsLadderRequest(
@@ -205,11 +307,8 @@ def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
                 
                 response = playground.fetch_ladder(request)
                 if response:
-                    target_contract = strategy.find_target_option_contract(
-                        current_price=signal.kwargs['current_price'],
-                        contracts=response.contracts
-                    )
-                    
+                    target_contract = strategy.find_target_option_contract(signal.price, response.contracts)
+                        
                     if target_contract is None:
                         logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.kwargs['current_price']}")
                         continue
@@ -351,6 +450,38 @@ class SignalStats:
         weights /= weights.sum() if weights.sum() != 0 else 1.0
         return float(np.sum(weights * ys))
     
+    def _multivariate_local_model_volatility(self, x0: np.ndarray, X: np.ndarray, y: np.ndarray, bandwidth: float) -> float:
+        """
+        Multivariate kernel regression for volatility estimation
+        """
+        if len(X) == 0:
+            return 0.0
+        
+        # Calculate Mahalanobis-like distance or use different bandwidths per dimension
+        distances = np.linalg.norm((X - x0) / bandwidth, axis=1)
+        weights = np.array([self._kernel(d) for d in distances])
+        
+        if weights.sum() == 0:
+            return np.std(y)  # Fallback to global stddev
+        
+        weights /= weights.sum()
+        mean = float(np.sum(weights * y))
+        weighted_variance = float(np.sum(weights * (y - mean) ** 2))
+        
+        # Optional: Apply Bessel's correction for sample size if desired, but 
+        # for large financial datasets, simple weighted variance works well.
+        # To be precise, adjust for effective sample size:
+        effective_n = 1 / np.sum(weights**2)
+        if effective_n > 1:
+            adjusted_variance = weighted_variance * (effective_n / (effective_n - 1))
+        else:
+            adjusted_variance = weighted_variance
+
+        # 3. Volatility is the square root of the variance
+        volatility = np.sqrt(adjusted_variance)
+        
+        return float(volatility)
+    
     def _multivariate_local_model_ev(self, x0: np.ndarray, X: np.ndarray, y: np.ndarray, bandwidth: float) -> float:
         """
         Multivariate kernel regression
@@ -399,8 +530,24 @@ class SignalStats:
             
         self.features = np.array(features)
         self.log_returns = np.array(log_returns)
+        
+    def calculate_local_model_volatility(self, signal: OpenSignalV4, bandwidth: float = 30.0) -> float:
+        """
+        bandwidth in minutes for local duration-based modeling
+        """
+        if not self.signals:
+            raise Exception("No signals to compute volatility.")
+        
+        x0 = np.array([
+            signal.ltf_supertrend_count,
+            signal.ltf_supertrend_value,
+            signal.ltf_supertrend_direction
+        ])
+        
+        expected_volatility = self._multivariate_local_model_volatility(x0, self.features, self.log_returns, bandwidth)
+        return expected_volatility
     
-    def calculate_local_model_ev(self, signal: OpenSignalV4, bandwidth: float = 30.0) -> float:
+    def calculate_local_model_expected_log_returns(self, signal: OpenSignalV4, bandwidth: float = 30.0) -> float:
         """
         bandwidth in minutes for local duration-based modeling
         """
@@ -413,8 +560,8 @@ class SignalStats:
             signal.ltf_supertrend_direction
         ])
         
-        local_ev = self._multivariate_local_model_ev(x0, self.features, self.log_returns, bandwidth)
-        return local_ev
+        expected_log_returns = self._multivariate_local_model_ev(x0, self.features, self.log_returns, bandwidth)
+        return expected_log_returns
     
     def compute_stats(self, bandwidth: float = 30.0):
         """
@@ -572,6 +719,10 @@ if __name__ == "__main__":
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
         for tick_delta in tick_deltas:
+            open_qty = playground.get_options_quantity(symbol)
+            if abs(open_qty) >= max_open_count:
+                continue
+            
             open_signals = strategy.tick(tick_delta)
             
             for signal in open_signals:
@@ -588,13 +739,37 @@ if __name__ == "__main__":
                 
                 response = playground.fetch_ladder(request)
                 if response:
-                    target_contract = strategy.find_target_option_contract(
-                        current_price=signal.price,
-                        contracts=response.contracts
-                    )
-                    
+                    # target_contract = strategy.find_target_option_contract(
+                    #     current_price=signal.price,
+                    #     contracts=response.contracts
+                    # )
+                    target_contract = None
+                    highest_expected_profit = -1
+                    for c in response.contracts:
+                        if c.type != 'call':
+                            continue
+                        
+                        S0 = signal.price
+                        strike_price = c.strike
+                        premium_received = (c.bid + c.ask) / 2  # Replace with actual premium received
+                        T = expiration_in_days / 365.0
+                        sigma = playground.stats.calculate_local_model_volatility(signal)
+                        profit_american = calculate_expected_profit_binomial_american(
+                            S0=S0,
+                            P2=strike_price,
+                            P3=premium_received,  # Replace with actual premium received
+                            sigma=sigma,  # Replace with actual volatility
+                            T=T,  # Replace with actual time to expiration
+                            r=0.04,  # Replace with actual risk-free rate
+                            N=100  # Replace with actual number of time steps
+                        )
+
+                        if profit_american > highest_expected_profit:
+                            highest_expected_profit = profit_american
+                            target_contract = c
+                                                
                     if target_contract is None:
-                        logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.kwargs['current_price']}")
+                        logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.price}")
                         continue
                     
                     # In order to calculate the option EV, we 
@@ -603,7 +778,7 @@ if __name__ == "__main__":
                         1, 
                         OrderSide.SELL_TO_OPEN,
                         'option',
-                        tag="ev: {:.2f}".format(signal.ev) ## Can't add periods
+                        attributes={"ev": str(highest_expected_profit), "stock_price": str(signal.price)}
                     )
                     
                     logger.info(f"Open Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
@@ -611,5 +786,5 @@ if __name__ == "__main__":
         playground.tick(playground.ltf_seconds)
         
 
-    logger.info("Done")
+    logger.info(f"Done - playground id: {playground.id}")
     
