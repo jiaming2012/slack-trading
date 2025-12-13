@@ -418,7 +418,12 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsRequest) (*pb.GetPlaygroundsResponse, error) {
 	playgrounds := s.dbService.GetPlaygrounds()
 
-	playgroundsDTO := make([]*pb.PlaygroundSession, 0)
+	type sortedPlayground struct {
+		playground *pb.PlaygroundSession
+		createdAt  time.Time
+	}
+
+	sortedPlaygrounds := make([]sortedPlayground, 0)
 	for _, p := range playgrounds {
 		if len(req.Tags) > 0 {
 			meta := p.GetMeta()
@@ -481,7 +486,9 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			reconcilePlaygroundId = &_reconcilePlaygroundId
 		}
 
-		playgroundsDTO = append(playgroundsDTO, &pb.PlaygroundSession{
+		createdOn := p.CreatedAt.Format(time.RFC3339)
+
+		pg := &pb.PlaygroundSession{
 			PlaygroundId: p.GetId().String(),
 			Meta: &pb.AccountMeta{
 				PlaygroundId:          p.GetId().String(),
@@ -491,6 +498,7 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 				LiveAccountType:       liveAccountType,
 				Tags:                  meta.Tags,
 				ClientId:              p.ClientID,
+				CreatedAt:             createdOn,
 			},
 			Clock: &pb.Clock{
 				Start:       meta.StartAt.Format(time.RFC3339),
@@ -502,11 +510,30 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			Equity:       equity,
 			FreeMargin:   freeMargin,
 			Positions:    positionsDTO,
+		}
+
+		sortedPlaygrounds = append(sortedPlaygrounds, sortedPlayground{
+			playground: pg,
+			createdAt:  p.CreatedAt,
 		})
 	}
 
+	// Sort by created at descending
+	for i := 0; i < len(sortedPlaygrounds)-1; i++ {
+		for j := i + 1; j < len(sortedPlaygrounds); j++ {
+			if sortedPlaygrounds[i].createdAt.Before(sortedPlaygrounds[j].createdAt) {
+				sortedPlaygrounds[i], sortedPlaygrounds[j] = sortedPlaygrounds[j], sortedPlaygrounds[i]
+			}
+		}
+	}
+
+	responsePlaygrounds := make([]*pb.PlaygroundSession, len(sortedPlaygrounds))
+	for i, sp := range sortedPlaygrounds {
+		responsePlaygrounds[i] = sp.playground
+	}
+
 	return &pb.GetPlaygroundsResponse{
-		Playgrounds: playgroundsDTO,
+		Playgrounds: responsePlaygrounds,
 	}, nil
 }
 

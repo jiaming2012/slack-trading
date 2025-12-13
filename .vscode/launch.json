@@ -219,10 +219,7 @@
             "console": "integratedTerminal",
             "python": "miniconda3/envs/trading/bin/python3",
             "args": [
-                "--tags", "cli_v14",
-                "--twirp-host", "http://45.77.223.21",
-                "--from-date", "2025-05-20",
-                "--to-date", "2025-05-21",
+                "--playground-id", "67c46a3c-f10f-4b0d-ac96-eaf5deee538a",
             ]
         },
         {

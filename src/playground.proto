@@ -139,6 +139,7 @@ message AccountMeta {
     optional string live_account_type = 8;
     repeated string tags = 9;
     optional string client_id = 10;
+    string created_at = 11;
 }
 
 message GetAccountStatsRequest {

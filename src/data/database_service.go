@@ -923,6 +923,8 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 		return fmt.Errorf("failed to save in-memory playground: %w", err)
 	}
 
+	playground.CreatedAt = time.Now()
+
 	return nil
 }
 
