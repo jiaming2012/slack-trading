@@ -14,7 +14,8 @@ from base_open_strategy_v2 import BaseOpenStrategyV2
 from trading_engine_types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
 
-# v3 uses the binomial american option pricing model to estimate expected profit of selling options
+# v4 uses the binomial american option pricing model to estimate expected profit of selling options
+# in addition, it buys the underlying stock to avoid being short
 
 @dataclass
 class OpenSignalV4:
@@ -117,53 +118,6 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         self.symbol = symbol
         self.use_htf_data = True
         self.candles = []
-    
-    
-    # Deprecated chatgpt version in favor of google version
-    # def calculate_expected_profit_binomial_american(self, stock_price, strike_price, premium_received, T, r, N):
-    #     """
-    #     Calculates the expected profit of selling an American call option.
-    #     Uses the Cox-Ross-Rubinstein (CRR) Binomial Pricing Model adapted for early exercise.
-
-    #     Args:
-    #         stock_price (float): Current stock price.
-    #         strike_price (float): Strike price of the call option.
-    #         premium_received (float): Premium received for selling the option today (user input).
-    #         T (float): Time to expiration in years.
-    #         r (float): Annualized risk-free interest rate.
-    #         N (int): Number of time steps.
-
-    #     Returns:
-    #         float: The expected profit of selling the call option.
-    #     """
-        
-    #     dt = T / N
-    #     sigma = self.playground.stats.calculate_local_model_volatility(stock_price)
-    #     u = math.exp(sigma * math.sqrt(dt))
-    #     d = 1 / u
-    #     p = (math.exp(r * dt) - d) / (u - d)
-
-    #     # Initialize asset prices at maturity
-    #     asset_prices = [0.0] * (N + 1)
-    #     for i in range(N + 1):
-    #         asset_prices[i] = stock_price * (u ** (N - i)) * (d ** i)
-
-    #     # Initialize option values at maturity
-    #     option_values = [0.0] * (N + 1)
-    #     for i in range(N + 1):
-    #         option_values[i] = max(0, asset_prices[i] - strike_price)
-
-    #     # Backward induction for option price at earlier nodes
-    #     for j in range(N - 1, -1, -1):
-    #         for i in range(j + 1):
-    #             option_values[i] = math.exp(-r * dt) * (p * option_values[i] + (1 - p) * option_values[i + 1])
-    #             # Check for early exercise
-    #             exercise_value = asset_prices[i] - strike_price
-    #             option_values[i] = max(option_values[i], exercise_value)
-
-    #     expected_profit = premium_received - option_values[0]
-    #     return expected_profit
-    
     
     def check_for_new_signal(self, new_candle: pd.DataFrame):
         st_direction = new_candle.superD_50_3
