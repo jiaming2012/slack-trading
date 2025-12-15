@@ -1916,6 +1916,10 @@ func (p *Playground) UpdatePricesAndGetPositionCache() (*PositionsCache, error) 
 			}
 
 			pl := (currentPrice.Value - position.CostBasis) * position.Quantity
+			if isOptionSymbol(symbol) {
+				pl *= 100.0
+			}
+
 			p.positionCache.Update(symbol, pl, currentPrice.Value, currentPrice.Timestamp)
 		}
 

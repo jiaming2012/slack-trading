@@ -184,6 +184,13 @@ class BacktesterPlaygroundClient:
         
         return bars[-1]
     
+    def get_option_positions(self) -> Dict[str, Position]:
+        option_positions = {}
+        for symbol, position in self.account.positions.items():
+            if symbol.startswith('O:') and (('C' in symbol) or ('P' in symbol)):
+                option_positions[symbol] = position
+        return option_positions
+    
     def get_options_quantity(self, underlying_symbol: str) -> int:
         qty = 0
         for symbol, position in self.account.positions.items():

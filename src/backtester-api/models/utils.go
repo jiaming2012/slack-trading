@@ -6,6 +6,11 @@ import (
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 )
 
+func isOptionSymbol(symbol string) bool {
+	_, err := eventmodels.NewOptionSymbolFromString(symbol)
+	return err == nil
+}
+
 // calculateMaintenanceRequirement calculates the maintenance requirement based on stock price and shares sold short
 func calculateMaintenanceRequirement(stockQuantity, stockPrice float64) float64 {
 	if stockQuantity < 0 {

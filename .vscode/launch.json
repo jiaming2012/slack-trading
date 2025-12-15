@@ -310,10 +310,10 @@
             ]
         },
          {
-            "name": "options_strategy_basic v3.py",
+            "name": "options_strategy_basic v5.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/cmd/stats/options_strategy_basic_v3.py",
+            "program": "${workspaceFolder}/src/cmd/stats/options_strategy_basic_v5.py",
             "console": "integratedTerminal",
             "python": "miniconda3/envs/trading/bin/python3",
             "env": {

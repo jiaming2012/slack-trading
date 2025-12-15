@@ -1,11 +1,12 @@
 from datetime import datetime, time, timedelta
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from loguru import logger
 from dateutil.parser import isoparse
 from dataclasses import dataclass
 import math
 import numpy as np
 from zoneinfo import ZoneInfo
+import re
 
 import pandas as pd
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment, OrderSide
@@ -14,8 +15,91 @@ from base_open_strategy_v2 import BaseOpenStrategyV2
 from trading_engine_types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
 
-# v4 uses the binomial american option pricing model to estimate expected profit of selling options
-# in addition, it buys the underlying stock to avoid being short
+# v5 add options rolling strategy
+
+@dataclass
+class OptionContract:
+    symbol: str
+    underlying_symbol: str
+    expiration_date: datetime
+    option_type: str
+    strike_price: float
+    
+class OptionContractRepository:
+    def __init__(self):
+        self.cache = {}
+        
+    def get_contract_details(self, option_symbol: str) -> OptionContract:
+        if option_symbol in self.cache:
+            return self.cache[option_symbol]
+        
+        underlying_symbol, expiration_date, option_type, strike_price = self._parse_option_symbol(option_symbol)
+        contract = OptionContract(
+            symbol=option_symbol,
+            underlying_symbol=underlying_symbol,
+            expiration_date=expiration_date,
+            option_type=option_type,
+            strike_price=strike_price
+        )
+        self.cache[option_symbol] = contract
+        return contract
+        
+    def _parse_option_symbol(self, option_symbol: str) -> Tuple[str, datetime, str, float]:
+        """
+        Parse an option symbol in the format: SYMBOL[YY]MMDD[C/P]XXXXXXXX
+        
+        Example: AMZN251205C00235000
+        - AMZN: underlying symbol
+        - 251205: expiration date (Dec 5, 2025)  
+        - C: call option (P for put)
+        - 00235000: strike price (235.000)
+        
+        Args:
+            option_symbol (str): The option symbol to parse
+            
+        Returns:
+            Tuple[str, datetime, str, float]: (underlying_symbol, expiration_date, option_type, strike_price)
+            
+        Raises:
+            ValueError: If the symbol format is invalid
+        """
+        # Regex pattern to match option symbol format
+        # Group 1: Underlying symbol (letters)
+        # Group 2: Expiration date (YYMMDD)
+        # Group 3: Option type (C or P)
+        # Group 4: Strike price (8 digits with implied 3 decimal places)
+        pattern = r'^([A-Z]+)(\d{6})([CP])(\d{8})$'
+        
+        if option_symbol.startswith('O:'):
+            option_symbol = option_symbol[2:]
+        
+        match = re.match(pattern, option_symbol.upper())
+        if not match:
+            raise ValueError(f"Invalid option symbol format: {option_symbol}")
+        
+        underlying_symbol, exp_date_str, option_type_char, strike_str = match.groups()
+        
+        # Parse expiration date (YYMMDD format)
+        year = int(exp_date_str[:2])
+        month = int(exp_date_str[2:4])
+        day = int(exp_date_str[4:6])
+        
+        # Convert 2-digit year to 4-digit (assume 20xx for now)
+        full_year = 2000 + year if year >= 0 else 1900 + year
+        
+        try:
+            expiration_date = datetime(full_year, month, day, 16, 0, 0, tzinfo=ZoneInfo('America/New_York'))
+        except ValueError:
+            raise ValueError(f"Invalid expiration date in symbol: {exp_date_str}")
+        
+        # Convert option type character to full word
+        option_type = 'call' if option_type_char == 'C' else 'put'
+        
+        # Parse strike price (8 digits with implied 3 decimal places)
+        # Example: 00235000 = 235.000
+        strike_price = float(strike_str) / 1000.0
+        
+        return underlying_symbol, expiration_date, option_type, strike_price
 
 @dataclass
 class OpenSignalV4:
@@ -27,6 +111,21 @@ class OpenSignalV4:
     ltf_supertrend_value: float
     ltf_supertrend_direction: int
     expected_volatility: float
+    
+@dataclass
+class RollSignalV1:
+    symbol: str
+    name: str
+    timestamp: datetime
+    price: float
+    option_price: float
+    intrinsic_value: float
+    days_to_expiration: float
+    option_contract: OptionContract
+    quantity_to_roll: float
+    ltf_supertrend_count: int
+    ltf_supertrend_value: float
+    ltf_supertrend_direction: int
     
 def calculate_expected_profit_binomial_american(S0, P2, P3, sigma, T, r, N=100):
         """
@@ -118,8 +217,78 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         self.symbol = symbol
         self.use_htf_data = True
         self.candles = []
+        self.option_contract_repo = OptionContractRepository()
+        
+    def _get_intrinsic_value(self, option_type: str, strike_price: float, underlying_price: float) -> float:
+        if option_type == 'call':
+            intrinsic_value = max(0.0, underlying_price - strike_price)
+        elif option_type == 'put':
+            intrinsic_value = max(0.0, strike_price - underlying_price)
+        else:
+            raise ValueError("Invalid option type. Must be 'call' or 'put'.")
+        
+        return intrinsic_value
     
-    def check_for_new_signal(self, new_candle: pd.DataFrame):
+        
+    def check_for_roll_signal(self, option_prices: dict) -> List[RollSignalV1]:
+        previous_candle = self.candles_ltf.iloc[self.candles_ltf_idx - 1]
+        
+        if previous_candle is None:
+            logger.warning("Underlying price is None, cannot check for roll signals.")
+            return []
+        
+        signals = []
+        positions = self.playground.get_option_positions()
+        last_price = previous_candle.close
+        for key in positions:
+            position = positions[key]
+            if position.quantity >= 0:
+                continue  # Only consider short positions
+            
+            contract = self.option_contract_repo.get_contract_details(position.symbol)
+            if contract.option_type != 'call':
+                raise Exception("Only call options are supported for rolling in this strategy.")
+            
+            if last_price < contract.strike_price:
+                continue  # Out of the money, no roll signal
+            
+            option_price = option_prices.get(position.symbol, None)
+            if option_price is None:
+                logger.trace(f"No option price available for {position.symbol}, cannot check for roll signal.")
+                continue
+            
+            hours_to_expiration = (contract.expiration_date - self.playground.timestamp).total_seconds() / 3600.0
+            intrinsic_value = self._get_intrinsic_value(contract.option_type, contract.strike_price, last_price)
+            intrinsic_potential = intrinsic_value / option_price if option_price > 0 else 0.0
+            
+            extrinsic_value_ratio = hours_to_expiration / intrinsic_potential if intrinsic_potential > 0 else float('inf')
+            if extrinsic_value_ratio < 1.2:
+                result = self._get_feature_vector(previous_candle)
+                if result is None:
+                    logger.warning("Feature vector is None, cannot check for roll signal.")
+                    continue
+
+                ltf_supertrend_count, ltf_supertrend_value, st_direction = result
+        
+                signal = RollSignalV1(
+                    name="ROLL_CALL_OPTION",
+                    symbol=contract.underlying_symbol,
+                    timestamp=self.playground.timestamp,
+                    price=last_price,
+                    intrinsic_value=intrinsic_value,
+                    option_price=option_price,
+                    days_to_expiration=hours_to_expiration / 24.0,
+                    option_contract=contract,
+                    quantity_to_roll=abs(position.quantity),
+                    ltf_supertrend_count=ltf_supertrend_count,
+                    ltf_supertrend_value=ltf_supertrend_value,
+                    ltf_supertrend_direction=st_direction,
+                )
+                signals.append(signal)
+                
+        return signals
+        
+    def _get_feature_vector(self, new_candle: pd.DataFrame) -> Optional[Tuple[int, float, int]]:
         st_direction = new_candle.superD_50_3
         previous_supertrend_count = self.candles_ltf_idx
         for i in range(self.candles_ltf_idx-1, 0, -1):
@@ -128,24 +297,33 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                 ltf_supertrend_count = abs(previous_supertrend_count - i)
                 ltf_supertrend_value = new_candle.superT_50_3
                 previous_supertrend_count = i
-
-                signal = OpenSignalV4(
-                    symbol = self.symbol,
-                    name="LONG_OPTION_ENTRY",
-                    timestamp=isoparse(new_candle.datetime),
-                    price=new_candle.close,
-                    ltf_supertrend_count=ltf_supertrend_count,
-                    ltf_supertrend_value=ltf_supertrend_value,
-                    ltf_supertrend_direction=st_direction,
-                    expected_volatility=0.0,
-                )
                 
-                signal.expected_volatility = self.playground.stats.calculate_local_model_volatility(signal)
-                
-                return signal
-        
+                return ltf_supertrend_count, ltf_supertrend_value, st_direction
+            
         return None
     
+    def check_for_new_signal(self, new_candle: pd.DataFrame):
+        result = self._get_feature_vector(new_candle)
+        if result is None:
+            return None
+
+        ltf_supertrend_count, ltf_supertrend_value, st_direction = result
+        
+        signal = OpenSignalV4(
+            symbol = self.symbol,
+            name="SHORT_CALL_SIGNAL",
+            timestamp=isoparse(new_candle.datetime),
+            price=new_candle.close,
+            ltf_supertrend_count=ltf_supertrend_count,
+            ltf_supertrend_value=ltf_supertrend_value,
+            ltf_supertrend_direction=st_direction,
+            expected_volatility=0.0,
+        )
+        
+        signal.expected_volatility = self.playground.stats.calculate_local_model_volatility(signal)
+        
+        return signal
+            
     def get_max_per_trade_risk_percentage(self):
         return self.max_per_trade_risk_percentage
     
@@ -242,26 +420,32 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                         
                         self.logger.info(f"Reduced stock exposure by selling {abs(qty)} shares of {self.symbol} at market price.")
 
+            
         # Check for new open signals
         open_signals = []
         new_candles: List[Candle] = tick_delta.new_candles if hasattr(tick_delta, 'new_candles') else []
+        option_prices = {}
         for c in new_candles:
-            self.logger.trace(f"new candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
+            self.logger.trace(f"Processing candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
             
             if not c.period == self.playground.ltf_seconds:
                 continue
             
             if not c.symbol == self.symbol:
+                option_prices[c.symbol] = c.bar.close
                 continue
             
-            self.logger.trace(f"Processing LTF candle - {c.period} @ {c.bar.datetime} - {c.bar.close}")
-                                        
-            open_signal = self.check_for_new_signal(c.bar)
-            if open_signal:
-                open_signals.append(open_signal)
-
+            open_qty = playground.get_options_quantity(symbol)
+            if abs(open_qty) < max_open_count:
+                open_signal = self.check_for_new_signal(c.bar)
+                if open_signal:
+                    open_signals.append(open_signal)
+            
             self.append_candle(c.bar)
 
+        roll_signals = self.check_for_roll_signal(option_prices)
+        for signal in roll_signals:
+            open_signals.append(signal)
 
         return open_signals
     
@@ -692,13 +876,12 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
     
 if __name__ == "__main__":
     balance = 100000
-    symbol = 'AMZN'
-    start_date = '2025-08-01' # Dont start on holidays
-    end_date = '2025-12-06'
+    symbol = 'GOOG'
+    start_date = '2022-06-01'
+    end_date = '2023-06-06'
     repository_source = RepositorySource.POLYGON
     csv_path = None
     twirp_host = 'http://127.0.0.1:5051'
-    updateFrequency = 'daily'
     
     repos = OptionsStrategyBasic.get_repositories(symbol, datetime.fromisoformat(start_date), datetime.fromisoformat(end_date))
     
@@ -724,14 +907,15 @@ if __name__ == "__main__":
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
         for tick_delta in tick_deltas:
-            open_qty = playground.get_options_quantity(symbol)
-            if abs(open_qty) >= max_open_count:
-                continue
-            
             open_signals = strategy.tick(tick_delta)
             
             for signal in open_signals:
-                expiration_in_days = strategy.find_next_friday(signal.timestamp)
+                if isinstance(signal, OpenSignalV4):
+                    expiration_in_days = strategy.find_next_friday(signal.timestamp)
+                elif isinstance(signal, RollSignalV1):
+                    expiration_in_days = strategy.find_next_friday(signal.option_contract.expiration_date)
+                else:
+                    raise Exception("Unknown signal type.")
                 
                 request = GetOptionsLadderRequest(
                     playground_id=playground.id,
@@ -777,15 +961,27 @@ if __name__ == "__main__":
                         logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.price}")
                         continue
                     
-                    stock_qty = calculate_stock_quantity(playground, signal.symbol, -1)
-                    if stock_qty > 0:
+                    attributes = { "ev": str(highest_expected_profit), "stock_price": str(signal.price) }
+                    
+                    if signal.__class__ == RollSignalV1:
                         playground.place_order(
-                            signal.symbol,
-                            stock_qty,
-                            OrderSide.BUY,
-                            'equity',
-                            signal.price
+                            signal.option_contract.symbol,
+                            signal.quantity_to_roll,
+                            OrderSide.BUY_TO_CLOSE,
+                            'option'
                         )
+                        
+                        attributes["roll_from"] = signal.option_contract.symbol
+                    else:
+                        stock_qty = calculate_stock_quantity(playground, signal.symbol, -1)
+                        if stock_qty > 0:
+                            playground.place_order(
+                                signal.symbol,
+                                stock_qty,
+                                OrderSide.BUY,
+                                'equity',
+                                signal.price
+                            )
                     
                     # In order to calculate the option EV, we 
                     playground.place_order(
@@ -793,7 +989,7 @@ if __name__ == "__main__":
                         1, 
                         OrderSide.SELL_TO_OPEN,
                         'option',
-                        attributes={"ev": str(highest_expected_profit), "stock_price": str(signal.price)}
+                        attributes=attributes
                     )
                     
                     logger.info(f"Open Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
