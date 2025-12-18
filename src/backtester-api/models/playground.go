@@ -1088,6 +1088,24 @@ func (p *Playground) validateCache(openOrdersCache *OpenOrdersCache, positionCac
 	return nil
 }
 
+func (p *Playground) validateBalance() error {
+	realized_pl := 0.0
+	for _, order := range p.getAllOrders() {
+		if order.Status == OrderRecordStatusFilled && order.IsClose {
+			pl := order.CalcRealizedPL()
+			realized_pl += pl
+		}
+	}
+
+	balance := p.InitialBalance + realized_pl
+
+	if math.Abs(balance-p.account.Balance) > 0.01 {
+		return fmt.Errorf("balance validation failed: calculated balance %.2f does not match account balance %.2f", balance, p.account.Balance)
+	}
+
+	return nil
+}
+
 func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFillEntry ExecutionFillRequest) (*TradeRecord, bool, error) {
 	position := p.positionCache.Get(order.GetInstrument().GetTicker())
 
@@ -1174,8 +1192,17 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		order.PreviousPosition = *position
 	}
 
+	if order.IsClose {
+		previousBalance := p.account.Balance
+		order.PreviousBalance = &previousBalance
+	}
+
 	// update the account balance before updating the positions cache
 	p.updateBalance(order.GetInstrument(), trade, p.positionCache)
+
+	if err := p.validateBalance(); err != nil {
+		log.Warnf("balance validation failed: %v", err)
+	}
 
 	// update the caches
 	p.openOrdersCache.Commit(openOrdersCacheCopy)
@@ -1302,16 +1329,16 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		return nil, fmt.Errorf("error fetching price: %w", err)
 	}
 
+	isSystemOrder := true
 	if position.Quantity > 0 {
-		externalId := p.account.NextOrderID()
-		isSystemOrder := true
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil)
+		id := p.account.NextOrderID()
+		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
 	} else if position.Quantity < 0 {
-		externalId := p.account.NextOrderID()
-		order, err = NewOrderRecord(0, &externalId, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, false, nil)
+		id := p.account.NextOrderID()
+		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
@@ -1336,7 +1363,7 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 		}
 	}
 
-	_, invalidOrders, err := p.commitPendingOrders(orderFillPriceMap, true)
+	_, invalidOrders, _, err := p.CommitOrderQueue(orderFillPriceMap)
 	if err != nil {
 		return nil, fmt.Errorf("performLiquidations: error committing pending orders: %w", err)
 	}
@@ -1373,6 +1400,8 @@ func (p *Playground) checkForLiquidations(positionCache *PositionsCache) (*TickD
 		if order != nil {
 			liquidatedOrders = append(liquidatedOrders, order)
 		}
+
+		order.Attributes.Add("system_liquidation", "true")
 
 		positionCache, err = p.UpdatePricesAndGetPositionCache()
 		if err != nil {
@@ -1811,16 +1840,20 @@ func (p *Playground) GetPendingOrders() []*OrderRecord {
 	return p.account.PendingOrders
 }
 
-func (p *Playground) GetAllOrders() []*OrderRecord {
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
+func (p *Playground) getAllOrders() []*OrderRecord {
 	result := append(p.account.Orders, p.account.PendingOrders...)
 	result = append(result, p.account.NewOrders...)
 	if len(result) == 0 {
 		return make([]*OrderRecord, 0)
 	}
 	return result
+}
+
+func (p *Playground) GetAllOrders() []*OrderRecord {
+	p.account.mutex.Lock()
+	defer p.account.mutex.Unlock()
+
+	return p.getAllOrders()
 }
 
 func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {

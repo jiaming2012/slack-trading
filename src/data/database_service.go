@@ -1309,6 +1309,7 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 		req.CloseOrderId,
 		req.IsSystemOrder,
 		req.Attributes,
+		req.PreviousBalance,
 	)
 
 	if req.IsAdjustment {

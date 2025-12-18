@@ -13,7 +13,7 @@ import (
 
 func fetchOptionThetaBulkHistOptionOhlc(baseURL string, r eventmodels.ThetaDataBulkHistOptionOHLCRequest) (*eventmodels.ThetaDataBulkResponse, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	url := fmt.Sprintf("%s/v2/bulk_hist/option/ohlc", baseURL)

@@ -11,7 +11,7 @@ import (
 
 func FetchTradierQuotes(baseUrl, bearerToken string, symbol eventmodels.StockSymbol, date time.Time) (*eventmodels.TradierMarketsHistoryResponseDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, baseUrl, nil)

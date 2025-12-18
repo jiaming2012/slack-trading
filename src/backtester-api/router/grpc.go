@@ -72,6 +72,12 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		closes = append(closes, convertOrder(order, externalIdMap))
 	}
 
+	var pl *float64
+	if len(closes) > 0 {
+		calculatedPL := o.CalcRealizedPL()
+		pl = &calculatedPL
+	}
+
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
@@ -133,6 +139,8 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		PreviousPosition: previousPosition,
 		CloseOrderId:     closeOrderId,
 		Attributes:       o.Attributes,
+		PreviousBalance:  o.PreviousBalance,
+		Pl:               pl,
 	}
 
 	if o.Price != nil {
@@ -1084,6 +1092,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		CloseOrderId:    closeOrderId,
 		IsAdjustment:    req.IsAdjustment,
 		Attributes:      req.Attributes,
+		PreviousBalance: nil,
 	})
 
 	if webErr != nil {

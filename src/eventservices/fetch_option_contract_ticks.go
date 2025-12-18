@@ -11,7 +11,7 @@ import (
 
 func FetchOptionContractTicks(url, bearerToken string, symbol eventmodels.StockSymbol, expiration string) ([]*eventmodels.OptionChainTickDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

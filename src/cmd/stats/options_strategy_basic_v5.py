@@ -875,10 +875,10 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
     
     
 if __name__ == "__main__":
-    balance = 100000
-    symbol = 'GOOG'
-    start_date = '2022-06-01'
-    end_date = '2023-06-06'
+    balance = 1000000
+    symbol = 'COIN'
+    start_date = '2025-05-19'
+    end_date = '2025-12-12'
     repository_source = RepositorySource.POLYGON
     csv_path = None
     twirp_host = 'http://127.0.0.1:5051'

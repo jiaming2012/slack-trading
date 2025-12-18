@@ -219,7 +219,7 @@
             "console": "integratedTerminal",
             "python": "miniconda3/envs/trading/bin/python3",
             "args": [
-                "--playground-id", "67c46a3c-f10f-4b0d-ac96-eaf5deee538a",
+                "--playground-id", "7d533aed-aca9-434a-89fa-2529aa7e4116",
             ]
         },
         {
@@ -317,7 +317,7 @@
             "console": "integratedTerminal",
             "python": "miniconda3/envs/trading/bin/python3",
             "env": {
-                "BALANCE": "30000",
+                "BALANCE": "100000",
                 "SYMBOL": "AAPL",
                 "TWIRP_HOST": "http://localhost:5051",
                 "PLAYGROUND_ENV": "simulator",

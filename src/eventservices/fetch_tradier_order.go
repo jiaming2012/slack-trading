@@ -12,7 +12,7 @@ import (
 
 func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.TradierOrderSpreadDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	// Parse the base URL

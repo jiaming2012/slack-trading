@@ -15,6 +15,13 @@ import (
 
 type Attributes map[string]string
 
+func (a *Attributes) Add(key, value string) {
+	if *a == nil {
+		*a = make(map[string]string)
+	}
+	(*a)[key] = value
+}
+
 func (a *Attributes) Scan(value interface{}) error {
 	if value == nil {
 		*a = make(map[string]string)
@@ -69,14 +76,16 @@ type OrderRecord struct {
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
+	PreviousBalance  *float64               `gorm:"column:previous_balance;type:numeric" copier:"must,nopanic"`
 	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
-func (o *OrderRecord) GetRealizedPL() float64 {
+func (o *OrderRecord) CalcRealizedPL() float64 {
 	realizedPL := 0.0
-	vwap := o.GetAvgFillPrice()
 
 	if o.Side == TradierOrderSideBuy || o.Side == TradierOrderSideBuyToOpen {
+		vwap := o.GetAvgFillPrice()
+
 		for _, trade := range o.ClosedBy {
 			if trade.Quantity > 0 {
 				continue
@@ -85,12 +94,40 @@ func (o *OrderRecord) GetRealizedPL() float64 {
 			realizedPL += (trade.Price - vwap) * math.Abs(trade.Quantity)
 		}
 	} else if o.Side == TradierOrderSideSellShort || o.Side == TradierOrderSideSellToOpen {
+		vwap := o.GetAvgFillPrice()
+
 		for _, trade := range o.ClosedBy {
 			if trade.Quantity < 0 {
 				continue
 			}
 
 			realizedPL += (vwap - trade.Price) * trade.Quantity
+		}
+	} else if o.Side == TradierOrderSideSell || o.Side == TradierOrderSideSellToClose {
+		for _, order := range o.Closes {
+			vwap := order.GetAvgFillPrice()
+			for _, tr := range order.ClosedBy {
+				for _, thisTr := range o.Trades {
+					if tr.ID != thisTr.ID {
+						continue
+					}
+
+					realizedPL += (tr.Price - vwap) * math.Abs(tr.Quantity)
+				}
+			}
+		}
+	} else if o.Side == TradierOrderSideBuyToCover || o.Side == TradierOrderSideBuyToClose {
+		for _, order := range o.Closes {
+			vwap := order.GetAvgFillPrice()
+			for _, tr := range order.ClosedBy {
+				for _, thisTr := range o.Trades {
+					if tr.ID != thisTr.ID {
+						continue
+					}
+
+					realizedPL += (vwap - tr.Price) * math.Abs(tr.Quantity)
+				}
+			}
 		}
 	}
 
@@ -548,6 +585,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 		from.CloseOrderId,
 		from.IsSystemOrder,
 		from.Attributes,
+		from.PreviousBalance,
 	)
 
 	if err != nil {
@@ -557,7 +595,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	return record
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string) (*OrderRecord, error) {
+func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) (*OrderRecord, error) {
 	order := &OrderRecord{
 		Model: gorm.Model{ID: id},
 	}
@@ -583,6 +621,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 		closeOrderId,
 		isSystemOrder,
 		attributes,
+		previousBalance,
 	)
 
 	if err != nil {
@@ -592,7 +631,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 	return order, nil
 }
 
-func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string) error {
+func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) error {
 	instrument, err := eventmodels.NewInstrument(string(class), symbol)
 	if err != nil {
 		return fmt.Errorf("makeOrderRecord: failed to create instrument for class %s and symbol %s: %w", class, symbol, err)
@@ -622,6 +661,7 @@ func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_req
 	order.IsAdjustment = false
 	order.IsSystemOrder = isSystemOrder
 	order.Attributes = attributes
+	order.PreviousBalance = previousBalance
 
 	return nil
 }

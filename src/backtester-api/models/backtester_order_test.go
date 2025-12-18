@@ -13,13 +13,13 @@ func TestOrderRecordStatus(t *testing.T) {
 	now := time.Time{}
 
 	t.Run("New", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		require.Equal(t, OrderRecordStatusNew, order.GetStatus())
 	})
 
 	t.Run("PartiallyFilled", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, 5, 1)
@@ -30,7 +30,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Filled", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, 10, 1)
@@ -41,7 +41,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Filled - invalid price", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, 10, 0)
@@ -51,7 +51,7 @@ func TestOrderRecordStatus(t *testing.T) {
 
 	t.Run("Filled - quantity exceeds order quantity", func(t *testing.T) {
 		quantity := 10.0
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, quantity, 1)
@@ -64,7 +64,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Filled - invalid quantity", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, 0, 1)
@@ -73,7 +73,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Filled - multiple trades", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		trade := NewTradeRecord(order, now, 5, 1)
@@ -86,7 +86,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Cancelled", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order.Cancel()
@@ -94,7 +94,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Fill is rejected after order is cancelled", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order.Cancel()
@@ -104,7 +104,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Rejected", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order.Reject(fmt.Errorf("something happened"))
@@ -112,7 +112,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Fill is rejected after order is rejected", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order.Reject(fmt.Errorf("something happened"))
@@ -122,7 +122,7 @@ func TestOrderRecordStatus(t *testing.T) {
 	})
 
 	t.Run("Fill is rejected after order is filled", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", "buy", 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		trade := NewTradeRecord(order, now, 10, 1)
 		order.Fill(trade)

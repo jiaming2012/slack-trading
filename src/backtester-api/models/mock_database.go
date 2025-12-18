@@ -66,6 +66,7 @@ func (m *MockDatabase) PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrd
 		req.CloseOrderId,
 		req.IsSystemOrder,
 		req.Attributes,
+		nil, // previousBalance
 	)
 
 	if err != nil {

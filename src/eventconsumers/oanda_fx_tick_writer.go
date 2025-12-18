@@ -38,7 +38,7 @@ func (w *OandaFxTickWriter) getActiveSymbols() []eventmodels.FxSymbol {
 
 func (w *OandaFxTickWriter) FetchLastCandle(ctx context.Context, symbol eventmodels.FxSymbol) (*eventmodels.OandaFetchQuotesResponseDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	url := fmt.Sprintf(w.quotesBaseURL, symbol)

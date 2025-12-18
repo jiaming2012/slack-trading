@@ -20,6 +20,7 @@ type CreateOrderRequest struct {
 	IsAdjustment    bool                `json:"is_adjustment"`
 	IsSystemOrder   bool                `json:"is_system_order"`
 	Attributes      map[string]string   `json:"attributes"`
+	PreviousBalance *float64            `json:"previous_balance"`
 }
 
 func (req *CreateOrderRequest) Validate() error {

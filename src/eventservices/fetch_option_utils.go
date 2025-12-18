@@ -444,7 +444,7 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 
 func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels.StockSymbol) (*eventmodels.OptionContractDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

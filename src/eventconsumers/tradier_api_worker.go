@@ -47,7 +47,7 @@ func (w *TradierApiWorker) getOrAddOrder(order *eventmodels.TradierOrder) (*even
 
 func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, interval eventmodels.TradierInterval, start, end time.Time) ([]*eventmodels.TradierMarketsTimeSalesDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	// Construct the query parameters

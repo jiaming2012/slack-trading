@@ -7,17 +7,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/worker"
-
-	"github.com/jiaming2012/slack-trading/src/sheets"
-
-	models2 "github.com/jiaming2012/slack-trading/src/models"
-
-	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
-
-	models "github.com/jiaming2012/slack-trading/src/eventmodels"
-
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
+	models "github.com/jiaming2012/slack-trading/src/eventmodels"
+	pubsub "github.com/jiaming2012/slack-trading/src/eventpubsub"
+	models2 "github.com/jiaming2012/slack-trading/src/models"
+	"github.com/jiaming2012/slack-trading/src/sheets"
+	"github.com/jiaming2012/slack-trading/src/worker"
 )
 
 type BalanceWorker struct {
@@ -65,12 +60,9 @@ func (r *BalanceWorker) Start(ctx context.Context) {
 
 	go func() {
 		defer r.wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				log.Info("stopping BalanceWorker consumer")
-				return
-			}
+		for range ctx.Done() {
+			log.Info("stopping BalanceWorker consumer")
+			return
 		}
 	}()
 }

@@ -60,7 +60,7 @@ func (b *TradierBroker) GetSource() models.ILiveAccountSource {
 
 func (b *TradierBroker) FetchBalances(url, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -161,7 +161,7 @@ func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceOrderRe
 
 func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	symbolsStr := make([]string, 0, len(symbols))
@@ -213,7 +213,7 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 
 func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	queryParams := url.Values{}
@@ -272,7 +272,7 @@ func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmod
 
 func FetchTradierPositions(url string, token string) ([]eventmodels.TradierPositionDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -309,7 +309,7 @@ func FetchTradierPositions(url string, token string) ([]eventmodels.TradierPosit
 
 func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.TradierOrderDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	queryParams := url.Values{}
@@ -353,7 +353,7 @@ func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.Tra
 
 func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 60 * time.Second,
 	}
 
 	httpReq, err := http.NewRequest(http.MethodPost, url, nil)

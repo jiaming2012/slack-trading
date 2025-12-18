@@ -54,7 +54,7 @@ func fetchPolygonDailyTickerSummary(symbol string, date eventmodels.PolygonDate,
 	req.Header.Add("Accept", "application/json")
 
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	res, err := client.Do(req)
@@ -93,7 +93,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	// log.Tracef("fetching from %v", req.URL.String())
 
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	res, err := client.Do(req)
@@ -212,7 +212,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmodels.PolygonAggregateBar] {
 	return func(url, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
 		client := http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 45 * time.Second,
 		}
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -591,7 +591,7 @@ func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHL
 func fetchPolygonReferenceOptionsContracts(symbol eventmodels.StockSymbol, expirationGreaterThanEqual, expirationLessThanEqual time.Time, isExpired bool) eventmodels.FetchDataFunc[eventmodels.PolygonOptionContract] {
 	return func(url, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonOptionContract], error) {
 		client := http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 45 * time.Second,
 		}
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)

@@ -438,5 +438,7 @@ message Order {
     Position previous_position = 21;
     optional uint64 close_order_id = 22;
     map<string, string> attributes = 23;
+    optional double previous_balance = 24;
+    optional double pl = 25;
 }
 

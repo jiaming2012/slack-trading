@@ -77,7 +77,7 @@ func (w *OptionAlertWorker) getSymbolList() string {
 
 func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, w.brokerURL, nil)

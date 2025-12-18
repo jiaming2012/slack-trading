@@ -59,7 +59,7 @@ func FetchMarketCalendar(url, bearerToken string, now time.Time) (*eventmodels.M
 	log.Debugf("Cache invalid. Fetching market calendar for %v", currentMonth)
 
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

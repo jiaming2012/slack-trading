@@ -164,6 +164,15 @@ def _calc_realized_order_profit(order) -> Tuple[float, float, float]:
     close_price = sum(close_prices) / len(close_prices) if len(close_prices) > 0 else 0
     return pl, open_price, close_price
                     
+def _calc_realized_profits_list_2(orders: List[Order]) -> List[float]:
+    pl =[]
+    for o in orders:
+        if o.pl is not None:
+            pl.append(o.pl)
+            
+    return pl
+    
+    
 def _calc_realized_profit_list(orders) -> List[float]:    
     realized_profits = []
     
@@ -173,6 +182,12 @@ def _calc_realized_profit_list(orders) -> List[float]:
             continue
         
         realized_profits.append(pl)
+        
+    pl_1 = sum(realized_profits)
+    realized_profits_2 = _calc_realized_profits_list_2(orders)
+    pl_2 = sum(realized_profits_2)
+    
+    assert abs(pl_1 - pl_2) < 0.001, f'pl mismatch: {pl_1} != {pl_2}'
         
     return realized_profits
 
@@ -474,6 +489,7 @@ def collect_data(orders: List[Order], position: Position, from_date: datetime) -
         gross_data[orders_class]['close_slippage'] = calc_close_slippage(orders)
 
     agg_data = {}
+    agg_data['total_realized_pl'] = calc_realized_profit(profit_list_dict['stock_orders']) + calc_realized_profit(profit_list_dict['option_orders'])
     agg_data['stock_profit_factor'] = gross_data['stock_orders']['gross_profit'] / abs(gross_data['stock_orders']['gross_loss']) if gross_data['stock_orders']['gross_loss'] != 0 else 'n/a'
     agg_data['stock_realized_pl'] = calc_realized_profit(profit_list_dict['stock_orders'])
     agg_data['stock_win_rate'] = gross_data['stock_orders']['winners_count'] / gross_data['stock_orders']['total_trades'] if gross_data['stock_orders']['total_trades'] != 0 else 'n/a'

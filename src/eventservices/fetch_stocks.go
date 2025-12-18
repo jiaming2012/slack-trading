@@ -11,7 +11,7 @@ import (
 
 func FetchStockTicks(symbol eventmodels.StockSymbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
