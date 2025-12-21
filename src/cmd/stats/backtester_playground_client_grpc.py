@@ -48,6 +48,7 @@ class Position:
     cost_basis: float
     maintenance_margin: float
     pl: float
+    current_price: float
     
 @dataclass
 class Account:
@@ -371,6 +372,7 @@ class BacktesterPlaygroundClient:
                 quantity=v.quantity,
                 cost_basis=v.cost_basis,
                 maintenance_margin=v.maintenance_margin,
+                current_price=v.current_price,
                 pl=v.pl
             )
         

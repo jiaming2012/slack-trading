@@ -125,6 +125,11 @@ func FetchPolygonIndexChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 }
 
 func FetchPolygonOptionAggregateBars(symbol string, from time.Time, to *time.Time, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+	now := time.Now()
+	if from.After(now) { // fixes api error when from is in the future
+		from = now.AddDate(0, 0, -1)
+	}
+
 	var toTimestamp time.Time
 	if to == nil {
 		toTimestamp = time.Now()

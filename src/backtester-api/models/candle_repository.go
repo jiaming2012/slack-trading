@@ -289,7 +289,11 @@ func (r *CandleRepository) GetCandleAt(at time.Time, maxAge time.Duration) (*eve
 
 func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
 	if r.position >= len(r.candlesWithIndicators) {
-		return nil, fmt.Errorf("no more candles")
+		if r.position == 0 {
+			return nil, fmt.Errorf("found empty candlesWithIndicators for symbol %s", r.symbol.GetTicker())
+		}
+		
+		return nil, nil
 	}
 
 	if r.startingPosition == nil {
@@ -321,7 +325,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 	}
 
 	if r.position >= len(r.candlesWithIndicators) {
-		return nil, fmt.Errorf("no more candles")
+		return nil, fmt.Errorf("no more candles: %w", ErrCurrentPriceNotSet)
 	}
 
 	var newCandle *eventmodels.AggregateBarWithIndicators

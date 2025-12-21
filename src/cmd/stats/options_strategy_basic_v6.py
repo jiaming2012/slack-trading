@@ -15,7 +15,8 @@ from base_open_strategy_v2 import BaseOpenStrategyV2
 from trading_engine_types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
 
-# v5 add options rolling strategy - rolls short calls when extrinsic value ratio is low (based on time decay)
+# v6 add options rolling strategy - rolls short calls when extrinsic value ratio is low (based on time decay)
+# or when loss ratio exceeds threshold (based on current price vs cost basis)
 
 @dataclass
 class OptionContract:
@@ -101,6 +102,14 @@ class OptionContractRepository:
         
         return underlying_symbol, expiration_date, option_type, strike_price
 
+@dataclass
+class CloseSignalV2:
+    name: str
+    timestamp: datetime
+    price: float
+    option_contract: OptionContract
+    quantity_to_close: float
+    
 @dataclass
 class OpenSignalV4:
     symbol: str
@@ -268,8 +277,7 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                 
             loss_ratio = (position.cost_basis - position.current_price) / position.cost_basis if position.cost_basis > 0 else 0.0
             if loss_ratio <= -0.25:
-                # signal_name = f"ROLL_CALL_LOSS_RATIO_{loss_ratio:.2f}"
-                pass
+                signal_name = f"ROLL_CALL_LOSS_RATIO_{loss_ratio:.2f}"
                 
             if signal_name is None:
                 continue
@@ -391,7 +399,45 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                 
         return closest_contract
                                
-    def tick(self, tick_delta) -> List[OpenSignalV4]:        
+    def early_close_schedule(self, days_before_expiration: int, premium_captured_percentage: float):
+        if days_before_expiration >= 5 and premium_captured_percentage >= 0.50:
+            return True
+        elif days_before_expiration >= 4 and premium_captured_percentage >= 0.60:
+            return True
+        elif days_before_expiration >= 3 and premium_captured_percentage >= 0.70:
+            return True
+        elif days_before_expiration >= 2 and premium_captured_percentage >= 0.80:
+            return True
+        else:
+            return False
+        
+                               
+    def check_for_early_close_signals(self, positions: dict) -> List[CloseSignalV2]:
+        close_signals = []
+        for key in positions:
+            position = positions[key]
+            if position.quantity >= 0:
+                continue  # Only consider short positions
+            
+            contract = self.option_contract_repo.get_contract_details(position.symbol)
+            days_before_expiration = (contract.expiration_date - self.playground.timestamp).days
+            
+            premium_captured = position.cost_basis - position.current_price
+            premium_captured_percentage = premium_captured / position.cost_basis if position.cost_basis > 0 else 0.0
+            
+            if self.early_close_schedule(days_before_expiration, premium_captured_percentage):
+                signal_name = f"EARLY_CLOSE_DBE_{days_before_expiration}_PCP_{premium_captured_percentage:.2f}"
+                close_signal = CloseSignalV2(
+                    name=signal_name,
+                    timestamp=self.playground.timestamp,
+                    price=position.current_price,
+                    option_contract=contract,
+                    quantity_to_close=abs(position.quantity)
+                )
+                close_signals.append(close_signal)
+        
+                               
+    def tick(self, tick_delta) -> Tuple[List[OpenSignalV4], List[CloseSignalV2]]:        
         # Check for assigned options
         position = self.playground.account.positions.get(self.symbol, None)
         if position is not None:
@@ -457,8 +503,12 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         roll_signals = self.check_for_roll_signal(option_prices)
         for signal in roll_signals:
             open_signals.append(signal)
+            
+        close_signals = self.check_for_early_close_signals(positions= self.playground.get_option_positions())
 
-        return open_signals
+        return open_signals, close_signals
+    
+
     
 def calculate_stock_quantity(playground: BacktesterPlaygroundClient, stock_symbol: str, new_option_qty: float) -> float:
     options_qty = playground.get_options_quantity(stock_symbol)
@@ -475,6 +525,7 @@ def calculate_stock_quantity(playground: BacktesterPlaygroundClient, stock_symbo
 
     return 0.0
 
+
 def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
     max_open_count = 3
     strategy = OptionsStrategyBasic(playground, symbol, logger)
@@ -482,7 +533,19 @@ def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
         for tick_delta in tick_deltas:
-            open_signals = strategy.tick(tick_delta)
+            open_signals, close_signals = strategy.tick(tick_delta)
+            
+            for signal in close_signals:
+                playground.place_order(
+                    signal.option_contract.symbol, 
+                    abs(signal.quantity_to_close), 
+                    OrderSide.BUY_TO_CLOSE,
+                    'option',
+                    attributes={ "signal_name": signal.name },
+                    with_tick=True
+                )
+                
+                logger.info(f"Close Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
             
             for signal in open_signals:
                 expiration_in_days = strategy.find_next_friday(signal.timestamp)
@@ -517,7 +580,8 @@ def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
                         target_contract.symbol, 
                         1, 
                         OrderSide.SELL_TO_OPEN,
-                        'option'
+                        'option',
+                        attributes={ "signal_name": signal.name }
                     )
                     
                     logger.info(f"Open Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
@@ -887,7 +951,7 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
     
 if __name__ == "__main__":
     balance = 1000000
-    symbol = 'GOOG'
+    symbol = 'COIN'
     start_date = '2025-05-19'
     end_date = '2025-12-12'
     repository_source = RepositorySource.POLYGON
@@ -981,8 +1045,9 @@ if __name__ == "__main__":
                                 logger.warn(f"No position found for {signal.option_contract.symbol} while processing roll signal.")
                                 continue
                             current_price = position.current_price
-                            if premium_received - current_price < 0:
-                                continue  # Do not roll at a loss
+                            if not signal.name.startswith('ROLL_CALL_LOSS_RATIO'):
+                                if premium_received - current_price < 0:
+                                    continue  # Do not roll at a loss
                             
                         if profit_american > highest_expected_profit:
                             highest_expected_profit = profit_american
@@ -992,7 +1057,7 @@ if __name__ == "__main__":
                         logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.price}")
                         continue
                     
-                    attributes = { "ev": str(highest_expected_profit), "stock_price": str(signal.price) }
+                    attributes = { "ev": str(highest_expected_profit), "stock_price": str(signal.price), "signal_name": signal.name }
                     
                     if signal.__class__ == RollSignalV1:
                         playground.place_order(
@@ -1014,6 +1079,12 @@ if __name__ == "__main__":
                                 signal.price
                             )
                     
+                    if isinstance(signal, OpenSignalV4):
+                        p = playground.account.get_position(target_contract.symbol)
+                        if p is not None and p.quantity != 0:
+                            logger.warning(f"Skip open an option position for {target_contract.symbol} but position already exists with quantity {p.quantity}. Skipping order.")
+                            continue
+                    
                     # In order to calculate the option EV, we 
                     playground.place_order(
                         target_contract.symbol, 
@@ -1026,6 +1097,7 @@ if __name__ == "__main__":
                     logger.info(f"Open Signal: {signal.name} at {signal.timestamp} for {signal.symbol}")
                 
         playground.tick(playground.ltf_seconds)
+        logger.info(f"Ticked playground to {playground.timestamp.isoformat()}")
         
 
     logger.info(f"Done - playground id: {playground.id}")

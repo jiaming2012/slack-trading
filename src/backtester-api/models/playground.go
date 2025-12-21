@@ -729,6 +729,10 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 				repo, ok = p.repos.Get(optionSymbol, p.minimumPeriod)
 				if !ok {
 					from := expiration.Add(-7 * 24 * time.Hour)
+					if from.After(p.GetCurrentTime()) {
+						from = p.GetCurrentTime()
+					}
+
 					to := expiration.Add(24 * time.Hour)
 
 					var err error
@@ -744,7 +748,9 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 			}
 
 			if candle == nil {
-				return nil, ErrCurrentPriceNotSet
+				log.Warnf("getCurrentPrice: current candle is nil for symbol %s", symbol.GetTicker())
+				continue
+				// return nil, ErrCurrentPriceNotSet
 			}
 
 			ticker := symbol.GetTicker()
@@ -1823,7 +1829,15 @@ func (p *Playground) GetMeta() Meta {
 }
 
 func (p *Playground) GetBalance() float64 {
-	return p.account.Balance
+	balance := 0.0
+	for _, order := range p.getAllOrders() {
+		if order.Status == OrderRecordStatusFilled && order.IsClose {
+			pl := order.CalcRealizedPL()
+			balance += pl
+		}
+	}
+
+	return p.InitialBalance + balance
 }
 
 func (p *Playground) GetEquity(positionCache *PositionsCache) float64 {
@@ -2088,7 +2102,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 			positions[symbol].Timestamp = p.GetCurrentTime().Format(time.RFC3339)
 		} else {
 			log.Warnf("getCurrentPrice [%s]: not found", symbol)
-			positions[symbol].PL = 0
+			// positions[symbol].PL = 0
 		}
 	}
 
