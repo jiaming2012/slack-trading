@@ -294,6 +294,12 @@ class BacktesterPlaygroundClient:
         self.environment = req.environment
         self.current_candles = {}
         
+        current_ltf_candle = self.fetch_most_recent_bar(req.repositories[0].symbol, self.ltf_seconds, self.timestamp)
+        set_nested_value(self.current_candles, req.repositories[0].symbol, self.ltf_seconds, current_ltf_candle)   
+        
+        current_htf_candle = self.fetch_most_recent_bar(req.repositories[0].symbol, self.htf_seconds, self.timestamp)
+        set_nested_value(self.current_candles, req.repositories[0].symbol, self.htf_seconds, current_htf_candle)
+        
     def get_realized_profit(self) -> float:
         initial_balance = self.account.meta.initial_balance
         return self.account.balance - initial_balance
@@ -454,7 +460,7 @@ class BacktesterPlaygroundClient:
         '''
         This version is used bc timestamps created from python doesn't work with v2
         '''
-        timestampFromUtc = timestampFrom.replace(tzinfo=ZoneInfo('UTC'))
+        timestampFromUtc = timestampFrom.astimezone(ZoneInfo('UTC'))
         fromStr = timestampFromUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
                         
         req = GetCandlesRequest(
@@ -465,7 +471,7 @@ class BacktesterPlaygroundClient:
             )
     
         if timestampTo is not None:
-            timestampToUtc = timestampTo.replace(tzinfo=ZoneInfo('UTC'))
+            timestampToUtc = timestampTo.astimezone(ZoneInfo('UTC'))
             toStr = timestampToUtc.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
             req.toRTF3339 = toStr
             
@@ -609,9 +615,6 @@ class BacktesterPlaygroundClient:
             request.close_order_id = close_order_id
             
         if attributes:
-            if request.attributes is None:
-                request.attributes = {}
-                    
             for k, v in attributes.items():
                 request.attributes[k] = v
                         
@@ -622,7 +625,6 @@ class BacktesterPlaygroundClient:
             
             if self.environment == PlaygroundEnvironment.SIMULATOR.value:
                 if with_tick:
-                    self.logger.info(f"Placing order with tick: {request}", trading_operation='place_order', timestamp=self.timestamp)
                     self.tick(0, raise_exception=True)
             else:
                 self.logger.info(f"environment={self.environment} Placing order without tick: {request}", trading_operation='place_order', timestamp=self.timestamp)

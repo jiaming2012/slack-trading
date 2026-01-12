@@ -1,4 +1,6 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, date
+from dateutil import parser, tz
+from random import random, randint
 from typing import List, Tuple, Optional
 from loguru import logger
 from dateutil.parser import isoparse
@@ -7,6 +9,10 @@ import math
 import numpy as np
 from zoneinfo import ZoneInfo
 import re
+import matplotlib.pyplot as plt
+import seaborn as sns
+import statsmodels.api as sm
+from scipy.stats import ks_2samp
 
 import pandas as pd
 from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment, OrderSide
@@ -15,8 +21,15 @@ from base_open_strategy_v2 import BaseOpenStrategyV2
 from trading_engine_types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
 
-# v6 add options rolling strategy - rolls short calls when extrinsic value ratio is low (based on time decay)
-# or when loss ratio exceeds threshold (based on current price vs cost basis)
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message="use_inf_as_na option is deprecated",
+    category=FutureWarning
+)
+
+# v7 adds early close signals based on days to expiration and premium captured percentage
+# Adds analysis and visualization of log returns distribution
 
 @dataclass
 class OptionContract:
@@ -411,8 +424,35 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         else:
             return False
         
-                           
-    def tick(self, tick_delta) -> List[OpenSignalV4]:        
+                               
+    def check_for_early_close_signals(self, positions: dict) -> List[CloseSignalV2]:
+        close_signals = []
+        for key in positions:
+            position = positions[key]
+            if position.quantity >= 0:
+                continue  # Only consider short positions
+            
+            contract = self.option_contract_repo.get_contract_details(position.symbol)
+            days_before_expiration = (contract.expiration_date - self.playground.timestamp).days
+            
+            premium_captured = position.cost_basis - position.current_price
+            premium_captured_percentage = premium_captured / position.cost_basis if position.cost_basis > 0 else 0.0
+            
+            if self.early_close_schedule(days_before_expiration, premium_captured_percentage):
+                signal_name = f"EARLY_CLOSE_DBE_{days_before_expiration}_PCP_{premium_captured_percentage:.2f}"
+                close_signal = CloseSignalV2(
+                    name=signal_name,
+                    timestamp=self.playground.timestamp,
+                    price=position.current_price,
+                    option_contract=contract,
+                    quantity_to_close=abs(position.quantity)
+                )
+                close_signals.append(close_signal)
+                
+        return close_signals
+        
+                               
+    def tick(self, tick_delta) -> Tuple[List[OpenSignalV4], List[CloseSignalV2]]:        
         # Check for assigned options
         position = self.playground.account.positions.get(self.symbol, None)
         if position is not None:
@@ -479,7 +519,9 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         for signal in roll_signals:
             open_signals.append(signal)
             
-        return open_signals
+        close_signals = self.check_for_early_close_signals(positions= self.playground.get_option_positions())
+
+        return open_signals, close_signals
     
 
     
@@ -921,41 +963,29 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
     
     playground.stats = stats
     
-    
-if __name__ == "__main__":
-    balance = 1000000
-    symbol = 'COIN'
-    start_date = '2025-05-19'
-    end_date = '2025-12-12'
-    repository_source = RepositorySource.POLYGON
-    csv_path = None
-    twirp_host = 'http://127.0.0.1:5051'
-    
-    repos = OptionsStrategyBasic.get_repositories(symbol, datetime.fromisoformat(start_date), datetime.fromisoformat(end_date))
-    
-    req = CreatePolygonPlaygroundRequest(
-        balance=balance,
-        start_date=start_date,
-        stop_date=end_date,
-        repositories=repos,
-        environment=PlaygroundEnvironment.SIMULATOR.value
-    )
-    
-    live_account_type = None
-    
-    playground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
-    
+def run_options_strategy(playground: BacktesterPlaygroundClient, logger, twirp_host: str):
     generate_signal_stats(playground, symbol)
     
     playground.stats.generate_model()
     
     max_open_count = 3
-    strategy = OptionsStrategyBasic(playground, symbol, logger)
+    strategy = OptionsStrategyBasic(playground, playground.symbol, logger)
         
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
         for tick_delta in tick_deltas:
-            open_signals = strategy.tick(tick_delta)
+            open_signals, close_signals = strategy.tick(tick_delta)
+            for signal in close_signals:
+                playground.place_order(
+                    signal.option_contract.symbol, 
+                    abs(signal.quantity_to_close), 
+                    OrderSide.BUY_TO_CLOSE,
+                    'option',
+                    # attributes={ "signal_name": signal.name },
+                    with_tick=True
+                )
+                
+                logger.info(f"Close Signal: {signal.name} at {signal.timestamp} for {signal.option_contract.symbol}")
             
             for signal in open_signals:
                 if isinstance(signal, OpenSignalV4):
@@ -1074,4 +1104,545 @@ if __name__ == "__main__":
         
 
     logger.info(f"Done - playground id: {playground.id}")
+
+def generate_random_market_times(count, target_date=None):
+    """
+    Generate random datetime objects between 9:30 AM and 4:00 PM for a given date.
+    
+    Args:
+        count: number of random times to generate
+        target_date: date object to use (defaults to today)
+    
+    Returns:
+        List of datetime objects
+    """
+    if target_date is None:
+        target_date = date.today()
+    
+    times = []
+    # Market opens at 9:30 AM (570 minutes from midnight)
+    # Market closes at 4:00 PM (960 minutes from midnight)
+    start_minutes = 9 * 60 + 30  # 570 minutes
+    end_minutes = 16 * 60        # 960 minutes
+    
+    for _ in range(count):
+        total_minutes = randint(start_minutes, end_minutes)
+        hour = total_minutes // 60
+        minute = total_minutes % 60
+        
+        # Create datetime object
+        dt = datetime.combine(target_date, datetime.min.time().replace(hour=hour, minute=minute))
+        times.append(dt.astimezone(ZoneInfo("America/New_York")))
+    
+    return sorted(times)
+
+def generate_random_signals(playground: BacktesterPlaygroundClient, symbol: str, logger):
+    trades_remaining_per_day = 3
+    trade_open_time_in_minutes = 60
+    
+    day_of_week = playground.timestamp.weekday()
+    random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+    current_trade_index = 0
+    
+    while not playground.is_backtest_complete():
+        # Check for open orders to close
+        open_orders = playground.fetch_open_orders(symbol)
+        for order in open_orders:
+            clean_str = order.create_date.rsplit(' ', 1)[0]
+            order_create_dt = parser.parse(clean_str)
+            order_age = (playground.timestamp - order_create_dt).total_seconds() / 60
+            if order_age >= trade_open_time_in_minutes:
+                # logger.info(f"Closing open order for {order.symbol} placed at {clean_str}")
+                playground.place_order(
+                    order.symbol,
+                    order.quantity,
+                    OrderSide.SELL if order.side == OrderSide.BUY.value else OrderSide.BUY_TO_COVER,
+                    getattr(order, 'class'),
+                    close_order_id=order.id,
+                    with_tick=True
+                )
+        
+        # Check for open orders
+        if playground.timestamp.weekday() != day_of_week:
+            day_of_week = playground.timestamp.weekday()
+            random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+            current_trade_index = 0
+        
+        if current_trade_index > len(random_market_times) - 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        next_trade_time = random_market_times[current_trade_index]
+        if playground.timestamp >= next_trade_time:
+            # logger.info(f"Placing random trade at {playground.timestamp.isoformat()}")
+            playground.place_order(
+                symbol,
+                100,
+                OrderSide.BUY,
+                'equity',
+                playground.get_current_candle(symbol, playground.ltf_seconds).close
+            )
+            current_trade_index += 1
+        
+        playground.tick(playground.ltf_seconds)
+        
+def parse_with_tz_info(dt_str):
+    # Remove the timezone abbreviation for initial parsing
+    clean_str = dt_str.rsplit(' ', 1)[0]  # '2023-12-19 10:30:00 -0500'
+    
+    # Parse with dateutil
+    dt = parser.parse(clean_str)
+    
+    # Extract timezone abbreviation
+    tz_abbr = dt_str.split()[-1]  # 'EST'
+    
+    # Map to proper timezone
+    tz_map = {
+        'EST': tz.gettz('America/New_York'),
+        'EDT': tz.gettz('America/New_York'),
+        'CST': tz.gettz('America/Chicago'),
+        'CDT': tz.gettz('America/Chicago'),
+        'MST': tz.gettz('America/Denver'),
+        'MDT': tz.gettz('America/Denver'),
+        'PST': tz.gettz('America/Los_Angeles'),
+        'PDT': tz.gettz('America/Los_Angeles'),
+    }
+    
+    if tz_abbr in tz_map:
+        # Convert to the proper timezone
+        dt = dt.astimezone(tz_map[tz_abbr])
+    
+    return dt
+
+def calc_highest_log_profit(playground: BacktesterPlaygroundClient, order) -> Tuple[float, datetime]:
+    highest_log_profit = -float('inf')
+    highest_log_profit_timestamp = None
+    
+    create_date_dt = parse_with_tz_info(order.create_date)
+    candles = playground.fetch_candles_v3(order.symbol, playground.ltf_seconds, create_date_dt, playground.timestamp)
+    for candle in candles:
+        current_price = candle.close
+        open_price = get_vwap(order)
+        
+        if order.side == OrderSide.BUY.value:
+            log_profit = math.log(current_price / open_price)
+            if log_profit > highest_log_profit:
+                highest_log_profit = log_profit
+                highest_log_profit_timestamp = isoparse(candle.datetime)
+        elif order.side == OrderSide.SELL_SHORT.value:
+            log_profit = math.log(open_price / current_price)
+            if log_profit > highest_log_profit:
+                highest_log_profit = log_profit
+                highest_log_profit_timestamp = isoparse(candle.datetime)
+        else:
+            raise Exception(f"Unknown order side: {order.side}")
+    
+    return highest_log_profit, highest_log_profit_timestamp
+
+def get_vwap(order) -> float:
+    vwap = 0.0
+    for trade in order.trades:
+        vwap += trade.price * trade.quantity
+    vwap /= sum(trade.quantity for trade in order.trades)
+    
+    return vwap
+        
+def generate_max_profit_random(playground: BacktesterPlaygroundClient, symbol: str, logger):
+    trades_remaining_per_day = 3
+    trade_open_time_in_minutes = 60
+    
+    day_of_week = playground.timestamp.weekday()
+    random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+    current_trade_index = 0
+    
+    while not playground.is_backtest_complete():
+        # Check for open orders to close
+        open_orders = playground.fetch_open_orders(symbol)
+        for order in open_orders:
+            current_price = playground.get_current_candle(symbol, playground.ltf_seconds).close
+            open_price = get_vwap(order)
+            log_profit = math.log(current_price / open_price)
+            if log_profit < -0.4:
+                highest_log_profit, highest_log_profit_timestamp = calc_highest_log_profit(playground, order)
+                highest_log_profit_timestamp_str = highest_log_profit_timestamp.isoformat()
+                attributes = { 'highest_log_profit': str(highest_log_profit), 'highest_log_profit_timestamp': highest_log_profit_timestamp_str }
+                
+                playground.place_order(
+                    order.symbol,
+                    order.quantity,
+                    OrderSide.SELL if order.side == OrderSide.BUY.value else OrderSide.BUY_TO_COVER,
+                    getattr(order, 'class'),
+                    close_order_id=order.id,
+                    with_tick=True,
+                    attributes=attributes
+                )
+        
+        # Check for open orders
+        if playground.timestamp.weekday() != day_of_week:
+            day_of_week = playground.timestamp.weekday()
+            random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+            current_trade_index = 0
+        
+        if current_trade_index > len(random_market_times) - 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        next_trade_time = random_market_times[current_trade_index]
+        if playground.timestamp >= next_trade_time:
+            # logger.info(f"Placing random trade at {playground.timestamp.isoformat()}")
+            playground.place_order(
+                symbol,
+                1,
+                OrderSide.SELL_SHORT,
+                'equity',
+                playground.get_current_candle(symbol, playground.ltf_seconds).close
+            )
+            current_trade_index += 1
+        
+        playground.tick(playground.ltf_seconds)
+        
+    return 'Max Profit Random - SHORT'
+        
+        
+def generate_max_profit_v2(playground: BacktesterPlaygroundClient, symbol: str, logger):
+    trades_remaining_per_day = 3
+    trade_open_time_in_minutes = 60
+    
+    day_of_week = playground.timestamp.weekday()
+    random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+    current_trade_index = 0
+    
+    while not playground.is_backtest_complete():
+        # Check for open orders to close
+        open_orders = playground.fetch_open_orders(symbol)
+        for order in open_orders:
+            current_price = playground.get_current_candle(symbol, playground.ltf_seconds).close
+            open_price = get_vwap(order)
+            log_profit = math.log(current_price / open_price)
+            if log_profit < -0.4:
+                highest_log_profit, highest_log_profit_timestamp = calc_highest_log_profit(playground, order)
+                highest_log_profit_timestamp_str = highest_log_profit_timestamp.isoformat()
+                attributes = { 'highest_log_profit': str(highest_log_profit), 'highest_log_profit_timestamp': highest_log_profit_timestamp_str }
+                
+                playground.place_order(
+                    order.symbol,
+                    order.quantity,
+                    OrderSide.SELL if order.side == OrderSide.BUY.value else OrderSide.BUY_TO_COVER,
+                    getattr(order, 'class'),
+                    close_order_id=order.id,
+                    with_tick=True,
+                    attributes=attributes
+                )
+        
+        # Check for open orders
+        if playground.timestamp.weekday() != day_of_week:
+            day_of_week = playground.timestamp.weekday()
+            random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+            current_trade_index = 0
+        
+        if current_trade_index > len(random_market_times) - 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_htf_candle = playground.get_current_candle(symbol, playground.htf_seconds)
+        except Exception as e:
+            continue
+        
+        if current_htf_candle.superD_50_3 != -1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_ltf_candle = playground.get_current_candle(symbol, playground.ltf_seconds)
+        except Exception as e:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        if current_ltf_candle.superD_50_3 != -1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        next_trade_time = random_market_times[current_trade_index]
+        if playground.timestamp >= next_trade_time:
+            # logger.info(f"Placing random trade at {playground.timestamp.isoformat()}")
+            playground.place_order(
+                symbol,
+                1,
+                OrderSide.SELL_SHORT,
+                'equity',
+                playground.get_current_candle(symbol, playground.ltf_seconds).close
+            )
+            current_trade_index += 1
+        
+        playground.tick(playground.ltf_seconds)
+        
+    return 'Max Profit v2 - SHORT (-1, -1)'
+        
+def generate_max_profit_v3(playground: BacktesterPlaygroundClient, symbol: str, logger):
+    trades_remaining_per_day = 3
+    trade_open_time_in_minutes = 60
+    
+    day_of_week = playground.timestamp.weekday()
+    random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+    current_trade_index = 0
+    
+    while not playground.is_backtest_complete():
+        # Check for open orders to close
+        open_orders = playground.fetch_open_orders(symbol)
+        for order in open_orders:
+            current_price = playground.get_current_candle(symbol, playground.ltf_seconds).close
+            open_price = get_vwap(order)
+            log_profit = math.log(current_price / open_price)
+            if log_profit < -0.1:
+                highest_log_profit, highest_log_profit_timestamp = calc_highest_log_profit(playground, order)
+                highest_log_profit_timestamp_str = highest_log_profit_timestamp.isoformat()
+                attributes = { 'highest_log_profit': str(highest_log_profit), 'highest_log_profit_timestamp': highest_log_profit_timestamp_str }
+                
+                playground.place_order(
+                    order.symbol,
+                    order.quantity,
+                    OrderSide.SELL if order.side == OrderSide.BUY.value else OrderSide.BUY_TO_COVER,
+                    getattr(order, 'class'),
+                    close_order_id=order.id,
+                    with_tick=True,
+                    attributes=attributes
+                )
+        
+        # Check for open orders
+        if playground.timestamp.weekday() != day_of_week:
+            day_of_week = playground.timestamp.weekday()
+            random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+            current_trade_index = 0
+        
+        if current_trade_index > len(random_market_times) - 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_htf_candle = playground.get_current_candle(symbol, playground.htf_seconds)
+        except Exception as e:
+            continue
+        
+        if current_htf_candle.superD_50_3 != -1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_ltf_candle = playground.get_current_candle(symbol, playground.ltf_seconds)
+        except Exception as e:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        if current_ltf_candle.superD_50_3 != 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        next_trade_time = random_market_times[current_trade_index]
+        if playground.timestamp >= next_trade_time:
+            # logger.info(f"Placing random trade at {playground.timestamp.isoformat()}")
+            playground.place_order(
+                symbol,
+                1,
+                OrderSide.SELL_SHORT,
+                'equity',
+                playground.get_current_candle(symbol, playground.ltf_seconds).close
+            )
+            current_trade_index += 1
+        
+        playground.tick(playground.ltf_seconds)
+        
+    return 'Max Profit v3 - SHORT (-1, 1)'
+
+def generate_multiple_timeframe_signals(playground: BacktesterPlaygroundClient, symbol: str, logger) -> str:
+    trades_remaining_per_day = 3
+    trade_open_time_in_minutes = 60
+    
+    day_of_week = playground.timestamp.weekday()
+    random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+    current_trade_index = 0
+    
+    while not playground.is_backtest_complete():
+        # Check for open orders to close
+        open_orders = playground.fetch_open_orders(symbol)
+        for order in open_orders:
+            clean_str = order.create_date.rsplit(' ', 1)[0]
+            order_create_dt = parser.parse(clean_str)
+            order_age = (playground.timestamp - order_create_dt).total_seconds() / 60
+            if order_age >= trade_open_time_in_minutes:
+                playground.place_order(
+                    order.symbol,
+                    order.quantity,
+                    OrderSide.SELL if order.side == OrderSide.BUY.value else OrderSide.BUY_TO_COVER,
+                    getattr(order, 'class'),
+                    close_order_id=order.id,
+                    with_tick=True
+                )
+        
+        # Check for open orders
+        if playground.timestamp.weekday() != day_of_week:
+            day_of_week = playground.timestamp.weekday()
+            random_market_times = generate_random_market_times(trades_remaining_per_day, target_date=playground.timestamp.date())
+            current_trade_index = 0
+        
+        if current_trade_index > len(random_market_times) - 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_htf_candle = playground.get_current_candle(symbol, playground.htf_seconds)
+        except Exception as e:
+            continue
+        
+        if current_htf_candle.superD_50_3 != 1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        try:
+            current_ltf_candle = playground.get_current_candle(symbol, playground.ltf_seconds)
+        except Exception as e:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        if current_ltf_candle.superD_50_3 != -1:
+            playground.tick(playground.ltf_seconds)
+            continue
+        
+        next_trade_time = random_market_times[current_trade_index]
+        if playground.timestamp >= next_trade_time:
+            # logger.info(f"Placing random trade at {playground.timestamp.isoformat()}")
+            playground.place_order(
+                symbol,
+                100,
+                OrderSide.BUY,
+                'equity',
+                playground.get_current_candle(symbol, playground.ltf_seconds).close
+            )
+            current_trade_index += 1
+        
+        playground.tick(playground.ltf_seconds)
+        
+        return 'SHORT (1, -1)'
+
+def calc_max_log_profit(playground: BacktesterPlaygroundClient, logger):
+    max_log_profits = []
+    all_orders = playground.fetch_orders()
+    
+    for order in all_orders:
+        if order.side in [OrderSide.SELL.value, OrderSide.BUY_TO_COVER.value]:
+            highest_log_profit = order.attributes.get('highest_log_profit', None)
+            if highest_log_profit is None:
+                raise Exception(f"Order {order.id} missing highest_log_profit attribute.")
+            
+            max_log_profits.append(float(highest_log_profit))
+            
+    logger.info(f"Computed max log profits for {len(max_log_profits)} closed orders.")
+    return max_log_profits
+
+def calc_log_returns(playground: BacktesterPlaygroundClient, logger):
+    log_returns = []
+    all_orders = playground.fetch_orders()
+    
+    for order in all_orders:
+        if order.side in [OrderSide.SELL.value, OrderSide.BUY_TO_COVER.value]:
+            assert len(order.trades) == 1, "Expected exactly one trade per order"
+            close_price = order.trades[0].price
+            
+            assert len(order.closes) == 1, "Expected exactly one close per order"
+            assert len(order.closes[0].trades) == 1, "Expected exactly one trade per close"
+            open_price = order.closes[0].trades[0].price
+            
+            log_return = math.log(close_price / open_price)
+            log_returns.append(log_return)
+            
+    logger.info(f"Computed log returns for {len(log_returns)} closed orders.")
+    return log_returns
+    
+    
+if __name__ == "__main__":
+    balance = 1000000
+    symbol = 'AAPL'
+    start_date = '2023-12-19'
+    end_date = '2025-12-12'
+    repository_source = RepositorySource.POLYGON
+    csv_path = None
+    twirp_host = 'http://127.0.0.1:5051'
+    
+    repos = OptionsStrategyBasic.get_repositories(symbol, datetime.fromisoformat(start_date), datetime.fromisoformat(end_date))
+    
+    req = CreatePolygonPlaygroundRequest(
+        balance=balance,
+        start_date=start_date,
+        stop_date=end_date,
+        repositories=repos,
+        environment=PlaygroundEnvironment.SIMULATOR.value
+    )
+    
+    live_account_type = None
+    
+    profitRunnersPlayground = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
+    
+    # run_options_strategy(playground, logger, twirp_host)
+    
+    # generate_multiple_timeframe_signals(multiTimeframePlaygroundA, symbol, logger)
+    
+    data1_label = generate_max_profit_v2(profitRunnersPlayground, symbol, logger)
+    
+    data1 = np.array(calc_max_log_profit(profitRunnersPlayground, logger))
+    
+    multiTimeframePlaygroundA = BacktesterPlaygroundClient(req, live_account_type, repository_source, logger, twirp_host=twirp_host)
+    
+    # generate_random_signals(randomPlayground, symbol, logger)
+    # data2 = np.array(calc_log_returns(randomPlayground, logger))
+    
+    data2_label = generate_max_profit_random(multiTimeframePlaygroundA, symbol, logger)
+    
+    data2 = np.array(calc_max_log_profit(multiTimeframePlaygroundA, logger))
+    
+    data1 = pd.Series(data1)
+    data1 = data1.replace([np.inf, -np.inf], np.nan).dropna()
+    data2 = pd.Series(data2)
+    data2 = data2.replace([np.inf, -np.inf], np.nan).dropna()
+    
+    # Calculate basic statistics
+    mean1, mean2 = data1.mean(), data2.mean()
+    median1, median2 = data1.median(), data2.median()
+    std1, std2 = data1.std(), data2.std()
+    logger.info(f"{data1_label} - Mean: {mean1}, Median: {median1}, Std Dev: {std1}")
+    logger.info(f"{data2_label} - Mean: {mean2}, Median: {median2}, Std Dev: {std2}")
+    
+    total_profits_1 = data1.sum()
+    total_profits_2 = data2.sum()
+    logger.info(f"{data1_label} - Total Log Profit: {total_profits_1}")
+    logger.info(f"{data2_label} - Total Log Profit: {total_profits_2}")
+    
+    # Perform Kolmogorov-Smirnov test
+    result = ks_2samp(data1, data2)
+    stat = result.statistic
+    p_value = result.pvalue
+    logger.info(f"KS Statistic: {stat}, P-value: {p_value}")
+    if p_value < 0.05:
+        logger.info("The distributions are significantly different (reject H0).")
+    else:
+        logger.info("The distributions are not significantly different (fail to reject H0).")
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # --- Plot A: Histogram with KDE ---
+    # Use stat='density' and common_norm=False to compare different sample sizes fairly
+    sns.histplot(data1, color="skyblue", label=data1_label, kde=True, stat="density", ax=ax1, alpha=0.5)
+    sns.histplot(data2, color="orange", label=data2_label, kde=True, stat="density", ax=ax1, alpha=0.5)
+    ax1.set_title("Distribution Comparison (KDE Overlay)")
+    ax1.set_xlabel("Log Returns")
+    ax1.legend()
+    
+    # --- Plot B: Two-Sample Q-Q Plot ---
+    # If points fall on the 45-degree line, the distributions are identical
+    sm.qqplot_2samples(data1, data2, line='45', ax=ax2)
+    ax2.set_title("Two-Sample Q-Q Plot")
+    ax2.set_xlabel("Series 1 Quantiles")
+    ax2.set_ylabel("Series 2 Quantiles")
+    
+    plt.tight_layout()
+    plt.show()
     

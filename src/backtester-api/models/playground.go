@@ -2551,7 +2551,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 			order.RequestedPrice = math.Abs(position.CostBasis)
 		}
 	} else {
-		if order.Class == OrderRecordClassEquity && order.RequestedPrice <= 0 {
+		if order.RequestedPrice < 0 {
 			return nil, fmt.Errorf("requested price must be greater than 0")
 		}
 	}
