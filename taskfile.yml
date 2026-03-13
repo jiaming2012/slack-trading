@@ -76,7 +76,7 @@ tasks:
   test:
     cmds:
       - 'go test -count=1 ./...'
-    dir: ${PROJECTS_DIR}/slack-trading/src/go/backtester-api
+    dir: src/go/backtester-api
 
   test:e2e:
     cmds:
