@@ -17,8 +17,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
-	"github.com/jiaming2012/slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
+	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 // LogConsumerCfg is a configuration for a log consumer

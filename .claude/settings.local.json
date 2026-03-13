@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:5051/twirp/playground.PlaygroundService/GetPlaygrounds -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(len\\(data.get\\(''playgrounds'', []\\)\\)\\)\")",
+      "Bash(ls /Users/jamal/projects/slack-trading/*.yml /Users/jamal/projects/slack-trading/*.yaml)",
+      "Bash(grep -r \"external\" /Users/jamal/projects/slack-trading/src/eventservices/*.go)",
+      "Bash(grep -n \"type Playground\\\\|type OrderRecord\\\\|type TradeRecord\\\\|type LiveAccount\\\\|type EquityPlotRecord\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && ls -la {} 2>/dev/null | head -5')",
+      "Bash(grep -l \"_test\\\\.go\" /Users/jamal/projects/slack-trading/src/**/*_test.go)",
+      "Bash(grep -r \"polygon\" /Users/jamal/projects/slack-trading/src/eventservices/*.go)",
+      "Bash(grep -n \"type CandleRepository\\\\|type BacktesterCandle\\\\|type OrderCache\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
+      "Bash(grep -r \"PolygonClient\\\\|PolygonOptionsClient\\\\|PolygonTickDataMachine\" /Users/jamal/projects/slack-trading/src/eventservices/*.go)",
+      "Bash(grep -n \"type.*Interface\\\\|type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
+      "Bash(find /Users/jamal/projects/slack-trading/src/eventproducers -name \"handler.go\" -exec wc -l {} +)",
+      "Bash(grep -n \"^type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
+      "Bash(grep -r \"type.*Client\\\\|type.*Service\" /Users/jamal/projects/slack-trading/src/eventservices/*.go)",
+      "Bash(grep \"^type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)"
+    ]
+  }
+}

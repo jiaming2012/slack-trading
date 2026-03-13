@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 func chooseSpreadContracts(contracts []*playground.OptionLadderContract) (c1 *playground.OptionLadderContract, c2 *playground.OptionLadderContract) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 func waitUntilOrderStatus(p playground.PlaygroundService, orderId uint64, expectedStatus string) error {
