@@ -532,6 +532,9 @@ class BacktesterPlaygroundClient:
                 
         return response
         
+    # PERF TODO (Phase 4): Add a BatchTick RPC to advance multiple ticks in a
+    # single call when no signal processing is needed. This would reduce the number
+    # of RPC round-trips during long stretches without signals.
     def tick(self, seconds: int, raise_exception=True):
         if self.environment == PlaygroundEnvironment.LIVE.value:
             now = datetime.now(ZoneInfo("America/New_York"))
@@ -568,6 +571,9 @@ class BacktesterPlaygroundClient:
                 
         self._is_backtest_complete = new_state.is_backtest_complete
         
+        # PERF TODO (Phase 3): Embed account state (balance, equity, positions) in the
+        # TickDelta proto response so this separate RPC round-trip can be eliminated.
+        # See playground.proto TickDelta message and the Go NextTick handler.
         self.account = self._fetch_and_update_account_state()
         
         self._new_state_buffer.append(new_state)

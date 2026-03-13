@@ -271,12 +271,14 @@ func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmode
 type PolygonOptionsClient struct {
 	BaseURL string
 	ApiKey  string
+	Cache   *PolygonCache
 }
 
 func NewPolygonOptionsClient(baseUrl, apiKey string) *PolygonOptionsClient {
 	return &PolygonOptionsClient{
 		BaseURL: baseUrl,
 		ApiKey:  apiKey,
+		Cache:   NewPolygonCache(),
 	}
 }
 
@@ -424,21 +426,33 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to load location: %w", err)
 	}
 
+	// --- Cached fetchPolygonBulkHistOptionOhlc (active contracts) ---
 	request.IsExpired = false
-	resp, err := fetchPolygonBulkHistOptionOhlc(request)
-	if err != nil {
-		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to fetch option ohlc: %w", err)
+	resp := fetcher.Cache.GetContracts(symbol, expirationGTE, expirationLTE, false)
+	if resp == nil {
+		resp, err = fetchPolygonBulkHistOptionOhlc(request)
+		if err != nil {
+			return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to fetch option ohlc: %w", err)
+		}
+		fetcher.Cache.SetContracts(symbol, expirationGTE, expirationLTE, false, resp)
 	}
 
+	// --- Cached fetchPolygonBulkHistOptionOhlc (expired contracts) ---
 	request.IsExpired = true
-	respExpired, err := fetchPolygonBulkHistOptionOhlc(request)
-	if err != nil {
-		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to fetch expired option: %w", err)
+	respExpired := fetcher.Cache.GetContracts(symbol, expirationGTE, expirationLTE, true)
+	if respExpired == nil {
+		respExpired, err = fetchPolygonBulkHistOptionOhlc(request)
+		if err != nil {
+			return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to fetch expired option: %w", err)
+		}
+		fetcher.Cache.SetContracts(symbol, expirationGTE, expirationLTE, true, respExpired)
 	}
 
-	resp.Merge(respExpired)
+	// Deep-copy then merge so we don't mutate the cached values
+	merged := resp.DeepCopy()
+	merged.Merge(respExpired)
 
-	contracts, optionTickByExpirationMap, err := resp.GetOptionContractsV3(loc, optionSpreadPerc)
+	contracts, optionTickByExpirationMap, err := merged.GetOptionContractsV3(loc, optionSpreadPerc)
 	if err != nil {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to get option contracts: %w", err)
 	}
@@ -455,10 +469,15 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert expiration date to time: %w", err)
 	}
 
+	// --- Cached FindClosestStockTickItemDTO ---
 	stockSpreadPerc := 0.001
-	closestStockTickDTO, err := FindClosestStockTickItemDTO(request, timestamp, stockSpreadPerc)
-	if err != nil {
-		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to find closest stock tick: %w", err)
+	closestStockTickDTO := fetcher.Cache.GetStockTick(symbol, timestamp)
+	if closestStockTickDTO == nil {
+		closestStockTickDTO, err = FindClosestStockTickItemDTO(request, timestamp, stockSpreadPerc)
+		if err != nil {
+			return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to find closest stock tick: %w", err)
+		}
+		fetcher.Cache.SetStockTick(symbol, timestamp, closestStockTickDTO)
 	}
 
 	if baseStrikePrice == nil {
@@ -501,6 +520,7 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		optionTickByExpirationMap,
 		polygonOptionTickDataReq,
 		timestamp,
+		fetcher.Cache,
 	)
 
 	if err != nil {

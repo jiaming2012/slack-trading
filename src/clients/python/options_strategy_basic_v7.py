@@ -229,7 +229,7 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         
         return [ ltf_repo_daily,htf_repo_daily ]
     
-    def __init__(self, playground, symbol: str, logger, sl_buffer=0.0, tp_buffer=0.0):
+    def __init__(self, playground, symbol: str, logger, max_open_count: int = 3, sl_buffer=0.0, tp_buffer=0.0):
         sl_shift = 0.0
         tp_shift = 0.0
         
@@ -237,6 +237,7 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
         
         self.logger = logger.bind(symbol=symbol)
         self.symbol = symbol
+        self.max_open_count = max_open_count
         self.use_htf_data = True
         self.candles = []
         self.option_contract_repo = OptionContractRepository()
@@ -507,8 +508,8 @@ class OptionsStrategyBasic(BaseOpenStrategyV2):
                 option_prices[c.symbol] = c.bar.close
                 continue
             
-            open_qty = playground.get_options_quantity(symbol)
-            if abs(open_qty) < max_open_count:
+            open_qty = self.playground.get_options_quantity(self.symbol)
+            if abs(open_qty) < self.max_open_count:
                 open_signal = self.check_for_new_signal(c.bar)
                 if open_signal:
                     open_signals.append(open_signal)
@@ -541,9 +542,8 @@ def calculate_stock_quantity(playground: BacktesterPlaygroundClient, stock_symbo
     return 0.0
 
 
-def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
-    max_open_count = 3
-    strategy = OptionsStrategyBasic(playground, symbol, logger)
+def run(playground: BacktesterPlaygroundClient, symbol: str, logger, max_open_count: int = 3):
+    strategy = OptionsStrategyBasic(playground, symbol, logger, max_open_count=max_open_count)
     
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
@@ -578,7 +578,7 @@ def run(playground: BacktesterPlaygroundClient, symbol: str, logger):
                     target_contract = strategy.find_target_option_contract(signal.price, response.contracts)
                         
                     if target_contract is None:
-                        logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.kwargs['current_price']}")
+                        logger.warning(f"No suitable option contract found for {signal.symbol} at price {signal.price}")
                         continue
                     
                     stock_qty = calculate_stock_quantity(playground, signal.symbol, -1)
@@ -928,12 +928,15 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
         close_candle = None
         for j in range(i + 1, len(ltf_candles)):
             candle = ltf_candles[j]
-            candle_dt =isoparse(candle.datetime)
+            candle_dt = isoparse(candle.datetime)
             
             candle_day_of_week = candle_dt.weekday()
             if candle_day_of_week == 4 and is_after_market_open(candle_dt):
                 if candle.is_extended_hours:
                     close_candle = ltf_candles[j - 1]
+                else:
+                    close_candle = candle
+                break
             
         if close_candle is None:
             continue
@@ -963,13 +966,13 @@ def generate_signal_stats(playground: BacktesterPlaygroundClient, symbol: str) -
     
     playground.stats = stats
     
-def run_options_strategy(playground: BacktesterPlaygroundClient, logger, twirp_host: str):
+def run_options_strategy(playground: BacktesterPlaygroundClient, symbol: str, logger, twirp_host: str):
     generate_signal_stats(playground, symbol)
     
     playground.stats.generate_model()
     
     max_open_count = 3
-    strategy = OptionsStrategyBasic(playground, playground.symbol, logger)
+    strategy = OptionsStrategyBasic(playground, symbol, logger, max_open_count=max_open_count)
         
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()

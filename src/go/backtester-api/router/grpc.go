@@ -209,6 +209,9 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 	return convertOrder(order, nil), nil
 }
 
+// PERF TODO (Phase 5): For backtesting, pre-fetch all option chain data for the
+// simulation's full date range during CreatePlayground. Then GetOptionsLadder
+// becomes a pure in-memory lookup with near-zero latency.
 func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderRequest) (*pb.GetOptionsLadderResponse, error) {
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {

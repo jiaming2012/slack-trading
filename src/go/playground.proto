@@ -323,6 +323,9 @@ message NextTickRequest {
     string request_id = 4;
 }
 
+// PERF TODO (Phase 3): Add balance, equity, free_margin, and positions fields
+// to TickDelta so the Python client can skip the separate GetAccount RPC after
+// every tick. This would eliminate ~1 RPC round-trip per tick.
 message TickDelta {
     repeated Trade new_trades = 1;
     repeated Candle new_candles = 2;
