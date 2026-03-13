@@ -131,8 +131,10 @@ def main():
 
     # Clean up
     try:
-        playground.remove_from_server()
-        logger.info("Playground removed from server.")
+        # playground.remove_from_server()
+        # logger.info("Playground removed from server.")
+        logger.info("Playground simulation complete.")
+        logger.info(f"Playground id: {playground.id} (you may want to remove it manually from the server)")
     except Exception:
         logger.warning("Could not remove playground from server (non-fatal).")
 

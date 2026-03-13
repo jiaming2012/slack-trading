@@ -192,7 +192,7 @@ tasks:
   app:dev:
     cmds:
       - './run-dev.sh'
-    dir: ${PROJECTS_DIR}/slack-trading/cmd
+    dir: cmd
 
   app:build:
     cmds:

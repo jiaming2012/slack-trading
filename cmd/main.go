@@ -270,7 +270,11 @@ func main() {
 	}
 
 	// Load options config
-	optionsConfigInDir := path.Join(projectsDir, "slack-trading", "src", "go", optionsConfigFile)
+	// OPTIONS_CONFIG_PATH, if set, overrides the default path (useful for worktrees)
+	optionsConfigInDir := os.Getenv("OPTIONS_CONFIG_PATH")
+	if optionsConfigInDir == "" {
+		optionsConfigInDir = path.Join(projectsDir, "slack-trading", "src", "go", optionsConfigFile)
+	}
 	configBytes, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
 		log.Fatalf("failed to read options config: %v", err)
