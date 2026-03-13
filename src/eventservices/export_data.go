@@ -12,7 +12,6 @@ import (
 	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/cmd/stats/export_data/helpers"
 	"github.com/jiaming2012/slack-trading/src/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/utils"
@@ -65,7 +64,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 	log.Infof("Fetched %d candles", len(dataMap))
 
 	// Process the data
-	duration, err := helpers.GetDurationFromStreamName(args.InputStreamName)
+	duration, err := utils.GetDurationFromStreamName(args.InputStreamName)
 	if err != nil {
 		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error getting duration from stream name: %v", err)
 	}
