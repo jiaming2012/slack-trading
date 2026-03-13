@@ -39,3 +39,37 @@ func (r *PolygonBulkResponse) Merge(other *PolygonBulkResponse) {
 func (r *PolygonBulkResponse) GetOptionContractsV3(loc *time.Location, spread float64) ([]OptionContractV3, map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO, error) {
 	return r.Contracts, r.TicksMap, nil
 }
+
+// DeepCopy returns a new PolygonBulkResponse with independent copies of the
+// Contracts slice and TicksMap so that Merge operations don't mutate cached values.
+func (r *PolygonBulkResponse) DeepCopy() *PolygonBulkResponse {
+	if r == nil {
+		return nil
+	}
+
+	// Copy contracts slice
+	contracts := make([]OptionContractV3, len(r.Contracts))
+	copy(contracts, r.Contracts)
+
+	// Copy ticks map (shallow copy of tick pointers is fine — we only need
+	// structural independence so that Merge doesn't modify the cached map)
+	ticksMap := make(map[ExpirationDate]map[OptionType]map[float64][]*OptionChainTickDTO, len(r.TicksMap))
+	for expDate, typeMap := range r.TicksMap {
+		newTypeMap := make(map[OptionType]map[float64][]*OptionChainTickDTO, len(typeMap))
+		for optType, strikeMap := range typeMap {
+			newStrikeMap := make(map[float64][]*OptionChainTickDTO, len(strikeMap))
+			for strike, ticks := range strikeMap {
+				ticksCopy := make([]*OptionChainTickDTO, len(ticks))
+				copy(ticksCopy, ticks)
+				newStrikeMap[strike] = ticksCopy
+			}
+			newTypeMap[optType] = newStrikeMap
+		}
+		ticksMap[expDate] = newTypeMap
+	}
+
+	return &PolygonBulkResponse{
+		Contracts: contracts,
+		TicksMap:  ticksMap,
+	}
+}

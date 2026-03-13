@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
@@ -119,19 +121,68 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 	return resultContracts, nil
 }
 
-func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, optionChainTickMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest) error {
+func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, optionChainTickMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, cache *PolygonCache) error {
 	log.Debugf("populateTickDataToOptionChainMap: start populating tick data to option chain map for %d contracts", len(contracts))
 
-	for _, c := range contracts {
-		url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), polygonTickDataReq.EndDate.Format("2006-01-02"))
-		isHistorical := true
-		dtos, err := utils.FetchRecursively(url, polygonTickDataReq.ApiKey, FetchPolygonAggregateBars(isHistorical))
-		if err != nil {
-			log.Warnf("fetchPolygonBulkHistOptionOhlc: failed to fetch data from polygon for %v: %v", c.Symbol, err)
-			continue
-		}
+	// Phase 2: fetch contract bars concurrently with bounded parallelism
+	const maxConcurrency = 5
 
-		for _, dto := range dtos.Results {
+	type contractResult struct {
+		contract eventmodels.OptionContractV3
+		dtos     *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]
+	}
+
+	var (
+		mu      sync.Mutex
+		results []contractResult
+	)
+
+	g, _ := errgroup.WithContext(context.Background())
+	g.SetLimit(maxConcurrency)
+
+	for _, c := range contracts {
+		c := c // capture loop variable
+		g.Go(func() error {
+			optionSymbol := eventmodels.OptionSymbol(c.Symbol)
+
+			// Phase 1: check cache first
+			if cache != nil {
+				if cached := cache.GetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate); cached != nil {
+					mu.Lock()
+					results = append(results, contractResult{contract: c, dtos: cached})
+					mu.Unlock()
+					return nil
+				}
+			}
+
+			url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), polygonTickDataReq.EndDate.Format("2006-01-02"))
+			isHistorical := true
+			dtos, err := utils.FetchRecursively(url, polygonTickDataReq.ApiKey, FetchPolygonAggregateBars(isHistorical))
+			if err != nil {
+				log.Warnf("populateTickDataToOptionChainMap: failed to fetch data from polygon for %v: %v", c.Symbol, err)
+				return nil // non-fatal; skip this contract
+			}
+
+			// Store in cache
+			if cache != nil {
+				cache.SetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate, dtos)
+			}
+
+			mu.Lock()
+			results = append(results, contractResult{contract: c, dtos: dtos})
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("populateTickDataToOptionChainMap: parallel fetch failed: %w", err)
+	}
+
+	// Populate the tick map from results (single-threaded — map is not concurrent-safe)
+	for _, r := range results {
+		c := r.contract
+		for _, dto := range r.dtos.Results {
 			tick := eventmodels.OptionChainTickDTO{
 				Open:           dto.Open,
 				Close:          dto.Close,
@@ -162,8 +213,6 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 
 			optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike] = append(optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike], &tick)
 		}
-
-		time.Sleep(50 * time.Millisecond) // To avoid hitting rate limits
 	}
 
 	// Sort the ticks for each expiration date, option type, and strike
@@ -181,12 +230,12 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	return nil
 }
 
-func makeOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time) ([]eventmodels.OptionContractV3, error) {
+func makeOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time, cache *PolygonCache) ([]eventmodels.OptionContractV3, error) {
 	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
 	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
 	defer span.End()
 
-	if err := populateTickDataToOptionChainMap(options, optionChainTicksByExpirationMap, polygonTickDataReq); err != nil {
+	if err := populateTickDataToOptionChainMap(options, optionChainTicksByExpirationMap, polygonTickDataReq, cache); err != nil {
 		return nil, fmt.Errorf("failed to add tick data to options: %v", err)
 	}
 
