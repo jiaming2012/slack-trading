@@ -1,37 +1,67 @@
 # slack-trading
 A mock trading platform.
 
-# DevOps
+---
 
-## Delete all playgrounds
-During initial development, it has been useful to soft delete a set of existing playgrounds, with scripts below:
-``` sql
--- mark all playgrounds as deleted
-update playground_sessions set deleted_at = NOW() where environment != 'reconcile' and deleted_at is null ;
+## Table of Contents
+- [Getting Started](#getting-started)
+- [Development](#development)
+- [Machine Learning & Indicators](#machine-learning--indicators)
+- [Docker](#docker)
+- [Infrastructure](#infrastructure)
+- [Kubernetes Cluster Setup](#kubernetes-cluster-setup)
+- [Data](#data)
+- [Telemetry](#telemetry)
+- [Integrations](#integrations)
 
--- mark order records as deleted
-update order_records as ord  
-  set deleted_at = NOW()
-  from playground_sessions as ps
-  where ps.id = ord.playground_id
-    and ps.deleted_at is not null ;
+---
 
--- mark trade records as deleted
-update trade_records as tr
-  set deleted_at = NOW()
-  from order_records as orec
-  where tr.order_id = orec.id
-    and orec.deleted_at is not null ;
+# Getting Started
+
+## Install golang and python
+Both golang:1.20 and python3.10 are required.
+
+If installing on ubuntu:
+``` bash
+sudo apt-get install python3.10-venv
+```
+
+## Set your PythonPath
+``` bash
+export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/cmd/stats:${PYTHONPATH}
+```
+
+## Initiate your python env
+``` bash
+task python:install
 ```
 
 ## Installation
-Crane: managing remote images in Vultr
+1. Make sure docker is running
+2. Install eventstoredb
 ``` bash
-brew install crane
+docker pull eventstore/eventstore:release-5.0.11
 ```
 
+### Database
+See README.md in infra project. Currently running on local Ubuntu box.
+
+## Start Up
+3. Make sure eventstoredb is running
+``` bash
+cd eventstoredb
+docker-compose up
+```
+4. Run the interactive brokers daemon
+``` bash
+cd path/to/grodt/interactive-brokers/clientportal
+./bin/run.sh root/conf.yaml
+```
+Open https://localhost:5000 to login
+
+---
+
 # Development
-We use python's bump2version for managing the app version.
 
 ## Anaconda
 We use anaconda for managing dependencies, instead of pip:
@@ -63,6 +93,24 @@ add to taskfile
 conda env update --file conda-env.yaml --prune
 ```
 
+## Taskfile
+We use taskfile as our build tool.
+
+#### On Mac
+``` bash
+brew install go-task
+```
+
+#### On Linux
+``` bash
+sudo snap install task --classic
+```
+
+You can list all commands with:
+``` bash
+task list
+```
+
 ## PM2
 PM2 is used for deploying client side.
 
@@ -77,7 +125,7 @@ Currently, no migrations framework has been chosen an scripts are used if databa
 See examples running `closed_by.py` below:
 
 ``` bash
-(env) ➜  migrations git:(main) ✗ python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a"  
+python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a"
 ```
 
 OUTPUT:
@@ -97,7 +145,7 @@ Live run disabled. No database changes were made.
 
 Run live:
 ``` bash
-(env) ➜  migrations git:(main) ✗ python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a" --live-run
+python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a" --live-run
 ```
 
 OUTPUT:
@@ -115,72 +163,30 @@ Adjustment: Order 337 -> Trade 59
 Adjustments have been committed to the database.
 ```
 
-## Taskfile
-We use taskfile as our build tool.
-
-#### On Mac
-``` bash
-brew install go-task
-```
-
-#### On Linux
-``` bash
-sudo snap install task --classic
-```
-
-You can list all commands with:
-``` bash
-task list
-```
-
-# Kubernetes issue
-Here were some problems that needed to overcome when running in prod:
-1. disk space full
-solution:
-ssh onto each node, run:
-``` bash
-crictl rmi --prune
-```
-
-2. Removing pvc
-solution:
-a. Remove the finializers first
-``` bash
-kubectl patch pvc <pvc-name> -n <namespace> --type=json -p '[{"op": "remove", "path": "/metadata/finalizers"}]'
-```
-
-3. Add the metrics server
-``` bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-", "value":"--kubelet-insecure-tls"}]'
-
-```
-
-4. Removed the cpu limits on grodt deployment. You cannot add any deployment that you wish.
-
-5. Create kube dashboard
-``` bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
-kubectl create serviceaccount dashboard-admin -n kubernetes-dashboard
-kubectl create clusterrolebinding dashboard-admin-binding \
-  --clusterrole=cluster-admin \
-  --serviceaccount=kubernetes-dashboard:dashboard-admin
-```
-Get the admin token to log in:
-``` bash
-kubectl -n kubernetes-dashboard create token dashboard-admin
-```
-
-# Twirp
+## Twirp
 We use twirp for grpc communication over http.
 
-# Indicators
-We use pandas-ta for indicators
+## Debugging
+Port forward to the production ESDB instance:
+``` bash
+kubectl port-forward svc/eventstoredb 21133:2113 -n eventstoredb
+```
+
+## Profiling
+Pprof can be easily set up to do profiling:
+``` bash
+go tool pprof -seconds 30 -http localhost:8090 myserver http://localhost:8080/debug/pprof/profile
+```
+
+---
+
+# Machine Learning & Indicators
+We use pandas-ta for indicators.
 
 ## Installation
 Mac
 ``` bash
-brew install ta-lib  
+brew install ta-lib
 conda env create -f conda-env.yaml
 ```
 
@@ -204,24 +210,51 @@ MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
 cd ${PROJECTS_DIR}/slack-trading
 source src/cmd/stats/env/bin/activate
 protoc --go_out=. --python_out=./src/cmd/stats --twirp_out=. --twirpy_out=./src/cmd/stats src/playground.proto
- mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
- mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
+mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
+mv ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/cmd/stats/rpc
 rmdir ${PROJECTS_DIR}/slack-trading/src/cmd/stats/src
 ```
 
 Note that in order to run the twirpy plugin, `cmd/backtester/venv/bin` must be in the terminal's PATH.
 
-## Debugging
-Port forward to the production ESDB instance:
+## Generate signals
+The heart of the program grabs tick data from polygon and generates signals from them.
+
 ``` bash
-kubectl port-forward svc/eventstoredb 21133:2113 -n eventstoredb
+cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
+source env/bin/activate
+python generate_signals.py
 ```
 
-## Profiling
-Pprof can be easily set up to do profiling:
+---
+
+# Docker
+
+## Dev
+The main program can be built with commands:
 ``` bash
-go tool pprof -seconds 30 -http localhost:8090 myserver http://localhost:8080/debug/pprof/profile
+docker build -f Dockerfile.base -t grodt-base-image .
+docker build -f Dockerfile.base2 -t grodt-base-image-2 .
+docker build -f Dockerfile.dev -t grodt-main .
 ```
+
+## Prod
+We currently host the base 1 and base 2 images at vultr. In order to access them, log in with:
+``` bash
+docker login https://ewr.vultrcr.com/base1 -u $VULTR_USER -p $VULTR_PASS
+```
+
+`$VULTR_USER` and `VULTR_PASS` can both be found in the vultr dashboard, under Container Registry.
+
+We are currently using heroku for prod. In order to upload new base images:
+``` bash
+heroku container:login
+docker tag <image> registry.heroku.com/<app>/<process-type>
+docker push registry.heroku.com/<app>/<process-type>
+heroku container:release web -a <app>
+```
+
+For example, *app* is `grodt` and *process-type* is `web`
 
 ## Container Registry
 Docker containers are hosted on vultr. Before pushing and pulling, you need to login.
@@ -230,7 +263,9 @@ docker login https://ewr.vultrcr.com/grodt -u $VULTR_REGISTRY_USER -p $VULTR_REG
 ```
 `VULTR_REGISTRY_USER` and `VULTR_REGISTRY_PASS` can be found on the Vultr console.
 
-## Installing bump2version
+## Version Management
+
+### Installing bump2version
 ``` bash
 python3 -m ensurepip --upgrade
 python3 -m pip install --user bump2version
@@ -246,14 +281,89 @@ The following script takes care of updating the version of the Dockerfile and de
 ./deploy-app.sh <version>
 ```
 Version can be: patch, minor, major
+
 ---
-Similarly, the base images can be deploy (if necessary) with the following commands:
+Similarly, the base images can be deployed (if necessary) with the following commands:
 ``` bash
 ./deploy-base-image.sh <version>
 ./deploy-base-image-2.sh <version>
 ```
 
-# Deployment
+---
+
+# Infrastructure
+
+## DevOps
+
+### Delete all playgrounds
+During initial development, it has been useful to soft delete a set of existing playgrounds, with scripts below:
+``` sql
+-- mark all playgrounds as deleted
+update playground_sessions set deleted_at = NOW() where environment != 'reconcile' and deleted_at is null ;
+
+-- mark order records as deleted
+update order_records as ord
+  set deleted_at = NOW()
+  from playground_sessions as ps
+  where ps.id = ord.playground_id
+    and ps.deleted_at is not null ;
+
+-- mark trade records as deleted
+update trade_records as tr
+  set deleted_at = NOW()
+  from order_records as orec
+  where tr.order_id = orec.id
+    and orec.deleted_at is not null ;
+```
+
+### Crane
+Crane: managing remote images in Vultr
+``` bash
+brew install crane
+```
+
+## Common Kubernetes Issues
+Here were some problems that needed to be overcome when running in prod:
+
+1. disk space full
+solution:
+ssh onto each node, run:
+``` bash
+crictl rmi --prune
+```
+
+2. Removing pvc
+solution:
+a. Remove the finializers first
+``` bash
+kubectl patch pvc <pvc-name> -n <namespace> --type=json -p '[{"op": "remove", "path": "/metadata/finalizers"}]'
+```
+
+3. Add the metrics server
+``` bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deployment metrics-server -n kube-system --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-", "value":"--kubelet-insecure-tls"}]'
+
+```
+
+4. Removed the cpu limits on grodt deployment. You cannot add any deployment that you wish.
+
+5. Create kube dashboard
+``` bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+kubectl create serviceaccount dashboard-admin -n kubernetes-dashboard
+kubectl create clusterrolebinding dashboard-admin-binding \
+  --clusterrole=cluster-admin \
+  --serviceaccount=kubernetes-dashboard:dashboard-admin
+```
+Get the admin token to log in:
+``` bash
+kubectl -n kubernetes-dashboard create token dashboard-admin
+```
+
+---
+
+# Kubernetes Cluster Setup
 Our production environment is hosted on vultr and managed with fluxcd. Manifests are stored in `.clusters/production`
 
 ## Spin up a New Cluster
@@ -293,21 +403,23 @@ kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-ser
 kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-deployment.yaml
 ```
 
-### Development
+#### Development
 In order to use the app locally, you will need to port-forward the connection:
 ``` bash
 kubectl port-forward svc/postgres 5432:5432 -n database
 ```
 
-## Create Playground Database
+### Create Playground Database
 In a sql editor, run:
-``` bash
+``` sql
 CREATE database playground;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE SEQUENCE IF NOT EXISTS order_id_seq START 1;
 ```
 
-### Add a Deploy Key to the Cluster (this can be skipped if the sealedsecret has already been created)
+### Add a Deploy Key to the Cluster
+(This can be skipped if the sealedsecret has already been created.)
+
 Flux needs a deploy key in order to pull from GitHub. Create one and then apply it to the cluster as a sealed secret.
 
 First, create a namespace for the app and the database
@@ -325,7 +437,7 @@ kubectl create secret generic flux-git-deploy \
 
 Third, convert the secret into a sealed secret:
 ``` bash
-kubeseal  --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
 ```
 
 Fourth, apply the sealed secret to the cluster
@@ -368,20 +480,12 @@ For Flux, you typically need the following scopes:
 flux bootstrap github --owner=jiaming2012 --repository=slack-trading --branch=main --path=.clusters/production --personal
 ```
 
-### Generate signals
-The heart of the program grabs tick data from polygon and generates signals from them
-
-``` bash
-cd ${PROJECTS_DIR}/slack-trading/src/cmd/stats
-source env/bin/activate
-python generate_signals.py
-```
-
 ## Connect to an Existing Cluster
+
 ### Configure Local Machine to Remote Cluster
 Log into the Vultr dashboard and download the cluster's config file.
 ``` bash
-export KUBECONFIG=export KUBECONFIG="/Users/jamal/projects/grodt/vultr-k8s.yaml"
+export KUBECONFIG="/Users/jamal/projects/grodt/vultr-k8s.yaml"
 ```
 
 ### Secrets
@@ -416,12 +520,16 @@ Go to the vultr dashboard and download the kube context file.
 export KUBECONFIG=/Users/jamal/projects/grodt/vultr-k8s.yaml
 ```
 
+---
+
 # Data
 In order to run scripts for importing data into eventstore db:
 ``` bash
 kubectl port-forward pod/eventstoredb-0 2113:2113 -n eventstoredb
 ```
 You can now run import scripts from local machine.
+
+---
 
 # Telemetry
 Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475. Used the following guide to set up: https://grafana.com/docs/grafana-cloud/monitor-applications/application-observability/setup/quickstart/go/
@@ -432,111 +540,41 @@ Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac47
 3. Click grafanacloud-jac475-traces -> "Explore"
 4. Select: Query type -> "Search"
 
-# Running locally
-## Install golang and python
-Both golang:1.20 and python3.10 are required.
+---
 
-If installing on ubuntu:
-``` bash
-sudo apt-get install python3.10-venv
-```
+# Integrations
 
-## Set your PythonPath
-``` bash
-export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/cmd/stats:${PYTHONPATH}
-```
-
-## Initiate your python env
-``` bash
-task python:install
-```
-
-# Dockerfile
-## Prod
-We currently host the base 1 and base 2 images at vultr. In order to access them, log in with:
-``` bash
-docker login https://ewr.vultrcr.com/base1 -u $VULTR_USER -p $VULTR_PASS
-```
-
-`$VULTR_USER` and `VULTR_PASS` can both be foound in the vultr dashboard, under Container Registry.
-
-## Dev
-As such the main program can be built with commands:
-``` bash
-docker build -f Dockerfile.base -t grodt-base-image .
-docker build -f Dockerfile.base2 -t grodt-base-image-2 .
-docker build -f Dockerfile.dev -t grodt-main .
-```
-
-## Prod
-We are currently using heroku for prod. In order to upload new base images:
-``` bash
-heroku container:login
-docker tag <image> registry.heroku.com/<app>/<process-type>
-docker push registry.heroku.com/<app>/<process-type>
-heroku container:release web -a <app>
-```
-
-For example, *app* is `grodt` and *process-type* is `web`
-
-# Installation
-1. Make sure docker is running
-2. Install eventstoredb
-``` bash
-docker pull eventstore/eventstore:release-5.0.11
-```
-
-## Database
-See README.md in infra project. Currently running on local Ubuntu box.
-
-# Start Up
-3. Make sure eventstoredb is running
-``` bash
-cd eventstoredb
-docker-compose up
-```
-4. Run the interactive brokers daemon
-``` bash
-cd path/to/grodt/interactive-brokers/clientportal
-./bin/run.sh root/conf.yaml
-```
-Open https://localhost:5000 to login
-
-
-# Interactive brokers
+## Interactive Brokers
 Common instructions for working with interactive brokers
-## Add a New Symbol to the Data Feed
+
+### Add a New Symbol to the Data Feed
 1. Find the conid using postman
 
 ![Postman Request](interactive_brokers_fetch_new_symbol.png)
 
-
-## Google Sheets Authentication
+## Google Sheets
 Navigate to console.cloud.google.com (jamal@yumyums.kitchen)
 
 Click the navigation menu (hamburger menu - top left) -> APIs & Services -> Enabled APIs & services. Click the 'Credentials' tab.
 
 To authenticate, create a service account on Google Cloud. Under **Keys**, select "Add Key" -> "Create new key". Download and base64 the JSON credentials file, and set the environment variable `KEY_JSON_BASE64` to base64 string.
 
-# Hosting
-The app is hosted on heroku
-
-## Logs
-Logs can be found via command:
-``` bash
-cd path/to/slack-trading
-heroku logs
-```
-
-# Slack
+## Slack
 UI is administered via slack. Admin page can be found here: https://api.slack.com/apps/A03C4E2TA6M
 
 Events are sent to https://api.slack.com/apps/A03C4E2TA6M/event-subscriptions?
 
-# Heroku
+## Heroku
 If deploying to heroku, there are some gochas:
 
 1. If the application does not have a web port, heroku will terminate the application. This can be prevented by running:
 ``` bash
 heroku ps:scale worker=1
+```
+
+### Logs
+Logs can be found via command:
+``` bash
+cd path/to/slack-trading
+heroku logs
 ```
