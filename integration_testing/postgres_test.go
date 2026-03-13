@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 func validateOrders(ctx context.Context, t *testing.T, playgroundClient playground.PlaygroundService, playgroundId string, orders []*playground.Order) {

@@ -65,18 +65,18 @@ tasks:
       - 'rm -rf env'
       - 'python3.10 -m venv env'
       - 'task python:upgrade'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
 
   python:upgrade:
     cmds:
       - 'pip install --upgrade pip'
       - 'pip install -r requirements.txt'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
 
   test:
     cmds:
       - 'go test -count=1 ./...'
-    dir: ${PROJECTS_DIR}/slack-trading/src/backtester-api
+    dir: ${PROJECTS_DIR}/slack-trading/src/go/backtester-api
 
   test:e2e:
     cmds:
@@ -180,7 +180,7 @@ tasks:
     cmds:
       # - 'go run main.go'
       - 'go test ./...'
-    dir: ${PROJECTS_DIR}/slack-trading/src/eventservices/integration_tests
+    dir: ${PROJECTS_DIR}/slack-trading/src/go/eventservices/integration_tests
 
   commit:
     cmds:
@@ -192,7 +192,7 @@ tasks:
   app:dev:
     cmds:
       - './run-dev.sh'
-    dir: ${PROJECTS_DIR}/slack-trading/src/eventmain
+    dir: ${PROJECTS_DIR}/slack-trading/cmd
 
   app:build:
     cmds:
@@ -235,7 +235,7 @@ tasks:
   metrics:simulation:
     cmds:
       - '/Users/jamal/miniconda3/envs/trading/bin/python3 trading_engine.py --sl-shift 1'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
     env:
       BALANCE: "10000"
       SYMBOL: "NVDA"
@@ -251,21 +251,21 @@ tasks:
   metrics:fetch:
     cmds:
       - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://45.77.223.21 --from-date 2025-05-29 --to-date 2025-05-30'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
     var:
       tags: ""
 
   metrics:fetch:simulation:
     cmds:
         - './env/bin/python playground_metrics.py --playground-id b2df3e33-b684-4d5e-b6d1-9d67f29f45cb --twirp-host http://localhost:5051 --from-date 2025-05-27 --to-date 2025-05-29'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
     var:
       tags: ""
 
   metrics:fetch:local:
     cmds:
       - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://localhost:5051 --from-date 2025-05-16 --to-date 2025-05-17'
-    dir: ${PROJECTS_DIR}/slack-trading/clients/python
+    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
     var:
       tags: ""
 
@@ -283,19 +283,19 @@ tasks:
 
   gen:proto:
     cmds:
-      - 'source ${PROJECTS_DIR}/slack-trading/clients/python/env/bin/activate'
-      - 'protoc --proto_path=${PROJECTS_DIR}/slack-trading/src --go_out=${PROJECTS_DIR}/slack-trading --python_out=${PROJECTS_DIR}/slack-trading/clients/python --twirp_out=${PROJECTS_DIR}/slack-trading --twirpy_out=${PROJECTS_DIR}/slack-trading/clients/python ${PROJECTS_DIR}/slack-trading/src/playground.proto'
-      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.pb.go ${PROJECTS_DIR}/slack-trading/src/playground'
-      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.twirp.go ${PROJECTS_DIR}/slack-trading/src/playground'
+      - 'source ${PROJECTS_DIR}/slack-trading/src/clients/python/env/bin/activate'
+      - 'protoc --proto_path=${PROJECTS_DIR}/slack-trading/src/go --go_out=${PROJECTS_DIR}/slack-trading --python_out=${PROJECTS_DIR}/slack-trading/src/clients/python --twirp_out=${PROJECTS_DIR}/slack-trading --twirpy_out=${PROJECTS_DIR}/slack-trading/src/clients/python ${PROJECTS_DIR}/slack-trading/src/go/playground.proto'
+      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.pb.go ${PROJECTS_DIR}/slack-trading/src/go/playground'
+      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.twirp.go ${PROJECTS_DIR}/slack-trading/src/go/playground'
       - 'rm -rf ${PROJECTS_DIR}/playground'
-      - 'mv ${PROJECTS_DIR}/slack-trading/clients/python/playground_pb2.py ${PROJECTS_DIR}/slack-trading/clients/python/rpc'
-      - 'mv ${PROJECTS_DIR}/slack-trading/clients/python/playground_twirp.py ${PROJECTS_DIR}/slack-trading/clients/python/rpc'
-      - 'rm -rf ${PROJECTS_DIR}/slack-trading/clients/python/playground_pb2.py'
-      - 'rm -rf ${PROJECTS_DIR}/slack-trading/clients/python/playground_twirp.py'
+      - 'mv ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc'
+      - 'mv ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc'
+      - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_pb2.py'
+      - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_twirp.py'
 
   optimize:
     cmds:
-      - 'miniconda3/envs/trading/bin/python clients/python/trading_engine_optimizer.py --max-open-count-lbound 2 --max-open-count-ubound 8 --target-risk-to-reward-lbound 0.8 --target-risk-to-reward-ubound 2.5 --max-per-trade-risk-percentage-lbound 0.005 --max-per-trade-risk-percentage-ubound 0.035 --n-calls 25'
+      - 'miniconda3/envs/trading/bin/python src/clients/python/trading_engine_optimizer.py --max-open-count-lbound 2 --max-open-count-ubound 8 --target-risk-to-reward-lbound 0.8 --target-risk-to-reward-ubound 2.5 --max-per-trade-risk-percentage-lbound 0.005 --max-per-trade-risk-percentage-ubound 0.035 --n-calls 25'
     env:
       BALANCE: "15000"
       SYMBOL: "{{.SYMBOL}}"
@@ -313,7 +313,7 @@ tasks:
 
   sim:
     cmds:
-      - 'miniconda3/envs/trading/bin/python clients/python/trading_engine.py --max-open-count 4 --target-risk-to-reward 1.19 --max-per-trade-risk-percentage 0.02 --use-htf-data true'
+      - 'miniconda3/envs/trading/bin/python src/clients/python/trading_engine.py --max-open-count 4 --target-risk-to-reward 1.19 --max-per-trade-risk-percentage 0.02 --use-htf-data true'
     env:
       BALANCE: "20000"
       SYMBOL: "{{.symbol}}"

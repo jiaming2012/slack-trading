@@ -28,7 +28,7 @@ sudo apt-get install python3.10-venv
 
 ## Set your PythonPath
 ``` bash
-export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/clients/python:${PYTHONPATH}
+export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/clients/python:${PYTHONPATH}
 ```
 
 ## Initiate your python env
@@ -204,26 +204,26 @@ cd ${PROJECTS_DIR}/slack-trading
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading
 MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
-./clients/python/env/bin/python ${PROJECTS_DIR}/slack-trading/clients/python/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
+./src/clients/python/env/bin/python ${PROJECTS_DIR}/slack-trading/src/clients/python/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
 ```
 
 ## Compile protobuf file
 ``` bash
 cd ${PROJECTS_DIR}/slack-trading
-source clients/python/env/bin/activate
-protoc --go_out=. --python_out=./clients/python --twirp_out=. --twirpy_out=./clients/python src/playground.proto
-mv ${PROJECTS_DIR}/slack-trading/clients/python/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/clients/python/rpc
-mv ${PROJECTS_DIR}/slack-trading/clients/python/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/clients/python/rpc
-rmdir ${PROJECTS_DIR}/slack-trading/clients/python/src
+source src/clients/python/env/bin/activate
+protoc --go_out=. --python_out=./src/clients/python --twirp_out=. --twirpy_out=./src/clients/python src/go/playground.proto
+mv ${PROJECTS_DIR}/slack-trading/src/clients/python/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc
+mv ${PROJECTS_DIR}/slack-trading/src/clients/python/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc
+rmdir ${PROJECTS_DIR}/slack-trading/src/clients/python/src
 ```
 
-Note that in order to run the twirpy plugin, `clients/python/env/bin` must be in the terminal's PATH.
+Note that in order to run the twirpy plugin, `src/clients/python/env/bin` must be in the terminal's PATH.
 
 ## Generate signals
 The heart of the program grabs tick data from polygon and generates signals from them.
 
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading/clients/python
+cd ${PROJECTS_DIR}/slack-trading/src/clients/python
 source env/bin/activate
 python generate_signals.py
 ```
@@ -496,7 +496,7 @@ We use `kubeseal` for managing encrypted secrets
 brew install kubeseal
 ```
 
-Assuming you have `.env.production` in the `src/` directory, convert an env file to a kubernetes secret:
+Assuming you have `.env.production` in the `src/go/` directory, convert an env file to a kubernetes secret:
 ``` bash
 cd path/to/cmd
 ./convert_env_to_secret.sh
