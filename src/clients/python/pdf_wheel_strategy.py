@@ -460,6 +460,19 @@ class PDFWheelStrategy(WheelStrategy):
         margin = current_price * 100
         total = max_contracts(adj_f, current_equity, margin)
 
+        self.logger.debug(
+            f"[kelly] p={win_prob:.2f} b={win_loss_ratio:.2f} f*={f_star:.4f}"
+            f" adj_f={adj_f:.4f} margin=${margin:.0f} → {total} contracts"
+        )
+
+        # If Kelly is positive (edge exists) but margin floors to 0,
+        # allow at least 1 contract so we don't miss every signal
+        if total == 0 and f_star > 0:
+            total = 1
+            self.logger.debug(
+                f"[kelly] Edge exists (f*={f_star:.4f}) — minimum 1 contract"
+            )
+
         # Update peak equity
         if current_equity > self.peak_equity:
             self.peak_equity = current_equity
@@ -500,6 +513,9 @@ class PDFWheelStrategy(WheelStrategy):
             min_components=1,
         )
         if result is None:
+            self.logger.debug(
+                f"[funnel] No PDF match for signals: {all_components}"
+            )
             return None
 
         matched_key, pdf_entry = result
@@ -552,6 +568,10 @@ class PDFWheelStrategy(WheelStrategy):
                 signal = self.check_for_pdf_put_signals(bar_dict)
                 if signal:
                     open_signals.append(signal)
+            else:
+                self.logger.debug(
+                    f"[funnel] At max positions ({self.max_open_count}), skipping signal check"
+                )
 
             self._prev_ltf_bar = bar_dict
             self.append_candle(c.bar)
@@ -612,11 +632,36 @@ def run_pdf_wheel_strategy(
         signal_ci_threshold=signal_ci_threshold,
     )
 
+    # ---- Funnel counters ----
+    funnel_ltf_bars = 0           # LTF bars processed
+    funnel_signals_detected = 0   # PDF signals detected (compound match found)
+    funnel_kelly_zero = 0         # Blocked: Kelly sizing returned 0
+    funnel_kelly_ok = 0           # Passed Kelly sizing
+    funnel_ladder_empty = 0       # Blocked: empty ladder response
+    funnel_ladder_ok = 0          # Passed ladder fetch
+    funnel_no_strikes = 0         # Blocked: no OTM strikes / empty allocation
+    funnel_strikes_ok = 0         # Had valid strike allocations
+    funnel_position_exists = 0    # Blocked: position already exists
+    funnel_orders_placed = 0      # Actual orders placed
+    funnel_at_max_positions = 0   # Skipped: already at max open positions
+
+    # Track contracts we've already opened to avoid redundant attempts
+    opened_contracts: set = set()
+
     while not strategy.is_complete():
         tick_deltas = playground.flush_new_state_buffer()
 
         for tick_delta in tick_deltas:
             open_signals, close_signals = strategy.tick(tick_delta)
+
+            # Count LTF bars processed this tick
+            new_candles = (
+                tick_delta.new_candles if hasattr(tick_delta, "new_candles") else []
+            )
+            for c in new_candles:
+                if hasattr(c, "period") and c.period == playground.ltf_seconds:
+                    if hasattr(c, "symbol") and c.symbol == symbol:
+                        funnel_ltf_bars += 1
 
             # ---- Close signals ----
             for signal in close_signals:
@@ -627,6 +672,7 @@ def run_pdf_wheel_strategy(
                     "option",
                     with_tick=True,
                 )
+                opened_contracts.discard(signal.option_contract.symbol)
                 logger.info(
                     f"Close Signal: {signal.name} at {signal.timestamp}"
                     f" for {signal.option_contract.symbol}"
@@ -635,29 +681,44 @@ def run_pdf_wheel_strategy(
             # ---- Open signals ----
             for signal in open_signals:
                 if isinstance(signal, PDFPutSignal):
+                    funnel_signals_detected += 1
+
                     # Compute position size via Kelly
                     total_contracts = strategy.compute_total_contracts(
                         signal.pdf_entry, signal.price,
                     )
                     if total_contracts <= 0:
+                        funnel_kelly_zero += 1
                         logger.debug(
-                            f"Kelly sizing returned 0 contracts for {signal.compound_key}"
+                            f"[funnel] Kelly=0 for {signal.compound_key}"
+                            f" @ ${signal.price:.2f}"
                         )
                         continue
 
-                    # Fetch options ladder
-                    expiration_in_days = strategy.find_next_friday(signal.timestamp)
+                    funnel_kelly_ok += 1
+
+                    # Fetch options ladder (this week + next week)
+                    exp_this_week = strategy.find_next_friday(signal.timestamp)
+                    exp_next_week = exp_this_week + 7
                     request = GetOptionsLadderRequest(
                         playground_id=playground.id,
                         stock_symbol=signal.symbol,
                         max_no_of_strikes=10,
                         min_distance_between_strikes=1.0,
-                        expiration_in_days=[expiration_in_days],
+                        expiration_in_days=[exp_this_week, exp_next_week],
                         max_tick_age_in_minutes=1440,
                     )
                     response = playground.fetch_ladder(request)
-                    if not response:
+                    if not response or not response.contracts:
+                        funnel_ladder_empty += 1
+                        logger.debug(
+                            f"[funnel] Empty ladder for {signal.compound_key}"
+                            f" @ ${signal.price:.2f}"
+                            f" (exp_days={exp_this_week},{exp_next_week})"
+                        )
                         continue
+
+                    funnel_ladder_ok += 1
 
                     # Select strikes and allocate contracts
                     allocations = strategy.select_put_strikes(
@@ -665,11 +726,29 @@ def run_pdf_wheel_strategy(
                         response.contracts, total_contracts,
                     )
 
+                    if not allocations:
+                        funnel_no_strikes += 1
+                        logger.debug(
+                            f"[funnel] No OTM strikes for {signal.compound_key}"
+                            f" @ ${signal.price:.2f}"
+                            f" ({len(response.contracts)} contracts in ladder)"
+                        )
+                        continue
+
+                    funnel_strikes_ok += 1
+
                     for alloc in allocations:
+                        # Skip contracts we've already opened this run
+                        if alloc.contract_symbol in opened_contracts:
+                            funnel_position_exists += 1
+                            continue
+
                         existing = playground.account.get_position(alloc.contract_symbol)
                         if existing is not None and existing.quantity != 0:
-                            logger.warning(
-                                f"Position exists for {alloc.contract_symbol}"
+                            funnel_position_exists += 1
+                            opened_contracts.add(alloc.contract_symbol)
+                            logger.debug(
+                                f"[funnel] Position exists for {alloc.contract_symbol}"
                                 f" (qty={existing.quantity}). Skipping."
                             )
                             continue
@@ -686,6 +765,8 @@ def run_pdf_wheel_strategy(
                                 "probability": str(alloc.probability),
                             },
                         )
+                        opened_contracts.add(alloc.contract_symbol)
+                        funnel_orders_placed += 1
                         logger.info(
                             f"Open Signal (PDF Put): {signal.name}"
                             f" → sold {alloc.contracts}x {alloc.contract_symbol}"
@@ -699,5 +780,21 @@ def run_pdf_wheel_strategy(
 
         playground.tick(playground.ltf_seconds)
         logger.debug(f"Ticked to {playground.timestamp.isoformat()}")
+
+    # ---- Funnel summary ----
+    logger.info("=" * 60)
+    logger.info("SIGNAL FUNNEL SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"  LTF bars processed:        {funnel_ltf_bars}")
+    logger.info(f"  PDF signals detected:       {funnel_signals_detected}")
+    logger.info(f"  Blocked by Kelly (=0):      {funnel_kelly_zero}")
+    logger.info(f"  Passed Kelly:               {funnel_kelly_ok}")
+    logger.info(f"  Blocked by empty ladder:    {funnel_ladder_empty}")
+    logger.info(f"  Passed ladder:              {funnel_ladder_ok}")
+    logger.info(f"  Blocked by no OTM strikes:  {funnel_no_strikes}")
+    logger.info(f"  Had valid allocations:      {funnel_strikes_ok}")
+    logger.info(f"  Blocked by existing pos:    {funnel_position_exists}")
+    logger.info(f"  Orders placed:              {funnel_orders_placed}")
+    logger.info("=" * 60)
 
     logger.info(f"PDF Wheel Strategy complete — playground id: {playground.id}")
