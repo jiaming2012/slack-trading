@@ -1148,6 +1148,11 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		trade = NewTradeRecord(order, orderFillEntry.Time, orderFillEntry.Quantity, orderFillEntry.Price)
 	}
 
+	// Assign trade ID for simulator playgrounds (no DB auto-increment)
+	if p.Meta.Environment == PlaygroundEnvironmentSimulator && trade.ID == 0 {
+		trade.ID = p.NextTradeID()
+	}
+
 	orderIsFilled, err := order.Fill(trade)
 	if err != nil {
 		if errors.Is(err, ErrOrderAlreadyFilled) {
@@ -1171,6 +1176,9 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		if req.Quantity != trade.Quantity {
 			partialTrade := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
 			partialTrade.ParentTrade = trade
+			if p.Meta.Environment == PlaygroundEnvironmentSimulator {
+				partialTrade.ID = p.NextTradeID()
+			}
 			req.Order.ClosedBy = append(req.Order.ClosedBy, partialTrade)
 		} else {
 			req.Order.ClosedBy = append(req.Order.ClosedBy, trade)
@@ -1387,6 +1395,10 @@ func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position
 
 func (p *Playground) NextOrderID() uint {
 	return p.account.NextOrderID()
+}
+
+func (p *Playground) NextTradeID() uint {
+	return p.account.NextTradeID()
 }
 
 // checkForLiquidations checks for liquidations and returns a LiquidationEvent if liquidations are necessary

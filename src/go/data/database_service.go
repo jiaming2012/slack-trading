@@ -1520,6 +1520,13 @@ func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNe
 
 func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Simulator playgrounds use in-memory nonce IDs that would collide
+		// with existing GORM auto-increment IDs. Remap them to fresh IDs.
+		if playground.GetMeta().Environment == models.PlaygroundEnvironmentSimulator {
+			return models.RemapAndSavePlayground(tx, playground)
+		}
+
+		// Live/reconcile path — IDs are already GORM-assigned
 		var txErr error
 
 		if txErr = savePlaygroundTx(tx, playground); txErr != nil {

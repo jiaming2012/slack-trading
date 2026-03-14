@@ -80,6 +80,24 @@ type OrderRecord struct {
 	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
+// tradeMatchesOrder checks if a ClosedBy trade belongs to the given closing order.
+// A trade matches if it is directly one of the order's trades (by ID) or if it is
+// a partial trade whose parent is one of the order's trades.
+func tradeMatchesOrder(tr *TradeRecord, closingOrder *OrderRecord) bool {
+	for _, thisTr := range closingOrder.Trades {
+		if tr.ID == thisTr.ID {
+			return true
+		}
+		if tr.ParentTradeID != nil && *tr.ParentTradeID == thisTr.ID {
+			return true
+		}
+		if tr.ParentTrade != nil && tr.ParentTrade.ID == thisTr.ID {
+			return true
+		}
+	}
+	return false
+}
+
 func (o *OrderRecord) CalcRealizedPL() float64 {
 	realizedPL := 0.0
 
@@ -107,11 +125,7 @@ func (o *OrderRecord) CalcRealizedPL() float64 {
 		for _, order := range o.Closes {
 			vwap := order.GetAvgFillPrice()
 			for _, tr := range order.ClosedBy {
-				for _, thisTr := range o.Trades {
-					if tr.ID != thisTr.ID {
-						continue
-					}
-
+				if tradeMatchesOrder(tr, o) {
 					realizedPL += (tr.Price - vwap) * math.Abs(tr.Quantity)
 				}
 			}
@@ -120,11 +134,7 @@ func (o *OrderRecord) CalcRealizedPL() float64 {
 		for _, order := range o.Closes {
 			vwap := order.GetAvgFillPrice()
 			for _, tr := range order.ClosedBy {
-				for _, thisTr := range o.Trades {
-					if tr.ID != thisTr.ID {
-						continue
-					}
-
+				if tradeMatchesOrder(tr, o) {
 					realizedPL += (vwap - tr.Price) * math.Abs(tr.Quantity)
 				}
 			}

@@ -81,6 +81,7 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
+			Id:         uint64(trade.ID),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
@@ -580,8 +581,6 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 }
 
 func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.EmptyResponse, error) {
-	panic("saving simulation orders with the same IDs causes previous orders to be overwritten")
-
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
