@@ -42,11 +42,13 @@ from risk_management import (
     max_contracts,
     allocate_contracts,
 )
-from wheel_strategy import WheelStrategy, WheelPhase, PutSellSignal
+from wheel_strategy import WheelStrategy, WheelPhase
 from options_strategy_basic_v7 import (
     CloseSignalV2,
     OpenSignalV4,
     RollSignalV1,
+    calculate_expected_profit_binomial_american,
+    calculate_stock_quantity,
     generate_signal_stats,
 )
 
@@ -210,13 +212,9 @@ class PDFWheelStrategy(WheelStrategy):
         """
         Override to skip put positions before checking for roll signals.
 
-        The parent OptionsStrategyBasic.check_for_roll_signal iterates all
-        option positions and raises on puts. Since we may have open short
-        puts alongside calls (e.g. puts not yet expired when Phase 2
-        activates), we replicate the parent logic but skip puts.
+        The parent OptionsStrategyBasic.check_for_roll_signal raises on puts.
+        We replicate the parent logic but skip puts instead of raising.
         """
-        from options_strategy_basic_v7 import RollSignalV1
-
         previous_candle = self.candles_ltf.iloc[self.candles_ltf_idx - 1]
         if previous_candle is None:
             return []
@@ -247,32 +245,42 @@ class PDFWheelStrategy(WheelStrategy):
             intrinsic_value = self._get_intrinsic_value(
                 contract.option_type, contract.strike_price, last_price,
             )
-            extrinsic_value = option_price - intrinsic_value
+            intrinsic_potential = intrinsic_value / option_price if option_price > 0 else 0.0
+            extrinsic_value_ratio = hours_to_expiration / intrinsic_potential if intrinsic_potential > 0 else float("inf")
 
-            if hours_to_expiration <= 24 and extrinsic_value < 0.05:
-                signals.append(
-                    RollSignalV1(
-                        symbol=self.symbol,
-                        name=f"ROLL_CALL_LOW_EXTRINSIC_{extrinsic_value:.2f}",
-                        timestamp=self.playground.timestamp,
-                        price=last_price,
-                        option_contract=contract,
-                        quantity_to_roll=abs(position.quantity),
-                    )
-                )
+            signal_name = None
+            if extrinsic_value_ratio < 1.2:
+                signal_name = f"ROLL_CALL_EVR_{extrinsic_value_ratio:.2f}"
 
-            loss_ratio = (last_price - contract.strike_price) / contract.strike_price
-            if loss_ratio > 0.02 and hours_to_expiration <= 48:
-                signals.append(
-                    RollSignalV1(
-                        symbol=self.symbol,
-                        name=f"ROLL_CALL_LOSS_RATIO_{loss_ratio:.4f}",
-                        timestamp=self.playground.timestamp,
-                        price=last_price,
-                        option_contract=contract,
-                        quantity_to_roll=abs(position.quantity),
-                    )
+            loss_ratio = (position.cost_basis - position.current_price) / position.cost_basis if position.cost_basis > 0 else 0.0
+            if loss_ratio <= -0.25:
+                signal_name = f"ROLL_CALL_LOSS_RATIO_{loss_ratio:.2f}"
+
+            if signal_name is None:
+                continue
+
+            result = self._get_feature_vector(previous_candle)
+            if result is None:
+                continue
+
+            ltf_supertrend_count, ltf_supertrend_value, st_direction = result
+
+            signals.append(
+                RollSignalV1(
+                    name=signal_name,
+                    symbol=contract.underlying_symbol,
+                    timestamp=self.playground.timestamp,
+                    price=last_price,
+                    intrinsic_value=intrinsic_value,
+                    option_price=option_price,
+                    days_to_expiration=hours_to_expiration / 24.0,
+                    option_contract=contract,
+                    quantity_to_roll=abs(position.quantity),
+                    ltf_supertrend_count=ltf_supertrend_count,
+                    ltf_supertrend_value=ltf_supertrend_value,
+                    ltf_supertrend_direction=st_direction,
                 )
+            )
 
         return signals
 
@@ -773,10 +781,136 @@ def run_pdf_wheel_strategy(
                             f" (strike={alloc.strike}, P(OTM)={alloc.probability:.0%})"
                         )
 
-                # Phase 2 signals delegate to parent runner logic
-                elif isinstance(signal, (OpenSignalV4, RollSignalV1, PutSellSignal)):
-                    # Reuse parent's Phase 2 handling via the vanilla runner
-                    logger.debug(f"Phase 2 signal: {type(signal).__name__}")
+                # --------------------------------------------------
+                # Phase 2: sell a covered call (or roll an existing one)
+                # --------------------------------------------------
+                elif isinstance(signal, (OpenSignalV4, RollSignalV1)):
+                    if isinstance(signal, OpenSignalV4):
+                        expiration_in_days = strategy.find_next_friday(signal.timestamp)
+                    else:  # RollSignalV1
+                        expiration_in_days = strategy.find_next_friday(
+                            signal.option_contract.expiration_date
+                        )
+
+                    if isinstance(signal, RollSignalV1):
+                        expiration_days_list = [
+                            expiration_in_days,
+                            expiration_in_days + 7,
+                            expiration_in_days + 14,
+                        ]
+                    else:
+                        expiration_days_list = [expiration_in_days]
+
+                    request = GetOptionsLadderRequest(
+                        playground_id=playground.id,
+                        stock_symbol=signal.symbol,
+                        max_no_of_strikes=5,
+                        min_distance_between_strikes=1.0,
+                        expiration_in_days=expiration_days_list,
+                        max_tick_age_in_minutes=1440,
+                    )
+
+                    response = playground.fetch_ladder(request)
+                    if not response:
+                        continue
+
+                    target_contract = None
+                    highest_expected_profit = -1.0
+
+                    for c in response.contracts:
+                        if c.type != "call":
+                            continue
+
+                        premium_received = (c.bid + c.ask) / 2
+                        T = expiration_in_days / 365.0
+                        sigma = playground.stats.calculate_local_model_volatility(signal)
+
+                        profit = calculate_expected_profit_binomial_american(
+                            S0=signal.price,
+                            P2=c.strike,
+                            P3=premium_received,
+                            sigma=sigma,
+                            T=T,
+                            r=0.04,
+                            N=100,
+                        )
+
+                        if isinstance(signal, RollSignalV1):
+                            position = playground.account.positions.get(
+                                signal.option_contract.symbol
+                            )
+                            if position is None:
+                                logger.warning(
+                                    f"No position found for {signal.option_contract.symbol}"
+                                    " while processing roll signal."
+                                )
+                                continue
+                            if not signal.name.startswith("ROLL_CALL_LOSS_RATIO"):
+                                if premium_received - position.current_price < 0:
+                                    continue
+
+                        if profit > highest_expected_profit:
+                            highest_expected_profit = profit
+                            target_contract = c
+
+                    if target_contract is None:
+                        logger.warning(
+                            f"No suitable call contract found for {signal.symbol}"
+                            f" at price {signal.price}"
+                        )
+                        continue
+
+                    attributes = {
+                        "ev": str(highest_expected_profit),
+                        "stock_price": str(signal.price),
+                        "signal_name": signal.name,
+                    }
+
+                    # Check for existing position BEFORE buying stock
+                    if isinstance(signal, OpenSignalV4):
+                        existing = playground.account.get_position(
+                            target_contract.symbol
+                        )
+                        if existing is not None and existing.quantity != 0:
+                            logger.debug(
+                                f"Call position already exists for {target_contract.symbol}"
+                                f" (qty={existing.quantity}). Skipping."
+                            )
+                            continue
+
+                    if isinstance(signal, RollSignalV1):
+                        playground.place_order(
+                            signal.option_contract.symbol,
+                            signal.quantity_to_roll,
+                            OrderSide.BUY_TO_CLOSE,
+                            "option",
+                        )
+                        attributes["roll_from"] = signal.option_contract.symbol
+                    else:
+                        stock_qty = calculate_stock_quantity(
+                            playground, signal.symbol, -1
+                        )
+                        if stock_qty > 0:
+                            playground.place_order(
+                                signal.symbol,
+                                stock_qty,
+                                OrderSide.BUY,
+                                "equity",
+                                signal.price,
+                            )
+
+                    playground.place_order(
+                        target_contract.symbol,
+                        1,
+                        OrderSide.SELL_TO_OPEN,
+                        "option",
+                        attributes=attributes,
+                    )
+                    funnel_orders_placed += 1
+                    logger.info(
+                        f"Open Signal (Call): {signal.name} at {signal.timestamp}"
+                        f" → sold {target_contract.symbol}"
+                    )
 
         playground.tick(playground.ltf_seconds)
         logger.debug(f"Ticked to {playground.timestamp.isoformat()}")
