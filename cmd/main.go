@@ -438,7 +438,7 @@ func main() {
 		log.Infof("listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil {
 			if err.Error() != "http: Server closed" {
-				log.Fatalf("failed to start server: %v", err)
+				log.Errorf("failed to start HTTP server on %s: %v", srv.Addr, err)
 			}
 		}
 	}()

@@ -85,8 +85,12 @@ func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPric
 		if assignedPrice < optionContract.Strike {
 			return fmt.Errorf("assigned price %.2f is below strike price %.2f for a call option: %w", assignedPrice, optionContract.Strike, ErrOptionAssignmentInvalidPrice)
 		}
+	case eventmodels.OptionTypePut:
+		if assignedPrice > optionContract.Strike {
+			return fmt.Errorf("assigned price %.2f is above strike price %.2f for a put option: %w", assignedPrice, optionContract.Strike, ErrOptionAssignmentInvalidPrice)
+		}
 	default:
-		return fmt.Errorf("exercise option not yet implement for %T", optionContract.OptionType)
+		return fmt.Errorf("exercise option not yet implemented for %s", optionContract.OptionType)
 	}
 
 	p.exerciseOptionsRequestQueue.Enqueue(&eventmodels.ExerciseOptionRequest{
@@ -1521,7 +1525,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 			if errors.Is(err, models.ErrNoCandlesFound) {
 				order.Reject(err)
-				log.Warnf("simulateTick: no candles found for %s @ %v", order.GetInstrument(), p.clock.CurrentTime)
+				log.Warnf("simulateTick: no candles found for %s @ %s", order.GetInstrument(), p.clock.CurrentTime.Format("2006-01-02 15:04:05 MST"))
 				continue
 			}
 

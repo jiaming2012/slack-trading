@@ -172,7 +172,11 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 
 		if showAlert {
 			startingCandle := r.candlesWithIndicators[start]
-			log.Warnf("no candles found at or after %s, but market is open. Setting start candle to %s", currentTime, startingCandle.Timestamp)
+			log.Warnf("[%s] no candles found at or after %s, but market is open. Setting start candle to %s",
+				r.symbol.GetTicker(),
+				currentTime.Format("2006-01-02 15:04:05 MST"),
+				startingCandle.Timestamp.Format("2006-01-02 15:04:05 MST"),
+			)
 		}
 
 		return nil
@@ -191,7 +195,7 @@ func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels
 		}
 	}
 
-	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp)
+	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp.Format("2006-01-02 15:04:05 MST"))
 
 	return nil, nil
 }
@@ -260,7 +264,11 @@ func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time)
 	}
 
 	if len(candles) == 0 {
-		log.Warnf("No candles found for %s between %s and %s", r.symbol, startTime, endTime)
+		endTimeStr := "<nil>"
+		if endTime != nil {
+			endTimeStr = endTime.Format("2006-01-02 15:04:05 MST")
+		}
+		log.Warnf("No candles found for %s between %s and %s", r.symbol, startTime.Format("2006-01-02 15:04:05 MST"), endTimeStr)
 	}
 
 	return candles, nil

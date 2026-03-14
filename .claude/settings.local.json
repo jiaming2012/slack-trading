@@ -15,7 +15,13 @@
       "Bash(find /Users/jamal/projects/slack-trading/src/eventproducers -name \"handler.go\" -exec wc -l {} +)",
       "Bash(grep -n \"^type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
       "Bash(grep -r \"type.*Client\\\\|type.*Service\" /Users/jamal/projects/slack-trading/src/eventservices/*.go)",
-      "Bash(grep \"^type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)"
+      "Bash(grep \"^type I[A-Z]\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/backtester-api/models/*.go)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python plot_option_candlestick.py --playground-id 62c7bb8a-69e2-47b4-a1f8-db0ee587980d --symbol AAPL --twirp-url http://127.0.0.1:5051 --timeframe 3600)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/pip install:*)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -:*)",
+      "Bash(2)",
+      "Bash(python3 -c \":*)",
+      "Bash(go test:*)"
     ]
   }
 }

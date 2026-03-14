@@ -1034,7 +1034,7 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) ([]*pb.Order, error) {
 	if clientRequestId != nil {
-		log.Infof("%v: checkOrderExists:start", *clientRequestId)
+		log.Debugf("%v: checkOrderExists:start", *clientRequestId)
 
 		orders, err := s.dbService.GetOrdersByClientId(*clientRequestId)
 		if err != nil {
@@ -1044,7 +1044,7 @@ func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) 
 		if len(orders) > 0 {
 			var results []*pb.Order
 			for _, order := range orders {
-				log.Infof("%v: checkOrderExists:Order already exists", *clientRequestId)
+				log.Debugf("%v: checkOrderExists:Order already exists", *clientRequestId)
 				orderDTO := convertOrder(order, nil)
 				results = append(results, orderDTO)
 			}
@@ -1240,6 +1240,9 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	if err != nil {
 		return nil, fmt.Errorf("s.CreatePlayground: failed to create playground: %w", err)
 	}
+
+	log.Infof("CreatePlayground: id=%s env=%s balance=%.2f start=%s stop=%s",
+		playground.GetId(), playgroundEnvironment, req.Balance, req.StartDate, req.StopDate)
 
 	return &pb.CreatePlaygroundResponse{
 		Id: playground.GetId().String(),

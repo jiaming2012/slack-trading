@@ -222,27 +222,27 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
 				}
 
-				if optionContract.OptionType == eventmodels.OptionTypeCall {
+				if requestedQuantity != nil {
+					if *requestedQuantity < 0 {
+						return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
+					}
+
+					if *requestedQuantity > math.Abs(openQty) {
+						return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than (sell) open quantity")
+					}
+
+					optionCloseQty = *requestedQuantity
+				}
+
+				switch optionContract.OptionType {
+				case eventmodels.OptionTypeCall:
 					stockOpenQty := 0.0
 					currentPosition := positionCache.Get(optionContract.UnderlyingSymbol.GetTicker())
 					if currentPosition != nil {
 						stockOpenQty = math.Abs(currentPosition.Quantity)
 					}
 
-					var sellQty float64
-					if requestedQuantity != nil {
-						if *requestedQuantity < 0 {
-							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
-						}
-
-						if *requestedQuantity > math.Abs(openQty) {
-							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than (sell) open quantity")
-						}
-
-						optionCloseQty = *requestedQuantity
-					}
-
-					sellQty = math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+					sellQty := math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
 
 					// exercise call option
 					// 1: sell underlying stock if any existing qty to sell
@@ -276,6 +276,22 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 							IsAdjustment:   false,
 							IsSystemOrder:  true,
 						}
+					}
+
+				case eventmodels.OptionTypePut:
+					buyQty := math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+
+					stockOrderRequest = &CreateOrderRequest{
+						Symbol:         string(optionContract.UnderlyingSymbol),
+						Class:          OrderRecordClassEquity,
+						Quantity:       buyQty,
+						Side:           TradierOrderSideBuy,
+						OrderType:      Market,
+						Duration:       Day,
+						RequestedPrice: optionContract.Strike,
+						Tag:            fmt.Sprintf("exercise-put-option-%d", o.ID),
+						IsAdjustment:   false,
+						IsSystemOrder:  true,
 					}
 				}
 			}

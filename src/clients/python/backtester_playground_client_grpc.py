@@ -625,7 +625,7 @@ class BacktesterPlaygroundClient:
                 request.attributes[k] = v
                         
         try:
-            self.logger.debug(f"environment={self.environment} Placing {request.quantity} order: {request.symbol} / {request.side}", trading_operation='place_order', timestamp=self.timestamp)
+            self.logger.info(f"PlaceOrder: {request.side} {request.quantity}x {request.symbol} @ {request.requested_price} [{request.tag or 'no-tag'}]", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             
