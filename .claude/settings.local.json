@@ -21,7 +21,9 @@
       "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -:*)",
       "Bash(2)",
       "Bash(python3 -c \":*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(grep -r \"cdl_hammer\\\\|cdl_doji\\\\|pin_bar\\\\|engulfing\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/clients/python/*.py)",
+      "Bash(grep -r \"def.*pattern\\\\|def.*signal\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/clients/python/*.py)"
     ]
   }
 }
