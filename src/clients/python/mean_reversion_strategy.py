@@ -361,9 +361,30 @@ class MeanReversionStrategy:
                 )
                 shares = max_affordable
 
-        # Compute expected profit for this level
+        # Compute expected profit for this level.
+        #
+        # Model the actual exit mechanics: on reversion, shares are sold
+        # across partial exit tiers (not all at signal_price).  The weighted
+        # average exit price across tiers is lower than signal_price.
+        # On stop-out, all shares exit at stop_price.
+        n_tiers = self.num_exit_tiers
+        if n_tiers > 0 and group.htf_signal_price > level.price:
+            distance = group.htf_signal_price - level.price
+            # Mirror the tier spacing from compute_exit_plan:
+            # last tier at signal_price, earlier tiers at fraction * distance
+            tier_exits = []
+            for ti in range(n_tiers):
+                if ti == n_tiers - 1:
+                    tier_exits.append(group.htf_signal_price)
+                else:
+                    fraction = (ti + 1) / (n_tiers + 1)
+                    tier_exits.append(level.price + fraction * distance)
+            avg_exit_on_revert = sum(tier_exits) / n_tiers
+        else:
+            avg_exit_on_revert = group.htf_signal_price
+
         expected_exit = (
-            group.htf_signal_price * level.p_revert
+            avg_exit_on_revert * level.p_revert
             + group.stop_price * (1 - level.p_revert)
         )
         expected_profit = shares * (expected_exit - level.price)
@@ -689,9 +710,17 @@ def run_mean_reversion(
     total_shares_per_group: int = 1000,
     num_exit_tiers: int = 3,
     htf_horizon: str = "1h",
+    on_tick=None,
 ) -> MeanReversionStrategy:
     """
     Main loop for the PDF Mean-Reversion Strategy.
+
+    Parameters
+    ----------
+    on_tick : callable, optional
+        Callback invoked after each tick batch with ``(strategy, tick_deltas)``.
+        Can be used for periodic PDF retraining — if the callback sets
+        ``strategy.pdf``, subsequent ticks use the updated PDF.
 
     Returns the strategy instance for report generation.
     """
@@ -722,6 +751,9 @@ def run_mean_reversion(
                 else []
             )
             strategy.process_candles(new_candles)
+
+        if on_tick is not None:
+            on_tick(strategy, tick_deltas)
 
         playground.tick(playground.ltf_seconds)
 

@@ -602,6 +602,7 @@ def run_pdf_wheel_strategy(
     kelly_fraction_mult: float = 0.5,
     probability_levels: Optional[List[float]] = None,
     signal_ci_threshold: float = 0.01,
+    on_tick=None,
 ) -> None:
     """
     Main loop for the PDF-Guided Wheel Strategy.
@@ -626,6 +627,10 @@ def run_pdf_wheel_strategy(
         Target OTM probabilities for strike selection.
     signal_ci_threshold : float
         Maximum 95% CI width for a signal to be usable (default 0.01).
+    on_tick : callable, optional
+        Callback invoked after each tick batch with ``(strategy, tick_deltas)``.
+        Can be used for periodic PDF retraining — if the callback sets
+        ``strategy.pdf``, subsequent ticks use the updated PDF.
     """
     generate_signal_stats(playground, symbol)
     playground.stats.generate_model()
@@ -911,6 +916,9 @@ def run_pdf_wheel_strategy(
                         f"Open Signal (Call): {signal.name} at {signal.timestamp}"
                         f" → sold {target_contract.symbol}"
                     )
+
+        if on_tick is not None:
+            on_tick(strategy, tick_deltas)
 
         playground.tick(playground.ltf_seconds)
         logger.debug(f"Ticked to {playground.timestamp.isoformat()}")

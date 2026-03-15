@@ -46,7 +46,10 @@
       "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_report.py -v --tb=short)",
       "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_report.py::TestBuildOrderRows::test_entry_rows_created -v --tb=long)",
       "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_report.py test_mean_reversion_strategy.py test_deviation_levels.py test_partial_exit_manager.py test_return_models.py -v --tb=short)",
-      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_partial_exit_manager.py test_return_models.py test_mean_reversion_strategy.py test_mean_reversion_report.py --tb=short)"
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_partial_exit_manager.py test_return_models.py test_mean_reversion_strategy.py test_mean_reversion_report.py --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_pdf_builder.py test_demo_covered_call.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py test_mean_reversion_report.py test_pdf_builder.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python demo_mean_reversion.py --help)"
     ]
   }
 }

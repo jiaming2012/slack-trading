@@ -415,7 +415,7 @@ class TestEntryFills:
         assert group.status == "active"
 
     def test_expected_profit_calculation(self):
-        """Expected profit = shares * (E[exit] - entry)."""
+        """Expected profit accounts for tiered exits, not full signal reversion."""
         pg = _make_mock_playground()
         strategy = MeanReversionStrategy(pg, "AAPL")
 
@@ -423,8 +423,11 @@ class TestEntryFills:
         strategy.trade_groups.append(group)
 
         level = group.deviation_plan.levels[0]  # price=99, shares=100, p_revert=0.6
-        expected_exit = 100.0 * 0.6 + 95.0 * (1 - 0.6)  # 60 + 38 = 98
-        expected_profit = 100 * (expected_exit - 99.0)  # 100 * (-1) = -100
+        # With 3 exit tiers (default), avg exit on revert:
+        #   tier0=99.25, tier1=99.50, tier2=100.0 → avg=99.5833
+        avg_exit_on_revert = (99.25 + 99.50 + 100.0) / 3
+        expected_exit = avg_exit_on_revert * 0.6 + 95.0 * (1 - 0.6)
+        expected_profit = 100 * (expected_exit - 99.0)
 
         strategy._check_entries(group, candle_low=98.5)
 
