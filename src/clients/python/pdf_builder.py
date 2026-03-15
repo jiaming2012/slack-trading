@@ -193,6 +193,8 @@ class PDFBuilder:
         ltf_period_seconds: int = 900,
         horizons: Optional[Dict[str, int]] = None,
         min_ci_width: float = 0.005,
+        htf_timeframe: str = "daily",
+        return_model: str = "empirical",
     ):
         self.symbol = symbol
         self.ltf_bars = ltf_bars
@@ -200,6 +202,8 @@ class PDFBuilder:
         self.ltf_period_seconds = ltf_period_seconds
         self.horizons = horizons or dict(DEFAULT_HORIZONS)
         self.min_ci_width = min_ci_width
+        self.htf_timeframe = htf_timeframe
+        self.return_model = return_model
 
     # ---- daily context lookup --------------------------------------- #
 
@@ -217,7 +221,7 @@ class PDFBuilder:
             if dt is None:
                 prev = bar
                 continue
-            signals = detect_atomic_signals_on_bar(bar, prev_bar=prev, timeframe="daily")
+            signals = detect_atomic_signals_on_bar(bar, prev_bar=prev, timeframe=self.htf_timeframe)
             ctx[dt.strftime("%Y-%m-%d")] = signals
             prev = bar
         return ctx
@@ -326,16 +330,31 @@ class PDFBuilder:
             for h_name, rets in horizon_returns.items():
                 if not rets:
                     continue
-                mean = sum(rets) / len(rets)
-                variance = sum((r - mean) ** 2 for r in rets) / max(len(rets) - 1, 1)
-                std = math.sqrt(variance)
-                pcts = compute_percentiles(rets)
-                horizons[h_name] = HorizonStats(
-                    mean=mean,
-                    stddev=std,
-                    percentiles=pcts,
-                    forward_returns=rets,
-                )
+
+                if self.return_model != "empirical":
+                    from return_models import create_return_model
+                    model = create_return_model(self.return_model)
+                    model.fit(rets)
+                    model_result = model.result()
+                    horizons[h_name] = HorizonStats(
+                        mean=model_result.mean,
+                        stddev=model_result.stddev,
+                        percentiles=model_result.percentiles,
+                        forward_returns=rets,
+                        model_name=model_result.model_name,
+                        model_params={},
+                    )
+                else:
+                    mean = sum(rets) / len(rets)
+                    variance = sum((r - mean) ** 2 for r in rets) / max(len(rets) - 1, 1)
+                    std = math.sqrt(variance)
+                    pcts = compute_percentiles(rets)
+                    horizons[h_name] = HorizonStats(
+                        mean=mean,
+                        stddev=std,
+                        percentiles=pcts,
+                        forward_returns=rets,
+                    )
 
             signal_pdfs[key] = SignalPDF(
                 sample_size=len(all_returns),

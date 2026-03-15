@@ -84,6 +84,8 @@ class HorizonStats:
     stddev: float
     percentiles: Dict[str, float]   # {"5": -0.0098, "10": ..., "25": ..., "50": ...}
     forward_returns: List[float]    # raw observations
+    model_name: str = "empirical"   # which ReturnModel produced these stats
+    model_params: Dict[str, float] = field(default_factory=dict)  # model hyperparameters
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -95,6 +97,8 @@ class HorizonStats:
             stddev=d["stddev"],
             percentiles=d["percentiles"],
             forward_returns=d["forward_returns"],
+            model_name=d.get("model_name", "empirical"),
+            model_params=d.get("model_params", {}),
         )
 
 

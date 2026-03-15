@@ -2,20 +2,34 @@
 """
 Build a PDF from real Polygon data fetched through the backtester playground.
 
-Creates a playground with 15-min + daily repos for AAPL, fetches all candles
-from the repos, feeds them to PDFBuilder, and saves the result as JSON.
+Creates a playground with LTF + HTF repos, fetches all candles, feeds them
+to PDFBuilder, and saves the result as JSON.
+
+Supports two strategy presets:
+  - wheel:           15-min LTF + daily HTF (default, for pdf_wheel_strategy)
+  - mean_reversion:  5-min LTF + 1-hour HTF (for mean_reversion_strategy)
+
+Custom timeframes can also be specified directly via --ltf and --htf flags.
 
 Usage:
-    python build_pdf_from_polygon.py [--symbol AAPL] [--start 2024-06-01] \
-        [--end 2025-06-01] [--twirp-host http://127.0.0.1:5051] \
-        [--output aapl_pdf.json]
+    # Wheel strategy (default):
+    python build_pdf_from_polygon.py --symbol AAPL --start 2024-06-01 --end 2025-06-01
+
+    # Mean-reversion strategy:
+    python build_pdf_from_polygon.py --strategy mean_reversion \
+        --symbol AAPL --start 2024-06-01 --end 2025-06-01
+
+    # Custom timeframes:
+    python build_pdf_from_polygon.py --ltf 5m --htf 1h \
+        --symbol AAPL --start 2024-06-01 --end 2025-06-01
 
 Requires the Go trading server to be running.
 """
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Dict, Tuple
 from zoneinfo import ZoneInfo
 
 from loguru import logger
@@ -30,8 +44,47 @@ from backtester_playground_client_grpc import (
 from pdf_builder import PDFBuilder
 
 
-LTF_PERIOD = 900     # 15-min in seconds
-HTF_PERIOD = 86400   # 1-day in seconds
+# ------------------------------------------------------------------ #
+# Strategy presets
+# ------------------------------------------------------------------ #
+
+# (ltf_multiplier, ltf_unit, htf_multiplier, htf_unit, htf_timeframe, default_horizons)
+STRATEGY_PRESETS: Dict[str, Tuple] = {
+    "wheel": (
+        15, "minute",    # LTF: 15-min
+        1, "day",        # HTF: daily
+        "daily",         # htf_timeframe for PDFBuilder
+        {"1h": 4, "4h": 16, "1d": 26, "2d": 52},
+    ),
+    "mean_reversion": (
+        5, "minute",     # LTF: 5-min
+        1, "hour",       # HTF: 1-hour
+        "ltf",           # htf_timeframe for PDFBuilder
+        {"1h": 12, "4h": 48, "1d": 78},
+    ),
+}
+
+
+def _parse_timeframe(spec: str) -> Tuple[int, str, int]:
+    """
+    Parse a timeframe spec like '5m', '15m', '1h', '1d' into
+    (multiplier, unit_name, period_seconds).
+    """
+    spec = spec.strip().lower()
+    unit_map = {
+        "m": ("minute", 60),
+        "h": ("hour", 3600),
+        "d": ("day", 86400),
+        "w": ("week", 604800),
+    }
+    for suffix, (unit_name, unit_secs) in unit_map.items():
+        if spec.endswith(suffix):
+            multiplier = int(spec[: -len(suffix)])
+            return multiplier, unit_name, multiplier * unit_secs
+    raise ValueError(
+        f"Invalid timeframe spec: {spec!r}. "
+        f"Use format like '5m', '15m', '1h', '1d'."
+    )
 
 
 def bar_to_dict(bar) -> dict:
@@ -53,10 +106,34 @@ def bar_to_dict(bar) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build PDF from Polygon data")
+    parser = argparse.ArgumentParser(
+        description="Build PDF from Polygon data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Strategy presets:\n"
+            "  wheel            15-min LTF + daily HTF (default)\n"
+            "  mean_reversion   5-min LTF + 1-hour HTF\n"
+            "\n"
+            "Custom timeframes override the strategy preset:\n"
+            "  --ltf 5m --htf 1h\n"
+            "  --ltf 15m --htf 1d\n"
+        ),
+    )
     parser.add_argument("--symbol", default="AAPL", help="Stock symbol (default: AAPL)")
     parser.add_argument("--start", default="2024-06-01", help="Start date YYYY-MM-DD")
     parser.add_argument("--end", default="2025-06-01", help="End date YYYY-MM-DD")
+    parser.add_argument(
+        "--strategy", default="wheel",
+        choices=list(STRATEGY_PRESETS.keys()),
+        help="Strategy preset (default: wheel)",
+    )
+    parser.add_argument("--ltf", default=None, help="Custom LTF timeframe, e.g. '5m', '15m' (overrides --strategy)")
+    parser.add_argument("--htf", default=None, help="Custom HTF timeframe, e.g. '1h', '1d' (overrides --strategy)")
+    parser.add_argument(
+        "--return-model", default="empirical",
+        choices=["empirical", "bayesian_nig"],
+        help="Statistical model for return distributions (default: empirical)",
+    )
     parser.add_argument("--twirp-host", default="http://127.0.0.1:5051", help="Twirp server URL")
     parser.add_argument("--output", default="", help="Output JSON path (default: <symbol>_pdf.json)")
     args = parser.parse_args()
@@ -65,22 +142,50 @@ def main():
     start_date = args.start
     end_date = args.end
     twirp_host = args.twirp_host
+
+    # ------------------------------------------------------------------
+    # Resolve timeframes from strategy preset or custom flags
+    # ------------------------------------------------------------------
+    preset = STRATEGY_PRESETS[args.strategy]
+    ltf_mult, ltf_unit, htf_mult, htf_unit, htf_timeframe, horizons = preset
+
+    if args.ltf:
+        ltf_mult, ltf_unit, _ = _parse_timeframe(args.ltf)
+    if args.htf:
+        htf_mult, htf_unit, _ = _parse_timeframe(args.htf)
+        # When using custom HTF, use "ltf" timeframe unless it's daily
+        htf_timeframe = "daily" if htf_unit == "day" else "ltf"
+
+    from utils import get_timespan_unit
+    ltf_period = ltf_mult * get_timespan_unit(ltf_unit)
+    htf_period = htf_mult * get_timespan_unit(htf_unit)
+
     output_path = args.output or f"{symbol.lower()}_pdf.json"
 
+    # ------------------------------------------------------------------
+    # Logger
+    # ------------------------------------------------------------------
     logger.remove()
     logger.add(
         sys.stderr, level="INFO",
         format="<green>{time:HH:mm:ss}</green> | <level>{level:<8}</level> | {message}",
     )
 
+    ltf_label = f"{ltf_mult}-{ltf_unit}"
+    htf_label = f"{htf_mult}-{htf_unit}"
+
     logger.info("=" * 60)
     logger.info(f"Building PDF for {symbol}")
-    logger.info(f"Period: {start_date} -> {end_date}")
-    logger.info(f"Server: {twirp_host}")
+    logger.info(f"Strategy:  {args.strategy}")
+    logger.info(f"LTF:       {ltf_label} ({ltf_period}s)")
+    logger.info(f"HTF:       {htf_label} ({htf_period}s)")
+    logger.info(f"Model:     {args.return_model}")
+    logger.info(f"Period:    {start_date} -> {end_date}")
+    logger.info(f"Server:    {twirp_host}")
     logger.info("=" * 60)
 
     # ------------------------------------------------------------------
-    # 1. Create playground with 15-min + daily repos
+    # 1. Create playground with LTF + HTF repos
     # ------------------------------------------------------------------
     indicators = [
         "supertrend", "stochrsi", "atr", "doji", "hammer",
@@ -91,15 +196,15 @@ def main():
     repos = [
         Repository(
             symbol=symbol,
-            timespan_multiplier=15,
-            timespan_unit="minute",
+            timespan_multiplier=ltf_mult,
+            timespan_unit=ltf_unit,
             indicators=indicators,
             history_in_days=365,
         ),
         Repository(
             symbol=symbol,
-            timespan_multiplier=1,
-            timespan_unit="day",
+            timespan_multiplier=htf_mult,
+            timespan_unit=htf_unit,
             indicators=indicators,
             history_in_days=365,
         ),
@@ -129,17 +234,17 @@ def main():
     ts_start = datetime.fromisoformat(start_date).replace(tzinfo=ZoneInfo("America/New_York"))
     ts_end = datetime.fromisoformat(end_date).replace(tzinfo=ZoneInfo("America/New_York"))
 
-    logger.info("Fetching 15-min candles ...")
-    ltf_bars_pb = playground.fetch_candles_v3(symbol, LTF_PERIOD, ts_start, ts_end)
-    logger.info(f"  Got {len(ltf_bars_pb)} 15-min bars")
+    logger.info(f"Fetching {ltf_label} candles ...")
+    ltf_bars_pb = playground.fetch_candles_v3(symbol, ltf_period, ts_start, ts_end)
+    logger.info(f"  Got {len(ltf_bars_pb)} {ltf_label} bars")
 
-    logger.info("Fetching daily candles ...")
-    daily_bars_pb = playground.fetch_candles_v3(symbol, HTF_PERIOD, ts_start, ts_end)
-    logger.info(f"  Got {len(daily_bars_pb)} daily bars")
+    logger.info(f"Fetching {htf_label} candles ...")
+    htf_bars_pb = playground.fetch_candles_v3(symbol, htf_period, ts_start, ts_end)
+    logger.info(f"  Got {len(htf_bars_pb)} {htf_label} bars")
 
     # Convert protobuf bars to dicts
     ltf_bars = [bar_to_dict(b) for b in ltf_bars_pb]
-    daily_bars = [bar_to_dict(b) for b in daily_bars_pb]
+    htf_bars = [bar_to_dict(b) for b in htf_bars_pb]
 
     # ------------------------------------------------------------------
     # 3. Build PDF
@@ -148,8 +253,11 @@ def main():
     builder = PDFBuilder(
         symbol=symbol,
         ltf_bars=ltf_bars,
-        daily_bars=daily_bars,
-        ltf_period_seconds=LTF_PERIOD,
+        daily_bars=htf_bars,
+        ltf_period_seconds=ltf_period,
+        horizons=horizons,
+        htf_timeframe=htf_timeframe,
+        return_model=args.return_model,
     )
     pdf = builder.build()
 

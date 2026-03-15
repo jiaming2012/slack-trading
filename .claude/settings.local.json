@@ -24,7 +24,25 @@
       "Bash(go test:*)",
       "Bash(grep -r \"cdl_hammer\\\\|cdl_doji\\\\|pin_bar\\\\|engulfing\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/clients/python/*.py)",
       "Bash(grep -r \"def.*pattern\\\\|def.*signal\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/src/clients/python/*.py)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_partial_exit_manager.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_return_models.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_partial_exit_manager.py test_return_models.py test_mean_reversion_strategy.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_report.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_partial_exit_manager.py test_return_models.py test_mean_reversion_strategy.py test_mean_reversion_report.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_pdf_builder.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -c \"from build_pdf_from_polygon import _parse_timeframe, STRATEGY_PRESETS; print\\(''Presets:'', list\\(STRATEGY_PRESETS.keys\\(\\)\\)\\); print\\(''5m:'', _parse_timeframe\\(''5m''\\)\\); print\\(''15m:'', _parse_timeframe\\(''15m''\\)\\); print\\(''1h:'', _parse_timeframe\\(''1h''\\)\\); print\\(''1d:'', _parse_timeframe\\(''1d''\\)\\)\")",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python build_pdf_from_polygon.py --help)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_partial_exit_manager.py test_mean_reversion_strategy.py test_mean_reversion_report.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_return_models.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py test_mean_reversion_report.py test_partial_exit_manager.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_return_models.py -q)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py test_mean_reversion_report.py test_partial_exit_manager.py test_deviation_levels.py test_return_models.py -v)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_mean_reversion_strategy.py test_partial_exit_manager.py test_mean_reversion_report.py -v --tb=short)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_deviation_levels.py test_return_models.py -v --tb=short)"
     ]
   }
 }
