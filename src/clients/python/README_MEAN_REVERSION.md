@@ -163,13 +163,23 @@ The strategy logs a funnel summary at the end showing:
 - Entries placed, exits placed, stop-outs
 - Group status breakdown (active, closed, stopped out)
 
-For detailed post-simulation analysis, use the report module:
+For detailed post-simulation analysis, use the report module. It fetches all order data directly from the server using order attributes (tags) set at placement time — no in-memory strategy state needed:
+
+```bash
+# CLI usage (standalone — only needs playground ID)
+python mean_reversion_report.py \
+    --playground-id <UUID> \
+    --twirp-host http://localhost:5051 \
+    --output mean_rev_report.csv
+```
 
 ```python
+# Python usage
 from mean_reversion_report import generate_mean_reversion_report
 
 order_df, group_df, metrics = generate_mean_reversion_report(
-    strategy.trade_groups,
+    playground_id="<UUID>",
+    twirp_host="http://localhost:5051",
     output_path="mean_rev_report.csv",
 )
 
@@ -179,7 +189,34 @@ print(f"Total expected: ${metrics.total_expected:.2f}")
 print(f"Total realized: ${metrics.total_realized:.2f}")
 ```
 
-The report CSV contains one row per order with columns including `expected_profit`, `p_revert`, `sigma_distance`, and `model_name`, enabling comparison of model predictions against actual outcomes.
+### `mean_reversion_report.py` parameters
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--playground-id` | *(required)* | UUID of the completed playground |
+| `--twirp-host` | `http://localhost:5051` | Go server address |
+| `--output` | *(none)* | CSV output path (optional) |
+
+### Report columns
+
+The order-level CSV reconstructs everything from order attributes:
+
+| Column | Source |
+|--------|--------|
+| `order_id` | Server order ID |
+| `group_id` | Order attribute |
+| `htf_signal` | Order attribute |
+| `signal_price` | Order attribute |
+| `action` | Order attribute (`entry`, `partial_exit`, `stop_out`, `end_of_sim_close`) |
+| `symbol`, `side`, `quantity` | Order fields |
+| `fill_price` | First trade fill price |
+| `sigma_distance`, `p_revert` | Order attributes (entries only) |
+| `expected_profit` | Order attribute (model prediction at entry time) |
+| `model_name` | Order attribute (`empirical` or `bayesian_nig`) |
+| `stop_price` | Order attribute |
+| `pl` | Server-computed realized P&L |
+
+The group-level summary aggregates by `group_id` and computes prediction error, directional accuracy, and group status (inferred from order types present).
 
 ## How It Works
 
@@ -211,7 +248,7 @@ The report CSV contains one row per order with columns including `expected_profi
 ```bash
 cd src/clients/python
 
-# All mean-reversion tests (126 tests)
+# All mean-reversion tests (128 tests)
 /Users/jamal/miniconda3/envs/grodt/bin/python -m pytest \
     test_deviation_levels.py \
     test_partial_exit_manager.py \

@@ -1,21 +1,25 @@
 """
 Post-simulation evaluation report for the mean-reversion strategy.
 
-Compares expected vs realized profit per order and per group,
-computing calibration and accuracy metrics.
+Standalone module — fetches order records from the server using only
+a playground ID and twirp host. Reconstructs the report entirely from
+order attributes (tags) set at placement time.
 
-Standalone module — no server dependency beyond reading order records.
+Usage:
+    python mean_reversion_report.py --playground-id <UUID> --twirp-host http://localhost:5051
 """
 
 from __future__ import annotations
 
-import math
+import argparse
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from mean_reversion_strategy import TradeGroup
+from rpc.playground_twirp import PlaygroundServiceClient
+from rpc.playground_pb2 import GetAccountRequest
+from twirp.context import Context
 
 
 # ------------------------------------------------------------------ #
@@ -28,224 +32,222 @@ class ReportMetrics:
 
     mae: float                  # mean absolute error (expected vs realized)
     directional_accuracy: float # fraction where sign(expected) == sign(realized)
-    total_expected: float       # sum of expected profits across groups
-    total_realized: float       # sum of realized profits across groups
+    total_expected_pl: float    # sum of expected P&L across groups
+    total_realized_pl: float    # sum of realized P&L across groups
     num_groups: int
+
+
+# ------------------------------------------------------------------ #
+# Server fetch
+# ------------------------------------------------------------------ #
+
+def fetch_orders(twirp_host: str, playground_id: str) -> list:
+    """Fetch all filled orders from the playground server."""
+    client = PlaygroundServiceClient(twirp_host, timeout=120)
+    request = GetAccountRequest(
+        playground_id=playground_id,
+        fetch_orders=True,
+        status=["filled"],
+    )
+    response = client.GetAccount(ctx=Context(), request=request)
+    return list(response.orders)
+
+
+def _get_attr(order, key: str, default: str = "") -> str:
+    """Get an attribute from a protobuf order's attributes map."""
+    return order.attributes.get(key, default)
+
+
+def _get_attr_float(order, key: str, default=0.0):
+    """Get a float attribute from a protobuf order's attributes map."""
+    val = order.attributes.get(key, "")
+    if not val:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def _fill_price(order) -> float:
+    """Get the fill price from an order: use first trade's price, else order.price."""
+    if order.trades:
+        return order.trades[0].price
+    return order.price
 
 
 # ------------------------------------------------------------------ #
 # Order-level report
 # ------------------------------------------------------------------ #
 
-def build_order_rows(
-    trade_groups: List[TradeGroup],
-    order_records: Optional[List[dict]] = None,
-) -> pd.DataFrame:
+COLUMNS = [
+    "order_id", "group_id", "htf_signal", "signal_price", "action",
+    "symbol", "side", "quantity", "fill_price", "requested_price",
+    "sigma_distance", "p_revert", "expected_pl", "realized_pl",
+    "model_name", "stop_price", "level_index", "exit_tier",
+    "status", "timestamp",
+]
+
+
+def build_order_rows(orders: list) -> pd.DataFrame:
     """
-    Build a DataFrame of order-level records from trade groups.
+    Build a DataFrame of order-level records from server order objects.
+
+    Filters to orders that have a mean-reversion ``action`` attribute.
+    All metadata is reconstructed from order attributes.
+
+    Columns:
+    - ``expected_pl``: model prediction at entry time (entries only)
+    - ``realized_pl``: server-computed P&L (exits/stops only)
 
     Parameters
     ----------
-    trade_groups : list of TradeGroup
-        All trade groups from the strategy run.
-    order_records : list of dict, optional
-        Raw order records from the playground (with fill prices).
-        If None, uses the information stored on the groups themselves.
+    orders : list
+        Protobuf Order objects from GetAccount(fetch_orders=True).
 
     Returns
     -------
     pd.DataFrame
-        One row per order with expected/realized profit columns.
+        One row per order.
     """
     rows = []
 
-    for group in trade_groups:
-        # Entry orders
-        for level_idx, shares in group.filled_levels.items():
-            if level_idx >= len(group.deviation_plan.levels):
-                continue
-            level = group.deviation_plan.levels[level_idx]
+    for order in orders:
+        action = _get_attr(order, "action")
+        if not action:
+            continue  # not a mean-reversion order
 
-            expected_exit = (
-                group.htf_signal_price * level.p_revert
-                + group.stop_price * (1 - level.p_revert)
-            )
-            expected_profit = shares * (expected_exit - level.price)
+        group_id = _get_attr(order, "group_id")
+        fill_px = _fill_price(order)
 
-            rows.append({
-                "group_id": group.group_id,
-                "htf_signal": group.htf_signal_key,
-                "signal_price": group.htf_signal_price,
-                "action": "entry",
-                "side": "BUY",
-                "quantity": shares,
-                "price": level.price,
-                "sigma_distance": level.sigma_distance,
-                "p_revert": level.p_revert,
-                "expected_profit": expected_profit,
-                "model_name": group.model_name,
-                "stop_price": group.stop_price,
-                "level_index": level_idx,
-                "was_truncated": group.deviation_plan.was_truncated,
-                "timestamp": group.htf_signal_timestamp,
-            })
+        # expected_pl: from entry order attribute (set at placement time)
+        expected_pl = _get_attr_float(order, "expected_profit", None)
 
-        # Exit orders (from exit plan)
-        if group.exit_plan:
-            for tier in group.exit_plan.tiers:
-                tier_id = (tier.source_level_index, tier.tier_index)
-                if tier_id not in group.triggered_exits:
-                    continue
-                rows.append({
-                    "group_id": group.group_id,
-                    "htf_signal": group.htf_signal_key,
-                    "signal_price": group.htf_signal_price,
-                    "action": "partial_exit",
-                    "side": "SELL",
-                    "quantity": tier.shares_to_sell,
-                    "price": tier.exit_price,
-                    "sigma_distance": None,
-                    "p_revert": None,
-                    "expected_profit": None,
-                    "model_name": group.model_name,
-                    "stop_price": group.stop_price,
-                    "level_index": tier.source_level_index,
-                    "was_truncated": group.deviation_plan.was_truncated,
-                    "timestamp": group.htf_signal_timestamp,
-                })
+        # realized_pl: server-authoritative P&L (set on sell orders after fill)
+        realized_pl = order.pl if order.HasField("pl") else None
 
-        # Stop-out record
-        if group.status == "stopped_out":
-            total_remaining = sum(group.filled_levels.values())
-            if group.exit_plan:
-                for tier in group.exit_plan.tiers:
-                    tier_id = (tier.source_level_index, tier.tier_index)
-                    if tier_id in group.triggered_exits:
-                        total_remaining -= tier.shares_to_sell
-            if total_remaining > 0:
-                rows.append({
-                    "group_id": group.group_id,
-                    "htf_signal": group.htf_signal_key,
-                    "signal_price": group.htf_signal_price,
-                    "action": "stop_out",
-                    "side": "SELL",
-                    "quantity": total_remaining,
-                    "price": group.stop_price,
-                    "sigma_distance": None,
-                    "p_revert": None,
-                    "expected_profit": None,
-                    "model_name": group.model_name,
-                    "stop_price": group.stop_price,
-                    "level_index": None,
-                    "was_truncated": group.deviation_plan.was_truncated,
-                    "timestamp": group.htf_signal_timestamp,
-                })
+        row = {
+            "order_id": order.id,
+            "group_id": group_id,
+            "htf_signal": _get_attr(order, "htf_signal"),
+            "signal_price": _get_attr_float(order, "signal_price"),
+            "action": action,
+            "symbol": order.symbol,
+            "side": order.side,
+            "quantity": order.quantity,
+            "fill_price": fill_px,
+            "requested_price": order.requested_price,
+            "sigma_distance": _get_attr_float(order, "sigma_distance", None),
+            "p_revert": _get_attr_float(order, "p_revert", None),
+            "expected_pl": expected_pl,
+            "realized_pl": realized_pl,
+            "model_name": _get_attr(order, "model_name"),
+            "stop_price": _get_attr_float(order, "stop_price"),
+            "level_index": _get_attr(order, "level_index") or None,
+            "exit_tier": _get_attr(order, "exit_tier") or None,
+            "status": order.status,
+            "timestamp": order.create_date,
+        }
+
+        rows.append(row)
 
     if not rows:
-        return pd.DataFrame(columns=[
-            "group_id", "htf_signal", "signal_price", "action", "side",
-            "quantity", "price", "sigma_distance", "p_revert",
-            "expected_profit", "model_name", "stop_price", "level_index",
-            "was_truncated", "timestamp",
-        ])
+        return pd.DataFrame(columns=COLUMNS)
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=COLUMNS)
 
 
 # ------------------------------------------------------------------ #
 # Group-level summary
 # ------------------------------------------------------------------ #
 
-def build_group_summary(
-    trade_groups: List[TradeGroup],
-) -> pd.DataFrame:
-    """
-    Build a group-level summary DataFrame.
+SUMMARY_COLUMNS = [
+    "group_id", "htf_signal", "status",
+    "num_entries", "num_exits",
+    "total_expected_pl", "total_realized_pl",
+    "prediction_error", "prediction_accuracy",
+]
 
-    For each group, computes total expected profit (sum over entry levels),
-    estimated realized profit (based on exit/stop prices vs entry prices),
-    and prediction error.
+
+def build_group_summary(order_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build a group-level summary from the order DataFrame.
+
+    - ``total_expected_pl``: sum of ``expected_pl`` from entry orders
+      (model prediction at placement time).
+    - ``total_realized_pl``: sum of ``realized_pl`` from exit/stop orders
+      (server-authoritative P&L).
+
+    Parameters
+    ----------
+    order_df : pd.DataFrame
+        Output of ``build_order_rows()``.
 
     Returns
     -------
     pd.DataFrame
         One row per trade group.
     """
-    rows = []
+    if order_df.empty:
+        return pd.DataFrame(columns=SUMMARY_COLUMNS)
 
-    for group in trade_groups:
-        if not group.filled_levels:
+    rows = []
+    for group_id, group_orders in order_df.groupby("group_id"):
+        entries = group_orders[group_orders["action"] == "entry"]
+        exits = group_orders[group_orders["action"].isin(
+            ["partial_exit", "stop_out", "end_of_sim_close"]
+        )]
+
+        if entries.empty:
             continue
 
-        # Total expected profit across entries
-        total_expected = 0.0
-        total_entry_cost = 0.0
+        # Expected P&L: sum from entry order tags
+        total_expected_pl = entries["expected_pl"].sum()
+        if pd.isna(total_expected_pl):
+            total_expected_pl = 0.0
 
-        for level_idx, shares in group.filled_levels.items():
-            if level_idx >= len(group.deviation_plan.levels):
-                continue
-            level = group.deviation_plan.levels[level_idx]
-            expected_exit = (
-                group.htf_signal_price * level.p_revert
-                + group.stop_price * (1 - level.p_revert)
-            )
-            total_expected += shares * (expected_exit - level.price)
-            total_entry_cost += shares * level.price
+        # Realized P&L: use server-authoritative pl from exit orders
+        realized_values = exits["realized_pl"].dropna()
+        if not realized_values.empty:
+            total_realized_pl = realized_values.sum()
+        else:
+            total_realized_pl = 0.0
 
-        # Estimate realized profit from exits and stops
-        total_realized = 0.0
-
-        if group.exit_plan:
-            for tier in group.exit_plan.tiers:
-                tier_id = (tier.source_level_index, tier.tier_index)
-                if tier_id not in group.triggered_exits:
-                    continue
-                # Find the entry price for this tier's source level
-                source_idx = tier.source_level_index
-                if source_idx < len(group.deviation_plan.levels):
-                    entry_price = group.deviation_plan.levels[source_idx].price
-                    total_realized += tier.shares_to_sell * (tier.exit_price - entry_price)
-
-        if group.status == "stopped_out":
-            # Remaining shares sold at stop price
-            remaining_shares = sum(group.filled_levels.values())
-            if group.exit_plan:
-                for tier in group.exit_plan.tiers:
-                    tier_id = (tier.source_level_index, tier.tier_index)
-                    if tier_id in group.triggered_exits:
-                        remaining_shares -= tier.shares_to_sell
-            if remaining_shares > 0:
-                # Approximate: use weighted average entry price
-                avg_entry = total_entry_cost / sum(group.filled_levels.values())
-                total_realized += remaining_shares * (group.stop_price - avg_entry)
-
-        prediction_error = total_realized - total_expected
+        prediction_error = total_realized_pl - total_expected_pl
         prediction_accuracy = (
-            max(0.0, 1.0 - abs(prediction_error / total_expected))
-            if abs(total_expected) > 1e-10
+            max(0.0, 1.0 - abs(prediction_error / total_expected_pl))
+            if abs(total_expected_pl) > 1e-10
             else 0.0
         )
 
+        # Determine group status from order types present
+        if any(exits["action"] == "stop_out"):
+            status = "stopped_out"
+        elif any(exits["action"] == "end_of_sim_close"):
+            status = "closed_eod"
+        elif not exits.empty:
+            status = "closed"
+        else:
+            status = "active"
+
+        htf_signal = entries.iloc[0]["htf_signal"] if not entries.empty else ""
+
         rows.append({
-            "group_id": group.group_id,
-            "htf_signal": group.htf_signal_key,
-            "status": group.status,
-            "levels_planned": group.deviation_plan.original_level_count,
-            "levels_filled": len(group.filled_levels),
-            "total_expected_profit": total_expected,
-            "total_realized_profit": total_realized,
+            "group_id": group_id,
+            "htf_signal": htf_signal,
+            "status": status,
+            "num_entries": len(entries),
+            "num_exits": len(exits),
+            "total_expected_pl": total_expected_pl,
+            "total_realized_pl": total_realized_pl,
             "prediction_error": prediction_error,
             "prediction_accuracy": prediction_accuracy,
         })
 
     if not rows:
-        return pd.DataFrame(columns=[
-            "group_id", "htf_signal", "status", "levels_planned",
-            "levels_filled", "total_expected_profit", "total_realized_profit",
-            "prediction_error", "prediction_accuracy",
-        ])
+        return pd.DataFrame(columns=SUMMARY_COLUMNS)
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=SUMMARY_COLUMNS)
 
 
 # ------------------------------------------------------------------ #
@@ -268,16 +270,15 @@ def compute_metrics(group_summary: pd.DataFrame) -> ReportMetrics:
     if group_summary.empty:
         return ReportMetrics(
             mae=0.0, directional_accuracy=0.0,
-            total_expected=0.0, total_realized=0.0, num_groups=0,
+            total_expected_pl=0.0, total_realized_pl=0.0, num_groups=0,
         )
 
-    expected = group_summary["total_expected_profit"]
-    realized = group_summary["total_realized_profit"]
+    expected = group_summary["total_expected_pl"]
+    realized = group_summary["total_realized_pl"]
 
     mae = float((expected - realized).abs().mean())
 
     # Directional accuracy: sign(expected) == sign(realized)
-    # Treat zero as matching any sign
     signs_match = (
         (expected >= 0) & (realized >= 0)
     ) | (
@@ -288,8 +289,8 @@ def compute_metrics(group_summary: pd.DataFrame) -> ReportMetrics:
     return ReportMetrics(
         mae=mae,
         directional_accuracy=directional_accuracy,
-        total_expected=float(expected.sum()),
-        total_realized=float(realized.sum()),
+        total_expected_pl=float(expected.sum()),
+        total_realized_pl=float(realized.sum()),
         num_groups=len(group_summary),
     )
 
@@ -299,16 +300,23 @@ def compute_metrics(group_summary: pd.DataFrame) -> ReportMetrics:
 # ------------------------------------------------------------------ #
 
 def generate_mean_reversion_report(
-    trade_groups: List[TradeGroup],
+    playground_id: str,
+    twirp_host: str = "http://localhost:5051",
     output_path: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, ReportMetrics]:
     """
     Generate the full post-simulation evaluation report.
 
+    Fetches all filled orders from the server, filters to mean-reversion
+    orders (those with an ``action`` attribute), and builds order-level
+    and group-level summaries.
+
     Parameters
     ----------
-    trade_groups : list of TradeGroup
-        All trade groups from the strategy run.
+    playground_id : str
+        UUID of the playground to report on.
+    twirp_host : str
+        Twirp server URL (default http://localhost:5051).
     output_path : str, optional
         If provided, saves order-level CSV to this path.
 
@@ -316,11 +324,49 @@ def generate_mean_reversion_report(
     -------
     (order_df, group_df, metrics)
     """
-    order_df = build_order_rows(trade_groups)
-    group_df = build_group_summary(trade_groups)
+    orders = fetch_orders(twirp_host, playground_id)
+    order_df = build_order_rows(orders)
+    group_df = build_group_summary(order_df)
     metrics = compute_metrics(group_df)
 
     if output_path and not order_df.empty:
         order_df.to_csv(output_path, index=False)
 
     return order_df, group_df, metrics
+
+
+# ------------------------------------------------------------------ #
+# CLI
+# ------------------------------------------------------------------ #
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate mean-reversion strategy report from a completed playground."
+    )
+    parser.add_argument("--playground-id", type=str, required=True)
+    parser.add_argument("--twirp-host", type=str, default="http://localhost:5051")
+    parser.add_argument("--output", type=str, default=None, help="CSV output path")
+
+    args = parser.parse_args()
+
+    order_df, group_df, metrics = generate_mean_reversion_report(
+        args.playground_id, args.twirp_host, args.output,
+    )
+
+    print(f"\n{'=' * 60}")
+    print("MEAN-REVERSION REPORT")
+    print(f"{'=' * 60}")
+    print(f"  Orders:              {len(order_df)}")
+    print(f"  Groups:              {metrics.num_groups}")
+    print(f"  Total expected P&L:  ${metrics.total_expected_pl:,.2f}")
+    print(f"  Total realized P&L:  ${metrics.total_realized_pl:,.2f}")
+    print(f"  MAE:                 ${metrics.mae:,.2f}")
+    print(f"  Directional accuracy:{metrics.directional_accuracy:6.1%}")
+    print(f"{'=' * 60}")
+
+    if not group_df.empty:
+        print("\nGroup Summary:")
+        print(group_df.to_string(index=False))
+
+    if args.output:
+        print(f"\nOrder-level CSV saved to: {args.output}")
