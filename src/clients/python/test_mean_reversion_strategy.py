@@ -417,7 +417,7 @@ class TestEntryFills:
     def test_expected_profit_calculation(self):
         """Expected profit accounts for tiered exits, not full signal reversion."""
         pg = _make_mock_playground()
-        strategy = MeanReversionStrategy(pg, "AAPL")
+        strategy = MeanReversionStrategy(pg, "AAPL", ev_model="binary")
 
         group = _make_group(signal_price=100.0, stop_price=95.0)
         strategy.trade_groups.append(group)
@@ -575,7 +575,7 @@ class TestStopOuts:
     def test_stop_out_with_partial_exits_subtracts_exited_shares(self):
         """Stop-out subtracts already-exited shares."""
         pg = _make_mock_playground()
-        strategy = MeanReversionStrategy(pg, "AAPL")
+        strategy = MeanReversionStrategy(pg, "AAPL", stop_widen_on_exit=0.0)
 
         group = _make_group(signal_price=100.0, stop_price=95.0, status="active")
         group.filled_levels = {0: 100}
@@ -791,6 +791,7 @@ class TestFunnelSummary:
             "groups_skipped_empty_plan", "groups_skipped_dedup",
             "entries_placed", "exits_placed", "stop_outs",
             "groups_closed", "groups_truncated",
+            "entries_skipped_low_ev",
         }
         assert set(strategy.funnel.keys()) == expected_keys
         assert all(v == 0 for v in strategy.funnel.values())
@@ -851,3 +852,268 @@ class TestGetRepositories:
         for repo in repos:
             assert "supertrend" in repo.indicators
             assert "stochrsi" in repo.indicators
+
+
+# ------------------------------------------------------------------ #
+# TestStopWidening
+# ------------------------------------------------------------------ #
+
+class TestStopWidening:
+
+    def test_stop_widened_with_partial_exits(self):
+        """Group with 1/3 tiers exited: stop NOT triggered at normal threshold."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", stop_widen_on_exit=1.0)
+
+        group = _make_group(signal_price=100.0, stop_price=95.0, status="active")
+        group.filled_levels = {0: 100}
+        group.exit_plan = ExitPlan(tiers=[
+            ExitTier(exit_price=99.25, shares_to_sell=33, source_level_index=0, tier_index=0),
+            ExitTier(exit_price=99.50, shares_to_sell=33, source_level_index=0, tier_index=1),
+            ExitTier(exit_price=100.0, shares_to_sell=34, source_level_index=0, tier_index=2),
+        ])
+        group.triggered_exits = {(0, 0)}  # 1 of 3 tiers exited
+        strategy.trade_groups.append(group)
+
+        # Normal stop return = (95-100)/100 = -0.05
+        # exit_progress = 1/3 = 0.333
+        # widen_factor = 1.0 + 0.333 * 1.0 = 1.333
+        # effective_stop_return = -0.05 * 1.333 = -0.0667
+        # HTF close at 94.5 → move = -0.055 > -0.0667 → should NOT stop
+        strategy._evaluate_stops(htf_close=94.5)
+
+        assert group.status == "active"
+        pg.place_order.assert_not_called()
+
+    def test_stop_still_triggers_without_exits(self):
+        """Group with 0 exits: stop triggered as before (regression)."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", stop_widen_on_exit=1.0)
+
+        group = _make_group(signal_price=100.0, stop_price=95.0, status="active")
+        group.filled_levels = {0: 100}
+        # No exit plan or triggered exits → exit_progress = 0, widen_factor = 1.0
+        strategy.trade_groups.append(group)
+
+        # move = (94-100)/100 = -0.06, stop_return = -0.05
+        # effective_stop_return = -0.05 * 1.0 = -0.05
+        # -0.06 <= -0.05 → stop triggered
+        strategy._evaluate_stops(htf_close=94.0)
+
+        assert group.status == "stopped_out"
+        pg.place_order.assert_called_once()
+
+    def test_stop_widen_factor_zero_disables(self):
+        """stop_widen_on_exit=0.0 → identical to current behavior."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", stop_widen_on_exit=0.0)
+
+        group = _make_group(signal_price=100.0, stop_price=95.0, status="active")
+        group.filled_levels = {0: 100}
+        group.exit_plan = ExitPlan(tiers=[
+            ExitTier(exit_price=99.25, shares_to_sell=33, source_level_index=0, tier_index=0),
+            ExitTier(exit_price=99.50, shares_to_sell=33, source_level_index=0, tier_index=1),
+            ExitTier(exit_price=100.0, shares_to_sell=34, source_level_index=0, tier_index=2),
+        ])
+        group.triggered_exits = {(0, 0)}  # 1 of 3 tiers exited
+        strategy.trade_groups.append(group)
+
+        # widen_factor = 1.0 + 0.333 * 0.0 = 1.0 (no widening)
+        # effective_stop_return = -0.05
+        # move at 94.0 = -0.06 <= -0.05 → stop triggered
+        strategy._evaluate_stops(htf_close=94.0)
+
+        assert group.status == "stopped_out"
+
+
+# ------------------------------------------------------------------ #
+# TestMinExpectedProfit
+# ------------------------------------------------------------------ #
+
+class TestMinExpectedProfit:
+
+    def test_min_expected_profit_skips_low_ev(self):
+        """Entry below threshold is skipped, level added to failed_levels."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", min_expected_profit=1000.0)
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        strategy.trade_groups.append(group)
+
+        # Level 0: price=99, shares=100, p_revert=0.6
+        # Expected profit will be much less than $1000
+        strategy._check_entries(group, candle_low=98.5)
+
+        pg.place_order.assert_not_called()
+        assert 0 in group.failed_levels
+        assert strategy.funnel["entries_skipped_low_ev"] == 1
+
+    def test_min_expected_profit_zero_allows_all(self):
+        """Default (0.0) allows all entries (regression)."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", min_expected_profit=0.0)
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        strategy.trade_groups.append(group)
+
+        strategy._check_entries(group, candle_low=98.5)
+
+        pg.place_order.assert_called_once()
+        assert 0 in group.filled_levels
+
+
+# ------------------------------------------------------------------ #
+# TestDistributionEV
+# ------------------------------------------------------------------ #
+
+class TestDistributionEV:
+
+    def test_distribution_ev_all_revert(self):
+        """All returns >= 0 → EV matches binary full-revert case."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        # All returns positive → all exit at or above signal price
+        group.forward_returns = [0.01, 0.02, 0.03, 0.05, 0.10]
+        strategy.trade_groups.append(group)
+
+        level = group.deviation_plan.levels[0]  # price=99, shares=100
+        ev = strategy._compute_distribution_ev(group, level, 100)
+
+        # With 3 tiers: avg_exit_on_revert = (99.25 + 99.50 + 100.0)/3 = 99.5833
+        avg_exit = (99.25 + 99.50 + 100.0) / 3
+        expected = 100 * (avg_exit - 99.0)
+        assert abs(ev - expected) < 0.01
+
+    def test_distribution_ev_all_stop(self):
+        """All returns below stop → EV matches binary stop-out case."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        # All returns push price to or below stop (95.0)
+        # stop_return = (95-100)/100 = -0.05
+        group.forward_returns = [-0.06, -0.07, -0.08, -0.10]
+        strategy.trade_groups.append(group)
+
+        level = group.deviation_plan.levels[0]  # price=99, shares=100
+        ev = strategy._compute_distribution_ev(group, level, 100)
+
+        # All stopped out: P&L = 100 * (95.0 - 99.0) = -400
+        expected = 100 * (95.0 - 99.0)
+        assert abs(ev - expected) < 0.01
+
+    def test_distribution_ev_mixed(self):
+        """Mixed returns → EV between stop loss and revert profit."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        # 50% revert (positive), 50% stop out
+        group.forward_returns = [0.02, 0.03, -0.06, -0.07]
+        strategy.trade_groups.append(group)
+
+        level = group.deviation_plan.levels[0]  # price=99
+        ev = strategy._compute_distribution_ev(group, level, 100)
+
+        # Revert case: 100 * (99.5833 - 99) = 58.33
+        # Stop case: 100 * (95 - 99) = -400
+        # Mixed EV should be between these extremes
+        assert ev > -400
+        assert ev < 58.34
+
+    def test_distribution_ev_empty_returns(self):
+        """No forward_returns → returns 0.0."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        group.forward_returns = []
+        strategy.trade_groups.append(group)
+
+        level = group.deviation_plan.levels[0]
+        ev = strategy._compute_distribution_ev(group, level, 100)
+        assert ev == 0.0
+
+
+# ------------------------------------------------------------------ #
+# TestEVModelFlag
+# ------------------------------------------------------------------ #
+
+class TestEVModelFlag:
+
+    def test_distribution_is_default(self):
+        """Default ev_model='distribution', active EV matches distribution."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL")
+        assert strategy.ev_model == "distribution"
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        group.forward_returns = [0.01, 0.02, -0.06]
+        strategy.trade_groups.append(group)
+
+        strategy._check_entries(group, candle_low=98.5)
+
+        attrs = pg.place_order.call_args[1]["attributes"]
+        assert attrs["ev_model"] == "distribution"
+        assert "expected_profit_binary" in attrs
+
+    def test_distribution_stores_alt_binary(self):
+        """ev_model='distribution' → attrs have expected_profit_binary."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", ev_model="distribution")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        group.forward_returns = [0.01, 0.02, -0.06]
+        strategy.trade_groups.append(group)
+
+        strategy._check_entries(group, candle_low=98.5)
+
+        attrs = pg.place_order.call_args[1]["attributes"]
+        assert attrs["ev_model"] == "distribution"
+        assert "expected_profit_binary" in attrs
+
+    def test_binary_stores_alt_distribution(self):
+        """ev_model='binary' → attrs have expected_profit_distribution."""
+        pg = _make_mock_playground()
+        strategy = MeanReversionStrategy(pg, "AAPL", ev_model="binary")
+
+        group = _make_group(signal_price=100.0, stop_price=95.0)
+        group.forward_returns = [0.01, 0.02, -0.06]
+        strategy.trade_groups.append(group)
+
+        strategy._check_entries(group, candle_low=98.5)
+
+        attrs = pg.place_order.call_args[1]["attributes"]
+        assert "expected_profit_distribution" in attrs
+        # Both EVs should be numeric strings
+        assert float(attrs["expected_profit"])
+        assert float(attrs["expected_profit_distribution"])
+
+    def test_forward_returns_stored_on_group(self):
+        """Group creation captures forward_returns from horizon."""
+        pg = _make_mock_playground()
+        forward_rets = [0.01, -0.02, 0.005, -0.03, 0.02]
+        pdf = _make_pdf(forward_returns=forward_rets)
+        strategy = MeanReversionStrategy(pg, "AAPL", pdf=pdf)
+
+        from unittest.mock import patch as _patch
+        with _patch("mean_reversion_strategy.detect_atomic_signals_on_bar") as mock_detect, \
+             _patch("mean_reversion_strategy.compute_deviation_levels") as mock_compute:
+            mock_detect.return_value = [
+                "bullish_supertrend", "stochrsi_cross_above_20",
+            ]
+            plan = DeviationPlan(
+                levels=[DeviationLevel(99.0, 500, 0.5, 0.7)],
+                signal_price=100.0, stop_price=96.0,
+                max_potential_loss=1500.0, was_truncated=False,
+                original_level_count=1,
+            )
+            mock_compute.return_value = plan
+
+            bar = _make_htf_bar(close=100.0)
+            strategy._process_htf_candle(bar)
+
+        assert len(strategy.trade_groups) == 1
+        assert strategy.trade_groups[0].forward_returns == forward_rets

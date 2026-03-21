@@ -310,6 +310,18 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 		}
 	}
 
+	// Propagate attributes from the open order so that reports can
+	// associate auto-close P&L with the original strategy entry.
+	var closeAttributes Attributes
+	if len(o.Attributes) > 0 {
+		closeAttributes = make(Attributes, len(o.Attributes)+1)
+		for k, v := range o.Attributes {
+			closeAttributes[k] = v
+		}
+		// Override action so the report can distinguish system closes
+		closeAttributes["action"] = tag
+	}
+
 	closeOrderRequests := []*CreateOrderRequest{
 		{
 			Symbol:         o.Symbol,
@@ -323,6 +335,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 			CloseOrderId:   &o.ID,
 			IsAdjustment:   false,
 			IsSystemOrder:  true,
+			Attributes:     closeAttributes,
 		},
 	}
 

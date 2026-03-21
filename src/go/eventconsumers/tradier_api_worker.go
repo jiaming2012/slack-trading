@@ -76,7 +76,8 @@ func (w *TradierApiWorker) fetchTradierCandles(symbol eventmodels.Instrument, in
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch candles: %s", res.Status)
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:FetchCandles(): failed to fetch candles for %s: status=%s body=%s url=%s", symbol.GetTicker(), res.Status, string(body), url)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
@@ -267,9 +268,16 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 	var candles []eventmodels.ICandle
 
 	if period <= 15*time.Minute {
+		// Tradier timesales API only allows ~57 days of history
+		tradierMinStart := now.AddDate(0, 0, -57)
+		if start.Before(tradierMinStart) {
+			log.Warnf("clamping Tradier start date for %s from %v to %v (API limit)", repo.GetSymbol(), start, tradierMinStart)
+			start = tradierMinStart.Truncate(period)
+		}
+
 		tradierCandles, err := w.fetchTradierCandles(repo.GetSymbol(), repo.GetFetchInterval(), start, end)
 		if err != nil {
-			log.Errorf("failed to fetch candles: %v", err)
+			log.Errorf("failed to fetch candles for %s (period=%v, start=%v, end=%v): %v", repo.GetSymbol(), period, start, end, err)
 			return
 		}
 
@@ -279,7 +287,7 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 	} else {
 		polygonCandles, err := w.polygonClient.FetchAggregateBarsWithDates(repo.GetSymbol(), repo.GetPolygonTimespan(), start, end, w.location)
 		if err != nil {
-			log.Errorf("failed to fetch candles: %v", err)
+			log.Errorf("failed to fetch candles for %s (period=%v, start=%v, end=%v): %v", repo.GetSymbol(), period, start, end, err)
 			return
 		}
 
@@ -318,7 +326,7 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 
 	maxTimestamp, err := repo.AppendBars(newCandles)
 	if err != nil {
-		log.Errorf("failed to append bars: %v", err)
+		log.Errorf("failed to append bars for %s (count=%d, period=%v): %v", repo.GetSymbol(), len(newCandles), period, err)
 		return
 	}
 

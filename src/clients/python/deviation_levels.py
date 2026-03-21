@@ -65,6 +65,7 @@ def compute_deviation_levels(
     max_loss_budget: float,
     total_shares: int = 1000,
     sigma_steps: Optional[List[float]] = None,
+    tail_threshold: Optional[float] = None,
 ) -> DeviationPlan:
     """
     Compute deviation levels for a mean-reversion entry plan.
@@ -87,6 +88,9 @@ def compute_deviation_levels(
     sigma_steps : list[float] or None
         Explicit sigma distances for levels. If None, auto-generated
         from the distribution tail.
+    tail_threshold : float or None
+        Override for _TAIL_THRESHOLD when auto-generating sigma steps.
+        Lower values (e.g. 0.005) produce more/deeper levels.
 
     Returns
     -------
@@ -122,7 +126,8 @@ def compute_deviation_levels(
 
     # --- Generate sigma steps if not provided ---
     if sigma_steps is None:
-        sigma_steps = _auto_sigma_steps(returns_arr, stddev)
+        thresh = tail_threshold if tail_threshold is not None else _TAIL_THRESHOLD
+        sigma_steps = _auto_sigma_steps(returns_arr, stddev, tail_threshold=thresh)
     if not sigma_steps:
         return empty
 
@@ -174,12 +179,13 @@ def _auto_sigma_steps(
     start: float = 1.0,
     step: float = 0.5,
     max_sigma: float = 5.0,
+    tail_threshold: float = _TAIL_THRESHOLD,
 ) -> List[float]:
     """
     Auto-generate sigma steps from the distribution tail.
 
     Starts at ``start`` σ, increments by ``step``, stops when fewer
-    than ``_TAIL_THRESHOLD`` fraction of returns reached that level.
+    than ``tail_threshold`` fraction of returns reached that level.
     """
     steps = []
     sigma = start
@@ -188,7 +194,7 @@ def _auto_sigma_steps(
         # What fraction of returns dipped at least this far?
         threshold = -sigma * stddev
         frac_reached = float(np.mean(returns <= threshold))
-        if frac_reached < _TAIL_THRESHOLD:
+        if frac_reached < tail_threshold:
             break
         steps.append(sigma)
         sigma += step

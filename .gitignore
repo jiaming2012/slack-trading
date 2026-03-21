@@ -35,3 +35,4 @@ vke.yaml
 .clusters/production/postgres-secret.yaml
 miniconda3
 src/clients/python/*.json
+.cache/

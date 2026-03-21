@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple
 
+import numpy as np
 from loguru import logger as _default_logger
 
 from backtester_playground_client_grpc import (
@@ -28,7 +29,7 @@ from backtester_playground_client_grpc import (
     RepositorySource,
 )
 from deviation_levels import DeviationPlan, compute_deviation_levels
-from partial_exit_manager import ExitPlan, check_exits, compute_exit_plan
+from partial_exit_manager import ExitPlan, check_exits, compute_exit_plan, _tier_fraction
 from pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from pdf_types import PDFDocument, SignalPDF
 from playground_types import OrderSide
@@ -54,6 +55,7 @@ class TradeGroup:
     status: str = "pending"  # pending, active, stopped_out, closed
     stop_price: float = 0.0
     model_name: str = "empirical"
+    forward_returns: List[float] = field(default_factory=list)
 
 
 # ------------------------------------------------------------------ #
@@ -97,6 +99,10 @@ class MeanReversionStrategy:
         total_shares_per_group: int = 1000,
         num_exit_tiers: int = 3,
         htf_horizon: str = "1h",
+        tier_spacing: str = "even",
+        stop_widen_on_exit: float = 1.0,
+        min_expected_profit: float = 0.0,
+        ev_model: str = "distribution",
     ):
         self.playground = playground
         self.symbol = symbol
@@ -107,6 +113,10 @@ class MeanReversionStrategy:
         self.total_shares_per_group = total_shares_per_group
         self.num_exit_tiers = num_exit_tiers
         self.htf_horizon = htf_horizon
+        self.tier_spacing = tier_spacing
+        self.stop_widen_on_exit = stop_widen_on_exit
+        self.min_expected_profit = min_expected_profit
+        self.ev_model = ev_model
 
         # State
         self.trade_groups: List[TradeGroup] = []
@@ -130,6 +140,7 @@ class MeanReversionStrategy:
             "stop_outs": 0,
             "groups_closed": 0,
             "groups_truncated": 0,
+            "entries_skipped_low_ev": 0,
         }
 
     def _effective_server_position(self) -> float:
@@ -145,7 +156,7 @@ class MeanReversionStrategy:
         """5-min LTF + 1-hour HTF with indicators."""
         indicators = [
             "supertrend", "stochrsi", "atr", "doji", "hammer",
-            "50_sma", "100_sma", "200_sma",
+            "sma_50", "sma_100", "sma_200",
             "stochrsi_cross_above_20", "stochrsi_cross_below_80",
         ]
         return [
@@ -309,6 +320,7 @@ class MeanReversionStrategy:
             htf_signal_timestamp=timestamp,
             deviation_plan=plan,
             stop_price=plan.stop_price,
+            forward_returns=list(horizon.forward_returns) if horizon.forward_returns else [],
         )
 
         self.trade_groups.append(group)
@@ -377,7 +389,7 @@ class MeanReversionStrategy:
                 if ti == n_tiers - 1:
                     tier_exits.append(group.htf_signal_price)
                 else:
-                    fraction = (ti + 1) / (n_tiers + 1)
+                    fraction = _tier_fraction(ti, n_tiers, self.tier_spacing)
                     tier_exits.append(level.price + fraction * distance)
             avg_exit_on_revert = sum(tier_exits) / n_tiers
         else:
@@ -387,7 +399,24 @@ class MeanReversionStrategy:
             avg_exit_on_revert * level.p_revert
             + group.stop_price * (1 - level.p_revert)
         )
-        expected_profit = shares * (expected_exit - level.price)
+        binary_ev = shares * (expected_exit - level.price)
+        distribution_ev = self._compute_distribution_ev(group, level, shares)
+
+        if self.ev_model == "distribution":
+            expected_profit = distribution_ev
+            alt_label, alt_ev = "expected_profit_binary", binary_ev
+        else:
+            expected_profit = binary_ev
+            alt_label, alt_ev = "expected_profit_distribution", distribution_ev
+
+        if self.min_expected_profit > 0 and expected_profit < self.min_expected_profit:
+            group.failed_levels.add(level_idx)
+            self.funnel["entries_skipped_low_ev"] += 1
+            self.logger.info(
+                f"  Entry skipped [{group.group_id}] level {level_idx}:"
+                f" EV=${expected_profit:.2f} < min=${self.min_expected_profit:.2f}"
+            )
+            return
 
         attributes = {
             "group_id": group.group_id,
@@ -396,6 +425,8 @@ class MeanReversionStrategy:
             "level_index": str(level_idx),
             "action": "entry",
             "expected_profit": f"{expected_profit:.2f}",
+            alt_label: f"{alt_ev:.2f}",
+            "ev_model": self.ev_model,
             "p_revert": f"{level.p_revert:.4f}",
             "model_name": group.model_name,
             "sigma_distance": f"{level.sigma_distance:.2f}",
@@ -428,6 +459,48 @@ class MeanReversionStrategy:
             self.logger.warning(
                 f"  Entry failed [{group.group_id}] level {level_idx}: {e}"
             )
+
+    def _compute_distribution_ev(
+        self, group: TradeGroup, level, shares: int,
+    ) -> float:
+        """Compute expected profit by iterating over the forward return distribution.
+
+        For each observed forward return, maps to an exit price and computes P&L:
+        - Full reversion (exit_price >= signal): uses tiered avg exit
+        - Stop-out (exit_price <= stop): uses stop price
+        - Partial reversion (between stop and signal): linear interpolation
+        """
+        if not group.forward_returns:
+            return 0.0
+
+        returns = np.array(group.forward_returns)
+        exit_prices = group.htf_signal_price * (1.0 + returns)
+
+        # Compute tiered avg exit for full reversion (same logic as binary)
+        n_tiers = self.num_exit_tiers
+        if n_tiers > 0 and group.htf_signal_price > level.price:
+            distance = group.htf_signal_price - level.price
+            tier_exits = []
+            for ti in range(n_tiers):
+                if ti == n_tiers - 1:
+                    tier_exits.append(group.htf_signal_price)
+                else:
+                    fraction = _tier_fraction(ti, n_tiers, self.tier_spacing)
+                    tier_exits.append(level.price + fraction * distance)
+            avg_exit_on_revert = sum(tier_exits) / n_tiers
+        else:
+            avg_exit_on_revert = group.htf_signal_price
+
+        pl = np.where(
+            exit_prices >= group.htf_signal_price,
+            shares * (avg_exit_on_revert - level.price),       # full reversion
+            np.where(
+                exit_prices <= group.stop_price,
+                shares * (group.stop_price - level.price),     # stop-out
+                shares * (exit_prices - level.price),          # partial reversion
+            ),
+        )
+        return float(np.mean(pl))
 
     # ------------------------------------------------------------------ #
     # Exit checks
@@ -520,6 +593,7 @@ class MeanReversionStrategy:
         if filled:
             group.exit_plan = compute_exit_plan(
                 filled, group.htf_signal_price, self.num_exit_tiers,
+                tier_spacing=self.tier_spacing,
             )
 
     # ------------------------------------------------------------------ #
@@ -538,7 +612,15 @@ class MeanReversionStrategy:
             move = (htf_close - group.htf_signal_price) / group.htf_signal_price
             stop_return = (group.stop_price - group.htf_signal_price) / group.htf_signal_price
 
-            if move <= stop_return:  # move is more negative than stop threshold
+            # Widen stop based on exit progress — groups with partial exits
+            # are already profitable, so give remaining shares more room.
+            total_tiers = len(group.exit_plan.tiers) if group.exit_plan else 0
+            exited_tiers = len(group.triggered_exits)
+            exit_progress = exited_tiers / total_tiers if total_tiers > 0 else 0.0
+            widen_factor = 1.0 + exit_progress * self.stop_widen_on_exit
+            effective_stop_return = stop_return * widen_factor  # more negative = wider
+
+            if move <= effective_stop_return:
                 self._stop_out_group(group, htf_close)
 
     def _stop_out_group(self, group: TradeGroup, current_price: float) -> None:
@@ -710,6 +792,10 @@ def run_mean_reversion(
     total_shares_per_group: int = 1000,
     num_exit_tiers: int = 3,
     htf_horizon: str = "1h",
+    tier_spacing: str = "even",
+    stop_widen_on_exit: float = 1.0,
+    min_expected_profit: float = 0.0,
+    ev_model: str = "distribution",
     on_tick=None,
 ) -> MeanReversionStrategy:
     """
@@ -732,6 +818,10 @@ def run_mean_reversion(
         total_shares_per_group=total_shares_per_group,
         num_exit_tiers=num_exit_tiers,
         htf_horizon=htf_horizon,
+        tier_spacing=tier_spacing,
+        stop_widen_on_exit=stop_widen_on_exit,
+        min_expected_profit=min_expected_profit,
+        ev_model=ev_model,
     )
 
     max_iterations = 500_000
@@ -755,7 +845,14 @@ def run_mean_reversion(
         if on_tick is not None:
             on_tick(strategy, tick_deltas)
 
-        playground.tick(playground.ltf_seconds)
+        # When idle (no open/pending groups), tick by HTF period instead of LTF
+        # to skip ~12x fewer RPCs. The server returns all completed candles in
+        # the interval, so HTF signals and LTF entries are still processed.
+        has_active = any(
+            g.status in ("pending", "active") for g in strategy.trade_groups
+        )
+        tick_seconds = playground.ltf_seconds if has_active else playground.htf_seconds
+        playground.tick(tick_seconds, fetch_account=has_active)
 
     # End-of-sim cleanup
     strategy.close_all_active_groups()

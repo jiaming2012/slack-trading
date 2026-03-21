@@ -1,7 +1,10 @@
 package eventservices
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -39,15 +42,30 @@ type PolygonCache struct {
 	// aggregateBars caches per-contract option aggregate bar fetches keyed by
 	// (optionSymbol, startDate, endDate)
 	aggregateBars map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]
+
+	// cacheDir is the directory for disk persistence (empty = no persistence)
+	cacheDir string
+	// dirty tracks whether aggregate bars have been modified since last flush
+	dirty bool
 }
 
-// NewPolygonCache creates an empty cache.
-func NewPolygonCache() *PolygonCache {
-	return &PolygonCache{
+// NewPolygonCache creates an empty cache. If cacheDir is non-empty, loads
+// persisted aggregate bars from disk.
+func NewPolygonCache(cacheDir ...string) *PolygonCache {
+	c := &PolygonCache{
 		contracts:     make(map[string]*eventmodels.PolygonBulkResponse),
 		stockTick:     make(map[string]*eventmodels.StockTickItemDTO),
 		aggregateBars: make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]),
 	}
+
+	if len(cacheDir) > 0 && cacheDir[0] != "" {
+		c.cacheDir = cacheDir[0]
+		if err := c.loadAggregateBarsFromDisk(); err != nil {
+			log.Warnf("PolygonCache: failed to load disk cache: %v", err)
+		}
+	}
+
+	return c
 }
 
 // Stats returns the number of entries in each cache bucket (for logging/debugging).
@@ -131,14 +149,14 @@ func (c *PolygonCache) SetStockTick(symbol eventmodels.StockSymbol, at time.Time
 // Aggregate bars cache (per-option-contract minute bars)
 // ---------------------------------------------------------------------------
 
-func aggregateBarsCacheKey(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time) string {
-	return fmt.Sprintf("%s|%s|%s", optionSymbol, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+func aggregateBarsCacheKey(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string) string {
+	return fmt.Sprintf("%s|%s|%s|%s", optionSymbol, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), timeframe)
 }
 
 // GetAggregateBars returns cached aggregate bars for a single option contract,
 // or nil if not present.
-func (c *PolygonCache) GetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time) *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar] {
-	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate)
+func (c *PolygonCache) GetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string) *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar] {
+	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate, timeframe)
 	c.aggregateBarsMu.RLock()
 	defer c.aggregateBarsMu.RUnlock()
 	if v, ok := c.aggregateBars[key]; ok {
@@ -149,10 +167,100 @@ func (c *PolygonCache) GetAggregateBars(optionSymbol eventmodels.OptionSymbol, s
 }
 
 // SetAggregateBars stores aggregate bars for a single option contract.
-func (c *PolygonCache) SetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, bars *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]) {
-	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate)
+// If disk persistence is enabled, flushes to disk periodically.
+func (c *PolygonCache) SetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string, bars *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]) {
+	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate, timeframe)
 	c.aggregateBarsMu.Lock()
 	c.aggregateBars[key] = bars
+	c.dirty = true
+	size := len(c.aggregateBars)
 	c.aggregateBarsMu.Unlock()
 	log.Debugf("PolygonCache.SetAggregateBars STORE: %s (%d bars)", key, len(bars.Results))
+
+	// Auto-flush every 50 new entries
+	if c.cacheDir != "" && size%50 == 0 {
+		go func() {
+			if err := c.FlushAggregateBars(); err != nil {
+				log.Warnf("PolygonCache: background flush failed: %v", err)
+			}
+		}()
+	}
+}
+
+// FlushAggregateBars writes the aggregate bars cache to disk.
+func (c *PolygonCache) FlushAggregateBars() error {
+	if c.cacheDir == "" {
+		return nil
+	}
+
+	c.aggregateBarsMu.RLock()
+	if !c.dirty {
+		c.aggregateBarsMu.RUnlock()
+		return nil
+	}
+
+	// Snapshot the data under read lock
+	data := make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], len(c.aggregateBars))
+	for k, v := range c.aggregateBars {
+		data[k] = v
+	}
+	c.aggregateBarsMu.RUnlock()
+
+	if err := os.MkdirAll(c.cacheDir, 0755); err != nil {
+		return fmt.Errorf("create cache dir: %w", err)
+	}
+
+	path := filepath.Join(c.cacheDir, "aggregate_bars.json")
+	f, err := os.CreateTemp(c.cacheDir, "aggregate_bars_*.json.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(f.Name()) // clean up on error
+
+	enc := json.NewEncoder(f)
+	if err := enc.Encode(data); err != nil {
+		f.Close()
+		return fmt.Errorf("encode: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
+	}
+
+	if err := os.Rename(f.Name(), path); err != nil {
+		return fmt.Errorf("rename: %w", err)
+	}
+
+	c.aggregateBarsMu.Lock()
+	c.dirty = false
+	c.aggregateBarsMu.Unlock()
+
+	log.Infof("PolygonCache: flushed %d aggregate bar entries to %s", len(data), path)
+	return nil
+}
+
+// loadAggregateBarsFromDisk loads persisted aggregate bars into memory.
+func (c *PolygonCache) loadAggregateBarsFromDisk() error {
+	path := filepath.Join(c.cacheDir, "aggregate_bars.json")
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no cache file yet
+		}
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+
+	data := make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar])
+	if err := json.NewDecoder(f).Decode(&data); err != nil {
+		return fmt.Errorf("decode: %w", err)
+	}
+
+	c.aggregateBarsMu.Lock()
+	for k, v := range data {
+		c.aggregateBars[k] = v
+	}
+	c.aggregateBarsMu.Unlock()
+
+	log.Infof("PolygonCache: loaded %d aggregate bar entries from %s", len(data), path)
+	return nil
 }

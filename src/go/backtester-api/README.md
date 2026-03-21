@@ -45,7 +45,7 @@ ssh-keygen
 On local machine run:
 ``` bash
 VULTR_IP=""
-scp ${PROJECTS_DIR}/slack-trading/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id_rsa
+scp ${PROJECT_DIR}/vultr_ml_id_rsa root@${VULTR_IP}:/root/.ssh/id_rsa
 ```
 On remote machine run:
 ``` bash

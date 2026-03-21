@@ -153,7 +153,7 @@ class PDFWheelStrategy(WheelStrategy):
         """
         indicators = [
             "supertrend", "stochrsi", "atr", "doji", "hammer",
-            "50_sma", "100_sma", "200_sma",
+            "sma_50", "sma_100", "sma_200",
             "stochrsi_cross_above_20", "stochrsi_cross_below_80",
         ]
         return [

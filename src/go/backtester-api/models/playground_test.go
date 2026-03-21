@@ -2059,10 +2059,10 @@ func TestValidateCache(t *testing.T) {
 }
 
 func TestOpenOrdersCache(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol1 := eventmodels.StockSymbol("AAPL")
@@ -2169,10 +2169,10 @@ func TestOpenOrdersCache(t *testing.T) {
 }
 
 func TestLiquidation(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol1 := eventmodels.StockSymbol("AAPL")
@@ -2436,10 +2436,10 @@ func TestLiquidation(t *testing.T) {
 }
 
 func TestFeed(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol1 := eventmodels.StockSymbol("AAPL")
@@ -2659,10 +2659,10 @@ func TestFeed(t *testing.T) {
 }
 
 func TestClock(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -2743,10 +2743,10 @@ func TestClock(t *testing.T) {
 }
 
 func TestBalance(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")
@@ -3133,10 +3133,10 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestPositions(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")
@@ -3491,10 +3491,10 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - average cost basis - partial closes", func(t *testing.T) {
-		projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+		projectDir, err := utils.GetEnv("PROJECT_DIR")
 		require.NoError(t, err)
 
-		err = utils.InitEnvironmentVariables(projectsDir, "test")
+		err = utils.InitEnvironmentVariables(projectDir, "test")
 		require.NoError(t, err)
 
 		clock := NewClock(startTime, endTime, nil)
@@ -4078,10 +4078,10 @@ func TestPositions(t *testing.T) {
 }
 
 func TestFreeMargin(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, "test")
+	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")
@@ -4269,10 +4269,10 @@ func TestFreeMargin(t *testing.T) {
 }
 
 func TestOrders(t *testing.T) {
-	// projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	// projectDir, err := utils.GetEnv("PROJECT_DIR")
 	// require.NoError(t, err)
 
-	// err = utils.InitEnvironmentVariables(projectsDir, "test")
+	// err = utils.InitEnvironmentVariables(projectDir, "test")
 	// require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")
@@ -4423,10 +4423,10 @@ func TestOrders(t *testing.T) {
 }
 
 func TestTrades(t *testing.T) {
-	// projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	// projectDir, err := utils.GetEnv("PROJECT_DIR")
 	// require.NoError(t, err)
 
-	// err = utils.InitEnvironmentVariables(projectsDir, "test")
+	// err = utils.InitEnvironmentVariables(projectDir, "test")
 	// require.NoError(t, err)
 
 	symbol := eventmodels.StockSymbol("AAPL")

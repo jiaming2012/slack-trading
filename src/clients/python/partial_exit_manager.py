@@ -42,13 +42,14 @@ def compute_exit_plan(
     filled_levels: List[Tuple[float, int]],
     signal_price: float,
     num_tiers: int = 3,
+    tier_spacing: str = "even",
 ) -> ExitPlan:
     """
     Compute partial exit tiers for filled entry levels.
 
-    For each filled level, creates ``num_tiers`` exit points evenly
-    spaced between the entry price and the signal price (profit target).
-    Shares are divided roughly equally across tiers using largest-remainder.
+    For each filled level, creates ``num_tiers`` exit points between
+    the entry price and the signal price (profit target). Shares are
+    divided roughly equally across tiers using largest-remainder.
 
     Parameters
     ----------
@@ -59,6 +60,11 @@ def compute_exit_plan(
         HTF signal price — the ultimate profit target.
     num_tiers : int
         Number of partial exit tiers per level (default 3).
+    tier_spacing : str
+        How tiers are spaced between entry and signal price:
+        - ``"even"`` (default): evenly spaced (25%, 50%, 100%)
+        - ``"tight"``: clustered near signal price (70%, 85%, 100%)
+          More profit per successful reversion.
 
     Returns
     -------
@@ -88,8 +94,7 @@ def compute_exit_plan(
             if tier_idx == num_tiers - 1:
                 exit_price = signal_price
             else:
-                # Evenly spaced: tier 0 at 1/(n+1), tier 1 at 2/(n+1), etc.
-                fraction = (tier_idx + 1) / (num_tiers + 1)
+                fraction = _tier_fraction(tier_idx, num_tiers, tier_spacing)
                 exit_price = entry_price + fraction * distance
 
             all_tiers.append(ExitTier(
@@ -139,6 +144,37 @@ def check_exits(
 # ------------------------------------------------------------------ #
 # Internal helpers
 # ------------------------------------------------------------------ #
+
+def _tier_fraction(tier_idx: int, num_tiers: int, spacing: str) -> float:
+    """
+    Compute the fraction of distance (entry→signal) for a given tier.
+
+    Parameters
+    ----------
+    tier_idx : int
+        0-based tier index (last tier is always 1.0, handled by caller).
+    num_tiers : int
+        Total number of tiers.
+    spacing : str
+        ``"even"`` or ``"tight"``.
+
+    Returns
+    -------
+    float
+        Fraction in (0, 1).
+    """
+    if spacing == "tight":
+        # Cluster tiers near signal_price.
+        # For 3 tiers: fractions are 0.70, 0.85, 1.00
+        # For N tiers: linearly space between a high starting point and 1.0
+        # Start at 1 - 0.3*(N-1)/N, step by 0.3/N
+        start = 1.0 - 0.3 * (num_tiers - 1) / num_tiers
+        step = 0.3 / num_tiers
+        return start + tier_idx * step
+    else:
+        # Even spacing (original): 1/(n+1), 2/(n+1), ...
+        return (tier_idx + 1) / (num_tiers + 1)
+
 
 def _split_shares(total: int, n: int) -> List[int]:
     """

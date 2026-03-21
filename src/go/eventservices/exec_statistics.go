@@ -76,13 +76,13 @@ func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string,
 	return resultMapLongSpread, resultMapShortSpread, nil
 }
 
-func ExecFitDistribution(ctx context.Context, projectsDir, percentChangeInDir string) (string, error) {
+func ExecFitDistribution(ctx context.Context, projectDir, percentChangeInDir string) (string, error) {
 	tracer := otel.Tracer("ExecFitDistribution")
 	_, span := tracer.Start(ctx, "ExecFitDistribution", trace.WithAttributes(attribute.String("percentChangeInDir", percentChangeInDir)))
 	defer span.End()
 
-	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
-	fitDistributionPath := fmt.Sprintf("%s/fit_distribution.py", path.Join(projectsDir, "slack-trading", "src", "cmd", "stats"))
+	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
+	fitDistributionPath := fmt.Sprintf("%s/fit_distribution.py", path.Join(projectDir, "src", "cmd", "stats"))
 
 	var stdout, stderr bytes.Buffer
 
@@ -108,7 +108,7 @@ func ExecFitDistribution(ctx context.Context, projectsDir, percentChangeInDir st
 	return "", fmt.Errorf("ExecFitDistribution: missing outDir in JSON output")
 }
 
-func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
 	tracer := otel.Tracer("ExecDeriveExpectedProfitSpreads")
 	_, span := tracer.Start(ctx, "ExecDeriveExpectedProfitSpreads")
 	defer span.End()
@@ -120,8 +120,8 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distribut
 
 	span.SetAttributes(attribute.String("distributionInDir", distributionInDir), attribute.Int64Slice("lookaheadToOptionContractsMapKeys", keys))
 
-	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
-	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit_spreads.py")
+	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
+	deriveExpectedProfitPath := path.Join(projectDir, "src", "cmd", "stats", "derive_expected_profit_spreads.py")
 
 	optionsInput, err := getOptionsStandardIn(distributionInDir, stockInfo, lookaheadToOptionContractsMap)
 	if err != nil {
@@ -129,7 +129,7 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectsDir, distribut
 	}
 
 	// write optionsInput to file
-	// optionsInputPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "options_input.json")
+	// optionsInputPath := path.Join(projectDir, "src", "cmd", "stats", "options_input.json")
 	// if err := ioutil.WriteFile(optionsInputPath, []byte(optionsInput), 0644); err != nil {
 	// 	return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error writing options input to file: %v", err)
 	// }
@@ -199,9 +199,9 @@ func getLookaheadFromFilePath(filePath string) (int, error) {
 	return lookahead, nil
 }
 
-func ExecDeriveExpectedProfit(projectsDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
-	interpreter := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
-	deriveExpectedProfitPath := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "derive_expected_profit.py")
+func ExecDeriveExpectedProfit(projectDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
+	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
+	deriveExpectedProfitPath := path.Join(projectDir, "src", "cmd", "stats", "derive_expected_profit.py")
 
 	optionsInput, err := getOptionsStandardIn(distributionInDir, stockInfo, lookaheadToOptionContractsMap)
 	if err != nil {

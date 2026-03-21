@@ -210,8 +210,9 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 
 	maxTimestamp := time.Time{}
 	for i, bar := range bars {
-		if !r.candlesWithIndicators[len(r.candlesWithIndicators)-1].Timestamp.Before(bar.GetTimestamp()) {
-			return time.Time{}, fmt.Errorf("new bar[%d] is not after the last bar", i)
+		lastBar := r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
+		if !lastBar.Timestamp.Before(bar.GetTimestamp()) {
+			return time.Time{}, fmt.Errorf("new bar[%d] timestamp %v is not after the last bar timestamp %v (symbol=%s)", i, bar.GetTimestamp(), lastBar.Timestamp, r.symbol)
 		}
 
 		r.baseCandles = append(r.baseCandles, &eventmodels.PolygonAggregateBarV2{

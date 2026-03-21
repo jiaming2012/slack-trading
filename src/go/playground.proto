@@ -140,6 +140,7 @@ message AccountMeta {
     repeated string tags = 9;
     optional string client_id = 10;
     string created_at = 11;
+    string current_time = 12;
 }
 
 message GetAccountStatsRequest {
@@ -323,9 +324,6 @@ message NextTickRequest {
     string request_id = 4;
 }
 
-// PERF TODO (Phase 3): Add balance, equity, free_margin, and positions fields
-// to TickDelta so the Python client can skip the separate GetAccount RPC after
-// every tick. This would eliminate ~1 RPC round-trip per tick.
 message TickDelta {
     repeated Trade new_trades = 1;
     repeated Candle new_candles = 2;
@@ -333,6 +331,11 @@ message TickDelta {
     repeated TickDeltaEvent events = 4;
     string current_time = 5;
     bool is_backtest_complete = 6;
+    // Embedded account state — eliminates separate GetAccount RPC per tick.
+    double balance = 7;
+    double equity = 8;
+    double free_margin = 9;
+    map<string, Position> positions = 10;
 }
 
 message LiquidationEvent {

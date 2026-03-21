@@ -71,17 +71,17 @@ task gen:proto                        # Regenerate protobuf stubs
 
 ## Environment & Config
 
-- `PROJECTS_DIR` → parent of repo (e.g., `/Users/jamal/projects`)
+- `PROJECT_DIR` → repo root (e.g., `/Users/jamal/projects/slack-trading` or worktree path)
 - `OPTIONS_CONFIG_FILE` → config filename (e.g., `options-config.yaml`)
 - `OPTIONS_CONFIG_PATH` → full path override (set by `cmd/run-dev.sh` for worktree support)
-- Options config default path: `${PROJECTS_DIR}/slack-trading/src/go/${OPTIONS_CONFIG_FILE}`
+- Options config default path: `${PROJECT_DIR}/src/go/${OPTIONS_CONFIG_FILE}`
 
 ## Worktree Notes
 
 - Branch `claude/nifty-diffie` lives in worktree `.claude/worktrees/nifty-diffie`
-- `$PROJECTS_DIR/slack-trading` points to the **main** repo, not the worktree
+- `$PROJECT_DIR` points to the repo root (main repo or worktree)
 - `cmd/run-dev.sh` auto-resolves `OPTIONS_CONFIG_PATH` relative to its own location
-- Taskfile `dir:` fields should use relative paths (not `$PROJECTS_DIR`) for worktree compat
+- Taskfile `dir:` fields should use relative paths (not `$PROJECT_DIR`) for worktree compat
 - Cannot `git checkout claude/nifty-diffie` from main repo while worktree is active
 
 ## Gotchas

@@ -4,38 +4,38 @@ tasks:
   clean:vultr:
     cmds:
       - './cleanup_docker_images_remote.sh'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   clean:docker:
     cmds:
       - './cleanup_old_docker_images.sh'
       - 'docker volume prune -f'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   env:generate:
     cmds:
       - 'rm -f .env.machine'
       - 'touch .env.machine'
-      - 'echo PROJECTS_DIR=\"${PROJECTS_DIR}\" >> .env.machine'
+      - 'echo PROJECT_DIR=\"${PROJECT_DIR}\" >> .env.machine'
       - 'echo ANACONDA_HOME=\"$(conda info --base)\" >> .env.machine'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   conda:activate:
     cmds:
       - 'conda activate grodt'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   conda:init:
     cmds:
       - 'task env:generate'
       - 'rm -f miniconda3'
       - 'ln -s $(conda info --base) miniconda3'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   conda:create:
     cmds:
       - 'conda env create -f grodt.yml'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   conda:list:
     cmds:
@@ -44,13 +44,13 @@ tasks:
   conda:update:
     cmds:
       - 'conda env update -f grodt.yml --name trading --prune'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   conda:export:
     cmds:
       - 'conda update --all'
       - 'conda env export > conda-env-trading.yaml'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   list:
     cmds:
@@ -65,17 +65,17 @@ tasks:
       - 'rm -rf env'
       - 'python3.10 -m venv env'
       - 'task python:upgrade'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
 
   python:upgrade:
     cmds:
       - 'pip install --upgrade pip'
       - 'pip install -r requirements.txt'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
 
   test:
     cmds:
-      - 'go test -count=1 ./...'
+      - 'PROJECT_DIR={{.ROOT_DIR}} go test -count=1 ./...'
     dir: src/go/backtester-api
 
   test:e2e:
@@ -95,82 +95,82 @@ tasks:
       - task test:e2e:live-account-reject-order
       - task test:e2e:simulate-options
       - task test:e2e:live-account-simulate-options
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:tradier-place-spread:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestTradierPlaceSpread$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-simulate-options:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-get-open-orders:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountGetOpenOrders$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-multiple-open-rejected:
     cmds:
       - 'go test -timeout 90s -count=1 -run ^TestLiveAccountMultipleOpenRejected$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-close-with-id:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCloseWithID$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-filled:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountFilled$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-close:
     cmds:
       - 'go test -timeout 90s -count=1 -run ^TestLiveAccountClose$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
   
   test:e2e:live-account-multiple-playgrounds:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountMultiplePlaygrounds$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-duplicate-orders:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountDuplicateOrdersTest$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-close-duplicate-rejected:
     cmds:
       - 'go test -timeout 120s -count=1 -run ^TestLiveAccountCloseDuplicateRejected$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-close-duplicate-canceled:
     cmds:
       - 'go test -timeout 120s -count=1 -run ^TestLiveAccountCloseDuplicateCanceled$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:live-account-multiple-open:
     cmds:
       - 'go test -timeout 120s -count=1 -run ^TestLiveAccountMultipleOpen$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing 
+    dir: ${PROJECT_DIR}/integration_testing 
 
   test:e2e:live-account-reject-order:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountRejectOrder$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing 
+    dir: ${PROJECT_DIR}/integration_testing 
 
   test:e2e:live-account-cancel-order:
     cmds:
       - 'go test -timeout 60s -count=1 -run ^TestLiveAccountCancelOrder$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
   
   test:e2e:simulate-options:
     cmds:
       - 'go test -timeout 60s -v -count=1 -run ^TestSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'
-    dir: ${PROJECTS_DIR}/slack-trading/integration_testing
+    dir: ${PROJECT_DIR}/integration_testing
 
   metrics:token:
     cmds:
@@ -180,7 +180,7 @@ tasks:
     cmds:
       # - 'go run main.go'
       - 'go test ./...'
-    dir: ${PROJECTS_DIR}/slack-trading/src/go/eventservices/integration_tests
+    dir: ${PROJECT_DIR}/src/go/eventservices/integration_tests
 
   commit:
     cmds:
@@ -197,7 +197,7 @@ tasks:
   app:build:
     cmds:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest -f Dockerfile .'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
 
   app:logs:
     cmds:
@@ -223,19 +223,19 @@ tasks:
   app:build-dev:
     cmds:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest-dev -f Dockerfile .'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
       
   app:deploy:
     cmds:
       - './deploy-app.sh {{.version}}'
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}
     var:
       version: ""
 
   metrics:simulation:
     cmds:
       - '/Users/jamal/miniconda3/envs/trading/bin/python3 trading_engine.py --sl-shift 1'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
     env:
       BALANCE: "10000"
       SYMBOL: "NVDA"
@@ -251,21 +251,21 @@ tasks:
   metrics:fetch:
     cmds:
       - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://45.77.223.21 --from-date 2025-05-29 --to-date 2025-05-30'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
     var:
       tags: ""
 
   metrics:fetch:simulation:
     cmds:
         - './env/bin/python playground_metrics.py --playground-id b2df3e33-b684-4d5e-b6d1-9d67f29f45cb --twirp-host http://localhost:5051 --from-date 2025-05-27 --to-date 2025-05-29'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
     var:
       tags: ""
 
   metrics:fetch:local:
     cmds:
       - './env/bin/python playground_metrics.py --tags cli_v14 --twirp-host http://localhost:5051 --from-date 2025-05-16 --to-date 2025-05-17'
-    dir: ${PROJECTS_DIR}/slack-trading/src/clients/python
+    dir: ${PROJECT_DIR}/src/clients/python
     var:
       tags: ""
 
@@ -279,19 +279,19 @@ tasks:
 
   db:start:
     cmds:
-      - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
+      - 'docker-compose -f ${PROJECT_DIR}/eventstoredb/docker-compose.yaml up'
 
   gen:proto:
     cmds:
-      - 'source ${PROJECTS_DIR}/slack-trading/src/clients/python/env/bin/activate'
-      - 'protoc --proto_path=${PROJECTS_DIR}/slack-trading/src/go --go_out=${PROJECTS_DIR}/slack-trading --python_out=${PROJECTS_DIR}/slack-trading/src/clients/python --twirp_out=${PROJECTS_DIR}/slack-trading --twirpy_out=${PROJECTS_DIR}/slack-trading/src/clients/python ${PROJECTS_DIR}/slack-trading/src/go/playground.proto'
-      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.pb.go ${PROJECTS_DIR}/slack-trading/src/go/playground'
-      - 'mv ${PROJECTS_DIR}/slack-trading/playground/playground.twirp.go ${PROJECTS_DIR}/slack-trading/src/go/playground'
-      - 'rm -rf ${PROJECTS_DIR}/playground'
-      - 'mv ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc'
-      - 'mv ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc'
-      - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_pb2.py'
-      - 'rm -rf ${PROJECTS_DIR}/slack-trading/src/clients/python/playground_twirp.py'
+      - 'source ${PROJECT_DIR}/src/clients/python/env/bin/activate'
+      - 'protoc --proto_path=${PROJECT_DIR}/src/go --go_out=${PROJECT_DIR} --python_out=${PROJECT_DIR}/src/clients/python --twirp_out=${PROJECT_DIR} --twirpy_out=${PROJECT_DIR}/src/clients/python ${PROJECT_DIR}/src/go/playground.proto'
+      - 'mv ${PROJECT_DIR}/playground/playground.pb.go ${PROJECT_DIR}/src/go/playground'
+      - 'mv ${PROJECT_DIR}/playground/playground.twirp.go ${PROJECT_DIR}/src/go/playground'
+      - 'rm -rf ${PROJECT_DIR}/playground'
+      - 'mv ${PROJECT_DIR}/src/clients/python/playground_pb2.py ${PROJECT_DIR}/src/clients/python/rpc'
+      - 'mv ${PROJECT_DIR}/src/clients/python/playground_twirp.py ${PROJECT_DIR}/src/clients/python/rpc'
+      - 'rm -rf ${PROJECT_DIR}/src/clients/python/playground_pb2.py'
+      - 'rm -rf ${PROJECT_DIR}/src/clients/python/playground_twirp.py'
 
   optimize:
     cmds:
@@ -328,4 +328,4 @@ tasks:
       REMOVE_PLAYGROUND_WHEN_DONE: "false"
     vars:
       symbol: ""
-    dir: ${PROJECTS_DIR}/slack-trading
+    dir: ${PROJECT_DIR}

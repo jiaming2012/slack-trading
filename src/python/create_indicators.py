@@ -87,6 +87,10 @@ def main():
             candlestick_indicators.append('doji')
         elif indicator == 'hammer':
             candlestick_indicators.append('hammer')
+        elif indicator.startswith('sma_'):
+            length = int(indicator.split('_')[1])
+            sma = ta.sma(df['close'], length=length)
+            df = pd.concat([df, sma], axis=1)
         elif indicator == 'psar':
             df = calculate_psar(df)
         else:

@@ -547,22 +547,23 @@ func (p *Playground) commitPendingOrders(executionFillMap map[*OrderRecord]Execu
 }
 
 func (p *Playground) updateOpenOrdersCache(openOrdersCache *OpenOrdersCache, newOrder *OrderRecord) error {
-	// check for close of open orders
-	cache, done := p.openOrdersCache.Iter()
-	defer done()
-
-	for symbol, orders := range cache {
-		for i := len(orders) - 1; i >= 0; i-- {
-			qty, err := orders[i].GetRemainingOpenQuantity()
+	// Check for close of open orders — iterate the COPY's cache directly
+	// (not the live p.openOrdersCache) to avoid stale state from shared
+	// order pointers between live and copy. We access the copy's internal
+	// map without locks since the copy is not shared with other goroutines.
+	for symbol, orders := range openOrdersCache.cache {
+		var remaining []*OrderRecord
+		for _, order := range orders {
+			qty, err := order.GetRemainingOpenQuantity()
 			if err != nil {
 				return fmt.Errorf("updateOpenOrdersCache: error getting remaining open quantity: %w", err)
 			}
 
-			remaining_open_qty := math.Abs(qty)
-			if remaining_open_qty <= 0 {
-				openOrdersCache.Delete(symbol, i)
+			if math.Abs(qty) > 0 {
+				remaining = append(remaining, order)
 			}
 		}
+		openOrdersCache.cache[symbol] = remaining
 	}
 
 	// check for new open orders
@@ -986,9 +987,10 @@ func (p *Playground) closeOpenOrder(order *OrderRecord, openOrder *OrderRecord, 
 func (p *Playground) setCloseInfoToOrder(order *OrderRecord, position *Position) error {
 	orderQty := order.GetQuantity()
 
-	// check if the order is a close order
+	// check if the order is a close order — must have a close side AND
+	// be reducing an existing position (not opening a new one on the opposite side)
 	order.IsClose = false
-	if position != nil {
+	if position != nil && order.Side.IsCloseSide() {
 		if position.Quantity > 0 && orderQty < 0 {
 			order.IsClose = true
 		} else if position.Quantity < 0 && orderQty > 0 {
@@ -1201,7 +1203,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 
 			order.Rollback(trade)
 
-			return nil, false, fmt.Errorf("fillOrder: error validating cache: %w", err)
+			return nil, false, fmt.Errorf("fillOrder: error validating cache after filling order %d: %w", order.ID, err)
 		}
 	}
 
@@ -1715,11 +1717,24 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 	// Close expired option contracts repos
 	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
+	// Track orders that already have close orders pending to prevent double-close
+	// when both assignment and expiration events fire for the same order in one tick
+	closedOrderIds := make(map[uint]bool)
 	for _, event := range tickDelta.Events {
 		if event.Type == TickDeltaEventTypeOptionAssigned {
 			o := p.GetOpenOrder(event.OptionAssignmentEvent.OrderId)
 			if o == nil {
 				return nil, fmt.Errorf("failed to find open order for option assignment event: %d", event.OptionAssignmentEvent.OrderId)
+			}
+
+			remainingQty, err := o.GetRemainingOpenQuantity()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get remaining open quantity for assigned order %d: %w", o.ID, err)
+			}
+
+			if math.Abs(remainingQty) <= 0 {
+				log.Infof("skipping option assignment for order %d (%s): already fully closed (remaining qty=%.4f)", o.ID, o.Symbol, remainingQty)
+				continue
 			}
 
 			requestedPrice := event.OptionAssignmentEvent.AssignedPrice
@@ -1743,11 +1758,28 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 					Quantity: placeOrderResult.GetQuantity(),
 				}
 			}
+
+			closedOrderIds[o.ID] = true
 		}
 
 		if event.Type == TickDeltaEventTypeOptionExpired {
 			openOrders := p.GetOpenOrders(event.OptionExpirationEvent.Symbol)
 			for _, o := range openOrders {
+				if closedOrderIds[o.ID] {
+					log.Infof("skipping expiration close for order %d (%s): already closed by assignment", o.ID, o.Symbol)
+					continue
+				}
+
+				remainingQty, err := o.GetRemainingOpenQuantity()
+				if err != nil {
+					return nil, fmt.Errorf("failed to get remaining open quantity for order %d: %w", o.ID, err)
+				}
+
+				if math.Abs(remainingQty) <= 0 {
+					log.Infof("skipping expired option order %d (%s): already fully closed (remaining qty=%.4f)", o.ID, o.Symbol, remainingQty)
+					continue
+				}
+
 				components, err := event.OptionExpirationEvent.Symbol.Components()
 				if err != nil {
 					return nil, fmt.Errorf("failed to get symbol components: %w", err)
@@ -1812,6 +1844,8 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 						p.Events = append(p.Events, optionAssignmentEvents[len(optionAssignmentEvents)-1])
 					}
 				}
+
+				closedOrderIds[o.ID] = true
 			}
 
 			p.DeleteRepository(event.OptionExpirationEvent.Symbol)
@@ -2167,13 +2201,29 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOr
 		if side == TradierOrderSideSellShort {
 			return fmt.Errorf("cannot sell short when long position of %.2f exists: must sell to close", positionQuantity)
 		}
+
+		if side == TradierOrderSideBuyToClose {
+			return fmt.Errorf("cannot buy to close when long position of %.2f exists: must sell to close", positionQuantity)
+		}
+
+		if side == TradierOrderSideSellToOpen {
+			return fmt.Errorf("cannot sell to open when long position of %.2f exists: must sell to close", positionQuantity)
+		}
 	} else if positionQuantity < 0 {
 		if side == TradierOrderSideBuy {
 			return fmt.Errorf("cannot buy when short position of %.2f exists: must buy to cover", positionQuantity)
 		}
 
 		if side == TradierOrderSideSell {
-			return fmt.Errorf("cannot sell to close when short position of %.2f exists: must buy to cover", positionQuantity)
+			return fmt.Errorf("cannot sell when short position of %.2f exists: must buy to cover", positionQuantity)
+		}
+
+		if side == TradierOrderSideSellToClose {
+			return fmt.Errorf("cannot sell to close when short position of %.2f exists: must buy to close", positionQuantity)
+		}
+
+		if side == TradierOrderSideBuyToOpen {
+			return fmt.Errorf("cannot buy to open when short position of %.2f exists: must buy to close", positionQuantity)
 		}
 	} else {
 		if side == TradierOrderSideSell {
@@ -2182,6 +2232,14 @@ func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOr
 
 		if side == TradierOrderSideBuyToCover {
 			return fmt.Errorf("cannot buy to cover when no position exists")
+		}
+
+		if side == TradierOrderSideSellToClose {
+			return fmt.Errorf("cannot sell to close when no position exists")
+		}
+
+		if side == TradierOrderSideBuyToClose {
+			return fmt.Errorf("cannot buy to close when no position exists")
 		}
 	}
 
@@ -2455,6 +2513,12 @@ func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, 
 				for _, o := range openOrders {
 					if volumeToClose <= 0 {
 						break
+					}
+
+					// Only match open orders whose side is compatible with this close order.
+					// e.g. buy_to_close should only close sell_to_open, not buy_to_open.
+					if !order.Side.ClosesOpenSide(o.Side) {
+						continue
 					}
 
 					qty, err := o.GetRemainingOpenQuantity()

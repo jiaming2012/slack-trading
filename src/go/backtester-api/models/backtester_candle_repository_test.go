@@ -11,12 +11,12 @@ import (
 )
 
 func TestSymbol(t *testing.T) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
 	goEnv := "test"
 
-	err = utils.InitEnvironmentVariables(projectsDir, goEnv)
+	err = utils.InitEnvironmentVariables(projectDir, goEnv)
 	require.NoError(t, err)
 
 	t.Run("returns the symbol", func(t *testing.T) {

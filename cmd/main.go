@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -146,9 +147,9 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 var db *gorm.DB
 
 func main() {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	if err != nil {
-		log.Fatalf("PROJECTS_DIR not set: %v", err)
+		log.Fatalf("PROJECT_DIR not set: %v", err)
 	}
 
 	goEnv, err := utils.GetEnv("GO_ENV")
@@ -159,7 +160,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	if err := utils.InitEnvironmentVariables(projectsDir, goEnv); err != nil {
+	if err := utils.InitEnvironmentVariables(projectDir, goEnv); err != nil {
 		log.Panic(err)
 	}
 
@@ -273,7 +274,7 @@ func main() {
 	// OPTIONS_CONFIG_PATH, if set, overrides the default path (useful for worktrees)
 	optionsConfigInDir := os.Getenv("OPTIONS_CONFIG_PATH")
 	if optionsConfigInDir == "" {
-		optionsConfigInDir = path.Join(projectsDir, "slack-trading", "src", "go", optionsConfigFile)
+		optionsConfigInDir = path.Join(projectDir, "src", "go", optionsConfigFile)
 	}
 	configBytes, err := os.ReadFile(optionsConfigInDir)
 	if err != nil {
@@ -357,8 +358,9 @@ func main() {
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
 
-	// Setup polygon options client
-	polygonOptionsClient := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
+	// Setup polygon options client with disk cache
+	polygonCacheDir := filepath.Join(projectDir, ".cache", "polygon")
+	polygonOptionsClient := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey, polygonCacheDir)
 
 	// Setup version route
 	appVersion := &eventservices.AppVersion{}
@@ -418,7 +420,7 @@ func main() {
 	}
 
 	// Setup backtester playground router
-	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectsDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap, calendar); err != nil {
+	if err := backtester_router.SetupHandler(ctx, router.PathPrefix("/playground").Subrouter(), projectDir, polygonApiKey, liveOrdersUpdateQueue, dbService, brokerMap, calendar); err != nil {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 

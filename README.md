@@ -28,7 +28,7 @@ sudo apt-get install python3.10-venv
 
 ## Set your PythonPath
 ``` bash
-export PYTHONPATH=${PROJECTS_DIR}/slack-trading:${PROJECTS_DIR}/slack-trading/src/clients/python:${PYTHONPATH}
+export PYTHONPATH=${PROJECT_DIR}:${PROJECT_DIR}/src/clients/python:${PYTHONPATH}
 ```
 
 ## Initiate your python env
@@ -83,7 +83,7 @@ export ANACONDA_HOME="path/to/environment"
 
 3. Set symbolic link for pm2 (on dev machines)
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading
+cd ${PROJECT_DIR}
 ln -s $ANACONDA_HOME anaconda
 ```
 
@@ -196,25 +196,25 @@ Ubuntu: visit https://docs.conda.io/projects/conda/en/stable/user-guide/install/
 > **Note:** PPO/RL scripts have been moved to `deprecated/python/backtester/`. See `deprecated/README.md` for details.
 
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading
+cd ${PROJECT_DIR}
 ./deprecated/python/backtester/backtester_playground_client.py  # see deprecated/python/backtester/ for PPO scripts
 ```
 
 ## Plot playground trades
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading
+cd ${PROJECT_DIR}
 MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
-./src/clients/python/env/bin/python ${PROJECTS_DIR}/slack-trading/src/clients/python/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
+./src/clients/python/env/bin/python ${PROJECT_DIR}/src/clients/python/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
 ```
 
 ## Compile protobuf file
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading
+cd ${PROJECT_DIR}
 source src/clients/python/env/bin/activate
 protoc --go_out=. --python_out=./src/clients/python --twirp_out=. --twirpy_out=./src/clients/python src/go/playground.proto
-mv ${PROJECTS_DIR}/slack-trading/src/clients/python/src/playground_pb2.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc
-mv ${PROJECTS_DIR}/slack-trading/src/clients/python/src/playground_twirp.py ${PROJECTS_DIR}/slack-trading/src/clients/python/rpc
-rmdir ${PROJECTS_DIR}/slack-trading/src/clients/python/src
+mv ${PROJECT_DIR}/src/clients/python/src/playground_pb2.py ${PROJECT_DIR}/src/clients/python/rpc
+mv ${PROJECT_DIR}/src/clients/python/src/playground_twirp.py ${PROJECT_DIR}/src/clients/python/rpc
+rmdir ${PROJECT_DIR}/src/clients/python/src
 ```
 
 Note that in order to run the twirpy plugin, `src/clients/python/env/bin` must be in the terminal's PATH.
@@ -223,7 +223,7 @@ Note that in order to run the twirpy plugin, `src/clients/python/env/bin` must b
 The heart of the program grabs tick data from polygon and generates signals from them.
 
 ``` bash
-cd ${PROJECTS_DIR}/slack-trading/src/clients/python
+cd ${PROJECT_DIR}/src/clients/python
 source env/bin/activate
 python generate_signals.py
 ```
@@ -383,7 +383,7 @@ helm install sealed-secrets bitnami/sealed-secrets --namespace sealed-secrets
 Postgres is used to store trade data.
 
 #### Secrets
-The postgres secret file is not checked into version control. Add the following file to `${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-secret.yaml`:
+The postgres secret file is not checked into version control. Add the following file to `${PROJECT_DIR}/.clusters/production/postgres-secret.yaml`:
 ``` yaml
 apiVersion: v1
 kind: Secret
@@ -398,11 +398,11 @@ data:
 A new cluster can be spun up in kubernetes with the following commands:
 ``` bash
 kubectl create namespace database
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-configmap.yaml
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-secret.yaml
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-pvc.yaml
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-service.yaml
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/postgres-deployment.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-configmap.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-secret.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-pvc.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-service.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-deployment.yaml
 ```
 
 #### Development
@@ -439,12 +439,12 @@ kubectl create secret generic flux-git-deploy \
 
 Third, convert the secret into a sealed secret:
 ``` bash
-kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECT_DIR}/.clusters/production/sealedsecret-flux-git-deploy.yaml
 ```
 
 Fourth, apply the sealed secret to the cluster
 ``` bash
-kubectl apply -f ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret-flux-git-deploy.yaml
+kubectl apply -f ${PROJECT_DIR}/.clusters/production/sealedsecret-flux-git-deploy.yaml
 ```
 
 ### Bootstrap the Cluster

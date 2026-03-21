@@ -15,6 +15,8 @@ import argparse
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+import re
+
 import pandas as pd
 
 from rpc.playground_twirp import PlaygroundServiceClient
@@ -69,6 +71,19 @@ def _get_attr_float(order, key: str, default=0.0):
         return default
 
 
+def _parse_go_timestamp(ts_str: str) -> Optional[str]:
+    """Normalize a Go time.Time.String() value for pandas parsing.
+
+    Go format: ``2006-01-02 15:04:05.999999999 -0700 MST``
+    Strips the trailing timezone abbreviation that pandas can't parse.
+    """
+    if not ts_str:
+        return None
+    # Remove trailing timezone abbreviation (e.g. " UTC", " MST", " EST")
+    cleaned = re.sub(r"\s+[A-Z]{2,5}$", "", ts_str.strip())
+    return cleaned if cleaned else None
+
+
 def _fill_price(order) -> float:
     """Get the fill price from an order: use first trade's price, else order.price."""
     if order.trades:
@@ -83,10 +98,36 @@ def _fill_price(order) -> float:
 COLUMNS = [
     "order_id", "group_id", "htf_signal", "signal_price", "action",
     "symbol", "side", "quantity", "fill_price", "requested_price",
-    "sigma_distance", "p_revert", "expected_pl", "realized_pl",
+    "sigma_distance", "p_revert_unbounded", "p_revert_bounded",
+    "expected_pl", "expected_pl_bucket",
+    "realized_pl", "duration_min",
     "model_name", "stop_price", "level_index", "exit_tier",
     "status", "timestamp",
 ]
+
+
+def _expected_pl_bucket(value) -> str:
+    """Assign an expected P&L value to a human-readable bucket."""
+    if value is None or pd.isna(value):
+        return ""
+    v = float(value)
+    if v < 0:
+        return "< 0"
+    if v <= 100:
+        return "0-100"
+    if v <= 300:
+        return "101-300"
+    if v <= 600:
+        return "301-600"
+    if v <= 1000:
+        return "601-1000"
+    if v <= 1500:
+        return "1001-1500"
+    if v <= 2500:
+        return "1501-2500"
+    if v <= 5000:
+        return "2501-5000"
+    return "5001+"
 
 
 def build_order_rows(orders: list) -> pd.DataFrame:
@@ -138,15 +179,18 @@ def build_order_rows(orders: list) -> pd.DataFrame:
             "fill_price": fill_px,
             "requested_price": order.requested_price,
             "sigma_distance": _get_attr_float(order, "sigma_distance", None),
-            "p_revert": _get_attr_float(order, "p_revert", None),
+            "p_revert_unbounded": _get_attr_float(order, "p_revert_unbounded", None),
+            "p_revert_bounded": _get_attr_float(order, "p_revert_bounded", None),
             "expected_pl": expected_pl,
+            "expected_pl_bucket": _expected_pl_bucket(expected_pl),
             "realized_pl": realized_pl,
+            "duration_min": None,  # computed below
             "model_name": _get_attr(order, "model_name"),
             "stop_price": _get_attr_float(order, "stop_price"),
-            "level_index": _get_attr(order, "level_index") or None,
+            "level_index": _get_attr(order, "level_index") or _get_attr(order, "source_level") or None,
             "exit_tier": _get_attr(order, "exit_tier") or None,
             "status": order.status,
-            "timestamp": order.create_date,
+            "timestamp": _parse_go_timestamp(order.create_date),
         }
 
         rows.append(row)
@@ -154,7 +198,75 @@ def build_order_rows(orders: list) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame(columns=COLUMNS)
 
-    return pd.DataFrame(rows, columns=COLUMNS)
+    df = pd.DataFrame(rows, columns=COLUMNS)
+
+    # Parse timestamps
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+
+    # Build lookup of entry data keyed by (group_id, level_index)
+    entry_data: Dict[Tuple[str, str], dict] = {}
+    for _, row in df.iterrows():
+        key = (row["group_id"], str(row["level_index"]))
+        if row["action"] == "entry":
+            entry_data[key] = {
+                "timestamp": row["timestamp"],
+                "expected_pl": row["expected_pl"],
+            }
+
+    # Build group-level aggregates for stop_out/end_of_sim exits that
+    # close the entire group and don't have a level_index.
+    group_entry_data: Dict[str, dict] = {}
+    for _, row in df.iterrows():
+        if row["action"] == "entry":
+            gid = row["group_id"]
+            if gid not in group_entry_data:
+                group_entry_data[gid] = {
+                    "first_timestamp": row["timestamp"],
+                    "total_expected_pl": 0.0,
+                }
+            epl = row["expected_pl"]
+            if epl is not None and not pd.isna(epl):
+                group_entry_data[gid]["total_expected_pl"] += epl
+
+    # For exit rows: compute duration and copy expected_pl from matching entry
+    durations = []
+    exit_expected_pls = []
+    for _, row in df.iterrows():
+        if row["action"] != "entry":
+            key = (row["group_id"], str(row["level_index"]))
+            entry = entry_data.get(key)
+            # Fallback to group-level data for stop_out / whole-group exits
+            group_entry = group_entry_data.get(row["group_id"]) if entry is None else None
+            # Duration
+            ref_ts = (entry or group_entry or {}).get(
+                "timestamp", (group_entry or {}).get("first_timestamp")
+            )
+            if ref_ts is not None and pd.notna(row["timestamp"]) and pd.notna(ref_ts):
+                delta = row["timestamp"] - ref_ts
+                durations.append(delta.total_seconds() / 60.0)
+            else:
+                durations.append(None)
+            # Expected P&L from matching entry (or group total for stop_outs)
+            if entry is not None:
+                exit_expected_pls.append(entry["expected_pl"])
+            elif group_entry is not None:
+                exit_expected_pls.append(group_entry["total_expected_pl"])
+            else:
+                exit_expected_pls.append(None)
+        else:
+            durations.append(None)
+            exit_expected_pls.append(None)  # entries already have their own
+
+    df["duration_min"] = durations
+
+    # Merge expected_pl onto exit rows (entries keep their own value)
+    for pos, (idx, row) in enumerate(df.iterrows()):
+        epl = exit_expected_pls[pos]
+        if row["action"] != "entry" and epl is not None:
+            df.at[idx, "expected_pl"] = epl
+            df.at[idx, "expected_pl_bucket"] = _expected_pl_bucket(epl)
+
+    return df
 
 
 # ------------------------------------------------------------------ #
@@ -195,16 +307,20 @@ def build_group_summary(order_df: pd.DataFrame) -> pd.DataFrame:
     for group_id, group_orders in order_df.groupby("group_id"):
         entries = group_orders[group_orders["action"] == "entry"]
         exits = group_orders[group_orders["action"].isin(
-            ["partial_exit", "stop_out", "end_of_sim_close"]
+            ["partial_exit", "stop_out", "end_of_sim_close",
+             "exit_reversion", "exit_profit", "exit_time_decay",
+             "exit_pre_expiration", "exit_strike_breach", "exit_gamma_risk",
+             "exit_max_loss", "exit_early_profit", "exit_profit_target",
+             "auto-closed-on-expiration", "auto-closed-on-early-assignment"]
         )]
 
         if entries.empty:
             continue
 
-        # Expected P&L: sum from entry order tags
-        total_expected_pl = entries["expected_pl"].sum()
-        if pd.isna(total_expected_pl):
-            total_expected_pl = 0.0
+        # Expected P&L: deduplicate — multi-leg spreads record the same
+        # expected_profit on every leg, so take the value once per group.
+        ep_values = entries["expected_pl"].dropna()
+        total_expected_pl = float(ep_values.iloc[0]) if not ep_values.empty else 0.0
 
         # Realized P&L: use server-authoritative pl from exit orders
         realized_values = exits["realized_pl"].dropna()
@@ -225,6 +341,12 @@ def build_group_summary(order_df: pd.DataFrame) -> pd.DataFrame:
             status = "stopped_out"
         elif any(exits["action"] == "end_of_sim_close"):
             status = "closed_eod"
+        elif any(exits["action"] == "exit_reversion"):
+            status = "reverted"
+        elif any(exits["action"] == "exit_profit"):
+            status = "profit_target"
+        elif any(exits["action"] == "exit_time_decay"):
+            status = "time_decay"
         elif not exits.empty:
             status = "closed"
         else:

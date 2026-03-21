@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
@@ -57,6 +58,19 @@ func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPrevi
 	if err != nil {
 		return nil, fmt.Errorf("failed to tick: %v", err)
 	}
+
+	// Embed account state so clients can skip the separate GetAccount RPC.
+	positionCache, err := playground.UpdatePricesAndGetPositionCache()
+	if err != nil {
+		// Non-fatal: log and return tick without account state.
+		log.Warnf("nextTick: failed to get position cache: %v", err)
+		return tickDelta, nil
+	}
+
+	tickDelta.Balance = playground.GetBalance()
+	tickDelta.Equity = playground.GetEquity(positionCache)
+	tickDelta.FreeMargin = playground.GetFreeMarginFromPositionMap(positionCache)
+	tickDelta.Positions = positionCache.Iter()
 
 	return tickDelta, nil
 }

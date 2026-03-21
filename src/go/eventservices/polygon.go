@@ -2,8 +2,10 @@ package eventservices
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -16,6 +18,23 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
+
+// polygonHTTPClient is a shared HTTP client for Polygon API calls.
+// It forces HTTP/1.1 to avoid HTTP/2 GOAWAY errors from Polygon's server
+// which closes connections after ~199 streams.
+var polygonHTTPClient = &http.Client{
+	Timeout: 45 * time.Second,
+	Transport: &http.Transport{
+		TLSNextProto:        make(map[string]func(authority string, c *tls.Conn) http.RoundTripper), // disable HTTP/2
+		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout:     90 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+	},
+}
 
 func makePolygonAggsTickerRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
 	// Parse the base URL
@@ -53,11 +72,7 @@ func fetchPolygonDailyTickerSummary(symbol string, date eventmodels.PolygonDate,
 
 	req.Header.Add("Accept", "application/json")
 
-	client := http.Client{
-		Timeout: 45 * time.Second,
-	}
-
-	res, err := client.Do(req)
+	res, err := polygonHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetchPolygonDailyTickerSummary: failed to fetch stock tick: %w", err)
 	}
@@ -92,11 +107,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 
 	// log.Tracef("fetching from %v", req.URL.String())
 
-	client := http.Client{
-		Timeout: 45 * time.Second,
-	}
-
-	res, err := client.Do(req)
+	res, err := polygonHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetchPolygonStockChart: failed to fetch stock tick: %w", err)
 	}
@@ -176,7 +187,21 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 		for {
 			resp, err := fetchPolygonStockChart(url, apiKey)
 			if err != nil {
-				return nil, fmt.Errorf("FetchPolygonStockChart: failed to fetch stock chart: %v", err)
+				// Retry transient errors (GOAWAY, connection reset)
+				retryBackoff := []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second}
+				retried := false
+				for attempt := 0; attempt < len(retryBackoff); attempt++ {
+					log.Warnf("FetchPolygonStockChart: transient error (attempt %d/%d): %v — retrying in %v", attempt+1, len(retryBackoff), err, retryBackoff[attempt])
+					time.Sleep(retryBackoff[attempt])
+					resp, err = fetchPolygonStockChart(url, apiKey)
+					if err == nil {
+						retried = true
+						break
+					}
+				}
+				if !retried {
+					return nil, fmt.Errorf("FetchPolygonStockChart: failed to fetch stock chart after retries: %v", err)
+				}
 			}
 
 			aggregateResult.QueryCount += resp.QueryCount
@@ -274,11 +299,15 @@ type PolygonOptionsClient struct {
 	Cache   *PolygonCache
 }
 
-func NewPolygonOptionsClient(baseUrl, apiKey string) *PolygonOptionsClient {
+func NewPolygonOptionsClient(baseUrl, apiKey string, cacheDir ...string) *PolygonOptionsClient {
+	var dir string
+	if len(cacheDir) > 0 {
+		dir = cacheDir[0]
+	}
 	return &PolygonOptionsClient{
 		BaseURL: baseUrl,
 		ApiKey:  apiKey,
-		Cache:   NewPolygonCache(),
+		Cache:   NewPolygonCache(dir),
 	}
 }
 
@@ -552,8 +581,6 @@ func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, targetTim
 			} else {
 				log.Warnf("filterOptionsBeforeTime: failed to get next market open for option %v at time %v: %v", c.Symbol, optionTimestamp, err)
 			}
-		} else {
-			log.Warnf("filterOptionsBeforeTime: calendar not found for date %v, assuming market is open", optionTimestamp.Format("2006-01-02"))
 		}
 
 		if optionTimestamp.Before(targetTime) {
@@ -593,8 +620,14 @@ func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHL
 
 	var contracts []eventmodels.OptionContractV3
 	for _, c := range polygonContracts.Results {
+		expiration, err := time.Parse("2006-01-02", c.ExpirationDate)
+		if err != nil {
+			return nil, fmt.Errorf("fetchPolygonBulkHistOptionOhlc: failed to parse expiration date %s: %w", c.ExpirationDate, err)
+		}
+
 		contract := eventmodels.OptionContractV3{
 			ExpirationDate:   eventmodels.ExpirationDate(c.ExpirationDate),
+			Expiration:       expiration,
 			OptionType:       c.ContractType,
 			Strike:           c.StrikePrice,
 			ContractSize:     c.SharesPerContract,

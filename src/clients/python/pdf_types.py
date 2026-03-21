@@ -54,6 +54,8 @@ DEFAULT_HORIZONS: Dict[str, int] = {
     "4h": 16,
     "1d": 26,   # 6.5 trading hours
     "2d": 52,
+    "1w": 130,  # 5 trading days
+    "2w": 260,  # 10 trading days
 }
 
 

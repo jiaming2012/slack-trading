@@ -155,6 +155,24 @@ python demo_mean_reversion.py \
 | `--htf-horizon` | `1h` | Which PDF horizon to use for deviation calculations |
 | `--twirp-host` | `http://127.0.0.1:5051` | Go server address |
 
+### Use --exit-tiers 1 to make all shares exit at signal_price — no early profit-taking:
+
+python demo_mean_reversion.py \
+    --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
+    --balance 100000 --retrain-interval weekly \
+    --max-loss-pct 0.02 --stop-percentile 0.95 \
+    --model bayesian_nig --rolling-window 180 \
+    --exit-tiers 1
+
+### Use --tier-spacing tight to cluster exit tiers near signal_price (70%, 85%, 100% of distance) instead of evenly spaced (25%, 50%, 100%):
+
+python demo_mean_reversion.py \
+    --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
+    --balance 100000 --retrain-interval weekly \
+    --max-loss-pct 0.02 --stop-percentile 0.95 \
+    --model bayesian_nig --rolling-window 180 \
+    --tier-spacing tight
+
 ## Step 3: Evaluate Results
 
 The strategy logs a funnel summary at the end showing:

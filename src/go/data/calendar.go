@@ -17,9 +17,9 @@ import (
 )
 
 func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.Calendar, error) {
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	if err != nil {
-		return nil, fmt.Errorf("FetchCalendar: error getting PROJECTS_DIR: %w", err)
+		return nil, fmt.Errorf("FetchCalendar: error getting PROJECT_DIR: %w", err)
 	}
 
 	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")
@@ -27,8 +27,8 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 		return nil, fmt.Errorf("FetchCalendar: error getting ANACONDA_HOME: %w", err)
 	}
 
-	interpreter := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
-	scriptDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "pandas_market_calendars", "main.py")
+	interpreter := path.Join(anacondaHome, "envs", "trading", "bin", "python3")
+	scriptDir := path.Join(projectDir, "src", "python", "pandas_market_calendars", "main.py")
 	startDateArg := startDate.ToString()
 	endDateArg := endDate.ToString()
 

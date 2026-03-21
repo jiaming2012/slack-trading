@@ -56,7 +56,7 @@ _HTF_PERIOD = 3600      # 1-hour in seconds
 _HORIZONS = {"1h": 12, "4h": 48, "1d": 78}
 _INDICATORS = [
     "supertrend", "stochrsi", "atr", "doji", "hammer",
-    "50_sma", "100_sma", "200_sma",
+    "sma_50", "sma_100", "sma_200",
     "stochrsi_cross_above_20", "stochrsi_cross_below_80",
 ]
 
@@ -290,7 +290,25 @@ def main():
     parser.add_argument("--model", type=str, default="bayesian_nig", choices=["empirical", "bayesian_nig"], help="Return model (default: bayesian_nig)")
     parser.add_argument("--total-shares", type=int, default=1000, help="Total shares per group (default: 1000)")
     parser.add_argument("--exit-tiers", type=int, default=3, help="Number of partial exit tiers (default: 3)")
+    parser.add_argument(
+        "--tier-spacing", type=str, default="even",
+        choices=["even", "tight"],
+        help="Exit tier spacing: 'even' (25%%,50%%,100%%) or 'tight' (70%%,85%%,100%%) (default: even)",
+    )
     parser.add_argument("--htf-horizon", type=str, default="1h", help="PDF horizon key for deviation levels (default: 1h)")
+    parser.add_argument(
+        "--stop-widen-on-exit", type=float, default=1.0,
+        help="Stop widening factor for partial exits (0.0=disabled, 1.0=doubles at 100%% exit progress, default: 1.0)",
+    )
+    parser.add_argument(
+        "--min-expected-profit", type=float, default=0.0,
+        help="Skip entries with expected profit below this threshold (default: 0.0 = no filter)",
+    )
+    parser.add_argument(
+        "--ev-model", type=str, default="distribution",
+        choices=["binary", "distribution"],
+        help="EV model: 'binary' (two-outcome) or 'distribution' (forward return integration) (default: distribution)",
+    )
     parser.add_argument("--twirp-host", type=str, default="http://127.0.0.1:5051", help="Twirp server URL")
 
     # Retrain flags
@@ -332,6 +350,10 @@ def main():
     logger.info(f"Model:           {args.model}")
     logger.info(f"Shares/group:    {args.total_shares}")
     logger.info(f"Exit tiers:      {args.exit_tiers}")
+    logger.info(f"Tier spacing:    {args.tier_spacing}")
+    logger.info(f"Stop widen:      {args.stop_widen_on_exit}")
+    logger.info(f"Min EV filter:   ${args.min_expected_profit:.2f}")
+    logger.info(f"EV model:        {args.ev_model}")
     logger.info(f"HTF horizon:     {args.htf_horizon}")
     if args.retrain_interval:
         training_start_str = args.training_start or "(1 year before --start)"
@@ -449,6 +471,10 @@ def main():
             total_shares_per_group=args.total_shares,
             num_exit_tiers=args.exit_tiers,
             htf_horizon=args.htf_horizon,
+            tier_spacing=args.tier_spacing,
+            stop_widen_on_exit=args.stop_widen_on_exit,
+            min_expected_profit=args.min_expected_profit,
+            ev_model=args.ev_model,
             on_tick=on_tick_callback,
         )
     except Exception:

@@ -45,19 +45,19 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 	for i, option := range options {
 		expirationMap, ok := optionChainMap[option.ExpirationDate]
 		if !ok {
-			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain found for expiration %s", option.Expiration.Format("2006-01-02"))
+			log.Debugf("addAdditionalInfoToOptionsV3: no tick data for expiration %s", option.Expiration.Format("2006-01-02"))
 			continue
 		}
 
 		optionTypeMap, ok := expirationMap[option.OptionType]
 		if !ok {
-			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain found for option type %s", option.OptionType)
+			log.Debugf("addAdditionalInfoToOptionsV3: no tick data for %s %s", option.Expiration.Format("2006-01-02"), option.OptionType)
 			continue
 		}
 
 		chain, ok := optionTypeMap[option.Strike]
 		if !ok {
-			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain found for strike %f", option.Strike)
+			log.Debugf("addAdditionalInfoToOptionsV3: no tick data for %s %s strike=%.2f", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike)
 			continue
 		}
 
@@ -72,7 +72,7 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 		}
 
 		if j == 0 {
-			log.Errorf("addAdditionInfoToOptionsHistoricalV3: no option chain tick found for expiration %s, type %s, strike %f before the target timestamp %v", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike, now)
+			log.Debugf("addAdditionInfoToOptionsHistoricalV3: no option chain tick found for expiration %s, type %s, strike %f before the target timestamp %v. This can occur when the requested timestamp is before the start of the option chain data.", option.Expiration.Format("2006-01-02"), option.OptionType, option.Strike, now)
 			continue
 		}
 
@@ -124,8 +124,7 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, optionChainTickMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, cache *PolygonCache) error {
 	log.Debugf("populateTickDataToOptionChainMap: start populating tick data to option chain map for %d contracts", len(contracts))
 
-	// Phase 2: fetch contract bars concurrently with bounded parallelism
-	const maxConcurrency = 5
+	const maxConcurrency = 3
 
 	type contractResult struct {
 		contract eventmodels.OptionContractV3
@@ -137,17 +136,17 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 		results []contractResult
 	)
 
+	// Phase 1: Fetch minute bars for all contracts concurrently
 	g, _ := errgroup.WithContext(context.Background())
 	g.SetLimit(maxConcurrency)
 
 	for _, c := range contracts {
-		c := c // capture loop variable
+		c := c
 		g.Go(func() error {
 			optionSymbol := eventmodels.OptionSymbol(c.Symbol)
 
-			// Phase 1: check cache first
 			if cache != nil {
-				if cached := cache.GetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate); cached != nil {
+				if cached := cache.GetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate, "1m"); cached != nil {
 					mu.Lock()
 					results = append(results, contractResult{contract: c, dtos: cached})
 					mu.Unlock()
@@ -159,13 +158,14 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 			isHistorical := true
 			dtos, err := utils.FetchRecursively(url, polygonTickDataReq.ApiKey, FetchPolygonAggregateBars(isHistorical))
 			if err != nil {
-				log.Warnf("populateTickDataToOptionChainMap: failed to fetch data from polygon for %v: %v", c.Symbol, err)
-				return nil // non-fatal; skip this contract
+				log.Warnf("populateTickDataToOptionChainMap: failed to fetch minute bars for %v: %v", c.Symbol, err)
+				return nil
 			}
 
-			// Store in cache
-			if cache != nil {
-				cache.SetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate, dtos)
+			// Only cache non-empty results; empty results should not be cached
+			// so they get retried when the simulation time advances
+			if cache != nil && len(dtos.Results) > 0 {
+				cache.SetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate, "1m", dtos)
 			}
 
 			mu.Lock()
@@ -176,10 +176,94 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	}
 
 	if err := g.Wait(); err != nil {
-		return fmt.Errorf("populateTickDataToOptionChainMap: parallel fetch failed: %w", err)
+		return fmt.Errorf("populateTickDataToOptionChainMap: parallel minute bar fetch failed: %w", err)
 	}
 
-	// Populate the tick map from results (single-threaded — map is not concurrent-safe)
+	// Phase 2: Identify contracts with empty minute bars, retry with widened date range
+	var emptyContracts []eventmodels.OptionContractV3
+	minuteBarCount := 0
+
+	for _, r := range results {
+		if len(r.dtos.Results) == 0 {
+			emptyContracts = append(emptyContracts, r.contract)
+		} else {
+			minuteBarCount++
+		}
+	}
+
+	// For contracts with no minute bars in the narrow window, retry with a wider
+	// range: StartDate to contract expiration. This catches contracts that haven't
+	// started actively trading yet at the current simulation time.
+	if len(emptyContracts) > 0 {
+		g2, _ := errgroup.WithContext(context.Background())
+		g2.SetLimit(maxConcurrency)
+
+		for _, c := range emptyContracts {
+			c := c
+			g2.Go(func() error {
+				// Parse expiration date to use as the wide end date
+				expTime, err := time.Parse("2006-01-02", string(c.ExpirationDate))
+				if err != nil {
+					log.Debugf("populateTickDataToOptionChainMap: failed to parse expiration date for %v: %v", c.Symbol, err)
+					return nil
+				}
+
+				optionSymbol := eventmodels.OptionSymbol(c.Symbol)
+				wideEndDate := expTime
+
+				// Use a "wide" cache key so it doesn't collide with the narrow fetch
+				if cache != nil {
+					if cached := cache.GetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, wideEndDate, "1m-wide"); cached != nil {
+						if len(cached.Results) > 0 {
+							mu.Lock()
+							results = append(results, contractResult{contract: c, dtos: cached})
+							mu.Unlock()
+						}
+						return nil
+					}
+				}
+
+				url := fmt.Sprintf("%s/v2/aggs/ticker/%s/range/1/minute/%s/%s", polygonTickDataReq.BaseURL, c.Symbol, polygonTickDataReq.StartDate.Format("2006-01-02"), wideEndDate.Format("2006-01-02"))
+				isHistorical := true
+				dtos, err := utils.FetchRecursively(url, polygonTickDataReq.ApiKey, FetchPolygonAggregateBars(isHistorical))
+				if err != nil {
+					log.Debugf("populateTickDataToOptionChainMap: failed to fetch wide minute bars for %v: %v", c.Symbol, err)
+					return nil
+				}
+
+				// Only cache non-empty results; empty results should be retried
+				// on subsequent calls as the simulation time advances
+				if cache != nil && len(dtos.Results) > 0 {
+					cache.SetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, wideEndDate, "1m-wide", dtos)
+				}
+
+				if len(dtos.Results) > 0 {
+					mu.Lock()
+					results = append(results, contractResult{contract: c, dtos: dtos})
+					mu.Unlock()
+				}
+
+				return nil
+			})
+		}
+
+		if err := g2.Wait(); err != nil {
+			return fmt.Errorf("populateTickDataToOptionChainMap: parallel wide minute bar fetch failed: %w", err)
+		}
+
+		// Recount after wide fetch
+		minuteBarCount = 0
+		emptyContracts = nil
+		for _, r := range results {
+			if len(r.dtos.Results) == 0 {
+				emptyContracts = append(emptyContracts, r.contract)
+			} else {
+				minuteBarCount++
+			}
+		}
+	}
+
+	// Phase 3: Populate tick map from minute bar results
 	for _, r := range results {
 		c := r.contract
 		for _, dto := range r.dtos.Results {
@@ -197,14 +281,15 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 				ExpirationType: c.ExpirationType,
 				Bid:            dto.Open,
 				Ask:            dto.Open * (1 + polygonTickDataReq.Spread),
+				DataSource:     "minute_bar",
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate]; !ok {
-				optionChainTickMap[c.ExpirationDate] = make(map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, 0)
+				optionChainTickMap[c.ExpirationDate] = make(map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO)
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate][c.OptionType]; !ok {
-				optionChainTickMap[c.ExpirationDate][c.OptionType] = make(map[float64][]*eventmodels.OptionChainTickDTO, 0)
+				optionChainTickMap[c.ExpirationDate][c.OptionType] = make(map[float64][]*eventmodels.OptionChainTickDTO)
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike]; !ok {
@@ -215,7 +300,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 		}
 	}
 
-	// Sort the ticks for each expiration date, option type, and strike
+	// Sort minute bar ticks by timestamp
 	for expDate, typeMap := range optionChainTickMap {
 		for optType, strikeMap := range typeMap {
 			for strike, chain := range strikeMap {
@@ -226,6 +311,9 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 			}
 		}
 	}
+
+	log.Infof("populateTickDataToOptionChainMap: %d/%d contracts have minute bars, %d truly missing",
+		minuteBarCount, len(contracts), len(emptyContracts))
 
 	return nil
 }

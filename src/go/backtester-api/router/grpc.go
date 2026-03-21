@@ -799,6 +799,18 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		}
 	}
 
+	positions := make(map[string]*pb.Position)
+	for k, v := range tick.Positions {
+		positions[k] = &pb.Position{
+			Quantity:          v.Quantity,
+			CostBasis:         v.CostBasis,
+			Pl:                v.PL,
+			MaintenanceMargin: v.MaintenanceMargin,
+			CurrentPrice:      v.CurrentPrice,
+			Timestamp:         v.Timestamp,
+		}
+	}
+
 	tickDelta = &pb.TickDelta{
 		NewTrades:          newTrades,
 		NewCandles:         newCandles,
@@ -806,6 +818,10 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		Events:             tickDeltaEvents,
 		CurrentTime:        tick.CurrentTime,
 		IsBacktestComplete: tick.IsBacktestComplete,
+		Balance:            tick.Balance,
+		Equity:             tick.Equity,
+		FreeMargin:         tick.FreeMargin,
+		Positions:          positions,
 	}
 
 	isComplete = true
@@ -963,6 +979,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			LiveAccountType:       liveAccountType,
 			Tags:                  account.Meta.Tags,
 			ClientId:              account.Meta.ClientID,
+			CurrentTime:           account.Meta.CurrentTime.Format(time.RFC3339),
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,

@@ -1391,8 +1391,11 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 
 	positionsKV := positionCache.Iter()
 
+	meta := internalPlayground.GetMeta()
+	meta.CurrentTime = internalPlayground.GetCurrentTime()
+
 	response := models.GetAccountResponse{
-		Meta:       internalPlayground.GetMeta(),
+		Meta:       meta,
 		Balance:    internalPlayground.GetBalance(),
 		Equity:     internalPlayground.GetEquity(positionCache),
 		FreeMargin: internalPlayground.GetFreeMarginFromPositionMap(positionCache),
