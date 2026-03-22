@@ -222,3 +222,47 @@ mean_reversion_report.py       # Post-run report generation
 pdf_types.py                   # PDFDocument, HorizonStats dataclasses
 deviation_levels.py            # Sigma-based level computation
 ```
+
+## EV Model
+
+The expected value (EV) model estimates profit for each spread at entry time. It **adapts automatically to CLI args** so the prediction reflects the configured exit strategy.
+
+### How it works
+
+For each forward-return scenario in the PDF, the model computes the spread's expiration payoff, then applies exit-aware adjustments:
+
+| Adjustment | Controlled by | Effect |
+|-----------|---------------|--------|
+| **Profit cap** | `--profit-target` | Wins capped at N% of credit. At 0.50, no scenario can contribute more than 50% of the net credit received. |
+| **Loss cap** | `--max-loss-mult` | Losses capped at Nx credit. At 2.0, worst-case loss per scenario is 2x the credit. At 0 (default), full expiration loss is used (conservative). |
+| **Exit slippage** | Always on | Subtracts estimated bid-ask cost of closing from every scenario. Uses entry-time spreads as a proxy. |
+
+This makes EV a **conservative lower bound** — wins are capped at what the strategy actually targets, while losses default to worst-case expiration payoff unless a stop-loss is configured.
+
+### Modeled vs unmodeled parameters
+
+Parameters **modeled in EV** (directly adjust the payoff):
+- `--profit-target` — caps the gain side
+- `--max-loss-mult` — caps the loss side
+
+Parameters **not modeled** (logged as warnings at startup):
+- `--time-decay-exit` — positions exit early, but EV uses full-expiration losses (conservative)
+- `--pre-expiration-dte` — similar; EV overstates losses for positions that exit before expiration
+- `--enable-strike-breach-exit`, `--gamma-risk-dte` — forced exits not modeled
+- `--early-profit-time-pct` — bounded by the profit_target cap
+
+### Startup diagnostics
+
+The strategy logs its EV model assumptions at startup:
+
+```
+------------------------------------------------------------
+EV MODEL (adaptive to CLI args)
+------------------------------------------------------------
+  [EV] Profit capped at 50% of credit (--profit-target 0.5)
+  [EV] Losses capped at 2.0x credit (--max-loss-mult 2.0)
+  [EV] Exit slippage estimated from bid-ask spreads
+  [EV] WARNING: time_decay_exit_dte=5 — early exit not modeled, EV losses may overestimate
+  [EV] WARNING: pre_expiration_dte=1 — positions exit before expiration
+------------------------------------------------------------
+```

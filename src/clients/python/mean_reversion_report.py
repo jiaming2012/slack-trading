@@ -311,7 +311,8 @@ def build_group_summary(order_df: pd.DataFrame) -> pd.DataFrame:
              "exit_reversion", "exit_profit", "exit_time_decay",
              "exit_pre_expiration", "exit_strike_breach", "exit_gamma_risk",
              "exit_max_loss", "exit_early_profit", "exit_profit_target",
-             "auto-closed-on-expiration", "auto-closed-on-early-assignment"]
+             "auto-closed-on-expiration", "auto-closed-on-early-assignment",
+             "liquidation"]
         )]
 
         if entries.empty:

@@ -340,6 +340,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 	}
 
 	if stockOrderRequest != nil {
+		stockOrderRequest.Attributes = closeAttributes
 		closeOrderRequests = append(closeOrderRequests, stockOrderRequest)
 	}
 

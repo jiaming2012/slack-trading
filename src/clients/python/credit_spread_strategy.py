@@ -237,6 +237,75 @@ class CreditSpreadStrategy:
             "ladder_empty": 0,
         }
 
+        self._log_ev_warnings()
+
+    # ------------------------------------------------------------------ #
+    # EV model diagnostics
+    # ------------------------------------------------------------------ #
+
+    def _log_ev_warnings(self) -> None:
+        """Log which CLI args are modeled in EV and which are not."""
+        self.logger.info("-" * 60)
+        self.logger.info("EV MODEL (adaptive to CLI args)")
+        self.logger.info("-" * 60)
+
+        # Modeled parameters
+        if self.profit_target_pct < 1.0:
+            self.logger.info(
+                f"  [EV] Profit capped at {self.profit_target_pct:.0%}"
+                f" of credit (--profit-target {self.profit_target_pct})"
+            )
+        else:
+            self.logger.info(
+                "  [EV] Profit capped at 100% of credit (default)"
+            )
+
+        if self.max_loss_multiplier > 0:
+            self.logger.info(
+                f"  [EV] Losses capped at {self.max_loss_multiplier:.1f}x"
+                f" credit (--max-loss-mult {self.max_loss_multiplier})"
+            )
+        else:
+            self.logger.info(
+                "  [EV] Losses use full expiration payoff (no stop-loss cap)"
+            )
+
+        self.logger.info("  [EV] Exit slippage estimated from bid-ask spreads")
+
+        # Unmodeled parameters — warn
+        if self.time_decay_exit_dte > 0:
+            self.logger.warning(
+                f"  [EV] WARNING: time_decay_exit_dte={self.time_decay_exit_dte}"
+                f" — early exit not modeled, EV losses may overestimate"
+            )
+
+        if self.pre_expiration_dte > 0:
+            self.logger.warning(
+                f"  [EV] WARNING: pre_expiration_dte={self.pre_expiration_dte}"
+                f" — positions exit before expiration"
+            )
+
+        if self.enable_strike_breach_exit:
+            self.logger.warning(
+                "  [EV] WARNING: strike-breach exit enabled but not modeled"
+            )
+
+        if self.gamma_risk_dte > 0:
+            self.logger.warning(
+                f"  [EV] WARNING: gamma_risk_dte={self.gamma_risk_dte}"
+                f" — near-expiration exit not modeled"
+            )
+
+        if self.early_profit_time_pct > 0:
+            self.logger.info(
+                f"  [EV] Early profit exit enabled"
+                f" (capture {self.early_profit_min_pct_captured:.0%}"
+                f" in first {self.early_profit_time_pct:.0%} of hold)"
+                f" — bounded by profit_target cap"
+            )
+
+        self.logger.info("-" * 60)
+
     # ------------------------------------------------------------------ #
     # Repository configuration
     # ------------------------------------------------------------------ #
@@ -772,7 +841,8 @@ class CreditSpreadStrategy:
         self.logger.debug(
             f"  EV: p_profit={p_profit:.3f}"
             f" expected_profit=${expected_profit:.2f}"
-            f" (min_required=${0:.2f})"
+            f" (profit_cap={self.profit_target_pct:.0%}"
+            f", loss_cap={'off' if self.max_loss_multiplier == 0 else f'{self.max_loss_multiplier:.1f}x'})"
         )
 
         # Risk management: minimum p_profit threshold
@@ -822,7 +892,7 @@ class CreditSpreadStrategy:
         }
 
         long_attributes = {
-            **base_attributes,
+            **{k: v for k, v in base_attributes.items() if k != "expected_profit"},
             "leg": "long",
             "option_type": long_contract.type,
             "strike": f"{long_contract.strike:.2f}",
@@ -1570,13 +1640,28 @@ class CreditSpreadStrategy:
         else:
             return float(np.mean(exit_prices <= short_strike))
 
+    def _estimate_exit_slippage(self, short_contract, long_contract) -> float:
+        """Estimate per-contract cost of closing the spread due to bid-ask.
+
+        Uses entry-time bid-ask spreads as a proxy for exit-time spreads.
+        Returns a positive number (cost to subtract from P&L).
+        """
+        short_spread = max(0, short_contract.ask - short_contract.bid)
+        long_spread = max(0, long_contract.ask - long_contract.bid)
+        return (short_spread + long_spread) / 2.0
+
     def _compute_expected_profit(
         self, group: CreditSpreadGroup, level, short_contract, long_contract,
         contracts: int,
     ) -> float:
-        """Compute expected profit by integrating over forward returns.
+        """Compute exit-aware expected profit by integrating over forward returns.
 
-        For each return:
+        Adapts to CLI args to act as a conservative lower bound:
+        - Caps wins at ``profit_target_pct * net_credit`` (can't capture more)
+        - Caps losses at ``max_loss_multiplier * net_credit`` (if enabled)
+        - Subtracts estimated exit slippage from all scenarios
+
+        For each return scenario:
         - Stock above short strike → full profit (keep net credit)
         - Stock below long strike → max loss
         - Stock between strikes → partial loss
@@ -1616,6 +1701,29 @@ class CreditSpreadStrategy:
                     net_credit_per - (exit_prices - short_strike),  # partial
                 ),
             )
+
+        # --- Exit-aware adjustments (adapt to CLI args) ---
+
+        # 1. Cap wins at profit_target_pct of credit
+        profit_cap = self.profit_target_pct * net_credit_per
+        pl_per_contract = np.where(
+            pl_per_contract > 0,
+            np.minimum(pl_per_contract, profit_cap),
+            pl_per_contract,
+        )
+
+        # 2. Cap losses at max_loss_multiplier * credit (if enabled)
+        if self.max_loss_multiplier > 0:
+            loss_floor = -self.max_loss_multiplier * net_credit_per
+            pl_per_contract = np.where(
+                pl_per_contract < 0,
+                np.maximum(pl_per_contract, loss_floor),
+                pl_per_contract,
+            )
+
+        # 3. Subtract exit slippage (always)
+        exit_slippage = self._estimate_exit_slippage(short_contract, long_contract)
+        pl_per_contract = pl_per_contract - exit_slippage
 
         return float(np.mean(pl_per_contract)) * 100 * contracts
 

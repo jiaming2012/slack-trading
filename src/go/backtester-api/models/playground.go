@@ -1426,6 +1426,7 @@ func (p *Playground) checkForLiquidations(positionCache *PositionsCache) (*TickD
 		}
 
 		order.Attributes.Add("system_liquidation", "true")
+		order.Attributes.Add("action", "liquidation")
 
 		positionCache, err = p.UpdatePricesAndGetPositionCache()
 		if err != nil {
