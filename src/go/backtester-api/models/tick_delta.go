@@ -14,6 +14,11 @@ type TickDelta struct {
 	EquityPlot         *eventmodels.EquityPlot `json:"equity_plot,omitempty"`
 	CurrentTime        string                  `json:"current_time"`
 	IsBacktestComplete bool                    `json:"is_backtest_complete"`
+	// Embedded account state to avoid separate GetAccount RPC per tick.
+	Balance    float64              `json:"balance"`
+	Equity     float64              `json:"equity"`
+	FreeMargin float64              `json:"free_margin"`
+	Positions  map[string]*Position `json:"positions,omitempty"`
 }
 
 type TickDeltaEvent struct {

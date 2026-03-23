@@ -21,6 +21,7 @@ type Meta struct {
 	SourceAccountId       string                `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
 	LiveAccountType       LiveAccountType       `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
 	Environment           PlaygroundEnvironment `json:"environment" gorm:"column:environment;type:text;not null"`
+	CurrentTime           time.Time             `json:"current_time" gorm:"-"`
 }
 
 func NewMeta(env PlaygroundEnvironment, tags []string) *Meta {

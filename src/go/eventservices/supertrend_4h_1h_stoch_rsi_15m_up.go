@@ -14,9 +14,9 @@ import (
 )
 
 func Run_Supertrend4h1hStochRsi15mUp(args eventmodels.SupertrendRunArgs) (eventmodels.SignalRunOutput, error) {
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing PROJECTS_DIR environment variable")
+	projectDir := os.Getenv("PROJECT_DIR")
+	if projectDir == "" {
+		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing PROJECT_DIR environment variable")
 	}
 
 	log.Debugf("running supertrend_4h_1h_stoch_rsi_15m_up with args: %v", args)
@@ -75,7 +75,7 @@ func Run_Supertrend4h1hStochRsi15mUp(args eventmodels.SupertrendRunArgs) (eventm
 	// export to csv
 	streamName := fmt.Sprintf("candles-%s-15", args.Ticker)
 	fname := fmt.Sprintf("%s-from-%s-to-%s", streamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
-	outDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "transform_data", "supertrend_4h_1h_stoch_rsi_15m_up", "output")
+	outDir := path.Join(projectDir, "src", "cmd", "stats", "transform_data", "supertrend_4h_1h_stoch_rsi_15m_up", "output")
 	outDirs, err := utils.ExportToCsv(candles15, args.LookaheadCandlesCount, candleDuration, outDir, fname)
 
 	if err != nil {

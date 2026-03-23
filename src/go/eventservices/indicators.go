@@ -13,10 +13,10 @@ import (
 )
 
 func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
-	// Get the PROJECTS_DIR environment variable
-	projectsDir, err := utils.GetEnv("PROJECTS_DIR")
+	// Get the PROJECT_DIR environment variable
+	projectDir, err := utils.GetEnv("PROJECT_DIR")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PROJECTS_DIR: %v", err)
+		return nil, fmt.Errorf("failed to get PROJECT_DIR: %v", err)
 	}
 
 	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")
@@ -36,12 +36,12 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	}
 
 	// Run create_indicators.py and pass candles as JSON via standard input
-	// pythonInterp := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "env", "bin", "python3")
+	// pythonInterp := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
 
 	// Use anaconda python
-	pythonInterp := path.Join(anacondaHome, "envs", "grodt", "bin", "python3")
+	pythonInterp := path.Join(anacondaHome, "envs", "trading", "bin", "python3")
 
-	fileDir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "create_indicators.py")
+	fileDir := path.Join(projectDir, "src", "python", "create_indicators.py")
 	var cmdArgs []string
 	if len(indicators) > 0 {
 		cmdArgs = append([]string{fileDir, "--indicators"}, indicators...)

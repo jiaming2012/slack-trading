@@ -30,7 +30,7 @@ func (c *LogConsumer) Accept(l testcontainers.Log) {
 	// }
 }
 
-func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectsDir, networkName string) playground.PlaygroundService {
+func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectDir, networkName string) playground.PlaygroundService {
 	logConsumer := &LogConsumer{}
 
 	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -38,7 +38,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
 			Env: map[string]string{
-				"PROJECTS_DIR":     "/app",
+				"PROJECT_DIR":     "/app",
 				"GO_ENV":           "test",
 				"DRY_RUN":          "false",
 				"POSTGRES_HOST":    "postgres",
@@ -54,7 +54,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 			),
 			Files: []testcontainers.ContainerFile{
 				{
-					HostFilePath:      filepath.Join(projectsDir, "slack-trading", ".env"),
+					HostFilePath:      filepath.Join(projectDir, ".env"),
 					ContainerFilePath: "/app/slack-trading/.env",
 					FileMode:          0644,
 				},
@@ -88,7 +88,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 	return playgroundClient
 }
 
-func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDir, networkName string) {
+func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir, networkName string) {
 	err := godotenv.Load()
 	if err != nil {
 		dir, _ := os.Getwd()
@@ -96,10 +96,10 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDi
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
-	projectsDir, err = utils.GetEnv("PROJECTS_DIR")
+	projectDir, err = utils.GetEnv("PROJECT_DIR")
 	require.NoError(t, err)
 
-	err = utils.InitEnvironmentVariables(projectsDir, goEnv)
+	err = utils.InitEnvironmentVariables(projectDir, goEnv)
 	require.NoError(t, err)
 
 	postgresUser, err := utils.GetEnv("POSTGRES_USER")
@@ -173,7 +173,7 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDi
 	esdbStarted = true
 
 	// Start a Postgres container
-	initScriptPath := filepath.Join(projectsDir, "slack-trading", "src", "backtester-api", "db", "init.sql")
+	initScriptPath := filepath.Join(projectDir, "src", "backtester-api", "db", "init.sql")
 
 	postgresReq := testcontainers.ContainerRequest{
 		Image: "postgres:13",

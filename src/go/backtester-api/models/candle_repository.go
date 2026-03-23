@@ -172,7 +172,11 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 
 		if showAlert {
 			startingCandle := r.candlesWithIndicators[start]
-			log.Warnf("no candles found at or after %s, but market is open. Setting start candle to %s", currentTime, startingCandle.Timestamp)
+			log.Warnf("[%s] no candles found at or after %s, but market is open. Setting start candle to %s",
+				r.symbol.GetTicker(),
+				currentTime.Format("2006-01-02 15:04:05 MST"),
+				startingCandle.Timestamp.Format("2006-01-02 15:04:05 MST"),
+			)
 		}
 
 		return nil
@@ -191,7 +195,7 @@ func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels
 		}
 	}
 
-	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp)
+	log.Warnf("No candles found for %s at or after %s", r.symbol, tstamp.Format("2006-01-02 15:04:05 MST"))
 
 	return nil, nil
 }
@@ -206,8 +210,9 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 
 	maxTimestamp := time.Time{}
 	for i, bar := range bars {
-		if !r.candlesWithIndicators[len(r.candlesWithIndicators)-1].Timestamp.Before(bar.GetTimestamp()) {
-			return time.Time{}, fmt.Errorf("new bar[%d] is not after the last bar", i)
+		lastBar := r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
+		if !lastBar.Timestamp.Before(bar.GetTimestamp()) {
+			return time.Time{}, fmt.Errorf("new bar[%d] timestamp %v is not after the last bar timestamp %v (symbol=%s)", i, bar.GetTimestamp(), lastBar.Timestamp, r.symbol)
 		}
 
 		r.baseCandles = append(r.baseCandles, &eventmodels.PolygonAggregateBarV2{
@@ -260,7 +265,11 @@ func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time)
 	}
 
 	if len(candles) == 0 {
-		log.Warnf("No candles found for %s between %s and %s", r.symbol, startTime, endTime)
+		endTimeStr := "<nil>"
+		if endTime != nil {
+			endTimeStr = endTime.Format("2006-01-02 15:04:05 MST")
+		}
+		log.Warnf("No candles found for %s between %s and %s", r.symbol, startTime.Format("2006-01-02 15:04:05 MST"), endTimeStr)
 	}
 
 	return candles, nil

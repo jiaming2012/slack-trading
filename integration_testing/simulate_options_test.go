@@ -134,6 +134,7 @@ func TestSimulateOptions(t *testing.T) {
 			MaxNoOfStrikes:            3,
 			MinDistanceBetweenStrikes: 1,
 			ExpirationInDays:          []int32{3},
+			MaxTickAgeInMinutes:       1440,
 		})
 
 		require.NoError(t, err)

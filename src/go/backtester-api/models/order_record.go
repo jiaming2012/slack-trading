@@ -80,6 +80,24 @@ type OrderRecord struct {
 	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
+// tradeMatchesOrder checks if a ClosedBy trade belongs to the given closing order.
+// A trade matches if it is directly one of the order's trades (by ID) or if it is
+// a partial trade whose parent is one of the order's trades.
+func tradeMatchesOrder(tr *TradeRecord, closingOrder *OrderRecord) bool {
+	for _, thisTr := range closingOrder.Trades {
+		if tr.ID == thisTr.ID {
+			return true
+		}
+		if tr.ParentTradeID != nil && *tr.ParentTradeID == thisTr.ID {
+			return true
+		}
+		if tr.ParentTrade != nil && tr.ParentTrade.ID == thisTr.ID {
+			return true
+		}
+	}
+	return false
+}
+
 func (o *OrderRecord) CalcRealizedPL() float64 {
 	realizedPL := 0.0
 
@@ -107,11 +125,7 @@ func (o *OrderRecord) CalcRealizedPL() float64 {
 		for _, order := range o.Closes {
 			vwap := order.GetAvgFillPrice()
 			for _, tr := range order.ClosedBy {
-				for _, thisTr := range o.Trades {
-					if tr.ID != thisTr.ID {
-						continue
-					}
-
+				if tradeMatchesOrder(tr, o) {
 					realizedPL += (tr.Price - vwap) * math.Abs(tr.Quantity)
 				}
 			}
@@ -120,11 +134,7 @@ func (o *OrderRecord) CalcRealizedPL() float64 {
 		for _, order := range o.Closes {
 			vwap := order.GetAvgFillPrice()
 			for _, tr := range order.ClosedBy {
-				for _, thisTr := range o.Trades {
-					if tr.ID != thisTr.ID {
-						continue
-					}
-
+				if tradeMatchesOrder(tr, o) {
 					realizedPL += (vwap - tr.Price) * math.Abs(tr.Quantity)
 				}
 			}
@@ -222,27 +232,27 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
 				}
 
-				if optionContract.OptionType == eventmodels.OptionTypeCall {
+				if requestedQuantity != nil {
+					if *requestedQuantity < 0 {
+						return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
+					}
+
+					if *requestedQuantity > math.Abs(openQty) {
+						return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than (sell) open quantity")
+					}
+
+					optionCloseQty = *requestedQuantity
+				}
+
+				switch optionContract.OptionType {
+				case eventmodels.OptionTypeCall:
 					stockOpenQty := 0.0
 					currentPosition := positionCache.Get(optionContract.UnderlyingSymbol.GetTicker())
 					if currentPosition != nil {
 						stockOpenQty = math.Abs(currentPosition.Quantity)
 					}
 
-					var sellQty float64
-					if requestedQuantity != nil {
-						if *requestedQuantity < 0 {
-							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be negative")
-						}
-
-						if *requestedQuantity > math.Abs(openQty) {
-							return nil, fmt.Errorf("CreateCloseOrder: requested quantity cannot be greater than (sell) open quantity")
-						}
-
-						optionCloseQty = *requestedQuantity
-					}
-
-					sellQty = math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+					sellQty := math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
 
 					// exercise call option
 					// 1: sell underlying stock if any existing qty to sell
@@ -277,11 +287,39 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 							IsSystemOrder:  true,
 						}
 					}
+
+				case eventmodels.OptionTypePut:
+					buyQty := math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
+
+					stockOrderRequest = &CreateOrderRequest{
+						Symbol:         string(optionContract.UnderlyingSymbol),
+						Class:          OrderRecordClassEquity,
+						Quantity:       buyQty,
+						Side:           TradierOrderSideBuy,
+						OrderType:      Market,
+						Duration:       Day,
+						RequestedPrice: optionContract.Strike,
+						Tag:            fmt.Sprintf("exercise-put-option-%d", o.ID),
+						IsAdjustment:   false,
+						IsSystemOrder:  true,
+					}
 				}
 			}
 		} else {
 			return nil, fmt.Errorf("CreateCloseOrder: open order %d has no remaining open quantity", o.ID)
 		}
+	}
+
+	// Propagate attributes from the open order so that reports can
+	// associate auto-close P&L with the original strategy entry.
+	var closeAttributes Attributes
+	if len(o.Attributes) > 0 {
+		closeAttributes = make(Attributes, len(o.Attributes)+1)
+		for k, v := range o.Attributes {
+			closeAttributes[k] = v
+		}
+		// Override action so the report can distinguish system closes
+		closeAttributes["action"] = tag
 	}
 
 	closeOrderRequests := []*CreateOrderRequest{
@@ -297,10 +335,12 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 			CloseOrderId:   &o.ID,
 			IsAdjustment:   false,
 			IsSystemOrder:  true,
+			Attributes:     closeAttributes,
 		},
 	}
 
 	if stockOrderRequest != nil {
+		stockOrderRequest.Attributes = closeAttributes
 		closeOrderRequests = append(closeOrderRequests, stockOrderRequest)
 	}
 

@@ -1,4 +1,14 @@
 {
     "git.ignoreLimitWarning": true,
     "debug.console.fontSize": 13,
+
+     // Per-event notification level: "sound+popup" | "sound" | "popup" | "off"
+    "claudeNotifier.taskCompleted.level": "sound+popup",
+    "claudeNotifier.needsPermission.level": "sound+popup",
+    "claudeNotifier.asksQuestion.level": "sound+popup",
+
+    // Per-event sound preset (see list below)
+    "claudeNotifier.taskCompleted.sound": "Hero",
+    "claudeNotifier.needsPermission.sound": "Glass",
+    "claudeNotifier.asksQuestion.sound": "Funk"
 }

@@ -22,6 +22,11 @@ func (a *BacktesterAccount) NextOrderID() uint {
 	return a.OrderNonce - 1
 }
 
+func (a *BacktesterAccount) NextTradeID() uint {
+	a.TradeNounce++
+	return a.TradeNounce
+}
+
 func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAccount {
 	var pendingOrders []*OrderRecord
 	var activeOrders []*OrderRecord
@@ -44,5 +49,6 @@ func NewBacktesterAccount(balance float64, orders []*OrderRecord) *BacktesterAcc
 		PendingOrders: pendingOrders,
 		NewOrders:     newOrders,
 		OrderNonce:    1,
+		TradeNounce:   0,
 	}
 }

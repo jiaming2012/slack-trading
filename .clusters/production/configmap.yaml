@@ -4,7 +4,7 @@ metadata:
   name: grodt-configmap
   namespace: default
 data:
-  PROJECTS_DIR: "/app"
+  PROJECT_DIR: "/app"
   ENV: "production"
   GO_ENV: "production"
   ANACONDA_HOME: "/opt/conda"

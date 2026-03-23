@@ -81,6 +81,7 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 	var closedBy []*pb.Trade
 	for _, trade := range o.ClosedBy {
 		closedBy = append(closedBy, &pb.Trade{
+			Id:         uint64(trade.ID),
 			CreateDate: trade.Timestamp.String(),
 			Quantity:   trade.Quantity,
 			Price:      trade.Price,
@@ -580,8 +581,6 @@ func (s *Server) DeletePlayground(ctx context.Context, req *pb.DeletePlaygroundR
 }
 
 func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundRequest) (*pb.EmptyResponse, error) {
-	panic("saving simulation orders with the same IDs causes previous orders to be overwritten")
-
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save playground: %v", err)
@@ -800,6 +799,18 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		}
 	}
 
+	positions := make(map[string]*pb.Position)
+	for k, v := range tick.Positions {
+		positions[k] = &pb.Position{
+			Quantity:          v.Quantity,
+			CostBasis:         v.CostBasis,
+			Pl:                v.PL,
+			MaintenanceMargin: v.MaintenanceMargin,
+			CurrentPrice:      v.CurrentPrice,
+			Timestamp:         v.Timestamp,
+		}
+	}
+
 	tickDelta = &pb.TickDelta{
 		NewTrades:          newTrades,
 		NewCandles:         newCandles,
@@ -807,6 +818,10 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		Events:             tickDeltaEvents,
 		CurrentTime:        tick.CurrentTime,
 		IsBacktestComplete: tick.IsBacktestComplete,
+		Balance:            tick.Balance,
+		Equity:             tick.Equity,
+		FreeMargin:         tick.FreeMargin,
+		Positions:          positions,
 	}
 
 	isComplete = true
@@ -964,6 +979,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 			LiveAccountType:       liveAccountType,
 			Tags:                  account.Meta.Tags,
 			ClientId:              account.Meta.ClientID,
+			CurrentTime:           account.Meta.CurrentTime.Format(time.RFC3339),
 		},
 		Balance:    account.Balance,
 		Equity:     account.Equity,
@@ -1034,7 +1050,7 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) ([]*pb.Order, error) {
 	if clientRequestId != nil {
-		log.Infof("%v: checkOrderExists:start", *clientRequestId)
+		log.Debugf("%v: checkOrderExists:start", *clientRequestId)
 
 		orders, err := s.dbService.GetOrdersByClientId(*clientRequestId)
 		if err != nil {
@@ -1044,7 +1060,7 @@ func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) 
 		if len(orders) > 0 {
 			var results []*pb.Order
 			for _, order := range orders {
-				log.Infof("%v: checkOrderExists:Order already exists", *clientRequestId)
+				log.Debugf("%v: checkOrderExists:Order already exists", *clientRequestId)
 				orderDTO := convertOrder(order, nil)
 				results = append(results, orderDTO)
 			}
@@ -1240,6 +1256,9 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	if err != nil {
 		return nil, fmt.Errorf("s.CreatePlayground: failed to create playground: %w", err)
 	}
+
+	log.Infof("CreatePlayground: id=%s env=%s balance=%.2f start=%s stop=%s",
+		playground.GetId(), playgroundEnvironment, req.Balance, req.StartDate, req.StopDate)
 
 	return &pb.CreatePlaygroundResponse{
 		Id: playground.GetId().String(),

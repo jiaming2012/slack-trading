@@ -30,6 +30,7 @@ type OptionChainTickDTO struct {
 	ContractSize     int       `json:"contract_size"`
 	OptionType       string    `json:"option_type"`
 	ExpirationType   string    `json:"expiration_type"`
+	DataSource       string    `json:"data_source,omitempty"` // "minute_bar", "interpolated", or ""
 }
 
 func (d *OptionChainTickDTO) ToModel(id OptionSymbol, uuid uuid.UUID, now time.Time) *OptionChainTickV1 {

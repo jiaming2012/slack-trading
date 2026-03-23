@@ -19,7 +19,7 @@ while IFS='=' read -r key value || [ -n "$key" ]; do
   encoded_value=$(echo -n "$value" | base64)
   # Append the key-value pair to the secrets YAML file
   echo "  $key: $encoded_value" >> secret.yaml
-done < ${PROJECTS_DIR}/slack-trading/src/.env.production-secrets
+done < ${PROJECT_DIR}/src/.env.production-secrets
 
 # Create the secret in the Kubernetes cluster
-kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECTS_DIR}/slack-trading/.clusters/production/sealedsecret.yaml
+kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECT_DIR}/.clusters/production/sealedsecret.yaml

@@ -1391,8 +1391,11 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 
 	positionsKV := positionCache.Iter()
 
+	meta := internalPlayground.GetMeta()
+	meta.CurrentTime = internalPlayground.GetCurrentTime()
+
 	response := models.GetAccountResponse{
-		Meta:       internalPlayground.GetMeta(),
+		Meta:       meta,
 		Balance:    internalPlayground.GetBalance(),
 		Equity:     internalPlayground.GetEquity(positionCache),
 		FreeMargin: internalPlayground.GetFreeMarginFromPositionMap(positionCache),
@@ -1520,6 +1523,13 @@ func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNe
 
 func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Simulator playgrounds use in-memory nonce IDs that would collide
+		// with existing GORM auto-increment IDs. Remap them to fresh IDs.
+		if playground.GetMeta().Environment == models.PlaygroundEnvironmentSimulator {
+			return models.RemapAndSavePlayground(tx, playground)
+		}
+
+		// Live/reconcile path — IDs are already GORM-assigned
 		var txErr error
 
 		if txErr = savePlaygroundTx(tx, playground); txErr != nil {

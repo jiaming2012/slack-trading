@@ -10,50 +10,45 @@ import (
 )
 
 func FetchRecursively[T any](url, apiKey string, fetchDataFn eventmodels.FetchDataFunc[T]) (*eventmodels.AggregateResult[T], error) {
-	backOff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second, 32 * time.Second, 64 * time.Second, 128 * time.Second}
-	isDone := false
-	counter := 0
+	const maxRetries = 3
+	retryBackoff := []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second}
+
 	var aggregateResult eventmodels.AggregateResult[T]
+	currentURL := url
 
 	for {
-		aggregateResult = eventmodels.AggregateResult[T]{}
-
-		if counter > 0 {
-			log.Warnf("FetchRecursively: backoff %v", backOff[counter])
-			time.Sleep(backOff[counter])
-		}
-
-		if counter < len(backOff)-1 {
-			counter++
-		}
-
-		for {
-			resp, err := fetchDataFn(url, apiKey)
-			if err != nil {
-				return nil, fmt.Errorf("FetchRecursively: failed to fetch stock chart: %w", err)
+		resp, err := fetchDataFn(currentURL, apiKey)
+		if err != nil {
+			// Retry transient errors (GOAWAY, connection reset, etc.)
+			retried := false
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				log.Warnf("FetchRecursively: transient error (attempt %d/%d): %v — retrying in %v", attempt+1, maxRetries, err, retryBackoff[attempt])
+				time.Sleep(retryBackoff[attempt])
+				resp, err = fetchDataFn(currentURL, apiKey)
+				if err == nil {
+					retried = true
+					break
+				}
 			}
-
-			aggregateResult.QueryCount += resp.QueryCount
-			aggregateResult.ResultsCount += resp.ResultsCount
-
-			aggregateResult.Results = append(aggregateResult.Results, resp.Results...)
-
-			if resp.GetNextURL() == nil {
-				isDone = true
-				break
+			if !retried {
+				return nil, fmt.Errorf("FetchRecursively: failed after %d retries: %w", maxRetries, err)
 			}
-
-			url = *resp.GetNextURL()
-			time.Sleep(50 * time.Millisecond)
 		}
 
-		if len(aggregateResult.Results) == 0 {
-			log.Warn("FetchRecursively: no results found")
-		}
+		aggregateResult.QueryCount += resp.QueryCount
+		aggregateResult.ResultsCount += resp.ResultsCount
+		aggregateResult.Results = append(aggregateResult.Results, resp.Results...)
 
-		if isDone {
+		if resp.GetNextURL() == nil {
 			break
 		}
+
+		currentURL = *resp.GetNextURL()
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if len(aggregateResult.Results) == 0 {
+		log.Warn("FetchRecursively: no results found")
 	}
 
 	return &aggregateResult, nil

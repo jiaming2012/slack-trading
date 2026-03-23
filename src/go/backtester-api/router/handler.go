@@ -19,7 +19,7 @@ import (
 
 var (
 	client            = new(eventservices.PolygonTickDataMachine)
-	projectsDirectory string
+	projectDirectory string
 	database          models.IDatabaseService
 )
 
@@ -89,9 +89,9 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 	}()
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectsDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker, calendar *eventmodels.MarketCalendar) error {
+func SetupHandler(ctx context.Context, router *mux.Router, projectDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker, calendar *eventmodels.MarketCalendar) error {
 	client = eventservices.NewPolygonClient(apiKey)
-	projectsDirectory = projectsDir
+	projectDirectory = projectDir
 
 	if err := loadData(dbService, brokerMap, calendar); err != nil {
 		return fmt.Errorf("SetupHandler: failed to load data: %w", err)

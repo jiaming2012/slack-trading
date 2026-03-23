@@ -18,15 +18,15 @@ import (
 )
 
 func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOutput, error) {
-	projectsDir := os.Getenv("PROJECTS_DIR")
-	if projectsDir == "" {
-		panic("missing PROJECTS_DIR environment variable")
+	projectDir := os.Getenv("PROJECT_DIR")
+	if projectDir == "" {
+		panic("missing PROJECT_DIR environment variable")
 	}
 
 	ctx := context.Background()
 
 	filename := fmt.Sprintf("%s-from-%s-to-%s.csv", args.InputStreamName, args.StartsAt.Format("20060102_150405"), args.EndsAt.Format("20060102_150405"))
-	outdir := path.Join(projectsDir, "slack-trading", "src", "cmd", "stats", "data", filename)
+	outdir := path.Join(projectDir, "src", "cmd", "stats", "data", filename)
 
 	// check if file exists
 	if _, err := os.Stat(outdir); err == nil {
@@ -40,7 +40,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 
 	eventpubsub.Init()
 
-	if err := utils.InitEnvironmentVariables(projectsDir, args.GoEnv); err != nil {
+	if err := utils.InitEnvironmentVariables(projectDir, args.GoEnv); err != nil {
 		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error initializing environment variables: %v", err)
 	}
 

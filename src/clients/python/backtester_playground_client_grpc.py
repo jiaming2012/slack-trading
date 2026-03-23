@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from dateutil.parser import isoparse
 from utils import get_timespan_unit
 import time
+from time import perf_counter
 import uuid
 
 from rpc.playground_twirp import PlaygroundServiceClient
@@ -131,33 +132,40 @@ class BacktesterPlaygroundClient:
         return response
         
     def network_call_with_retry(self, caller, client, request, backoff=2, max_backoff=60):
+        _start = perf_counter()
+        try:
+            return self._network_call_with_retry_inner(caller, client, request, backoff, max_backoff)
+        finally:
+            if getattr(self, 'profiler', None) is not None:
+                self.profiler.record(caller, perf_counter() - _start)
+
+    def _network_call_with_retry_inner(self, caller, client, request, backoff, max_backoff):
         retries = 0
         while True:
             try:
-                # Attempt the twirp call
                 response = client(
-                    ctx=Context(), 
+                    ctx=Context(),
                     request=request
                 )
                 return response
             except TwirpServerException as e:
                 retries += 1
-                
+
                 if not self.is_retryable_exception(e):
                     self.logger.error(f"{caller} network call failed with non-retryable exception: {e}. Giving up.")
                     if e.detailed_error:
                         raise e.detailed_error
                     raise e
-                
+
                 if retries > MAX_RETRIES:
                     self.logger.error(f"{caller} network call failed after {retries} retries. Giving up.")
                     raise e
-                            
+
                 self.logger.error(f"{caller} network call failed: {e}. Retry count {retries}. Retrying in {backoff} seconds...")
                 time.sleep(backoff)
-                
+
                 if backoff < max_backoff:
-                    backoff = min(max_backoff, backoff * 2)  # Exponential backoff
+                    backoff = min(max_backoff, backoff * 2)
                     
     def set_current_candle(self, symbol: str, period: int, bar: Bar):        
         set_nested_value(self.current_candles, symbol, period, bar)
@@ -293,6 +301,7 @@ class BacktesterPlaygroundClient:
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
         self.current_candles = {}
+        self.profiler = None  # Set externally via playground.profiler = RPCProfiler()
         
         current_ltf_candle = self.fetch_most_recent_bar(req.repositories[0].symbol, self.ltf_seconds, self.timestamp)
         set_nested_value(self.current_candles, req.repositories[0].symbol, self.ltf_seconds, current_ltf_candle)   
@@ -535,22 +544,22 @@ class BacktesterPlaygroundClient:
     # PERF TODO (Phase 4): Add a BatchTick RPC to advance multiple ticks in a
     # single call when no signal processing is needed. This would reduce the number
     # of RPC round-trips during long stretches without signals.
-    def tick(self, seconds: int, raise_exception=True):
+    def tick(self, seconds: int, raise_exception=True, fetch_account: bool = True):
         if self.environment == PlaygroundEnvironment.LIVE.value:
             now = datetime.now(ZoneInfo("America/New_York"))
             if now < self.next_tick_at:
                 wait_period = (self.next_tick_at - now).total_seconds()
                 time.sleep(wait_period)
-            
+
             self.next_tick_at = now + timedelta(seconds=seconds)
-            
+
         request = NextTickRequest(
             playground_id=self.id,
             seconds=seconds,
             is_preview=False,
             request_id=str(uuid.uuid4()),
         )
-        
+
         try:
             new_state: TickDelta = self.network_call_with_retry('tick', self.client.NextTick, request)
         except Exception as e:
@@ -558,7 +567,7 @@ class BacktesterPlaygroundClient:
             if raise_exception:
                 raise e
             return None
-        
+
         new_candles = new_state.new_candles
         if new_candles and len(new_candles) > 0:
             for candle in new_candles:
@@ -568,14 +577,29 @@ class BacktesterPlaygroundClient:
         if timestamp:
             self.timestamp = isoparse(timestamp)
             self.timestamp = self.timestamp.astimezone(ZoneInfo("America/New_York"))
-                
+
         self._is_backtest_complete = new_state.is_backtest_complete
-        
-        # PERF TODO (Phase 3): Embed account state (balance, equity, positions) in the
-        # TickDelta proto response so this separate RPC round-trip can be eliminated.
-        # See playground.proto TickDelta message and the Go NextTick handler.
-        self.account = self._fetch_and_update_account_state()
-        
+
+        # Use account state embedded in the TickDelta response (no extra RPC).
+        if fetch_account:
+            positions = {}
+            for k, v in new_state.positions.items():
+                positions[k] = Position(
+                    symbol=k,
+                    quantity=v.quantity,
+                    cost_basis=v.cost_basis,
+                    maintenance_margin=v.maintenance_margin,
+                    current_price=v.current_price,
+                    pl=v.pl,
+                )
+            self.account = Account(
+                balance=new_state.balance,
+                equity=new_state.equity,
+                free_margin=new_state.free_margin,
+                positions=positions,
+                meta=self.account.meta if self.account else None,
+            )
+
         self._new_state_buffer.append(new_state)
                                     
     def time_elapsed(self) -> timedelta:
@@ -625,7 +649,7 @@ class BacktesterPlaygroundClient:
                 request.attributes[k] = v
                         
         try:
-            self.logger.debug(f"environment={self.environment} Placing {request.quantity} order: {request.symbol} / {request.side}", trading_operation='place_order', timestamp=self.timestamp)
+            self.logger.info(f"PlaceOrder: {request.side} {request.quantity}x {request.symbol} @ {request.requested_price} [{request.tag or 'no-tag'}]", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
             self.trade_timestamps.append(self.timestamp)
             

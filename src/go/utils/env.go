@@ -33,7 +33,7 @@ func GetEnv(key string) (string, error) {
 	return strings.Trim(envVar, `"`), nil
 }
 
-func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
+func InitEnvironmentVariables(projectDir string, goEnvironment string) error {
 	// In production, environment variables are set in the environment
 	if os.Getenv("ENV") == "production" {
 		log.Info("Running in production environment")
@@ -49,7 +49,7 @@ func InitEnvironmentVariables(projectsDir string, goEnvironment string) error {
 		return nil
 	}
 
-	envDir := filepath.Join(projectsDir, "slack-trading")
+	envDir := projectDir
 
 	log.Infof("Using go environment: %s", goEnvironment)
 

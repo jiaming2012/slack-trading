@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-CONFIG_FILE=${PROJECTS_DIR}/slack-trading/.bumpversion.base-image.cfg
+CONFIG_FILE=${PROJECT_DIR}/.bumpversion.base-image.cfg
 
 # Check if the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -24,7 +24,7 @@ bump2version patch --config-file $CONFIG_FILE
 VERSION=$(grep -i "^# version=" Dockerfile | cut -d'=' -f2 | tr -d '" ')
 
 # Build the images with the version tag
-docker build -t ewr.vultrcr.com/grodt/grodt-base-image:$VERSION -f Dockerfile.base ${PROJECTS_DIR}/slack-trading
+docker build -t ewr.vultrcr.com/grodt/grodt-base-image:$VERSION -f Dockerfile.base ${PROJECT_DIR}
 
 # Push the images to the Docker registry
 docker push ewr.vultrcr.com/grodt/grodt-base-image:$VERSION
