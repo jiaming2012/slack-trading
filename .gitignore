@@ -10,8 +10,6 @@ venv
 credentials.json
 src/env.txt
 .idea/
-.run/
-run*.sh
 **__debug**
 main
 .env
