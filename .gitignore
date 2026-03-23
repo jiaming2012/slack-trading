@@ -34,3 +34,8 @@ vke.yaml
 miniconda3
 src/clients/python/*.json
 .cache/
+
+# Track shared config, ignore user-specific data
+.claude/worktrees/
+.claude/projects/
+
