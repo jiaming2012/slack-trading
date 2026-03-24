@@ -9,15 +9,25 @@ the HTF signals bullish.
 Supports optional periodic PDF retraining during the simulation.
 
 Usage:
-    # Static PDF:
+    # Static PDF (simulator):
     python demo_mean_reversion.py \
         --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
         --balance 100000 --pdf-path aapl_5m_1h_pdf.json
 
-    # Weekly retraining (training data fetched automatically):
+    # Weekly retraining (simulator):
     python demo_mean_reversion.py \
         --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
         --balance 100000 --retrain-interval weekly --model bayesian_nig
+
+    # Live paper money (Tradier sandbox):
+    python demo_mean_reversion.py \
+        --live --symbol AAPL --balance 100000 \
+        --pdf-path aapl_5m_1h_pdf.json
+
+    # Live real money (Tradier margin — requires confirmation):
+    python demo_mean_reversion.py \
+        --live margin --symbol AAPL --balance 100000 \
+        --pdf-path aapl_5m_1h_pdf.json
 
 Requires the Go trading server to be running on the specified twirp host.
 """
@@ -38,6 +48,7 @@ from backtester_playground_client_grpc import (
     Repository,
     RepositorySource,
 )
+from playground_types import LiveAccountType
 from build_pdf_from_polygon import bar_to_dict
 from mean_reversion_strategy import MeanReversionStrategy, run_mean_reversion
 from pdf_builder import PDFBuilder
@@ -309,6 +320,11 @@ def main():
         choices=["binary", "distribution"],
         help="EV model: 'binary' (two-outcome) or 'distribution' (forward return integration) (default: distribution)",
     )
+    parser.add_argument(
+        "--live", type=str, nargs="?", const="paper", default=None,
+        choices=["paper", "margin"],
+        help="Run in live mode: 'paper' (default) or 'margin' (real money)",
+    )
     parser.add_argument("--twirp-host", type=str, default="http://127.0.0.1:5051", help="Twirp server URL")
 
     # Retrain flags
@@ -342,8 +358,21 @@ def main():
     logger.info("=" * 60)
     logger.info("PDF Mean-Reversion Strategy Demo")
     logger.info("=" * 60)
+    if args.live:
+        live_account_type = LiveAccountType.PAPER if args.live == "paper" else LiveAccountType.MARGIN
+        if args.live == "margin":
+            logger.warning("*** REAL MONEY MODE (margin) ***")
+            confirm = input("Type 'yes' to confirm trading with real money: ")
+            if confirm.strip().lower() != "yes":
+                logger.info("Aborted.")
+                sys.exit(0)
+        logger.info(f"Mode:            LIVE ({args.live})")
+    else:
+        live_account_type = None
+        logger.info(f"Mode:            SIMULATOR")
     logger.info(f"Symbol:          {args.symbol}")
-    logger.info(f"Period:          {args.start} -> {args.end}")
+    if not args.live:
+        logger.info(f"Period:          {args.start} -> {args.end}")
     logger.info(f"Balance:         ${args.balance:,.2f}")
     logger.info(f"Max loss/group:  {args.max_loss_pct * 100:.1f}%")
     logger.info(f"Stop percentile: {args.stop_percentile * 100:.0f}th")
@@ -436,22 +465,33 @@ def main():
     # ------------------------------------------------------------------
     repos = MeanReversionStrategy.get_repositories(args.symbol)
 
-    req = CreatePolygonPlaygroundRequest(
-        balance=args.balance,
-        start_date=args.start,
-        stop_date=args.end,
-        repositories=repos,
-        environment=PlaygroundEnvironment.SIMULATOR.value,
-    )
+    if args.live:
+        env = PlaygroundEnvironment.LIVE
+        req = CreatePolygonPlaygroundRequest(
+            balance=args.balance,
+            start_date=None,
+            stop_date=None,
+            repositories=repos,
+            environment=env.value,
+        )
+    else:
+        env = PlaygroundEnvironment.SIMULATOR
+        req = CreatePolygonPlaygroundRequest(
+            balance=args.balance,
+            start_date=args.start,
+            stop_date=args.end,
+            repositories=repos,
+            environment=env.value,
+        )
 
     # ------------------------------------------------------------------
-    # 3. Create simulator playground
+    # 3. Create playground
     # ------------------------------------------------------------------
-    logger.info("Creating simulator playground ...")
+    logger.info(f"Creating {env.value} playground ...")
     playground = BacktesterPlaygroundClient(
         req,
-        live_account_type=None,
-        source=RepositorySource.POLYGON,
+        live_account_type=live_account_type,
+        source=None if args.live else RepositorySource.POLYGON,
         logger=logger,
         twirp_host=args.twirp_host,
     )
@@ -463,6 +503,8 @@ def main():
     # 4. Run the mean-reversion strategy
     # ------------------------------------------------------------------
     logger.info("Running mean-reversion strategy ...")
+    if args.live:
+        logger.info("Press Ctrl+C to stop live trading.")
     try:
         strategy = run_mean_reversion(
             playground, args.symbol, logger, pdf,
@@ -477,6 +519,9 @@ def main():
             ev_model=args.ev_model,
             on_tick=on_tick_callback,
         )
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user — stopping strategy.")
+        strategy = None
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)
@@ -506,12 +551,13 @@ def main():
     else:
         logger.info("  (none)")
 
-    logger.info("-" * 60)
-    logger.info(f"Trade groups:       {len(strategy.trade_groups)}")
-    logger.info(f"Total trades:       {len(playground.trade_timestamps)}")
-    logger.info("=" * 60)
+    if strategy is not None:
+        logger.info("-" * 60)
+        logger.info(f"Trade groups:       {len(strategy.trade_groups)}")
+        logger.info(f"Total trades:       {len(playground.trade_timestamps)}")
 
-    logger.info("Playground simulation complete.")
+    logger.info("=" * 60)
+    logger.info(f"Playground {'stopped' if args.live else 'simulation complete'}.")
     logger.info(f"Playground id: {playground.id}")
 
 
