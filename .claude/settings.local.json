@@ -96,7 +96,9 @@
       "Bash(grep -rn \"yumyums\\\\|receipt-processor\" /Users/jamal/projects/slack-trading/.claude/worktrees/nifty-diffie/.env*)",
       "Read(//Users/jamal/projects/slack-trading/**)",
       "Read(//Users/jamal/**)",
-      "Bash(PROJECT_DIR=/Users/jamal/projects/yumyums/receipt-processor task test)"
+      "Bash(PROJECT_DIR=/Users/jamal/projects/yumyums/receipt-processor task test)",
+      "Bash(/Users/jamal/miniconda3/condabin/conda list:*)",
+      "Bash(/Users/jamal/miniconda3/condabin/conda env:*)"
     ]
   }
 }
