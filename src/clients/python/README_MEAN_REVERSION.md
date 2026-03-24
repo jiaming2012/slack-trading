@@ -32,7 +32,7 @@ HTF (1-hour) signal detected
 | `return_models.py` | Pluggable statistical models (Empirical, Bayesian NIG) |
 | `mean_reversion_strategy.py` | Strategy class, tick loop, order placement |
 | `mean_reversion_report.py` | Post-simulation evaluation (expected vs realized P&L) |
-| `demo_mean_reversion.py` | CLI script to run a backtest |
+| `demo_mean_reversion.py` | CLI script to run a backtest or live trade |
 | `build_pdf_from_polygon.py` | CLI script to build PDF JSON files from Polygon data |
 
 ## Prerequisites
@@ -153,7 +153,37 @@ python demo_mean_reversion.py \
 | `--total-shares` | `1000` | Total shares to distribute across entry levels per group |
 | `--exit-tiers` | `3` | Number of partial exit tiers per entry level |
 | `--htf-horizon` | `1h` | Which PDF horizon to use for deviation calculations |
+| `--tier-spacing` | `even` | Exit tier spacing: `even` (25%,50%,100%) or `tight` (70%,85%,100%) |
+| `--stop-widen-on-exit` | `1.0` | Stop widening factor for partial exits (0.0=disabled) |
+| `--min-expected-profit` | `0.0` | Skip entries with expected profit below threshold |
+| `--ev-model` | `distribution` | EV model: `binary` or `distribution` |
+| `--live` | *(off)* | Run live: `--live` (paper) or `--live margin` (real money) |
+| `--retrain-interval` | *(off)* | Rebuild PDF periodically: `weekly` or `monthly` |
+| `--training-start` | *(1yr before --start)* | Start of training data window (with retrain) |
+| `--rolling-window` | *(expanding)* | Rolling window in days (with retrain) |
 | `--twirp-host` | `http://127.0.0.1:5051` | Go server address |
+
+## Step 2b: Run Live (Paper Money)
+
+To run the strategy against the Tradier paper money account in real time:
+
+```bash
+cd src/clients/python
+
+python demo_mean_reversion.py \
+    --live \
+    --symbol AAPL \
+    --balance 100000 \
+    --pdf-path aapl_5m_1h_pdf.json \
+    --max-loss-pct 0.02 \
+    --stop-percentile 0.95 \
+    --model bayesian_nig
+```
+
+- `--live` defaults to the paper (sandbox) account. Use `--live margin` for real money (requires confirmation prompt).
+- The strategy runs indefinitely, ticking every ~20 seconds. Press **Ctrl+C** to stop gracefully.
+- `--start`/`--end` are not used in live mode (the server streams real-time market data).
+- `--retrain-interval` is not supported in live mode — provide a pre-built PDF via `--pdf-path`.
 
 ### Use --exit-tiers 1 to make all shares exit at signal_price — no early profit-taking:
 
