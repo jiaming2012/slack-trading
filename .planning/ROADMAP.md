@@ -66,7 +66,7 @@ Plans:
   4. Simulator playground orders do NOT produce telemetry logs (live-only filtering works)
 **Plans:** 3 plans
 Plans:
-- [ ] 03-01-PLAN.md -- Telemetry metrics package and order lifecycle instrumentation (placement, fill, rejection)
+- [x] 03-01-PLAN.md -- Telemetry metrics package and order lifecycle instrumentation (placement, fill, rejection)
 - [ ] 03-02-PLAN.md -- Market data flow: candle counters, tick latency, data gap warnings
 - [ ] 03-03-PLAN.md -- Server heartbeat: background goroutine with gauge metrics and structured logs
 

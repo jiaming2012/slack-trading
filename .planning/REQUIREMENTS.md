@@ -36,9 +36,9 @@
 
 ### Market Data Flow
 
-- [ ] **DATA-01**: Candle arrival events are logged with symbol, timeframe, and timestamp
-- [ ] **DATA-02**: Tick processing events are logged with processing latency
-- [ ] **DATA-03**: Data gaps (missing candles, stale data) emit warning-level logs
+- [x] **DATA-01**: Candle arrival events are logged with symbol, timeframe, and timestamp
+- [x] **DATA-02**: Tick processing events are logged with processing latency
+- [x] **DATA-03**: Data gaps (missing candles, stale data) emit warning-level logs
 
 ### Strategy Decisions
 
@@ -152,9 +152,9 @@
 | ORD-02 | Phase 3 | Complete |
 | ORD-03 | Phase 3 | Complete |
 | ORD-04 | Phase 3 | Complete |
-| DATA-01 | Phase 3 | Pending |
-| DATA-02 | Phase 3 | Pending |
-| DATA-03 | Phase 3 | Pending |
+| DATA-01 | Phase 3 | Complete |
+| DATA-02 | Phase 3 | Complete |
+| DATA-03 | Phase 3 | Complete |
 | BEAT-01 | Phase 3 | Pending |
 | BEAT-02 | Phase 3 | Pending |
 | PYTEL-01 | Phase 4 | Pending |
