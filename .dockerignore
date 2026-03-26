@@ -4,6 +4,7 @@
 # Whitelist (un-ignore) the Dockerfile and the necessary directories
 !Dockerfile
 !src/
+!cmd/
 !requirements.txt
 !go.mod
 !go.sum

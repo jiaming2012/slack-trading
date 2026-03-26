@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -89,15 +90,17 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 }
 
 func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir, networkName string) {
-	err := godotenv.Load()
+	// Derive PROJECT_DIR from this file's location (integration_testing/ -> repo root)
+	// so tests work regardless of the shell's PROJECT_DIR value.
+	_, thisFile, _, _ := runtime.Caller(0)
+	projectDir = filepath.Dir(filepath.Dir(thisFile))
+	os.Setenv("PROJECT_DIR", projectDir)
+
+	err := godotenv.Load(filepath.Join(projectDir, ".env"))
 	if err != nil {
-		dir, _ := os.Getwd()
-		log.Printf("Current working directory: %s", dir)
+		log.Printf("Project directory: %s", projectDir)
 		log.Fatalf("Error loading .env file: %v", err)
 	}
-
-	projectDir, err = utils.GetEnv("PROJECT_DIR")
-	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, goEnv)
 	require.NoError(t, err)
@@ -173,7 +176,7 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir
 	esdbStarted = true
 
 	// Start a Postgres container
-	initScriptPath := filepath.Join(projectDir, "src", "backtester-api", "db", "init.sql")
+	initScriptPath := filepath.Join(projectDir, "src", "go", "backtester-api", "db", "init.sql")
 
 	postgresReq := testcontainers.ContainerRequest{
 		Image: "postgres:13",

@@ -98,7 +98,10 @@
       "Read(//Users/jamal/**)",
       "Bash(PROJECT_DIR=/Users/jamal/projects/yumyums/receipt-processor task test)",
       "Bash(/Users/jamal/miniconda3/condabin/conda list:*)",
-      "Bash(/Users/jamal/miniconda3/condabin/conda env:*)"
+      "Bash(/Users/jamal/miniconda3/condabin/conda env:*)",
+      "Bash(go list:*)",
+      "Bash(echo \"PROJECT_DIR=$PROJECT_DIR\")",
+      "Bash(task --list)"
     ]
   }
 }
