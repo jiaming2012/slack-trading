@@ -39,7 +39,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
 			Env: map[string]string{
-				"PROJECT_DIR":     "/app",
+				"PROJECT_DIR":     "/app/slack-trading",
 				"GO_ENV":           "test",
 				"DRY_RUN":          "false",
 				"POSTGRES_HOST":    "postgres",
