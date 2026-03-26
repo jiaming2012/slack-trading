@@ -69,14 +69,14 @@
 
 ### Directory Restructure
 
-- [ ] **DIR-01**: Python client reorganized into strategies/, engine/, lib/, tools/, demos/, tests/, deprecated/ subdirectories
-- [ ] **DIR-02**: Strategy files moved to strategies/ (covered_call, wheel, pdf_wheel, mean_reversion, options_mean_reversion, credit_spread)
-- [ ] **DIR-03**: Core runtime files moved to engine/ (trading_engine, client, types, rpc_profiler)
-- [ ] **DIR-04**: Shared libraries moved to lib/ (pdf_builder, pdf_types, deviation_levels, partial_exit_manager, risk_management, return_models, candlestick_patterns)
-- [ ] **DIR-05**: CLI tools moved to tools/ (build_pdf, plot_option_candlestick, mean_reversion_report, credit_spread_visualizations)
-- [ ] **DIR-06**: Demo entry points moved to demos/
-- [ ] **DIR-07**: Deprecated files (simple_open_strategy_v4, simple_stack_open_strategy_v2, simple_close_strategy, simple_stack_close_strategy, stack_close_strategy_psar, generate_signals, plot_playground, plot_candlestick) moved to deprecated/
-- [ ] **DIR-08**: All imports updated across the codebase to reflect new paths
+- [x] **DIR-01**: Python client reorganized into strategies/, engine/, lib/, tools/, demos/, tests/, deprecated/ subdirectories
+- [x] **DIR-02**: Strategy files moved to strategies/ (covered_call, wheel, pdf_wheel, mean_reversion, options_mean_reversion, credit_spread)
+- [x] **DIR-03**: Core runtime files moved to engine/ (trading_engine, client, types, rpc_profiler)
+- [x] **DIR-04**: Shared libraries moved to lib/ (pdf_builder, pdf_types, deviation_levels, partial_exit_manager, risk_management, return_models, candlestick_patterns)
+- [x] **DIR-05**: CLI tools moved to tools/ (build_pdf, plot_option_candlestick, mean_reversion_report, credit_spread_visualizations)
+- [x] **DIR-06**: Demo entry points moved to demos/
+- [x] **DIR-07**: Deprecated files (simple_open_strategy_v4, simple_stack_open_strategy_v2, simple_close_strategy, simple_stack_close_strategy, stack_close_strategy_psar, generate_signals, plot_playground, plot_candlestick) moved to deprecated/
+- [x] **DIR-08**: All imports updated across the codebase to reflect new paths
 
 ### Dashboards & Alerts
 
@@ -127,14 +127,14 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DIR-01 | Phase 1 | Pending |
-| DIR-02 | Phase 1 | Pending |
-| DIR-03 | Phase 1 | Pending |
-| DIR-04 | Phase 1 | Pending |
-| DIR-05 | Phase 1 | Pending |
-| DIR-06 | Phase 1 | Pending |
-| DIR-07 | Phase 1 | Pending |
-| DIR-08 | Phase 1 | Pending |
+| DIR-01 | Phase 1 | Complete |
+| DIR-02 | Phase 1 | Complete |
+| DIR-03 | Phase 1 | Complete |
+| DIR-04 | Phase 1 | Complete |
+| DIR-05 | Phase 1 | Complete |
+| DIR-06 | Phase 1 | Complete |
+| DIR-07 | Phase 1 | Complete |
+| DIR-08 | Phase 1 | Complete |
 | CONS-01 | Phase 1 | Pending |
 | CONS-02 | Phase 1 | Pending |
 | CONS-03 | Phase 1 | Pending |
