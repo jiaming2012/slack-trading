@@ -225,9 +225,11 @@ class TestBuildOrderRows:
 
         expected_cols = {
             "order_id", "group_id", "htf_signal", "signal_price", "action",
-            "symbol", "side", "quantity", "fill_price", "sigma_distance",
-            "p_revert", "expected_pl", "realized_pl", "model_name",
-            "stop_price", "level_index", "status", "timestamp",
+            "symbol", "side", "quantity", "fill_price", "requested_price",
+            "sigma_distance", "p_revert_unbounded", "p_revert_bounded",
+            "expected_pl", "expected_pl_bucket", "realized_pl",
+            "duration_min", "model_name", "stop_price", "level_index",
+            "exit_tier", "status", "timestamp",
         }
         assert expected_cols.issubset(set(df.columns))
 
@@ -448,7 +450,7 @@ class TestComputeMetrics:
 
 class TestGenerateReport:
 
-    @patch("mean_reversion_report.fetch_orders")
+    @patch("tools.mean_reversion_report.fetch_orders")
     def test_returns_three_elements(self, mock_fetch):
         """generate_mean_reversion_report returns (order_df, group_df, metrics)."""
         mock_fetch.return_value = [_make_entry_order()]
@@ -458,7 +460,7 @@ class TestGenerateReport:
         assert len(group_df) > 0
         assert metrics.num_groups == 1
 
-    @patch("mean_reversion_report.fetch_orders")
+    @patch("tools.mean_reversion_report.fetch_orders")
     def test_saves_csv(self, mock_fetch, tmp_path):
         """Output path → CSV file created."""
         mock_fetch.return_value = [_make_entry_order()]
@@ -471,7 +473,7 @@ class TestGenerateReport:
         assert "expected_pl" in saved.columns
         assert "realized_pl" in saved.columns
 
-    @patch("mean_reversion_report.fetch_orders")
+    @patch("tools.mean_reversion_report.fetch_orders")
     def test_empty_orders_no_crash(self, mock_fetch):
         """No orders → empty results, no crash."""
         mock_fetch.return_value = []
