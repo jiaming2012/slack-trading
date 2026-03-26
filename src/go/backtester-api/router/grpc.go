@@ -734,10 +734,20 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 
 	duration := time.Duration(req.Seconds) * time.Second
 
+	tickStart := time.Now()
+
 	tick, err := s.nextTick(playgroundId, duration, req.IsPreview)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
 	}
+
+	tickLatencyMs := float64(time.Since(tickStart).Milliseconds())
+	logger.WithFields(log.Fields{
+		"event":           "tick_processed",
+		"tick_latency_ms": tickLatencyMs,
+		"is_preview":      req.IsPreview,
+		"duration_s":      req.Seconds,
+	}).Debug("tick processed")
 
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
