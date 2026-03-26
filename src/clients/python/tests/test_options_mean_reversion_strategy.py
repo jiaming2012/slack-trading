@@ -199,8 +199,8 @@ def _make_ladder_response(contracts):
 
 class TestTradeGroupCreation:
 
-    @patch("options_mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("options_mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.options_mean_reversion.compute_deviation_levels")
     def test_bullish_signal_creates_call_group(
         self, mock_compute, mock_detect,
     ):
@@ -234,8 +234,8 @@ class TestTradeGroupCreation:
         assert group.status == "pending"
         assert strategy.funnel["bullish_signals"] == 1
 
-    @patch("options_mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("options_mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.options_mean_reversion.compute_deviation_levels")
     def test_bearish_signal_creates_put_group(
         self, mock_compute, mock_detect,
     ):
@@ -268,8 +268,8 @@ class TestTradeGroupCreation:
         assert group.direction == "bearish"
         assert strategy.funnel["bearish_signals"] == 1
 
-    @patch("options_mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("options_mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.options_mean_reversion.compute_deviation_levels")
     def test_dedup_same_htf_bar(self, mock_compute, mock_detect):
         """Same signal from same HTF bar → second group rejected."""
         mock_detect.return_value = [
@@ -298,7 +298,7 @@ class TestTradeGroupCreation:
         assert len(strategy.trade_groups) == 1
         assert strategy.funnel["groups_skipped_dedup"] == 1
 
-    @patch("options_mean_reversion_strategy.detect_atomic_signals_on_bar")
+    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
     def test_insufficient_samples_ignored(self, mock_detect):
         """Insufficient samples → no group created."""
         mock_detect.return_value = [

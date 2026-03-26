@@ -153,8 +153,8 @@ def _make_group(
 
 class TestTradeGroupCreation:
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.compute_deviation_levels")
     def test_htf_bullish_signal_creates_group(
         self, mock_compute, mock_detect,
     ):
@@ -189,7 +189,7 @@ class TestTradeGroupCreation:
         assert group.status == "pending"
         assert strategy.funnel["groups_created"] == 1
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
     def test_htf_bearish_signal_ignored(self, mock_detect):
         """Mean forward return <= 0 → no group created."""
         mock_detect.return_value = [
@@ -204,7 +204,7 @@ class TestTradeGroupCreation:
 
         assert len(strategy.trade_groups) == 0
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
     def test_insufficient_samples_ignored(self, mock_detect):
         """sufficient_samples=False → no group."""
         mock_detect.return_value = [
@@ -219,8 +219,8 @@ class TestTradeGroupCreation:
 
         assert len(strategy.trade_groups) == 0
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.compute_deviation_levels")
     def test_dedup_same_htf_bar(self, mock_compute, mock_detect):
         """Same signal from same HTF bar → second group rejected."""
         mock_detect.return_value = [
@@ -245,8 +245,8 @@ class TestTradeGroupCreation:
         assert len(strategy.trade_groups) == 1
         assert strategy.funnel["groups_skipped_dedup"] == 1
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.compute_deviation_levels")
     def test_empty_plan_skips_group(self, mock_compute, mock_detect):
         """Empty deviation plan → no group created."""
         mock_detect.return_value = [
@@ -268,8 +268,8 @@ class TestTradeGroupCreation:
         assert len(strategy.trade_groups) == 0
         assert strategy.funnel["groups_skipped_empty_plan"] == 1
 
-    @patch("mean_reversion_strategy.detect_atomic_signals_on_bar")
-    @patch("mean_reversion_strategy.compute_deviation_levels")
+    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("strategies.mean_reversion.compute_deviation_levels")
     def test_truncated_plan_logged(self, mock_compute, mock_detect):
         """Budget-truncated plan → funnel counter incremented."""
         mock_detect.return_value = [
@@ -722,7 +722,7 @@ class TestRecomputeExits:
 
 class TestProcessCandles:
 
-    @patch("mean_reversion_strategy._bar_to_dict")
+    @patch("strategies.mean_reversion._bar_to_dict")
     def test_htf_candle_dispatched(self, mock_bar_to_dict):
         """Period matching htf_seconds → _process_htf_candle called."""
         mock_bar_to_dict.return_value = _make_htf_bar()
@@ -734,7 +734,7 @@ class TestProcessCandles:
 
         assert strategy.funnel["htf_bars"] == 1
 
-    @patch("mean_reversion_strategy._bar_to_dict")
+    @patch("strategies.mean_reversion._bar_to_dict")
     def test_ltf_candle_dispatched(self, mock_bar_to_dict):
         """Period matching ltf_seconds → _process_ltf_candle called."""
         mock_bar_to_dict.return_value = _make_ltf_bar()
@@ -807,8 +807,8 @@ class TestBarToDict:
         """_bar_to_dict extracts expected fields from a protobuf-like bar."""
         bar = MagicMock()
         # Mock _get and _get_dt to return specific values
-        with patch("mean_reversion_strategy._get") as mock_get, \
-             patch("mean_reversion_strategy._get_dt") as mock_get_dt:
+        with patch("strategies.mean_reversion._get") as mock_get, \
+             patch("strategies.mean_reversion._get_dt") as mock_get_dt:
             mock_get.side_effect = lambda b, field: {
                 "open": 99.5, "high": 100.5, "low": 99.0, "close": 100.0,
                 "superD_50_3": 1.0,
@@ -1099,8 +1099,8 @@ class TestEVModelFlag:
         strategy = MeanReversionStrategy(pg, "AAPL", pdf=pdf)
 
         from unittest.mock import patch as _patch
-        with _patch("mean_reversion_strategy.detect_atomic_signals_on_bar") as mock_detect, \
-             _patch("mean_reversion_strategy.compute_deviation_levels") as mock_compute:
+        with _patch("strategies.mean_reversion.detect_atomic_signals_on_bar") as mock_detect, \
+             _patch("strategies.mean_reversion.compute_deviation_levels") as mock_compute:
             mock_detect.return_value = [
                 "bullish_supertrend", "stochrsi_cross_above_20",
             ]
