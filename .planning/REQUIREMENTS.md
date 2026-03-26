@@ -125,17 +125,66 @@
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| — | — | — |
+| DIR-01 | Phase 1 | Pending |
+| DIR-02 | Phase 1 | Pending |
+| DIR-03 | Phase 1 | Pending |
+| DIR-04 | Phase 1 | Pending |
+| DIR-05 | Phase 1 | Pending |
+| DIR-06 | Phase 1 | Pending |
+| DIR-07 | Phase 1 | Pending |
+| DIR-08 | Phase 1 | Pending |
+| CONS-01 | Phase 1 | Pending |
+| CONS-02 | Phase 1 | Pending |
+| CONS-03 | Phase 1 | Pending |
+| CONS-04 | Phase 1 | Pending |
+| OTEL-01 | Phase 2 | Pending |
+| OTEL-02 | Phase 2 | Pending |
+| OTEL-03 | Phase 2 | Pending |
+| OTEL-04 | Phase 2 | Pending |
+| OTEL-05 | Phase 2 | Pending |
+| OTEL-06 | Phase 2 | Pending |
+| BACK-01 | Phase 2 | Pending |
+| BACK-02 | Phase 2 | Pending |
+| BACK-03 | Phase 2 | Pending |
+| ORD-01 | Phase 3 | Pending |
+| ORD-02 | Phase 3 | Pending |
+| ORD-03 | Phase 3 | Pending |
+| ORD-04 | Phase 3 | Pending |
+| DATA-01 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Pending |
+| DATA-03 | Phase 3 | Pending |
+| BEAT-01 | Phase 3 | Pending |
+| BEAT-02 | Phase 3 | Pending |
+| PYTEL-01 | Phase 4 | Pending |
+| PYTEL-02 | Phase 4 | Pending |
+| PYTEL-03 | Phase 4 | Pending |
+| PYTEL-04 | Phase 4 | Pending |
+| STRAT-01 | Phase 4 | Pending |
+| STRAT-02 | Phase 4 | Pending |
+| STRAT-03 | Phase 4 | Pending |
+| BEAT-03 | Phase 4 | Pending |
+| BEAT-04 | Phase 4 | Pending |
+| TICK-01 | Phase 5 | Pending |
+| TICK-02 | Phase 5 | Pending |
+| TICK-03 | Phase 5 | Pending |
+| TICK-04 | Phase 5 | Pending |
+| DASH-01 | Phase 6 | Pending |
+| DASH-02 | Phase 6 | Pending |
+| DASH-03 | Phase 6 | Pending |
+| ALERT-01 | Phase 6 | Pending |
+| ALERT-02 | Phase 6 | Pending |
+| ALERT-03 | Phase 6 | Pending |
+| DEPLOY-01 | Phase 7 | Pending |
+| DEPLOY-02 | Phase 7 | Pending |
+| DEPLOY-03 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 47 total
-- Mapped to phases: 0
-- Unmapped: 47 ⚠️
+- v1 requirements: 52 total
+- Mapped to phases: 52
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 after roadmap creation*
