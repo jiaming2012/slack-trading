@@ -48,7 +48,10 @@ Plans:
   3. Grafana opens in a browser with Loki, Tempo, and Prometheus already configured as data sources
   4. Stopping the Go server flushes all pending telemetry (no data loss on shutdown)
   5. Structured log fields (playground_id, symbol, environment) appear consistently in Loki log entries
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md -- Go OTel SDK initialization: SetupOTelSDK function, logrus logfmt config, env vars
+- [ ] 02-02-PLAN.md -- Observability backend: Docker Compose with grafana/otel-lgtm, Taskfile entries
 
 ### Phase 3: Go Telemetry Instrumentation
 **Goal**: The operator can see order activity, market data flow, and server liveness through logs and metrics
@@ -115,7 +118,7 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Python Codebase Restructure | 3/4 | Verifying | - |
-| 2. Go OTel Foundation & Local Backend | 0/? | Not started | - |
+| 2. Go OTel Foundation & Local Backend | 0/2 | Planned | - |
 | 3. Go Telemetry Instrumentation | 0/? | Not started | - |
 | 4. Python Telemetry Instrumentation | 0/? | Not started | - |
 | 5. End-to-End Tick Tracing | 0/? | Not started | - |
