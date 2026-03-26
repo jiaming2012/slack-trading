@@ -298,6 +298,24 @@ tasks:
     cmds:
       - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
 
+  observability:start:
+    desc: "Start observability stack (Grafana, Tempo, Loki, Prometheus, OTel Collector)"
+    cmds:
+      - 'docker compose -f observability/docker-compose.yaml up -d'
+    dir: ${PROJECTS_DIR}/slack-trading
+
+  observability:stop:
+    desc: "Stop observability stack"
+    cmds:
+      - 'docker compose -f observability/docker-compose.yaml down'
+    dir: ${PROJECTS_DIR}/slack-trading
+
+  observability:logs:
+    desc: "Show observability stack logs"
+    cmds:
+      - 'docker compose -f observability/docker-compose.yaml logs -f'
+    dir: ${PROJECTS_DIR}/slack-trading
+
   gen:proto:
     cmds:
       - 'source ${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/activate'
