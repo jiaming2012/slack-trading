@@ -1,8 +1,13 @@
 package telemetry
 
 import (
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"fmt"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 )
 
 // Metric instruments -- nil until Init() is called.
@@ -18,18 +23,83 @@ var (
 )
 
 // Init creates all metric instruments using the global MeterProvider.
-// MUST be called after utils.SetupOTelSDK().
+// MUST be called after utils.SetupOTelSDK() so the real provider is available.
 func Init() error {
+	meter := otel.GetMeterProvider().Meter("grodt")
+
+	var err error
+
+	OrdersPlaced, err = meter.Int64Counter("grodt.orders.placed",
+		metric.WithUnit("{order}"),
+		metric.WithDescription("Number of orders placed"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create OrdersPlaced counter: %w", err)
+	}
+
+	OrdersFilled, err = meter.Int64Counter("grodt.orders.filled",
+		metric.WithUnit("{order}"),
+		metric.WithDescription("Number of orders filled"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create OrdersFilled counter: %w", err)
+	}
+
+	OrdersRejected, err = meter.Int64Counter("grodt.orders.rejected",
+		metric.WithUnit("{order}"),
+		metric.WithDescription("Number of orders rejected"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create OrdersRejected counter: %w", err)
+	}
+
+	CandlesProcessed, err = meter.Int64Counter("grodt.candles.processed",
+		metric.WithUnit("{candle}"),
+		metric.WithDescription("Number of candles processed"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create CandlesProcessed counter: %w", err)
+	}
+
+	SignalsGenerated, err = meter.Int64Counter("grodt.signals.generated",
+		metric.WithUnit("{signal}"),
+		metric.WithDescription("Number of signals generated"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create SignalsGenerated counter: %w", err)
+	}
+
+	ActivePlaygrounds, err = meter.Int64Gauge("grodt.heartbeat.active_playgrounds",
+		metric.WithUnit("{playground}"),
+		metric.WithDescription("Number of active playgrounds"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create ActivePlaygrounds gauge: %w", err)
+	}
+
+	OpenOrders, err = meter.Int64Gauge("grodt.heartbeat.open_orders",
+		metric.WithUnit("{order}"),
+		metric.WithDescription("Number of open orders"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create OpenOrders gauge: %w", err)
+	}
+
+	UptimeSeconds, err = meter.Float64Gauge("grodt.heartbeat.uptime",
+		metric.WithUnit("s"),
+		metric.WithDescription("Server uptime in seconds"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create UptimeSeconds gauge: %w", err)
+	}
+
 	return nil
 }
 
 // ShouldEmitOrderTelemetry returns true if order telemetry should be emitted
-// for the given playground environment.
+// for the given playground environment. Only live and reconcile playgrounds
+// produce telemetry; simulator playgrounds are excluded.
 func ShouldEmitOrderTelemetry(env models.PlaygroundEnvironment) bool {
-	return false
+	return env == models.PlaygroundEnvironmentLive || env == models.PlaygroundEnvironmentReconcile
 }
 
-// PlaygroundAttrs returns OTel metric attributes for a playground.
+// PlaygroundAttrs returns OTel metric attributes for a playground,
+// including environment and account_type dimensions.
 func PlaygroundAttrs(env models.PlaygroundEnvironment, accountType models.LiveAccountType) metric.MeasurementOption {
-	return nil
+	return metric.WithAttributes(
+		attribute.String("environment", string(env)),
+		attribute.String("account_type", string(accountType)),
+	)
 }
