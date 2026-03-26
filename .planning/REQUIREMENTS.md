@@ -25,7 +25,7 @@
 - [ ] **ORD-01**: Order placement emits structured log with playground_id, symbol, side, quantity, order_type, and environment="live"
 - [ ] **ORD-02**: Order fill emits structured log with fill price, quantity, and timestamp
 - [ ] **ORD-03**: Order rejection emits structured log with rejection reason
-- [ ] **ORD-04**: Only live playgrounds (Meta.Environment == "live") emit order telemetry; simulator playgrounds are excluded
+- [ ] **ORD-04**: Only live and reconcile playgrounds emit order telemetry; simulator playgrounds are excluded
 
 ### Heartbeat
 
