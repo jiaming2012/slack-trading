@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 )
 
 func TestHeartbeatStatsComputation(t *testing.T) {
@@ -32,9 +31,9 @@ func TestHeartbeatStatsComputation(t *testing.T) {
 
 	t.Run("counts open orders only from live/reconcile playgrounds", func(t *testing.T) {
 		// Verify ShouldEmitOrderTelemetry filters correctly
-		assert.True(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentLive))
-		assert.True(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentReconcile))
-		assert.False(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentSimulator))
+		assert.True(t, ShouldEmitOrderTelemetry("live"))
+		assert.True(t, ShouldEmitOrderTelemetry("reconcile"))
+		assert.False(t, ShouldEmitOrderTelemetry("simulator"))
 	})
 
 	t.Run("zero counts when no playgrounds exist", func(t *testing.T) {

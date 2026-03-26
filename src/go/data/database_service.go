@@ -105,7 +105,7 @@ func (s *DatabaseService) GetHeartbeatStats() telemetry.HeartbeatStats {
 		}
 
 		// Count open orders for live/reconcile only
-		if telemetry.ShouldEmitOrderTelemetry(p.Meta.Environment) {
+		if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
 			for _, order := range p.GetAllOrders() {
 				if order.Status == models.OrderRecordStatusNew ||
 					order.Status == models.OrderRecordStatusPending ||
