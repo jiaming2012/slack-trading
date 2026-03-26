@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
@@ -688,8 +690,18 @@ func (s *Server) GetCandlesFromRepo(ctx context.Context, req *pb.GetCandlesReque
 	}, nil
 }
 func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.TickDelta, error) {
-	log.Tracef("%v: NextTick:start", req.RequestId)
-	defer log.Tracef("%v: NextTick:end", req.RequestId)
+	logger := log.WithFields(log.Fields{
+		"trace_id":      req.TraceId,
+		"playground_id": req.PlaygroundId,
+		"request_id":    req.RequestId,
+	})
+	logger.Trace("NextTick:start")
+	defer logger.Trace("NextTick:end")
+
+	if req.TraceId != "" {
+		span := trace.SpanFromContext(ctx)
+		span.SetAttributes(attribute.String("trace_id", req.TraceId))
+	}
 
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
@@ -1073,6 +1085,19 @@ func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) 
 }
 
 func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.Order, error) {
+	logger := log.WithFields(log.Fields{
+		"trace_id":      req.TraceId,
+		"playground_id": req.PlaygroundId,
+		"symbol":        req.Symbol,
+		"side":          req.Side,
+	})
+	logger.Info("PlaceOrder:start")
+
+	if req.TraceId != "" {
+		span := trace.SpanFromContext(ctx)
+		span.SetAttributes(attribute.String("trace_id", req.TraceId))
+	}
+
 	if orders, err := s.checkOrderExists(ctx, req.ClientRequestId); len(orders) > 0 || err != nil {
 		if err != nil {
 			return nil, fmt.Errorf("PlaceOrder: %v", err)

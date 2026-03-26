@@ -315,6 +315,7 @@ message PlaceOrderRequest {
     optional string client_request_id = 13;
     optional double sl = 14;
     map<string, string> attributes = 15;
+    string trace_id = 16;
 }
 
 message NextTickRequest {
@@ -322,6 +323,7 @@ message NextTickRequest {
     uint64 seconds = 2;
     bool is_preview = 3;
     string request_id = 4;
+    string trace_id = 5;
 }
 
 message TickDelta {
