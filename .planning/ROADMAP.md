@@ -31,7 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. All 6 strategy demo scripts launch via trading_engine.run_strategy() instead of their own tick loops
   3. All existing strategy tests pass without modification to test logic (only import paths change)
   4. No Python files remain in the flat src/clients/python/ root (all moved to subdirectories or deprecated/)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 01-01-PLAN.md -- Directory restructure: move all files, create packages, fix imports, update taskfile
+- [ ] 01-02-PLAN.md -- Strategy consolidation: BaseStrategy class, adapt 6 strategies, engine tick loop
+- [ ] 01-03-PLAN.md -- Demo refactoring, optimizer refactoring, full test validation
 
 ### Phase 2: Go OTel Foundation & Local Backend
 **Goal**: Existing Go OTel spans produce real traces visible in a local Grafana instance
@@ -109,7 +113,7 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Python Codebase Restructure | 0/? | Not started | - |
+| 1. Python Codebase Restructure | 0/3 | Planning complete | - |
 | 2. Go OTel Foundation & Local Backend | 0/? | Not started | - |
 | 3. Go Telemetry Instrumentation | 0/? | Not started | - |
 | 4. Python Telemetry Instrumentation | 0/? | Not started | - |
