@@ -29,16 +29,16 @@
 
 ### Heartbeat
 
-- [ ] **BEAT-01**: Go server emits a heartbeat metric gauge every 30 seconds with service label
-- [ ] **BEAT-02**: Go server emits a periodic structured heartbeat log with active playground count and last tick time
+- [x] **BEAT-01**: Go server emits a heartbeat metric gauge every 30 seconds with service label
+- [x] **BEAT-02**: Go server emits a periodic structured heartbeat log with active playground count and last tick time
 - [ ] **BEAT-03**: Python strategy client emits a heartbeat metric gauge every 30 seconds
 - [ ] **BEAT-04**: Python strategy client emits a periodic structured heartbeat log with strategy state
 
 ### Market Data Flow
 
-- [x] **DATA-01**: Candle arrival events are logged with symbol, timeframe, and timestamp
-- [x] **DATA-02**: Tick processing events are logged with processing latency
-- [x] **DATA-03**: Data gaps (missing candles, stale data) emit warning-level logs
+- [ ] **DATA-01**: Candle arrival events are logged with symbol, timeframe, and timestamp
+- [ ] **DATA-02**: Tick processing events are logged with processing latency
+- [ ] **DATA-03**: Data gaps (missing candles, stale data) emit warning-level logs
 
 ### Strategy Decisions
 
@@ -152,11 +152,11 @@
 | ORD-02 | Phase 3 | Complete |
 | ORD-03 | Phase 3 | Complete |
 | ORD-04 | Phase 3 | Complete |
-| DATA-01 | Phase 3 | Complete |
-| DATA-02 | Phase 3 | Complete |
-| DATA-03 | Phase 3 | Complete |
-| BEAT-01 | Phase 3 | Pending |
-| BEAT-02 | Phase 3 | Pending |
+| DATA-01 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Pending |
+| DATA-03 | Phase 3 | Pending |
+| BEAT-01 | Phase 3 | Complete |
+| BEAT-02 | Phase 3 | Complete |
 | PYTEL-01 | Phase 4 | Pending |
 | PYTEL-02 | Phase 4 | Pending |
 | PYTEL-03 | Phase 4 | Pending |

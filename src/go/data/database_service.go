@@ -87,6 +87,47 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient, option
 	}
 }
 
+func (s *DatabaseService) GetHeartbeatStats() telemetry.HeartbeatStats {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	stats := telemetry.HeartbeatStats{}
+	var latestTick time.Time
+
+	for _, p := range s.playgrounds {
+		switch p.Meta.Environment {
+		case models.PlaygroundEnvironmentLive:
+			stats.LiveCount++
+		case models.PlaygroundEnvironmentReconcile:
+			stats.ReconcileCount++
+		case models.PlaygroundEnvironmentSimulator:
+			stats.SimulatorCount++
+		}
+
+		// Count open orders for live/reconcile only
+		if telemetry.ShouldEmitOrderTelemetry(p.Meta.Environment) {
+			for _, order := range p.GetAllOrders() {
+				if order.Status == models.OrderRecordStatusNew ||
+					order.Status == models.OrderRecordStatusPending ||
+					order.Status == models.OrderRecordStatusPartiallyFilled {
+					stats.OpenOrderCount++
+				}
+			}
+		}
+
+		// Track latest tick time across all live playgrounds
+		if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+			currentTime := p.Meta.CurrentTime
+			if currentTime.After(latestTick) {
+				latestTick = currentTime
+			}
+		}
+	}
+
+	stats.LastTickTime = latestTick
+	return stats
+}
+
 func (s *DatabaseService) GetPolygonClient() models.IPolygonClient {
 	return s.polygonClient
 }

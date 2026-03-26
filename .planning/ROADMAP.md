@@ -68,7 +68,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md -- Telemetry metrics package and order lifecycle instrumentation (placement, fill, rejection)
 - [ ] 03-02-PLAN.md -- Market data flow: candle counters, tick latency, data gap warnings
-- [ ] 03-03-PLAN.md -- Server heartbeat: background goroutine with gauge metrics and structured logs
+- [x] 03-03-PLAN.md -- Server heartbeat: background goroutine with gauge metrics and structured logs
 
 ### Phase 4: Python Telemetry Instrumentation
 **Goal**: The operator can see strategy decisions, Python heartbeat, and "is my strategy running?" status

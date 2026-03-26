@@ -460,6 +460,9 @@ func main() {
 	// Start Tradier API worker (must be after backtester router setup)
 	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
 
+	// Start heartbeat goroutine (per D-04: every 30 seconds)
+	go telemetry.StartHeartbeat(ctx, dbService.GetHeartbeatStats, time.Now())
+
 	// Start HTTP server
 	srv := &http.Server{
 		Handler: router,
