@@ -1152,7 +1152,7 @@ class TestPartialLegFailure:
     def test_partial_leg_failure_short_placed_long_fails(self):
         """Short SELL_TO_OPEN succeeds, long fails → BUY_TO_CLOSE short."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group(
             levels=[DeviationLevel(price=99.0, shares=1, sigma_distance=0.5, p_revert=0.6)],
@@ -1178,7 +1178,9 @@ class TestPartialLegFailure:
         pg.place_order = MagicMock(side_effect=mock_place)
 
         bar = _make_ltf_bar(low=98.5, close=99.5)
-        strategy._check_entries(group, bar)
+        # Force dynamic width to 5.0 so target_long_strike = 99.0 - 5.0 = 94.0
+        with patch.object(strategy, "_compute_dynamic_spread_width", return_value=5.0):
+            strategy._check_entries(group, bar)
 
         # Entry should NOT be recorded
         assert 0 not in group.entries
@@ -1192,7 +1194,7 @@ class TestPartialLegFailure:
     def test_partial_leg_failure_no_orphan_positions(self):
         """After cleanup, no collateral committed."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group(
             levels=[DeviationLevel(price=99.0, shares=1, sigma_distance=0.5, p_revert=0.6)],
@@ -1213,7 +1215,9 @@ class TestPartialLegFailure:
         pg.place_order = MagicMock(side_effect=mock_place)
 
         bar = _make_ltf_bar(low=98.5, close=99.5)
-        strategy._check_entries(group, bar)
+        # Force dynamic width to 5.0 so target_long_strike = 99.0 - 5.0 = 94.0
+        with patch.object(strategy, "_compute_dynamic_spread_width", return_value=5.0):
+            strategy._check_entries(group, bar)
 
         assert strategy._total_collateral_committed == 0.0
         assert group.total_collateral_used == 0.0
@@ -1221,7 +1225,7 @@ class TestPartialLegFailure:
     def test_partial_leg_failure_funnel_counter(self):
         """Failure counted in entries_skipped_leg_failure."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group(
             levels=[DeviationLevel(price=99.0, shares=1, sigma_distance=0.5, p_revert=0.6)],
@@ -1242,7 +1246,9 @@ class TestPartialLegFailure:
         pg.place_order = MagicMock(side_effect=mock_place)
 
         bar = _make_ltf_bar(low=98.5, close=99.5)
-        strategy._check_entries(group, bar)
+        # Force dynamic width to 5.0 so target_long_strike = 99.0 - 5.0 = 94.0
+        with patch.object(strategy, "_compute_dynamic_spread_width", return_value=5.0):
+            strategy._check_entries(group, bar)
 
         assert strategy.funnel["entries_skipped_leg_failure"] == 1
 
