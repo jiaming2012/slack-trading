@@ -95,6 +95,7 @@ tasks:
       - task test:e2e:live-account-reject-order
       - task test:e2e:simulate-options
       - task test:e2e:live-account-simulate-options
+      - task test:e2e:trace-id
     dir: ${PROJECT_DIR}/integration_testing
 
   test:e2e:tradier-place-spread:
@@ -172,6 +173,11 @@ tasks:
       - 'go test -timeout 60s -v -count=1 -run ^TestSimulateOptions$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: ${PROJECT_DIR}/integration_testing
 
+  test:e2e:trace-id:
+    cmds:
+      - 'go test -tags integration -timeout 120s -v -count=1 -run ^TestTraceId github.com/jiaming2012/slack-trading/integration_testing'
+    dir: ${PROJECT_DIR}/integration_testing
+
   metrics:token:
     cmds:
       - 'kubectl -n kubernetes-dashboard create token --duration=24h dashboard-admin'
@@ -223,12 +229,12 @@ tasks:
   app:build-dev:
     cmds:
       - 'docker build -t ewr.vultrcr.com/grodt/app:latest-dev -f Dockerfile .'
-    dir: ${PROJECT_DIR}
+    dir: "{{.ROOT_DIR}}"
       
   app:deploy:
     cmds:
       - './deploy-app.sh {{.version}}'
-    dir: ${PROJECT_DIR}
+    dir: "{{.ROOT_DIR}}"
     var:
       version: ""
 
@@ -258,7 +264,7 @@ tasks:
   metrics:fetch:simulation:
     cmds:
         - './env/bin/python tools/playground_metrics.py --playground-id b2df3e33-b684-4d5e-b6d1-9d67f29f45cb --twirp-host http://localhost:5051 --from-date 2025-05-27 --to-date 2025-05-29'
-    dir: ${PROJECT_DIR}/src/clients/python
+    dir: "{{.ROOT_DIR}}/src/clients/python"
     var:
       tags: ""
 
