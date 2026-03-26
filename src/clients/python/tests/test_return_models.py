@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from return_models import (
+from lib.return_models import (
     BayesianNIGModel,
     EmpiricalModel,
     ReturnModelResult,

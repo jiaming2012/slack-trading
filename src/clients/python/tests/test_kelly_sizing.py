@@ -9,7 +9,7 @@ Run::
 
 import pytest
 
-from risk_management import (
+from lib.risk_management import (
     kelly_fraction,
     adjusted_kelly,
     max_contracts,

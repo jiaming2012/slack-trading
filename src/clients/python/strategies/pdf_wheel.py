@@ -29,21 +29,21 @@ from rpc.playground_pb2 import (
     Candle,
 )
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     Repository,
     OrderSide,
 )
-from pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
-from pdf_types import PDFDocument, SignalPDF, CompoundSignal
-from risk_management import (
+from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
+from lib.pdf_types import PDFDocument, SignalPDF, CompoundSignal
+from lib.risk_management import (
     kelly_fraction,
     adjusted_kelly,
     max_contracts,
     allocate_contracts,
 )
-from wheel_strategy import WheelStrategy, WheelPhase
-from options_strategy_basic_v7 import (
+from strategies.wheel import WheelStrategy, WheelPhase
+from strategies.covered_call import (
     CloseSignalV2,
     OpenSignalV4,
     RollSignalV1,

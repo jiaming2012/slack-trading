@@ -15,7 +15,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from risk_management import allocate_contracts
+from lib.risk_management import allocate_contracts
 
 
 # ------------------------------------------------------------------ #

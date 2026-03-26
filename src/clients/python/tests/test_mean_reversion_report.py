@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from mean_reversion_report import (
+from tools.mean_reversion_report import (
     build_group_summary,
     build_order_rows,
     compute_metrics,

@@ -7,14 +7,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from deviation_levels import DeviationLevel, DeviationPlan
-from partial_exit_manager import ExitPlan, ExitTier
-from mean_reversion_strategy import (
+from lib.deviation_levels import DeviationLevel, DeviationPlan
+from lib.partial_exit_manager import ExitPlan, ExitTier
+from strategies.mean_reversion import (
     MeanReversionStrategy,
     TradeGroup,
     _bar_to_dict,
 )
-from pdf_types import HorizonStats, PDFDocument, SignalPDF
+from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
 
 # ------------------------------------------------------------------ #

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from collections import deque
 from typing import List, Tuple
 from rpc.playground_pb2 import TickDelta
-from trading_engine_types import OpenSignal, OpenSignalV3, OpenSignalName
+from engine.types import OpenSignal, OpenSignalV3, OpenSignalName
 
 class BaseOpenStrategy(ABC):
     def get_previous_year_date_range(self, period_in_seconds: int) -> Tuple[pd.Timestamp, pd.Timestamp]:

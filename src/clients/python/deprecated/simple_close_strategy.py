@@ -1,4 +1,4 @@
-from backtester_playground_client_grpc import OrderSide
+from engine.client import OrderSide
 from dataclasses import dataclass
 from rpc.playground_pb2 import Order
 from typing import List
@@ -90,7 +90,7 @@ class SimpleCloseStrategy():
         return signals
 
 if __name__ == "__main__":
-    from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, PlaygroundEnvironment, CreatePolygonPlaygroundRequest
+    from engine.client import BacktesterPlaygroundClient, Repository, RepositorySource, PlaygroundEnvironment, CreatePolygonPlaygroundRequest
     from loguru import logger
 
     symbol = "AAPL"

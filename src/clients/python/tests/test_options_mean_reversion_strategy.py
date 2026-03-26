@@ -9,14 +9,14 @@ import pytest
 
 import numpy as np
 
-from deviation_levels import DeviationLevel, DeviationPlan, _compute_p_revert
-from options_mean_reversion_strategy import (
+from lib.deviation_levels import DeviationLevel, DeviationPlan, _compute_p_revert
+from strategies.options_mean_reversion import (
     OptionsMeanReversionStrategy,
     OptionsTradeGroup,
     OptionsContractEntry,
     _bar_to_dict,
 )
-from pdf_types import HorizonStats, PDFDocument, SignalPDF
+from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
 
 # ------------------------------------------------------------------ #

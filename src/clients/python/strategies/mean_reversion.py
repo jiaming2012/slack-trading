@@ -21,18 +21,18 @@ from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 from loguru import logger as _default_logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
-from deviation_levels import DeviationPlan, compute_deviation_levels
-from partial_exit_manager import ExitPlan, check_exits, compute_exit_plan, _tier_fraction
-from pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
-from pdf_types import PDFDocument, SignalPDF
-from playground_types import OrderSide
+from lib.deviation_levels import DeviationPlan, compute_deviation_levels
+from lib.partial_exit_manager import ExitPlan, check_exits, compute_exit_plan, _tier_fraction
+from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
+from lib.pdf_types import PDFDocument, SignalPDF
+from engine.types import OrderSide
 
 
 # ------------------------------------------------------------------ #

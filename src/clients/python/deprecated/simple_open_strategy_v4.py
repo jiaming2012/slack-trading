@@ -1,8 +1,8 @@
 from loguru import logger
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, RepositorySource, CreatePolygonPlaygroundRequest, Repository, PlaygroundEnvironment
+from engine.client import BacktesterPlaygroundClient, RepositorySource, CreatePolygonPlaygroundRequest, Repository, PlaygroundEnvironment
 from google.protobuf.json_format import MessageToDict
-from base_open_strategy import BaseSimpleOpenStrategy
-from generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
+from deprecated.base_open_strategy import BaseSimpleOpenStrategy
+from deprecated.generate_signals import new_supertrend_momentum_signal_factory, add_supertrend_momentum_signal_feature_set_v2, add_supertrend_momentum_signal_target_set
 from dateutil.relativedelta import relativedelta
 from typing import List, Tuple
 from rpc.playground_pb2 import Candle, TickDelta
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 import pandas as pd
-from trading_engine_types import OpenSignalV2, OpenSignalName
+from engine.types import OpenSignalV2, OpenSignalName
 
 # V4: Targets a specific risk/reward
 class SimpleOpenStrategyV4(BaseSimpleOpenStrategy):

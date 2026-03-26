@@ -16,7 +16,7 @@ import uuid
 
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
-from playground_types import RepositorySource, OrderSide, LiveAccountType
+from engine.types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 

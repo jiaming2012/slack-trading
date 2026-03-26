@@ -1,4 +1,4 @@
-from backtester_playground_client_grpc import OrderSide
+from engine.client import OrderSide
 from dataclasses import dataclass
 from typing import Tuple
 from rpc.playground_pb2 import Order

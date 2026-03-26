@@ -1,12 +1,12 @@
 from loguru import logger
-from base_open_strategy import BaseOpenStrategy
-from simple_close_strategy import SimpleCloseStrategy
-from simple_stack_close_strategy import SimpleStackCloseStrategy
-from stack_close_strategy_psar import StackCloseStrategyPsar
-from trading_engine_types import OpenSignal, OpenSignalV2, OpenSignalV3, OpenSignalName
-from playground_metrics import collect_data
+from deprecated.base_open_strategy import BaseOpenStrategy
+from deprecated.simple_close_strategy import SimpleCloseStrategy
+from deprecated.simple_stack_close_strategy import SimpleStackCloseStrategy
+from deprecated.stack_close_strategy_psar import StackCloseStrategyPsar
+from engine.types import OpenSignal, OpenSignalV2, OpenSignalV3, OpenSignalName
+from tools.playground_metrics import collect_data
 from rpc.playground_twirp import PlaygroundServiceClient
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException, PlaceOrderSideNotAllowedException
+from engine.client import BacktesterPlaygroundClient, OrderSide, RepositorySource, PlaygroundEnvironment, Repository, CreatePolygonPlaygroundRequest, InvalidParametersException, PlaceOrderSideNotAllowedException
 from typing import List, Tuple
 from datetime import datetime, timedelta
 from scipy.stats import t

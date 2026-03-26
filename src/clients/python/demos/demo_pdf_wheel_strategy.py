@@ -41,17 +41,17 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
-from build_pdf_from_polygon import bar_to_dict
-from pdf_builder import PDFBuilder
-from pdf_types import PDFDocument
-from pdf_wheel_strategy import PDFWheelStrategy, run_pdf_wheel_strategy
+from tools.build_pdf_from_polygon import bar_to_dict
+from lib.pdf_builder import PDFBuilder
+from lib.pdf_types import PDFDocument
+from strategies.pdf_wheel import PDFWheelStrategy, run_pdf_wheel_strategy
 
 
 # ------------------------------------------------------------------ #

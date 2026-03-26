@@ -17,13 +17,13 @@ import sys
 from datetime import datetime
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     RepositorySource,
 )
-from options_strategy_basic_v7 import (
+from strategies.covered_call import (
     OptionsStrategyBasic,
     run_options_strategy,
 )

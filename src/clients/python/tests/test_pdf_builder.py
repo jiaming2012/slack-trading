@@ -17,8 +17,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from candlestick_patterns import is_pin_bar, is_engulfing, is_hammer, is_doji
-from pdf_types import (
+from lib.candlestick_patterns import is_pin_bar, is_engulfing, is_hammer, is_doji
+from lib.pdf_types import (
     CompoundSignal,
     HorizonStats,
     PDFDocument,
@@ -26,7 +26,7 @@ from pdf_types import (
     ci_95_width,
     compute_percentiles,
 )
-from pdf_builder import PDFBuilder, detect_atomic_signals_on_bar
+from lib.pdf_builder import PDFBuilder, detect_atomic_signals_on_bar
 
 
 # ================================================================== #
@@ -441,7 +441,7 @@ class TestFindBestSignal:
 
     def _make_pdf(self, signal_map):
         """Build a PDFDocument with given signal_key → (sample_size, ci_width) entries."""
-        from pdf_types import HorizonStats, SignalPDF, PDFDocument, compute_percentiles
+        from lib.pdf_types import HorizonStats, SignalPDF, PDFDocument, compute_percentiles
         signals = {}
         for key, (n, ci) in signal_map.items():
             returns = [0.01] * max(n, 2)

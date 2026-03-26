@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from deviation_levels import (
+from lib.deviation_levels import (
     DeviationLevel,
     DeviationPlan,
     compute_deviation_levels,

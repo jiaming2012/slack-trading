@@ -31,20 +31,20 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
-from build_pdf_from_polygon import bar_to_dict
-from credit_spread_strategy import (
+from tools.build_pdf_from_polygon import bar_to_dict
+from strategies.credit_spread import (
     CreditSpreadStrategy,
     run_credit_spread_strategy,
 )
-from pdf_builder import PDFBuilder
-from pdf_types import PDFDocument
+from lib.pdf_builder import PDFBuilder
+from lib.pdf_types import PDFDocument
 
 
 # ------------------------------------------------------------------ #
@@ -383,7 +383,7 @@ def main():
     # ------------------------------------------------------------------
     # 1. Load or build the initial PDF
     # ------------------------------------------------------------------
-    from credit_spread_visualizations import SpreadValueTracker, plot_pl_surface_from_entry
+    from tools.credit_spread_visualizations import SpreadValueTracker, plot_pl_surface_from_entry
     spread_tracker = SpreadValueTracker()
     on_tick_callback = spread_tracker.on_tick
 
@@ -476,7 +476,7 @@ def main():
     )
     # Attach profiler if enabled
     if args.profile:
-        from rpc_profiler import RPCProfiler
+        from engine.rpc_profiler import RPCProfiler
         profiler = RPCProfiler(enabled=True)
         playground.profiler = profiler
 

@@ -15,10 +15,10 @@ import statsmodels.api as sm
 from scipy.stats import ks_2samp
 
 import pandas as pd
-from backtester_playground_client_grpc import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment, OrderSide
+from engine.client import BacktesterPlaygroundClient, Repository, RepositorySource, CreatePolygonPlaygroundRequest, PlaygroundEnvironment, OrderSide
 from rpc.playground_pb2 import GetOptionsLadderRequest, OptionLadderContract
-from base_open_strategy_v2 import BaseOpenStrategyV2
-from trading_engine_types import OpenSignalV3, OpenSignalName
+from deprecated.base_open_strategy_v2 import BaseOpenStrategyV2
+from engine.types import OpenSignalV3, OpenSignalName
 from rpc.playground_pb2 import Candle
 
 import warnings

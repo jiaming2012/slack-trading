@@ -67,14 +67,14 @@ class TestDemoCoveredCall(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Run the demo script once and capture output."""
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        demo_script = os.path.join(script_dir, "demo_covered_call.py")
+        # Package root is one level up from the tests/ directory
+        package_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
         python_bin = sys.executable  # use whichever python is running this test
 
         cmd = [
             python_bin,
-            demo_script,
+            "-m", "demos.demo_covered_call",
             "--symbol", REFERENCE["symbol"],
             "--start", REFERENCE["start"],
             "--end", REFERENCE["end"],
@@ -88,7 +88,7 @@ class TestDemoCoveredCall(unittest.TestCase):
             cmd,
             capture_output=True,
             text=True,
-            cwd=script_dir,
+            cwd=package_root,
             timeout=1800,  # 30-minute timeout
         )
 

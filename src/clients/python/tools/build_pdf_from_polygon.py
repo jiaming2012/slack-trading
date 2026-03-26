@@ -34,14 +34,14 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
-from pdf_builder import PDFBuilder
+from lib.pdf_builder import PDFBuilder
 
 
 # ------------------------------------------------------------------ #

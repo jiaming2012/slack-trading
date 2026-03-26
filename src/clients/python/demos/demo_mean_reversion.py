@@ -41,18 +41,18 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
-from playground_types import LiveAccountType
-from build_pdf_from_polygon import bar_to_dict
-from mean_reversion_strategy import MeanReversionStrategy, run_mean_reversion
-from pdf_builder import PDFBuilder
-from pdf_types import PDFDocument
+from engine.types import LiveAccountType
+from tools.build_pdf_from_polygon import bar_to_dict
+from strategies.mean_reversion import MeanReversionStrategy, run_mean_reversion
+from lib.pdf_builder import PDFBuilder
+from lib.pdf_types import PDFDocument
 
 
 # ------------------------------------------------------------------ #

@@ -20,12 +20,12 @@ from typing import List, Tuple, Optional
 from dateutil.parser import isoparse
 from rpc.playground_pb2 import GetOptionsLadderRequest, OptionLadderContract, Candle
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     Repository,
     OrderSide,
 )
-from options_strategy_basic_v7 import (
+from strategies.covered_call import (
     OptionsStrategyBasic,
     OptionContractRepository,
     CloseSignalV2,
@@ -386,7 +386,7 @@ def run_wheel_strategy(
                         attributes["roll_from"] = signal.option_contract.symbol
                     else:
                         # Buy stock to cover the call if needed
-                        from options_strategy_basic_v7 import calculate_stock_quantity
+                        from strategies.covered_call import calculate_stock_quantity
 
                         stock_qty = calculate_stock_quantity(
                             playground, signal.symbol, -1

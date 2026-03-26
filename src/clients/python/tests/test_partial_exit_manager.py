@@ -2,7 +2,7 @@
 
 import pytest
 
-from partial_exit_manager import (
+from lib.partial_exit_manager import (
     ExitPlan,
     ExitTier,
     check_exits,

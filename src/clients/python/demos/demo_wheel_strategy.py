@@ -23,13 +23,13 @@ import sys
 from datetime import datetime
 from loguru import logger
 
-from backtester_playground_client_grpc import (
+from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
     PlaygroundEnvironment,
     RepositorySource,
 )
-from wheel_strategy import WheelStrategy, run_wheel_strategy
+from strategies.wheel import WheelStrategy, run_wheel_strategy
 
 
 def main():

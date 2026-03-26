@@ -8,15 +8,15 @@ from unittest.mock import MagicMock, patch, PropertyMock, call
 import pytest
 import numpy as np
 
-from deviation_levels import DeviationLevel, DeviationPlan
-from credit_spread_strategy import (
+from lib.deviation_levels import DeviationLevel, DeviationPlan
+from strategies.credit_spread import (
     CreditSpreadStrategy,
     CreditSpreadGroup,
     CreditSpreadEntry,
     SpreadLeg,
     run_credit_spread_strategy,
 )
-from pdf_types import HorizonStats, PDFDocument, SignalPDF
+from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
 
 # ------------------------------------------------------------------ #
@@ -276,7 +276,7 @@ class TestBullPutSpreadEntry:
         calls = pg.place_order.call_args_list
 
         # First call: SELL_TO_OPEN the short put
-        from playground_types import OrderSide
+        from engine.types import OrderSide
         assert calls[0][0][0] == "O:AAPL250718P00099000"  # symbol
         assert calls[0][0][2] == OrderSide.SELL_TO_OPEN    # side
         assert calls[0][0][3] == "option"                  # asset_class
@@ -832,7 +832,7 @@ class TestExitLogic:
 
         strategy._place_exit(group, entry, "profit_target")
 
-        from playground_types import OrderSide
+        from engine.types import OrderSide
         calls = pg.place_order.call_args_list
         assert len(calls) == 2
         # Short leg: BUY_TO_CLOSE
@@ -1184,7 +1184,7 @@ class TestPartialLegFailure:
         assert 0 not in group.entries
 
         # Third call should be BUY_TO_CLOSE cleanup
-        from playground_types import OrderSide
+        from engine.types import OrderSide
         assert pg.place_order.call_count == 3
         cleanup_call = pg.place_order.call_args_list[2]
         assert cleanup_call[0][2] == OrderSide.BUY_TO_CLOSE

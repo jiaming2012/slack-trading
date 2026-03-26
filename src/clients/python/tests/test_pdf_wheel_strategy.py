@@ -13,18 +13,18 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, PropertyMock
 
-from pdf_types import (
+from lib.pdf_types import (
     HorizonStats,
     SignalPDF,
     PDFDocument,
     compute_percentiles,
 )
-from pdf_wheel_strategy import (
+from strategies.pdf_wheel import (
     PDFWheelStrategy,
     PDFPutSignal,
     StrikeAllocation,
 )
-from risk_management import kelly_fraction, adjusted_kelly, max_contracts
+from lib.risk_management import kelly_fraction, adjusted_kelly, max_contracts
 
 
 # ================================================================== #

@@ -4,7 +4,7 @@ compute forward-return distributions, and produce a PDFDocument.
 
 Usage (standalone)::
 
-    from pdf_builder import PDFBuilder
+    from lib.pdf_builder import PDFBuilder
 
     builder = PDFBuilder(symbol="AAPL", ltf_bars=ltf_bars, daily_bars=daily_bars)
     pdf = builder.build()
@@ -27,8 +27,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from candlestick_patterns import is_pin_bar, is_engulfing, is_hammer, is_doji
-from pdf_types import (
+from lib.candlestick_patterns import is_pin_bar, is_engulfing, is_hammer, is_doji
+from lib.pdf_types import (
     ATOMIC_SIGNAL_CATALOG,
     DEFAULT_HORIZONS,
     CompoundSignal,
@@ -332,7 +332,7 @@ class PDFBuilder:
                     continue
 
                 if self.return_model != "empirical":
-                    from return_models import create_return_model
+                    from lib.return_models import create_return_model
                     model = create_return_model(self.return_model)
                     model.fit(rets)
                     model_result = model.result()
