@@ -64,7 +64,11 @@ Plans:
   2. The Grafana metrics explorer shows a server heartbeat gauge updating every 30 seconds
   3. Candle arrival and tick processing events appear in Loki with symbol, timeframe, and latency
   4. Simulator playground orders do NOT produce telemetry logs (live-only filtering works)
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 03-01-PLAN.md -- Telemetry metrics package and order lifecycle instrumentation (placement, fill, rejection)
+- [ ] 03-02-PLAN.md -- Market data flow: candle counters, tick latency, data gap warnings
+- [ ] 03-03-PLAN.md -- Server heartbeat: background goroutine with gauge metrics and structured logs
 
 ### Phase 4: Python Telemetry Instrumentation
 **Goal**: The operator can see strategy decisions, Python heartbeat, and "is my strategy running?" status
@@ -121,7 +125,7 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 |-------|----------------|--------|-----------|
 | 1. Python Codebase Restructure | 3/4 | Verifying | - |
 | 2. Go OTel Foundation & Local Backend | 0/3 | Planned | - |
-| 3. Go Telemetry Instrumentation | 0/? | Not started | - |
+| 3. Go Telemetry Instrumentation | 0/3 | Planned | - |
 | 4. Python Telemetry Instrumentation | 0/? | Not started | - |
 | 5. End-to-End Tick Tracing | 0/? | Not started | - |
 | 6. Dashboards & Alerts | 0/? | Not started | - |
