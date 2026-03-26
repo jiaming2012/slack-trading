@@ -16,9 +16,9 @@
 
 ### Observability Backend
 
-- [ ] **BACK-01**: Docker Compose starts OTel Collector, Loki, Grafana, Tempo, and Prometheus with a single command
-- [ ] **BACK-02**: OTel Collector config routes traces to Tempo, logs to Loki, metrics to Prometheus
-- [ ] **BACK-03**: Grafana starts with Loki, Tempo, and Prometheus pre-configured as data sources
+- [x] **BACK-01**: Docker Compose starts OTel Collector, Loki, Grafana, Tempo, and Prometheus with a single command
+- [x] **BACK-02**: OTel Collector config routes traces to Tempo, logs to Loki, metrics to Prometheus
+- [x] **BACK-03**: Grafana starts with Loki, Tempo, and Prometheus pre-configured as data sources
 
 ### Order Lifecycle (Live Playgrounds Only)
 
@@ -145,9 +145,9 @@
 | OTEL-04 | Phase 2 | Pending |
 | OTEL-05 | Phase 2 | Pending |
 | OTEL-06 | Phase 2 | Pending |
-| BACK-01 | Phase 2 | Pending |
-| BACK-02 | Phase 2 | Pending |
-| BACK-03 | Phase 2 | Pending |
+| BACK-01 | Phase 2 | Complete |
+| BACK-02 | Phase 2 | Complete |
+| BACK-03 | Phase 2 | Complete |
 | ORD-01 | Phase 3 | Pending |
 | ORD-02 | Phase 3 | Pending |
 | ORD-03 | Phase 3 | Pending |

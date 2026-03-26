@@ -52,7 +52,7 @@ Plans:
 **Plans:** 3 plans
 Plans:
 - [ ] 02-01-PLAN.md -- Go OTel SDK initialization: SetupOTelSDK function, logrus logfmt config, env vars
-- [ ] 02-02-PLAN.md -- Observability backend: Docker Compose with grafana/otel-lgtm, Taskfile entries
+- [x] 02-02-PLAN.md -- Observability backend: Docker Compose with grafana/otel-lgtm, Taskfile entries
 - [ ] 02-03-PLAN.md -- Proto trace_id propagation: add trace_id to NextTickRequest/PlaceOrderRequest, regenerate stubs, update Go handlers
 
 ### Phase 3: Go Telemetry Instrumentation
