@@ -36,7 +36,7 @@ Plans:
 - [x] 01-01-PLAN.md -- Directory restructure: move all files, create packages, fix imports, update taskfile
 - [x] 01-02-PLAN.md -- Strategy consolidation: BaseStrategy class, adapt 6 strategies, engine tick loop
 - [x] 01-03-PLAN.md -- Demo refactoring, optimizer refactoring, full test validation
-- [ ] 01-04-PLAN.md -- Gap closure: fix stale @patch paths and test assertions (CONS-04)
+- [x] 01-04-PLAN.md -- Gap closure: fix stale @patch paths and test assertions (CONS-04)
 
 ### Phase 2: Go OTel Foundation & Local Backend
 **Goal**: Existing Go OTel spans produce real traces visible in a local Grafana instance
