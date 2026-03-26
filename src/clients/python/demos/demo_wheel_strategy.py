@@ -29,7 +29,8 @@ from engine.client import (
     PlaygroundEnvironment,
     RepositorySource,
 )
-from strategies.wheel import WheelStrategy, run_wheel_strategy
+from engine.trading_engine import run_strategy
+from strategies.wheel import WheelStrategy, generate_signal_stats
 
 
 def main():
@@ -113,7 +114,10 @@ def main():
     # ------------------------------------------------------------------
     logger.info("Running wheel strategy ...")
     try:
-        run_wheel_strategy(playground, symbol, logger, twirp_host)
+        generate_signal_stats(playground, symbol)
+        playground.stats.generate_model()
+        strategy = WheelStrategy(playground, symbol, logger, max_open_count=3)
+        run_strategy(strategy, playground, logger)
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)

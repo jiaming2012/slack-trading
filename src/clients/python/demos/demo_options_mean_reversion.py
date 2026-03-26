@@ -39,10 +39,8 @@ from engine.client import (
     RepositorySource,
 )
 from tools.build_pdf_from_polygon import bar_to_dict
-from strategies.options_mean_reversion import (
-    OptionsMeanReversionStrategy,
-    run_options_mean_reversion,
-)
+from engine.trading_engine import run_strategy
+from strategies.options_mean_reversion import OptionsMeanReversionStrategy
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 
@@ -457,8 +455,9 @@ def main():
     # ------------------------------------------------------------------
     logger.info("Running options mean-reversion strategy ...")
     try:
-        strategy = run_options_mean_reversion(
-            playground, args.symbol, logger, pdf,
+        strategy = OptionsMeanReversionStrategy(
+            playground, args.symbol, logger,
+            pdf=pdf,
             max_premium_pct=args.max_premium_pct,
             stop_percentile=args.stop_percentile,
             total_contracts_per_group=args.total_contracts,
@@ -473,8 +472,8 @@ def main():
             tail_threshold=args.tail_threshold,
             min_expected_profit=args.min_expected_profit,
             long_only=args.long_only,
-            on_tick=on_tick_callback,
         )
+        run_strategy(strategy, playground, logger, on_tick=on_tick_callback)
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)

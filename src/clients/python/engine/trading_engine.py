@@ -61,6 +61,7 @@ def run_strategy(
     logger,
     enable_retraining: bool = True,
     max_iterations: int = 500_000,
+    on_tick=None,
 ):
     """Universal tick loop for any strategy (CONS-02).
 
@@ -81,6 +82,9 @@ def run_strategy(
         Set to False for optimizer runs to avoid excessive compute.
     max_iterations : int
         Safety limit to prevent infinite loops.
+    on_tick : callable, optional
+        Callback invoked after each tick batch with ``(strategy, tick_deltas)``.
+        Can be used for periodic PDF retraining or tracking.
 
     Returns
     -------
@@ -97,6 +101,9 @@ def run_strategy(
 
         tick_deltas = playground.flush_new_state_buffer()
         strategy.on_tick(tick_deltas)
+
+        if on_tick is not None:
+            on_tick(strategy, tick_deltas)
 
         if enable_retraining:
             strategy.on_retrain()

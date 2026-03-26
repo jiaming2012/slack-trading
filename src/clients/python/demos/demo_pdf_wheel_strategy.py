@@ -51,7 +51,9 @@ from engine.client import (
 from tools.build_pdf_from_polygon import bar_to_dict
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
-from strategies.pdf_wheel import PDFWheelStrategy, run_pdf_wheel_strategy
+from engine.trading_engine import run_strategy
+from strategies.pdf_wheel import PDFWheelStrategy
+from strategies.covered_call import generate_signal_stats
 
 
 # ------------------------------------------------------------------ #
@@ -490,13 +492,16 @@ def main():
     # ------------------------------------------------------------------
     logger.info("Running PDF-guided wheel strategy ...")
     try:
-        run_pdf_wheel_strategy(
-            playground, symbol, logger, twirp_host,
+        generate_signal_stats(playground, symbol)
+        playground.stats.generate_model()
+        strategy = PDFWheelStrategy(
+            playground, symbol, logger,
             pdf=pdf,
             peak_equity=balance,
             kelly_fraction_mult=kelly_frac,
-            on_tick=on_tick_callback,
+            max_open_count=5,
         )
+        run_strategy(strategy, playground, logger, on_tick=on_tick_callback)
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)

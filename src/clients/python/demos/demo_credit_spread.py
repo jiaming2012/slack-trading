@@ -39,10 +39,8 @@ from engine.client import (
     RepositorySource,
 )
 from tools.build_pdf_from_polygon import bar_to_dict
-from strategies.credit_spread import (
-    CreditSpreadStrategy,
-    run_credit_spread_strategy,
-)
+from engine.trading_engine import run_strategy
+from strategies.credit_spread import CreditSpreadStrategy
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 
@@ -489,8 +487,9 @@ def main():
     # ------------------------------------------------------------------
     logger.info("Running credit spread strategy ...")
     try:
-        strategy = run_credit_spread_strategy(
-            playground, args.symbol, logger, pdf,
+        strategy = CreditSpreadStrategy(
+            playground, args.symbol, logger,
+            pdf=pdf,
             max_collateral_pct=args.max_collateral_pct,
             max_total_collateral_pct=args.max_total_collateral_pct,
             stop_percentile=args.stop_percentile,
@@ -509,7 +508,6 @@ def main():
             long_only=args.long_only,
             max_loss_per_trade=args.max_loss_per_trade,
             spread_width_sigma=args.spread_width_sigma,
-            on_tick=on_tick_callback,
             min_p_profit=args.min_p_profit,
             min_credit_width_ratio=args.min_credit_width_ratio,
             max_open_positions=args.max_open_positions,
@@ -527,6 +525,7 @@ def main():
             cooldown_candles=args.cooldown_candles,
             ladder_cache_minutes=args.ladder_cache_minutes,
         )
+        run_strategy(strategy, playground, logger, on_tick=on_tick_callback)
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)

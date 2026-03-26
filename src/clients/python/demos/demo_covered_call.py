@@ -23,9 +23,10 @@ from engine.client import (
     PlaygroundEnvironment,
     RepositorySource,
 )
+from engine.trading_engine import run_strategy
 from strategies.covered_call import (
     OptionsStrategyBasic,
-    run_options_strategy,
+    generate_signal_stats,
 )
 
 
@@ -98,7 +99,10 @@ def main():
     # ------------------------------------------------------------------
     logger.info("Running covered call strategy ...")
     try:
-        run_options_strategy(playground, symbol, logger, twirp_host)
+        generate_signal_stats(playground, symbol)
+        playground.stats.generate_model()
+        strategy = OptionsStrategyBasic(playground, symbol, logger, max_open_count=3)
+        run_strategy(strategy, playground, logger)
     except Exception:
         logger.exception("Strategy encountered an error")
         sys.exit(1)

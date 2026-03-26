@@ -50,7 +50,8 @@ from engine.client import (
 )
 from engine.types import LiveAccountType
 from tools.build_pdf_from_polygon import bar_to_dict
-from strategies.mean_reversion import MeanReversionStrategy, run_mean_reversion
+from engine.trading_engine import run_strategy
+from strategies.mean_reversion import MeanReversionStrategy
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 
@@ -506,8 +507,9 @@ def main():
     if args.live:
         logger.info("Press Ctrl+C to stop live trading.")
     try:
-        strategy = run_mean_reversion(
-            playground, args.symbol, logger, pdf,
+        strategy = MeanReversionStrategy(
+            playground, args.symbol, logger,
+            pdf=pdf,
             max_loss_pct=args.max_loss_pct,
             stop_percentile=args.stop_percentile,
             total_shares_per_group=args.total_shares,
@@ -517,8 +519,8 @@ def main():
             stop_widen_on_exit=args.stop_widen_on_exit,
             min_expected_profit=args.min_expected_profit,
             ev_model=args.ev_model,
-            on_tick=on_tick_callback,
         )
+        run_strategy(strategy, playground, logger, on_tick=on_tick_callback)
     except KeyboardInterrupt:
         logger.info("Interrupted by user — stopping strategy.")
         strategy = None
