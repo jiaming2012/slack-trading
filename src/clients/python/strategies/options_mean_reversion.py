@@ -33,6 +33,7 @@ from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 from engine.types import OrderSide
 from rpc.playground_pb2 import GetOptionsLadderRequest
+from strategies.base_strategy import BaseStrategy
 
 
 # ------------------------------------------------------------------ #
@@ -80,7 +81,7 @@ class OptionsTradeGroup:
 # Strategy class
 # ------------------------------------------------------------------ #
 
-class OptionsMeanReversionStrategy:
+class OptionsMeanReversionStrategy(BaseStrategy):
     """
     PDF-guided options mean-reversion strategy.
 
@@ -109,9 +110,7 @@ class OptionsMeanReversionStrategy:
         min_expected_profit: float = 50.0,
         long_only: bool = False,
     ):
-        self.playground = playground
-        self.symbol = symbol
-        self.logger = logger or _default_logger
+        super().__init__(playground, symbol, logger or _default_logger)
         self.pdf = pdf
         self.max_premium_pct = max_premium_pct
         self.stop_percentile = stop_percentile
@@ -991,6 +990,32 @@ class OptionsMeanReversionStrategy:
         self.logger.info(f"  Groups pending:   {pending}")
         self.logger.info(f"  Total premium:    ${total_premium:,.2f}")
         self.logger.info("=" * 60)
+
+    # ------------------------------------------------------------------ #
+    # BaseStrategy interface methods
+    # ------------------------------------------------------------------ #
+
+    def on_tick(self, tick_deltas) -> None:
+        """Process tick deltas by extracting candles and delegating to process_candles."""
+        for td in tick_deltas:
+            new_candles = td.new_candles if hasattr(td, 'new_candles') else []
+            self.process_candles(new_candles)
+
+    def get_next_tick_seconds(self) -> int:
+        """Smart tick: LTF when active trades exist, HTF when idle (D-03)."""
+        has_active = any(
+            g.status in ('pending', 'active') for g in self.trade_groups
+        )
+        return self.playground.ltf_seconds if has_active else self.playground.htf_seconds
+
+    def should_fetch_account(self) -> bool:
+        """Fetch account when active trades exist."""
+        return any(g.status in ('pending', 'active') for g in self.trade_groups)
+
+    def on_complete(self) -> None:
+        """End-of-sim: close all active groups and log summary."""
+        self.close_all_active_groups()
+        self.log_summary()
 
 
 # ------------------------------------------------------------------ #

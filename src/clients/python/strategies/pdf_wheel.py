@@ -587,6 +587,203 @@ class PDFWheelStrategy(WheelStrategy):
         close_signals = self.check_for_early_close_puts()
         return open_signals, close_signals
 
+    # ------------------------------------------------------------------ #
+    # BaseStrategy interface override
+    # ------------------------------------------------------------------ #
+
+    def on_tick(self, tick_deltas) -> None:
+        """Process tick deltas for the PDF-Guided Wheel Strategy.
+
+        Handles PDFPutSignal (Phase 1 with Kelly sizing and PDF-guided strikes),
+        OpenSignalV4, and RollSignalV1 (Phase 2 via parent).
+        """
+        for tick_delta in tick_deltas:
+            open_signals, close_signals = self.tick(tick_delta)
+
+            # Place close orders
+            for signal in close_signals:
+                self.playground.place_order(
+                    signal.option_contract.symbol,
+                    abs(signal.quantity_to_close),
+                    OrderSide.BUY_TO_CLOSE,
+                    'option',
+                    with_tick=True,
+                )
+                self.logger.info(
+                    f"Close Signal: {signal.name} at {signal.timestamp}"
+                    f" for {signal.option_contract.symbol}"
+                )
+
+            # Place open orders
+            for signal in open_signals:
+                if isinstance(signal, PDFPutSignal):
+                    # Compute position size via Kelly
+                    total_contracts = self.compute_total_contracts(
+                        signal.pdf_entry, signal.price,
+                    )
+                    if total_contracts <= 0:
+                        continue
+
+                    # Fetch options ladder
+                    exp_this_week = self.find_next_friday(signal.timestamp)
+                    exp_next_week = exp_this_week + 7
+                    request = GetOptionsLadderRequest(
+                        playground_id=self.playground.id,
+                        stock_symbol=signal.symbol,
+                        max_no_of_strikes=10,
+                        min_distance_between_strikes=1.0,
+                        expiration_in_days=[exp_this_week, exp_next_week],
+                        max_tick_age_in_minutes=1440,
+                    )
+                    response = self.playground.fetch_ladder(request)
+                    if not response or not response.contracts:
+                        continue
+
+                    # Select strikes and allocate
+                    allocations = self.select_put_strikes(
+                        signal.pdf_entry, signal.price,
+                        response.contracts, total_contracts,
+                    )
+                    if not allocations:
+                        continue
+
+                    for alloc in allocations:
+                        existing = self.playground.account.get_position(alloc.contract_symbol)
+                        if existing is not None and existing.quantity != 0:
+                            continue
+
+                        self.playground.place_order(
+                            alloc.contract_symbol,
+                            alloc.contracts,
+                            OrderSide.SELL_TO_OPEN,
+                            'option',
+                            attributes={
+                                "signal_name": signal.name,
+                                "compound_key": signal.compound_key,
+                                "stock_price": str(signal.price),
+                                "probability": str(alloc.probability),
+                            },
+                        )
+                        self.logger.info(
+                            f"Open Signal (PDF Put): {signal.name}"
+                            f" -> sold {alloc.contracts}x {alloc.contract_symbol}"
+                            f" (strike={alloc.strike}, P(OTM)={alloc.probability:.0%})"
+                        )
+
+                elif isinstance(signal, (OpenSignalV4, RollSignalV1)):
+                    # Phase 2: delegate to parent's on_tick logic for call signals
+                    # We handle this inline to avoid double-processing tick_deltas
+                    if isinstance(signal, OpenSignalV4):
+                        expiration_in_days = self.find_next_friday(signal.timestamp)
+                    else:
+                        expiration_in_days = self.find_next_friday(
+                            signal.option_contract.expiration_date
+                        )
+
+                    if isinstance(signal, RollSignalV1):
+                        expiration_days_list = [
+                            expiration_in_days,
+                            expiration_in_days + 7,
+                            expiration_in_days + 14,
+                        ]
+                    else:
+                        expiration_days_list = [expiration_in_days]
+
+                    request = GetOptionsLadderRequest(
+                        playground_id=self.playground.id,
+                        stock_symbol=signal.symbol,
+                        max_no_of_strikes=5,
+                        min_distance_between_strikes=1.0,
+                        expiration_in_days=expiration_days_list,
+                        max_tick_age_in_minutes=1440,
+                    )
+
+                    response = self.playground.fetch_ladder(request)
+                    if not response:
+                        continue
+
+                    target_contract = None
+                    highest_expected_profit = -1.0
+
+                    for c in response.contracts:
+                        if c.type != 'call':
+                            continue
+                        premium_received = (c.bid + c.ask) / 2
+                        T = expiration_in_days / 365.0
+                        sigma = self.playground.stats.calculate_local_model_volatility(signal)
+                        profit = calculate_expected_profit_binomial_american(
+                            S0=signal.price,
+                            P2=c.strike,
+                            P3=premium_received,
+                            sigma=sigma,
+                            T=T,
+                            r=0.04,
+                            N=100,
+                        )
+
+                        if isinstance(signal, RollSignalV1):
+                            position = self.playground.account.positions.get(
+                                signal.option_contract.symbol
+                            )
+                            if position is None:
+                                continue
+                            if not signal.name.startswith("ROLL_CALL_LOSS_RATIO"):
+                                if premium_received - position.current_price < 0:
+                                    continue
+
+                        if profit > highest_expected_profit:
+                            highest_expected_profit = profit
+                            target_contract = c
+
+                    if target_contract is None:
+                        continue
+
+                    attributes = {
+                        "ev": str(highest_expected_profit),
+                        "stock_price": str(signal.price),
+                        "signal_name": signal.name,
+                    }
+
+                    if isinstance(signal, OpenSignalV4):
+                        existing = self.playground.account.get_position(
+                            target_contract.symbol
+                        )
+                        if existing is not None and existing.quantity != 0:
+                            continue
+
+                    if isinstance(signal, RollSignalV1):
+                        self.playground.place_order(
+                            signal.option_contract.symbol,
+                            signal.quantity_to_roll,
+                            OrderSide.BUY_TO_CLOSE,
+                            'option',
+                        )
+                        attributes["roll_from"] = signal.option_contract.symbol
+                    else:
+                        stock_qty = calculate_stock_quantity(
+                            self.playground, signal.symbol, -1,
+                        )
+                        if stock_qty > 0:
+                            self.playground.place_order(
+                                signal.symbol,
+                                stock_qty,
+                                OrderSide.BUY,
+                                'equity',
+                                signal.price,
+                            )
+
+                    self.playground.place_order(
+                        target_contract.symbol,
+                        1,
+                        OrderSide.SELL_TO_OPEN,
+                        'option',
+                        attributes=attributes,
+                    )
+                    self.logger.info(
+                        f"Open Signal (Call): {signal.name} at {signal.timestamp}"
+                        f" -> sold {target_contract.symbol}"
+                    )
+
 
 # ------------------------------------------------------------------ #
 # Strategy runner
