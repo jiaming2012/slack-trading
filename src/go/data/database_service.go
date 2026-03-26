@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"path"
@@ -16,6 +17,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -1208,6 +1210,22 @@ func (s *DatabaseService) RejectOrder(order *models.OrderRecord, reason string) 
 	order.Status = models.OrderRecordStatusRejected
 	order.RejectReason = &reason
 
+	if telemetry.ShouldEmitOrderTelemetry(playground.Meta.Environment) {
+		log.WithFields(log.Fields{
+			"event":         "order_rejected",
+			"playground_id": playground.GetId().String(),
+			"order_id":      order.ID,
+			"symbol":        order.Symbol,
+			"reject_reason": reason,
+			"environment":   string(playground.Meta.Environment),
+			"account_type":  string(playground.Meta.LiveAccountType),
+		}).Warn("order rejected")
+
+		if telemetry.OrdersRejected != nil {
+			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.Environment, playground.Meta.LiveAccountType))
+		}
+	}
+
 	if err = playground.AddToOrderQueue(order); err != nil {
 		return fmt.Errorf("RejectOrder: failed to add order to queue: %w", err)
 	}
@@ -1259,6 +1277,24 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
 			if err := s.waitForOrderRecord(order.ID); err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+			}
+		}
+
+		if telemetry.ShouldEmitOrderTelemetry(playground.Meta.Environment) {
+			log.WithFields(log.Fields{
+				"event":         "order_placed",
+				"playground_id": playground.GetId().String(),
+				"order_id":      order.ID,
+				"symbol":        req.Symbol,
+				"side":          string(req.Side),
+				"quantity":      req.Quantity,
+				"order_type":    string(req.OrderType),
+				"environment":   string(playground.Meta.Environment),
+				"account_type":  string(playground.Meta.LiveAccountType),
+			}).Info("order placed")
+
+			if telemetry.OrdersPlaced != nil {
+				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.Environment, playground.Meta.LiveAccountType))
 			}
 		}
 

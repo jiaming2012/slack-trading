@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
 func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
@@ -429,6 +431,23 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		}
 
 		return nil, fmt.Errorf("handleLiveOrders: failed to save order record: %v", err)
+	}
+
+	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(playground.Meta.Environment) {
+		log.WithFields(log.Fields{
+			"event":         "order_filled",
+			"playground_id": playground.GetId().String(),
+			"order_id":      order.ID,
+			"fill_price":    orderFillEntry.Price,
+			"fill_quantity": orderFillEntry.Quantity,
+			"symbol":        order.Symbol,
+			"environment":   string(playground.Meta.Environment),
+			"account_type":  string(playground.Meta.LiveAccountType),
+		}).Info("order filled")
+
+		if telemetry.OrdersFilled != nil {
+			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.Environment, playground.Meta.LiveAccountType))
+		}
 	}
 
 	return newTrade, resultErr

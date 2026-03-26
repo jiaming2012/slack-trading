@@ -38,6 +38,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -192,6 +193,11 @@ func main() {
 			}
 		}()
 		log.Info("OTel SDK initialized successfully")
+
+		if err := telemetry.Init(); err != nil {
+			log.Fatalf("Failed to initialize telemetry metrics: %v", err)
+		}
+		log.Info("Telemetry metrics initialized successfully")
 	}
 
 	log.Infof("Log level set to %v", log.GetLevel())
