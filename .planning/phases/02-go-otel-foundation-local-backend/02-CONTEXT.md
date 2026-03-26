@@ -28,12 +28,20 @@ Initialize TracerProvider and MeterProvider in the Go server (activating ~15 fil
 - **D-08:** **Always-on sampling** (100%) in dev. Every trace is captured. Production sampling strategy deferred to Phase 7.
 - **D-09:** Reference implementation in `deprecated/go/cmd/telemetry/quickstart.go` is the starting point for TracerProvider/MeterProvider initialization — adapt, don't copy blindly.
 
+### Trace ID Propagation via Proto
+- **D-10:** Every tick must have a `trace_id`. Add `string trace_id` field to `NextTickRequest` in `playground.proto`.
+- **D-11:** The `trace_id` must appear on any signals or errors emitted during that tick — include it in structured log fields and span attributes.
+- **D-12:** The `trace_id` must appear on any order. Add `string trace_id` field to `PlaceOrderRequest` in `playground.proto`.
+- **D-13:** Regenerate protobuf stubs (Go + Python) after proto changes via `task gen:proto`.
+- **D-14:** Go server handlers extract `trace_id` from requests and attach to span context / log fields. Python client sets `trace_id` from the active OTel span (or generates one if no span active).
+
 ### Claude's Discretion
 - How to structure the OTel initialization code (single file vs split)
 - Logrus formatter configuration details
 - OTel Collector pipeline config within otel-lgtm
 - Whether to add otelhttp middleware in this phase or defer to Phase 3
 - Grafana data source provisioning approach
+- Whether trace_id in proto should be W3C traceparent format or just the 32-hex-char trace ID
 
 </decisions>
 
@@ -43,6 +51,7 @@ Initialize TracerProvider and MeterProvider in the Go server (activating ~15 fil
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Core Files
+- `src/go/playground.proto` — Protobuf service definition (needs trace_id fields on NextTickRequest, PlaceOrderRequest)
 - `cmd/main.go` — Server entrypoint, where TracerProvider/MeterProvider init goes (currently only has otellogrus hook)
 - `deprecated/go/cmd/telemetry/quickstart.go` — Complete reference implementation (249 lines) with OTLP exporters, trace/metrics SDK, resource attributes, runtime instrumentation
 - `deprecated/go/cmd/telemetry/telemetry.go` — Jaeger-specific OTLP setup (72 lines)
