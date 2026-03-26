@@ -22,10 +22,10 @@
 
 ### Order Lifecycle (Live Playgrounds Only)
 
-- [ ] **ORD-01**: Order placement emits structured log with playground_id, symbol, side, quantity, order_type, and environment="live"
-- [ ] **ORD-02**: Order fill emits structured log with fill price, quantity, and timestamp
-- [ ] **ORD-03**: Order rejection emits structured log with rejection reason
-- [ ] **ORD-04**: Only live and reconcile playgrounds emit order telemetry; simulator playgrounds are excluded
+- [x] **ORD-01**: Order placement emits structured log with playground_id, symbol, side, quantity, order_type, and environment="live"
+- [x] **ORD-02**: Order fill emits structured log with fill price, quantity, and timestamp
+- [x] **ORD-03**: Order rejection emits structured log with rejection reason
+- [x] **ORD-04**: Only live and reconcile playgrounds emit order telemetry; simulator playgrounds are excluded
 
 ### Heartbeat
 
@@ -148,10 +148,10 @@
 | BACK-01 | Phase 2 | Complete |
 | BACK-02 | Phase 2 | Complete |
 | BACK-03 | Phase 2 | Complete |
-| ORD-01 | Phase 3 | Pending |
-| ORD-02 | Phase 3 | Pending |
-| ORD-03 | Phase 3 | Pending |
-| ORD-04 | Phase 3 | Pending |
+| ORD-01 | Phase 3 | Complete |
+| ORD-02 | Phase 3 | Complete |
+| ORD-03 | Phase 3 | Complete |
+| ORD-04 | Phase 3 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | DATA-03 | Phase 3 | Pending |
