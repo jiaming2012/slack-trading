@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
 func ProcessSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config *eventmodels.OptionYAML, loc *time.Location, goEnv string) (*eventmodels.ReadOptionChainRequest, error) {
@@ -19,6 +20,10 @@ func ProcessSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 	logger := log.WithContext(ctx)
 
 	logger.WithField("event", "signal").Infof("tradier executer: %v triggered for %v", event.Signal, event.Symbol)
+
+	if telemetry.SignalsGenerated != nil {
+		telemetry.SignalsGenerated.Add(event.Ctx, 1)
+	}
 
 	startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", config.StartsAt, loc)
 	if err != nil {
