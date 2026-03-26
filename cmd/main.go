@@ -166,7 +166,34 @@ func main() {
 
 	eventpubsub.Init()
 
+	// Configure logrus logfmt formatter (D-04, D-05)
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors:  true,
+		FullTimestamp:   true,
+		TimestampFormat: time.RFC3339,
+		FieldMap: log.FieldMap{
+			log.FieldKeyTime:  "ts",
+			log.FieldKeyLevel: "level",
+			log.FieldKeyMsg:   "msg",
+		},
+	})
 	log.SetOutput(os.Stdout)
+
+	// Initialize OpenTelemetry SDK (OTEL-01, OTEL-02)
+	otelShutdown, otelErr := utils.SetupOTelSDK(ctx, "grodt", "1.0.0")
+	if otelErr != nil {
+		log.Warnf("Failed to initialize OTel SDK: %v (continuing without telemetry)", otelErr)
+	} else {
+		defer func() {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer shutdownCancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				log.Errorf("OTel shutdown error: %v", err)
+			}
+		}()
+		log.Info("OTel SDK initialized successfully")
+	}
+
 	log.Infof("Log level set to %v", log.GetLevel())
 	log.Info("Main: starting...")
 
