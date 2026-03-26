@@ -52,6 +52,63 @@ logger.add(
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
 )
 
+from strategies.base_strategy import BaseStrategy
+
+
+def run_strategy(
+    strategy: BaseStrategy,
+    playground,
+    logger,
+    enable_retraining: bool = True,
+    max_iterations: int = 500_000,
+):
+    """Universal tick loop for any strategy (CONS-02).
+
+    Calls strategy.on_tick() in a loop, respecting the strategy's
+    requested tick interval via get_next_tick_seconds() (D-03).
+    Optionally calls strategy.on_retrain() each tick (D-04, D-05).
+
+    Parameters
+    ----------
+    strategy : BaseStrategy
+        A strategy instance implementing the BaseStrategy interface.
+    playground : BacktesterPlaygroundClient
+        The backtester playground client.
+    logger
+        Logger instance for engine-level messages.
+    enable_retraining : bool
+        Whether to call strategy.on_retrain() each tick (D-05).
+        Set to False for optimizer runs to avoid excessive compute.
+    max_iterations : int
+        Safety limit to prevent infinite loops.
+
+    Returns
+    -------
+    BaseStrategy
+        The strategy instance after completion.
+    """
+    iteration = 0
+
+    while not strategy.is_complete():
+        iteration += 1
+        if iteration > max_iterations:
+            logger.warning(f"Max iterations ({max_iterations}) reached")
+            break
+
+        tick_deltas = playground.flush_new_state_buffer()
+        strategy.on_tick(tick_deltas)
+
+        if enable_retraining:
+            strategy.on_retrain()
+
+        tick_seconds = strategy.get_next_tick_seconds()
+        fetch_account = strategy.should_fetch_account()
+        playground.tick(tick_seconds, fetch_account=fetch_account)
+
+    strategy.on_complete()
+    return strategy
+
+
 def get_sl_tp(signal: OpenSignal) -> Tuple[float, float]:
     sl = signal.min_price_prediction
     tp = signal.max_price_prediction
@@ -187,7 +244,7 @@ def calculate_sl_tp(side: OrderSide, current_price: float, signal: OpenSignalV2,
         
     return sl_target, tp_target    
 
-def run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True, program_kwargs={}) -> Tuple[float, dict]:
+def _legacy_run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, initial_balance, open_strategies: List[BaseOpenStrategy], close_strategy, twirp_host, remove_playground_when_done=True, program_kwargs={}) -> Tuple[float, dict]:
     # sl_shift = open_strategy.get_sl_shift()
     # tp_shift = open_strategy.get_tp_shift()
     # sl_buffer = open_strategy.get_sl_buffer()
@@ -692,7 +749,7 @@ def objective(logger, kwargs) -> Tuple[float, dict]:
     else:
         close_strategy = SimpleCloseStrategy(playground, {})
     
-    return run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done, original_kwargs)
+    return _legacy_run_strategy(symbols, playground, ltf_period, daily_period, playground_tick_in_seconds, balance, open_strategies, close_strategy, twirp_host, remove_playground_when_done, original_kwargs)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
