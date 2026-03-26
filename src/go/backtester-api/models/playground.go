@@ -14,6 +14,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -1512,6 +1513,11 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 						Period: period,
 						Bar:    newCandle,
 					})
+
+					if telemetry.CandlesProcessed != nil && telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
+						telemetry.CandlesProcessed.Add(context.Background(), 1,
+							telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
+					}
 				}
 			}
 		}
@@ -1540,7 +1546,16 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 			if errors.Is(err, models.ErrNoCandlesFound) {
 				order.Reject(err)
-				log.Warnf("simulateTick: no candles found for %s @ %s", order.GetInstrument(), p.clock.CurrentTime.Format("2006-01-02 15:04:05 MST"))
+				if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
+					log.WithFields(log.Fields{
+						"event":         "data_gap",
+						"playground_id": p.Meta.PlaygroundId,
+						"symbol":        order.GetInstrument().GetTicker(),
+						"timeframe":     d.String(),
+						"timestamp":     p.clock.CurrentTime.Format(time.RFC3339),
+						"environment":   string(p.Meta.Environment),
+					}).Warn("simulateTick: no candles found")
+				}
 				continue
 			}
 
@@ -1610,6 +1625,11 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 					Period: period,
 					Bar:    newCandle,
 				})
+
+				if telemetry.CandlesProcessed != nil && telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
+					telemetry.CandlesProcessed.Add(context.Background(), 1,
+						telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
+				}
 			}
 		}
 	}

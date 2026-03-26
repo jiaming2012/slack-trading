@@ -6,8 +6,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 )
 
 // Metric instruments -- nil until Init() is called.
@@ -91,15 +89,15 @@ func Init() error {
 // ShouldEmitOrderTelemetry returns true if order telemetry should be emitted
 // for the given playground environment. Only live and reconcile playgrounds
 // produce telemetry; simulator playgrounds are excluded.
-func ShouldEmitOrderTelemetry(env models.PlaygroundEnvironment) bool {
-	return env == models.PlaygroundEnvironmentLive || env == models.PlaygroundEnvironmentReconcile
+func ShouldEmitOrderTelemetry(env string) bool {
+	return env == "live" || env == "reconcile"
 }
 
 // PlaygroundAttrs returns OTel metric attributes for a playground,
 // including environment and account_type dimensions.
-func PlaygroundAttrs(env models.PlaygroundEnvironment, accountType models.LiveAccountType) metric.MeasurementOption {
+func PlaygroundAttrs(env string, accountType string) metric.MeasurementOption {
 	return metric.WithAttributes(
-		attribute.String("environment", string(env)),
-		attribute.String("account_type", string(accountType)),
+		attribute.String("environment", env),
+		attribute.String("account_type", accountType),
 	)
 }

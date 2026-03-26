@@ -7,21 +7,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 )
 
 func TestShouldEmitOrderTelemetry(t *testing.T) {
 	t.Run("returns true for live environment", func(t *testing.T) {
-		assert.True(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentLive))
+		assert.True(t, ShouldEmitOrderTelemetry("live"))
 	})
 
 	t.Run("returns true for reconcile environment", func(t *testing.T) {
-		assert.True(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentReconcile))
+		assert.True(t, ShouldEmitOrderTelemetry("reconcile"))
 	})
 
 	t.Run("returns false for simulator environment", func(t *testing.T) {
-		assert.False(t, ShouldEmitOrderTelemetry(models.PlaygroundEnvironmentSimulator))
+		assert.False(t, ShouldEmitOrderTelemetry("simulator"))
 	})
 }
 
@@ -47,6 +45,6 @@ func TestInit(t *testing.T) {
 
 func TestPlaygroundAttrs(t *testing.T) {
 	// PlaygroundAttrs should return a non-nil measurement option
-	opt := PlaygroundAttrs(models.PlaygroundEnvironmentLive, models.LiveAccountTypeMargin)
+	opt := PlaygroundAttrs("live", "margin")
 	assert.NotNil(t, opt, "PlaygroundAttrs should return a non-nil option")
 }

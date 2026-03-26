@@ -433,7 +433,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		return nil, fmt.Errorf("handleLiveOrders: failed to save order record: %v", err)
 	}
 
-	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(playground.Meta.Environment) {
+	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
 		log.WithFields(log.Fields{
 			"event":         "order_filled",
 			"playground_id": playground.GetId().String(),
@@ -446,7 +446,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 		}).Info("order filled")
 
 		if telemetry.OrdersFilled != nil {
-			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.Environment, playground.Meta.LiveAccountType))
+			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType)))
 		}
 	}
 
