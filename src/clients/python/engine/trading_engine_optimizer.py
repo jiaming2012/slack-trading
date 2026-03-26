@@ -1,5 +1,5 @@
 from loguru import logger
-from engine.trading_engine import objective
+from engine.trading_engine import objective, run_strategy
 from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
@@ -56,9 +56,22 @@ def sort_meta_by_equity(data) -> list:
     return sorted_meta
 
 class TradingEngineOptimizer:
-    def __init__(self, kwargs: dict):
-        max_open_count_lbound = int(kwargs['max_open_count_lbound']) 
-        max_open_count_ubound = int(kwargs['max_open_count_ubound']) 
+    def __init__(self, kwargs: dict, strategy_factory=None):
+        """
+        Parameters
+        ----------
+        kwargs : dict
+            Optimization bounds and configuration.
+        strategy_factory : callable, optional
+            A function ``(playground, hyperparams) -> (BaseStrategy, metric_fn)``
+            that creates a configured strategy and returns a metric extraction
+            callable ``metric_fn(strategy, playground) -> (float, dict)``.
+            When provided, the optimizer uses ``run_strategy()`` with
+            ``enable_retraining=False`` (D-05, D-06) instead of the legacy
+            ``objective()`` path.
+        """
+        max_open_count_lbound = int(kwargs['max_open_count_lbound'])
+        max_open_count_ubound = int(kwargs['max_open_count_ubound'])
         sl_buffer_ubound = kwargs.get('sl_buffer_ubound', None)
         tp_buffer_ubound = kwargs.get('tp_buffer_ubound', None)
         sl_shift_lbound = kwargs.get('sl_shift_lbound', None)
@@ -71,27 +84,28 @@ class TradingEngineOptimizer:
         target_risk_to_reward_ubound = kwargs.get('target_risk_to_reward_ubound', None)
         max_per_trade_risk_percentage_lbound = kwargs.get('max_per_trade_risk_percentage_lbound', None)
         max_per_trade_risk_percentage_ubound = kwargs.get('max_per_trade_risk_percentage_ubound', None)
-        
+
         self.search_space = []
-        
+        self.strategy_factory = strategy_factory
+
         if max_per_trade_risk_percentage_lbound is not None and max_per_trade_risk_percentage_ubound is not None:
             self.search_space.append(Real(float(max_per_trade_risk_percentage_lbound), float(max_per_trade_risk_percentage_ubound), name='max_per_trade_risk_percentage'))
-        
+
         if target_risk_to_reward_lbound is not None and target_risk_to_reward_ubound is not None:
             self.search_space.append(Real(float(target_risk_to_reward_lbound), float(target_risk_to_reward_ubound), name='target_risk_to_reward'))
-        
+
         if max_open_count_lbound is not None and max_open_count_ubound is not None:
             self.search_space.append(Integer(int(max_open_count_lbound), int(max_open_count_ubound), name='max_open_count'))
-        
+
         if sl_buffer_ubound is not None:
             self.search_space.append(Real(0, int(sl_buffer_ubound), name='sl_buffer'))
-            
+
         if tp_buffer_ubound is not None:
             self.search_space.append(Real(0, int(tp_buffer_ubound), name='tp_buffer'))
-            
+
         if sl_shift_lbound is not None and sl_shift_ubound is not None:
             self.search_space.append(Real(int(sl_shift_lbound), int(sl_shift_ubound), name='sl_shift'))
-            
+
         if tp_shift_lbound is not None and tp_shift_ubound is not None:
             self.search_space.append(Real(int(tp_shift_lbound), int(tp_shift_ubound), name='tp_shift'))
 
@@ -102,9 +116,7 @@ class TradingEngineOptimizer:
         self.counter = 0
         self.n_calls = kwargs['n_calls']
 
-    # TODO: Maybe this can be imported
     def fn(self, max_open_count: int, target_risk_to_reward: float, max_per_trade_risk_percentage: float, sl_buffer: float=0.0, tp_buffer: float=0.0):
-        global counter
         kwargs = {
             'sl_buffer': sl_buffer,
             'tp_buffer': tp_buffer,
@@ -113,19 +125,27 @@ class TradingEngineOptimizer:
             'max_per_trade_risk_percentage': max_per_trade_risk_percentage,
             'use_htf_data': True
         }
-        
+
         logger.info(f"Running optimization with kwargs: {kwargs}")
-        
-        value, meta = objective(logger, kwargs=kwargs)
-        
+
+        if self.strategy_factory is not None:
+            # New strategy interface path (D-06):
+            # Factory creates strategy + playground, we run with retraining disabled (D-05)
+            strategy, playground, metric_fn = self.strategy_factory(kwargs)
+            run_strategy(strategy, playground, logger, enable_retraining=False)
+            value, meta = metric_fn(strategy, playground)
+        else:
+            # Legacy path: uses objective() with deprecated strategy classes
+            value, meta = objective(logger, kwargs=kwargs)
+
         meta_label = "_".join([f"{k}={v}" for k, v in kwargs.items()])
         meta['hyperparameters'] = kwargs
-    
+
         self.aggregate_meta[meta_label] = meta
         self.counter += 1
-    
+
         logger.info(f"Completed run: {self.counter} / {self.n_calls}, kwargs: {kwargs}, meta: {meta}")
-    
+
         return -value
     
     def compute_average_hyperparameters(self, top_percentile: float) -> dict:
