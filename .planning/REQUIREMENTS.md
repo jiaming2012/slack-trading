@@ -7,12 +7,12 @@
 
 ### OTel Foundation
 
-- [ ] **OTEL-01**: Go server initializes TracerProvider with OTLP HTTP exporter on startup
-- [ ] **OTEL-02**: Go server initializes MeterProvider with OTLP HTTP exporter on startup
-- [ ] **OTEL-03**: Graceful shutdown calls ForceFlush on both providers before exit
-- [ ] **OTEL-04**: All existing tracer spans (~15 files) produce real traces after provider init
-- [ ] **OTEL-05**: Structured log fields follow consistent conventions (playground_id, order_id, symbol, environment)
-- [ ] **OTEL-06**: OTel environment variables (OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_SERVICE_NAME) configurable per environment
+- [x] **OTEL-01**: Go server initializes TracerProvider with OTLP HTTP exporter on startup
+- [x] **OTEL-02**: Go server initializes MeterProvider with OTLP HTTP exporter on startup
+- [x] **OTEL-03**: Graceful shutdown calls ForceFlush on both providers before exit
+- [x] **OTEL-04**: All existing tracer spans (~15 files) produce real traces after provider init
+- [x] **OTEL-05**: Structured log fields follow consistent conventions (playground_id, order_id, symbol, environment)
+- [x] **OTEL-06**: OTel environment variables (OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_SERVICE_NAME) configurable per environment
 
 ### Observability Backend
 
@@ -139,12 +139,12 @@
 | CONS-02 | Phase 1 | Complete |
 | CONS-03 | Phase 1 | Complete |
 | CONS-04 | Phase 1 | Complete |
-| OTEL-01 | Phase 2 | Pending |
-| OTEL-02 | Phase 2 | Pending |
-| OTEL-03 | Phase 2 | Pending |
-| OTEL-04 | Phase 2 | Pending |
-| OTEL-05 | Phase 2 | Pending |
-| OTEL-06 | Phase 2 | Pending |
+| OTEL-01 | Phase 2 | Complete |
+| OTEL-02 | Phase 2 | Complete |
+| OTEL-03 | Phase 2 | Complete |
+| OTEL-04 | Phase 2 | Complete |
+| OTEL-05 | Phase 2 | Complete |
+| OTEL-06 | Phase 2 | Complete |
 | BACK-01 | Phase 2 | Complete |
 | BACK-02 | Phase 2 | Complete |
 | BACK-03 | Phase 2 | Complete |

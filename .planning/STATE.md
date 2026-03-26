@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-26T19:13:28.564Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-26T19:20:53.850Z"
 last_activity: 2026-03-26
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 33
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-25)
 ## Current Position
 
 Phase: 02 (go-otel-foundation-local-backend) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-03-26
 
@@ -56,6 +56,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 01 P03 | 11min | 3 tasks | 8 files |
 | Phase 01 P04 | 7min | 2 tasks | 4 files |
 | Phase 02 P02 | 1min | 1 tasks | 2 files |
+| Phase 02 P01 | 6min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Used patch.object to mock dynamic spread width in TestPartialLegFailure rather than adjusting test fixture strikes
 - [Phase 02]: Used grafana/otel-lgtm all-in-one image for local observability backend
 - [Phase 02]: Separate docker-compose file for observability (matches eventstoredb pattern)
+- [Phase 02]: Extracted inline setupOTelSDK to reusable utils.SetupOTelSDK with semconv service attributes
+- [Phase 02]: OTEL config via env vars only (no hardcoded endpoints), SDK auto-reads OTEL_* vars
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T19:13:28.557Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-03-26T19:20:53.843Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None
