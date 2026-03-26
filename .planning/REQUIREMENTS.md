@@ -64,8 +64,8 @@
 
 - [x] **CONS-01**: All 6 active strategies (covered_call, wheel, pdf_wheel, mean_reversion, options_mean_reversion, credit_spread) implement a common strategy interface compatible with trading_engine
 - [x] **CONS-02**: trading_engine.py refactored as the single tick loop orchestrator that all strategies run through
-- [ ] **CONS-03**: Each demo script (demo_covered_call, demo_wheel, demo_pdf_wheel, demo_mean_reversion, demo_options_mean_reversion, demo_credit_spread) uses trading_engine.run_strategy() instead of its own loop
-- [ ] **CONS-04**: All existing strategy tests pass after consolidation
+- [x] **CONS-03**: Each demo script (demo_covered_call, demo_wheel, demo_pdf_wheel, demo_mean_reversion, demo_options_mean_reversion, demo_credit_spread) uses trading_engine.run_strategy() instead of its own loop
+- [x] **CONS-04**: All existing strategy tests pass after consolidation
 
 ### Directory Restructure
 
@@ -137,8 +137,8 @@
 | DIR-08 | Phase 1 | Complete |
 | CONS-01 | Phase 1 | Complete |
 | CONS-02 | Phase 1 | Complete |
-| CONS-03 | Phase 1 | Pending |
-| CONS-04 | Phase 1 | Pending |
+| CONS-03 | Phase 1 | Complete |
+| CONS-04 | Phase 1 | Complete |
 | OTEL-01 | Phase 2 | Pending |
 | OTEL-02 | Phase 2 | Pending |
 | OTEL-03 | Phase 2 | Pending |
