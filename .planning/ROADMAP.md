@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 Plans:
 - [x] 01-01-PLAN.md -- Directory restructure: move all files, create packages, fix imports, update taskfile
-- [ ] 01-02-PLAN.md -- Strategy consolidation: BaseStrategy class, adapt 6 strategies, engine tick loop
+- [x] 01-02-PLAN.md -- Strategy consolidation: BaseStrategy class, adapt 6 strategies, engine tick loop
 - [ ] 01-03-PLAN.md -- Demo refactoring, optimizer refactoring, full test validation
 
 ### Phase 2: Go OTel Foundation & Local Backend
