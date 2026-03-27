@@ -57,8 +57,8 @@
 
 - [ ] **PYTEL-01**: OTel Python SDK installed in grodt conda env (compatible with numpy 1.26.4)
 - [ ] **PYTEL-02**: Python client initializes TracerProvider + MeterProvider with OTLP HTTP exporters
-- [ ] **PYTEL-03**: trading_engine.py tick loop instrumented with parent span per iteration
-- [ ] **PYTEL-04**: backtester_playground_client_grpc.py tick() and place_order() methods emit child spans with W3C traceparent headers
+- [x] **PYTEL-03**: trading_engine.py tick loop instrumented with parent span per iteration
+- [x] **PYTEL-04**: backtester_playground_client_grpc.py tick() and place_order() methods emit child spans with W3C traceparent headers
 
 ### Strategy Consolidation
 
@@ -159,8 +159,8 @@
 | BEAT-02 | Phase 3 | Complete |
 | PYTEL-01 | Phase 4 | Pending |
 | PYTEL-02 | Phase 4 | Pending |
-| PYTEL-03 | Phase 4 | Pending |
-| PYTEL-04 | Phase 4 | Pending |
+| PYTEL-03 | Phase 4 | Complete |
+| PYTEL-04 | Phase 4 | Complete |
 | STRAT-01 | Phase 4 | Pending |
 | STRAT-02 | Phase 4 | Pending |
 | STRAT-03 | Phase 4 | Pending |
