@@ -8,8 +8,13 @@ services:
       - "3000:3000"    # Grafana UI
       - "4317:4317"    # OTLP gRPC receiver
       - "4318:4318"    # OTLP HTTP receiver
+    environment:
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json
     volumes:
       - otel-lgtm-data:/data
+      # Dashboard provisioning
+      - ./dashboards/dashboards-provider.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
+      - ./dashboards/grodt-live-simulation.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json:ro
 
 volumes:
   otel-lgtm-data:
