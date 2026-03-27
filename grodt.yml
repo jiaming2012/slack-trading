@@ -14,11 +14,17 @@ dependencies:
   - ipykernel
   - ta-lib
   - loguru
+  - structlog
+  - websockets
+  - plotly
   - pip:
       - jenkspy
-      - pandas-ta
       - polygon-api-client
       - scikit-optimize
       - twirp==0.0.7
       - protobuf==5.29.3
+      - python-dotenv
+      - opentelemetry-api==1.40.0
+      - opentelemetry-sdk==1.40.0
       - opentelemetry-exporter-otlp-proto-http==1.40.0
+      # pandas-ta removed from PyPI — install separately from local tarball (see Dockerfile.base)
