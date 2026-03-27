@@ -8,9 +8,23 @@ determine pacing and should_fetch_account() for account state fetching.
 Lifecycle hooks (on_retrain, on_complete) are optional overrides.
 Strategies can receive pre-trained data via constructor kwargs to skip
 retraining (D-04, D-05).
+
+Signal decision logging: strategies call self.record_decision() inside
+on_tick() to record SignalDecision objects. The engine calls
+_flush_decisions() after on_tick() to emit structured logs (Plan 03 wires this).
 """
 
+import logging
+import os
 from abc import ABC, abstractmethod
+from dataclasses import asdict
+
+from opentelemetry import trace
+
+from engine.types import SignalDecision
+
+
+_signal_logger = logging.getLogger("grodt.strategy.signal")
 
 
 class BaseStrategy(ABC):
@@ -29,11 +43,13 @@ class BaseStrategy(ABC):
         self.playground = playground
         self.symbol = symbol
         self.logger = logger
+        self._decisions: list = []
 
     @abstractmethod
     def on_tick(self, tick_deltas) -> None:
         """Process one tick's worth of data.
-        Strategy handles its own signal generation and order placement internally."""
+        Strategy handles its own signal generation and order placement internally.
+        Call self.record_decision() to record signal decisions for logging."""
         pass
 
     @abstractmethod
@@ -63,3 +79,53 @@ class BaseStrategy(ABC):
         Default: delegates to playground.is_backtest_complete().
         Override if strategy has its own completion logic."""
         return self.playground.is_backtest_complete()
+
+    def record_decision(self, decision: SignalDecision) -> None:
+        """Record a signal decision for later logging.
+
+        Auto-fills trace_id from the current OTel span context,
+        playground_id from self.playground.id, and symbol from self.symbol
+        if they are not already set.
+
+        Strategies call this inside on_tick() to record decisions.
+        """
+        # Auto-fill trace_id from active OTel span
+        if not decision.trace_id:
+            span = trace.get_current_span()
+            ctx = span.get_span_context()
+            if ctx.trace_id > 0:
+                decision.trace_id = format(ctx.trace_id, '032x')
+
+        # Auto-fill playground_id
+        if not decision.playground_id:
+            decision.playground_id = str(self.playground.id)
+
+        # Auto-fill symbol
+        if not decision.symbol:
+            decision.symbol = self.symbol
+
+        self._decisions.append(decision)
+
+    def _log_decision(self, decision: SignalDecision) -> None:
+        """Log a single signal decision as a structured log record.
+
+        When STRATEGY_LOG_VERBOSE=true, includes the full indicators dict.
+        Otherwise, the indicators field is stripped from the log output (D-02).
+        """
+        record = asdict(decision)
+        verbose = os.getenv("STRATEGY_LOG_VERBOSE", "false").lower() == "true"
+        if not verbose:
+            record.pop("indicators", None)
+
+        _signal_logger.info("signal_decision", extra=record)
+
+    def _flush_decisions(self) -> None:
+        """Log all accumulated decisions and clear the list.
+
+        Called by the engine AFTER on_tick() completes (Plan 03 wires this).
+        This keeps logging DRY -- strategies only call record_decision(),
+        and the engine handles emission.
+        """
+        for decision in self._decisions:
+            self._log_decision(decision)
+        self._decisions = []
