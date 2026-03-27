@@ -383,6 +383,7 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRe
 		q.Add("class", string(req.Class))
 	case models.OrderRecordClassOption:
 		q.Add("quantity", strconv.Itoa(req.Quantities[0]))
+		q.Add("side", string(req.Sides[0]))
 		q.Add("option_symbol", req.OptionSymbols[0])
 		q.Add("class", string(req.Class))
 	case models.OrderRecordClassMultiLegOption:
