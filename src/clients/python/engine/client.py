@@ -14,6 +14,8 @@ import time
 from time import perf_counter
 import uuid
 
+from opentelemetry import trace
+
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
 from engine.types import RepositorySource, OrderSide, LiveAccountType
@@ -21,6 +23,15 @@ from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
 MAX_RETRIES = 6
+
+
+def _get_trace_id() -> str:
+    """Extract trace_id from current active span as 32-char hex string."""
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx.trace_id == 0:
+        return ""
+    return format(ctx.trace_id, '032x')
 
 class PlaygroundEnvironment(Enum):
     SIMULATOR = 'simulator'
@@ -558,6 +569,7 @@ class BacktesterPlaygroundClient:
             seconds=seconds,
             is_preview=False,
             request_id=str(uuid.uuid4()),
+            trace_id=_get_trace_id(),
         )
 
         try:
@@ -635,7 +647,8 @@ class BacktesterPlaygroundClient:
             duration='day',
             tag=tag,
             requested_price=price,
-            client_request_id=client_request_id
+            client_request_id=client_request_id,
+            trace_id=_get_trace_id(),
         )
         
         if sl is not None:
@@ -678,7 +691,8 @@ class BacktesterPlaygroundClient:
                     playground_id=self.id,
                     seconds=seconds,
                     is_preview=True,
-                    request_id=str(uuid.uuid4())
+                    request_id=str(uuid.uuid4()),
+                    trace_id=_get_trace_id(),
                 )
             
             response = self.network_call_with_retry('preview_tick', self.client.NextTick, req)

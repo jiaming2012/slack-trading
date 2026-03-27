@@ -82,7 +82,7 @@ Plans:
   5. OTel Python packages are installed without breaking numpy 1.26.4 or pandas_ta
 **Plans:** 3 plans
 Plans:
-- [ ] 04-01-PLAN.md -- OTel SDK install, setup_otel() module, StrategyHeartbeat daemon thread
+- [x] 04-01-PLAN.md -- OTel SDK install, setup_otel() module, StrategyHeartbeat daemon thread
 - [ ] 04-02-PLAN.md -- SignalDecision dataclass and structured decision logging in BaseStrategy
 - [ ] 04-03-PLAN.md -- Tick loop OTel spans, trace_id on RPC requests, engine wiring
 

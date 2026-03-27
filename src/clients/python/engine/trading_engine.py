@@ -18,6 +18,10 @@ import argparse
 import os
 import sys
 
+from opentelemetry import trace
+from engine.otel import setup_otel
+from engine.heartbeat import StrategyHeartbeat
+
 # todo:
 # refactor open_strategy to parameterize short and long periods
 logger.remove()
@@ -91,28 +95,76 @@ def run_strategy(
     BaseStrategy
         The strategy instance after completion.
     """
+    # Initialize OTel (idempotent -- safe for optimizer multi-call)
+    otel_shutdown = setup_otel()
+
+    # Start heartbeat daemon thread (D-11)
+    strategy_name = type(strategy).__name__
+    heartbeat = StrategyHeartbeat(strategy_name)
+    heartbeat.start()
+    heartbeat.set_state("active")
+
+    # Get tracer for span creation
+    tracer = trace.get_tracer("grodt-strategy")
+    is_live = getattr(playground, 'environment', '') == 'live'
+
     iteration = 0
+    try:
+        while not strategy.is_complete():
+            iteration += 1
+            if iteration > max_iterations:
+                logger.warning(f"Max iterations ({max_iterations}) reached")
+                break
 
-    while not strategy.is_complete():
-        iteration += 1
-        if iteration > max_iterations:
-            logger.warning(f"Max iterations ({max_iterations}) reached")
-            break
+            if is_live:
+                with tracer.start_as_current_span(
+                    "strategy.tick",
+                    attributes={
+                        "playground_id": playground.id,
+                        "tick_number": iteration,
+                        "symbol": strategy.symbol,
+                        "strategy_name": strategy_name,
+                    }
+                ) as span:
+                    tick_deltas = playground.flush_new_state_buffer()
+                    strategy.on_tick(tick_deltas)
+                    if hasattr(strategy, '_flush_decisions'):
+                        strategy._flush_decisions()
 
-        tick_deltas = playground.flush_new_state_buffer()
-        strategy.on_tick(tick_deltas)
+                    if on_tick is not None:
+                        on_tick(strategy, tick_deltas)
 
-        if on_tick is not None:
-            on_tick(strategy, tick_deltas)
+                    if enable_retraining:
+                        strategy.on_retrain()
 
-        if enable_retraining:
-            strategy.on_retrain()
+                    tick_seconds = strategy.get_next_tick_seconds()
+                    fetch_account = strategy.should_fetch_account()
+                    playground.tick(tick_seconds, fetch_account=fetch_account)
+            else:
+                # Simulator/backtest path -- no spans (Pitfall 3)
+                tick_deltas = playground.flush_new_state_buffer()
+                strategy.on_tick(tick_deltas)
+                if hasattr(strategy, '_flush_decisions'):
+                    strategy._flush_decisions()
 
-        tick_seconds = strategy.get_next_tick_seconds()
-        fetch_account = strategy.should_fetch_account()
-        playground.tick(tick_seconds, fetch_account=fetch_account)
+                if on_tick is not None:
+                    on_tick(strategy, tick_deltas)
 
-    strategy.on_complete()
+                if enable_retraining:
+                    strategy.on_retrain()
+
+                tick_seconds = strategy.get_next_tick_seconds()
+                fetch_account = strategy.should_fetch_account()
+                playground.tick(tick_seconds, fetch_account=fetch_account)
+
+            heartbeat.record_tick()
+    finally:
+        heartbeat.set_state("idle")
+        heartbeat.stop()
+        strategy.on_complete()
+        if otel_shutdown:
+            otel_shutdown()
+
     return strategy
 
 
