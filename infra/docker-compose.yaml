@@ -2,6 +2,7 @@ version: "3.4"
 
 services:
   eventstore.db:
+    restart: unless-stopped
     image: eventstore/eventstore:24.2.0-jammy
     environment:
       - EVENTSTORE_CLUSTER_SIZE=1
@@ -23,6 +24,7 @@ services:
         target: /var/log/eventstore
 
   postgres:
+    restart: unless-stopped
     image: postgres:13
     environment:
       - POSTGRES_DB=playground
@@ -34,6 +36,7 @@ services:
       - type: volume
         source: postgres-volume-data
         target: /var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
 volumes:
   eventstore-volume-data:

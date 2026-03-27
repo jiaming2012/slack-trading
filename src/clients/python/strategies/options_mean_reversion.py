@@ -97,7 +97,7 @@ class OptionsMeanReversionStrategy(BaseStrategy):
         pdf: PDFDocument = None,
         max_premium_pct: float = 0.02,
         stop_percentile: float = 0.95,
-        total_contracts_per_group: int = 10,
+        total_contracts_per_group: int = 0,
         htf_horizon: str = "1h",
         target_dte: int = 14,
         min_dte: int = 5,
@@ -114,6 +114,23 @@ class OptionsMeanReversionStrategy(BaseStrategy):
         self.pdf = pdf
         self.max_premium_pct = max_premium_pct
         self.stop_percentile = stop_percentile
+
+        # Auto-size contracts from balance when not specified.
+        # Rough estimate: each contract costs ~3% of stock price * 100 shares.
+        if total_contracts_per_group <= 0:
+            ltf_bar = playground.current_candles.get(symbol, {}).get(playground.ltf_seconds)
+            current_price = ltf_bar.close if ltf_bar else 0
+            if current_price > 0:
+                est_premium_per_contract = current_price * 0.03 * 100
+                budget = playground.account.balance * max_premium_pct
+                total_contracts_per_group = max(1, int(budget / est_premium_per_contract))
+            else:
+                total_contracts_per_group = 1
+            self.logger.info(
+                f"Auto-sized contracts/group: {total_contracts_per_group}"
+                f" (budget ${playground.account.balance * max_premium_pct:,.2f})"
+            )
+
         self.total_contracts_per_group = total_contracts_per_group
         self.htf_horizon = htf_horizon
         self.target_dte = target_dte
@@ -1053,7 +1070,7 @@ def run_options_mean_reversion(
     pdf: PDFDocument,
     max_premium_pct: float = 0.02,
     stop_percentile: float = 0.95,
-    total_contracts_per_group: int = 10,
+    total_contracts_per_group: int = 0,
     htf_horizon: str = "1h",
     target_dte: int = 14,
     min_dte: int = 5,

@@ -13,10 +13,12 @@ Long-only, single-symbol, accepts overnight risk.
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from loguru import logger as _default_logger
@@ -82,7 +84,7 @@ class MeanReversionStrategy(BaseStrategy):
     stop_percentile : float
         Percentile for HTF stop (default 0.95).
     total_shares_per_group : int
-        Total shares to distribute across levels (default 1000).
+        Total shares to distribute across levels (0 = auto-size from balance/price).
     num_exit_tiers : int
         Number of partial exit tiers per level (default 3).
     htf_horizon : str
@@ -97,7 +99,7 @@ class MeanReversionStrategy(BaseStrategy):
         pdf: PDFDocument = None,
         max_loss_pct: float = 0.02,
         stop_percentile: float = 0.95,
-        total_shares_per_group: int = 1000,
+        total_shares_per_group: int = 0,
         num_exit_tiers: int = 3,
         htf_horizon: str = "1h",
         tier_spacing: str = "even",
@@ -109,6 +111,21 @@ class MeanReversionStrategy(BaseStrategy):
         self.pdf = pdf
         self.max_loss_pct = max_loss_pct
         self.stop_percentile = stop_percentile
+
+        # Auto-size shares from balance / current price when not specified
+        if total_shares_per_group <= 0:
+            ltf_bar = playground.current_candles.get(symbol, {}).get(playground.ltf_seconds)
+            current_price = ltf_bar.close if ltf_bar else 0
+            if current_price > 0:
+                total_shares_per_group = max(1, int(playground.account.balance / current_price))
+            else:
+                total_shares_per_group = 1
+            self.logger.info(
+                f"Auto-sized shares/group: {total_shares_per_group}"
+                f" (balance ${playground.account.balance:,.2f}"
+                f" / price ${current_price:.2f})"
+            )
+
         self.total_shares_per_group = total_shares_per_group
         self.num_exit_tiers = num_exit_tiers
         self.htf_horizon = htf_horizon
@@ -814,7 +831,7 @@ def run_mean_reversion(
     pdf: PDFDocument,
     max_loss_pct: float = 0.02,
     stop_percentile: float = 0.95,
-    total_shares_per_group: int = 1000,
+    total_shares_per_group: int = 0,
     num_exit_tiers: int = 3,
     htf_horizon: str = "1h",
     tier_spacing: str = "even",
@@ -851,6 +868,38 @@ def run_mean_reversion(
 
     max_iterations = 500_000
     iteration = 0
+    wall_start = time.monotonic()
+    last_status_time = wall_start
+    status_interval = 30  # seconds between status lines
+    is_live = playground.environment == PlaygroundEnvironment.LIVE.value
+
+    def _print_status():
+        nonlocal last_status_time
+        now_wall = time.monotonic()
+        if now_wall - last_status_time < status_interval:
+            return
+        last_status_time = now_wall
+        elapsed = now_wall - wall_start
+        h, rem = divmod(int(elapsed), 3600)
+        m, s = divmod(rem, 60)
+        price = strategy._prev_ltf_bar.get("close", 0.0) if strategy._prev_ltf_bar else 0.0
+        equity = playground.account.equity
+        pnl = playground.get_realized_profit()
+        pnl_pct = pnl / strategy.playground.account.meta.initial_balance * 100 if strategy.playground.account.meta.initial_balance else 0
+        pos_qty = playground.account.get_quantity(symbol)
+        active_groups = sum(1 for g in strategy.trade_groups if g.status in ("pending", "active"))
+        total_groups = len(strategy.trade_groups)
+        ts = playground.timestamp.strftime("%H:%M:%S") if playground.timestamp else "??:??:??"
+        f = strategy.funnel
+        logger.info(
+            f"[STATUS] {ts} | elapsed {h:02d}h{m:02d}m | tick #{iteration}"
+            f" | price ${price:.2f} | equity ${equity:,.2f}"
+            f" | P&L {'+' if pnl >= 0 else ''}{pnl:,.2f} ({pnl_pct:+.1f}%)"
+            f" | pos {pos_qty:.0f} shares"
+            f" | groups {active_groups}/{total_groups}"
+            f" | sig {f['signals_detected']} ent {f['entries_placed']}"
+            f" exit {f['exits_placed']} stop {f['stop_outs']}"
+        )
 
     while not playground.is_backtest_complete():
         iteration += 1
@@ -870,14 +919,33 @@ def run_mean_reversion(
         if on_tick is not None:
             on_tick(strategy, tick_deltas)
 
-        # When idle (no open/pending groups), tick by HTF period instead of LTF
-        # to skip ~12x fewer RPCs. The server returns all completed candles in
-        # the interval, so HTF signals and LTF entries are still processed.
+        _print_status()
+
         has_active = any(
             g.status in ("pending", "active") for g in strategy.trade_groups
         )
-        tick_seconds = playground.ltf_seconds if has_active else playground.htf_seconds
-        playground.tick(tick_seconds, fetch_account=has_active)
+
+        if is_live:
+            # In live mode, sleep in short increments so status updates
+            # print every ~30s.  Only issue the tick RPC once the full
+            # LTF period has elapsed.  playground.tick() sleeps internally
+            # for the entire period, so we bypass that by sleeping here
+            # and only calling tick() when it's time.
+            wait_until = playground.next_tick_at
+            while True:
+                now = datetime.now(ZoneInfo("America/New_York"))
+                if now >= wait_until:
+                    break
+                remaining = (wait_until - now).total_seconds()
+                time.sleep(min(remaining, status_interval))
+                _print_status()
+
+            # next_tick_at has been reached — tick() will not sleep
+            playground.tick(playground.ltf_seconds, fetch_account=has_active)
+        else:
+            # In sim mode, skip ahead by HTF when idle to reduce RPCs.
+            tick_seconds = playground.ltf_seconds if has_active else playground.htf_seconds
+            playground.tick(tick_seconds, fetch_account=has_active)
 
     # End-of-sim cleanup
     strategy.close_all_active_groups()

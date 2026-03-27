@@ -300,7 +300,7 @@ def main():
     parser.add_argument("--max-loss-pct", type=float, default=0.02, help="Max loss per group as %% of equity (default: 0.02)")
     parser.add_argument("--stop-percentile", type=float, default=0.95, help="HTF stop percentile (default: 0.95)")
     parser.add_argument("--model", type=str, default="bayesian_nig", choices=["empirical", "bayesian_nig"], help="Return model (default: bayesian_nig)")
-    parser.add_argument("--total-shares", type=int, default=1000, help="Total shares per group (default: 1000)")
+    parser.add_argument("--total-shares", type=int, default=0, help="Total shares per group (0 = auto-size from balance/price)")
     parser.add_argument("--exit-tiers", type=int, default=3, help="Number of partial exit tiers (default: 3)")
     parser.add_argument(
         "--tier-spacing", type=str, default="even",
@@ -327,6 +327,7 @@ def main():
         help="Run in live mode: 'paper' (default) or 'margin' (real money)",
     )
     parser.add_argument("--twirp-host", type=str, default="http://127.0.0.1:5051", help="Twirp server URL")
+    parser.add_argument("--client-id", type=str, default="", help="Client ID for playground reuse across restarts")
 
     # Retrain flags
     parser.add_argument(
@@ -378,7 +379,7 @@ def main():
     logger.info(f"Max loss/group:  {args.max_loss_pct * 100:.1f}%")
     logger.info(f"Stop percentile: {args.stop_percentile * 100:.0f}th")
     logger.info(f"Model:           {args.model}")
-    logger.info(f"Shares/group:    {args.total_shares}")
+    logger.info(f"Shares/group:    {args.total_shares if args.total_shares > 0 else 'auto'}")
     logger.info(f"Exit tiers:      {args.exit_tiers}")
     logger.info(f"Tier spacing:    {args.tier_spacing}")
     logger.info(f"Stop widen:      {args.stop_widen_on_exit}")
@@ -484,6 +485,10 @@ def main():
             repositories=repos,
             environment=env.value,
         )
+
+    if args.client_id:
+        req.client_id = args.client_id
+        logger.info(f"Client ID:       {args.client_id}")
 
     # ------------------------------------------------------------------
     # 3. Create playground

@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(curl -s -X POST http://localhost:5051/twirp/playground.PlaygroundService/GetPlaygrounds -H \"Content-Type: application/json\" -d '{}')",
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(len\\(data.get\\(''playgrounds'', []\\)\\)\\)\")",
@@ -104,7 +105,11 @@
       "Bash(task --list)",
       "WebSearch",
       "WebFetch(domain:www.digitalocean.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(wsl bash:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Edit(src/clients/python/**)",
+      "Read(src/clients/python/**)"
     ]
   }
 }

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "go-backend",
+      "runtimeExecutable": "wsl",
+      "runtimeArgs": ["bash", "-lc", "cd /home/jcole/projects/slack-trading && task app:dev"],
+      "port": 5051
+    },
+    {
+      "name": "eventstore",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "infra/docker-compose.yaml", "up", "eventstore"],
+      "port": 2113
+    },
+    {
+      "name": "postgres",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "infra/docker-compose.yaml", "up", "postgres"],
+      "port": 5432
+    }
+  ]
+}

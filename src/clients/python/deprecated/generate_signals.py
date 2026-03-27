@@ -2,7 +2,7 @@ from loguru import logger
 import argparse
 import datetime
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta_classic as ta
 import numpy as np
 from utils import fetch_polygon_stock_chart_aggregated
 
