@@ -80,7 +80,11 @@ Plans:
   3. Strategy indicator evaluations and signal decisions appear as structured log entries in Loki
   4. "No action" decisions (below threshold, position full) are logged with explicit reasons
   5. OTel Python packages are installed without breaking numpy 1.26.4 or pandas_ta
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 04-01-PLAN.md -- OTel SDK install, setup_otel() module, StrategyHeartbeat daemon thread
+- [ ] 04-02-PLAN.md -- SignalDecision dataclass and structured decision logging in BaseStrategy
+- [ ] 04-03-PLAN.md -- Tick loop OTel spans, trace_id on RPC requests, engine wiring
 
 ### Phase 5: End-to-End Tick Tracing
 **Goal**: A single trace in Grafana/Tempo shows the complete path from Python tick loop through Go server RPC and back
@@ -126,7 +130,7 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 | 1. Python Codebase Restructure | 3/4 | Verifying | - |
 | 2. Go OTel Foundation & Local Backend | 0/3 | Planned | - |
 | 3. Go Telemetry Instrumentation | 0/3 | Planned | - |
-| 4. Python Telemetry Instrumentation | 0/? | Not started | - |
+| 4. Python Telemetry Instrumentation | 0/3 | Planned | - |
 | 5. End-to-End Tick Tracing | 0/? | Not started | - |
 | 6. Dashboards & Alerts | 0/? | Not started | - |
 | 7. Production Deployment | 0/? | Not started | - |
