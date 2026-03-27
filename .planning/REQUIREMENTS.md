@@ -83,9 +83,9 @@
 - [x] **DASH-01**: Grafana dashboard shows aggregate live simulation activity (all live playgrounds)
 - [x] **DASH-02**: Dashboard has dropdown filter to select a specific playground_id
 - [x] **DASH-03**: Dashboard includes position summary panel showing open positions across live playgrounds
-- [ ] **ALERT-01**: Grafana alert fires when Go server heartbeat is stale (>2 minutes)
-- [ ] **ALERT-02**: Grafana alert fires when Python strategy heartbeat is stale (>2 minutes)
-- [ ] **ALERT-03**: Grafana alert fires when error log rate exceeds threshold
+- [x] **ALERT-01**: Grafana alert fires when Go server heartbeat is stale (>2 minutes)
+- [x] **ALERT-02**: Grafana alert fires when Python strategy heartbeat is stale (>2 minutes)
+- [x] **ALERT-03**: Grafana alert fires when error log rate exceeds threshold
 
 ### Production Deployment
 
@@ -173,9 +173,9 @@
 | DASH-01 | Phase 6 | Complete |
 | DASH-02 | Phase 6 | Complete |
 | DASH-03 | Phase 6 | Complete |
-| ALERT-01 | Phase 6 | Pending |
-| ALERT-02 | Phase 6 | Pending |
-| ALERT-03 | Phase 6 | Pending |
+| ALERT-01 | Phase 6 | Complete |
+| ALERT-02 | Phase 6 | Complete |
+| ALERT-03 | Phase 6 | Complete |
 | DEPLOY-01 | Phase 7 | Pending |
 | DEPLOY-02 | Phase 7 | Pending |
 | DEPLOY-03 | Phase 7 | Pending |

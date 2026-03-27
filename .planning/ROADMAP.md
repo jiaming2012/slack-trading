@@ -111,7 +111,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 06-01-PLAN.md -- Dashboard provisioning: provider YAML, live simulation dashboard JSON, docker-compose volume mounts
-- [ ] 06-02-PLAN.md -- Alert rules: heartbeat staleness + error rate alerts, Slack contact point, notification policy
+- [x] 06-02-PLAN.md -- Alert rules: heartbeat staleness + error rate alerts, Slack contact point, notification policy
 
 ### Phase 7: Production Deployment
 **Goal**: The observability stack runs on Digital Ocean and receives telemetry from the live trading infrastructure
@@ -136,5 +136,5 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 | 3. Go Telemetry Instrumentation | 0/3 | Planned | - |
 | 4. Python Telemetry Instrumentation | 0/3 | Planned | - |
 | 5. End-to-End Tick Tracing | 0/1 | Planned | - |
-| 6. Dashboards & Alerts | 0/2 | Planned | - |
+| 6. Dashboards & Alerts | 2/2 | Complete | 2026-03-27 |
 | 7. Production Deployment | 0/? | Not started | - |
