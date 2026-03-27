@@ -290,6 +290,7 @@ func main() {
 	}
 
 	// Set up telemetry hooks
+	// otellogrus adds log entries as span events (visible in Tempo traces)
 	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
 		log.PanicLevel,
 		log.FatalLevel,
@@ -297,6 +298,15 @@ func main() {
 		log.WarnLevel,
 		log.InfoLevel,
 	)))
+
+	// OTel Log SDK bridge exports logs via OTLP to Loki (standalone, no span required)
+	log.AddHook(utils.NewOTelLogrusHook(
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+		log.InfoLevel,
+	))
 
 	// Setup postgres
 	if db, err = dbutils.InitPostgres(postgresHost, postgresPort, postgresUser, postgresPassword, postgresDb); err != nil {

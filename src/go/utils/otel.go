@@ -7,10 +7,13 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otelglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -90,6 +93,21 @@ func SetupOTelSDK(ctx context.Context, serviceName, serviceVersion string) (shut
 	)
 	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
 	otel.SetMeterProvider(meterProvider)
+
+	// Set up log exporter (OTLP HTTP, endpoint from OTEL_* env vars)
+	logExporter, err := otlploghttp.New(ctx)
+	if err != nil {
+		handleErr(err)
+		return
+	}
+
+	// Set up LoggerProvider
+	loggerProvider := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+		sdklog.WithResource(res),
+	)
+	shutdownFuncs = append(shutdownFuncs, loggerProvider.Shutdown)
+	otelglobal.SetLoggerProvider(loggerProvider)
 
 	// Start Go runtime metrics collection
 	err = runtime.Start(runtime.WithMinimumReadMemStatsInterval(time.Second))
