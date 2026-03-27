@@ -110,7 +110,7 @@ Plans:
   5. Stopping the Python strategy for >2 minutes triggers a separate Grafana alert notification
 **Plans:** 2 plans
 Plans:
-- [ ] 06-01-PLAN.md -- Dashboard provisioning: provider YAML, live simulation dashboard JSON, docker-compose volume mounts
+- [x] 06-01-PLAN.md -- Dashboard provisioning: provider YAML, live simulation dashboard JSON, docker-compose volume mounts
 - [ ] 06-02-PLAN.md -- Alert rules: heartbeat staleness + error rate alerts, Slack contact point, notification policy
 
 ### Phase 7: Production Deployment

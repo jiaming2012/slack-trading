@@ -80,9 +80,9 @@
 
 ### Dashboards & Alerts
 
-- [ ] **DASH-01**: Grafana dashboard shows aggregate live simulation activity (all live playgrounds)
-- [ ] **DASH-02**: Dashboard has dropdown filter to select a specific playground_id
-- [ ] **DASH-03**: Dashboard includes position summary panel showing open positions across live playgrounds
+- [x] **DASH-01**: Grafana dashboard shows aggregate live simulation activity (all live playgrounds)
+- [x] **DASH-02**: Dashboard has dropdown filter to select a specific playground_id
+- [x] **DASH-03**: Dashboard includes position summary panel showing open positions across live playgrounds
 - [ ] **ALERT-01**: Grafana alert fires when Go server heartbeat is stale (>2 minutes)
 - [ ] **ALERT-02**: Grafana alert fires when Python strategy heartbeat is stale (>2 minutes)
 - [ ] **ALERT-03**: Grafana alert fires when error log rate exceeds threshold
@@ -170,9 +170,9 @@
 | TICK-02 | Phase 5 | Complete |
 | TICK-03 | Phase 5 | Complete |
 | TICK-04 | Phase 5 | Complete |
-| DASH-01 | Phase 6 | Pending |
-| DASH-02 | Phase 6 | Pending |
-| DASH-03 | Phase 6 | Pending |
+| DASH-01 | Phase 6 | Complete |
+| DASH-02 | Phase 6 | Complete |
+| DASH-03 | Phase 6 | Complete |
 | ALERT-01 | Phase 6 | Pending |
 | ALERT-02 | Phase 6 | Pending |
 | ALERT-03 | Phase 6 | Pending |
