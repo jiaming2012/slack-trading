@@ -15,6 +15,7 @@ from time import perf_counter
 import uuid
 
 from opentelemetry import trace
+from opentelemetry.propagate import inject
 
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
@@ -152,10 +153,12 @@ class BacktesterPlaygroundClient:
 
     def _network_call_with_retry_inner(self, caller, client, request, backoff, max_backoff):
         retries = 0
+        headers = {}
+        inject(headers)
         while True:
             try:
                 response = client(
-                    ctx=Context(),
+                    ctx=Context(headers=headers),
                     request=request
                 )
                 return response
