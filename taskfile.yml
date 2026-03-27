@@ -298,6 +298,37 @@ tasks:
     cmds:
       - 'docker-compose -f ${PROJECTS_DIR}/slack-trading/eventstoredb/docker-compose.yaml up'
 
+  infra:status:
+    desc: "Check production droplet status via DO MCP"
+    cmds:
+      - 'echo "Use DO MCP server: list droplets with tag grodt"'
+      - 'echo "Or: doctl compute droplet list --tag-name grodt"'
+
+  infra:destroy:
+    desc: "Destroy production droplet and firewall (WARNING: destructive)"
+    cmds:
+      - 'echo "Use DO MCP server to destroy:"'
+      - 'echo "  1. Delete droplet named grodt-prod"'
+      - 'echo "  2. Delete firewall named grodt-prod-firewall"'
+      - 'echo "Or: doctl compute droplet delete grodt-prod --force"'
+      - 'echo "    doctl compute firewall delete <firewall-id>"'
+
+  infra:rebuild:
+    desc: "Destroy and reprovision production stack from scratch"
+    cmds:
+      - task infra:destroy
+      - 'echo "Run /gsd:execute-phase 7 --wave 2 to reprovision via MCP"'
+
+  infra:deploy:
+    desc: "Deploy latest code to production droplet"
+    cmds:
+      - 'ssh root@$(doctl compute droplet get grodt-prod --format PublicIPv4 --no-header 2>/dev/null || echo "DROPLET_IP") "cd /opt/slack-trading && git pull && docker compose -f docker-compose.prod.yaml up -d --build"'
+
+  infra:logs:
+    desc: "Stream production logs from all services"
+    cmds:
+      - 'ssh root@$(doctl compute droplet get grodt-prod --format PublicIPv4 --no-header 2>/dev/null || echo "DROPLET_IP") "cd /opt/slack-trading && docker compose -f docker-compose.prod.yaml logs -f"'
+
   gen:proto:
     cmds:
       - 'source ${PROJECTS_DIR}/slack-trading/src/cmd/stats/env/bin/activate'
