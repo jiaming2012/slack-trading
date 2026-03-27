@@ -101,7 +101,10 @@
       "Bash(/Users/jamal/miniconda3/condabin/conda env:*)",
       "Bash(go list:*)",
       "Bash(echo \"PROJECT_DIR=$PROJECT_DIR\")",
-      "Bash(task --list)"
+      "Bash(task --list)",
+      "WebSearch",
+      "WebFetch(domain:www.digitalocean.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
