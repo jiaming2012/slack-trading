@@ -43,6 +43,7 @@ seaborn==0.12.2
 six==1.16.0
 statsmodels==0.13.5
 structlog==24.4.0
+opentelemetry-exporter-otlp-proto-http==1.40.0
 tenacity==8.2.3
 threadpoolctl==3.5.0
 toolz==0.12.1

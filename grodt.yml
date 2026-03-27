@@ -21,3 +21,4 @@ dependencies:
       - scikit-optimize
       - twirp==0.0.7
       - protobuf==5.29.3
+      - opentelemetry-exporter-otlp-proto-http==1.40.0
