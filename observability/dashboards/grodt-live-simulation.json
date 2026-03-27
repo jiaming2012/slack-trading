@@ -183,18 +183,18 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(grodt_orders_placed_total{environment=~\"live|reconcile\", playground_id=~\"$playground_id\"}[5m])",
+          "expr": "grodt_orders_placed_total{environment=~\"live|reconcile\", playground_id=~\"$playground_id\"}",
           "legendFormat": "Placed",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(grodt_orders_filled_total{environment=~\"live|reconcile\", playground_id=~\"$playground_id\"}[5m])",
+          "expr": "grodt_orders_filled_total{environment=~\"live|reconcile\", playground_id=~\"$playground_id\"}",
           "legendFormat": "Filled",
           "refId": "B"
         }
       ],
-      "title": "Orders Placed / Filled Rate",
+      "title": "Orders Placed / Filled",
       "type": "timeseries"
     },
     {
@@ -249,7 +249,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{service_name=\"grodt-server\"} | logfmt | event=~\"order_placed|order_filled|order_rejected\" | line_format \"{{.event}} {{.symbol}} {{.side}} qty={{.quantity}}\"",
+          "expr": "{service_name=\"grodt\"} | logfmt | event=~\"order_placed|order_filled|order_rejected\" | line_format \"{{.event}} {{.symbol}} {{.side}} qty={{.quantity}}\"",
           "maxLines": 20,
           "refId": "A"
         }
@@ -387,7 +387,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{service_name=\"grodt-server\"} | logfmt | event=\"order_placed\" | line_format \"{{.playground_id}} | {{.symbol}} | {{.side}} | qty={{.quantity}}\"",
+          "expr": "{service_name=\"grodt\"} | logfmt | event=\"order_placed\" | line_format \"{{.playground_id}} | {{.symbol}} | {{.side}} | qty={{.quantity}}\"",
           "maxLines": 50,
           "refId": "A"
         }
