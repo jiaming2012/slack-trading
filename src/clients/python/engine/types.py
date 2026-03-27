@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, Optional
+
 import pandas as pd
 
 
@@ -56,3 +58,25 @@ class OpenSignalV3:
     timestamp: pd.Timestamp
     kwargs: dict
     additional_equity_risk: float
+
+
+@dataclass
+class SignalDecision:
+    """Structured signal decision record for strategy telemetry.
+
+    Captures every decision a strategy makes (place or skip) with
+    the reason, enabling post-hoc analysis of "why was this trade
+    placed or not placed?"
+
+    Fields per D-03: signal_type, direction, decision, reason,
+    symbol, playground_id, trace_id.
+    Full indicator dump (D-04) gated by STRATEGY_LOG_VERBOSE env var.
+    """
+    signal_type: str          # e.g. "covered_call", "mean_reversion_dip"
+    direction: str            # "long", "short", "neutral"
+    decision: str             # "place" or "skip"
+    reason: str               # e.g. "below threshold", "position full", "signal triggered"
+    symbol: str
+    playground_id: str
+    trace_id: str = ""
+    indicators: Optional[Dict[str, Any]] = None  # full dump when verbose (D-04)
