@@ -48,10 +48,10 @@
 
 ### End-to-End Tick Tracing
 
-- [ ] **TICK-01**: Each client tick loop iteration is a single trace span capturing: client tick → server NextTick RPC → response → strategy signal evaluation → place_order RPC (if any)
-- [ ] **TICK-02**: Client tick span includes attributes: playground_id, tick_number, symbols, duration_ms
-- [ ] **TICK-03**: Server NextTick handler span is linked as a child of the client tick span via W3C traceparent propagation through Twirp
-- [ ] **TICK-04**: PlaceOrder RPC span is linked as a child of the client tick span when orders are placed
+- [x] **TICK-01**: Each client tick loop iteration is a single trace span capturing: client tick → server NextTick RPC → response → strategy signal evaluation → place_order RPC (if any)
+- [x] **TICK-02**: Client tick span includes attributes: playground_id, tick_number, symbols, duration_ms
+- [x] **TICK-03**: Server NextTick handler span is linked as a child of the client tick span via W3C traceparent propagation through Twirp
+- [x] **TICK-04**: PlaceOrder RPC span is linked as a child of the client tick span when orders are placed
 
 ### Python Instrumentation
 
@@ -166,10 +166,10 @@
 | STRAT-03 | Phase 4 | Pending |
 | BEAT-03 | Phase 4 | Pending |
 | BEAT-04 | Phase 4 | Pending |
-| TICK-01 | Phase 5 | Pending |
-| TICK-02 | Phase 5 | Pending |
-| TICK-03 | Phase 5 | Pending |
-| TICK-04 | Phase 5 | Pending |
+| TICK-01 | Phase 5 | Complete |
+| TICK-02 | Phase 5 | Complete |
+| TICK-03 | Phase 5 | Complete |
+| TICK-04 | Phase 5 | Complete |
 | DASH-01 | Phase 6 | Pending |
 | DASH-02 | Phase 6 | Pending |
 | DASH-03 | Phase 6 | Pending |

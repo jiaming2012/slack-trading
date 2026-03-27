@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-03-27T01:51:57.523Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-27T02:30:27.552Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  completed_phases: 5
+  total_plans: 14
+  completed_plans: 14
   percent: 33
 ---
 
@@ -60,6 +60,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P01 | 6min | 2 tasks | 5 files |
 | Phase 03 P03 | 5min | 2 tasks | 4 files |
 | Phase 04 P03 | 6min | 2 tasks | 3 files |
+| Phase 05 P01 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [Phase 03]: Environment-only segmentation on gauge metrics in v1; account_type detail in structured log
 - [Phase 04]: Used hasattr guard for _flush_decisions() for parallel plan compatibility
 - [Phase 04]: Live-only OTel spans to avoid 500K+ span explosion in backtest mode
+- [Phase 05]: inject() called once before retry loop since trace context is fixed per request
+- [Phase 05]: otelhttp outermost middleware wrapper (outside panicRecoveryMiddleware) for correct trace extraction
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T01:16:25.261Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-03-27T02:30:27.545Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

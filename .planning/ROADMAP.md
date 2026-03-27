@@ -96,7 +96,7 @@ Plans:
   3. Clicking a Go server span in Tempo navigates to the Python parent span that initiated the RPC call
 **Plans:** 1 plan
 Plans:
-- [ ] 05-01-PLAN.md -- W3C traceparent injection (Python) and otelhttp middleware (Go) for distributed trace linking
+- [x] 05-01-PLAN.md -- W3C traceparent injection (Python) and otelhttp middleware (Go) for distributed trace linking
 
 ### Phase 6: Dashboards & Alerts
 **Goal**: A purpose-built Grafana dashboard answers "what is happening right now?" and alerts fire when things go wrong
