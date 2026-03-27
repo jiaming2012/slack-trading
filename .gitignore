@@ -14,6 +14,7 @@ src/env.txt
 main
 .env
 .env.*
+!.env.prod.template
 src/cmd/backtester-sandbox 
 env/
 *.csv

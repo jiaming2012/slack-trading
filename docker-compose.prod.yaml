@@ -1,0 +1,84 @@
+# Production Docker Compose - Full trading + observability stack
+# Usage: docker compose -f docker-compose.prod.yaml up -d --build
+# Requires: .env.prod (copy from .env.prod.template and fill in secrets)
+
+services:
+  # --- Databases ---
+  eventstore.db:
+    image: eventstore/eventstore:24.2.0-jammy
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=true
+      - EVENTSTORE_INT_TCP_PORT=1113
+      - EVENTSTORE_HTTP_PORT=2113
+      - EVENTSTORE_INSECURE=true
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=true
+    ports:
+      - "1113:1113"
+      - "2113:2113"
+    volumes:
+      - type: volume
+        source: eventstore-volume-data
+        target: /var/lib/eventstore
+      - type: volume
+        source: eventstore-volume-logs
+        target: /var/log/eventstore
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - type: volume
+        source: postgres-volume-data
+        target: /var/lib/postgresql/data
+    restart: unless-stopped
+
+  # --- Observability ---
+  otel-lgtm:
+    image: grafana/otel-lgtm
+    ports:
+      - "3000:3000"    # Grafana UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json
+      - SLACK_OPTION_ALERTS_WEBHOOK_URL=${SLACK_OPTION_ALERTS_WEBHOOK_URL}
+    volumes:
+      - otel-lgtm-data:/data
+      # Dashboard provisioning
+      - ./observability/dashboards/dashboards-provider.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
+      - ./observability/dashboards/grodt-live-simulation.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json:ro
+      # Alert provisioning
+      - ./observability/alerting/alerting.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/grodt-alerting.yaml:ro
+    restart: unless-stopped
+
+  # --- Trading App ---
+  grodt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - eventstore.db
+      - otel-lgtm
+    env_file:
+      - .env.prod
+    ports:
+      - "8080:8080"    # REST API
+      - "5051:5051"    # Twirp RPC
+    restart: unless-stopped
+
+volumes:
+  otel-lgtm-data:
+  eventstore-volume-data:
+  eventstore-volume-logs:
+  postgres-volume-data:
