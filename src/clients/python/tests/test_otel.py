@@ -92,3 +92,36 @@ class TestSetupOtel:
         shutdown = setup_otel()
         # Should not raise
         shutdown()
+
+
+class TestGetTraceId:
+    def test_get_trace_id_with_active_span(self):
+        from engine.otel import setup_otel
+        from engine.client import _get_trace_id
+
+        setup_otel()
+        tracer = trace.get_tracer("test")
+        with tracer.start_as_current_span("test-span"):
+            trace_id = _get_trace_id()
+            assert trace_id != ""
+            assert len(trace_id) == 32
+            # Must be valid hex
+            int(trace_id, 16)
+
+    def test_get_trace_id_without_span(self):
+        from engine.client import _get_trace_id
+
+        trace_id = _get_trace_id()
+        assert trace_id == ""
+
+    def test_get_trace_id_format(self):
+        """Verify format is exactly 32 hex chars (not decimal int)."""
+        from engine.otel import setup_otel
+        from engine.client import _get_trace_id
+        import re
+
+        setup_otel()
+        tracer = trace.get_tracer("test")
+        with tracer.start_as_current_span("test-span"):
+            trace_id = _get_trace_id()
+            assert re.fullmatch(r"[0-9a-f]{32}", trace_id) is not None
