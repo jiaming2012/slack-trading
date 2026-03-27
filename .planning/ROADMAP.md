@@ -121,7 +121,10 @@ Plans:
   1. Grafana is accessible via a web URL with authentication required
   2. Traces and logs from the live Go server (running on Vultr K8s) appear in the Digital Ocean Grafana instance
   3. Traces and logs from the live Python strategy client appear in the same Grafana instance
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 07-01-PLAN.md -- Production Docker Compose and env template: docker-compose.prod.yaml with all 4 services, .env.prod.template
+- [ ] 07-02-PLAN.md -- DO droplet provisioning via MCP, stack deployment, Grafana verification
 
 ## Progress
 
@@ -137,4 +140,4 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 | 4. Python Telemetry Instrumentation | 0/3 | Planned | - |
 | 5. End-to-End Tick Tracing | 0/1 | Planned | - |
 | 6. Dashboards & Alerts | 2/2 | Complete | 2026-03-27 |
-| 7. Production Deployment | 0/? | Not started | - |
+| 7. Production Deployment | 0/2 | Planned | - |
