@@ -113,7 +113,7 @@ class CreditSpreadStrategy(BaseStrategy):
         max_collateral_pct: float = 0.05,
         max_total_collateral_pct: float = 0.30,
         stop_percentile: float = 0.95,
-        total_contracts_per_group: int = 5,
+        total_contracts_per_group: int = 0,
         htf_horizon: str = "1h",
         target_dte: int = 30,
         min_dte: int = 14,
@@ -152,6 +152,22 @@ class CreditSpreadStrategy(BaseStrategy):
         self.max_collateral_pct = max_collateral_pct
         self.max_total_collateral_pct = max_total_collateral_pct
         self.stop_percentile = stop_percentile
+
+        # Auto-size contracts from balance when not specified.
+        # Risk per contract = spread_width * 100 shares.
+        if total_contracts_per_group <= 0:
+            collateral_per_contract = max_spread_width * 100
+            budget = playground.account.balance * max_collateral_pct
+            if collateral_per_contract > 0:
+                total_contracts_per_group = max(1, int(budget / collateral_per_contract))
+            else:
+                total_contracts_per_group = 1
+            self.logger.info(
+                f"Auto-sized contracts/group: {total_contracts_per_group}"
+                f" (budget ${budget:,.2f}"
+                f" / collateral ${collateral_per_contract:,.2f} per contract)"
+            )
+
         self.total_contracts_per_group = total_contracts_per_group
         self.htf_horizon = htf_horizon
         self.target_dte = target_dte
@@ -1850,7 +1866,7 @@ def run_credit_spread_strategy(
     max_collateral_pct: float = 0.05,
     max_total_collateral_pct: float = 0.30,
     stop_percentile: float = 0.95,
-    total_contracts_per_group: int = 5,
+    total_contracts_per_group: int = 0,
     htf_horizon: str = "1h",
     target_dte: int = 30,
     min_dte: int = 14,

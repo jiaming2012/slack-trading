@@ -708,7 +708,7 @@ class BacktesterPlaygroundClient:
             liveRequest = CreateLivePlaygroundRequest(
                 balance=req.balance,
                 broker='tradier',
-                account_type=account_type,
+                account_type=account_type.value,
                 repositories=req.repositories,
                 environment='live',
                 tags=req.tags
@@ -720,7 +720,7 @@ class BacktesterPlaygroundClient:
             response = self.network_call_with_retry('create_live_playground', self.client.CreateLivePlayground, liveRequest)            
             return response.id
         except Exception as e:
-            raise("Failed to create live playground:", e)
+            raise Exception("Failed to create live playground:", e)
 
     
     def create_playground_polygon(self, req: CreatePolygonPlaygroundRequest) -> str:
@@ -728,7 +728,7 @@ class BacktesterPlaygroundClient:
             response = self.network_call_with_retry('create_playground_polygon', self.client.CreatePlayground, req)            
             return response.id
         except Exception as e:
-            raise("Failed to create playground:", e)
+            raise Exception("Failed to create playground:", e)
         
     
 if __name__ == '__main__':

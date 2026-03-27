@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(curl -s -X POST http://localhost:5051/twirp/playground.PlaygroundService/GetPlaygrounds -H \"Content-Type: application/json\" -d '{}')",
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(len\\(data.get\\(''playgrounds'', []\\)\\)\\)\")",
@@ -101,7 +102,11 @@
       "Bash(/Users/jamal/miniconda3/condabin/conda env:*)",
       "Bash(go list:*)",
       "Bash(echo \"PROJECT_DIR=$PROJECT_DIR\")",
-      "Bash(task --list)"
+      "Bash(task --list)",
+      "Bash(wsl bash:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Edit(src/clients/python/**)",
+      "Read(src/clients/python/**)"
     ]
   }
 }

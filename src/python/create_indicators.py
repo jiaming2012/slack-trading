@@ -2,7 +2,7 @@ import argparse
 import sys
 import json
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta_classic as ta
 from typing import List
 
 def calculate_supertrend(df) -> pd.DataFrame:

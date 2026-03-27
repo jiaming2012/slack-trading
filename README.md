@@ -67,8 +67,11 @@ Open https://localhost:5000 to login
 We use anaconda for managing dependencies, instead of pip:
 ``` bash
 conda deactivate
-conda activate grodt
+conda activate trading
 ```
+
+### Installation
+Visit https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install
 
 Setup interpreter
 1. Find anaconda home directory:
@@ -85,6 +88,12 @@ export ANACONDA_HOME="path/to/environment"
 ``` bash
 cd ${PROJECT_DIR}
 ln -s $ANACONDA_HOME anaconda
+```
+
+### Usage
+To setup your trading environment:
+``` bash
+task conda:create
 ```
 
 ### Update conda env
