@@ -89,9 +89,9 @@
 
 ### Production Deployment
 
-- [ ] **DEPLOY-01**: Observability stack (Loki, Grafana, Tempo, Prometheus, OTel Collector) deployed to Digital Ocean
-- [ ] **DEPLOY-02**: Go server and Python client send telemetry to Digital Ocean endpoint
-- [ ] **DEPLOY-03**: Grafana accessible via web with authentication
+- [x] **DEPLOY-01**: Observability stack (Loki, Grafana, Tempo, Prometheus, OTel Collector) deployed to Digital Ocean
+- [x] **DEPLOY-02**: Go server and Python client send telemetry to Digital Ocean endpoint
+- [x] **DEPLOY-03**: Grafana accessible via web with authentication
 
 ## v2 Requirements
 
@@ -176,9 +176,9 @@
 | ALERT-01 | Phase 6 | Complete |
 | ALERT-02 | Phase 6 | Complete |
 | ALERT-03 | Phase 6 | Complete |
-| DEPLOY-01 | Phase 7 | Pending |
-| DEPLOY-02 | Phase 7 | Pending |
-| DEPLOY-03 | Phase 7 | Pending |
+| DEPLOY-01 | Phase 7 | Complete |
+| DEPLOY-02 | Phase 7 | Complete |
+| DEPLOY-03 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 52 total

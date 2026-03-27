@@ -123,7 +123,7 @@ Plans:
   3. Traces and logs from the live Python strategy client appear in the same Grafana instance
 **Plans:** 2 plans
 Plans:
-- [ ] 07-01-PLAN.md -- Production Docker Compose and env template: docker-compose.prod.yaml with all 4 services, .env.prod.template
+- [x] 07-01-PLAN.md -- Production Docker Compose and env template: docker-compose.prod.yaml with all 4 services, .env.prod.template
 - [ ] 07-02-PLAN.md -- DO droplet provisioning via MCP, stack deployment, Grafana verification
 
 ## Progress
