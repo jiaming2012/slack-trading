@@ -94,7 +94,9 @@ Plans:
   1. Opening a trace in Tempo shows parent span (Python tick) with child spans for NextTick RPC and PlaceOrder RPC
   2. Each tick trace includes playground_id, tick_number, symbols, and duration_ms as searchable attributes
   3. Clicking a Go server span in Tempo navigates to the Python parent span that initiated the RPC call
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 05-01-PLAN.md -- W3C traceparent injection (Python) and otelhttp middleware (Go) for distributed trace linking
 
 ### Phase 6: Dashboards & Alerts
 **Goal**: A purpose-built Grafana dashboard answers "what is happening right now?" and alerts fire when things go wrong
@@ -131,6 +133,6 @@ Note: Phases 3 and 4 depend only on Phase 2 (not each other) but are sequenced f
 | 2. Go OTel Foundation & Local Backend | 0/3 | Planned | - |
 | 3. Go Telemetry Instrumentation | 0/3 | Planned | - |
 | 4. Python Telemetry Instrumentation | 0/3 | Planned | - |
-| 5. End-to-End Tick Tracing | 0/? | Not started | - |
+| 5. End-to-End Tick Tracing | 0/1 | Planned | - |
 | 6. Dashboards & Alerts | 0/? | Not started | - |
 | 7. Production Deployment | 0/? | Not started | - |
