@@ -22,7 +22,7 @@ contactPoints:
 # Notification policy: route critical alerts to Slack + Grafana UI
 policies:
   - orgId: 1
-    receiver: grafana-default-email
+    receiver: grodt-slack
     group_by:
       - grafana_folder
       - alertname
