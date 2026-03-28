@@ -2,35 +2,44 @@
 
 ## What This Is
 
-An observability layer for the slack-trading platform's live simulation mode. Surfaces real-time visibility into order lifecycle, strategy decisions, market data flow, and system health — built on OpenTelemetry, visualized in Grafana with Loki for logs. Solves the core problem: "is the strategy actually running?" especially during quiet periods with no trades.
+An observability layer for the slack-trading platform's live simulation mode. Surfaces real-time visibility into order lifecycle, strategy decisions, market data flow, and system health — built on OpenTelemetry, visualized in Grafana with Loki for logs and Tempo for traces. Deployed to a DigitalOcean droplet running the full trading stack with observability.
 
 ## Core Value
 
 When a live simulation is running, the operator can always tell whether the system is alive and what it's doing — even when no trades are being placed.
 
+## Current State
+
+**v1.0 shipped 2026-03-28.** Full observability stack running in production on DigitalOcean (159.89.226.131).
+
+- Go server instrumented with OTel traces, metrics, and structured logs
+- Python strategy clients instrumented with OTel spans and heartbeat
+- Grafana dashboard with live playground stats, order activity, heartbeat indicators
+- Alerting rules for heartbeat staleness and error rate spikes
+- End-to-end trace propagation from Python tick loop through Go Twirp RPC
+- Logs flowing to Loki via OTLP log bridge (logrus → OTel Log SDK)
+
 ## Requirements
 
 ### Validated
 
-- ✓ OTel Go packages imported (v1.27.0) — existing
-- ✓ Tracer spans in ~15 Go source files (eventservices, eventconsumers, eventproducers) — existing
-- ✓ otellogrus hook in cmd/main.go — existing
-- ✓ Reference implementation in deprecated/go/cmd/telemetry/quickstart.go — existing
-- ✓ structlog available in Python conda env — existing
+- ✓ TracerProvider and MeterProvider initialized in Go server — v1.0 (Phase 2)
+- ✓ Order lifecycle instrumented (placed, filled, rejected) with traces and structured logs — v1.0 (Phase 3)
+- ✓ Strategy decision flow instrumented in Python with OTel — v1.0 (Phase 4)
+- ✓ Market data flow instrumented (candle arrival, tick processing, data gaps) — v1.0 (Phase 3)
+- ✓ Heartbeat: periodic metric gauge + log from strategy and server — v1.0 (Phase 3, 4)
+- ✓ Local Grafana + Loki + OTel Collector via Docker Compose — v1.0 (Phase 2)
+- ✓ Grafana dashboard: live sim activity, strategy state, heartbeat indicator — v1.0 (Phase 6)
+- ✓ Grafana alerts: heartbeat stale, error spike — v1.0 (Phase 6)
+- ✓ Go infrastructure metrics (CPU, memory, request latency) — v1.0 (Phase 2)
+- ✓ Python OTel instrumentation for strategy clients — v1.0 (Phase 4)
+- ✓ Deploy observability stack to Digital Ocean — v1.0 (Phase 7)
+- ✓ Python codebase restructured into maintainable directory structure — v1.0 (Phase 1)
+- ✓ End-to-end tick tracing from Python through Go and back — v1.0 (Phase 5)
 
 ### Active
 
-- [ ] Initialize TracerProvider and MeterProvider in Go server (wire up existing spans)
-- [ ] Instrument order lifecycle (placed, filled, rejected) with traces and structured logs
-- [ ] Instrument strategy decision flow in Python client with OTel
-- [ ] Instrument market data flow (candle arrival, tick processing, data gaps)
-- [ ] Heartbeat: periodic metric gauge + log line from strategy and server
-- [ ] Local Grafana + Loki + OTel Collector via Docker Compose
-- [ ] Grafana dashboard: live sim activity, strategy state, heartbeat indicator
-- [ ] Grafana alerts: heartbeat stale, error spike
-- [ ] Go infrastructure metrics (CPU, memory, request latency via otelhttp + runtime)
-- [ ] Python OTel instrumentation for strategy clients
-- [ ] Deploy observability stack to Digital Ocean (via DO MCP server)
+(None — next milestone requirements TBD via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -41,45 +50,33 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ## Context
 
-- **Existing OTel foundation**: Go packages imported, spans created in ~15 files, but TracerProvider never initialized — all spans currently go nowhere. A complete reference setup exists in `deprecated/go/cmd/telemetry/quickstart.go`.
-- **Two-process architecture**: Go server (orders, market data, state) + Python client (strategy decisions). Both need instrumentation for full visibility.
-- **Live simulation mode**: The primary use case. Backtesting has its own feedback loop, but live sim runs continuously and needs monitoring.
-- **User's Grafana experience**: Some dashboard experience but not extensive — dashboards should be straightforward to understand and extend.
-- **Production target**: Digital Ocean for observability infra (separate from Vultr Kubernetes where the trading app runs).
+- **Production running**: Full stack on DO droplet (s-2vcpu-4gb, nyc1) — Go server, PostgreSQL, EventStoreDB, otel-lgtm
+- **Two-process architecture**: Go server + Python client, both instrumented with OTel
+- **Python restructure complete**: 7 subpackages (engine/, strategies/, lib/, demos/, tests/, tools/, deprecated/)
+- **Base Docker images**: Built on droplet from source (Vultr registry not accessible from DO). pandas-ta replaced by pandas_ta_classic.
 
 ## Constraints
 
-- **Tech stack**: OpenTelemetry (already partially adopted) → Loki (logs) + Grafana (dashboards/alerts)
-- **Python compatibility**: numpy pinned to 1.26.4 (pandas_ta compat) — OTel Python packages must be compatible
-- **Local dev first**: Docker Compose for local iteration, then Digital Ocean for production
-- **Infrastructure provisioning**: Digital Ocean MCP server for creating cloud resources
+- **Tech stack**: OpenTelemetry → Loki (logs) + Tempo (traces) + Prometheus (metrics) + Grafana
+- **Python compatibility**: numpy pinned to 1.23.5 (pandas_ta compat)
+- **Infrastructure**: DigitalOcean droplet for production, Docker Compose for local dev
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| OpenTelemetry over custom logging | Already partially adopted, industry standard, vendor-neutral | — Pending |
-| Loki + Grafana over ELK/Datadog | Lightweight, OSS, good OTel integration, user has some Grafana experience | — Pending |
-| Heartbeat as metric gauge + log line | Metric for dashboard/alerting, log for forensic debugging | — Pending |
-| Digital Ocean for observability infra | Separate from trading app (Vultr K8s), MCP server for easy provisioning | — Pending |
-| Full stack instrumentation (Go + Python + infra) | Need end-to-end visibility across both processes | — Pending |
+| OpenTelemetry over custom logging | Already partially adopted, industry standard, vendor-neutral | ✓ Good |
+| Loki + Grafana over ELK/Datadog | Lightweight, OSS, good OTel integration | ✓ Good |
+| Heartbeat as metric gauge + log line | Metric for dashboard/alerting, log for forensic debugging | ✓ Good |
+| Digital Ocean for observability infra | Separate from trading app (Vultr K8s), simple provisioning | ✓ Good |
+| grafana/otel-lgtm all-in-one image | Single container for Grafana+Loki+Tempo+Prometheus+OTel Collector | ✓ Good — simple, works well for single-server |
+| OTel Log SDK bridge for logrus→Loki | otellogrus only adds span events; needed standalone log export | ✓ Good — logs now visible in Loki |
+| pandas_ta_classic over pandas_ta | Original removed from PyPI/GitHub | ✓ Necessary |
+| Cloud Firewall over UFW | Docker bypasses UFW; DO Cloud Firewall operates at network level | ✓ Good |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
-**After each phase transition** (via `/gsd:transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd:complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
 ---
-*Last updated: 2026-03-25 after initialization*
+*Last updated: 2026-03-28 after v1.0 milestone*
