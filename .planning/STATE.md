@@ -108,6 +108,12 @@ None yet.
 
 None yet.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260328-rk1 | E2E integration test: live playground equity trade + dashboard metric verification | 2026-03-28 | d21a7f0 | [260328-rk1](./quick/260328-rk1-integration-test-live-playground-with-eq/) |
+
 ## Session Continuity
 
 Last session: 2026-03-27T03:55:29.922Z
