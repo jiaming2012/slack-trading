@@ -104,7 +104,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "grodt_strategy_heartbeat",
+          "expr": "grodt_strategy_heartbeat or grodt_strategy_heartbeat_ratio",
           "legendFormat": "",
           "refId": "A"
         }

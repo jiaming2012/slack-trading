@@ -3,14 +3,12 @@
 Emits a metric gauge and structured log every 30 seconds to indicate
 the strategy is alive. Mirrors the Go server heartbeat pattern.
 """
-import logging
 import threading
 import time
 from datetime import datetime, timezone
 
+from loguru import logger
 from opentelemetry import metrics
-
-logger = logging.getLogger("grodt.strategy.heartbeat")
 
 HEARTBEAT_INTERVAL_SECONDS = 30
 
@@ -40,7 +38,6 @@ class StrategyHeartbeat:
         meter = metrics.get_meter("grodt-strategy")
         self._heartbeat_gauge = meter.create_gauge(
             "grodt.strategy.heartbeat",
-            unit="1",
             description="Strategy heartbeat (1=alive)",
         )
 
@@ -88,13 +85,6 @@ class StrategyHeartbeat:
 
         # Emit structured log
         logger.info(
-            "heartbeat",
-            extra={
-                "event": "heartbeat",
-                "strategy_name": self.strategy_name,
-                "state": self.state,
-                "tick_count": self.tick_count,
-                "last_tick_time": self.last_tick_time,
-                "uptime_seconds": uptime_seconds,
-            },
+            "heartbeat | strategy={} state={} ticks={} uptime={}s",
+            self.strategy_name, self.state, self.tick_count, uptime_seconds,
         )
