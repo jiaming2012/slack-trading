@@ -41,7 +41,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   1. Querying any OTel metric in Grafana can filter/group by client_id alongside playground_id
   2. When an order is filled, the structured log event includes the actual filled quantity (not zero or missing)
   3. Metrics for playgrounds without a client_id still work (empty string or "unset" fallback)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 08-01-PLAN.md -- Add client_id to PlaygroundAttrs, update all metric sites, fix order_filled quantity bug
 
 ### Phase 9: Playground Filtering & Detail Panels
 **Goal**: Operator can filter the entire dashboard by client_id and see detailed order/position information including trace links
@@ -88,7 +90,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 5. End-to-End Tick Tracing | v1.0 | 1/1 | Complete | 2026-03-27 |
 | 6. Dashboards & Alerts | v1.0 | 2/2 | Complete | 2026-03-27 |
 | 7. Production Deployment | v1.0 | 2/2 | Complete | 2026-03-28 |
-| 8. Metric Labels & Bug Fix | v1.1 | 0/0 | Not started | - |
+| 8. Metric Labels & Bug Fix | v1.1 | 0/1 | Planned | - |
 | 9. Playground Filtering & Detail Panels | v1.1 | 0/0 | Not started | - |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 0/0 | Not started | - |
 | 11. Per-Strategy Dashboards | v1.1 | 0/0 | Not started | - |
