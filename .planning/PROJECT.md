@@ -39,7 +39,21 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ### Active
 
-(None — next milestone requirements TBD via `/gsd:new-milestone`)
+(See REQUIREMENTS.md for v1.1 scoped requirements)
+
+## Current Milestone: v1.1 Dashboard Enhancements
+
+**Goal:** Improve Grafana dashboard usability with per-playground filtering, richer panel detail, client_id labels across all metrics, and per-strategy dashboards.
+
+**Target features:**
+- Playground filter showing client_id (fallback to playground_id)
+- client_id as OTel metric label on all Go-side instruments
+- Active playgrounds listing client_id/playground_id instead of count
+- Python heartbeat per playground (not binary)
+- Open orders showing symbol + quantity detail
+- Signals filtering by signal_type, candles filtering by symbol
+- Fix order_filled quantity in logs, add trace_id to order/position panels
+- Per-strategy dashboards (separate dashboard per strategy type)
 
 ### Out of Scope
 
@@ -79,4 +93,4 @@ When a live simulation is running, the operator can always tell whether the syst
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-28 after v1.0 milestone*
+*Last updated: 2026-03-29 after v1.1 milestone start*
