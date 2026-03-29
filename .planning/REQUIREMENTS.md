@@ -2,7 +2,7 @@
 
 ## Metric Labels & Filtering
 
-- [ ] **LABEL-01**: All Go-side OTel metrics emit client_id as a label alongside playground_id
+- [x] **LABEL-01**: All Go-side OTel metrics emit client_id as a label alongside playground_id
 - [ ] **LABEL-02**: Grafana playground dropdown shows client_id (fallback to playground_id if no client_id set)
 - [ ] **LABEL-03**: Signals Generated panel filterable by signal_type name
 - [ ] **LABEL-04**: Candles Processed panel filterable by candle symbol
@@ -12,7 +12,7 @@
 - [ ] **PANEL-01**: Active Playgrounds lists client_id/playground_id instead of a count
 - [ ] **PANEL-02**: Python Strategy Heartbeat shows per-playground status, not binary alive/dead
 - [ ] **PANEL-03**: Open Orders panel shows order symbol + quantity detail
-- [ ] **PANEL-04**: order_filled log events include actual quantity (fix missing qty bug)
+- [x] **PANEL-04**: order_filled log events include actual quantity (fix missing qty bug)
 - [ ] **PANEL-05**: Recent Order Events panel includes trace_id
 - [ ] **PANEL-06**: Position Details panel includes trace_id
 
@@ -34,14 +34,14 @@
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| LABEL-01 | Phase 8 | | Pending |
+| LABEL-01 | Phase 8 | 08-01 | Complete |
 | LABEL-02 | Phase 9 | | Pending |
 | LABEL-03 | Phase 10 | | Pending |
 | LABEL-04 | Phase 10 | | Pending |
 | PANEL-01 | Phase 9 | | Pending |
 | PANEL-02 | Phase 10 | | Pending |
 | PANEL-03 | Phase 9 | | Pending |
-| PANEL-04 | Phase 8 | | Pending |
+| PANEL-04 | Phase 8 | 08-01 | Complete |
 | PANEL-05 | Phase 9 | | Pending |
 | PANEL-06 | Phase 9 | | Pending |
 | STRAT-01 | Phase 11 | | Pending |

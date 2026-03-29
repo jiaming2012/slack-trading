@@ -26,7 +26,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 **Milestone Goal:** Improve Grafana dashboard usability with per-playground filtering, richer panel detail, client_id labels, and per-strategy dashboards.
 
-- [ ] **Phase 8: Metric Labels & Bug Fix** - Add client_id to all Go metrics and fix order_filled quantity bug
+- [x] **Phase 8: Metric Labels & Bug Fix** - Add client_id to all Go metrics and fix order_filled quantity bug
 - [ ] **Phase 9: Playground Filtering & Detail Panels** - Grafana dropdown filtering by client_id and enriched order/position panels
 - [ ] **Phase 10: Signal/Candle Filtering & Python Heartbeat** - Per-signal-type and per-symbol filtering, per-playground heartbeat from Python
 - [ ] **Phase 11: Per-Strategy Dashboards** - Separate Grafana dashboard per strategy type
@@ -43,7 +43,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. Metrics for playgrounds without a client_id still work (empty string or "unset" fallback)
 **Plans**: 1 plan
 Plans:
-- [ ] 08-01-PLAN.md -- Add client_id to PlaygroundAttrs, update all metric sites, fix order_filled quantity bug
+- [x] 08-01-PLAN.md -- Add client_id to PlaygroundAttrs, update all metric sites, fix order_filled quantity bug
 
 ### Phase 9: Playground Filtering & Detail Panels
 **Goal**: Operator can filter the entire dashboard by client_id and see detailed order/position information including trace links
@@ -90,7 +90,7 @@ Plans:
 | 5. End-to-End Tick Tracing | v1.0 | 1/1 | Complete | 2026-03-27 |
 | 6. Dashboards & Alerts | v1.0 | 2/2 | Complete | 2026-03-27 |
 | 7. Production Deployment | v1.0 | 2/2 | Complete | 2026-03-28 |
-| 8. Metric Labels & Bug Fix | v1.1 | 0/1 | Planned | - |
+| 8. Metric Labels & Bug Fix | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 9. Playground Filtering & Detail Panels | v1.1 | 0/0 | Not started | - |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 0/0 | Not started | - |
 | 11. Per-Strategy Dashboards | v1.1 | 0/0 | Not started | - |
