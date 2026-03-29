@@ -117,13 +117,21 @@ func TestLiveCandleProcessedAndDashboard(t *testing.T) {
 	t.Log("Candle data verified in tick response")
 
 	// --- Wait for metric scrape and verify dashboard ---
-	t.Log("Waiting 45s for metric export + scrape...")
-	time.Sleep(45 * time.Second)
-
-	afterStr := queryPrometheusMetric(t, "sum(grodt_candles_processed_total)")
+	// Retry metric query — Grafana may still be starting after a recreate
+	t.Log("Waiting for metric export + scrape (polling up to 90s)...")
+	var afterStr string
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(15 * time.Second)
+		afterStr = queryPrometheusMetric(t, "sum(grodt_candles_processed_total)")
+		if afterStr != "" {
+			break
+		}
+		t.Log("Metric not available yet, retrying...")
+	}
 	t.Logf("After grodt_candles_processed_total: %s", afterStr)
 
-	require.NotEmpty(t, afterStr, "Expected grodt_candles_processed_total to have data")
+	require.NotEmpty(t, afterStr, "Expected grodt_candles_processed_total to have data after 90s")
 
 	afterVal, _ := strconv.ParseFloat(afterStr, 64)
 	require.GreaterOrEqual(t, afterVal, 1.0, "Expected at least 1 candle processed")

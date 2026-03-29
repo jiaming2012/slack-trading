@@ -209,14 +209,21 @@ func TestLivePlaygroundEquityTradeAndDashboard(t *testing.T) {
 	t.Logf("Position verified: AAPL qty=%.0f", pos.Quantity)
 
 	// --- Step 9: Verify Prometheus metric incremented ---
-	// Wait for metric scrape interval (OTel exports every ~30s, Prometheus scrapes ~15s)
-	t.Log("Waiting 45s for metric export + scrape...")
-	time.Sleep(45 * time.Second)
-
-	afterStr := queryPrometheusMetric(t, "sum(grodt_orders_placed_total)")
+	// Retry metric query — Grafana may still be starting after a recreate
+	t.Log("Waiting for metric export + scrape (polling up to 90s)...")
+	var afterStr string
+	metricDeadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(metricDeadline) {
+		time.Sleep(15 * time.Second)
+		afterStr = queryPrometheusMetric(t, "sum(grodt_orders_placed_total)")
+		if afterStr != "" {
+			break
+		}
+		t.Log("Metric not available yet, retrying...")
+	}
 	t.Logf("After grodt_orders_placed_total: %s", afterStr)
 
-	require.NotEmpty(t, afterStr, "Expected grodt_orders_placed_total to have data after placing order")
+	require.NotEmpty(t, afterStr, "Expected grodt_orders_placed_total to have data after 90s")
 
 	afterVal, _ := strconv.ParseFloat(afterStr, 64)
 	require.GreaterOrEqual(t, afterVal, 1.0, "Expected at least 1 order placed")
