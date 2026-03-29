@@ -100,7 +100,11 @@ def run_strategy(
 
     # Start heartbeat daemon thread (D-11)
     strategy_name = type(strategy).__name__
-    heartbeat = StrategyHeartbeat(strategy_name)
+    heartbeat = StrategyHeartbeat(
+        strategy_name,
+        playground_id=getattr(playground, 'id', ''),
+        client_id=getattr(playground, 'client_id', ''),
+    )
     heartbeat.start()
     heartbeat.set_state("active")
 

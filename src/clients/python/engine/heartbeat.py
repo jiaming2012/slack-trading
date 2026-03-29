@@ -26,8 +26,10 @@ class StrategyHeartbeat:
         hb.stop()
     """
 
-    def __init__(self, strategy_name: str):
+    def __init__(self, strategy_name: str, playground_id: str = "", client_id: str = ""):
         self.strategy_name = strategy_name
+        self.playground_id = playground_id
+        self.client_id = client_id
         self.state = "idle"
         self.tick_count = 0
         self.last_tick_time = None
@@ -80,11 +82,14 @@ class StrategyHeartbeat:
             attributes={
                 "strategy_name": self.strategy_name,
                 "state": self.state,
+                "playground_id": self.playground_id,
+                "client_id": self.client_id,
             },
         )
 
         # Emit structured log
         logger.info(
-            "heartbeat | strategy={} state={} ticks={} uptime={}s",
+            "heartbeat | strategy={} state={} ticks={} uptime={}s playground_id={} client_id={}",
             self.strategy_name, self.state, self.tick_count, uptime_seconds,
+            self.playground_id, self.client_id,
         )
