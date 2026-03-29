@@ -19,12 +19,17 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 
-from opentelemetry import trace
+from opentelemetry import trace, metrics
 
 from engine.types import SignalDecision
 
 
 _signal_logger = logging.getLogger("grodt.strategy.signal")
+_meter = metrics.get_meter("grodt-strategy")
+_signals_counter = _meter.create_counter(
+    "grodt.signals.generated",
+    description="Number of signal decisions recorded by strategies",
+)
 
 
 class BaseStrategy(ABC):
@@ -128,4 +133,8 @@ class BaseStrategy(ABC):
         """
         for decision in self._decisions:
             self._log_decision(decision)
+            _signals_counter.add(1, {
+                "signal_type": decision.signal_type,
+                "decision": decision.decision,
+            })
         self._decisions = []
