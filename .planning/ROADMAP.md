@@ -27,7 +27,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Milestone Goal:** Improve Grafana dashboard usability with per-playground filtering, richer panel detail, client_id labels, and per-strategy dashboards.
 
 - [x] **Phase 8: Metric Labels & Bug Fix** - Add client_id to all Go metrics and fix order_filled quantity bug
-- [ ] **Phase 9: Playground Filtering & Detail Panels** - Grafana dropdown filtering by client_id and enriched order/position panels
+- [x] **Phase 9: Playground Filtering & Detail Panels** - Grafana dropdown filtering by client_id and enriched order/position panels
 - [ ] **Phase 10: Signal/Candle Filtering & Python Heartbeat** - Per-signal-type and per-symbol filtering, per-playground heartbeat from Python
 - [ ] **Phase 11: Per-Strategy Dashboards** - Separate Grafana dashboard per strategy type
 
@@ -66,8 +66,9 @@ Plans:
   1. Signals Generated panel can be filtered by signal_type name (e.g., show only mean_reversion signals)
   2. Candles Processed panel can be filtered by candle symbol (e.g., show only AAPL candles)
   3. Python Strategy Heartbeat panel shows individual per-playground heartbeat status instead of a single binary alive/dead indicator
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 10-01-PLAN.md -- Add symbol to CandlesProcessed metric, per-playground Python heartbeat, signal_type/symbol dashboard filters
 
 ### Phase 11: Per-Strategy Dashboards
 **Goal**: Each strategy type has its own dedicated Grafana dashboard with strategy-specific panels
@@ -93,5 +94,5 @@ Plans:
 | 7. Production Deployment | v1.0 | 2/2 | Complete | 2026-03-28 |
 | 8. Metric Labels & Bug Fix | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
-| 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 0/0 | Not started | - |
+| 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 0/1 | Not started | - |
 | 11. Per-Strategy Dashboards | v1.1 | 0/0 | Not started | - |
