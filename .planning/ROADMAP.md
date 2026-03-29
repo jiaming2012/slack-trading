@@ -29,7 +29,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 8: Metric Labels & Bug Fix** - Add client_id to all Go metrics and fix order_filled quantity bug
 - [x] **Phase 9: Playground Filtering & Detail Panels** - Grafana dropdown filtering by client_id and enriched order/position panels
 - [x] **Phase 10: Signal/Candle Filtering & Python Heartbeat** - Per-signal-type and per-symbol filtering, per-playground heartbeat from Python (completed 2026-03-29)
-- [ ] **Phase 11: Per-Strategy Dashboards** - Separate Grafana dashboard per strategy type
+- [x] **Phase 11: Per-Strategy Dashboards** - Separate Grafana dashboard per strategy type (completed 2026-03-29)
 
 ## Phase Details
 
@@ -80,7 +80,7 @@ Plans:
   3. Strategy dashboards inherit the client_id/playground_id filtering from the main dashboard pattern
 **Plans**: 1 plan
 Plans:
-- [ ] 11-01-PLAN.md -- Create mean_reversion + covered_call strategy dashboards and wire Docker Compose volume mounts
+- [x] 11-01-PLAN.md -- Create mean_reversion + covered_call strategy dashboards and wire Docker Compose volume mounts
 
 ## Progress
 
@@ -96,4 +96,4 @@ Plans:
 | 8. Metric Labels & Bug Fix | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete   | 2026-03-29 |
-| 11. Per-Strategy Dashboards | v1.1 | 0/1 | Not started | - |
+| 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete   | 2026-03-29 |

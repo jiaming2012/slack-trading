@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Dashboard Enhancements
 status: verifying
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-29T19:32:38.725Z"
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-29T19:51:27.538Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
   percent: 50
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 09 — playground-filtering-detail-panels
+**Current focus:** Phase 11 — per-strategy-dashboards
 
 ## Current Position
 
-Phase: 09 (playground-filtering-detail-panels) — COMPLETE
-Plan: 1 of 1 (complete)
+Phase: 11 (per-strategy-dashboards) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-03-29
 
@@ -64,6 +64,7 @@ Recent decisions affecting current work:
 - [Phase 09]: Active Playgrounds uses candles_processed_total with max-by for enumeration
 - [Phase 09]: Open Orders switched from Prometheus heartbeat to Loki order_placed logs
 - [Phase 10]: Symbol attribute on CandlesProcessed uses candle.Symbol.GetTicker() at emission site
+- [Phase 11-per-strategy-dashboards]: Strategy dashboards pre-filter signal_type (no dropdown) and link back to main dashboard
 
 ### Pending Todos
 
@@ -81,9 +82,10 @@ None yet.
 | 260329-11y | Python E2E: BaseStrategy subclass with signals, mock fill, dashboard metrics | 2026-03-29 | 1a5ca0a | [260329-11y](./quick/260329-11y-python-integration-test-basestrategy-sub/) |
 | 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
+| Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-03-29T19:32:38.718Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-03-29T19:51:27.533Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None

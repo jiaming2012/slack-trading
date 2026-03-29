@@ -18,7 +18,7 @@
 
 ## Per-Strategy Dashboards
 
-- [ ] **STRAT-01**: Separate Grafana dashboard per strategy type (mean_reversion, covered_call, etc.) with strategy-specific panels
+- [x] **STRAT-01**: Separate Grafana dashboard per strategy type (mean_reversion, covered_call, etc.) with strategy-specific panels
 
 ## Future Requirements
 
