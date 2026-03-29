@@ -434,19 +434,27 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	}
 
 	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
+		fillPrice := orderFillEntry.Price
+		fillQuantity := orderFillEntry.Quantity
+		if orderFillEntry.Trade != nil {
+			fillPrice = orderFillEntry.Trade.Price
+			fillQuantity = orderFillEntry.Trade.Quantity
+		}
+
 		log.WithFields(log.Fields{
 			"event":         "order_filled",
 			"playground_id": playground.GetId().String(),
 			"order_id":      order.ID,
-			"fill_price":    orderFillEntry.Price,
-			"fill_quantity": orderFillEntry.Quantity,
+			"fill_price":    fillPrice,
+			"fill_quantity": fillQuantity,
 			"symbol":        order.Symbol,
 			"environment":   string(playground.Meta.Environment),
 			"account_type":  string(playground.Meta.LiveAccountType),
+			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 		}).Info("order filled")
 
 		if telemetry.OrdersFilled != nil {
-			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType)))
+			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 		}
 	}
 

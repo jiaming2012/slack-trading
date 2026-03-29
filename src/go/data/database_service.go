@@ -1260,10 +1260,11 @@ func (s *DatabaseService) RejectOrder(order *models.OrderRecord, reason string) 
 			"reject_reason": reason,
 			"environment":   string(playground.Meta.Environment),
 			"account_type":  string(playground.Meta.LiveAccountType),
+			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 		}).Warn("order rejected")
 
 		if telemetry.OrdersRejected != nil {
-			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType)))
+			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 		}
 	}
 
@@ -1332,10 +1333,11 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 				"order_type":    string(req.OrderType),
 				"environment":   string(playground.Meta.Environment),
 				"account_type":  string(playground.Meta.LiveAccountType),
+				"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 			}).Info("order placed")
 
 			if telemetry.OrdersPlaced != nil {
-				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType)))
+				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 			}
 		}
 

@@ -2313,7 +2313,7 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 
 			if telemetry.CandlesProcessed != nil {
 				telemetry.CandlesProcessed.Add(context.Background(), 1,
-					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
+					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(p.GetClientId())))
 			}
 
 			continue

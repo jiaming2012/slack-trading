@@ -289,12 +289,23 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 }
 
 func (s *Server) RecordSignal(ctx context.Context, req *pb.RecordSignalRequest) (*pb.EmptyResponse, error) {
+	clientID := ""
+	if playgroundID, err := uuid.Parse(req.PlaygroundId); err == nil {
+		if pg, err := s.dbService.GetPlayground(playgroundID); err == nil {
+			clientID = telemetry.ClientIDOrEmpty(pg.GetClientId())
+		} else {
+			log.Warnf("RecordSignal: could not look up playground %s for client_id: %v", req.PlaygroundId, err)
+		}
+	}
+
 	if telemetry.SignalsGenerated != nil {
 		telemetry.SignalsGenerated.Add(ctx, 1,
 			metric.WithAttributes(
 				attribute.String("signal_type", req.SignalType),
 				attribute.String("decision", req.Decision),
 				attribute.String("symbol", req.Symbol),
+				attribute.String("playground_id", req.PlaygroundId),
+				attribute.String("client_id", clientID),
 			))
 	}
 
@@ -306,6 +317,7 @@ func (s *Server) RecordSignal(ctx context.Context, req *pb.RecordSignalRequest) 
 		"decision":      req.Decision,
 		"reason":        req.Reason,
 		"symbol":        req.Symbol,
+		"client_id":     clientID,
 	}).Info("signal recorded")
 
 	return &pb.EmptyResponse{}, nil

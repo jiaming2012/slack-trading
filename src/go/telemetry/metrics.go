@@ -93,11 +93,21 @@ func ShouldEmitOrderTelemetry(env string) bool {
 	return env == "live" || env == "reconcile"
 }
 
+// ClientIDOrEmpty safely dereferences a *string to a string for client_id.
+// Returns empty string if the pointer is nil.
+func ClientIDOrEmpty(clientID *string) string {
+	if clientID != nil {
+		return *clientID
+	}
+	return ""
+}
+
 // PlaygroundAttrs returns OTel metric attributes for a playground,
-// including environment and account_type dimensions.
-func PlaygroundAttrs(env string, accountType string) metric.MeasurementOption {
+// including environment, account_type, and client_id dimensions.
+func PlaygroundAttrs(env string, accountType string, clientID string) metric.MeasurementOption {
 	return metric.WithAttributes(
 		attribute.String("environment", env),
 		attribute.String("account_type", accountType),
+		attribute.String("client_id", clientID),
 	)
 }
