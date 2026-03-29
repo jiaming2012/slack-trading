@@ -93,7 +93,7 @@ func TestLivePlaygroundEquityTradeAndDashboard(t *testing.T) {
 	clientId := "e2e-equity-test-" + uuid.NewString()[:8]
 
 	// --- Step 1: Query baseline metric ---
-	baselineStr := queryPrometheusMetric(t, "grodt_orders_placed_total")
+	baselineStr := queryPrometheusMetric(t, "sum(grodt_orders_placed_total)")
 	t.Logf("Baseline grodt_orders_placed_total: %s", baselineStr)
 
 	// --- Step 2: Create live playground with mock account ---
@@ -212,7 +212,7 @@ func TestLivePlaygroundEquityTradeAndDashboard(t *testing.T) {
 	t.Log("Waiting 45s for metric export + scrape...")
 	time.Sleep(45 * time.Second)
 
-	afterStr := queryPrometheusMetric(t, "grodt_orders_placed_total")
+	afterStr := queryPrometheusMetric(t, "sum(grodt_orders_placed_total)")
 	t.Logf("After grodt_orders_placed_total: %s", afterStr)
 
 	require.NotEmpty(t, afterStr, "Expected grodt_orders_placed_total to have data after placing order")

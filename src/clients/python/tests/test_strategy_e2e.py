@@ -155,7 +155,8 @@ class TestStrategyE2E:
         client_id = f"e2e-strategy-{uuid.uuid4().hex[:8]}"
 
         # --- Baseline metrics ---
-        baseline_orders = query_prometheus("grodt_orders_placed_total")
+        # Sum across all playground_id labels to get true total
+        baseline_orders = query_prometheus("sum(grodt_orders_placed_total)")
         logger.info(f"Baseline orders metric: {baseline_orders}")
 
         # --- Create live mock playground ---
@@ -272,7 +273,7 @@ class TestStrategyE2E:
         logger.info("Waiting 45s for metric export + scrape...")
         time.sleep(45)
 
-        after_orders = query_prometheus("grodt_orders_placed_total")
+        after_orders = query_prometheus("sum(grodt_orders_placed_total)")
         logger.info(f"After orders metric: {after_orders}")
         assert after_orders, "Expected orders metric to have data"
 
