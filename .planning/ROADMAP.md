@@ -78,8 +78,9 @@ Plans:
   1. At least two strategy-specific dashboards exist (e.g., mean_reversion, covered_call) accessible from Grafana
   2. Each strategy dashboard shows panels relevant to that strategy type (not a copy of the main dashboard)
   3. Strategy dashboards inherit the client_id/playground_id filtering from the main dashboard pattern
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 11-01-PLAN.md -- Create mean_reversion + covered_call strategy dashboards and wire Docker Compose volume mounts
 
 ## Progress
 
@@ -95,4 +96,4 @@ Plans:
 | 8. Metric Labels & Bug Fix | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete   | 2026-03-29 |
-| 11. Per-Strategy Dashboards | v1.1 | 0/0 | Not started | - |
+| 11. Per-Strategy Dashboards | v1.1 | 0/1 | Not started | - |
