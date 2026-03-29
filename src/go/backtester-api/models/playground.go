@@ -1513,11 +1513,6 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 						Period: period,
 						Bar:    newCandle,
 					})
-
-					if telemetry.CandlesProcessed != nil && telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
-						telemetry.CandlesProcessed.Add(context.Background(), 1,
-							telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
-					}
 				}
 			}
 		}
@@ -1625,11 +1620,6 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 					Period: period,
 					Bar:    newCandle,
 				})
-
-				if telemetry.CandlesProcessed != nil && telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
-					telemetry.CandlesProcessed.Add(context.Background(), 1,
-						telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
-				}
 			}
 		}
 	}
@@ -2320,6 +2310,12 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 		candle, ok := p.GetNewCandlesQueue().Dequeue()
 		if ok {
 			newCandles = append(newCandles, candle)
+
+			if telemetry.CandlesProcessed != nil {
+				telemetry.CandlesProcessed.Add(context.Background(), 1,
+					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType)))
+			}
+
 			continue
 		}
 
