@@ -114,6 +114,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260328-rk1 | E2E integration test: live playground equity trade + dashboard metric verification | 2026-03-28 | d21a7f0 | [260328-rk1](./quick/260328-rk1-integration-test-live-playground-with-eq/) |
 | 260329-11y | Python E2E: BaseStrategy subclass with signals, mock fill, dashboard metrics | 2026-03-29 | 1a5ca0a | [260329-11y](./quick/260329-11y-python-integration-test-basestrategy-sub/) |
+| 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 
 ## Session Continuity
 
