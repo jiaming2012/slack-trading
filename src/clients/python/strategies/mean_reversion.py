@@ -34,7 +34,7 @@ from lib.deviation_levels import DeviationPlan, compute_deviation_levels
 from lib.partial_exit_manager import ExitPlan, check_exits, compute_exit_plan, _tier_fraction
 from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from lib.pdf_types import PDFDocument, SignalPDF
-from engine.types import OrderSide
+from engine.types import OrderSide, SignalDecision
 from strategies.base_strategy import BaseStrategy
 
 
@@ -375,6 +375,11 @@ class MeanReversionStrategy(BaseStrategy):
             max_affordable = int(free_margin * 0.95 / initial_margin_per_share)
             if max_affordable <= 0:
                 group.failed_levels.add(level_idx)
+                self.record_decision(SignalDecision(
+                    signal_type="mean_reversion", direction="long",
+                    decision="skip", reason="insufficient margin",
+                    symbol="", playground_id="",
+                ))
                 self.logger.warning(
                     f"  Entry skipped [{group.group_id}] level {level_idx}:"
                     f" insufficient margin (free=${free_margin:.0f},"
@@ -464,6 +469,11 @@ class MeanReversionStrategy(BaseStrategy):
             self.funnel["entries_placed"] += 1
             # Track margin consumed so subsequent entries this tick see reduced availability
             self._margin_used_this_tick += shares * level.price * 0.5
+            self.record_decision(SignalDecision(
+                signal_type="mean_reversion", direction="long",
+                decision="place", reason=f"dip entry level {level_idx} σ={level.sigma_distance:.1f}",
+                symbol="", playground_id="",
+            ))
             self.logger.info(
                 f"  Entry [{group.group_id}]: {shares} shares"
                 f" @ ${level.price:.2f} (σ={level.sigma_distance:.1f})"
@@ -682,6 +692,11 @@ class MeanReversionStrategy(BaseStrategy):
                 attributes=attributes,
             )
             self._sells_placed_this_tick += total_remaining
+            self.record_decision(SignalDecision(
+                signal_type="mean_reversion", direction="long",
+                decision="place", reason=f"stop out group {group.group_id}",
+                symbol="", playground_id="",
+            ))
             self.logger.info(
                 f"  STOP OUT [{group.group_id}]: {total_remaining} shares"
                 f" @ market (HTF close=${current_price:.2f},"

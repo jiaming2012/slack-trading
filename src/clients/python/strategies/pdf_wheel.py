@@ -34,6 +34,7 @@ from engine.client import (
     Repository,
     OrderSide,
 )
+from engine.types import SignalDecision
 from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from lib.pdf_types import PDFDocument, SignalPDF, CompoundSignal
 from lib.risk_management import (
@@ -609,6 +610,11 @@ class PDFWheelStrategy(WheelStrategy):
                     'option',
                     with_tick=True,
                 )
+                self.record_decision(SignalDecision(
+                    signal_type="pdf_wheel", direction="neutral",
+                    decision="place", reason=f"early close: {signal.name}",
+                    symbol="", playground_id="",
+                ))
                 self.logger.info(
                     f"Close Signal: {signal.name} at {signal.timestamp}"
                     f" for {signal.option_contract.symbol}"
@@ -622,6 +628,11 @@ class PDFWheelStrategy(WheelStrategy):
                         signal.pdf_entry, signal.price,
                     )
                     if total_contracts <= 0:
+                        self.record_decision(SignalDecision(
+                            signal_type="pdf_wheel", direction="short",
+                            decision="skip", reason="kelly sizing yielded zero contracts",
+                            symbol="", playground_id="",
+                        ))
                         continue
 
                     # Fetch options ladder
@@ -664,6 +675,11 @@ class PDFWheelStrategy(WheelStrategy):
                                 "probability": str(alloc.probability),
                             },
                         )
+                        self.record_decision(SignalDecision(
+                            signal_type="pdf_wheel", direction="short",
+                            decision="place", reason=f"sell put: {signal.name}",
+                            symbol="", playground_id="",
+                        ))
                         self.logger.info(
                             f"Open Signal (PDF Put): {signal.name}"
                             f" -> sold {alloc.contracts}x {alloc.contract_symbol}"
@@ -736,6 +752,11 @@ class PDFWheelStrategy(WheelStrategy):
                             target_contract = c
 
                     if target_contract is None:
+                        self.record_decision(SignalDecision(
+                            signal_type="pdf_wheel", direction="short",
+                            decision="skip", reason="no suitable call contract found",
+                            symbol="", playground_id="",
+                        ))
                         continue
 
                     attributes = {
@@ -779,6 +800,11 @@ class PDFWheelStrategy(WheelStrategy):
                         'option',
                         attributes=attributes,
                     )
+                    self.record_decision(SignalDecision(
+                        signal_type="pdf_wheel", direction="short",
+                        decision="place", reason=f"sell call: {signal.name}",
+                        symbol="", playground_id="",
+                    ))
                     self.logger.info(
                         f"Open Signal (Call): {signal.name} at {signal.timestamp}"
                         f" -> sold {target_contract.symbol}"

@@ -19,7 +19,7 @@ from engine.client import BacktesterPlaygroundClient, Repository, RepositorySour
 from rpc.playground_pb2 import GetOptionsLadderRequest, OptionLadderContract
 from deprecated.base_open_strategy_v2 import BaseOpenStrategyV2
 from strategies.base_strategy import BaseStrategy
-from engine.types import OpenSignalV3, OpenSignalName
+from engine.types import OpenSignalV3, OpenSignalName, SignalDecision
 from rpc.playground_pb2 import Candle
 
 import warnings
@@ -547,6 +547,11 @@ class OptionsStrategyBasic(BaseOpenStrategyV2, BaseStrategy):
                     'option',
                     with_tick=True,
                 )
+                self.record_decision(SignalDecision(
+                    signal_type="covered_call", direction="neutral",
+                    decision="place", reason=f"early close: {signal.name}",
+                    symbol="", playground_id="",
+                ))
                 self.logger.info(
                     f"Close Signal: {signal.name} at {signal.timestamp}"
                     f" for {signal.option_contract.symbol}"
@@ -615,6 +620,11 @@ class OptionsStrategyBasic(BaseOpenStrategyV2, BaseStrategy):
                         target_contract = c
 
                 if target_contract is None:
+                    self.record_decision(SignalDecision(
+                        signal_type="covered_call", direction="short",
+                        decision="skip", reason="no suitable call contract found",
+                        symbol="", playground_id="",
+                    ))
                     continue
 
                 attributes = {
@@ -656,6 +666,11 @@ class OptionsStrategyBasic(BaseOpenStrategyV2, BaseStrategy):
                     'option',
                     attributes=attributes,
                 )
+                self.record_decision(SignalDecision(
+                    signal_type="covered_call", direction="short",
+                    decision="place", reason=f"sell call: {signal.name}",
+                    symbol="", playground_id="",
+                ))
                 self.logger.info(
                     f"Open Signal: {signal.name} at {signal.timestamp}"
                     f" -> sold {target_contract.symbol}"

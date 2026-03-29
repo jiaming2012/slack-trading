@@ -25,6 +25,7 @@ from engine.client import (
     Repository,
     OrderSide,
 )
+from engine.types import SignalDecision
 from strategies.covered_call import (
     OptionsStrategyBasic,
     OptionContractRepository,
@@ -216,6 +217,11 @@ class WheelStrategy(OptionsStrategyBasic):
                     'option',
                     with_tick=True,
                 )
+                self.record_decision(SignalDecision(
+                    signal_type="wheel", direction="neutral",
+                    decision="place", reason=f"early close: {signal.name}",
+                    symbol="", playground_id="",
+                ))
                 self.logger.info(
                     f"Close Signal: {signal.name} at {signal.timestamp}"
                     f" for {signal.option_contract.symbol}"
@@ -244,6 +250,11 @@ class WheelStrategy(OptionsStrategyBasic):
                         signal.price, response.contracts,
                     )
                     if target_contract is None:
+                        self.record_decision(SignalDecision(
+                            signal_type="wheel", direction="short",
+                            decision="skip", reason="no suitable put contract found",
+                            symbol="", playground_id="",
+                        ))
                         self.logger.warning(
                             f"No suitable put contract found for {signal.symbol}"
                             f" at price {signal.price}"
@@ -252,6 +263,11 @@ class WheelStrategy(OptionsStrategyBasic):
 
                     existing = self.playground.account.get_position(target_contract.symbol)
                     if existing is not None and existing.quantity != 0:
+                        self.record_decision(SignalDecision(
+                            signal_type="wheel", direction="short",
+                            decision="skip", reason="put position already exists",
+                            symbol="", playground_id="",
+                        ))
                         self.logger.warning(
                             f"Put position already exists for {target_contract.symbol}"
                             f" (qty={existing.quantity}). Skipping."
@@ -269,6 +285,11 @@ class WheelStrategy(OptionsStrategyBasic):
                         'option',
                         attributes=attributes,
                     )
+                    self.record_decision(SignalDecision(
+                        signal_type="wheel", direction="short",
+                        decision="place", reason=f"sell put: {signal.name}",
+                        symbol="", playground_id="",
+                    ))
                     self.logger.info(
                         f"Open Signal (Put): {signal.name} at {signal.timestamp}"
                         f" -> sold {target_contract.symbol}"
@@ -343,6 +364,11 @@ class WheelStrategy(OptionsStrategyBasic):
                             target_contract = c
 
                     if target_contract is None:
+                        self.record_decision(SignalDecision(
+                            signal_type="wheel", direction="short",
+                            decision="skip", reason="no suitable call contract found",
+                            symbol="", playground_id="",
+                        ))
                         self.logger.warning(
                             f"No suitable call contract found for {signal.symbol}"
                             f" at price {signal.price}"
@@ -394,6 +420,11 @@ class WheelStrategy(OptionsStrategyBasic):
                         'option',
                         attributes=attributes,
                     )
+                    self.record_decision(SignalDecision(
+                        signal_type="wheel", direction="short",
+                        decision="place", reason=f"sell call: {signal.name}",
+                        symbol="", playground_id="",
+                    ))
                     self.logger.info(
                         f"Open Signal (Call): {signal.name} at {signal.timestamp}"
                         f" -> sold {target_contract.symbol}"

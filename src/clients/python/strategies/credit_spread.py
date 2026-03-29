@@ -30,7 +30,7 @@ from engine.client import (
 from lib.deviation_levels import DeviationPlan, compute_deviation_levels
 from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
-from engine.types import OrderSide
+from engine.types import OrderSide, SignalDecision
 from rpc.playground_pb2 import GetOptionsLadderRequest
 from strategies.base_strategy import BaseStrategy
 
@@ -678,6 +678,11 @@ class CreditSpreadStrategy(BaseStrategy):
         available_total = self._available_collateral()
         if est_collateral > available_total:
             self.funnel["entries_skipped_collateral"] += 1
+            self.record_decision(SignalDecision(
+                signal_type="credit_spread", direction=group.direction,
+                decision="skip", reason="insufficient collateral",
+                symbol="", playground_id="",
+            ))
             return
 
         group_limit = self._group_collateral_limit()
@@ -1019,6 +1024,11 @@ class CreditSpreadStrategy(BaseStrategy):
         if group.status == "pending":
             group.status = "active"
         self.funnel["entries_placed"] += 1
+        self.record_decision(SignalDecision(
+            signal_type="credit_spread", direction=group.direction,
+            decision="place", reason=f"spread entry level {level_idx} σ={level.sigma_distance:.1f}",
+            symbol="", playground_id="",
+        ))
 
         self.logger.info(
             f"  ENTRY [{group.group_id}] level={level_idx}:"
@@ -1502,6 +1512,11 @@ class CreditSpreadStrategy(BaseStrategy):
 
         group.exited_entries.add(entry.level_index)
         self.funnel[f"exits_{action}"] += 1
+        self.record_decision(SignalDecision(
+            signal_type="credit_spread", direction=group.direction,
+            decision="place", reason=f"exit spread: {action}",
+            symbol="", playground_id="",
+        ))
 
         self.logger.debug(
             f"  Collateral: released=${collateral:.2f}"

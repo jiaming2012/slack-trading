@@ -31,7 +31,7 @@ from engine.client import (
 from lib.deviation_levels import DeviationPlan, compute_deviation_levels
 from lib.pdf_builder import detect_atomic_signals_on_bar, _get, _get_dt
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
-from engine.types import OrderSide
+from engine.types import OrderSide, SignalDecision
 from rpc.playground_pb2 import GetOptionsLadderRequest
 from strategies.base_strategy import BaseStrategy
 
@@ -401,6 +401,11 @@ class OptionsMeanReversionStrategy(BaseStrategy):
         contracts_list = self._fetch_ladder(bar_dict)
         if not contracts_list:
             self.funnel["entries_skipped_no_contract"] += 1
+            self.record_decision(SignalDecision(
+                signal_type="options_mean_reversion", direction=group.direction,
+                decision="skip", reason="no options contracts available",
+                symbol="", playground_id="",
+            ))
             return
 
         # Select contract
@@ -534,6 +539,11 @@ class OptionsMeanReversionStrategy(BaseStrategy):
             if group.status == "pending":
                 group.status = "active"
             self.funnel["entries_placed"] += 1
+            self.record_decision(SignalDecision(
+                signal_type="options_mean_reversion", direction=group.direction,
+                decision="place", reason=f"buy {option_type} level {level_idx} σ={level.sigma_distance:.1f}",
+                symbol="", playground_id="",
+            ))
             ev_pc = expected_profit / contracts if contracts > 0 else 0.0
             self.logger.info(
                 f"  Entry [{group.group_id}]: {contracts}x {option_type}"
@@ -669,6 +679,11 @@ class OptionsMeanReversionStrategy(BaseStrategy):
             )
             group.exited_entries.add(entry.level_index)
             self.funnel[f"exits_{action.replace('exit_', '')}"] += 1
+            self.record_decision(SignalDecision(
+                signal_type="options_mean_reversion", direction=group.direction,
+                decision="place", reason=f"exit option: {action}",
+                symbol="", playground_id="",
+            ))
             self.logger.info(
                 f"  {action} [{group.group_id}]: {contracts_to_sell}x"
                 f" {entry.contract_symbol}"
