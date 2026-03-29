@@ -161,6 +161,13 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.MockAddCandleRequest"),
 				output=_sym_db.GetSymbol("playground.EmptyResponse"),
 			),
+			"RecordSignal": Endpoint(
+				service_name="PlaygroundService",
+				name="RecordSignal",
+				function=getattr(service, "RecordSignal"),
+				input=_sym_db.GetSymbol("playground.RecordSignalRequest"),
+				output=_sym_db.GetSymbol("playground.EmptyResponse"),
+			),
 			"GetOptionsLadder": Endpoint(
 				service_name="PlaygroundService",
 				name="GetOptionsLadder",
@@ -346,6 +353,15 @@ class PlaygroundServiceClient(TwirpClient):
 	def MockAddCandle(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
 		return self._make_request(
 			url=F"{server_path_prefix}/playground.PlaygroundService/MockAddCandle",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+			**kwargs,
+		)
+
+	def RecordSignal(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/RecordSignal",
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
@@ -558,6 +574,16 @@ if _async_available:
 		async def MockAddCandle(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
 			return await self._make_request(
 				url=F"{server_path_prefix}/playground.PlaygroundService/MockAddCandle",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def RecordSignal(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/RecordSignal",
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.EmptyResponse"),

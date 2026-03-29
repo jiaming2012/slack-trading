@@ -8,10 +8,12 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
@@ -282,6 +284,29 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 
 		log.Debugf("Mock order %d filled, without delay", req.OrderId)
 	}
+
+	return &pb.EmptyResponse{}, nil
+}
+
+func (s *Server) RecordSignal(ctx context.Context, req *pb.RecordSignalRequest) (*pb.EmptyResponse, error) {
+	if telemetry.SignalsGenerated != nil {
+		telemetry.SignalsGenerated.Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String("signal_type", req.SignalType),
+				attribute.String("decision", req.Decision),
+				attribute.String("symbol", req.Symbol),
+			))
+	}
+
+	log.WithFields(log.Fields{
+		"event":         "signal_generated",
+		"playground_id": req.PlaygroundId,
+		"signal_type":   req.SignalType,
+		"direction":     req.Direction,
+		"decision":      req.Decision,
+		"reason":        req.Reason,
+		"symbol":        req.Symbol,
+	}).Info("signal recorded")
 
 	return &pb.EmptyResponse{}, nil
 }

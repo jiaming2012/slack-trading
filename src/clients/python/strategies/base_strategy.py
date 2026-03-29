@@ -11,7 +11,8 @@ retraining (D-04, D-05).
 
 Signal decision logging: strategies call self.record_decision() inside
 on_tick() to record SignalDecision objects. The engine calls
-_flush_decisions() after on_tick() to emit structured logs (Plan 03 wires this).
+_flush_decisions() after on_tick() to emit structured logs and send
+RecordSignal RPC to the server for telemetry.
 """
 
 import logging
@@ -19,25 +20,12 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 
-from opentelemetry import trace, metrics
+from opentelemetry import trace
 
 from engine.types import SignalDecision
 
 
 _signal_logger = logging.getLogger("grodt.strategy.signal")
-_signals_counter = None
-
-
-def _get_signals_counter():
-    """Lazy-init the signals counter after setup_otel() sets the real MeterProvider."""
-    global _signals_counter
-    if _signals_counter is None:
-        meter = metrics.get_meter("grodt-strategy")
-        _signals_counter = meter.create_counter(
-            "grodt.signals.generated",
-            description="Number of signal decisions recorded by strategies",
-        )
-    return _signals_counter
 
 
 class BaseStrategy(ABC):
@@ -57,6 +45,7 @@ class BaseStrategy(ABC):
         self.symbol = symbol
         self.logger = logger
         self._decisions: list = []
+        self._rpc_client = None  # Set externally for RecordSignal RPC
 
     @abstractmethod
     def on_tick(self, tick_deltas) -> None:
@@ -132,18 +121,43 @@ class BaseStrategy(ABC):
 
         _signal_logger.info("signal_decision", extra=record)
 
+    def _send_signal_rpc(self, decision: SignalDecision) -> None:
+        """Send RecordSignal RPC to the server for telemetry.
+
+        The server increments grodt_signals_generated_total in Prometheus.
+        Falls back silently if no RPC client is configured.
+        """
+        client = self._rpc_client
+        if client is None:
+            # Try to get client from playground if it has one
+            client = getattr(self.playground, '_client', None) or getattr(self.playground, 'client', None)
+
+        if client is None:
+            return
+
+        try:
+            from twirp.context import Context
+            from rpc.playground_pb2 import RecordSignalRequest
+
+            client.RecordSignal(ctx=Context(), request=RecordSignalRequest(
+                playground_id=decision.playground_id,
+                signal_type=decision.signal_type,
+                direction=decision.direction,
+                decision=decision.decision,
+                reason=decision.reason,
+                symbol=decision.symbol,
+            ))
+        except Exception as e:
+            _signal_logger.debug("RecordSignal RPC failed (non-fatal): %s", e)
+
     def _flush_decisions(self) -> None:
-        """Log all accumulated decisions and clear the list.
+        """Log all accumulated decisions, send to server, and clear the list.
 
         Called by the engine AFTER on_tick() completes (Plan 03 wires this).
         This keeps logging DRY -- strategies only call record_decision(),
         and the engine handles emission.
         """
-        counter = _get_signals_counter()
         for decision in self._decisions:
             self._log_decision(decision)
-            counter.add(1, {
-                "signal_type": decision.signal_type,
-                "decision": decision.decision,
-            })
+            self._send_signal_rpc(decision)
         self._decisions = []

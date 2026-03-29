@@ -29,6 +29,7 @@ service PlaygroundService {
     rpc GetDailyTickerSummaryFromPolygon(GetDailyTickerSummaryFromPolygonRequest) returns (GetDailyTickerSummaryFromPolygonResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
     rpc MockAddCandle(MockAddCandleRequest) returns (EmptyResponse);
+    rpc RecordSignal(RecordSignalRequest) returns (EmptyResponse);
     rpc GetOptionsLadder(GetOptionsLadderRequest) returns (GetOptionsLadderResponse);
 }
 
@@ -99,6 +100,15 @@ message MockFillOrderRequest {
     string status = 3;
     string broker = 4;
     optional int32 delay_in_seconds = 5;
+}
+
+message RecordSignalRequest {
+    string playground_id = 1;
+    string signal_type = 2;
+    string direction = 3;
+    string decision = 4;
+    string reason = 5;
+    string symbol = 6;
 }
 
 message MockAddCandleRequest {

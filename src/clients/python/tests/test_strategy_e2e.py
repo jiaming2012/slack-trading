@@ -182,6 +182,7 @@ class TestStrategyE2E:
         # --- Wrap in proxy for BaseStrategy compatibility ---
         proxy = PlaygroundProxy(pg_id, client)
         strategy = SimpleBuyStrategy(proxy, "AAPL", max_ticks=3)
+        strategy._rpc_client = client  # Enable RecordSignal RPC
 
         # --- Init OTel + heartbeat ---
         otel_shutdown = setup_otel(service_name="grodt-strategy-e2e")
