@@ -286,6 +286,58 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 	return &pb.EmptyResponse{}, nil
 }
 
+func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest) (*pb.EmptyResponse, error) {
+	playgroundId, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("MockAddCandle: invalid playground id: %v", err)
+	}
+
+	playground, err := s.dbService.GetPlayground(playgroundId)
+	if err != nil {
+		return nil, fmt.Errorf("MockAddCandle: playground not found: %v", err)
+	}
+
+	if playground.Meta.Environment != models.PlaygroundEnvironmentLive {
+		return nil, fmt.Errorf("MockAddCandle: only live playgrounds support mock candles")
+	}
+
+	period := time.Duration(req.PeriodInSeconds) * time.Second
+
+	var repo *models.CandleRepository
+	for _, r := range playground.GetRepositories() {
+		if r.GetSymbol().GetTicker() == req.Symbol && r.GetPeriod() == period {
+			repo = r
+			break
+		}
+	}
+
+	if repo == nil {
+		return nil, fmt.Errorf("MockAddCandle: no repository for symbol=%s period=%v", req.Symbol, period)
+	}
+
+	ts, err := time.Parse(time.RFC3339, req.Timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("MockAddCandle: invalid timestamp: %v", err)
+	}
+
+	candle := &eventmodels.PolygonAggregateBarV2{
+		Timestamp: ts,
+		Open:      req.Open,
+		High:      req.High,
+		Low:       req.Low,
+		Close:     req.Close,
+		Volume:    req.Volume,
+	}
+
+	if _, err := repo.AppendBars([]eventmodels.ICandle{candle}); err != nil {
+		return nil, fmt.Errorf("MockAddCandle: failed to append candle: %v", err)
+	}
+
+	log.Infof("MockAddCandle: appended candle for %s period=%v at %v", req.Symbol, period, ts)
+
+	return &pb.EmptyResponse{}, nil
+}
+
 func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
 		Version: eventservices.GetAppVersion(),

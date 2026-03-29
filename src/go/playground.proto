@@ -28,6 +28,7 @@ service PlaygroundService {
     rpc GetEquityReport(GetEquityReportRequest) returns (GetEquityReportResponse);
     rpc GetDailyTickerSummaryFromPolygon(GetDailyTickerSummaryFromPolygonRequest) returns (GetDailyTickerSummaryFromPolygonResponse);
     rpc MockFillOrder(MockFillOrderRequest) returns (EmptyResponse);
+    rpc MockAddCandle(MockAddCandleRequest) returns (EmptyResponse);
     rpc GetOptionsLadder(GetOptionsLadderRequest) returns (GetOptionsLadderResponse);
 }
 
@@ -98,6 +99,18 @@ message MockFillOrderRequest {
     string status = 3;
     string broker = 4;
     optional int32 delay_in_seconds = 5;
+}
+
+message MockAddCandleRequest {
+    string playground_id = 1;
+    string symbol = 2;
+    int32 period_in_seconds = 3;
+    double open = 4;
+    double high = 5;
+    double low = 6;
+    double close = 7;
+    double volume = 8;
+    string timestamp = 9;
 }
 
 message GetReconciliationReportRequest {
