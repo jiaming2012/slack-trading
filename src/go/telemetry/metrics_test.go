@@ -44,7 +44,24 @@ func TestInit(t *testing.T) {
 }
 
 func TestPlaygroundAttrs(t *testing.T) {
-	// PlaygroundAttrs should return a non-nil measurement option
-	opt := PlaygroundAttrs("live", "margin")
-	assert.NotNil(t, opt, "PlaygroundAttrs should return a non-nil option")
+	t.Run("returns non-nil option with client_id", func(t *testing.T) {
+		opt := PlaygroundAttrs("live", "margin", "my-strategy")
+		assert.NotNil(t, opt, "PlaygroundAttrs should return a non-nil option")
+	})
+
+	t.Run("returns non-nil option with empty client_id", func(t *testing.T) {
+		opt := PlaygroundAttrs("live", "margin", "")
+		assert.NotNil(t, opt, "PlaygroundAttrs should return a non-nil option for empty client_id")
+	})
+}
+
+func TestClientIDOrEmpty(t *testing.T) {
+	t.Run("returns value when non-nil", func(t *testing.T) {
+		s := "my-strategy"
+		assert.Equal(t, "my-strategy", ClientIDOrEmpty(&s))
+	})
+
+	t.Run("returns empty string when nil", func(t *testing.T) {
+		assert.Equal(t, "", ClientIDOrEmpty(nil))
+	})
 }
