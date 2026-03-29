@@ -59,10 +59,13 @@ func TestLiveCandleProcessedAndDashboard(t *testing.T) {
 	t.Logf("Initial tick: drained %d existing candles", len(tickResp.NewCandles))
 
 	// --- Fetch candles from repo to find the last timestamp ---
+	// Fetch from 7 days ago to cover history_in_days=1
+	fromTime := time.Now().AddDate(0, 0, -7).Format(time.RFC3339)
 	candlesResp, err := p.GetCandlesFromRepo(ctx, &playground.GetCandlesRequest{
 		PlaygroundId:    createResp.Id,
 		Symbol:          "AAPL",
 		PeriodInSeconds: 60,
+		FromRTF3339:     fromTime,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, candlesResp.Bars, "Expected candles from history_in_days=1")
