@@ -56,7 +56,7 @@ Plans:
   4. Recent Order Events and Position Details panels include a trace_id column, linkable to Tempo traces
 **Plans**: 1 plan
 Plans:
-- [ ] 09-01-PLAN.md -- Update dashboard JSON with client_id filter, table panels, and trace_id in log formats
+- [x] 09-01-PLAN.md -- Update dashboard JSON with client_id filter, table panels, and trace_id in log formats
 
 ### Phase 10: Signal/Candle Filtering & Python Heartbeat
 **Goal**: Operator can drill into signals by type and candles by symbol, and see per-playground heartbeat status from the Python strategy
@@ -92,6 +92,6 @@ Plans:
 | 6. Dashboards & Alerts | v1.0 | 2/2 | Complete | 2026-03-27 |
 | 7. Production Deployment | v1.0 | 2/2 | Complete | 2026-03-28 |
 | 8. Metric Labels & Bug Fix | v1.1 | 1/1 | Complete | 2026-03-29 |
-| 9. Playground Filtering & Detail Panels | v1.1 | 0/1 | Planning complete | - |
+| 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 0/0 | Not started | - |
 | 11. Per-Strategy Dashboards | v1.1 | 0/0 | Not started | - |
