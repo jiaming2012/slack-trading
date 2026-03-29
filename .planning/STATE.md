@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Dashboard Enhancements
-status: planning
+status: ready_to_plan
 stopped_at: ""
-last_updated: "2026-03-29T16:00:00.000Z"
-last_activity: 2026-03-29 -- Milestone v1.1 started
+last_updated: "2026-03-29T17:00:00.000Z"
+last_activity: 2026-03-29 -- Roadmap created for v1.1 (Phases 8-11)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,50 +21,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Milestone v1.1 — Dashboard Enhancements
+**Current focus:** Milestone v1.1 -- Dashboard Enhancements (Phase 8 ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-29 — Milestone v1.1 started
-Last activity: 2026-03-28
+Phase: 8 of 11 (Metric Labels & Bug Fix)
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-29 -- Roadmap created for v1.1 (Phases 8-11, 11 requirements mapped)
 
-Progress: [███░░░░░░░] 33%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+- Total plans completed: 18 (v1.0)
+- Average duration: ~5min
+- Total execution time: ~1.5 hours
 
-- Total plans completed: 1
-- Average duration: 10min
-- Total execution time: 0.17 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-python-codebase-restructure | 1/3 | 10min | 10min |
-
-**Recent Trend:**
-
-- Last 5 plans: 10min
-- Trend: starting
+**Recent Trend (v1.0):**
+- Last 5 plans: 2min, 2min, 2min, 4min, 6min
+- Trend: Stable
 
 *Updated after each plan completion*
-| Phase 01 P02 | 9min | 2 tasks | 8 files |
-| Phase 01 P03 | 11min | 3 tasks | 8 files |
-| Phase 01 P04 | 7min | 2 tasks | 4 files |
-| Phase 02 P02 | 1min | 1 tasks | 2 files |
-| Phase 02 P01 | 6min | 2 tasks | 3 files |
-| Phase 03 P01 | 6min | 2 tasks | 5 files |
-| Phase 03 P03 | 5min | 2 tasks | 4 files |
-| Phase 04 P03 | 6min | 2 tasks | 3 files |
-| Phase 05 P01 | 4min | 2 tasks | 3 files |
-| Phase 06-dashboards-alerts P01 | 2min | 2 tasks | 3 files |
-| Phase 06-dashboards-alerts P02 | 2min | 2 tasks | 2 files |
-| Phase 07-production-deployment P01 | 2min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,33 +52,9 @@ Progress: [███░░░░░░░] 33%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: Directory restructure and strategy consolidation sequenced before Python instrumentation so instrumentation targets the final structure.
-- [Roadmap]: Phases 3 and 4 are independent (both depend on Phase 2) but sequenced serially for workflow focus.
-- [01-01]: Merged trading_engine_types.py + playground_types.py into engine/types.py (7 classes consolidated)
-- [01-01]: Used absolute imports from package root (from engine.client, from lib.pdf_builder, etc.)
-- [Phase 01]: Used multiple inheritance (BaseOpenStrategyV2, BaseStrategy) for OptionsStrategyBasic to preserve backward compat
-- [Phase 01]: Moved order placement from runner functions into on_tick() methods, making strategies self-contained
-- [Phase 01]: Renamed old run_strategy() to _legacy_run_strategy() to avoid collision with new universal function
-- [Phase 01]: Added on_tick callback to run_strategy() for demo retrain callbacks
-- [Phase 01]: Used strategy_factory pattern for optimizer (D-06) with enable_retraining=False (D-05)
-- [Phase 01]: Used patch.object to mock dynamic spread width in TestPartialLegFailure rather than adjusting test fixture strikes
-- [Phase 02]: Used grafana/otel-lgtm all-in-one image for local observability backend
-- [Phase 02]: Separate docker-compose file for observability (matches eventstoredb pattern)
-- [Phase 02]: Extracted inline setupOTelSDK to reusable utils.SetupOTelSDK with semconv service attributes
-- [Phase 02]: OTEL config via env vars only (no hardcoded endpoints), SDK auto-reads OTEL_* vars
-- [Phase 03]: Placed order telemetry in DatabaseService.PlaceOrders (not grpc.go) since playground is already fetched and environment is already checked
-- [Phase 03]: Used StatsProvider callback function (not interface) for heartbeat stats -- simpler, testable, avoids import cycle
-- [Phase 03]: Environment-only segmentation on gauge metrics in v1; account_type detail in structured log
-- [Phase 04]: Used hasattr guard for _flush_decisions() for parallel plan compatibility
-- [Phase 04]: Live-only OTel spans to avoid 500K+ span explosion in backtest mode
-- [Phase 05]: inject() called once before retry loop since trace context is fixed per request
-- [Phase 05]: otelhttp outermost middleware wrapper (outside panicRecoveryMiddleware) for correct trace extraction
-- [Phase 06-01]: Used Grafana file provisioning with docker-compose volume mounts for dashboard auto-loading
-- [Phase 06-02]: Used absent_over_time() with 2m window for heartbeat staleness detection
-- [Phase 06-02]: Error rate threshold 0.083 (5 errors/60s) with 5m pending period to avoid transient spikes
-- [Phase 06-02]: All alerts severity=critical to route through single Slack notification policy
-- [Phase 07-01]: Single docker-compose.prod.yaml at repo root combining all services (no override files)
-- [Phase 07-01]: Added .env.prod.template gitignore exception since .env.* pattern was catching the template
+- [Roadmap v1.1]: LABEL-01 (client_id on metrics) sequenced first -- all dashboard panels depend on it
+- [Roadmap v1.1]: Phases 9 and 10 are independent (both depend on Phase 8) but STRAT-01 waits for both
+- [Roadmap v1.1]: PANEL-04 (order_filled qty bug) grouped with LABEL-01 as a quick foundational fix
 
 ### Pending Todos
 
@@ -119,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T03:55:29.922Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-29
+Stopped at: Roadmap created for v1.1
 Resume file: None

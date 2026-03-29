@@ -26,22 +26,22 @@
 
 ## Out of Scope
 
-- Custom Grafana plugins — use built-in panels only
-- Alerting changes — covered in v1.0, no changes this milestone
-- Mobile/responsive dashboard layout — desktop-first
+- Custom Grafana plugins -- use built-in panels only
+- Alerting changes -- covered in v1.0, no changes this milestone
+- Mobile/responsive dashboard layout -- desktop-first
 
 ## Traceability
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| LABEL-01 | | | Pending |
-| LABEL-02 | | | Pending |
-| LABEL-03 | | | Pending |
-| LABEL-04 | | | Pending |
-| PANEL-01 | | | Pending |
-| PANEL-02 | | | Pending |
-| PANEL-03 | | | Pending |
-| PANEL-04 | | | Pending |
-| PANEL-05 | | | Pending |
-| PANEL-06 | | | Pending |
-| STRAT-01 | | | Pending |
+| LABEL-01 | Phase 8 | | Pending |
+| LABEL-02 | Phase 9 | | Pending |
+| LABEL-03 | Phase 10 | | Pending |
+| LABEL-04 | Phase 10 | | Pending |
+| PANEL-01 | Phase 9 | | Pending |
+| PANEL-02 | Phase 10 | | Pending |
+| PANEL-03 | Phase 9 | | Pending |
+| PANEL-04 | Phase 8 | | Pending |
+| PANEL-05 | Phase 9 | | Pending |
+| PANEL-06 | Phase 9 | | Pending |
+| STRAT-01 | Phase 11 | | Pending |
