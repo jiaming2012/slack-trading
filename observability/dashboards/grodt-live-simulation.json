@@ -289,12 +289,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(grodt_candles_processed_total[5m])",
+          "expr": "sum(grodt_candles_processed_total)",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Candles Processed Rate",
+      "title": "Candles Processed",
       "type": "timeseries"
     },
     {
@@ -322,12 +322,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "rate(grodt_signals_generated_total[5m])",
+          "expr": "sum(grodt_signals_generated_total) or sum(grodt_signals_generated_total_ratio)",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Signals Generated Rate",
+      "title": "Signals Generated",
       "type": "timeseries"
     },
     {
