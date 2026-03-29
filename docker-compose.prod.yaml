@@ -57,6 +57,8 @@ services:
       # Dashboard provisioning
       - ./observability/dashboards/dashboards-provider.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
       - ./observability/dashboards/grodt-live-simulation.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json:ro
+      - ./observability/dashboards/grodt-mean-reversion.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-mean-reversion.json:ro
+      - ./observability/dashboards/grodt-covered-call.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-covered-call.json:ro
       # Alert provisioning
       - ./observability/alerting/alerting.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/grodt-alerting.yaml:ro
     restart: unless-stopped
