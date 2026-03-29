@@ -314,6 +314,7 @@ class BacktesterPlaygroundClient:
         self.trade_timestamps = []
         self._new_state_buffer: List[TickDelta] = []
         self.environment = req.environment
+        self.client_id = getattr(req, 'client_id', '') or ''
         self.current_candles = {}
         self.profiler = None  # Set externally via playground.profiler = RPCProfiler()
         

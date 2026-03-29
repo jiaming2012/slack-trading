@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
@@ -2313,7 +2315,10 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 
 			if telemetry.CandlesProcessed != nil {
 				telemetry.CandlesProcessed.Add(context.Background(), 1,
-					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(p.GetClientId())))
+					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(p.GetClientId())),
+					metric.WithAttributes(
+						attribute.String("symbol", candle.Symbol.GetTicker()),
+					))
 			}
 
 			continue
