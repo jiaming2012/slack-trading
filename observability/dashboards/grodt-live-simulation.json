@@ -99,47 +99,72 @@
       },
       "fieldConfig": {
         "defaults": {
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Dead"
-                }
-              },
-              "type": "value"
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
             },
-            {
-              "options": {
-                "1": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Alive"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+            "properties": [
               {
-                "color": "red",
-                "value": null
-              },
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "__name__"
+            },
+            "properties": [
               {
-                "color": "red",
-                "value": 0
-              },
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
               {
-                "color": "green",
-                "value": 1
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "job"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "instance"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
               }
             ]
           }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -149,18 +174,13 @@
       },
       "id": 3,
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "client_id",
+            "desc": false
+          }
+        ]
       },
       "targets": [
         {
@@ -168,13 +188,15 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_strategy_heartbeat or grodt_strategy_heartbeat_ratio",
+          "expr": "grodt_strategy_heartbeat{client_id=~\"$client_id\"}",
           "legendFormat": "",
+          "format": "table",
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Python Strategy Heartbeat",
-      "type": "stat"
+      "type": "table"
     },
     {
       "datasource": {
@@ -523,8 +545,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(grodt_candles_processed_total)",
-          "legendFormat": "",
+          "expr": "sum by (symbol) (grodt_candles_processed_total{symbol=~\"$symbol\", client_id=~\"$client_id\"})",
+          "legendFormat": "{{symbol}}",
           "refId": "A"
         }
       ],
@@ -574,8 +596,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(grodt_signals_generated_total) or sum(grodt_signals_generated_total_ratio)",
-          "legendFormat": "",
+          "expr": "sum by (signal_type) (grodt_signals_generated_total{signal_type=~\"$signal_type\", client_id=~\"$client_id\"})",
+          "legendFormat": "{{signal_type}}",
           "refId": "A"
         }
       ],
@@ -713,6 +735,54 @@
         "query": {
           "qryType": 1,
           "query": "label_values(grodt_orders_placed_total, playground_id)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(grodt_signals_generated_total, signal_type)",
+        "includeAll": true,
+        "label": "Signal Type",
+        "multi": false,
+        "name": "signal_type",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(grodt_signals_generated_total, signal_type)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(grodt_candles_processed_total, symbol)",
+        "includeAll": true,
+        "label": "Symbol",
+        "multi": false,
+        "name": "symbol",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(grodt_candles_processed_total, symbol)"
         },
         "refresh": 2,
         "sort": 1,
