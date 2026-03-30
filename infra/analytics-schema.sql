@@ -232,6 +232,45 @@ WHERE o.deleted_at IS NULL
   AND o.status = 'filled'
   AND o.side IN ('buy', 'buy_to_open', 'sell_short', 'sell_to_open');
 
+-- ---------------------------------------------------------
+-- v_close_slippage: Per-fill slippage for close-side orders
+-- Mirrors v_open_slippage but for sell/sell_to_close/buy_to_cover/buy_to_close
+-- ---------------------------------------------------------
+CREATE OR REPLACE VIEW v_close_slippage AS
+SELECT
+    o.id AS order_id,
+    o.playground_id,
+    o.symbol,
+    o.class,
+    o.side,
+    o.requested_price,
+    t.price AS fill_price,
+    t.quantity AS fill_qty,
+    CASE
+        WHEN o.side IN ('sell', 'sell_to_close') THEN o.requested_price - t.price
+        WHEN o.side IN ('buy_to_cover', 'buy_to_close') THEN t.price - o.requested_price
+        ELSE 0
+    END AS slippage_points,
+    CASE
+        WHEN o.side IN ('sell', 'sell_to_close') THEN (o.requested_price - t.price) * ABS(t.quantity)
+        WHEN o.side IN ('buy_to_cover', 'buy_to_close') THEN (t.price - o.requested_price) * ABS(t.quantity)
+        ELSE 0
+    END AS slippage_dollars
+FROM order_records o
+JOIN trade_records t ON t.order_id = o.id
+WHERE o.deleted_at IS NULL
+  AND t.deleted_at IS NULL
+  AND o.status = 'filled'
+  AND o.side IN ('sell', 'sell_to_close', 'buy_to_cover', 'buy_to_close');
+
+-- ---------------------------------------------------------
+-- v_all_slippage: Combined open + close slippage with type column
+-- ---------------------------------------------------------
+CREATE OR REPLACE VIEW v_all_slippage AS
+SELECT *, 'open' AS slippage_type FROM v_open_slippage
+UNION ALL
+SELECT *, 'close' AS slippage_type FROM v_close_slippage;
+
 -- =============================================================
 -- 3. Grant SELECT on views to metabase_ro
 -- =============================================================
@@ -242,6 +281,8 @@ BEGIN
         GRANT SELECT ON v_order_pnl TO metabase_ro;
         GRANT SELECT ON v_playground_stats TO metabase_ro;
         GRANT SELECT ON v_open_slippage TO metabase_ro;
+        GRANT SELECT ON v_close_slippage TO metabase_ro;
+        GRANT SELECT ON v_all_slippage TO metabase_ro;
         RAISE NOTICE 'Granted SELECT on analytics views to metabase_ro';
     ELSE
         RAISE NOTICE 'Role metabase_ro does not exist -- skipping GRANTs. Run init-metabase.sql first, then re-run this file.';

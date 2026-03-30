@@ -22,10 +22,10 @@
 
 ## Dashboards
 
-- [ ] **DASH-01**: Trading performance dashboard: P&L over time, win rate, profit factor, gross profit/loss
-- [ ] **DASH-02**: Slippage analysis dashboard: open/close/total slippage per playground
+- [x] **DASH-01**: Trading performance dashboard: P&L over time, win rate, profit factor, gross profit/loss
+- [x] **DASH-02**: Slippage analysis dashboard: open/close/total slippage per playground
 - [ ] **DASH-03**: Strategy comparison dashboard: compare backtests by parameters and strategy types
-- [ ] **DASH-04**: Portfolio analytics: position history, per-symbol/asset-class breakdown
+- [x] **DASH-04**: Portfolio analytics: position history, per-symbol/asset-class breakdown
 - [ ] **DASH-05**: Spread analytics dashboard: spread P&L, spread win/loss ratio
 
 ## Spread Analytics

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
-status: verifying
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-30T13:39:50.933Z"
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-30T15:08:37.290Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 1
   percent: 20
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 13 — analytics-schema-indexes
+**Current focus:** Phase 14 — core-performance-dashboards
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 14 (core-performance-dashboards) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-03-30
 
 Progress: [██░░░░░░░░] 20%
@@ -60,6 +60,8 @@ Recent decisions affecting current work:
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
 - [Phase 13]: Used simple AVG(price) not VWAP for GetAvgFillPrice to match Go server CalcRealizedPL() as authoritative source
 - [Phase 13]: v_playground_stats aggregates only opening-side orders to avoid double-counting P&L
+- [Phase 14]: Native SQL questions for all Metabase cards (not MBQL) for full SQL control and view compatibility
+- [Phase 14]: Metabase API upsert pattern (find-by-name then PUT/POST) for idempotent dashboard provisioning
 
 ### Pending Todos
 
@@ -80,9 +82,10 @@ None yet.
 | 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
 | Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
+| Phase 14 P01 | 2m24s | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-03-30T13:39:50.926Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-core-performance-dashboards/14-CONTEXT.md
+Last session: 2026-03-30T15:08:37.283Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
