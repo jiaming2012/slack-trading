@@ -48,21 +48,21 @@
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| INFRA-01 | | | Pending |
-| INFRA-02 | | | Pending |
-| INFRA-03 | | | Pending |
-| INFRA-04 | | | Pending |
-| INFRA-05 | | | Pending |
-| SCHEMA-01 | | | Pending |
-| SCHEMA-02 | | | Pending |
-| SCHEMA-03 | | | Pending |
-| SCHEMA-04 | | | Pending |
-| PERSIST-01 | | | Pending |
-| PERSIST-02 | | | Pending |
-| DASH-01 | | | Pending |
-| DASH-02 | | | Pending |
-| DASH-03 | | | Pending |
-| DASH-04 | | | Pending |
-| DASH-05 | | | Pending |
-| SPREAD-01 | | | Pending |
-| SPREAD-02 | | | Pending |
+| INFRA-01 | Phase 12 | | Pending |
+| INFRA-02 | Phase 12 | | Pending |
+| INFRA-03 | Phase 12 | | Pending |
+| INFRA-04 | Phase 12 | | Pending |
+| INFRA-05 | Phase 12 | | Pending |
+| SCHEMA-01 | Phase 13 | | Pending |
+| SCHEMA-02 | Phase 13 | | Pending |
+| SCHEMA-03 | Phase 16 | | Pending |
+| SCHEMA-04 | Phase 16 | | Pending |
+| PERSIST-01 | Phase 15 | | Pending |
+| PERSIST-02 | Phase 15 | | Pending |
+| DASH-01 | Phase 14 | | Pending |
+| DASH-02 | Phase 14 | | Pending |
+| DASH-03 | Phase 15 | | Pending |
+| DASH-04 | Phase 14 | | Pending |
+| DASH-05 | Phase 16 | | Pending |
+| SPREAD-01 | Phase 16 | | Pending |
+| SPREAD-02 | Phase 16 | | Pending |

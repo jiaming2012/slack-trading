@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: planning
-stopped_at: ""
-last_updated: "2026-03-30T01:00:00.000Z"
-last_activity: 2026-03-30 -- Milestone v2.0 started
+stopped_at: "Roadmap created for v2.0"
+last_updated: "2026-03-30T02:00:00.000Z"
+last_activity: 2026-03-30 -- Roadmap created for v2.0 Metabase Analytics (Phases 12-16)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,26 +21,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Milestone v2.0 — Metabase Analytics
+**Current focus:** Milestone v2.0 -- Metabase Analytics (Phase 12 ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-30 — Milestone v2.0 started
+Phase: 12 of 16 (Deploy Metabase & Harden Infrastructure)
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-30 -- Roadmap created for v2.0 (5 phases, 18 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.0) + 2 (v1.1)
+- Total plans completed: 18 (v1.0) + 4 (v1.1) = 22
 - Average duration: ~5min
-- Total execution time: ~1.5 hours
+- Total execution time: ~1.8 hours
 
 **Recent Trend (v1.1):**
 
-- Last 2 plans: Phase 08 Plan 01, Phase 09 Plan 01 (2min)
+- Last 2 plans: Phase 10 P01 (2m24s), Phase 11 P01 (2min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -52,17 +54,9 @@ Last activity: 2026-03-30 — Milestone v2.0 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap v1.1]: LABEL-01 (client_id on metrics) sequenced first -- all dashboard panels depend on it
-- [Roadmap v1.1]: Phases 9 and 10 are independent (both depend on Phase 8) but STRAT-01 waits for both
-- [Roadmap v1.1]: PANEL-04 (order_filled qty bug) grouped with LABEL-01 as a quick foundational fix
-- [Phase 08]: Used ClientIDOrEmpty helper for nil-safe *string dereference at all call sites
-- [Phase 08]: RecordSignal looks up playground via dbService for client_id (non-critical, warns on failure)
-- [Phase 08]: order_filled log derives fill_price/fill_quantity from Trade when available
-- [Phase 09]: client_id variable placed before playground_id for primary dashboard filtering
-- [Phase 09]: Active Playgrounds uses candles_processed_total with max-by for enumeration
-- [Phase 09]: Open Orders switched from Prometheus heartbeat to Loki order_placed logs
-- [Phase 10]: Symbol attribute on CandlesProcessed uses candle.Symbol.GetTicker() at emission site
-- [Phase 11-per-strategy-dashboards]: Strategy dashboards pre-filter signal_type (no dropdown) and link back to main dashboard
+- [Roadmap v2.0]: 5 phases derived from 18 requirements following research-recommended build order
+- [Roadmap v2.0]: Spread analytics last (Phase 16) -- highest complexity, needs stable P&L baselines from Phase 14
+- [Roadmap v2.0]: DASH-03 grouped with PERSIST phase (not core dashboards) because it requires backtest_runs data
 
 ### Pending Todos
 
@@ -70,7 +64,9 @@ None yet.
 
 ### Blockers/Concerns
 
-None yet.
+- [Research]: JVM OOM risk on 4GB droplet -- Phase 12 must set -Xmx768m + mem_limit 1.5g before first boot
+- [Research]: Verify equity_plot_records write timing before Phase 15 planning (incremental vs on-completion)
+- [Research]: calc_pnl SQL function must mirror Go CalcRealizedPL() -- read order_record.go before Phase 16
 
 ### Quick Tasks Completed
 
@@ -84,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T19:51:27.533Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-03-30
+Stopped at: Roadmap created for v2.0 Metabase Analytics
 Resume file: None
