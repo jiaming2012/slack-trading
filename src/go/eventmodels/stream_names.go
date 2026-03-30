@@ -32,6 +32,3 @@ func NewFxTickStreamName(symbol FxSymbol) StreamName {
 	return StreamName(fmt.Sprintf("%s-%s", FxTicksStream, symbol))
 }
 
-func NewTradeSignalStreamName(symbol string) StreamName {
-	return StreamName(fmt.Sprintf("%s-%s", TradeSignalStream, symbol))
-}

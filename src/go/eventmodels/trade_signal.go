@@ -23,13 +23,13 @@ func NewTradeSignal(name SignalName, symbol StockSymbol, timestamp time.Time, at
 		Symbol:     symbol,
 		Timestamp:  timestamp,
 		Attributes: attributes,
-		streamName: NewTradeSignalStreamName(string(symbol)),
+		streamName: TradeSignalStream,
 	}
 }
 
 func (s *TradeSignal) GetSavedEventParameters() SavedEventParameters {
 	return SavedEventParameters{
-		StreamName:    NewTradeSignalStreamName(string(s.Symbol)),
+		StreamName:    TradeSignalStream,
 		EventName:     TradeSignalEventName,
 		SchemaVersion: 1,
 	}
