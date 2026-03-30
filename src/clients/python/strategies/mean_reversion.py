@@ -159,6 +159,20 @@ class MeanReversionStrategy(BaseStrategy):
             "entries_skipped_low_ev": 0,
         }
 
+    def get_parameters(self) -> dict:
+        """Return mean-reversion tuning parameters for backtest persistence."""
+        return {
+            "max_loss_pct": self.max_loss_pct,
+            "stop_percentile": self.stop_percentile,
+            "total_shares_per_group": self.total_shares_per_group,
+            "num_exit_tiers": self.num_exit_tiers,
+            "htf_horizon": self.htf_horizon,
+            "tier_spacing": self.tier_spacing,
+            "stop_widen_on_exit": self.stop_widen_on_exit,
+            "min_expected_profit": self.min_expected_profit,
+            "ev_model": self.ev_model,
+        }
+
     def _effective_server_position(self) -> float:
         """Server position minus sells already placed this tick but not yet settled."""
         return self.playground.account.get_quantity(self.symbol) - self._sells_placed_this_tick
