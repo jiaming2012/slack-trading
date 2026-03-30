@@ -362,6 +362,7 @@ message TickDelta {
     double equity = 8;
     double free_margin = 9;
     map<string, Position> positions = 10;
+    repeated TradeSignalProto new_signals = 11;  // Phase 18: clock-gated signal delivery
 }
 
 message LiquidationEvent {
