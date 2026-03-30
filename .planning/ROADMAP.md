@@ -103,18 +103,19 @@ Plans:
 - [ ] 19-02-PLAN.md — Python client write_signal()/get_processed_signals() wrappers, datasource skeleton package
 
 ### Phase 20: ESDB Persistence
-**Goal**: Live environments persist signals to EventStoreDB with queryability by name, symbol, and timeframe
+**Goal**: Live environments persist signals to a single global EventStoreDB stream with Go-side queryability by name, symbol, and timeframe
 **Depends on**: Phase 19
 **Requirements**: REPO-02, QUERY-01
 **Success Criteria** (what must be TRUE):
-  1. ESDBSignalRepository writes signals to per-symbol EventStoreDB streams in live mode
+  1. ESDBSignalRepository writes signals to the global `trade-signals` EventStoreDB stream in live mode
   2. Environment-based injection selects InMemory (sim) or ESDB (live) repository at startup
-  3. Signals are queryable in EventStoreDB by name, symbol, and timeframe attributes
+  3. Signals are queryable by name, symbol, and timeframe via Go-side filtering (read stream + filter)
   4. Integration test verifies signal write-read round-trip through ESDB
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: TBD
+- [ ] 20-01-PLAN.md — ESDBSignalRepository implementation, global stream name fix, unit tests
+- [ ] 20-02-PLAN.md — Environment-based injection wiring, ESDB integration test
 
 ### Phase 21: First Strategy Migration & Validation
 **Goal**: One existing strategy is fully migrated to consume TradeSignals, proving the migration pattern and behavioral diff testing approach
@@ -168,7 +169,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 17. Signal Foundation | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
-| 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
+| 20. ESDB Persistence | v3.0 | 0/2 | Not started | - |
 | 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
