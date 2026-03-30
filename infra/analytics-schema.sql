@@ -300,6 +300,62 @@ CREATE INDEX IF NOT EXISTS idx_backtest_runs_created
     ON backtest_runs (created_at DESC);
 
 -- =============================================================
+-- 4b. Spread analytics: GIN index, views
+-- =============================================================
+
+-- GIN index for JSONB attribute key extraction (spread_group_key, group_id lookups)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_records_attributes_gin
+  ON order_records USING gin (attributes jsonb_path_ops);
+
+-- v_spread_pnl: Per-spread-group realized P&L
+-- Recognizes both server-injected spread_group_key and existing group_id from credit_spread.py
+-- Only opening-side orders to avoid double-counting (same filter as v_playground_stats)
+CREATE OR REPLACE VIEW v_spread_pnl AS
+SELECT
+    COALESCE(
+        o.attributes->>'spread_group_key',
+        o.attributes->>'group_id'
+    ) AS spread_key,
+    o.playground_id,
+    COUNT(*) AS leg_count,
+    SUM(pnl.realized_pl) AS net_pnl,
+    BOOL_AND(o.status = 'filled') AS all_filled,
+    COUNT(*) FILTER (WHERE o.status = 'filled') AS filled_legs,
+    MIN(o.timestamp) AS entry_time,
+    MAX(o.timestamp) AS last_leg_time,
+    ARRAY_AGG(DISTINCT o.symbol) AS symbols,
+    ARRAY_AGG(DISTINCT o.attributes->>'leg_role') AS roles
+FROM order_records o
+JOIN v_order_pnl pnl ON pnl.order_id = o.id
+WHERE o.deleted_at IS NULL
+  AND (o.attributes->>'spread_group_key' IS NOT NULL
+       OR o.attributes->>'group_id' IS NOT NULL)
+  AND o.side IN ('buy', 'buy_to_open', 'sell_short', 'sell_to_open')
+GROUP BY
+    COALESCE(o.attributes->>'spread_group_key', o.attributes->>'group_id'),
+    o.playground_id;
+
+-- v_spread_stats: Aggregated spread performance per playground
+CREATE OR REPLACE VIEW v_spread_stats AS
+SELECT
+    playground_id,
+    COUNT(*) AS total_spreads,
+    SUM(net_pnl) AS total_net_pnl,
+    COUNT(*) FILTER (WHERE net_pnl > 0) AS winners,
+    COUNT(*) FILTER (WHERE net_pnl < 0) AS losers,
+    COUNT(*) FILTER (WHERE net_pnl = 0) AS breakeven,
+    CASE WHEN COUNT(*) > 0
+        THEN COUNT(*) FILTER (WHERE net_pnl > 0)::numeric / COUNT(*)
+        ELSE 0
+    END AS win_rate,
+    AVG(net_pnl) AS avg_spread_pnl,
+    AVG(net_pnl) FILTER (WHERE net_pnl > 0) AS avg_win,
+    AVG(net_pnl) FILTER (WHERE net_pnl < 0) AS avg_loss
+FROM v_spread_pnl
+WHERE all_filled
+GROUP BY playground_id;
+
+-- =============================================================
 -- 5. Grant SELECT on views and tables to metabase_ro
 -- =============================================================
 DO $$
@@ -312,6 +368,8 @@ BEGIN
         GRANT SELECT ON v_close_slippage TO metabase_ro;
         GRANT SELECT ON v_all_slippage TO metabase_ro;
         GRANT SELECT ON backtest_runs TO metabase_ro;
+        GRANT SELECT ON v_spread_pnl TO metabase_ro;
+        GRANT SELECT ON v_spread_stats TO metabase_ro;
         RAISE NOTICE 'Granted SELECT on analytics views and backtest_runs to metabase_ro';
     ELSE
         RAISE NOTICE 'Role metabase_ro does not exist -- skipping GRANTs. Run init-metabase.sql first, then re-run this file.';
