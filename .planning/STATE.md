@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-30T18:01:38.746Z"
-last_activity: 2026-03-30
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-30T18:53:25Z"
+last_activity: 2026-03-30 -- Phase 16 Plan 01 complete
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
-  percent: 20
+  total_plans: 8
+  completed_plans: 7
+  percent: 40
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 13 — analytics-schema-indexes
+**Current focus:** Phase 16 — spread-analytics
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-03-30
+Phase: 16 (spread-analytics) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete, Plan 02 pending
+Last activity: 2026-03-30 -- Phase 16 Plan 01 complete
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -60,6 +60,8 @@ Recent decisions affecting current work:
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
 - [Phase 15]: Metrics sourced from v_playground_stats view for dashboard consistency
 - [Phase 15]: psycopg2-binary used directly (not SQLAlchemy) for lightweight persistence
+- [Phase 16-01]: Extracted buildMultiLegRequests helper for testability instead of mocking concrete DatabaseService
+- [Phase 16-01]: COALESCE(spread_group_key, group_id) for backward compat with credit_spread.py
 
 ### Pending Todos
 
@@ -81,9 +83,10 @@ None yet.
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
 | Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
 | Phase 15 P01 | 4m4s | 3 tasks | 6 files |
+| Phase 16 P01 | 4min | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-03-30T18:01:38.723Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-spread-analytics/16-CONTEXT.md
+Last session: 2026-03-30T18:53:25Z
+Stopped at: Completed 16-01-PLAN.md
+Resume file: .planning/phases/16-spread-analytics/16-02-PLAN.md

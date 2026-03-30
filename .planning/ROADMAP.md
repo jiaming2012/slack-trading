@@ -119,7 +119,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md — Go handler spread attribute injection, SQL views (v_spread_pnl, v_spread_stats), GIN index, unit test
+- [x] 16-01-PLAN.md — Go handler spread attribute injection, SQL views (v_spread_pnl, v_spread_stats), GIN index, unit test
 - [ ] 16-02-PLAN.md — Spread Analytics Metabase dashboard and E2E integration test
 
 ## Progress
@@ -144,4 +144,4 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | Complete    | 2026-03-30 |
-| 16. Spread Analytics | v2.0 | 0/2 | Planned | - |
+| 16. Spread Analytics | v2.0 | 1/2 | In Progress|  |

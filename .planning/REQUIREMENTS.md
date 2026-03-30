@@ -12,8 +12,8 @@
 
 - [x] **SCHEMA-01**: Composite indexes on order_records/trade_records for analytics queries
 - [x] **SCHEMA-02**: SQL views for P&L, win rate, profit factor (matching playground_metrics.py logic)
-- [ ] **SCHEMA-03**: `spread_groups` and `spread_group_legs` tables for multi-leg option grouping
-- [ ] **SCHEMA-04**: SQL view for spread-aware P&L (net spread profit, not per-leg)
+- [x] **SCHEMA-03**: `spread_groups` and `spread_group_legs` tables for multi-leg option grouping
+- [x] **SCHEMA-04**: SQL view for spread-aware P&L (net spread profit, not per-leg)
 
 ## Backtest Persistence
 
@@ -30,8 +30,8 @@
 
 ## Spread Analytics
 
-- [ ] **SPREAD-01**: Go server registers spread legs via spread_group_key attribute on PlaceMultiLegOrder
-- [ ] **SPREAD-02**: Python strategies emit spread_group_key for multi-leg orders
+- [x] **SPREAD-01**: Go server registers spread legs via spread_group_key attribute on PlaceMultiLegOrder
+- [x] **SPREAD-02**: Python strategies emit spread_group_key for multi-leg orders
 
 ## Future Requirements
 
