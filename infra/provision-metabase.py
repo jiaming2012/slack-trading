@@ -145,6 +145,23 @@ PLAYGROUND_PARAMETER = {
     "sectionId": "string",
 }
 
+STRATEGY_TEMPLATE_TAGS = {
+    "strategy_name": {
+        "id": "strategy_filter",
+        "name": "strategy_name",
+        "display-name": "Strategy",
+        "type": "text",
+    }
+}
+
+STRATEGY_PARAMETER = {
+    "id": "strategy_filter",
+    "name": "Strategy",
+    "slug": "strategy",
+    "type": "string/=",
+    "sectionId": "string",
+}
+
 
 def _make_card(name, db_id, sql, display="table", viz_settings=None):
     """Build a native SQL card payload."""
@@ -175,6 +192,35 @@ def _param_mapping(card_id):
     ]
 
 
+def _make_strategy_card(name, db_id, sql, display="table", viz_settings=None):
+    """Build a native SQL card with strategy_name template tag."""
+    payload = {
+        "name": name,
+        "dataset_query": {
+            "database": db_id,
+            "type": "native",
+            "native": {
+                "query": sql,
+                "template-tags": STRATEGY_TEMPLATE_TAGS,
+            },
+        },
+        "display": display,
+        "visualization_settings": viz_settings or {},
+    }
+    return payload
+
+
+def _strategy_param_mapping(card_id):
+    """Strategy filter -> template-tag mapping for comparison cards."""
+    return [
+        {
+            "parameter_id": "strategy_filter",
+            "card_id": card_id,
+            "target": ["variable", ["template-tag", "strategy_name"]],
+        }
+    ]
+
+
 _next_dashcard_id = 0
 
 
@@ -193,6 +239,21 @@ def _dash_card(card_id, row, col, size_x, size_y):
         "size_x": size_x,
         "size_y": size_y,
         "parameter_mappings": _param_mapping(card_id),
+    }
+
+
+def _strategy_dash_card(card_id, row, col, size_x, size_y):
+    """Build a dashboard card entry with strategy parameter mapping."""
+    global _next_dashcard_id
+    _next_dashcard_id -= 1
+    return {
+        "id": _next_dashcard_id,
+        "card_id": card_id,
+        "row": row,
+        "col": col,
+        "size_x": size_x,
+        "size_y": size_y,
+        "parameter_mappings": _strategy_param_mapping(card_id),
     }
 
 
@@ -457,6 +518,93 @@ def assemble_portfolio_analytics(session, base_url, cards):
 
 
 # ---------------------------------------------------------------------------
+# Dashboard 4: Strategy Comparison
+# ---------------------------------------------------------------------------
+
+def build_strategy_comparison_cards(session, base_url, db_id):
+    """Create all cards for the Strategy Comparison dashboard."""
+    cards = {}
+
+    cards["runs_table"] = upsert_card(session, base_url, _make_strategy_card(
+        "Comparison: Backtest Runs", db_id,
+        """SELECT br.client_id, br.strategy_name, br.starting_balance,
+       br.final_balance, br.total_pnl, br.win_rate,
+       br.profit_factor, br.total_trades,
+       br.start_date, br.end_date, br.created_at
+FROM backtest_runs br
+WHERE ({{strategy_name}} = '' OR br.strategy_name = {{strategy_name}})
+ORDER BY br.created_at DESC""",
+        display="table",
+    ))
+
+    cards["equity_curves"] = upsert_card(session, base_url, _make_strategy_card(
+        "Comparison: Equity Curves", db_id,
+        """SELECT e.timestamp, e.equity, br.client_id
+FROM equity_plot_records e
+JOIN backtest_runs br ON br.playground_id = e.playground_session_id
+WHERE ({{strategy_name}} = '' OR br.strategy_name = {{strategy_name}})
+ORDER BY br.client_id, e.timestamp""",
+        display="line",
+        viz_settings={
+            "graph.x_axis.column": "timestamp",
+            "graph.metrics": ["equity"],
+            "graph.dimensions": ["client_id"],
+        },
+    ))
+
+    cards["parameters"] = upsert_card(session, base_url, _make_strategy_card(
+        "Comparison: Parameter Values", db_id,
+        """SELECT br.client_id, br.strategy_name, br.total_pnl, br.win_rate,
+       br.profit_factor, br.parameters
+FROM backtest_runs br
+WHERE ({{strategy_name}} = '' OR br.strategy_name = {{strategy_name}})
+ORDER BY br.total_pnl DESC""",
+        display="table",
+    ))
+
+    cards["best_return"] = upsert_card(session, base_url, _make_strategy_card(
+        "Comparison: Best Return", db_id,
+        """SELECT br.client_id || ': $' || ROUND(br.total_pnl, 2)
+FROM backtest_runs br
+WHERE ({{strategy_name}} = '' OR br.strategy_name = {{strategy_name}})
+ORDER BY br.total_pnl DESC
+LIMIT 1""",
+        display="scalar",
+    ))
+
+    cards["worst_return"] = upsert_card(session, base_url, _make_strategy_card(
+        "Comparison: Worst Return", db_id,
+        """SELECT br.client_id || ': $' || ROUND(br.total_pnl, 2)
+FROM backtest_runs br
+WHERE ({{strategy_name}} = '' OR br.strategy_name = {{strategy_name}})
+ORDER BY br.total_pnl ASC
+LIMIT 1""",
+        display="scalar",
+    ))
+
+    return cards
+
+
+def assemble_strategy_comparison(session, base_url, cards):
+    """Create the Strategy Comparison dashboard and lay out cards."""
+    dash_id = upsert_dashboard(session, base_url, {
+        "name": "Strategy Comparison",
+        "parameters": [STRATEGY_PARAMETER],
+    })
+
+    layout = [
+        _strategy_dash_card(cards["best_return"], row=0, col=0, size_x=9, size_y=3),
+        _strategy_dash_card(cards["worst_return"], row=0, col=9, size_x=9, size_y=3),
+        _strategy_dash_card(cards["runs_table"], row=3, col=0, size_x=18, size_y=8),
+        _strategy_dash_card(cards["equity_curves"], row=11, col=0, size_x=18, size_y=8),
+        _strategy_dash_card(cards["parameters"], row=19, col=0, size_x=18, size_y=6),
+    ]
+
+    set_dashboard_cards(session, base_url, dash_id, layout)
+    return dash_id
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -518,12 +666,19 @@ def main():
     pa_dash = assemble_portfolio_analytics(session, base_url, pa_cards)
     print(f"Dashboard ready: Portfolio Analytics (id={pa_dash})")
 
+    # Dashboard 4: Strategy Comparison
+    print("\n--- Strategy Comparison ---")
+    sc_cards = build_strategy_comparison_cards(session, base_url, db_id)
+    sc_dash = assemble_strategy_comparison(session, base_url, sc_cards)
+    print(f"Dashboard ready: Strategy Comparison (id={sc_dash})")
+
     # Summary
-    total_cards = len(tp_cards) + len(sl_cards) + len(pa_cards)
-    print(f"\nDone: 3 dashboards, {total_cards} cards provisioned.")
-    print(f"  Trading Performance: {base_url}/dashboard/{tp_dash}")
-    print(f"  Slippage Analysis:   {base_url}/dashboard/{sl_dash}")
-    print(f"  Portfolio Analytics:  {base_url}/dashboard/{pa_dash}")
+    total_cards = len(tp_cards) + len(sl_cards) + len(pa_cards) + len(sc_cards)
+    print(f"\nDone: 4 dashboards, {total_cards} cards provisioned.")
+    print(f"  Trading Performance:  {base_url}/dashboard/{tp_dash}")
+    print(f"  Slippage Analysis:    {base_url}/dashboard/{sl_dash}")
+    print(f"  Portfolio Analytics:   {base_url}/dashboard/{pa_dash}")
+    print(f"  Strategy Comparison:   {base_url}/dashboard/{sc_dash}")
 
 
 if __name__ == "__main__":
