@@ -43,7 +43,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - Integer phases (12, 13, 14): Planned milestone work
 - Decimal phases (12.1, 12.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on DO droplet with JVM-capped memory, Postgres-backed app DB, and isolated read-only credentials
+- [ ] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
 - [ ] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables
 - [ ] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data
 - [ ] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard
@@ -52,18 +52,18 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 ## Phase Details
 
 ### Phase 12: Deploy Metabase & Harden Infrastructure
-**Goal**: Metabase is accessible on port 3001, backed by a dedicated Postgres app database, with JVM memory capped and trading DB access isolated to a read-only user -- without degrading the running trading server
+**Goal**: Metabase is accessible at localhost:3001 on the user's desktop, backed by a dedicated Postgres app database on DO, with trading DB access isolated to a read-only user
 **Depends on**: Nothing (first phase of v2.0)
 **Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05
 **Success Criteria** (what must be TRUE):
-  1. Operator can open Metabase UI at the droplet's port 3001 from a browser
+  1. Operator can open Metabase UI at localhost:3001 from desktop browser
   2. Metabase container restart preserves all saved questions and dashboards (Postgres app DB, not H2)
-  3. `docker stats` during Metabase startup shows JVM stays under 1.5GB and Go server memory/latency are unaffected
+  3. JVM stays under configured limit locally (mem_limit 1.5GB, -Xmx768m)
   4. Metabase can query trading tables but cannot INSERT, UPDATE, or DELETE any trading data
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Local Metabase deployment with DB setup and infrastructure hardening
 
 ### Phase 13: Analytics Schema & Indexes
 **Goal**: Trading database has composite indexes and SQL views that make P&L, win rate, and profit factor queryable without full table scans -- and Metabase is connected with safe sync settings
@@ -138,7 +138,7 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
-| 12. Deploy Metabase & Harden Infrastructure | v2.0 | 0/0 | Not started | - |
+| 12. Deploy Metabase & Harden Infrastructure | v2.0 | 0/1 | Planning | - |
 | 13. Analytics Schema & Indexes | v2.0 | 0/0 | Not started | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
