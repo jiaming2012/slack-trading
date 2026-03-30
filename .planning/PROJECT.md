@@ -10,7 +10,18 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ## Current State
 
-**v1.0 shipped 2026-03-28.** Full observability stack running in production on DigitalOcean (159.89.226.131).
+**v1.1 shipped 2026-03-30.** Dashboard enhancements deployed to production.
+
+- All OTel metrics include client_id label for per-playground filtering
+- Grafana dashboard with client_id/playground_id dropdowns, enriched panels
+- Per-strategy dashboards: Mean Reversion + Covered Call with strategy-specific panels
+- Signal filtering by signal_type, candle filtering by symbol
+- Per-playground Python heartbeat (not binary)
+- trace_id in order event and position detail panels
+- order_filled log bug fixed (was showing zero quantity)
+
+<details>
+<summary>v1.0 (shipped 2026-03-28)</summary>
 
 - Go server instrumented with OTel traces, metrics, and structured logs
 - Python strategy clients instrumented with OTel spans and heartbeat
@@ -18,6 +29,8 @@ When a live simulation is running, the operator can always tell whether the syst
 - Alerting rules for heartbeat staleness and error rate spikes
 - End-to-end trace propagation from Python tick loop through Go Twirp RPC
 - Logs flowing to Loki via OTLP log bridge (logrus → OTel Log SDK)
+
+</details>
 
 ## Requirements
 
@@ -93,4 +106,4 @@ When a live simulation is running, the operator can always tell whether the syst
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-29 after v1.1 milestone start*
+*Last updated: 2026-03-30 after v1.1 milestone*

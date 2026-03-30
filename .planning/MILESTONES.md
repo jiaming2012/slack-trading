@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.1 Dashboard Enhancements (Shipped: 2026-03-30)
+
+**Phases completed:** 4 phases, 4 plans, 9 tasks
+
+**Key accomplishments:**
+
+- Added client_id label to all OTel metrics via PlaygroundAttrs, fixed order_filled log reporting zero fill_quantity from Trade-based ExecutionFillRequest
+- Grafana dashboard with client_id dropdown filter, Active Playgrounds table, Open Orders detail from Loki, and traceID in order/position log panels
+- Two Grafana dashboards (mean_reversion + covered_call) with strategy-specific panels, pre-filtered signal queries, and Docker Compose auto-provisioning
+
+---
+
 ## v1.0 Live Simulation Observability (Shipped: 2026-03-28)
 
 **Phases completed:** 7 phases, 18 plans, 34 tasks
