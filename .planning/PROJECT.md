@@ -52,21 +52,19 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ### Active
 
-(See REQUIREMENTS.md for v1.1 scoped requirements)
+(See REQUIREMENTS.md for v2.0 scoped requirements)
 
-## Current Milestone: v1.1 Dashboard Enhancements
+## Current Milestone: v2.0 Metabase Analytics
 
-**Goal:** Improve Grafana dashboard usability with per-playground filtering, richer panel detail, client_id labels across all metrics, and per-strategy dashboards.
+**Goal:** Add Metabase alongside Grafana for business-level trading analytics with spread-aware P&L, strategy optimization, and backtest persistence.
 
 **Target features:**
-- Playground filter showing client_id (fallback to playground_id)
-- client_id as OTel metric label on all Go-side instruments
-- Active playgrounds listing client_id/playground_id instead of count
-- Python heartbeat per playground (not binary)
-- Open orders showing symbol + quantity detail
-- Signals filtering by signal_type, candles filtering by symbol
-- Fix order_filled quantity in logs, add trace_id to order/position panels
-- Per-strategy dashboards (separate dashboard per strategy type)
+- Metabase deployed on DO droplet via docker-compose (Postgres connection)
+- Trading performance dashboards: P&L, profit factor, win rate, slippage, trade duration
+- Spread-aware analytics: multi-leg options grouped as single trades
+- Strategy optimization: compare backtests and strategy types
+- Simulator playground persistence: save backtest results to Postgres
+- Portfolio analytics with per-symbol and per-asset-class breakdown
 
 ### Out of Scope
 
@@ -106,4 +104,4 @@ When a live simulation is running, the operator can always tell whether the syst
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-30 after v1.1 milestone*
+*Last updated: 2026-03-30 after v2.0 milestone start*

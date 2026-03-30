@@ -1,36 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Dashboard Enhancements
-status: verifying
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-30T00:16:24.898Z"
-last_activity: 2026-03-30
+milestone: v2.0
+milestone_name: Metabase Analytics
+status: planning
+stopped_at: ""
+last_updated: "2026-03-30T01:00:00.000Z"
+last_activity: 2026-03-30 -- Milestone v2.0 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-29)
+See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 11 — per-strategy-dashboards
+**Current focus:** Milestone v2.0 — Metabase Analytics
 
 ## Current Position
 
-Phase: 11 (per-strategy-dashboards) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-03-30
-
-Progress: [####################] 50% (2/4 phases)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-30 — Milestone v2.0 started
 
 ## Performance Metrics
 
