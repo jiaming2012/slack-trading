@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: planning
-stopped_at: Phase 17 context gathered
-last_updated: "2026-03-30T20:00:12.008Z"
-last_activity: 2026-03-30 -- Roadmap created for v3.0
+status: executing
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-30T20:22:28.522Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Milestone v3.0 -- TradeSignal Framework (Phase 17 ready to plan)
+**Current focus:** Phase 17 — signal-foundation
 
 ## Current Position
 
-Phase: 17 of 23 (Signal Foundation)
-Plan: --
-Status: Ready to plan
-Last activity: 2026-03-30 -- Roadmap created for v3.0
+Phase: 17 (signal-foundation) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-30
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -59,6 +59,8 @@ Recent decisions affecting current work:
 - [Roadmap v3.0]: MIG-03 (diff testing) in Phase 21 to prove pattern before bulk migration in Phase 22
 - [Roadmap v3.0]: signal_id optional during migration phases, required after Phase 22 completion
 - [Research]: WriteSignal via Twirp RPC (single-writer principle) over direct Python-to-ESDB writes
+- [Phase 17]: Preserved existing SignalName constants and appended new ones for backward compatibility
+- [Phase 17]: TradeSignal Attributes: map[string]interface{} in Go, map<string,string> in proto per D-02 design
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T20:00:12.001Z
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-signal-foundation/17-CONTEXT.md
+Last session: 2026-03-30T20:22:28.518Z
+Stopped at: Completed 17-01-PLAN.md
+Resume file: None

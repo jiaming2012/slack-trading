@@ -69,7 +69,7 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — TradeSignal type, SignalName registry, proto TradeSignalProto message
+- [x] 17-01-PLAN.md — TradeSignal type, SignalName registry, proto TradeSignalProto message
 - [ ] 17-02-PLAN.md — signal_id wiring through order lifecycle (PlaceOrder -> OrderRecord -> response)
 
 ### Phase 18: Signal Repository & Sim Mode
@@ -163,7 +163,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Signal Foundation | v3.0 | 0/2 | Not started | - |
+| 17. Signal Foundation | v3.0 | 1/2 | In Progress|  |
 | 18. Signal Repository & Sim Mode | v3.0 | 0/1 | Not started | - |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
