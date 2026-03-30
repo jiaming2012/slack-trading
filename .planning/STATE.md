@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Completed 18-01-PLAN.md
-last_updated: "2026-03-30T21:58:33.265Z"
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-03-30T22:06:19Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 0
+  completed_plans: 4
+  percent: 29
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 18 — signal-repository-sim-mode
+**Current focus:** Phase 19 — RPC Endpoints & Python Integration
 
 ## Current Position
 
-Phase: 18 (signal-repository-sim-mode) -- EXECUTING
-Plan: 2 of 2 (18-01 complete)
-Status: Executing Phase 18
-Last activity: 2026-03-30 -- Completed 18-01 (ISignalRepository + InMemorySignalRepository)
+Phase: 18 (signal-repository-sim-mode) -- COMPLETE
+Plan: 2 of 2 (all complete)
+Status: Phase 18 complete, ready for Phase 19
+Last activity: 2026-03-30 -- Completed 18-02 (TickDelta wiring + ESDB batch persistence)
 
-Progress: [████████░░] 75%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 17]: SignalID set post-construction in commitOrderRecord to avoid modifying PopulateOrderRecord 20+ param signature
 - [Phase 18-01]: Single global signal stream (no per-symbol partitioning) per D-01 design
 - [Phase 18-01]: Cursor adjustment on pre-cursor insertion prevents signal skipping
+- [Phase 18-02]: Attributes map[string]interface{} converted to map[string]string via fmt.Sprintf for proto
+- [Phase 18-02]: ESDB persistence uses existing pub/sub pattern (PublishAndSaveEvent) for architectural consistency
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T21:57:49Z
-Stopped at: Completed 18-01-PLAN.md
-Resume file: .planning/phases/18-signal-repository-sim-mode/18-02-PLAN.md
+Last session: 2026-03-30T22:06:19Z
+Stopped at: Completed 18-02-PLAN.md
+Resume file: Phase 19 planning needed

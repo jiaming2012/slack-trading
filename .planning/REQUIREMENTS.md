@@ -10,7 +10,7 @@
 
 - [x] **REPO-01**: ISignalRepository interface with in-memory implementation for simulations
 - [ ] **REPO-02**: ESDBSignalRepository implementation for live environments, writing to per-symbol event streams
-- [ ] **REPO-03**: Opt-in persistence of sim signals to EventStoreDB via CLI flag
+- [x] **REPO-03**: Opt-in persistence of sim signals to EventStoreDB via CLI flag
 
 ## Datasource Scripts
 
@@ -54,9 +54,9 @@
 | SIG-01 | Phase 17 | | Pending |
 | SIG-02 | Phase 17 | | Pending |
 | SIG-03 | Phase 17 | | Pending |
-| REPO-01 | Phase 18 | | Pending |
+| REPO-01 | Phase 18 | 18-01 | Complete |
 | REPO-02 | Phase 20 | | Pending |
-| REPO-03 | Phase 18 | | Pending |
+| REPO-03 | Phase 18 | 18-02 | Complete |
 | DS-01 | Phase 19 | | Pending |
 | DS-02 | Phase 19 | | Pending |
 | DS-03 | Phase 19 | | Pending |
