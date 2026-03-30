@@ -1119,12 +1119,27 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 	// todo: handle limit order and requested price, which is a
 	// combination of multiple orders
+	spreadGroupKey := uuid.New().String()
+
 	var requests []*models.CreateOrderRequest
 	for _, leg := range req.Legs {
 		var closeOrderId *uint
 		if leg.CloseOrderId != nil {
 			closeOrderId = new(uint)
 			*closeOrderId = uint(*leg.CloseOrderId)
+		}
+
+		legRole := "unknown"
+		switch models.TradierOrderSide(leg.Side) {
+		case models.TradierOrderSideSellToOpen, models.TradierOrderSideSellShort:
+			legRole = "short"
+		case models.TradierOrderSideBuyToOpen, models.TradierOrderSideBuy:
+			legRole = "long"
+		}
+
+		attrs := map[string]string{
+			"spread_group_key": spreadGroupKey,
+			"leg_role":         legRole,
 		}
 
 		requests = append(requests, &models.CreateOrderRequest{
@@ -1138,6 +1153,7 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 			Tag:             leg.Tag,
 			CloseOrderId:    closeOrderId,
 			IsAdjustment:    false,
+			Attributes:      attrs,
 		})
 	}
 
