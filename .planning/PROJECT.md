@@ -10,7 +10,16 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ## Current State
 
-**v1.1 shipped 2026-03-30.** Dashboard enhancements deployed to production.
+**v2.0 shipped 2026-03-30.** Metabase analytics layer deployed alongside Grafana.
+
+- 5 Metabase dashboards (Trading Performance, Slippage, Portfolio, Strategy Comparison, Spread Analytics) provisioned programmatically via `infra/provision-metabase.py`
+- 8 SQL analytics views (P&L, slippage, stats, spreads) in `infra/analytics-schema.sql`
+- Backtest persistence with `--save-to-db` flag, `backtest_runs` summary table
+- Spread grouping: Go server auto-injects `spread_group_key` on PlaceMultiLegOrder
+- Metabase on Windows desktop, Postgres on DO droplet with read-only `metabase_ro` user
+
+<details>
+<summary>v1.1 (shipped 2026-03-30)</summary>
 
 - All OTel metrics include client_id label for per-playground filtering
 - Grafana dashboard with client_id/playground_id dropdowns, enriched panels
@@ -19,6 +28,8 @@ When a live simulation is running, the operator can always tell whether the syst
 - Per-playground Python heartbeat (not binary)
 - trace_id in order event and position detail panels
 - order_filled log bug fixed (was showing zero quantity)
+
+</details>
 
 <details>
 <summary>v1.0 (shipped 2026-03-28)</summary>
@@ -36,27 +47,17 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ### Validated
 
-- ✓ TracerProvider and MeterProvider initialized in Go server — v1.0 (Phase 2)
-- ✓ Order lifecycle instrumented (placed, filled, rejected) with traces and structured logs — v1.0 (Phase 3)
-- ✓ Strategy decision flow instrumented in Python with OTel — v1.0 (Phase 4)
-- ✓ Market data flow instrumented (candle arrival, tick processing, data gaps) — v1.0 (Phase 3)
-- ✓ Heartbeat: periodic metric gauge + log from strategy and server — v1.0 (Phase 3, 4)
-- ✓ Local Grafana + Loki + OTel Collector via Docker Compose — v1.0 (Phase 2)
-- ✓ Grafana dashboard: live sim activity, strategy state, heartbeat indicator — v1.0 (Phase 6)
-- ✓ Grafana alerts: heartbeat stale, error spike — v1.0 (Phase 6)
-- ✓ Go infrastructure metrics (CPU, memory, request latency) — v1.0 (Phase 2)
-- ✓ Python OTel instrumentation for strategy clients — v1.0 (Phase 4)
-- ✓ Deploy observability stack to Digital Ocean — v1.0 (Phase 7)
-- ✓ Python codebase restructured into maintainable directory structure — v1.0 (Phase 1)
-- ✓ End-to-end tick tracing from Python through Go and back — v1.0 (Phase 5)
+- ✓ All v1.0 observability requirements — v1.0 (Phases 1-7)
+- ✓ All v1.1 dashboard enhancement requirements — v1.1 (Phases 8-11)
+- ✓ Metabase infrastructure (docker-compose, metabase_ro, cloud firewall) — v2.0 (Phase 12)
+- ✓ Analytics schema (composite indexes, P&L/slippage/stats SQL views) — v2.0 (Phase 13)
+- ✓ Core performance dashboards (Trading, Slippage, Portfolio) — v2.0 (Phase 14)
+- ✓ Simulator persistence + backtest comparison dashboard — v2.0 (Phase 15)
+- ✓ Spread analytics (grouping, views, dashboard) — v2.0 (Phase 16)
 
 ### Active
 
-(See REQUIREMENTS.md for v2.0 scoped requirements)
-
-## Current Milestone: v2.0 Metabase Analytics
-
-**Goal:** Add Metabase alongside Grafana for business-level trading analytics with spread-aware P&L, strategy optimization, and backtest persistence.
+(None — start next milestone with `/gsd:new-milestone`)
 
 **Target features:**
 - Metabase deployed on DO droplet via docker-compose (Postgres connection)

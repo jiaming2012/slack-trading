@@ -1,5 +1,22 @@
 # Milestones
 
+## v2.0 Metabase Analytics (Shipped: 2026-03-30)
+
+**Phases completed:** 5 phases, 8 plans, 17 tasks
+
+**Key accomplishments:**
+
+- Local Metabase docker-compose (v0.59.4 on port 3001) with idempotent SQL creating metabaseappdb + read-only metabase_ro user on DO Postgres
+- Composite indexes on trading tables and SQL views replicating CalcRealizedPL() for Metabase P&L, win rate, and profit factor analytics
+- Metabase provisioning script creating 3 dashboards (Trading Performance, Slippage Analysis, Portfolio Analytics) with 15 native SQL cards, playground filters, and equity curve with drawdown
+- 6 SQL analytics views deployed and 3 Metabase dashboards (Trading Performance, Slippage Analysis, Portfolio Analytics) provisioned and verified with real trading data
+- backtest_runs SQL table with psycopg2 persistence module, strategy parameter capture via get_parameters(), and --save-to-db CLI flag on demo script
+- Strategy Comparison dashboard with 5 cards (runs table, equity curves overlay, parameter comparison, best/worst return scalars) filtered by strategy_name
+- PlaceMultiLegOrder injects shared spread_group_key UUID + leg_role into each leg's attributes; SQL views aggregate per-spread P&L with GIN index
+- Metabase Dashboard 5 with spread summary/timeline/detail cards plus E2E test validating PlaceMultiLegOrder attribute injection round-trip
+
+---
+
 ## v1.1 Dashboard Enhancements (Shipped: 2026-03-30)
 
 **Phases completed:** 4 phases, 4 plans, 9 tasks
