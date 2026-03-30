@@ -10,8 +10,8 @@
 
 ## Analytics Schema
 
-- [ ] **SCHEMA-01**: Composite indexes on order_records/trade_records for analytics queries
-- [ ] **SCHEMA-02**: SQL views for P&L, win rate, profit factor (matching playground_metrics.py logic)
+- [x] **SCHEMA-01**: Composite indexes on order_records/trade_records for analytics queries
+- [x] **SCHEMA-02**: SQL views for P&L, win rate, profit factor (matching playground_metrics.py logic)
 - [ ] **SCHEMA-03**: `spread_groups` and `spread_group_legs` tables for multi-leg option grouping
 - [ ] **SCHEMA-04**: SQL view for spread-aware P&L (net spread profit, not per-leg)
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
-status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-30T01:26:00Z"
-last_activity: 2026-03-30 -- Phase 12 Plan 01 completed
+status: verifying
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-30T13:19:06.253Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
   percent: 20
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 ## Current Position
 
-Phase: 13 (analytics-schema-indexes) — Planning complete
-Plan: 0 of 1 (planned)
-Status: Phase 13 planned, ready for execution
-Last activity: 2026-03-30 -- Phase 13 Plan 01 created
+Phase: 13 (analytics-schema-indexes) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-03-30
 
 Progress: [██░░░░░░░░] 20%
 
@@ -58,6 +58,8 @@ Recent decisions affecting current work:
 - [Roadmap v2.0]: Spread analytics last (Phase 16) -- highest complexity, needs stable P&L baselines from Phase 14
 - [Roadmap v2.0]: DASH-03 grouped with PERSIST phase (not core dashboards) because it requires backtest_runs data
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
+- [Phase 13]: Used simple AVG(price) not VWAP for GetAvgFillPrice to match Go server CalcRealizedPL() as authoritative source
+- [Phase 13]: v_playground_stats aggregates only opening-side orders to avoid double-counting P&L
 
 ### Pending Todos
 
@@ -81,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30
-Stopped at: Phase 13 planned
+Last session: 2026-03-30T13:19:01.348Z
+Stopped at: Completed 13-01-PLAN.md
 Resume file: None

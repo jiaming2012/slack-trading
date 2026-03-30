@@ -44,7 +44,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - Decimal phases (12.1, 12.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
-- [ ] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables
+- [x] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables (completed 2026-03-30)
 - [ ] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data
 - [ ] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard
 - [ ] **Phase 16: Spread Analytics** - Multi-leg option strategies grouped as single trades with spread-aware P&L dashboards
@@ -76,7 +76,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Composite indexes, P&L/win-rate/profit-factor SQL views, and Metabase admin configuration
+- [x] 13-01-PLAN.md — Composite indexes, P&L/win-rate/profit-factor SQL views, and Metabase admin configuration
 
 ### Phase 14: Core Performance Dashboards
 **Goal**: Operator can select any playground and see its trading performance -- P&L, win rate, profit factor, slippage, and per-symbol breakdown -- all from Metabase
@@ -139,7 +139,7 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
-| 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
+| 13. Analytics Schema & Indexes | v2.0 | 1/1 | Complete   | 2026-03-30 |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
