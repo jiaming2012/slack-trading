@@ -1119,6 +1119,29 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 	// todo: handle limit order and requested price, which is a
 	// combination of multiple orders
+	requests := buildMultiLegRequests(req)
+
+	orders, err := s.dbService.PlaceOrders(playgroundID, requests)
+	if err != nil {
+		return nil, fmt.Errorf("PlaceMultiLegOrder: %v", err)
+	}
+
+	var resultOrders []*pb.Order
+	for _, order := range orders {
+		orderDTO := convertOrder(order, nil)
+		resultOrders = append(resultOrders, orderDTO)
+
+		log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
+	}
+
+	return &pb.PlaceMultiLegOrderResponse{
+		Orders: resultOrders,
+	}, nil
+}
+
+// buildMultiLegRequests converts a PlaceMultiLegOrderRequest into CreateOrderRequest
+// slice, injecting a shared spread_group_key UUID and per-leg leg_role attribute.
+func buildMultiLegRequests(req *pb.PlaceMultiLegOrderRequest) []*models.CreateOrderRequest {
 	spreadGroupKey := uuid.New().String()
 
 	var requests []*models.CreateOrderRequest
@@ -1157,22 +1180,7 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 		})
 	}
 
-	orders, err := s.dbService.PlaceOrders(playgroundID, requests)
-	if err != nil {
-		return nil, fmt.Errorf("PlaceMultiLegOrder: %v", err)
-	}
-
-	var resultOrders []*pb.Order
-	for _, order := range orders {
-		orderDTO := convertOrder(order, nil)
-		resultOrders = append(resultOrders, orderDTO)
-
-		log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
-	}
-
-	return &pb.PlaceMultiLegOrderResponse{
-		Orders: resultOrders,
-	}, nil
+	return requests
 }
 
 func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) ([]*pb.Order, error) {
