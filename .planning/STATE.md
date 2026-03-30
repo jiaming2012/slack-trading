@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Metabase Analytics
-status: verifying
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-03-30T19:22:00.174Z"
+milestone: v3.0
+milestone_name: TradeSignal Framework
+status: planning
+stopped_at: Defining requirements
+last_updated: "2026-03-30T20:00:00.000Z"
 last_activity: 2026-03-30
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
-  percent: 40
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 16 — spread-analytics
+**Current focus:** Milestone v3.0 — TradeSignal Framework (defining requirements)
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-30 — Milestone v3.0 started
 Last activity: 2026-03-30
 
 Progress: [████░░░░░░] 40%

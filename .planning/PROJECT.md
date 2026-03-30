@@ -57,15 +57,23 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ### Active
 
-(None — start next milestone with `/gsd:new-milestone`)
+(See REQUIREMENTS.md for v3.0 scoped requirements)
+
+## Current Milestone: v3.0 TradeSignal Framework
+
+**Goal:** Decouple signal production from strategy execution via a unified TradeSignal event stream, enabling replayable simulations, live signal persistence, and consistent live/sim parity.
 
 **Target features:**
-- Metabase deployed on DO droplet via docker-compose (Postgres connection)
-- Trading performance dashboards: P&L, profit factor, win rate, slippage, trade duration
-- Spread-aware analytics: multi-leg options grouped as single trades
-- Strategy optimization: compare backtests and strategy types
-- Simulator playground persistence: save backtest results to Postgres
-- Portfolio analytics with per-symbol and per-asset-class breakdown
+- TradeSignal struct (Name + Attributes + Timestamp) stored in EventStoreDB
+- Signal repositories: in-memory for sim, EventStoreDB for live, opt-in persistence
+- Standalone datasource scripts producing signals to a single event stream
+- Replay mode: simulate from persisted signal streams with integration tests
+- All existing strategies migrated to TradeSignal framework; originals moved to deprecated/
+- Single-signal-per-order rule: every PlaceOrderRequest from one TradeSignal
+- Live/sim parity: same code, only env vars differ
+- Signal queryability via EventStoreDB by name, symbol, timeframe
+- New gRPC endpoint to view processed signals per strategy
+- Telemetry integration: signals in OTel/Grafana, alerting on missing signals
 
 ### Out of Scope
 
@@ -105,4 +113,4 @@ When a live simulation is running, the operator can always tell whether the syst
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-30 after v2.0 milestone start*
+*Last updated: 2026-03-30 after v3.0 milestone start*
