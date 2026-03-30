@@ -11,11 +11,13 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
@@ -696,6 +698,21 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		return nil, fmt.Errorf("failed to save playground: %v", err)
 	}
 
+	// Batch-persist signals to ESDB (per D-04: sim batch-on-save)
+	if signalRepo := playground.GetSignalRepo(); signalRepo != nil {
+		signals := signalRepo.GetAll()
+		for _, signal := range signals {
+			eventpubsub.PublishAndSaveEvent(
+				"grpc:SavePlayground",
+				eventmodels.TradeSignalEventName,
+				signal,
+			)
+		}
+		if len(signals) > 0 {
+			log.Infof("SavePlayground: published %d signals for ESDB persistence", len(signals))
+		}
+	}
+
 	return &pb.EmptyResponse{}, nil
 }
 
@@ -932,6 +949,22 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		}
 	}
 
+	// Convert signals to proto
+	newSignals := make([]*pb.TradeSignalProto, 0, len(tick.NewSignals))
+	for _, sig := range tick.NewSignals {
+		attrs := make(map[string]string, len(sig.Attributes))
+		for k, v := range sig.Attributes {
+			attrs[k] = fmt.Sprintf("%v", v)
+		}
+		newSignals = append(newSignals, &pb.TradeSignalProto{
+			Id:         sig.ID.String(),
+			Name:       string(sig.Name),
+			Symbol:     string(sig.Symbol),
+			Timestamp:  timestamppb.New(sig.Timestamp),
+			Attributes: attrs,
+		})
+	}
+
 	tickDelta = &pb.TickDelta{
 		NewTrades:          newTrades,
 		NewCandles:         newCandles,
@@ -943,6 +976,7 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		Equity:             tick.Equity,
 		FreeMargin:         tick.FreeMargin,
 		Positions:          positions,
+		NewSignals:         newSignals,
 	}
 
 	isComplete = true

@@ -353,6 +353,7 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 	pubsub.Subscribe("esdbProducer", eventmodels.DeleteOptionAlertRequestEventName, cli.handleSaveRequest)
 	pubsub.Subscribe("esdbProducer", eventmodels.OptionAlertUpdateEventName, cli.handleSaveRequest)
 	pubsub.Subscribe("esdbProducer", eventmodels.CreateOptionContractEvent, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", eventmodels.TradeSignalEventName, cli.handleSaveRequest)
 	pubsub.Subscribe("esdbProducer", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
 	for _, param := range cli.readStreamParams {
