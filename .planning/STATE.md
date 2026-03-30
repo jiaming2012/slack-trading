@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-30T15:03:47.744Z"
-last_activity: 2026-03-30 -- Phase 14 execution started
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-30T15:28:22.690Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 4
   percent: 20
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 14 (core-performance-dashboards) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 14
-Last activity: 2026-03-30 -- Phase 14 execution started
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-30
 
 Progress: [██░░░░░░░░] 20%
 
@@ -60,6 +60,7 @@ Recent decisions affecting current work:
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
 - [Phase 13]: Used simple AVG(price) not VWAP for GetAvgFillPrice to match Go server CalcRealizedPL() as authoritative source
 - [Phase 13]: v_playground_stats aggregates only opening-side orders to avoid double-counting P&L
+- [Phase 14]: Metabase v0.59 API uses dashcards key and unique negative IDs for card creation
 
 ### Pending Todos
 
@@ -80,9 +81,10 @@ None yet.
 | 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
 | Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
+| Phase 14 P02 | human-gated | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-03-30T13:39:50.926Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-core-performance-dashboards/14-CONTEXT.md
+Last session: 2026-03-30T15:28:22.684Z
+Stopped at: Completed 14-02-PLAN.md
+Resume file: None
