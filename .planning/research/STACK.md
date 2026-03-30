@@ -1,149 +1,298 @@
 # Technology Stack
 
-**Project:** slack-trading (grodt) — Metabase Analytics (v2.0)
-**Researched:** 2026-03-29
-**Scope:** NEW additions only. Existing validated stack (Go, Python, OTel, Grafana, PostgreSQL, Docker Compose on DigitalOcean) is not re-researched.
+**Project:** TradeSignal Framework (v3.0 milestone)
+**Researched:** 2026-03-30
+**Scope:** NEW additions only. Existing validated stack (Go, Python, OTel, Grafana, PostgreSQL, EventStoreDB, Metabase) is not re-researched.
 
 ---
 
 ## What This Milestone Adds
 
-Three new capabilities on top of the shipped v1.1 stack:
+One new Python dependency and zero new Go dependencies. The TradeSignal framework is built almost entirely on existing infrastructure:
 
-1. **Metabase** — Business-level trading analytics dashboard (queries directly against PostgreSQL)
-2. **Analytics schema/views in PostgreSQL** — Spread-aware P&L, profit factor, slippage, win rate computed as SQL views
-3. **Simulator playground persistence** — Backtest results written to Postgres so Metabase can query historical runs
+1. **`esdbclient` (Python)** -- Python EventStoreDB gRPC client for standalone datasource scripts
+2. **New Go event types** -- `TradeSignal` struct following existing `SavedEvent` pattern
+3. **New ESDB stream naming** -- `trade-signals-{name}` leveraging category projections
+4. **Signal repository interface** -- in-memory (sim) and ESDB-backed (live) implementations
+5. **Proto additions** -- `GetProcessedSignals` RPC endpoint
 
 ---
 
-## New Stack Components
+## Already Present -- DO NOT Add
 
-### Metabase
+These are confirmed in the codebase and cover the TradeSignal framework's needs.
+
+| Technology | Version | Location | Role in TradeSignal |
+|------------|---------|----------|---------------------|
+| EventStore-Client-Go/v4 | v4.1.0 | `go.mod` | ESDB append, read, subscribe for signal persistence |
+| EventStoreDB | 24.2.0-jammy | `docker-compose` | Signal event store. Category projections already enabled. |
+| google/uuid | v1.6.0 | `go.mod` | Event stream IDs for signals |
+| encoding/json | stdlib | all ESDB code | JSON serialization of signal events |
+| OpenTelemetry | v1.27.0 (Go) / 1.40.0 (Python) | `go.mod` / `requirements.txt` | Trace context propagation in signal events |
+| protobuf | v1.35.2 (Go) / 5.29.3 (Python) | `go.mod` / `requirements.txt` | Twirp RPC for signal query endpoint |
+| Twirp | v8.1.3 (Go) / 0.0.7 (Python) | `go.mod` / `requirements.txt` | Already has `RecordSignal` RPC; extend for `GetProcessedSignals` |
+| logrus | v1.9.3 | `go.mod` | Structured logging for signal lifecycle |
+| BaseRequestEvent | -- | `eventmodels/base_request_event.go` | Metadata embedding for signal events |
+| esdbConsumerStream[T] | -- | `eventconsumers/esdb_consumer_stream.go` | Generic typed consumer with replay support |
+| EsdbProducer | -- | `eventproducers/esdb_producer.go` | Appending events with OTel trace context |
+
+---
+
+## New Stack Component
+
+### Python EventStoreDB Client: `esdbclient`
 
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| `metabase/metabase` Docker image | v0.59.4 (OSS) | Business analytics UI — dashboards, SQL editor, question builder | Queries Postgres directly; no custom code needed for trading dashboards. v0.59 includes Data Studio (semantic layer) and AI SQL generation in OSS edition. |
+| `esdbclient` | >=1.0 (latest) | Python datasource scripts appending TradeSignal events directly to EventStoreDB | Official Python gRPC client maintained by Event Store Ltd. Tested with ESDB 24.10 LTS and Python 3.10 -- both match this project exactly. |
 
-**Configuration approach:**
-- Metabase's own application state (dashboards, questions, user accounts) stored in a dedicated PostgreSQL database (`metabase` database, same Postgres instance as trading data)
-- Trading data is the **data source** connection — same Postgres host, `playground` database, read-only credentials
-- Using the same Postgres instance for both is fine on a single-server deployment; the two databases are fully isolated
+**Confidence:** HIGH -- official client, tested against the project's Python version (3.10) and ESDB version (24.x).
 
-**Port:** Metabase defaults to 3000, which conflicts with `grafana/otel-lgtm` (also 3000). Resolve by running Metabase on **port 3001** via `MB_JETTY_PORT=3001` and exposing `3001:3000` in Docker Compose. Do NOT change otel-lgtm's port — Grafana provisioning is already tuned to it.
+**Why `esdbclient`:**
+- Standalone datasource scripts must write to ESDB independently of the Go server. A datasource script running a cron job or streaming from a market data feed should not require the Go server to be running.
+- gRPC protocol matches the Go client (consistency), unlike the deprecated AtomPub HTTP API.
+- Supports `append_to_stream()`, `get_stream()`, `subscribe_to_all()` -- everything needed for signal production and diagnostic replay.
 
-**Memory on 2vCPU/4GB droplet:** Metabase idles at ~600MB and needs ~1-1.5GB under load. The existing stack (Go server, Postgres, EventStoreDB, otel-lgtm) already consumes ~2-2.5GB. Adding Metabase is viable but tight — set `JAVA_OPTS=-Xmx768m` to cap JVM heap and leave headroom for the rest. If the droplet becomes unstable, upgrading to s-2vcpu-8gb is the next step.
+**Why NOT route signals through Go Twirp RPC:**
+- Datasource scripts are intended to be standalone processes, potentially running on different machines or schedules.
+- The Go server is the signal *consumer*, not the signal gateway. Decoupling producer from consumer is the core architectural goal of this milestone.
+- ESDB is the shared bus; both Go and Python speak to it directly.
 
-**Application database setup:** Must create the `metabase` database before first start:
-```sql
-CREATE DATABASE metabase WITH ENCODING 'UTF8';
-```
-This runs once via the existing `infra/init.sql` or a migration task.
+**Installation:**
 
-**Read-only credentials for data source:** Create a dedicated Postgres user that has SELECT-only on the `playground` database. This is what Metabase uses to query trading data — prevents accidental modification.
-```sql
-CREATE USER metabase_reader WITH PASSWORD '<secret>';
-GRANT CONNECT ON DATABASE playground TO metabase_reader;
-GRANT USAGE ON SCHEMA public TO metabase_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO metabase_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO metabase_reader;
-```
+```bash
+# Conda env (preferred)
+pip install esdbclient
 
-### PostgreSQL Analytics Schema
+# Or add to requirements.txt
+esdbclient>=1.0
 
-No new database engine is needed. Analytics are SQL views on top of existing GORM-managed tables (`order_records`, `trade_records`, `playgrounds`).
-
-**Pattern:** Use a dedicated `analytics` schema in the `playground` database to keep views separate from GORM-managed `public` schema tables. GORM ignores schemas outside `public` unless explicitly configured, so there is zero risk of collision.
-
-```sql
-CREATE SCHEMA IF NOT EXISTS analytics;
+# Or add to grodt.yml under pip section
+- esdbclient>=1.0
 ```
 
-Key views to create:
-
-| View | Purpose | Source Tables |
-|------|---------|---------------|
-| `analytics.trade_legs` | Flattens order_records with their trade fills | `order_records`, `trade_records` |
-| `analytics.spread_groups` | Groups multi-leg option trades by playground + timestamp proximity | `order_records` |
-| `analytics.pnl_per_trade` | P&L per completed round-trip (entry + close) using `order_closes` join table | `order_records`, `order_closes`, `trade_records` |
-| `analytics.backtest_summary` | Per-playground: profit factor, win rate, total P&L, trade count, duration | `playgrounds`, `analytics.pnl_per_trade` |
-| `analytics.equity_curve` | Time-series equity per playground | `equity_plot_records` |
-
-**Spread-aware grouping logic:** The existing `order_closes` many2many join table in the schema already links opening orders to their closing orders. A covered call spread (short call + long stock) can be grouped by `playground_id` + `tag` (which Python already sets via `Attributes` on `OrderRecord`). The `tag` column on `order_records` is the correct grouping key — enforce a convention like `"covered_call_2024-01-15"` at the Python strategy level.
-
-**Migration approach:** Views are idempotent (`CREATE OR REPLACE VIEW`). Add them to `infra/init.sql` (which runs on fresh Postgres start) AND provide a manual migration script for the live droplet. GORM auto-migration does not touch views — no conflict.
-
-### Simulator Playground Persistence
-
-**Current state:** Simulator (backtest) playgrounds are created in-memory only. `CreatePlayground` for `PlaygroundEnvironmentSimulator` does NOT call `SavePlaygroundSession`. Orders and trades are never written to Postgres for simulator runs.
-
-**What's needed:** A `SaveToDB: true` flag path for simulator playgrounds, matching what live and reconcile playgrounds already do. The database models (`Playground`, `OrderRecord`, `TradeRecord`) are already GORM-mapped — the tables exist. It's a behavioral change in the service layer, not a schema change.
-
-**Implementation surface:** `src/go/data/database_service.go` — `CreatePlayground` function, simulator branch (line ~927). Add `SavePlaygroundSession` call when `req.SaveToDB == true`. Python client passes `save_to_db: true` in `CreatePlayground` RPC when the backtest should be persisted for analytics.
-
-**Tagging convention for Metabase queries:** Simulator playgrounds need strategy-level tags to be queryable. The `Meta.Tags` (`pq.StringArray`) field already exists. Python should tag runs with `["simulator", "strategy:covered_call", "version:v7"]` before persisting.
+**Compatibility note:** `esdbclient` depends on `grpcio` and `protobuf`. The project already has `protobuf==5.29.3` pinned. Verify no `grpcio` version conflict with existing Python OTel packages (both use gRPC, should be compatible).
 
 ---
 
-## Docker Compose Addition
+## No Other New Dependencies Required
 
-Add to `docker-compose.prod.yaml` (and local `observability/docker-compose.yaml` for dev testing):
-
-```yaml
-  metabase:
-    image: metabase/metabase:v0.59.4
-    environment:
-      - MB_DB_TYPE=postgres
-      - MB_DB_DBNAME=metabase
-      - MB_DB_PORT=5432
-      - MB_DB_HOST=postgres
-      - MB_DB_USER=${METABASE_DB_USER}
-      - MB_DB_PASS=${METABASE_DB_PASS}
-      - MB_JETTY_PORT=3001
-      - JAVA_OPTS=-Xmx768m
-    ports:
-      - "3001:3001"
-    depends_on:
-      - postgres
-    volumes:
-      - metabase-data:/metabase-data
-    restart: unless-stopped
-```
-
-Add to `volumes:` block:
-```yaml
-  metabase-data:
-```
-
-Add to `.env.prod.template`:
-```
-METABASE_DB_USER=CHANGEME
-METABASE_DB_PASS=CHANGEME
-```
-
-**Note:** `metabase-data` volume is used by Metabase for JAR plugin storage and local file caching, not for primary state (that goes to `MB_DB_*` Postgres). It is still useful to mount to avoid container-restart side effects.
+| Capability Needed | Already Available Via |
+|---|---|
+| ESDB append/read/subscribe (Go) | `EventStore-Client-Go/v4` -- `esdb_producer.go`, `esdb_consumer.go` |
+| JSON serialization of signals | `encoding/json` (stdlib) |
+| Signal stream naming | `eventmodels.StreamName` type + constructor pattern in `stream_names.go` |
+| Generic typed consumers | `esdbConsumer[T]` and `esdbConsumerStream[T]` generics |
+| Event replay for simulation | `esdbConsumerStream.Replay()` method (already implemented) |
+| Trace context in ESDB events | `EsdbMetadata.SpanContext` + `utils.SerializeTraceContext` |
+| UUID event IDs | `google/uuid` |
+| In-memory mock repo (sim mode) | Pure Go slice + `sync.RWMutex`, no dependencies |
+| Proto definitions | `playground.proto` already has `RecordSignalRequest`; extend with new RPC |
+| Pub/sub event routing | `eventpubsub` package + `EventBus` |
 
 ---
 
-## What Does NOT Need to Change
+## Existing Patterns to Reuse
 
-| Existing Component | Status | Reason |
-|--------------------|--------|--------|
-| Go GORM models | No change | Existing tables (`order_records`, `trade_records`, `playgrounds`, `equity_plot_records`) are the data source. Analytics views read them. |
-| Python OTel instrumentation | No change | Metabase queries Postgres directly, not OTel pipelines. |
-| Grafana / otel-lgtm | No change | Grafana stays on port 3000 for operational metrics. Metabase is for business analytics. They are additive, not overlapping. |
-| `infra/init.sql` | Minor addition | Add `CREATE DATABASE metabase` and `CREATE SCHEMA analytics` + read-only user setup. |
-| Postgres version (13) | No change | Postgres 13 is fully supported by Metabase v0.59. (Metabase supports all current Postgres versions.) |
-| EventStoreDB | No change | Not involved in analytics at all. |
+### Go Event Model Pattern
+
+The codebase has a well-established pattern for ESDB events. `TradeSignal` must follow it exactly:
+
+1. **Define struct** in `eventmodels/` implementing `SavedEvent` interface
+2. **Embed `BaseRequestEvent`** for metadata support (`GetMetaData()`, `SetMetaData()`)
+3. **Return `SavedEventParameters`** with stream name, event name, schema version
+4. **Register stream name** as constant in `eventmodels/stream_names.go`
+5. **Register event name** as constant in `eventmodels/event_names.go`
+6. **Subscribe** in `esdb_producer.go` via `pubsub.Subscribe()` for the write path
+
+Existing reference: `CreateSignalRequestEventV1DTO` in `new_signal_request_event_v1.go` already does this for the legacy signal system (writes to `AccountsStream`). The new `TradeSignal` gets its own dedicated stream.
+
+### Consumer Variant Selection
+
+| Variant | File | Pattern | Use For TradeSignal |
+|---------|------|---------|---------------------|
+| `esdbConsumer[T]` | `esdb_consumer.go` | Batch read into memory slice, mutex-guarded | Signal repository: load all signals at startup, serve reads |
+| `esdbConsumerStream[T]` | `esdb_consumer_stream.go` | Channel-based streaming + replay | Live signal subscription + replay mode for simulations |
+
+**Recommendation:** Use `esdbConsumerStream[T]` because:
+- Has `Replay(ctx, startAtEventNumber)` method -- directly enables signal replay mode
+- Has `Start(ctx)` for live subscription mode
+- Carries `IsReplay` flag per event -- sim/live distinction built in
+- Propagates OTel trace context via `EsdbMetadata`
+- Channel-based (`GetEventCh()`) integrates cleanly with Go's concurrency model
+
+### ESDB Producer Write Path
+
+The existing `EsdbProducer.insert()` method handles:
+- Setting event stream ID (UUID)
+- Setting schema version from `SavedEventParameters`
+- Serializing OTel trace context into `EsdbMetadata`
+- Appending to the correct stream via `AppendToStream`
+
+TradeSignal events from the Go server (e.g., when a strategy emits a signal) use this path. TradeSignal events from Python datasource scripts bypass this entirely and write to ESDB via `esdbclient`.
 
 ---
 
-## Go Dependencies: None New
+## EventStoreDB Stream Design
 
-The simulator persistence change is a behavioral change to `database_service.go` — no new Go packages needed. GORM, uuid, and the existing Postgres driver are already present.
+### Stream Naming Convention
 
-## Python Dependencies: None New
+```
+trade-signals-{signal_name}
+```
 
-Python already calls `CreatePlayground` RPC. The only change is passing `save_to_db: true` in the protobuf request. No new Python packages.
+Examples:
+- `trade-signals-stochastic_rsi_buy`
+- `trade-signals-covered_call_entry`
+- `trade-signals-mean_reversion_long`
+
+**Why per-signal-name streams:**
+- EventStoreDB's `$by_category` system projection (already enabled via `EVENTSTORE_RUN_PROJECTIONS=All` + `EVENTSTORE_START_STANDARD_PROJECTIONS=true`) splits on the first `-` by default
+- All trade signal streams group under the `trade-signals` category
+- Enables `$ce-trade-signals` category stream for querying ALL signals across types
+- Matches existing naming pattern: `stock-ticks-{symbol}`, `option-chain-ticks-{symbol}`, `candles-{symbol}`, `fx-ticks-{symbol}`
+
+**Stream name constructor (Go):**
+```go
+// In eventmodels/stream_names.go
+const TradeSignalStream StreamName = "trade-signals"
+
+func NewTradeSignalStreamName(signalName string) StreamName {
+    return StreamName(fmt.Sprintf("%s-%s", TradeSignalStream, signalName))
+}
+```
+
+### Signal Event Type
+
+Use a single event type `TradeSignalCreated` for all signal events in the stream. The signal `Name` field inside the JSON payload provides the signal type -- the ESDB event type is the structural envelope, not the business domain discriminator.
+
+---
+
+## Signal Serialization
+
+### TradeSignal Struct (Go)
+
+```go
+type TradeSignal struct {
+    BaseRequestEvent
+    Name       string                 `json:"name"`       // e.g. "stochastic_rsi_buy"
+    Attributes map[string]interface{} `json:"attributes"` // flexible key-value pairs
+    Timestamp  time.Time              `json:"timestamp"`  // when the signal was produced
+    Symbol     StockSymbol            `json:"symbol"`     // which instrument
+    Timeframe  uint                   `json:"timeframe"`  // candle period in seconds
+    Source     SignalSource           `json:"source"`     // reuse existing SignalSource type
+}
+
+func (s *TradeSignal) GetSavedEventParameters() SavedEventParameters {
+    return SavedEventParameters{
+        StreamName:    NewTradeSignalStreamName(s.Name),
+        EventName:     TradeSignalCreatedEventName,
+        SchemaVersion: 1,
+    }
+}
+```
+
+**Why `map[string]interface{}` for Attributes:**
+- Different signal types carry different data (RSI values, price levels, volume thresholds, moving average crossover points)
+- A typed struct per signal type would require Go code changes and recompilation for every new signal -- defeating the purpose of decoupled datasource scripts
+- Matches the project requirement: "Name + Attributes + Timestamp"
+- JSON serialization to ESDB handles `map[string]interface{}` natively
+
+**Tradeoff:** Loses compile-time type safety on attribute values. Mitigate with:
+- `ValidateAttributes(name string, attrs map[string]interface{}) error` function per signal name
+- Schema validation at write time in both Go producer and Python datasource scripts
+
+### TradeSignal JSON (Python datasource)
+
+```python
+from esdbclient import EventStoreDBClient, NewEvent, StreamState
+import json
+
+client = EventStoreDBClient(uri="esdb://localhost:2113?tls=false")
+
+signal_data = {
+    "name": "stochastic_rsi_buy",
+    "attributes": {"k_value": 15.2, "d_value": 18.7},
+    "timestamp": "2026-03-30T14:30:00Z",
+    "symbol": "AAPL",
+    "timeframe": 300,
+    "source": "PythonDatasource"
+}
+
+event = NewEvent(
+    type="TradeSignalCreated",
+    data=json.dumps(signal_data).encode("utf-8"),
+    content_type="application/json",
+)
+
+client.append_to_stream(
+    stream_name="trade-signals-stochastic_rsi_buy",
+    current_version=StreamState.ANY,
+    events=[event],
+)
+```
+
+**Existing `SignalSource` values to extend:**
+```go
+// In eventmodels/signal_request_source.go -- add:
+SignalSourcePythonDatasource SignalSource = "PythonDatasource"
+```
+
+---
+
+## Signal Repository Interface
+
+Two implementations, same interface, zero new dependencies:
+
+```go
+type ISignalRepository interface {
+    Append(ctx context.Context, signal *TradeSignal) error
+    GetByName(ctx context.Context, name string) ([]*TradeSignal, error)
+    GetBySymbol(ctx context.Context, symbol StockSymbol) ([]*TradeSignal, error)
+    Subscribe(ctx context.Context, name string) (<-chan *TradeSignal, error)
+}
+```
+
+| Implementation | Backing | Use Case | Dependencies |
+|----------------|---------|----------|-------------|
+| `InMemorySignalRepository` | `[]TradeSignal` + `sync.RWMutex` | Simulation mode, unit tests | None (pure Go) |
+| `ESDBSignalRepository` | Wraps `esdbConsumerStream[*TradeSignal]` | Live mode, replay mode | Existing ESDB client |
+
+The `ESDBSignalRepository` delegates to `esdbConsumerStream` for subscription and replay, and to `EsdbProducer` for writes. No new ESDB client code needed.
+
+---
+
+## Proto Changes
+
+The existing `RecordSignalRequest` is for the observability layer (recording that a signal was evaluated). The TradeSignal framework adds a new query endpoint:
+
+```protobuf
+// Add to playground.proto
+
+message GetProcessedSignalsRequest {
+    string playground_id = 1;
+    optional string signal_name = 2;
+    optional string symbol = 3;
+}
+
+message ProcessedSignal {
+    string name = 1;
+    string symbol = 2;
+    string timestamp = 3;
+    string attributes_json = 4;  // JSON-encoded map[string]interface{}
+    string source = 5;
+    uint32 timeframe = 6;
+}
+
+message GetProcessedSignalsResponse {
+    repeated ProcessedSignal signals = 1;
+}
+
+// Add to PlaygroundService:
+rpc GetProcessedSignals(GetProcessedSignalsRequest) returns (GetProcessedSignalsResponse);
+```
+
+**Why `attributes_json` as string:** Protobuf `map<string, string>` loses type information (numeric values become strings). Protobuf `google.protobuf.Struct` is awkward to work with in Go. A JSON string is pragmatic, matches ESDB storage format, and the Python client already has `json.loads()`.
 
 ---
 
@@ -151,11 +300,15 @@ Python already calls `CreatePlayground` RPC. The only change is passing `save_to
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| Business analytics | Metabase OSS | Grafana (extend existing) | Grafana requires writing PromQL/LogQL queries and raw JSON dashboards. Metabase gives non-engineers a GUI question builder. The project explicitly chose "business-level analytics" as a separate tool. |
-| Metabase app DB | Existing Postgres (metabase DB) | Separate Postgres container | Overkill for a single-server deployment. One Postgres instance with two databases (playground + metabase) is the standard Metabase deployment pattern on constrained infrastructure. |
-| Analytics layer | SQL views in Postgres | Separate dbt / transform pipeline | No dbt expertise in this codebase. Views are simpler, idempotent, and queryable by Metabase without additional tooling. |
-| Multi-leg grouping | `tag` column convention | New `spread_group_id` column | `tag` already exists in `order_records` with JSONB `attributes` as a fallback. Adding a new column means a GORM migration; a tagging convention is zero-schema-change. |
-| Metabase edition | OSS (`metabase/metabase`) | Enterprise (`metabase/metabase-enterprise`) | OSS includes all needed features (SQL editor, dashboards, PostgreSQL connection, AI SQL in v0.59). Enterprise adds SSO and audit logs — unnecessary for a single-operator trading platform. |
+| Python ESDB client | `esdbclient` | `esdb-py` (andriykohut) | `esdbclient` is the official client maintained by Event Store Ltd, better test coverage (100% line+branch), supports Python 3.10 |
+| Python ESDB client | `esdbclient` | HTTP REST via `requests` | AtomPub API is deprecated; gRPC is the supported protocol path |
+| Signal write path (Python) | Direct to ESDB via `esdbclient` | Route through Go Twirp RPC | Adds coupling; datasource scripts should run independently of Go server lifecycle |
+| Signal attributes | `map[string]interface{}` | Typed structs per signal | Too rigid; every new signal type requires Go code changes and recompilation |
+| Signal attributes | `map[string]interface{}` | Protobuf `Any` or `Struct` | Over-engineered for this use case; JSON map is simpler and matches existing ESDB serialization |
+| In-memory mock | Custom slice + mutex | `go-cache` or Redis | Overkill for simulation; signal repos are append-only within a session |
+| Stream naming | `trade-signals-{name}` | Single `trade-signals` stream | Per-name streams enable ESDB category projections for cross-signal queries and targeted replay |
+| Stream naming | `trade-signals-{name}` | `trade-signals-{symbol}-{name}` | Over-segmentation; filter by symbol within the stream. Category projection gives cross-signal view for free. |
+| Event type naming | Single `TradeSignalCreated` | Per-signal event types | Signal name is a data field, not a structural concern. One event type simplifies consumer generics. |
 
 ---
 
@@ -163,33 +316,26 @@ Python already calls `CreatePlayground` RPC. The only change is passing `save_to
 
 | Area | Confidence | Basis |
 |------|------------|-------|
-| Metabase v0.59.4 version | HIGH | Verified via GitHub releases page (latest release March 2025) |
-| Metabase Docker image name | HIGH | Official Docker Hub: `metabase/metabase` |
-| MB_JETTY_PORT for port change | HIGH | Official Metabase docs (Customizing Jetty Webserver) |
-| MB_DB_* env vars for PostgreSQL app DB | HIGH | Official Metabase docs (Configuring Application Database) |
-| Memory: ~600MB idle, ~1-1.5GB under load | MEDIUM | Metabase community forum posts (multiple sources agree); not official spec |
-| Postgres 13 compatibility | HIGH | Metabase supports all current Postgres versions; PG13 is current |
-| Simulator persistence: `SaveToDB` flag path | HIGH | Direct inspection of `database_service.go` CreatePlayground — simulator branch (line ~927) does NOT call SavePlaygroundSession; live/reconcile branches DO |
-| Analytics views via `analytics` schema | HIGH | PostgreSQL schemas docs + GORM schema isolation pattern |
-| `tag` column for spread grouping | HIGH | Direct inspection of `order_record.go` — `tag` column is `gorm:"column:tag;type:text"` |
+| `esdbclient` compatibility | HIGH | Official docs state Python 3.10 + ESDB 24.x support; matches project versions |
+| No new Go dependencies | HIGH | Direct codebase inspection of `go.mod`, ESDB consumer/producer patterns |
+| Stream naming with category projections | HIGH | `EVENTSTORE_RUN_PROJECTIONS=All` + `START_STANDARD_PROJECTIONS=true` confirmed in docker-compose |
+| `esdbConsumerStream[T]` for replay | HIGH | `Replay()` method exists and is tested in `esdb_consumer_stream.go` |
+| `map[string]interface{}` for attributes | HIGH | Standard Go JSON pattern; already used in `eventservices/eventstoredb.go` `FetchAllData` |
+| `esdbclient` + existing `grpcio` compatibility | MEDIUM | Both use gRPC; version alignment not yet tested in the grodt env |
+| Proto `attributes_json` approach | MEDIUM | Pragmatic but unconventional; alternative is `google.protobuf.Struct` |
 
 ---
 
 ## Sources
 
-- [Metabase GitHub Releases](https://github.com/metabase/metabase/releases) — v0.59.4 latest stable (HIGH confidence)
-- [Metabase Docker Hub](https://hub.docker.com/r/metabase/metabase/) — official image (HIGH confidence)
-- [Metabase: Configuring Application Database](https://www.metabase.com/docs/latest/installation-and-operation/configuring-application-database) — MB_DB_* env vars (HIGH confidence)
-- [Metabase: Customizing Jetty Webserver](https://www.metabase.com/docs/latest/configuring-metabase/customizing-jetty-webserver) — MB_JETTY_PORT (HIGH confidence)
-- [Metabase: Running on Docker](https://www.metabase.com/docs/latest/installation-and-operation/running-metabase-on-docker) — Docker image usage (HIGH confidence)
-- [Metabase: Memory requirements](https://discourse.metabase.com/t/what-are-metabase-minimum-resources/21470) — baseline ~600MB (MEDIUM confidence)
-- [Metabase: How to run in production](https://www.metabase.com/learn/metabase-basics/administration/administration-and-operation/metabase-in-production) — production recommendations (HIGH confidence)
-- [PostgreSQL: Schemas](https://www.postgresql.org/docs/current/ddl-schemas.html) — `analytics` schema isolation pattern (HIGH confidence)
-- Existing codebase: `src/go/data/database_service.go` lines 821-971 — CreatePlayground simulator branch (HIGH confidence, direct inspection)
-- Existing codebase: `src/go/backtester-api/models/order_record.go` — `tag` and `attributes` columns (HIGH confidence, direct inspection)
-- Existing codebase: `docker-compose.prod.yaml` — current 4-service production stack (HIGH confidence, direct inspection)
+- [esdbclient on PyPI](https://pypi.org/project/esdbclient/) -- Official Python gRPC client for EventStoreDB (HIGH confidence)
+- [EventStore-Client-Go on GitHub](https://github.com/EventStore/EventStore-Client-Go) -- Go client v4 already in project (HIGH confidence)
+- [EventStoreDB Category Projections](https://docs.kurrent.io/clients/tcp/dotnet/21.2/projections) -- `$by_category` splits on first dash (HIGH confidence)
+- [EventStoreDB Go: Appending Events](https://docs-next.eventstore.com/clients/go/appending-events/) -- Go append patterns (HIGH confidence)
+- [EventStoreDB Python Client Docs](https://docs-next.eventstore.com/clients/python/) -- Official Python client introduction (HIGH confidence)
+- Codebase analysis: `esdb_consumer.go`, `esdb_consumer_stream.go`, `esdb_producer.go`, `eventservices/eventstoredb.go`, `eventmodels/stream_names.go`, `eventmodels/new_signal_request_event_v1.go`, `eventmodels/signal_request_source.go`, `eventmodels/signal_request_header.go`, `docker-compose` files
 
 ---
 
-*Stack research for: Metabase Analytics (v2.0) — additions to existing Go + Python + OTel + Grafana + PostgreSQL stack*
-*Researched: 2026-03-29*
+*Stack research for: TradeSignal Framework (v3.0) -- additions to existing Go + Python + OTel + Grafana + PostgreSQL + EventStoreDB + Metabase stack*
+*Researched: 2026-03-30*

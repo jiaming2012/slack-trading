@@ -1,193 +1,190 @@
-# Feature Landscape: Metabase Trading Analytics
+# Feature Landscape: TradeSignal Framework
 
-**Domain:** Business-level trading performance analytics via Metabase on Postgres
-**Researched:** 2026-03-29
-**Context:** Subsequent milestone — Grafana/OTel handles operational observability (live signal, heartbeat, error rates). Metabase handles business analytics (P&L, strategy comparison, backtest results). They serve different audiences and different questions.
-
----
-
-## What Metabase Does Well (and What It Doesn't)
-
-Metabase is a BI tool built around SQL questions and dashboards. It excels at:
-- Ad-hoc SQL queries on Postgres tables with interactive filters
-- Aggregation tables (GROUP BY strategy, symbol, date range)
-- Time-series charts from pre-aggregated data
-- Dashboard filters with `{{variable}}` and `[[optional clause]]` syntax
-- Saved questions reused across dashboards
-
-Metabase does NOT do real-time streaming, complex application logic, or cross-process joins. All analytics here are computed from the Postgres tables that already exist: `playgrounds`, `order_records`, `trade_records`, `equity_plot_records`, `live_accounts`.
-
----
-
-## Existing Postgres Schema (Analytics-Relevant Columns)
-
-### `playgrounds` table (mapped from `Meta` struct)
-| Column | Type | Analytics Use |
-|--------|------|--------------|
-| `id` (UUID) | uuid | Join key |
-| `client_id` | text | Strategy identifier / filter |
-| `environment` | text | Filter: `simulator` vs `live` |
-| `live_account_type` | text | Filter: `simulator`, `paper`, `margin`, `mock` |
-| `start_at` | timestamptz | Backtest date range |
-| `end_at` | timestamptz | Backtest date range |
-| `symbols` | text[] | Per-symbol filter |
-| `tags` | text[] | Grouping / labeling runs |
-| `starting_balance` | numeric | ROI denominator |
-| `source_broker` | text | Broker filter |
-| `deleted_at` | timestamptz | Soft delete |
-
-### `order_records` table
-| Column | Type | Analytics Use |
-|--------|------|--------------|
-| `id` | uint | PK |
-| `playground_id` | uuid | Join to playgrounds |
-| `class` | text | `equity` vs `option` split |
-| `symbol` | text | Per-symbol analytics |
-| `side` | text | `buy/sell/buy_to_open/sell_to_open/etc` — open vs close detection |
-| `quantity` | numeric | Position sizing |
-| `order_type` | text | Market vs limit |
-| `requested_price` | numeric | Slippage computation |
-| `price` | numeric | Actual fill price (from trades) |
-| `status` | text | Filter to `filled` |
-| `timestamp` | timestamptz | Trade timing |
-| `tag` | text | Strategy tag / signal label |
-| `attributes` | jsonb | Arbitrary KV: includes `ev` (expected value) |
-| `is_adjustment` | bool | Filter out adjustment orders |
-| `is_system_order` | bool | Filter out system orders |
-| `previous_balance` | numeric | Balance before order (for incremental equity) |
-| `close_order_id` | uint | Links closing order to opening order |
-
-### `trade_records` table
-| Column | Type | Analytics Use |
-|--------|------|--------------|
-| `id` | uint | PK |
-| `order_id` | uint | FK to order_records |
-| `timestamp` | timestamptz | Exact fill time |
-| `quantity` | numeric | Fill size |
-| `price` | numeric | Fill price |
-| `parent_trade_id` | uint | Partial fill parent |
-
-### `equity_plot_records` table
-| Column | Type | Analytics Use |
-|--------|------|--------------|
-| `playground_session_id` | uuid | Join to playgrounds |
-| `timestamp` | timestamptz | Time axis |
-| `equity` | numeric | Account value over time |
-
-### Join tables
-- `order_closes` — M2M: which opening order was closed by which closing order
-- `trade_closed_by` — M2M: which trade filled which closing order
+**Domain:** Event-driven trading signal framework for Go+Python backtesting/live platform
+**Researched:** 2026-03-30
+**Overall confidence:** HIGH (grounded in codebase inspection + established patterns from NautilusTrader, EventStoreDB, and event-sourcing literature)
 
 ---
 
 ## Table Stakes
 
-Features a trading analytics dashboard must have. Missing = the dashboard is not worth opening.
+Features users (the operator/developer) expect. Missing = the framework feels incomplete or untrustworthy.
 
-| Feature | Why Expected | Complexity | Postgres Dependency |
-|---------|--------------|------------|---------------------|
-| Total realized P&L per playground | Core performance number — is this strategy profitable? | Low | `order_records.pl` or derived from trade_records via order_closes |
-| Win rate (winners / total closed trades) | Fundamental metric. <40% signals review needed. | Low | COUNT grouped by playground_id, class |
-| Profit factor (gross_profit / abs(gross_loss)) | Industry-standard measure of strategy quality. >1.5 = healthy. | Low | SUM(CASE WHEN pl > 0) / ABS(SUM(CASE WHEN pl < 0)) |
-| Average winning trade / average losing trade | Shows reward:risk ratio — context for win rate | Low | AVG filtered by pl > 0, pl < 0 |
-| Equity curve chart | Visual summary of whether the account is growing or degrading over time | Low | `equity_plot_records` — timestamp + equity, grouped by playground |
-| Trade count by symbol | Which symbol drove most activity? | Low | GROUP BY symbol, class |
-| Slippage summary (open + close) | Is the simulation fill assumption realistic? | Medium | requested_price vs trade fill price per order |
-| Playground filter (dropdown) | Browse one backtest at a time | Low | Metabase `{{playground_id}}` variable |
-| Date range filter | Focus on specific time windows | Low | Metabase `[[AND timestamp >= {{start}}]]` optional clauses |
-| Open vs closed position table | What is still open at end of a run? | Medium | filter_open_orders logic: orders where closed volume < quantity |
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|--------------|-------|
+| **TradeSignal struct with Name + Attributes + Timestamp** | Every signal framework needs a uniform event envelope. Currently signals are ad-hoc (`SignalDecision`, `OpenSignalV3`, `SignalV2`, `RsiTradeSignal` -- 5+ incompatible types). | Low | None | Single canonical type replaces the zoo. Must be serializable to both protobuf (for RPC) and JSON (for EventStoreDB). Attributes is `map[string]string` to stay schema-flexible. |
+| **Single-signal-per-order rule** | Audit trail. Every `PlaceOrderRequest` must reference exactly one TradeSignal. Without this, you cannot answer "why was this order placed?" after the fact. | Low | TradeSignal struct exists | Add `signal_id` field to `PlaceOrderRequest` proto message. Go server validates presence before accepting the order. |
+| **Signal persistence to EventStoreDB (live mode)** | Signals are the "why" behind every trade. If they are ephemeral, you lose the audit trail on process restart. EventStoreDB is already deployed and used for event sourcing. | Med | TradeSignal struct, ESDB client (already in `eventconsumers/esdb_consumer_stream.go`) | Stream naming convention: `signals-{playground_id}`. Use category projection `$ce-signals` for cross-playground queries. |
+| **In-memory signal repository (sim mode)** | Simulator playgrounds run millions of ticks. Writing every signal to ESDB would be absurdly slow for backtests. Need a fast in-memory store with the same interface. | Med | TradeSignal struct | Go-side `SignalRepository` interface with `InMemorySignalRepository` and `ESDBSignalRepository` implementations. Strategy code sees the same API regardless of environment. |
+| **Signal emission from Python strategies** | Strategies currently call `PlaceOrder` directly. The new flow is: strategy emits TradeSignal, then passes signal reference to `PlaceOrder`. Python must have a clean way to create and emit signals. | Med | TradeSignal proto message, `RecordSignal` RPC (already exists -- needs expansion) | Expand existing `RecordSignalRequest` proto to carry full TradeSignal payload instead of just telemetry metadata. Python emits via RPC; Go server persists to the appropriate repository. |
+| **Live/sim parity: same strategy code, different repository backend** | The #1 architectural goal per PROJECT.md. NautilusTrader calls this "research-to-live parity" and it is the gold standard for trading frameworks. If sim and live diverge, backtests are meaningless. | Med | Signal repository interface, env-based injection | Strategy code calls `emit_signal()` and `place_order(signal_id)`. The engine selects `InMemorySignalRepository` for sim or `ESDBSignalRepository` for live based on `PlaygroundEnvironment`. No `if live:` branches in strategy code. |
+| **Strategy migration: all existing strategies use TradeSignal** | If only new strategies use the framework while old ones bypass it, you have two systems running in parallel indefinitely. Clean break needed. | High | All above features stable | 7 strategies to migrate: MeanReversion, CoveredCall, CreditSpread, OptionsMeanReversion, Wheel, PDFWheel. Move originals to `deprecated/`. This is the bulk of the work. |
+
+---
 
 ## Differentiators
 
-Features that go beyond basic metrics. These turn a report into an analytical tool.
+Features that set the framework apart from the current ad-hoc approach. Not strictly required for v3.0 to ship, but high-value.
 
-| Feature | Value Proposition | Complexity | Postgres Dependency |
-|---------|-------------------|------------|---------------------|
-| Backtest comparison table | Compare 5+ runs side-by-side: P&L, win rate, profit factor, sharpe, drawdown. The strategy optimization workflow. | Medium | Aggregate query grouped by playground_id with JOIN to playgrounds for metadata (tags, symbols, date range) |
-| Spread-aware P&L (multi-leg grouping) | Options covered calls / credit spreads are 2+ legs. Per-leg P&L is misleading. Group by `close_order_id` chain to compute round-trip P&L as a single trade unit. | High | Requires joining order_closes + trade_closed_by to pair open/close legs. Existing `playground_metrics.py` has the logic — needs SQL translation. |
-| Per-symbol P&L breakdown | "AAPL covered calls earned $X; TSLA mean reversion lost $Y" — critical for multi-symbol strategies | Low | GROUP BY symbol JOIN playground |
-| Trade duration histogram | Are trades being held too long? Are quick exits dragging down P&L? | Medium | EXTRACT(EPOCH FROM close_time - open_time) grouped into buckets |
-| Expected value vs realized P&L | Was the strategy's `ev` attribute (stored in `attributes` JSONB) predictive? EV accuracy = alpha validation. | Medium | CAST(attributes->>'ev' AS numeric) correlated with actual pl |
-| Strategy type comparison (tags) | Compare `covered_call` vs `mean_reversion` tags across multiple playground runs | Low | GROUP BY tags (unnest array), JOIN to playground metadata |
-| Max drawdown per run | Downside risk beyond what win rate shows | Medium | Window function: MAX equity - MIN subsequent equity per playground |
-| Sharpe ratio per run | Risk-adjusted return. Requires time-series of daily returns. | High | Derived from equity_plot_records: daily return = (equity[t] - equity[t-1]) / equity[t-1], then AVG/STDDEV |
-| Backtest persistence status | Which simulator playgrounds have been saved vs are ephemeral? | Low | COUNT of playgrounds with environment='simulator' AND end_at IS NOT NULL |
-| Rejection rate analysis | How often are orders rejected and why? Reveals config issues in live sim. | Low | COUNT where status='rejected' GROUP BY reject_reason |
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Replay mode: simulate from persisted signal streams** | Record a live session's signals, then replay them in simulation to validate that the strategy would have made the same decisions. Critical for regression testing and "what if" analysis. | High | ESDB signal persistence, in-memory repository | Read signals from ESDB stream, feed them into a simulator playground as if they were freshly generated. Requires a `ReplaySignalRepository` that reads from ESDB but writes to in-memory. Integration test validates round-trip fidelity. |
+| **Standalone datasource scripts producing signals** | Decouple "where data comes from" from "how signals are generated." A datasource script (e.g., Polygon candle fetcher) writes raw market data signals to a stream. Multiple strategies can consume the same stream independently. | High | ESDB signal persistence, stream naming conventions | New process type: a datasource producer that runs alongside (or instead of) the strategy. Writes `MarketData` signals to `datasource-{symbol}-{timeframe}` stream. Strategies subscribe to that stream rather than directly calling Polygon. |
+| **Composite signals (AND/OR combinations)** | The existing codebase already has multi-timeframe composite logic (e.g., `SuperTrend4h1hStochRsi15mUp`). Formalizing this as a first-class concept -- "Signal A AND Signal B within N seconds" -- makes compound conditions declarative rather than buried in strategy code. | Med | TradeSignal struct with `parent_signal_ids` field | A CompositeSignal references child signal IDs and a combination rule. Strategies define composites declaratively; the framework evaluates them. Reduces duplicated multi-indicator logic across strategies. |
+| **Signal queryability via EventStoreDB projections** | Query signals by name, symbol, or timeframe without loading entire streams. ESDB's `$by_category` and `$by_event_type` system projections enable this natively. | Low | ESDB signal persistence | Enable `$by_event_type` system projection. Use event type naming convention: `TradeSignal-{signal_name}`. Then `$et-TradeSignal-mean_reversion_dip` gives all mean reversion dip signals across all playgrounds. |
+| **New RPC endpoint: GetProcessedSignals** | View what signals a strategy has emitted for a playground, with filtering by name/symbol/timeframe. Essential for debugging "why did the strategy not trade today?" | Low | Signal repository (either impl) | New `GetProcessedSignals` RPC in `playground.proto`. Reads from the appropriate signal repository. Returns paginated list of TradeSignals with metadata. |
+| **Telemetry integration: signals in OTel/Grafana** | The existing `RecordSignal` RPC already increments `grodt_signals_generated_total` in Prometheus. Extending this to include signal attributes as OTel span events creates full observability. | Low | TradeSignal struct, existing OTel infrastructure | Add signal name, symbol, direction as attributes to the existing OTel metric. Add Grafana dashboard panel for signal rate by type. Alert on "zero signals in N minutes" for live playgrounds. |
+
+---
 
 ## Anti-Features
 
-Features to explicitly NOT build in Metabase for this milestone.
+Features to explicitly NOT build. Tempting rabbit holes that would derail v3.0.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Real-time live order monitoring | Metabase queries on-demand — not a streaming dashboard. Grafana already does this with OTel. Duplicating it in Metabase is wasted effort. | Keep in Grafana. Grafana owns live/operational views. |
-| Greeks aggregation (Delta, Theta, Vega) | Greeks require current market prices to be meaningful. Metabase queries Postgres, not live market data. Stored Greeks are stale within minutes. | If Greeks are needed, add a Grafana panel that reads a live metric pushed from the trading engine. |
-| Intraday charting (candlesticks) | Metabase is not a charting platform. OHLCV rendering needs a specialized tool. | Grafana with a time series panel from Prometheus metrics already handles tick-level charts. |
-| Alerts / notifications | Metabase OSS does not have production-grade alerting. Grafana unified alerting already handles this. | Grafana alert rules. |
-| Portfolio-level live P&L (mark-to-market) | Requires real-time price lookups. Metabase can't call Tradier/Polygon from a dashboard. | Show settled/realized P&L only in Metabase. |
-| User authentication / multi-user access control | Single operator — adds complexity with no benefit now. | Leave Metabase on default admin auth, restricted to the droplet network. |
-| Custom Metabase plugins / extensions | Fragile, OSS-only limitation, unnecessary for these use cases. | SQL custom questions cover all needed analytics. |
+| **Signal backtesting engine (separate from playground)** | The playground + tick loop IS the backtesting engine. Building a separate signal-only backtester duplicates the entire simulation stack without the order-filling logic that validates signals actually produce profitable trades. | Use existing playground backtester. Replay mode feeds signals into it. |
+| **Real-time signal streaming via WebSocket/gRPC streaming** | Adds significant complexity (connection management, backpressure, reconnection) for a single-operator platform. The tick-based polling model works for both sim and live. | Keep the existing tick-based polling. Python calls `NextTick` which returns new signals. For live mode, the tick interval determines latency -- already configurable via `get_next_tick_seconds()`. |
+| **Signal marketplace / multi-user signal sharing** | Single-operator platform. Multi-tenancy adds auth, isolation, rate limiting -- all irrelevant. | Signals are scoped to a playground. One operator, one instance. |
+| **ML-based signal scoring / confidence weighting** | Interesting but orthogonal to the framework. Signal scoring is strategy logic, not infrastructure. Adding it to the framework forces all strategies to use a scoring model. | Let individual strategies implement their own confidence logic in Python. The framework just carries the signal. |
+| **Signal deduplication / conflict resolution at framework level** | Strategies already manage their own position limits and signal cooldowns (e.g., MeanReversion's `TradeGroup` with status tracking). Framework-level dedup would need to understand strategy semantics it cannot know. | Each strategy manages its own signal dedup logic. The framework stores all signals, even duplicates, for audit completeness. |
+| **Custom ESDB projections in JavaScript** | ESDB supports user-defined projections in JS, but they are fragile, hard to debug, and a maintenance burden. System projections (`$by_category`, `$by_event_type`) cover 95% of query needs. | Use system projections + server-side filtering in Go. If complex queries are needed, read the stream and filter in Go code. |
+| **Signal versioning / schema evolution** | Premature. The `Attributes` map provides schema flexibility without formal versioning. If signal schemas need to evolve, add new attribute keys -- old consumers ignore unknown keys. | Use `map[string]string` Attributes for extensibility. Add typed helper methods in Go/Python for common attribute access patterns. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Metabase deployed (Docker Compose) → All dashboard features
-Postgres accessible from Metabase container → All SQL questions
+TradeSignal struct (proto + Go + Python)
+  |
+  +---> Signal repository interface (Go)
+  |       |
+  |       +---> InMemorySignalRepository (sim)
+  |       |
+  |       +---> ESDBSignalRepository (live)
+  |       |       |
+  |       |       +---> Signal queryability (ESDB projections)
+  |       |       |
+  |       |       +---> Replay mode (reads from ESDB, writes to in-memory)
+  |       |
+  |       +---> GetProcessedSignals RPC endpoint
+  |
+  +---> Expand RecordSignal RPC (or new EmitSignal RPC)
+  |       |
+  |       +---> Python signal emission from strategies
+  |               |
+  |               +---> Strategy migration (all 7 strategies)
+  |
+  +---> Single-signal-per-order rule
+  |       |
+  |       +---> PlaceOrderRequest proto change (signal_id field)
+  |
+  +---> Telemetry integration (OTel attributes + Grafana panel)
+  |
+  +---> Composite signals (optional, after base signals work)
 
-order_records (filled, with close_order_id populated) → P&L metrics, slippage, win rate
-equity_plot_records (populated by simulator) → Equity curve, drawdown, Sharpe
-playgrounds.tags (set on CreatePlayground) → Strategy comparison by tag
-
-order_closes M2M table → Spread-aware P&L (multi-leg grouping)
-trade_closed_by M2M table → Round-trip trade matching
-
-Simulator persistence (backtest results saved to Postgres) → Backtest comparison
-  └── If simulator playgrounds currently NOT persisted, persistence must ship first
+Standalone datasource scripts
+  |
+  +---> ESDB signal persistence (must exist first)
+  +---> Stream naming conventions (must be defined first)
 ```
-
-**Critical dependency to verify:** Confirm that `environment='simulator'` playgrounds currently persist `equity_plot_records` and `order_records` to Postgres (not just in-memory). The `playground_metrics.py` tool fetches data via Twirp RPC (not direct SQL), which suggests the data may live only in memory during a run. If so, **backtest persistence is a prerequisite feature** before analytics is possible.
 
 ---
 
 ## MVP Recommendation
 
-Prioritize (in order):
+**Phase 1: Foundation (ship first)**
+1. TradeSignal struct in proto + Go + Python
+2. Signal repository interface + InMemorySignalRepository
+3. Expand RecordSignal RPC to handle full signal emission
+4. Single-signal-per-order rule (PlaceOrderRequest proto change)
 
-1. **Metabase deployed** — Docker Compose, Postgres connection string, basic auth. Nothing else matters until this works.
-2. **Core performance dashboard** — Single playground view: total P&L, win rate, profit factor, trade count, equity curve. These are SQL aggregations on data that already exists.
-3. **Slippage analysis** — `requested_price` vs fill price per order side. Critical for validating simulation assumptions. Existing `playground_metrics.py` has the formulas.
-4. **Backtest comparison table** — Multi-row table with one row per playground (filtered by tag). Drives strategy optimization workflow directly.
-5. **Spread-aware P&L** — Multi-leg option trade grouping. Medium complexity due to M2M joins, but this is the biggest gap in the existing Python tooling (the `sell_to_close` / `buy_to_cover` path is commented out in `playground_metrics.py`).
+**Phase 2: Persistence + Parity**
+5. ESDBSignalRepository implementation
+6. Environment-based repository injection (sim = in-memory, live = ESDB)
+7. GetProcessedSignals RPC endpoint
+8. Telemetry integration (OTel + Grafana)
 
-Defer:
-- **Sharpe ratio**: Requires daily-bucketed equity_plot_records and window functions. High complexity, low urgency for MVP.
-- **Trade duration histogram**: Nice-to-have, medium complexity. Deliver after core metrics work.
-- **Expected value vs realized correlation**: Interesting but requires JSONB casting and statistical interpretation. Post-MVP.
+**Phase 3: Migration**
+9. Migrate all 7 strategies to use TradeSignal emission
+10. Move originals to `deprecated/`
+11. Integration tests proving sim/live parity
+
+**Phase 4: Advanced (defer to v3.1 or later)**
+12. Replay mode from ESDB streams
+13. Standalone datasource scripts
+14. Composite signals
+15. Signal queryability via ESDB projections
+
+**Rationale for ordering:**
+- Foundation must exist before anything else can be built on it.
+- Persistence + parity must be proven before migrating strategies (don't migrate to a broken foundation).
+- Migration is the highest-effort phase but is straightforward once the foundation is solid.
+- Advanced features are valuable but not blocking -- strategies work without them.
+
+**Defer explicitly:**
+- Replay mode: Requires both ESDB persistence AND a test harness. High value but high effort. Ship v3.0 without it, add in v3.1.
+- Standalone datasource scripts: Architectural shift (new process type). Needs careful design of stream ownership and backpressure. Better as a separate milestone.
+- Composite signals: Nice formalization but strategies already implement composite logic manually. Not blocking.
 
 ---
 
-## Complexity Reference
+## Complexity Estimates
 
-| Level | What It Means in Metabase |
-|-------|--------------------------|
-| Low | Single-table SQL GROUP BY or filter. No joins. Metabase query builder can handle it. |
-| Medium | 2-3 table JOIN, window functions, or conditional aggregation. Requires native SQL question. |
-| High | Multi-step CTEs, recursive joins across M2M tables (order_closes + trade_closed_by), or requires data not currently in Postgres. May need a Postgres VIEW created first. |
+| Feature | Complexity | Effort Estimate | Risk |
+|---------|------------|-----------------|------|
+| TradeSignal struct (proto + Go + Python) | Low | 1-2 days | Low -- straightforward protobuf change |
+| Signal repository interface + in-memory impl | Med | 2-3 days | Low -- standard Go interface pattern |
+| ESDB signal repository | Med | 3-4 days | Med -- ESDB stream naming, serialization, error handling |
+| Expand RecordSignal RPC | Low | 1 day | Low -- proto change + handler update |
+| Single-signal-per-order rule | Low | 1-2 days | Low -- validation in PlaceOrder handler |
+| GetProcessedSignals RPC | Low | 1-2 days | Low -- read from repository |
+| Strategy migration (7 strategies) | High | 7-10 days | Med -- each strategy has unique signal patterns |
+| Live/sim parity testing | Med | 2-3 days | Med -- proving behavioral equivalence |
+| Replay mode | High | 5-7 days | High -- deterministic replay is subtle |
+| Standalone datasource scripts | High | 5-7 days | High -- new process type, new deployment concern |
+| Composite signals | Med | 3-4 days | Med -- design of combination rules |
+| Telemetry integration | Low | 1-2 days | Low -- extends existing OTel infrastructure |
+
+---
+
+## Current State vs Target State
+
+### Current (pre-v3.0)
+- **5+ signal types** in Go (`SignalV2`, `RsiTradeSignal`, `SignalTriggeredEvent`, `ExitSignal`, `OpenSignalV3`, `SignalDecision`)
+- **No signal persistence** -- signals are ephemeral, lost on process restart
+- **Signal emission is telemetry-only** -- `RecordSignal` RPC increments a counter, does not store the signal
+- **Strategies couple signal detection and order placement** -- `on_tick()` both detects signals AND calls `PlaceOrder`
+- **No replay capability** -- cannot reconstruct what signals a past session produced
+- **No signal-to-order linkage** -- `PlaceOrderRequest` has no `signal_id` field
+
+### Target (post-v3.0)
+- **1 canonical TradeSignal type** across Go and Python
+- **Signals persisted in EventStoreDB** for live playgrounds
+- **Signal emission is a first-class operation** -- `EmitSignal` stores the signal, returns a signal_id
+- **Strategies decouple signal detection from order placement** -- emit signal first, then place order referencing it
+- **Replay possible** from any persisted signal stream
+- **Every order traces back to exactly one signal** via `signal_id`
 
 ---
 
 ## Sources
 
-- [Metabase SQL in Metabase — Official Learn](https://www.metabase.com/learn/metabase-basics/querying-and-dashboards/sql-in-metabase/)
-- [Metabase Dashboard Best Practices](https://www.metabase.com/learn/metabase-basics/querying-and-dashboards/dashboards/bi-dashboard-best-practices)
-- [Metabase Optional Variables (filter syntax)](https://www.metabase.com/docs/latest/questions/native-editor/optional-variables)
-- [Top 7 Backtesting Metrics — LuxAlgo](https://www.luxalgo.com/blog/top-7-metrics-for-backtesting-results/)
-- [TradesViz — Multi-leg Options Journaling](https://www.tradesviz.com/how-to-journal-vertical-spreads/)
-- [Profit Factor Definition and Benchmarks](https://www.backtestbase.com/education/win-rate-vs-profit-factor)
-- Existing codebase: `src/clients/python/tools/playground_metrics.py` — authoritative source for metric formulas already in use
-- Existing codebase: `src/go/backtester-api/models/order_record.go`, `trade_record.go`, `equity_plot_record.go`, `playground_meta.go` — authoritative Postgres schema
+- Codebase inspection: `src/go/eventmodels/signalv2.go`, `signal_name.go`, `rsitradesignal.go`, `signaltype.go`, `exitsignal.go`, `signal_triggered_event.go` -- existing signal type zoo (HIGH confidence)
+- Codebase inspection: `src/clients/python/strategies/base_strategy.py` -- current `record_decision()` and `_flush_decisions()` pattern (HIGH confidence)
+- Codebase inspection: `src/clients/python/engine/types.py` -- `SignalDecision`, `OpenSignalV3` types (HIGH confidence)
+- Codebase inspection: `src/go/playground.proto` -- existing `RecordSignalRequest` RPC (HIGH confidence)
+- Codebase inspection: `src/go/eventconsumers/esdb_consumer_stream.go` -- existing ESDB consumer pattern with generics (HIGH confidence)
+- [NautilusTrader Strategies Documentation](https://nautilustrader.io/docs/latest/concepts/strategies/) -- signal/data publishing pattern, research-to-live parity (HIGH confidence)
+- [NautilusTrader Message Bus](https://nautilustrader.io/docs/latest/concepts/message_bus/) -- signal as lightweight notification pattern (HIGH confidence)
+- [EventStoreDB Projections](https://developers.eventstore.com/server/v5/projections) -- `$by_category`, `$by_event_type` system projections (HIGH confidence)
+- [Event Sourcing & Audit Trail for Trading Systems](https://durgaanalytics.com/event_sourcing_audit_trading) -- signal lifecycle, replay harness (MEDIUM confidence)
+- [QuantStart: Backtesting Considerations](https://www.quantstart.com/articles/backtesting-systematic-trading-strategies-in-python-considerations-and-open-source-frameworks/) -- live/sim parity patterns (MEDIUM confidence)
+- [MQL5: Composite Signals](https://www.mql5.com/en/articles/7759) -- composite signal aggregation with logical operators (MEDIUM confidence)
+- [Enterprise Integration Patterns: Aggregator](https://www.enterpriseintegrationpatterns.com/patterns/messaging/Aggregator.html) -- correlation, completeness, aggregation algorithm (HIGH confidence)
 
-*Feature landscape for: Metabase trading analytics (v2.0 milestone)*
-*Researched: 2026-03-29*
+---
+
+*Feature landscape research for: TradeSignal Framework (v3.0) on Go + Python event-driven trading platform*
+*Researched: 2026-03-30*
