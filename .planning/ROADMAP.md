@@ -66,10 +66,11 @@
   2. Proto definition includes TradeSignalProto message and signal_id field on PlaceOrderRequest
   3. Signal name constants are defined as a typed registry (not freeform strings)
   4. Go unit tests verify TradeSignal serialization round-trip and signal_id presence on order requests
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 17-01-PLAN.md — TradeSignal type, SignalName registry, proto TradeSignalProto message
+- [ ] 17-02-PLAN.md — signal_id wiring through order lifecycle (PlaceOrder -> OrderRecord -> response)
 
 ### Phase 18: Signal Repository & Sim Mode
 **Goal**: Strategies can write and read signals through a repository interface, with in-memory implementation powering simulations via tick-synchronized delivery
@@ -162,7 +163,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Signal Foundation | v3.0 | 0/1 | Not started | - |
+| 17. Signal Foundation | v3.0 | 0/2 | Not started | - |
 | 18. Signal Repository & Sim Mode | v3.0 | 0/1 | Not started | - |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
