@@ -9,7 +9,7 @@
 ## Signal Repository
 
 - [x] **REPO-01**: ISignalRepository interface with in-memory implementation for simulations
-- [ ] **REPO-02**: ESDBSignalRepository implementation for live environments, writing to per-symbol event streams
+- [x] **REPO-02**: ESDBSignalRepository implementation for live environments, writing to per-symbol event streams
 - [x] **REPO-03**: Opt-in persistence of sim signals to EventStoreDB via CLI flag
 
 ## Datasource Scripts
@@ -28,7 +28,7 @@
 
 - [ ] **REPLAY-01**: Sim strategies can replay persisted signal streams, gated by playground clock time
 - [ ] **REPLAY-02**: Integration tests verify replay results match in-memory datasource results
-- [ ] **QUERY-01**: Signals queryable in EventStoreDB by name, symbol, and timeframe attributes
+- [x] **QUERY-01**: Signals queryable in EventStoreDB by name, symbol, and timeframe attributes
 
 ## RPC & Observability
 

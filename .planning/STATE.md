@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-03-30T23:43:48.476Z"
-last_activity: 2026-03-30 -- Phase 19 execution started
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-03-30T23:58:36.548Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 29
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 19 — rpc-endpoints-python-integration
+**Current focus:** Phase 20 — esdb-persistence
 
 ## Current Position
 
-Phase: 19 (rpc-endpoints-python-integration) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 19
-Last activity: 2026-03-30 -- Phase 19 execution started
+Phase: 20 (esdb-persistence) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-30
 
 Progress: [███░░░░░░░] 29%
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - [Phase 18-01]: Cursor adjustment on pre-cursor insertion prevents signal skipping
 - [Phase 18-02]: Attributes map[string]interface{} converted to map[string]string via fmt.Sprintf for proto
 - [Phase 18-02]: ESDB persistence uses existing pub/sub pattern (PublishAndSaveEvent) for architectural consistency
+- [Phase 20]: Removed NewTradeSignalStreamName per D-01 single global stream decision
+- [Phase 20]: ESDBSignalRepository reads full ESDB stream on each call (acceptable at <1000 signals/day)
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T23:43:48.468Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-esdb-persistence/20-CONTEXT.md
+Last session: 2026-03-30T23:58:36.542Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: None
