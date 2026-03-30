@@ -87,11 +87,12 @@ Plans:
   2. Operator can view open/close/total slippage per trade for any playground
   3. Operator can see position history and per-symbol P&L breakdown
   4. Dashboard numbers match playground_metrics.py output for the same playground within rounding tolerance
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 14-01-PLAN.md — Extend SQL views for close slippage + build Metabase provisioning script with 3 dashboards
+- [ ] 14-02-PLAN.md — Deploy SQL migration, run provisioning script, and verify dashboards
 
 ### Phase 15: Simulator Persistence & Backtest Comparison
 **Goal**: Backtest results are saved to Postgres so the operator can compare strategy runs side-by-side in Metabase
@@ -140,6 +141,6 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
 | 13. Analytics Schema & Indexes | v2.0 | 1/1 | Complete    | 2026-03-30 |
-| 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
+| 14. Core Performance Dashboards | v2.0 | 0/2 | Planned | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
