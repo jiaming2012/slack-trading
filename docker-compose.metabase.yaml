@@ -1,0 +1,26 @@
+# Local Metabase -- runs on Windows desktop via Docker Desktop
+# Connects to production Postgres on DO droplet
+# Usage: docker compose -f docker-compose.metabase.yaml up -d
+# Requires: .env.metabase (copy from .env.metabase.template)
+#
+# PREREQUISITE: DO Cloud Firewall must allow TCP 5432 from your home IP
+# In DO Console: Networking > Firewalls > [your firewall]
+# Add inbound rule: TCP 5432, Sources: [your home IP]/32
+# This allows Metabase on your desktop to reach Postgres on DO
+
+services:
+  metabase:
+    image: metabase/metabase:v0.59.4
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env.metabase
+    mem_limit: 1536m
+    mem_reservation: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
