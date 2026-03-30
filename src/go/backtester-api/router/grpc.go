@@ -123,6 +123,12 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		closeOrderId = &_closeOrderId
 	}
 
+	var signalIdStr *string
+	if o.SignalID != nil {
+		s := o.SignalID.String()
+		signalIdStr = &s
+	}
+
 	order := &pb.Order{
 		Id:               uint64(o.ID),
 		ExternalId:       externalId,
@@ -146,6 +152,7 @@ func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 		Attributes:       o.Attributes,
 		PreviousBalance:  o.PreviousBalance,
 		Pl:               pl,
+		SignalId:         signalIdStr,
 	}
 
 	if o.Price != nil {
@@ -288,6 +295,9 @@ func (s *Server) MockFillOrder(ctx context.Context, req *pb.MockFillOrderRequest
 	return &pb.EmptyResponse{}, nil
 }
 
+// Deprecated: RecordSignal is a telemetry-only endpoint that increments OTel counters.
+// It will be replaced by WriteSignal RPC (Phase 19) which produces domain TradeSignal events.
+// Keep functional until all strategies are migrated (Phase 22).
 func (s *Server) RecordSignal(ctx context.Context, req *pb.RecordSignalRequest) (*pb.EmptyResponse, error) {
 	clientID := ""
 	if playgroundID, err := uuid.Parse(req.PlaygroundId); err == nil {
@@ -1244,6 +1254,15 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		*closeOrderId = uint(*req.CloseOrderId)
 	}
 
+	var signalID *uuid.UUID
+	if req.SignalId != nil {
+		parsed, err := uuid.Parse(*req.SignalId)
+		if err != nil {
+			return nil, fmt.Errorf("PlaceOrder: invalid signal_id: %w", err)
+		}
+		signalID = &parsed
+	}
+
 	order, webErr := s.dbService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
 		Symbol:          req.Symbol,
 		ClientRequestID: req.ClientRequestId,
@@ -1260,6 +1279,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		IsAdjustment:    req.IsAdjustment,
 		Attributes:      req.Attributes,
 		PreviousBalance: nil,
+		SignalID:        signalID,
 	})
 
 	if webErr != nil {

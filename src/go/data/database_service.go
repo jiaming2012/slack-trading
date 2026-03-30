@@ -1391,6 +1391,8 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 		req.PreviousBalance,
 	)
 
+	order.SignalID = req.SignalID
+
 	if req.IsAdjustment {
 		if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
 			return nil, fmt.Errorf("makeOrderRecord: only reconcile playgrounds can place adjustment orders")
