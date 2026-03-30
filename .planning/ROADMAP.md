@@ -46,7 +46,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - [x] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
 - [ ] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables
 - [ ] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data
-- [ ] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard
+- [x] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard (completed 2026-03-30)
 - [ ] **Phase 16: Spread Analytics** - Multi-leg option strategies grouped as single trades with spread-aware P&L dashboards
 
 ## Phase Details
@@ -142,5 +142,5 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
 | 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
-| 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | In Progress | - |
+| 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | Complete    | 2026-03-30 |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
