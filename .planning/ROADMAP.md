@@ -101,10 +101,11 @@ Plans:
   1. Running a simulator backtest with save_to_db=true persists order_records and trade_records to Postgres
   2. Completed backtests appear in the backtest_runs table with final_balance, win_rate, profit_factor, and parameters
   3. Operator can compare multiple backtest runs side-by-side in Metabase, filtered by strategy type and parameter values
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 15-01: TBD
+- [x] 15-01-PLAN.md -- Schema extension, persistence module, and --save-to-db flag on demo script
+- [ ] 15-02-PLAN.md -- Strategy Comparison dashboard in Metabase provisioning script
 
 ### Phase 16: Spread Analytics
 **Goal**: Multi-leg option strategies (covered calls, spreads) are grouped as single trade units with combined P&L, so the operator sees strategy-level performance instead of meaningless per-leg numbers
@@ -141,5 +142,5 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
 | 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
-| 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
+| 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | In Progress | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |

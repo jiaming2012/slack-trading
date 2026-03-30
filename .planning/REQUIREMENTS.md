@@ -17,8 +17,8 @@
 
 ## Backtest Persistence
 
-- [ ] **PERSIST-01**: Simulator playgrounds persist order_records and trade_records to Postgres on completion
-- [ ] **PERSIST-02**: `backtest_runs` summary table (final_balance, win_rate, profit_factor, parameters JSONB)
+- [x] **PERSIST-01**: Simulator playgrounds persist order_records and trade_records to Postgres on completion
+- [x] **PERSIST-02**: `backtest_runs` summary table (final_balance, win_rate, profit_factor, parameters JSONB)
 
 ## Dashboards
 

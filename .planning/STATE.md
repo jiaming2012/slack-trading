@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-30T01:26:00Z"
-last_activity: 2026-03-30 -- Phase 12 Plan 01 completed
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-30T16:12:21.541Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 20
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 13 (analytics-schema-indexes) — Planning complete
-Plan: 0 of 1 (planned)
-Status: Phase 13 planned, ready for execution
-Last activity: 2026-03-30 -- Phase 13 Plan 01 created
+Plan: 1 of 1 (planned)
+Status: Ready to execute
+Last activity: 2026-03-30
 
 Progress: [██░░░░░░░░] 20%
 
@@ -58,6 +58,8 @@ Recent decisions affecting current work:
 - [Roadmap v2.0]: Spread analytics last (Phase 16) -- highest complexity, needs stable P&L baselines from Phase 14
 - [Roadmap v2.0]: DASH-03 grouped with PERSIST phase (not core dashboards) because it requires backtest_runs data
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
+- [Phase 15]: Metrics sourced from v_playground_stats view for dashboard consistency
+- [Phase 15]: psycopg2-binary used directly (not SQLAlchemy) for lightweight persistence
 
 ### Pending Todos
 
@@ -78,9 +80,10 @@ None yet.
 | 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
 | Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
+| Phase 15 P01 | 4m4s | 3 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-03-30
-Stopped at: Phase 13 planned
+Last session: 2026-03-30T16:12:21.536Z
+Stopped at: Completed 15-01-PLAN.md
 Resume file: None
