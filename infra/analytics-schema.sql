@@ -65,7 +65,7 @@ SELECT
     t.price                  AS fill_price
 FROM order_records o
 JOIN trade_records t ON t.order_id = o.id
-JOIN playgrounds p ON p.id = o.playground_id
+JOIN playground_sessions p ON p.id = o.playground_id
 WHERE o.deleted_at IS NULL
   AND t.deleted_at IS NULL;
 
@@ -235,10 +235,19 @@ WHERE o.deleted_at IS NULL
 -- =============================================================
 -- 3. Grant SELECT on views to metabase_ro
 -- =============================================================
-GRANT SELECT ON v_trade_fills TO metabase_ro;
-GRANT SELECT ON v_order_pnl TO metabase_ro;
-GRANT SELECT ON v_playground_stats TO metabase_ro;
-GRANT SELECT ON v_open_slippage TO metabase_ro;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'metabase_ro') THEN
+        GRANT SELECT ON v_trade_fills TO metabase_ro;
+        GRANT SELECT ON v_order_pnl TO metabase_ro;
+        GRANT SELECT ON v_playground_stats TO metabase_ro;
+        GRANT SELECT ON v_open_slippage TO metabase_ro;
+        RAISE NOTICE 'Granted SELECT on analytics views to metabase_ro';
+    ELSE
+        RAISE NOTICE 'Role metabase_ro does not exist -- skipping GRANTs. Run init-metabase.sql first, then re-run this file.';
+    END IF;
+END
+$$;
 
 -- =============================================================
 -- Verification queries (run manually to sanity-check)
