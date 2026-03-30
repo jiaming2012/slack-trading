@@ -2,11 +2,11 @@
 
 ## Infrastructure
 
-- [ ] **INFRA-01**: Metabase v0.59.4 deployed via docker-compose on existing DO droplet (port 3001)
-- [ ] **INFRA-02**: Metabase uses dedicated Postgres database (`metabaseappdb`) — not H2
-- [ ] **INFRA-03**: JVM memory capped at 768MB with Docker mem_limit 1.5GB
-- [ ] **INFRA-04**: Read-only Postgres user (`metabase_ro`) for trading DB queries
-- [ ] **INFRA-05**: Cloud Firewall updated to allow TCP 3001
+- [x] **INFRA-01**: Metabase v0.59.4 deployed via docker-compose on existing DO droplet (port 3001)
+- [x] **INFRA-02**: Metabase uses dedicated Postgres database (`metabaseappdb`) — not H2
+- [x] **INFRA-03**: JVM memory capped at 768MB with Docker mem_limit 1.5GB
+- [x] **INFRA-04**: Read-only Postgres user (`metabase_ro`) for trading DB queries
+- [x] **INFRA-05**: Cloud Firewall updated to allow TCP 3001
 
 ## Analytics Schema
 
