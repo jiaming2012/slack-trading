@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
-status: planning
-stopped_at: Roadmap created for v2.0 Metabase Analytics
-last_updated: "2026-03-30T01:26:43.809Z"
-last_activity: 2026-03-30 -- Roadmap created for v2.0 (5 phases, 18 requirements mapped)
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-30T01:26:00Z"
+last_activity: 2026-03-30 -- Phase 12 Plan 01 completed
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Milestone v2.0 -- Metabase Analytics (Phase 12 ready to plan)
+**Current focus:** Phase 13 — analytics-schema-indexes
 
 ## Current Position
 
-Phase: 12 of 16 (Deploy Metabase & Harden Infrastructure)
-Plan: --
-Status: Ready to plan
-Last activity: 2026-03-30 -- Roadmap created for v2.0 (5 phases, 18 requirements mapped)
+Phase: 13 (analytics-schema-indexes) — Planning complete
+Plan: 0 of 1 (planned)
+Status: Phase 13 planned, ready for execution
+Last activity: 2026-03-30 -- Phase 13 Plan 01 created
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.0) + 4 (v1.1) = 22
+- Total plans completed: 18 (v1.0) + 4 (v1.1) + 1 (v2.0) = 23
 - Average duration: ~5min
 - Total execution time: ~1.8 hours
 
@@ -57,6 +57,7 @@ Recent decisions affecting current work:
 - [Roadmap v2.0]: 5 phases derived from 18 requirements following research-recommended build order
 - [Roadmap v2.0]: Spread analytics last (Phase 16) -- highest complexity, needs stable P&L baselines from Phase 14
 - [Roadmap v2.0]: DASH-03 grouped with PERSIST phase (not core dashboards) because it requires backtest_runs data
+- [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
 
 ### Pending Todos
 
@@ -64,7 +65,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Research]: JVM OOM risk on 4GB droplet -- Phase 12 must set -Xmx768m + mem_limit 1.5g before first boot
+- [RESOLVED] JVM OOM risk -- Metabase runs on Windows Desktop, not DO droplet. JVM capped at -Xmx768m + mem_limit 1.5g
 - [Research]: Verify equity_plot_records write timing before Phase 15 planning (incremental vs on-completion)
 - [Research]: calc_pnl SQL function must mirror Go CalcRealizedPL() -- read order_record.go before Phase 16
 
@@ -81,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-30
-Stopped at: Roadmap created for v2.0 Metabase Analytics
+Stopped at: Phase 13 planned
 Resume file: None

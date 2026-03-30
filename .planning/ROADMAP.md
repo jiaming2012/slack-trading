@@ -43,7 +43,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - Integer phases (12, 13, 14): Planned milestone work
 - Decimal phases (12.1, 12.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
+- [x] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
 - [ ] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables
 - [ ] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data
 - [ ] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard
@@ -63,7 +63,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 **Plans**: 1 plan
 
 Plans:
-- [ ] 12-01-PLAN.md — Local Metabase deployment with DB setup and infrastructure hardening
+- [x] 12-01-PLAN.md — Local Metabase deployment with DB setup and infrastructure hardening
 
 ### Phase 13: Analytics Schema & Indexes
 **Goal**: Trading database has composite indexes and SQL views that make P&L, win rate, and profit factor queryable without full table scans -- and Metabase is connected with safe sync settings
@@ -73,10 +73,10 @@ Plans:
   1. Metabase questions using playground_id + timestamp filters hit indexes (no sequential scans on order_records during market hours)
   2. SQL views for P&L, win rate, and profit factor return correct values when compared against playground_metrics.py output for the same playground
   3. Metabase Admin shows join tables hidden, JSON unfolding disabled, and re-fingerprinting off
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — Composite indexes, P&L/win-rate/profit-factor SQL views, and Metabase admin configuration
 
 ### Phase 14: Core Performance Dashboards
 **Goal**: Operator can select any playground and see its trading performance -- P&L, win rate, profit factor, slippage, and per-symbol breakdown -- all from Metabase
@@ -138,8 +138,8 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 9. Playground Filtering & Detail Panels | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
-| 12. Deploy Metabase & Harden Infrastructure | v2.0 | 0/1 | Planned    |  |
-| 13. Analytics Schema & Indexes | v2.0 | 0/0 | Not started | - |
+| 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
+| 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
