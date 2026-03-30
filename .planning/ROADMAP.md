@@ -47,7 +47,7 @@
 
 **Milestone Goal:** Decouple signal production from strategy execution via a unified TradeSignal event stream, enabling replayable simulations, live signal persistence, and consistent live/sim parity.
 
-- [ ] **Phase 17: Signal Foundation** - TradeSignal struct, proto messages, signal_id on orders
+- [x] **Phase 17: Signal Foundation** - TradeSignal struct, proto messages, signal_id on orders (completed 2026-03-30)
 - [ ] **Phase 18: Signal Repository & Sim Mode** - ISignalRepository interface with in-memory implementation and tick-synchronized delivery
 - [ ] **Phase 19: RPC Endpoints & Python Integration** - WriteSignal/GetSignals RPCs, Python client wrappers, datasource script pattern
 - [ ] **Phase 20: ESDB Persistence** - EventStoreDB signal repository for live mode with queryability
@@ -70,7 +70,7 @@
 
 Plans:
 - [x] 17-01-PLAN.md — TradeSignal type, SignalName registry, proto TradeSignalProto message
-- [ ] 17-02-PLAN.md — signal_id wiring through order lifecycle (PlaceOrder -> OrderRecord -> response)
+- [x] 17-02-PLAN.md — signal_id wiring through order lifecycle (PlaceOrder -> OrderRecord -> response)
 
 ### Phase 18: Signal Repository & Sim Mode
 **Goal**: Strategies can write and read signals through a repository interface, with in-memory implementation powering simulations via tick-synchronized delivery
@@ -163,7 +163,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Signal Foundation | v3.0 | 1/2 | In Progress|  |
+| 17. Signal Foundation | v3.0 | 2/2 | Complete   | 2026-03-30 |
 | 18. Signal Repository & Sim Mode | v3.0 | 0/1 | Not started | - |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |

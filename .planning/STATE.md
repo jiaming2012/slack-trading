@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: executing
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-03-30T20:22:28.522Z"
+status: verifying
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-03-30T20:33:44.648Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 Phase: 17 (signal-foundation) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-03-30
 
 Progress: [░░░░░░░░░░] 0%
@@ -61,6 +61,7 @@ Recent decisions affecting current work:
 - [Research]: WriteSignal via Twirp RPC (single-writer principle) over direct Python-to-ESDB writes
 - [Phase 17]: Preserved existing SignalName constants and appended new ones for backward compatibility
 - [Phase 17]: TradeSignal Attributes: map[string]interface{} in Go, map<string,string> in proto per D-02 design
+- [Phase 17]: SignalID set post-construction in commitOrderRecord to avoid modifying PopulateOrderRecord 20+ param signature
 
 ### Pending Todos
 
@@ -74,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T20:22:28.518Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-03-30T20:33:44.643Z
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None

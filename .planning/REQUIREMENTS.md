@@ -3,7 +3,7 @@
 ## Signal Foundation
 
 - [x] **SIG-01**: TradeSignal struct (Name + Attributes + Timestamp) defined in Go models and proto
-- [ ] **SIG-02**: Every PlaceOrderRequest includes a signal_id linking back to the originating TradeSignal
+- [x] **SIG-02**: Every PlaceOrderRequest includes a signal_id linking back to the originating TradeSignal
 - [x] **SIG-03**: Signal attributes use `map[string]interface{}` for flexible, schema-free signal types
 
 ## Signal Repository
