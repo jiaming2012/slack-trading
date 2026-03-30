@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: Metabase Analytics
 status: verifying
 stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-30T13:19:06.253Z"
+last_updated: "2026-03-30T13:23:23.559Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 ## Current Position
 
-Phase: 13 (analytics-schema-indexes) — EXECUTING
-Plan: 1 of 1
+Phase: 14
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-03-30
 

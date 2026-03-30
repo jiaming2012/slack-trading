@@ -139,7 +139,7 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
-| 13. Analytics Schema & Indexes | v2.0 | 1/1 | Complete   | 2026-03-30 |
+| 13. Analytics Schema & Indexes | v2.0 | 1/1 | Complete    | 2026-03-30 |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/0 | Not started | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
