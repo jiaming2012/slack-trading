@@ -96,10 +96,11 @@ Plans:
   2. GetSignals RPC endpoint returns signals filtered by name, symbol, and time range for a given strategy
   3. A standalone Python datasource script can run from __main__ and produce signals to a per-symbol event stream
   4. Sim strategies can import datasource modules directly (no RPC needed for sim signal generation)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: TBD
+- [ ] 19-01-PLAN.md — Proto messages, Go RPC handlers (WriteSignal, GetSignals, GetProcessedSignals), OTel counters, unit tests
+- [ ] 19-02-PLAN.md — Python client write_signal()/get_processed_signals() wrappers, datasource skeleton package
 
 ### Phase 20: ESDB Persistence
 **Goal**: Live environments persist signals to EventStoreDB with queryability by name, symbol, and timeframe
@@ -166,7 +167,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 |-------|-----------|----------------|--------|-----------|
 | 17. Signal Foundation | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
-| 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
+| 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
 | 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
