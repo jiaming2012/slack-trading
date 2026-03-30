@@ -135,7 +135,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_strategy_heartbeat{client_id=~\"$client_id\", strategy_name=\"covered_call\"}",
+          "expr": "grodt_strategy_heartbeat{client_id=~\"$client_id\", strategy_name=~\"covered_call|OptionsStrategyBasic\"}",
           "legendFormat": "",
           "format": "table",
           "instant": true,

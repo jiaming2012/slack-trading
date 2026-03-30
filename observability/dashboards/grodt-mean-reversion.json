@@ -135,7 +135,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_strategy_heartbeat{client_id=~\"$client_id\", strategy_name=\"mean_reversion\"}",
+          "expr": "grodt_strategy_heartbeat{client_id=~\"$client_id\", strategy_name=~\"mean_reversion|MeanReversionStrategy\"}",
           "legendFormat": "",
           "format": "table",
           "instant": true,

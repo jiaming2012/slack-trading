@@ -66,6 +66,7 @@ class TradeGroup:
 # ------------------------------------------------------------------ #
 
 class MeanReversionStrategy(BaseStrategy):
+    label = "mean_reversion"
     """
     PDF-guided mean-reversion strategy.
 

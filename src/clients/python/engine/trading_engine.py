@@ -99,7 +99,8 @@ def run_strategy(
     otel_shutdown = setup_otel()
 
     # Start heartbeat daemon thread (D-11)
-    strategy_name = type(strategy).__name__
+    # Use strategy.label if defined, otherwise derive from class name
+    strategy_name = getattr(strategy, 'label', None) or type(strategy).__name__
     heartbeat = StrategyHeartbeat(
         strategy_name,
         playground_id=getattr(playground, 'id', ''),

@@ -210,6 +210,7 @@ def calculate_expected_profit_binomial_american(S0, P2, P3, sigma, T, r, N=100):
         return expected_profit
     
 class OptionsStrategyBasic(BaseOpenStrategyV2, BaseStrategy):
+    label = "covered_call"
     @classmethod
     def get_repositories(cls, symbol: str, start_date: datetime, end_date: datetime) -> List[Repository]:
         ltf_repo_daily = Repository(
