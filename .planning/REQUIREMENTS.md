@@ -26,7 +26,7 @@
 - [x] **DASH-02**: Slippage analysis dashboard: open/close/total slippage per playground
 - [ ] **DASH-03**: Strategy comparison dashboard: compare backtests by parameters and strategy types
 - [x] **DASH-04**: Portfolio analytics: position history, per-symbol/asset-class breakdown
-- [ ] **DASH-05**: Spread analytics dashboard: spread P&L, spread win/loss ratio
+- [x] **DASH-05**: Spread analytics dashboard: spread P&L, spread win/loss ratio
 
 ## Spread Analytics
 
