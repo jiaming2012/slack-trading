@@ -1,327 +1,195 @@
-# Stack Research: Observability for Go + Python Trading Platform
+# Technology Stack
 
-**Domain:** Full-stack observability (OpenTelemetry + Grafana ecosystem)
-**Researched:** 2026-03-25
-**Confidence:** HIGH
+**Project:** slack-trading (grodt) — Metabase Analytics (v2.0)
+**Researched:** 2026-03-29
+**Scope:** NEW additions only. Existing validated stack (Go, Python, OTel, Grafana, PostgreSQL, Docker Compose on DigitalOcean) is not re-researched.
 
-## Recommended Stack
+---
 
-### Core Technologies
+## What This Milestone Adds
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| OpenTelemetry Go SDK | v1.27.0 (existing) | Traces + metrics from Go server | Already imported in go.mod with spans in ~15 files. Upgrading to v1.42.0 is possible but unnecessary -- v1.27.0 is stable and the existing reference code (`quickstart.go`) targets it. Upgrade later when there is a reason. |
-| OpenTelemetry Python SDK | 1.40.0 | Traces + metrics from Python strategy clients | Latest stable. Python 3.10 compatible. Pairs with structlog already in the conda env. |
-| OTel Collector (contrib) | 0.148.0 | Telemetry routing hub: receives OTLP from Go + Python, exports to Loki/Tempo/Prometheus | The contrib distribution includes all needed exporters (otlphttp for Loki, otlp for Tempo). Acts as the single funnel so apps never talk directly to backends. |
-| Grafana Loki | 3.6.0 | Log aggregation backend | Native OTLP ingestion (no deprecated lokiexporter needed). Lightweight, pairs naturally with Grafana. Structured metadata enabled by default in 3.x. |
-| Grafana Tempo | 2.10.3 | Distributed trace backend | Native OTLP ingestion, purpose-built for traces. No indexing required (traces by ID). Pairs with Loki for trace-to-log correlation. |
-| Prometheus | 2.54+ | Metrics backend | OTel Collector exports metrics via prometheusremotewrite. Grafana has first-class Prometheus data source. Needed because Loki is logs-only and Tempo is traces-only. |
-| Grafana | 12.1 (OSS) | Dashboards, alerting, explore | Unified UI across all three backends. Built-in alerting replaces need for external tools. User has some experience with it. |
+Three new capabilities on top of the shipped v1.1 stack:
 
-### Supporting Libraries
+1. **Metabase** — Business-level trading analytics dashboard (queries directly against PostgreSQL)
+2. **Analytics schema/views in PostgreSQL** — Spread-aware P&L, profit factor, slippage, win rate computed as SQL views
+3. **Simulator playground persistence** — Backtest results written to Postgres so Metabase can query historical runs
 
-#### Go (already in go.mod -- wire up, don't install)
+---
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `go.opentelemetry.io/otel` | v1.27.0 | Core OTel API (tracer, meter) | Already imported. Initialize TracerProvider/MeterProvider in `cmd/main.go`. |
-| `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp` | v1.27.0 | OTLP HTTP trace exporter | Send traces to OTel Collector. Already in go.mod. Reference in `quickstart.go`. |
-| `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` | v1.27.0 | OTLP HTTP metric exporter | Send metrics to OTel Collector. Already in go.mod. |
-| `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp` | v0.52.0 | Auto-instrument HTTP handlers | Wrap Gorilla mux and Twirp handlers for request latency/count metrics. Already in go.mod. |
-| `go.opentelemetry.io/contrib/instrumentation/runtime` | v0.52.0 | Go runtime metrics (GC, goroutines, memory) | Start in `cmd/main.go` alongside providers. Already in go.mod. |
-| `github.com/uptrace/opentelemetry-go-extra/otellogrus` | v0.3.1 | Bridge logrus logs to OTel spans | Already imported and hooked in `cmd/main.go`. Logs get trace context automatically. |
+## New Stack Components
 
-#### Go (new -- install)
+### Metabase
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp` | v0.3.0+ | OTLP HTTP log exporter | Send structured logs to OTel Collector as OTLP logs (not just trace-correlated). Needed for log pipeline completeness. |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| `metabase/metabase` Docker image | v0.59.4 (OSS) | Business analytics UI — dashboards, SQL editor, question builder | Queries Postgres directly; no custom code needed for trading dashboards. v0.59 includes Data Studio (semantic layer) and AI SQL generation in OSS edition. |
 
-#### Python (new -- install in conda env)
+**Configuration approach:**
+- Metabase's own application state (dashboards, questions, user accounts) stored in a dedicated PostgreSQL database (`metabase` database, same Postgres instance as trading data)
+- Trading data is the **data source** connection — same Postgres host, `playground` database, read-only credentials
+- Using the same Postgres instance for both is fine on a single-server deployment; the two databases are fully isolated
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `opentelemetry-api` | 1.40.0 | OTel API for manual instrumentation | Trace strategy decisions, order placement, tick loop. |
-| `opentelemetry-sdk` | 1.40.0 | OTel SDK (TracerProvider, MeterProvider) | Initialize in trading engine startup. |
-| `opentelemetry-exporter-otlp-proto-http` | 1.40.0 | OTLP HTTP exporter | Send traces/metrics/logs to OTel Collector. Use HTTP (not gRPC) to avoid grpcio dependency complexity. |
-| `opentelemetry-instrumentation-logging` | 0.61b0 | Bridge Python logging to OTel | Auto-inject trace_id/span_id into log records. |
+**Port:** Metabase defaults to 3000, which conflicts with `grafana/otel-lgtm` (also 3000). Resolve by running Metabase on **port 3001** via `MB_JETTY_PORT=3001` and exposing `3001:3000` in Docker Compose. Do NOT change otel-lgtm's port — Grafana provisioning is already tuned to it.
 
-### Development Tools
+**Memory on 2vCPU/4GB droplet:** Metabase idles at ~600MB and needs ~1-1.5GB under load. The existing stack (Go server, Postgres, EventStoreDB, otel-lgtm) already consumes ~2-2.5GB. Adding Metabase is viable but tight — set `JAVA_OPTS=-Xmx768m` to cap JVM heap and leave headroom for the rest. If the droplet becomes unstable, upgrading to s-2vcpu-8gb is the next step.
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| `grafana/otel-lgtm` Docker image | All-in-one dev backend (Collector + Loki + Tempo + Prometheus + Grafana) | Single container for local dev. Zero config. Grafana at :3000, OTLP at :4318. Use this for iteration speed. |
-| Docker Compose (observability stack) | Production-like local setup | Separate containers for each component. Use when debugging inter-service config or preparing for deployment. |
-
-## Architecture: How Components Connect
-
+**Application database setup:** Must create the `metabase` database before first start:
+```sql
+CREATE DATABASE metabase WITH ENCODING 'UTF8';
 ```
-Go Server (:5051/:8080)          Python Client
-  |  OTLP/HTTP traces+metrics+logs    |  OTLP/HTTP traces+metrics+logs
-  |                                    |
-  +-----------> OTel Collector (:4318) <-----------+
-                    |
-        +-----------+-----------+
-        |           |           |
-   Loki (:3100) Tempo (:3200) Prometheus (:9090)
-   (logs)       (traces)      (metrics)
-        |           |           |
-        +-----------+-----------+
-                    |
-              Grafana (:3000)
-              (dashboards + alerts)
+This runs once via the existing `infra/init.sql` or a migration task.
+
+**Read-only credentials for data source:** Create a dedicated Postgres user that has SELECT-only on the `playground` database. This is what Metabase uses to query trading data — prevents accidental modification.
+```sql
+CREATE USER metabase_reader WITH PASSWORD '<secret>';
+GRANT CONNECT ON DATABASE playground TO metabase_reader;
+GRANT USAGE ON SCHEMA public TO metabase_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO metabase_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO metabase_reader;
 ```
 
-## OTel Collector Configuration
+### PostgreSQL Analytics Schema
 
-Use the **contrib** distribution (`otel/opentelemetry-collector-contrib`), not core. Core lacks the `prometheusremotewrite` exporter.
+No new database engine is needed. Analytics are SQL views on top of existing GORM-managed tables (`order_records`, `trade_records`, `playgrounds`).
+
+**Pattern:** Use a dedicated `analytics` schema in the `playground` database to keep views separate from GORM-managed `public` schema tables. GORM ignores schemas outside `public` unless explicitly configured, so there is zero risk of collision.
+
+```sql
+CREATE SCHEMA IF NOT EXISTS analytics;
+```
+
+Key views to create:
+
+| View | Purpose | Source Tables |
+|------|---------|---------------|
+| `analytics.trade_legs` | Flattens order_records with their trade fills | `order_records`, `trade_records` |
+| `analytics.spread_groups` | Groups multi-leg option trades by playground + timestamp proximity | `order_records` |
+| `analytics.pnl_per_trade` | P&L per completed round-trip (entry + close) using `order_closes` join table | `order_records`, `order_closes`, `trade_records` |
+| `analytics.backtest_summary` | Per-playground: profit factor, win rate, total P&L, trade count, duration | `playgrounds`, `analytics.pnl_per_trade` |
+| `analytics.equity_curve` | Time-series equity per playground | `equity_plot_records` |
+
+**Spread-aware grouping logic:** The existing `order_closes` many2many join table in the schema already links opening orders to their closing orders. A covered call spread (short call + long stock) can be grouped by `playground_id` + `tag` (which Python already sets via `Attributes` on `OrderRecord`). The `tag` column on `order_records` is the correct grouping key — enforce a convention like `"covered_call_2024-01-15"` at the Python strategy level.
+
+**Migration approach:** Views are idempotent (`CREATE OR REPLACE VIEW`). Add them to `infra/init.sql` (which runs on fresh Postgres start) AND provide a manual migration script for the live droplet. GORM auto-migration does not touch views — no conflict.
+
+### Simulator Playground Persistence
+
+**Current state:** Simulator (backtest) playgrounds are created in-memory only. `CreatePlayground` for `PlaygroundEnvironmentSimulator` does NOT call `SavePlaygroundSession`. Orders and trades are never written to Postgres for simulator runs.
+
+**What's needed:** A `SaveToDB: true` flag path for simulator playgrounds, matching what live and reconcile playgrounds already do. The database models (`Playground`, `OrderRecord`, `TradeRecord`) are already GORM-mapped — the tables exist. It's a behavioral change in the service layer, not a schema change.
+
+**Implementation surface:** `src/go/data/database_service.go` — `CreatePlayground` function, simulator branch (line ~927). Add `SavePlaygroundSession` call when `req.SaveToDB == true`. Python client passes `save_to_db: true` in `CreatePlayground` RPC when the backtest should be persisted for analytics.
+
+**Tagging convention for Metabase queries:** Simulator playgrounds need strategy-level tags to be queryable. The `Meta.Tags` (`pq.StringArray`) field already exists. Python should tag runs with `["simulator", "strategy:covered_call", "version:v7"]` before persisting.
+
+---
+
+## Docker Compose Addition
+
+Add to `docker-compose.prod.yaml` (and local `observability/docker-compose.yaml` for dev testing):
 
 ```yaml
-# otel-collector-config.yaml
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
-      http:
-        endpoint: 0.0.0.0:4318
-
-processors:
-  batch:
-    timeout: 5s
-    send_batch_size: 1024
-  resource:
-    attributes:
-      - key: service.namespace
-        value: grodt
-        action: upsert
-
-exporters:
-  otlphttp/logs:
-    endpoint: "http://loki:3100/otlp"
-    tls:
-      insecure: true
-  otlp/traces:
-    endpoint: "tempo:4317"
-    tls:
-      insecure: true
-  prometheusremotewrite:
-    endpoint: "http://prometheus:9090/api/v1/write"
-    tls:
-      insecure: true
-
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch, resource]
-      exporters: [otlp/traces]
-    metrics:
-      receivers: [otlp]
-      processors: [batch, resource]
-      exporters: [prometheusremotewrite]
-    logs:
-      receivers: [otlp]
-      processors: [batch, resource]
-      exporters: [otlphttp/logs]
-```
-
-## Docker Compose Configuration
-
-```yaml
-# observability/docker-compose.yaml
-services:
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.148.0
-    command: ["--config=/etc/otelcol/config.yaml"]
-    volumes:
-      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml
-    ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-    depends_on:
-      - loki
-      - tempo
-      - prometheus
-
-  loki:
-    image: grafana/loki:3.6.0
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
-      - loki-data:/loki
-    ports:
-      - "3100:3100"
-
-  tempo:
-    image: grafana/tempo:2.10.3
-    command: ["-config.file=/etc/tempo/config.yaml"]
-    volumes:
-      - ./tempo-config.yaml:/etc/tempo/config.yaml
-      - tempo-data:/var/tempo
-    ports:
-      - "3200:3200"   # Tempo HTTP
-      - "4327:4317"   # Tempo OTLP gRPC (remapped to avoid collision)
-
-  prometheus:
-    image: prom/prometheus:v2.54.0
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--web.enable-remote-write-receiver"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    ports:
-      - "9090:9090"
-
-  grafana:
-    image: grafana/grafana-oss:12.1.0
+  metabase:
+    image: metabase/metabase:v0.59.4
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - grafana-data:/var/lib/grafana
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabase
+      - MB_DB_PORT=5432
+      - MB_DB_HOST=postgres
+      - MB_DB_USER=${METABASE_DB_USER}
+      - MB_DB_PASS=${METABASE_DB_PASS}
+      - MB_JETTY_PORT=3001
+      - JAVA_OPTS=-Xmx768m
     ports:
-      - "3000:3000"
+      - "3001:3001"
     depends_on:
-      - loki
-      - tempo
-      - prometheus
-
-volumes:
-  loki-data:
-  tempo-data:
-  prometheus-data:
-  grafana-data:
+      - postgres
+    volumes:
+      - metabase-data:/metabase-data
+    restart: unless-stopped
 ```
 
-## Installation
-
-### Go (no new packages needed for MVP)
-
-The existing go.mod already has all required OTel packages. The only work is initializing providers in `cmd/main.go` using the pattern from `deprecated/go/cmd/telemetry/quickstart.go`.
-
-If OTLP log export is needed later:
-```bash
-go get go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp
+Add to `volumes:` block:
+```yaml
+  metabase-data:
 ```
 
-### Python (conda env)
-
-```bash
-conda activate grodt
-pip install \
-  opentelemetry-api==1.40.0 \
-  opentelemetry-sdk==1.40.0 \
-  opentelemetry-exporter-otlp-proto-http==1.40.0 \
-  opentelemetry-instrumentation-logging==0.61b0
+Add to `.env.prod.template`:
+```
+METABASE_DB_USER=CHANGEME
+METABASE_DB_PASS=CHANGEME
 ```
 
-### Quick Start (dev mode)
+**Note:** `metabase-data` volume is used by Metabase for JAR plugin storage and local file caching, not for primary state (that goes to `MB_DB_*` Postgres). It is still useful to mount to avoid container-restart side effects.
 
-```bash
-# Fastest way to get a backend running for development:
-docker run --name otel-lgtm -p 3000:3000 -p 4317:4317 -p 4318:4318 -d grafana/otel-lgtm:latest
-```
+---
 
-Then configure Go/Python to export OTLP to `http://localhost:4318`.
+## What Does NOT Need to Change
+
+| Existing Component | Status | Reason |
+|--------------------|--------|--------|
+| Go GORM models | No change | Existing tables (`order_records`, `trade_records`, `playgrounds`, `equity_plot_records`) are the data source. Analytics views read them. |
+| Python OTel instrumentation | No change | Metabase queries Postgres directly, not OTel pipelines. |
+| Grafana / otel-lgtm | No change | Grafana stays on port 3000 for operational metrics. Metabase is for business analytics. They are additive, not overlapping. |
+| `infra/init.sql` | Minor addition | Add `CREATE DATABASE metabase` and `CREATE SCHEMA analytics` + read-only user setup. |
+| Postgres version (13) | No change | Postgres 13 is fully supported by Metabase v0.59. (Metabase supports all current Postgres versions.) |
+| EventStoreDB | No change | Not involved in analytics at all. |
+
+---
+
+## Go Dependencies: None New
+
+The simulator persistence change is a behavioral change to `database_service.go` — no new Go packages needed. GORM, uuid, and the existing Postgres driver are already present.
+
+## Python Dependencies: None New
+
+Python already calls `CreatePlayground` RPC. The only change is passing `save_to_db: true` in the protobuf request. No new Python packages.
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| OTel Collector (contrib) | Grafana Alloy | If you want a single collector for logs+metrics+traces with Grafana-native config syntax. Alloy is Grafana's OTel Collector distribution. Consider for production if you want tighter Grafana ecosystem integration, but OTel Collector is more vendor-neutral and has broader community docs. |
-| Loki (native OTLP) | ELK Stack | Never for this project. ELK is heavyweight, requires Elasticsearch cluster, and the team has no ELK experience. |
-| Loki (native OTLP) | OTel Collector lokiexporter | Never. The lokiexporter is deprecated. Loki 3.x accepts OTLP natively via `otlphttp` exporter. |
-| Tempo | Jaeger | If you need trace search by arbitrary fields (Tempo only searches by trace ID natively). For this project, Tempo is better because it pairs with Grafana and requires no indexing infrastructure. |
-| Prometheus | Mimir | If you need long-term metric storage or multi-tenant metrics. Overkill for a single trading platform. |
-| `grafana/otel-lgtm` (dev) | Full Docker Compose | When debugging collector config or testing production-like setup. Use otel-lgtm for daily dev work. |
-| OTLP/HTTP exporters | OTLP/gRPC exporters | If you have gRPC infrastructure. HTTP is simpler (no grpcio dependency in Python, works through proxies). For this project, HTTP is the right choice -- matches existing Twirp HTTP transport. |
-| structlog (Python logs) | loguru | loguru is already in requirements but structlog has better OTel integration and is already available in conda env. Use structlog for new instrumented code. |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Business analytics | Metabase OSS | Grafana (extend existing) | Grafana requires writing PromQL/LogQL queries and raw JSON dashboards. Metabase gives non-engineers a GUI question builder. The project explicitly chose "business-level analytics" as a separate tool. |
+| Metabase app DB | Existing Postgres (metabase DB) | Separate Postgres container | Overkill for a single-server deployment. One Postgres instance with two databases (playground + metabase) is the standard Metabase deployment pattern on constrained infrastructure. |
+| Analytics layer | SQL views in Postgres | Separate dbt / transform pipeline | No dbt expertise in this codebase. Views are simpler, idempotent, and queryable by Metabase without additional tooling. |
+| Multi-leg grouping | `tag` column convention | New `spread_group_id` column | `tag` already exists in `order_records` with JSONB `attributes` as a fallback. Adding a new column means a GORM migration; a tagging convention is zero-schema-change. |
+| Metabase edition | OSS (`metabase/metabase`) | Enterprise (`metabase/metabase-enterprise`) | OSS includes all needed features (SQL editor, dashboards, PostgreSQL connection, AI SQL in v0.59). Enterprise adds SSO and audit logs — unnecessary for a single-operator trading platform. |
 
-## What NOT to Use
+---
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Promtail | Deprecated as of Feb 2025, EOL Feb 2026. Grafana replaced it with Alloy. | OTel Collector (for this project) or Grafana Alloy |
-| lokiexporter (OTel Collector) | Deprecated in collector-contrib. Loki 3.x has native OTLP endpoint. | `otlphttp` exporter pointing at `http://loki:3100/otlp` |
-| Datadog / New Relic / Honeycomb | Vendor lock-in, ongoing cost. OSS stack is free and the project already chose this direction. | Grafana + Loki + Tempo + Prometheus |
-| opentelemetry-exporter-otlp (gRPC variant) for Python | Pulls in `grpcio` which is heavy, has build issues on some platforms, and conflicts with numpy pinning. | `opentelemetry-exporter-otlp-proto-http` (HTTP variant) |
-| OpenCensus (`go.opencensus.io`) | Already in go.mod as indirect dependency but OpenCensus is archived/deprecated. Merged into OpenTelemetry. | OpenTelemetry (already primary) |
-| Grafana Agent (static/flow) | Superseded by Grafana Alloy. No longer maintained. | OTel Collector or Grafana Alloy |
+## Confidence Assessment
 
-## Stack Patterns by Variant
+| Area | Confidence | Basis |
+|------|------------|-------|
+| Metabase v0.59.4 version | HIGH | Verified via GitHub releases page (latest release March 2025) |
+| Metabase Docker image name | HIGH | Official Docker Hub: `metabase/metabase` |
+| MB_JETTY_PORT for port change | HIGH | Official Metabase docs (Customizing Jetty Webserver) |
+| MB_DB_* env vars for PostgreSQL app DB | HIGH | Official Metabase docs (Configuring Application Database) |
+| Memory: ~600MB idle, ~1-1.5GB under load | MEDIUM | Metabase community forum posts (multiple sources agree); not official spec |
+| Postgres 13 compatibility | HIGH | Metabase supports all current Postgres versions; PG13 is current |
+| Simulator persistence: `SaveToDB` flag path | HIGH | Direct inspection of `database_service.go` CreatePlayground — simulator branch (line ~927) does NOT call SavePlaygroundSession; live/reconcile branches DO |
+| Analytics views via `analytics` schema | HIGH | PostgreSQL schemas docs + GORM schema isolation pattern |
+| `tag` column for spread grouping | HIGH | Direct inspection of `order_record.go` — `tag` column is `gorm:"column:tag;type:text"` |
 
-**For local development (daily work):**
-- Use `grafana/otel-lgtm` all-in-one Docker image
-- Zero config, single container, all backends included
-- Because iteration speed matters more than production fidelity
-
-**For production (Digital Ocean):**
-- Use separate containers: OTel Collector + Loki + Tempo + Prometheus + Grafana
-- Each component independently scalable and configurable
-- Because production needs persistence, resource limits, and independent restarts
-
-**For testing OTel instrumentation without any backend:**
-- Set `OTEL_TRACES_EXPORTER=console` and `OTEL_METRICS_EXPORTER=console`
-- OTel SDK prints telemetry to stdout
-- Because you can verify instrumentation works before setting up infrastructure
-
-## Version Compatibility
-
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| OTel Go SDK v1.27.0 | Go 1.22.4 | Current project Go version is supported. v1.42.0 drops Go 1.24+ support eventually but v1.27.0 is fine. |
-| OTel Python SDK 1.40.0 | Python 3.9+ | Python 3.10 (conda env) is supported. |
-| OTel Python SDK 1.40.0 | numpy 1.26.4 | No conflict -- OTel Python has no numpy dependency. |
-| OTel Collector contrib 0.148.0 | Loki 3.6.0 | Uses native OTLP endpoint. Structured metadata enabled by default. |
-| OTel Collector contrib 0.148.0 | Tempo 2.10.3 | Native OTLP gRPC ingestion. |
-| Grafana 12.1 | Loki 3.6.0, Tempo 2.10.3, Prometheus 2.54 | All data sources natively supported. |
-| Loki 3.6.0 | Docker (no shell) | Since Loki 3.5.8, busybox removed from Docker image. Cannot exec into container with /bin/sh. |
-
-## Existing Codebase Assets (Don't Rebuild)
-
-These already exist and should be leveraged, not replaced:
-
-| Asset | Location | Status |
-|-------|----------|--------|
-| OTel Go packages | `go.mod` (9 OTel imports) | Imported but TracerProvider/MeterProvider never initialized |
-| Tracer spans | ~15 files in eventservices, eventconsumers, eventproducers | Created but go nowhere (no provider) |
-| otellogrus hook | `cmd/main.go` | Hooked but ineffective without provider |
-| Reference OTel setup | `deprecated/go/cmd/telemetry/quickstart.go` | Complete working example of TracerProvider + MeterProvider + otellogrus + otelhttp |
-| structlog | conda env (`grodt.yml`) | Available for Python structured logging |
-| logrus (JSON) | Go server | Already the primary Go logger, OTel bridge exists |
-| pprof endpoints | `cmd/main.go` at `/debug/pprof/*` | Runtime profiling (keep alongside OTel) |
-
-## Environment Variables
-
-The OTel SDK respects standard environment variables. Configure these instead of hardcoding endpoints:
-
-| Variable | Value (local dev) | Purpose |
-|----------|-------------------|---------|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | Where Go/Python send OTLP data |
-| `OTEL_SERVICE_NAME` | `grodt-server` / `grodt-strategy` | Identifies service in traces/metrics |
-| `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=development` | Tags all telemetry with environment |
-| `OTEL_TRACES_EXPORTER` | `otlp` (default) | Can set to `console` for debugging |
-| `OTEL_METRICS_EXPORTER` | `otlp` (default) | Can set to `console` for debugging |
-| `OTEL_LOGS_EXPORTER` | `otlp` | Enable OTLP log export |
+---
 
 ## Sources
 
-- [OpenTelemetry Go releases](https://github.com/open-telemetry/opentelemetry-go/releases) -- v1.42.0 latest, v1.27.0 in project (HIGH confidence)
-- [OpenTelemetry Python SDK on PyPI](https://pypi.org/project/opentelemetry-sdk/) -- v1.40.0 latest (HIGH confidence)
-- [OTel Collector releases](https://github.com/open-telemetry/opentelemetry-collector-releases/releases) -- v0.148.0 latest (HIGH confidence)
-- [Grafana Loki releases](https://github.com/grafana/loki/releases) -- v3.6.0 (HIGH confidence)
-- [Grafana Tempo releases](https://github.com/grafana/tempo/releases) -- v2.10.3 (HIGH confidence)
-- [Grafana releases](https://hub.docker.com/r/grafana/grafana) -- 12.1 latest (MEDIUM confidence, Docker Hub tags)
-- [Loki OTLP ingestion docs](https://grafana.com/docs/loki/latest/send-data/otel/) -- native OTLP, no lokiexporter needed (HIGH confidence)
-- [OTel Collector + Loki tutorial](https://grafana.com/docs/loki/latest/send-data/otel/otel-collector-getting-started/) -- collector config pattern (HIGH confidence)
-- [grafana/docker-otel-lgtm](https://github.com/grafana/docker-otel-lgtm) -- all-in-one dev image (HIGH confidence)
-- [Promtail deprecation](https://community.grafana.com/t/how-does-alloy-relate-to-otel-collector/134548) -- deprecated Feb 2025, EOL Feb 2026 (HIGH confidence)
-- [structlog OTel integration](https://johal.in/structlog-json-logs-middleware-opentelemetry-python-2026/) -- trace context in structlog (MEDIUM confidence, blog post)
-- Existing codebase: `go.mod`, `deprecated/go/cmd/telemetry/quickstart.go` -- verified by direct inspection (HIGH confidence)
+- [Metabase GitHub Releases](https://github.com/metabase/metabase/releases) — v0.59.4 latest stable (HIGH confidence)
+- [Metabase Docker Hub](https://hub.docker.com/r/metabase/metabase/) — official image (HIGH confidence)
+- [Metabase: Configuring Application Database](https://www.metabase.com/docs/latest/installation-and-operation/configuring-application-database) — MB_DB_* env vars (HIGH confidence)
+- [Metabase: Customizing Jetty Webserver](https://www.metabase.com/docs/latest/configuring-metabase/customizing-jetty-webserver) — MB_JETTY_PORT (HIGH confidence)
+- [Metabase: Running on Docker](https://www.metabase.com/docs/latest/installation-and-operation/running-metabase-on-docker) — Docker image usage (HIGH confidence)
+- [Metabase: Memory requirements](https://discourse.metabase.com/t/what-are-metabase-minimum-resources/21470) — baseline ~600MB (MEDIUM confidence)
+- [Metabase: How to run in production](https://www.metabase.com/learn/metabase-basics/administration/administration-and-operation/metabase-in-production) — production recommendations (HIGH confidence)
+- [PostgreSQL: Schemas](https://www.postgresql.org/docs/current/ddl-schemas.html) — `analytics` schema isolation pattern (HIGH confidence)
+- Existing codebase: `src/go/data/database_service.go` lines 821-971 — CreatePlayground simulator branch (HIGH confidence, direct inspection)
+- Existing codebase: `src/go/backtester-api/models/order_record.go` — `tag` and `attributes` columns (HIGH confidence, direct inspection)
+- Existing codebase: `docker-compose.prod.yaml` — current 4-service production stack (HIGH confidence, direct inspection)
 
 ---
-*Stack research for: Observability (OpenTelemetry + Grafana ecosystem) for Go + Python trading platform*
-*Researched: 2026-03-25*
+
+*Stack research for: Metabase Analytics (v2.0) — additions to existing Go + Python + OTel + Grafana + PostgreSQL stack*
+*Researched: 2026-03-29*
