@@ -108,18 +108,19 @@ Plans:
 - [ ] 15-02-PLAN.md -- Strategy Comparison dashboard in Metabase provisioning script
 
 ### Phase 16: Spread Analytics
-**Goal**: Multi-leg option strategies (covered calls, spreads) are grouped as single trade units with combined P&L, so the operator sees strategy-level performance instead of meaningless per-leg numbers
+**Goal**: Multi-leg option strategies are grouped as single trade units with combined P&L via JSONB attributes, so the operator sees strategy-level spread performance instead of meaningless per-leg numbers
 **Depends on**: Phase 15
 **Requirements**: SCHEMA-03, SCHEMA-04, SPREAD-01, SPREAD-02, DASH-05
 **Success Criteria** (what must be TRUE):
-  1. Go server registers spread legs when PlaceOrder receives a spread_group_key attribute
-  2. Python covered call strategy emits spread_group_key and leg_role on multi-leg orders
-  3. Spread P&L view shows combined net profit per spread group (not per-leg), and a covered call round-trip appears as one trade unit
-  4. Operator can view spread win/loss ratio and spread P&L over time in Metabase
-**Plans**: TBD
+  1. Go server injects spread_group_key and leg_role into each leg's attributes when PlaceMultiLegOrder is called
+  2. v_spread_pnl view shows combined net P&L per spread group (not per-leg)
+  3. v_spread_stats view provides win/loss ratio and aggregated spread metrics per playground
+  4. Operator can view spread P&L, win/loss ratio, and per-spread detail in Metabase
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
+- [ ] 16-01-PLAN.md — Go handler spread attribute injection, SQL views (v_spread_pnl, v_spread_stats), GIN index, unit test
+- [ ] 16-02-PLAN.md — Spread Analytics Metabase dashboard and E2E integration test
 
 ## Progress
 
@@ -143,4 +144,4 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
 | 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
 | 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | Complete    | 2026-03-30 |
-| 16. Spread Analytics | v2.0 | 0/0 | Not started | - |
+| 16. Spread Analytics | v2.0 | 0/2 | Planned | - |
