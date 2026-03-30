@@ -53,6 +53,7 @@ type Playground struct {
 	newOrdersQueueMutex         *sync.Mutex                               `json:"-" gorm:"-"`
 	pendingOrdersQueueMutex     *sync.Mutex                               `json:"-" gorm:"-"`
 	exerciseOptionsRequestQueue *ExerciseOptionRequestQueue               `json:"-" gorm:"-"`
+	signalRepo                 ISignalRepository                         `json:"-" gorm:"-"`
 }
 
 func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPrice float64) error {
@@ -1626,6 +1627,12 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		}
 	}
 
+	// Drain clock-gated signals from repository
+	var newSignals []*eventmodels.TradeSignal
+	if p.signalRepo != nil {
+		newSignals = p.signalRepo.ReadPending(p.clock.CurrentTime)
+	}
+
 	// update option contracts
 	for instrument := range p.repos.Iter() {
 		switch s := instrument.(type) {
@@ -1676,6 +1683,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	return &TickDelta{
 		NewTrades:     newTrades,
 		NewCandles:    newCandles,
+		NewSignals:    newSignals,
 		CurrentTime:   p.clock.CurrentTime.Format(time.RFC3339),
 		InvalidOrders: invalidOrdersDTO,
 		Events:        tickDeltaEvents,
@@ -2383,6 +2391,14 @@ func (p *Playground) SetNewTradesQueue(queue *eventmodels.FIFOQueue[*TradeRecord
 
 func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
 	return p.newTradesQueue
+}
+
+func (p *Playground) SetSignalRepo(repo ISignalRepository) {
+	p.signalRepo = repo
+}
+
+func (p *Playground) GetSignalRepo() ISignalRepository {
+	return p.signalRepo
 }
 
 func (p *Playground) SetInvalidOrdersQueue(queue *eventmodels.FIFOQueue[*OrderRecord]) {

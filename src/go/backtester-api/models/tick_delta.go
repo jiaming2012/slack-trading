@@ -9,6 +9,7 @@ import (
 type TickDelta struct {
 	NewTrades          []*TradeRecord          `json:"new_trades,omitempty"`
 	NewCandles         []*BacktesterCandle     `json:"new_candles,omitempty"`
+	NewSignals         []*eventmodels.TradeSignal `json:"new_signals,omitempty"`
 	InvalidOrders      []*OrderRecord          `json:"invalid_orders,omitempty"`
 	Events             []*TickDeltaEvent       `json:"events,omitempty"`
 	EquityPlot         *eventmodels.EquityPlot `json:"equity_plot,omitempty"`
