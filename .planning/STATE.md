@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-30T15:31:24.566Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-03-30T15:50:23.505Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
@@ -85,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T15:28:22.684Z
-Stopped at: Completed 14-02-PLAN.md
-Resume file: None
+Last session: 2026-03-30T15:50:23.499Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-simulator-persistence-backtest-comparison/15-CONTEXT.md
