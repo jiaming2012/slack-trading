@@ -13,6 +13,7 @@ const (
 	FxTicksStream         StreamName = "fx-ticks"
 	TrackersStream        StreamName = "trackers"
 	CandleStream          StreamName = "candles"
+	TradeSignalStream     StreamName = "trade-signals"
 )
 
 func NewCandleStreamName(symbol string) StreamName {
@@ -29,4 +30,8 @@ func NewOptionChainTickStreamName(name OptionSymbol) StreamName {
 
 func NewFxTickStreamName(symbol FxSymbol) StreamName {
 	return StreamName(fmt.Sprintf("%s-%s", FxTicksStream, symbol))
+}
+
+func NewTradeSignalStreamName(symbol string) StreamName {
+	return StreamName(fmt.Sprintf("%s-%s", TradeSignalStream, symbol))
 }

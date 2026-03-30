@@ -56,4 +56,5 @@ const (
 	CandleSavedEvent                      EventName = "CandleSavedEvent"
 	TerminalErrorName                     EventName = "TerminalError"
 	Error                                 EventName = "DefaultError"
+	TradeSignalEventName                  EventName = "TradeSignalEvent"
 )
