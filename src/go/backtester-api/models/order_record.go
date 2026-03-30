@@ -77,6 +77,7 @@ type OrderRecord struct {
 	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
 	PreviousBalance  *float64               `gorm:"column:previous_balance;type:numeric" copier:"must,nopanic"`
+	SignalID         *uuid.UUID             `gorm:"column:signal_id;type:uuid;index:idx_signal_id" copier:"must,nopanic"`
 	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 

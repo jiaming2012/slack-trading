@@ -1,6 +1,10 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 type CreateOrderRequest struct {
 	Id              *uint               `json:"id"`
@@ -21,6 +25,7 @@ type CreateOrderRequest struct {
 	IsSystemOrder   bool                `json:"is_system_order"`
 	Attributes      map[string]string   `json:"attributes"`
 	PreviousBalance *float64            `json:"previous_balance"`
+	SignalID        *uuid.UUID          `json:"signal_id"`
 }
 
 func (req *CreateOrderRequest) Validate() error {
