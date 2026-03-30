@@ -105,10 +105,13 @@ def upsert_dashboard(session, base_url, payload):
 
 
 def set_dashboard_cards(session, base_url, dashboard_id, cards_payload):
-    """Replace all cards on a dashboard."""
+    """Replace all cards on a dashboard.
+
+    Metabase v0.59+ expects ordered_cards in the dashboard PUT body.
+    """
     resp = session.put(
-        f"{base_url}/api/dashboard/{dashboard_id}/cards",
-        json={"cards": cards_payload},
+        f"{base_url}/api/dashboard/{dashboard_id}",
+        json={"dashcards": cards_payload},
     )
     _check(resp, f"set cards on dashboard {dashboard_id}")
 
@@ -172,9 +175,18 @@ def _param_mapping(card_id):
     ]
 
 
+_next_dashcard_id = 0
+
+
 def _dash_card(card_id, row, col, size_x, size_y):
-    """Build a dashboard card entry with parameter mapping."""
+    """Build a dashboard card entry with parameter mapping.
+
+    Each new dashcard needs a unique negative id (Metabase v0.59+ API).
+    """
+    global _next_dashcard_id
+    _next_dashcard_id -= 1
     return {
+        "id": _next_dashcard_id,
         "card_id": card_id,
         "row": row,
         "col": col,
