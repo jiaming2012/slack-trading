@@ -1,0 +1,171 @@
+# Roadmap: Live Simulation Observability
+
+## Milestones
+
+- ✅ **v1.0 Live Simulation Observability** - Phases 1-7 (shipped 2026-03-28)
+- ✅ **v1.1 Dashboard Enhancements** - Phases 8-11 (shipped 2026-03-30)
+- ✅ **v2.0 Metabase Analytics** - Phases 12-16 (shipped 2026-03-30)
+- 🚧 **v3.0 TradeSignal Framework** - Phases 17-23 (in progress)
+
+## Phases
+
+<details>
+<summary>v1.0 Live Simulation Observability (Phases 1-7) - SHIPPED 2026-03-28</summary>
+
+- [x] **Phase 1: Python Codebase Restructure** - Reorganize Python clients into packages
+- [x] **Phase 2: Strategy Abstraction** - BaseStrategy ABC and unified tick loop
+- [x] **Phase 3: Demo Script Consolidation** - Wire all demos through run_strategy()
+- [x] **Phase 4: Go OTel Foundation** - TracerProvider, MeterProvider, structured logs
+- [x] **Phase 5: Go Instrumentation** - Metrics and logs for orders, candles, signals, heartbeat
+- [x] **Phase 6: Python OTel Integration** - OTel SDK, heartbeat, trace propagation
+- [x] **Phase 7: Grafana Dashboard & Alerting** - Dashboard, alert rules, production deploy
+
+</details>
+
+<details>
+<summary>v1.1 Dashboard Enhancements (Phases 8-11) - SHIPPED 2026-03-30</summary>
+
+- [x] **Phase 8: Client ID Labeling** - client_id on all OTel metrics
+- [x] **Phase 9: Dashboard Enrichment** - Dropdowns, tables, trace links
+- [x] **Phase 10: Per-Strategy Dashboards** - Mean reversion + covered call dashboards
+- [x] **Phase 11: Signal & Candle Filtering** - Filter by signal_type and symbol
+
+</details>
+
+<details>
+<summary>v2.0 Metabase Analytics (Phases 12-16) - SHIPPED 2026-03-30</summary>
+
+- [x] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase docker-compose, read-only user, firewall
+- [x] **Phase 13: Analytics Schema & Indexes** - Composite indexes, SQL views for P&L/slippage/stats
+- [x] **Phase 14: Core Performance Dashboards** - Trading, Slippage, Portfolio dashboards
+- [x] **Phase 15: Simulator Persistence & Backtest Comparison** - backtest_runs table, comparison dashboard
+- [x] **Phase 16: Spread Analytics** - Spread grouping, views, dashboard
+
+</details>
+
+### v3.0 TradeSignal Framework (In Progress)
+
+**Milestone Goal:** Decouple signal production from strategy execution via a unified TradeSignal event stream, enabling replayable simulations, live signal persistence, and consistent live/sim parity.
+
+- [ ] **Phase 17: Signal Foundation** - TradeSignal struct, proto messages, signal_id on orders
+- [ ] **Phase 18: Signal Repository & Sim Mode** - ISignalRepository interface with in-memory implementation and tick-synchronized delivery
+- [ ] **Phase 19: RPC Endpoints & Python Integration** - WriteSignal/GetSignals RPCs, Python client wrappers, datasource script pattern
+- [ ] **Phase 20: ESDB Persistence** - EventStoreDB signal repository for live mode with queryability
+- [ ] **Phase 21: First Strategy Migration & Validation** - Migrate one strategy end-to-end, prove behavioral diff testing
+- [ ] **Phase 22: Remaining Strategy Migrations** - All strategies migrated, originals deprecated
+- [ ] **Phase 23: Replay & Telemetry** - Replay from persisted signals, OTel integration, alerting
+
+## Phase Details
+
+### Phase 17: Signal Foundation
+**Goal**: A canonical TradeSignal type exists in Go and proto, with signal_id linking every order to its originating signal
+**Depends on**: Nothing (first phase of v3.0)
+**Requirements**: SIG-01, SIG-02, SIG-03
+**Success Criteria** (what must be TRUE):
+  1. TradeSignal struct exists in Go models with Name, Attributes (flexible map), and Timestamp fields
+  2. Proto definition includes TradeSignalProto message and signal_id field on PlaceOrderRequest
+  3. Signal name constants are defined as a typed registry (not freeform strings)
+  4. Go unit tests verify TradeSignal serialization round-trip and signal_id presence on order requests
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+
+### Phase 18: Signal Repository & Sim Mode
+**Goal**: Strategies can write and read signals through a repository interface, with in-memory implementation powering simulations via tick-synchronized delivery
+**Depends on**: Phase 17
+**Requirements**: REPO-01, REPO-03
+**Success Criteria** (what must be TRUE):
+  1. ISignalRepository interface exists with Write and Read methods, and InMemorySignalRepository implements it
+  2. Signals written to the repository are delivered to strategies via TickDelta (gated by playground clock time)
+  3. Opt-in CLI flag persists sim signals to EventStoreDB when specified
+  4. Unit tests verify clock-gated signal delivery prevents lookahead bias
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+
+### Phase 19: RPC Endpoints & Python Integration
+**Goal**: Python datasource scripts and strategies can produce and consume signals through Twirp RPC endpoints
+**Depends on**: Phase 18
+**Requirements**: DS-01, DS-02, DS-03, RPC-01
+**Success Criteria** (what must be TRUE):
+  1. WriteSignal RPC endpoint accepts signals from Python clients and stores them via the repository interface
+  2. GetSignals RPC endpoint returns signals filtered by name, symbol, and time range for a given strategy
+  3. A standalone Python datasource script can run from __main__ and produce signals to a per-symbol event stream
+  4. Sim strategies can import datasource modules directly (no RPC needed for sim signal generation)
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01: TBD
+
+### Phase 20: ESDB Persistence
+**Goal**: Live environments persist signals to EventStoreDB with queryability by name, symbol, and timeframe
+**Depends on**: Phase 19
+**Requirements**: REPO-02, QUERY-01
+**Success Criteria** (what must be TRUE):
+  1. ESDBSignalRepository writes signals to per-symbol EventStoreDB streams in live mode
+  2. Environment-based injection selects InMemory (sim) or ESDB (live) repository at startup
+  3. Signals are queryable in EventStoreDB by name, symbol, and timeframe attributes
+  4. Integration test verifies signal write-read round-trip through ESDB
+**Plans**: TBD
+
+Plans:
+- [ ] 20-01: TBD
+
+### Phase 21: First Strategy Migration & Validation
+**Goal**: One existing strategy is fully migrated to consume TradeSignals, proving the migration pattern and behavioral diff testing approach
+**Depends on**: Phase 20
+**Requirements**: MIG-03
+**Success Criteria** (what must be TRUE):
+  1. One strategy (e.g., CoveredCall) consumes TradeSignals instead of inline signal detection
+  2. Behavioral diff test compares migrated strategy output against original on the same data with zero metric drift
+  3. The diff testing pattern is documented and reusable for remaining strategy migrations
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: TBD
+
+### Phase 22: Remaining Strategy Migrations
+**Goal**: All existing strategies consume TradeSignals, with originals moved to deprecated
+**Depends on**: Phase 21
+**Requirements**: MIG-01, MIG-02
+**Success Criteria** (what must be TRUE):
+  1. All existing strategies are migrated to consume TradeSignals instead of inline signal detection
+  2. Original strategy files are moved to the deprecated/ folder
+  3. Each migrated strategy passes its behavioral diff test against the original
+  4. The trading engine runs end-to-end with only migrated strategies (no legacy signal paths)
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: TBD
+
+### Phase 23: Replay & Telemetry
+**Goal**: Strategies can replay persisted signal streams for reproducible simulations, with signals visible in the observability stack
+**Depends on**: Phase 22
+**Requirements**: REPLAY-01, REPLAY-02, OBS-01, OBS-02
+**Success Criteria** (what must be TRUE):
+  1. Sim strategies can replay persisted signal streams from ESDB, gated by playground clock time
+  2. Integration tests verify replay results match in-memory datasource results for the same inputs
+  3. Signals appear in Grafana via OTel telemetry (metrics and/or log panels)
+  4. An alert fires when a strategy's expected TradeSignal is not produced within the configured interval
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01: TBD
+**UI hint**: yes
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 17. Signal Foundation | v3.0 | 0/1 | Not started | - |
+| 18. Signal Repository & Sim Mode | v3.0 | 0/1 | Not started | - |
+| 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
+| 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
+| 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
+| 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
+| 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |

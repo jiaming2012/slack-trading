@@ -42,30 +42,30 @@
 
 ## Out of Scope
 
-- Composite signal framework (complex multi-signal aggregation) — defer to v3.1 if needed
-- Signal backtesting optimizer (grid search over signal parameters) — future enhancement
-- External signal sources (third-party APIs producing signals) — out of scope for v3.0
-- Real-time signal visualization dashboard in Metabase — existing Grafana telemetry sufficient
+- Composite signal framework (complex multi-signal aggregation) -- defer to v3.1 if needed
+- Signal backtesting optimizer (grid search over signal parameters) -- future enhancement
+- External signal sources (third-party APIs producing signals) -- out of scope for v3.0
+- Real-time signal visualization dashboard in Metabase -- existing Grafana telemetry sufficient
 
 ## Traceability
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| SIG-01 | TBD | | Pending |
-| SIG-02 | TBD | | Pending |
-| SIG-03 | TBD | | Pending |
-| REPO-01 | TBD | | Pending |
-| REPO-02 | TBD | | Pending |
-| REPO-03 | TBD | | Pending |
-| DS-01 | TBD | | Pending |
-| DS-02 | TBD | | Pending |
-| DS-03 | TBD | | Pending |
-| MIG-01 | TBD | | Pending |
-| MIG-02 | TBD | | Pending |
-| MIG-03 | TBD | | Pending |
-| REPLAY-01 | TBD | | Pending |
-| REPLAY-02 | TBD | | Pending |
-| QUERY-01 | TBD | | Pending |
-| RPC-01 | TBD | | Pending |
-| OBS-01 | TBD | | Pending |
-| OBS-02 | TBD | | Pending |
+| SIG-01 | Phase 17 | | Pending |
+| SIG-02 | Phase 17 | | Pending |
+| SIG-03 | Phase 17 | | Pending |
+| REPO-01 | Phase 18 | | Pending |
+| REPO-02 | Phase 20 | | Pending |
+| REPO-03 | Phase 18 | | Pending |
+| DS-01 | Phase 19 | | Pending |
+| DS-02 | Phase 19 | | Pending |
+| DS-03 | Phase 19 | | Pending |
+| MIG-01 | Phase 22 | | Pending |
+| MIG-02 | Phase 22 | | Pending |
+| MIG-03 | Phase 21 | | Pending |
+| REPLAY-01 | Phase 23 | | Pending |
+| REPLAY-02 | Phase 23 | | Pending |
+| QUERY-01 | Phase 20 | | Pending |
+| RPC-01 | Phase 19 | | Pending |
+| OBS-01 | Phase 23 | | Pending |
+| OBS-02 | Phase 23 | | Pending |
