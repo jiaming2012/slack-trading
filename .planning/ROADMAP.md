@@ -44,8 +44,8 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - Decimal phases (12.1, 12.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 12: Deploy Metabase & Harden Infrastructure** - Metabase running on user's desktop (Docker Desktop), backed by DO Postgres app DB, with read-only trading credentials and Cloud Firewall hardening
-- [x] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables (completed 2026-03-30)
-- [x] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data (completed 2026-03-30)
+- [ ] **Phase 13: Analytics Schema & Indexes** - Composite indexes and SQL views for P&L, win rate, and profit factor on existing trading tables
+- [ ] **Phase 14: Core Performance Dashboards** - Trading performance, slippage, and portfolio dashboards in Metabase using existing data
 - [ ] **Phase 15: Simulator Persistence & Backtest Comparison** - Backtest results saved to Postgres with summary table and comparison dashboard
 - [ ] **Phase 16: Spread Analytics** - Multi-leg option strategies grouped as single trades with spread-aware P&L dashboards
 
@@ -76,7 +76,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [x] 13-01-PLAN.md — Composite indexes, P&L/win-rate/profit-factor SQL views, and Metabase admin configuration
+- [ ] 13-01-PLAN.md — Composite indexes, P&L/win-rate/profit-factor SQL views, and Metabase admin configuration
 
 ### Phase 14: Core Performance Dashboards
 **Goal**: Operator can select any playground and see its trading performance -- P&L, win rate, profit factor, slippage, and per-symbol breakdown -- all from Metabase
@@ -87,12 +87,11 @@ Plans:
   2. Operator can view open/close/total slippage per trade for any playground
   3. Operator can see position history and per-symbol P&L breakdown
   4. Dashboard numbers match playground_metrics.py output for the same playground within rounding tolerance
-**Plans**: 2 plans
+**Plans**: TBD
 **UI hint**: yes
 
 Plans:
-- [x] 14-01-PLAN.md — Extend SQL views for close slippage + build Metabase provisioning script with 3 dashboards
-- [x] 14-02-PLAN.md — Deploy SQL migration, run provisioning script, and verify dashboards
+- [ ] 14-01: TBD
 
 ### Phase 15: Simulator Persistence & Backtest Comparison
 **Goal**: Backtest results are saved to Postgres so the operator can compare strategy runs side-by-side in Metabase
@@ -105,8 +104,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Schema extension, persistence module, and --save-to-db flag on demo script
-- [ ] 15-02-PLAN.md — Strategy Comparison dashboard in Metabase provisioning script
+- [x] 15-01-PLAN.md -- Schema extension, persistence module, and --save-to-db flag on demo script
+- [ ] 15-02-PLAN.md -- Strategy Comparison dashboard in Metabase provisioning script
 
 ### Phase 16: Spread Analytics
 **Goal**: Multi-leg option strategies (covered calls, spreads) are grouped as single trade units with combined P&L, so the operator sees strategy-level performance instead of meaningless per-leg numbers
@@ -141,7 +140,7 @@ Phases execute in numeric order: 12 -> 12.1 -> 12.2 -> 13 -> ... -> 16
 | 10. Signal/Candle Filtering & Python Heartbeat | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 11. Per-Strategy Dashboards | v1.1 | 1/1 | Complete | 2026-03-29 |
 | 12. Deploy Metabase & Harden Infrastructure | v2.0 | 1/1 | Complete | 2026-03-30 |
-| 13. Analytics Schema & Indexes | v2.0 | 1/1 | Complete    | 2026-03-30 |
-| 14. Core Performance Dashboards | v2.0 | 2/2 | Complete    | 2026-03-30 |
-| 15. Simulator Persistence & Backtest Comparison | v2.0 | 0/2 | Planned | - |
+| 13. Analytics Schema & Indexes | v2.0 | 0/1 | Planned | - |
+| 14. Core Performance Dashboards | v2.0 | 0/0 | Not started | - |
+| 15. Simulator Persistence & Backtest Comparison | v2.0 | 1/2 | In Progress | - |
 | 16. Spread Analytics | v2.0 | 0/0 | Not started | - |

@@ -65,6 +65,14 @@ class BaseStrategy(ABC):
         """Whether the engine should fetch account state on this tick."""
         pass
 
+    def get_parameters(self) -> dict:
+        """Return strategy tuning parameters as a dict for persistence.
+
+        Override in subclasses to include strategy-specific parameters.
+        Default returns empty dict so existing strategies are not broken.
+        """
+        return {}
+
     def on_retrain(self) -> None:
         """Optional lifecycle hook for periodic retraining (D-04).
         Default: no-op. Override in strategies that need retraining.

@@ -272,7 +272,35 @@ UNION ALL
 SELECT *, 'close' AS slippage_type FROM v_close_slippage;
 
 -- =============================================================
--- 3. Grant SELECT on views to metabase_ro
+-- 4. Backtest runs summary table
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS backtest_runs (
+    id               SERIAL PRIMARY KEY,
+    playground_id    UUID NOT NULL REFERENCES playground_sessions(id),
+    client_id        TEXT NOT NULL,
+    strategy_name    TEXT NOT NULL,
+    parameters       JSONB NOT NULL DEFAULT '{}',
+    starting_balance NUMERIC NOT NULL,
+    final_balance    NUMERIC NOT NULL,
+    total_pnl        NUMERIC NOT NULL,
+    win_rate         NUMERIC,
+    profit_factor    NUMERIC,
+    total_trades     INTEGER NOT NULL DEFAULT 0,
+    start_date       DATE,
+    end_date         DATE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_backtest_runs_strategy
+    ON backtest_runs (strategy_name);
+CREATE INDEX IF NOT EXISTS idx_backtest_runs_playground
+    ON backtest_runs (playground_id);
+CREATE INDEX IF NOT EXISTS idx_backtest_runs_created
+    ON backtest_runs (created_at DESC);
+
+-- =============================================================
+-- 5. Grant SELECT on views and tables to metabase_ro
 -- =============================================================
 DO $$
 BEGIN
@@ -283,7 +311,8 @@ BEGIN
         GRANT SELECT ON v_open_slippage TO metabase_ro;
         GRANT SELECT ON v_close_slippage TO metabase_ro;
         GRANT SELECT ON v_all_slippage TO metabase_ro;
-        RAISE NOTICE 'Granted SELECT on analytics views to metabase_ro';
+        GRANT SELECT ON backtest_runs TO metabase_ro;
+        RAISE NOTICE 'Granted SELECT on analytics views and backtest_runs to metabase_ro';
     ELSE
         RAISE NOTICE 'Role metabase_ro does not exist -- skipping GRANTs. Run init-metabase.sql first, then re-run this file.';
     END IF;

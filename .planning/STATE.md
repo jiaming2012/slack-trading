@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Metabase Analytics
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-30T15:50:23.505Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-30T16:12:21.541Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 20
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 14 — core-performance-dashboards
+**Current focus:** Phase 13 — analytics-schema-indexes
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
+Phase: 13 (analytics-schema-indexes) — Planning complete
+Plan: 1 of 1 (planned)
 Status: Ready to execute
 Last activity: 2026-03-30
 
@@ -58,9 +58,8 @@ Recent decisions affecting current work:
 - [Roadmap v2.0]: Spread analytics last (Phase 16) -- highest complexity, needs stable P&L baselines from Phase 14
 - [Roadmap v2.0]: DASH-03 grouped with PERSIST phase (not core dashboards) because it requires backtest_runs data
 - [Phase 12]: Metabase on Windows Desktop with read-only metabase_ro user and idempotent SQL init
-- [Phase 13]: Used simple AVG(price) not VWAP for GetAvgFillPrice to match Go server CalcRealizedPL() as authoritative source
-- [Phase 13]: v_playground_stats aggregates only opening-side orders to avoid double-counting P&L
-- [Phase 14]: Metabase v0.59 API uses dashcards key and unique negative IDs for card creation
+- [Phase 15]: Metrics sourced from v_playground_stats view for dashboard consistency
+- [Phase 15]: psycopg2-binary used directly (not SQLAlchemy) for lightweight persistence
 
 ### Pending Todos
 
@@ -81,10 +80,10 @@ None yet.
 | 260329-f7k | MockAddCandle RPC + candle injection E2E test with CandlesProcessed metric | 2026-03-29 | 79fa0bd | [260329-f7k](./quick/260329-f7k-add-mockaddcandle-rpc-for-live-playgroun/) |
 | Phase 10 P01 | 2m24s | 3 tasks | 5 files |
 | Phase 11-per-strategy-dashboards P01 | 2min | 2 tasks | 4 files |
-| Phase 14 P02 | human-gated | 2 tasks | 2 files |
+| Phase 15 P01 | 4m4s | 3 tasks | 6 files |
 
 ## Session Continuity
 
-Last session: 2026-03-30T15:50:23.499Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-simulator-persistence-backtest-comparison/15-CONTEXT.md
+Last session: 2026-03-30T16:12:21.536Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

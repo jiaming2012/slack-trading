@@ -343,6 +343,10 @@ def main():
         "--rolling-window", type=int, default=None,
         help="Use a rolling window of N days instead of expanding from training-start",
     )
+    parser.add_argument(
+        "--save-to-db", action="store_true",
+        help="Persist backtest results (orders, trades, equity) to Postgres on completion",
+    )
 
     args = parser.parse_args()
 
@@ -386,6 +390,8 @@ def main():
     logger.info(f"Min EV filter:   ${args.min_expected_profit:.2f}")
     logger.info(f"EV model:        {args.ev_model}")
     logger.info(f"HTF horizon:     {args.htf_horizon}")
+    if args.save_to_db:
+        logger.info(f"Save to DB:      YES")
     if args.retrain_interval:
         training_start_str = args.training_start or "(1 year before --start)"
         logger.info(f"Retrain:         {args.retrain_interval}")
@@ -566,6 +572,39 @@ def main():
     logger.info("=" * 60)
     logger.info(f"Playground {'stopped' if args.live else 'simulation complete'}.")
     logger.info(f"Playground id: {playground.id}")
+
+    # ------------------------------------------------------------------
+    # 6. Persist to database (opt-in via --save-to-db)
+    # ------------------------------------------------------------------
+    if args.save_to_db and not args.live:
+        from rpc.playground_pb2 import SavePlaygroundRequest
+
+        logger.info("Saving playground to database ...")
+        request = SavePlaygroundRequest(playground_id=playground.id)
+        playground.network_call_with_retry(
+            'save_playground', playground.client.SavePlayground, request
+        )
+        logger.info(f"Playground saved -- id: {playground.id}")
+
+        # Insert backtest_runs summary row
+        from engine.persistence import save_backtest_run
+
+        params = strategy.get_parameters() if strategy is not None else {}
+        params["model"] = args.model  # return model is a demo-level param
+
+        run_id = save_backtest_run(
+            playground_id=playground.id,
+            client_id=playground.client_id or f"{strategy.label}-{args.symbol}-{args.start}",
+            strategy_name=strategy.label if strategy is not None else "unknown",
+            parameters=params,
+            starting_balance=args.balance,
+            final_balance=playground.account.balance,
+            start_date=args.start,
+            end_date=args.end,
+        )
+        logger.info(f"Backtest run saved -- id: {run_id}")
+    elif args.save_to_db and args.live:
+        logger.warning("--save-to-db is only supported for simulator mode, skipping.")
 
 
 if __name__ == "__main__":
