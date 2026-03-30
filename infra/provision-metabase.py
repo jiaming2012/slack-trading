@@ -605,6 +605,82 @@ def assemble_strategy_comparison(session, base_url, cards):
 
 
 # ---------------------------------------------------------------------------
+# Dashboard 5: Spread Analytics
+# ---------------------------------------------------------------------------
+
+def build_spread_analytics_cards(session, base_url, db_id):
+    """Create all cards for the Spread Analytics dashboard."""
+    cards = {}
+
+    cards["summary"] = upsert_card(session, base_url, _make_card(
+        "Spread: Summary Stats", db_id,
+        """SELECT total_spreads,
+       ROUND(total_net_pnl, 2) AS total_net_pnl,
+       ROUND(win_rate * 100, 1) AS win_rate_pct,
+       ROUND(avg_spread_pnl, 2) AS avg_spread_pnl,
+       ROUND(avg_win, 2) AS avg_win,
+       ROUND(avg_loss, 2) AS avg_loss
+FROM v_spread_stats
+WHERE playground_id = {{playground_id}}::uuid""",
+        display="table",
+    ))
+
+    cards["pnl_timeline"] = upsert_card(session, base_url, _make_card(
+        "Spread: P&L Over Time", db_id,
+        """SELECT entry_time, net_pnl,
+       SUM(net_pnl) OVER (ORDER BY entry_time) AS cumulative_spread_pnl
+FROM v_spread_pnl
+WHERE playground_id = {{playground_id}}::uuid
+  AND all_filled
+ORDER BY entry_time""",
+        display="line",
+        viz_settings={
+            "graph.x_axis.column": "entry_time",
+            "graph.metrics": ["cumulative_spread_pnl"],
+        },
+    ))
+
+    cards["win_loss"] = upsert_card(session, base_url, _make_card(
+        "Spread: Win/Loss Ratio", db_id,
+        """SELECT winners, losers, breakeven
+FROM v_spread_stats
+WHERE playground_id = {{playground_id}}::uuid""",
+        display="bar",
+    ))
+
+    cards["detail"] = upsert_card(session, base_url, _make_card(
+        "Spread: Per-Spread Detail", db_id,
+        """SELECT spread_key, leg_count, symbols, roles, net_pnl,
+       CASE WHEN all_filled THEN 'closed' ELSE 'partial' END AS status,
+       entry_time, last_leg_time
+FROM v_spread_pnl
+WHERE playground_id = {{playground_id}}::uuid
+ORDER BY entry_time DESC""",
+        display="table",
+    ))
+
+    return cards
+
+
+def assemble_spread_analytics(session, base_url, cards):
+    """Create the Spread Analytics dashboard and lay out cards."""
+    dash_id = upsert_dashboard(session, base_url, {
+        "name": "Spread Analytics",
+        "parameters": [PLAYGROUND_PARAMETER],
+    })
+
+    layout = [
+        _dash_card(cards["summary"], row=0, col=0, size_x=18, size_y=5),
+        _dash_card(cards["pnl_timeline"], row=5, col=0, size_x=18, size_y=6),
+        _dash_card(cards["win_loss"], row=11, col=0, size_x=9, size_y=4),
+        _dash_card(cards["detail"], row=11, col=9, size_x=9, size_y=8),
+    ]
+
+    set_dashboard_cards(session, base_url, dash_id, layout)
+    return dash_id
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -672,13 +748,20 @@ def main():
     sc_dash = assemble_strategy_comparison(session, base_url, sc_cards)
     print(f"Dashboard ready: Strategy Comparison (id={sc_dash})")
 
+    # Dashboard 5: Spread Analytics
+    print("\n--- Spread Analytics ---")
+    sa_cards = build_spread_analytics_cards(session, base_url, db_id)
+    sa_dash = assemble_spread_analytics(session, base_url, sa_cards)
+    print(f"Dashboard ready: Spread Analytics (id={sa_dash})")
+
     # Summary
-    total_cards = len(tp_cards) + len(sl_cards) + len(pa_cards) + len(sc_cards)
-    print(f"\nDone: 4 dashboards, {total_cards} cards provisioned.")
+    total_cards = len(tp_cards) + len(sl_cards) + len(pa_cards) + len(sc_cards) + len(sa_cards)
+    print(f"\nDone: 5 dashboards, {total_cards} cards provisioned.")
     print(f"  Trading Performance:  {base_url}/dashboard/{tp_dash}")
     print(f"  Slippage Analysis:    {base_url}/dashboard/{sl_dash}")
     print(f"  Portfolio Analytics:   {base_url}/dashboard/{pa_dash}")
     print(f"  Strategy Comparison:   {base_url}/dashboard/{sc_dash}")
+    print(f"  Spread Analytics:      {base_url}/dashboard/{sa_dash}")
 
 
 if __name__ == "__main__":
