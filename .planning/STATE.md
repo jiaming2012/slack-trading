@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: verifying
-stopped_at: Phase 18 context gathered
-last_updated: "2026-03-30T21:33:50.992Z"
+status: executing
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-03-30T21:58:33.265Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 17 — signal-foundation
+**Current focus:** Phase 18 — signal-repository-sim-mode
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-30
+Phase: 18 (signal-repository-sim-mode) -- EXECUTING
+Plan: 2 of 2 (18-01 complete)
+Status: Executing Phase 18
+Last activity: 2026-03-30 -- Completed 18-01 (ISignalRepository + InMemorySignalRepository)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -62,6 +62,8 @@ Recent decisions affecting current work:
 - [Phase 17]: Preserved existing SignalName constants and appended new ones for backward compatibility
 - [Phase 17]: TradeSignal Attributes: map[string]interface{} in Go, map<string,string> in proto per D-02 design
 - [Phase 17]: SignalID set post-construction in commitOrderRecord to avoid modifying PopulateOrderRecord 20+ param signature
+- [Phase 18-01]: Single global signal stream (no per-symbol partitioning) per D-01 design
+- [Phase 18-01]: Cursor adjustment on pre-cursor insertion prevents signal skipping
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T21:33:50.978Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-signal-repository-sim-mode/18-CONTEXT.md
+Last session: 2026-03-30T21:57:49Z
+Stopped at: Completed 18-01-PLAN.md
+Resume file: .planning/phases/18-signal-repository-sim-mode/18-02-PLAN.md

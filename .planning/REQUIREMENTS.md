@@ -8,7 +8,7 @@
 
 ## Signal Repository
 
-- [ ] **REPO-01**: ISignalRepository interface with in-memory implementation for simulations
+- [x] **REPO-01**: ISignalRepository interface with in-memory implementation for simulations
 - [ ] **REPO-02**: ESDBSignalRepository implementation for live environments, writing to per-symbol event streams
 - [ ] **REPO-03**: Opt-in persistence of sim signals to EventStoreDB via CLI flag
 

@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md — ISignalRepository interface, InMemorySignalRepository with clock-gated delivery tests
+- [x] 18-01-PLAN.md — ISignalRepository interface, InMemorySignalRepository with clock-gated delivery tests
 - [ ] 18-02-PLAN.md — TickDelta wiring (proto + simulateTick + NextTick conversion) and ESDB batch persistence
 
 ### Phase 19: RPC Endpoints & Python Integration
@@ -165,7 +165,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 17. Signal Foundation | v3.0 | 2/2 | Complete    | 2026-03-30 |
-| 18. Signal Repository & Sim Mode | v3.0 | 0/2 | Not started | - |
+| 18. Signal Repository & Sim Mode | v3.0 | 1/2 | In Progress|  |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/1 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 0/1 | Not started | - |
 | 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
