@@ -140,10 +140,14 @@ Plans:
   2. Original strategy files are moved to the deprecated/ folder
   3. Each migrated strategy passes its behavioral diff test against the original
   4. The trading engine runs end-to-end with only migrated strategies (no legacy signal paths)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 22-01: TBD
+- [ ] 22-01-PLAN.md — BaseStrategy on_signal() hook + OptionsMeanReversion datasource/V2/diff test
+- [ ] 22-02-PLAN.md — CreditSpread datasource/V2/diff test
+- [ ] 22-03-PLAN.md — CoveredCall + Wheel datasources/V2s/diff tests
+- [ ] 22-04-PLAN.md — PDFWheel datasource/V2/diff test (depends on Wheel V2)
+- [ ] 22-05-PLAN.md — Trading engine on_signal() wiring + move all V1 to deprecated/ + end-to-end verification
 
 ### Phase 23: Replay & Telemetry
 **Goal**: Strategies can replay persisted signal streams for reproducible simulations, with signals visible in the observability stack
@@ -172,5 +176,5 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
-| 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
+| 22. Remaining Strategy Migrations | v3.0 | 0/5 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
