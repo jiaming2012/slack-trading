@@ -22,7 +22,7 @@
 
 - [ ] **MIG-01**: All existing strategies migrated to consume TradeSignals instead of inline signal detection
 - [ ] **MIG-02**: Original strategy files moved to `deprecated/` folder
-- [ ] **MIG-03**: Each migration validated with behavioral diff tests against original strategy output
+- [x] **MIG-03**: Each migration validated with behavioral diff tests against original strategy output
 
 ## Replay & Queryability
 

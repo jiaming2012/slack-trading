@@ -128,7 +128,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — MA crossover datasource module and MeanReversionStrategyV2
+- [x] 21-01-PLAN.md — MA crossover datasource module and MeanReversionStrategyV2
 - [ ] 21-02-PLAN.md — Behavioral diff test, datasource unit tests, V2 demo launcher
 
 ### Phase 22: Remaining Strategy Migrations
@@ -171,6 +171,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
-| 21. First Strategy Migration & Validation | v3.0 | 0/2 | Not started | - |
+| 21. First Strategy Migration & Validation | v3.0 | 1/2 | In Progress|  |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
