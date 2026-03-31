@@ -56,3 +56,62 @@ def produce_signals(bar_dict: dict, prev_bar: dict | None, pdf) -> list:
         "bar_dict": bar_dict,
         "pdf_entry": pdf_entry,
     }]
+
+
+if __name__ == "__main__":
+    import argparse
+    import time
+    from datetime import datetime, timezone
+
+    from loguru import logger
+    from rpc.playground_twirp import PlaygroundServiceClient
+    from rpc.playground_pb2 import WriteSignalRequest
+    from google.protobuf.timestamp_pb2 import Timestamp
+    from engine.datasource_heartbeat import DatasourceHeartbeat
+
+    parser = argparse.ArgumentParser(description="MA Crossover datasource (standalone)")
+    parser.add_argument("--server-url", default="http://localhost:5051")
+    parser.add_argument("--symbol", required=True)
+    parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--signal-name", default="MA_CROSSOVER")
+    args = parser.parse_args()
+
+    logger.info(
+        "Starting MA Crossover datasource | symbol={} server={} interval={}s",
+        args.symbol, args.server_url, args.interval,
+    )
+
+    heartbeat = DatasourceHeartbeat("ma-crossover", symbol=args.symbol)
+    heartbeat.start()
+
+    client = PlaygroundServiceClient(args.server_url, timeout=30)
+
+    try:
+        prev_bar = None
+        while True:
+            # TODO: Wire real live data fetching here (e.g., Polygon REST/WebSocket).
+            # In sim mode, bar_dict and pdf come from the backtester tick loop.
+            # For now, the standalone loop demonstrates the RPC wiring pattern.
+            bar_dict = {}
+            pdf = None
+
+            signals = produce_signals(bar_dict, prev_bar, pdf)
+
+            for sig in signals:
+                ts = Timestamp()
+                ts.FromDatetime(datetime.now(timezone.utc))
+                req = WriteSignalRequest(
+                    name=args.signal_name,
+                    symbol=args.symbol,
+                    timestamp=ts,
+                    attributes={k: str(v) for k, v in sig.items() if k != "pdf_entry"},
+                )
+                resp = client.WriteSignal(ctx={}, request=req)
+                logger.info("Signal written | id={}", resp.signal_id)
+
+            heartbeat.record_check()
+            prev_bar = bar_dict if bar_dict else prev_bar
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        logger.info("Shutting down MA Crossover datasource")
+        heartbeat.stop()
