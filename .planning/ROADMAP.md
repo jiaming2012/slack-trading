@@ -201,7 +201,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — CoveredCall V2 + Wheel V2 datasources, strategies, diff tests
+- [x] 25-01-PLAN.md — CoveredCall V2 + Wheel V2 datasources, strategies, diff tests
 - [ ] 25-02-PLAN.md — PDFWheel V2 datasource, strategy, diff test
 - [ ] 25-03-PLAN.md — on_signal() wiring in client.py, move V1s to deprecated/
 

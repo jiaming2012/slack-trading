@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: verifying
+status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-03-31T11:10:06.597Z"
-last_activity: 2026-03-31
+last_updated: "2026-03-31T11:18:05.831Z"
+last_activity: 2026-03-31 -- Phase 25 execution started
 progress:
   total_phases: 10
   completed_phases: 6
-  total_plans: 20
+  total_plans: 23
   completed_plans: 17
   percent: 29
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 24 — signal-rpc-endpoints
+**Current focus:** Phase 25 — complete-strategy-migrations
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-31
+Phase: 25 (complete-strategy-migrations) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 25
+Last activity: 2026-03-31 -- Completed 25-01 (CoveredCall + Wheel V2)
 
 Progress: [███░░░░░░░] 29%
 
@@ -79,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase 23]: Replay mode requires ESDB producer; returns error if not configured
 - [Phase 23]: 10 signals across 45min window for dual-run replay test coverage
 - [Phase 24]: Used google.protobuf.timestamp_pb2.Timestamp.FromDatetime for datetime conversion in Python signal RPC wrappers
+- [Phase 25]: Callable-based datasource pattern: feature_vector_fn callable encapsulates stateful supertrend lookback for covered call and wheel signals
 
 ### Pending Todos
 
@@ -92,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T11:10:06.583Z
-Stopped at: Phase 25 context gathered
+Last session: 2026-03-31T11:26:33Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: .planning/phases/25-complete-strategy-migrations/25-CONTEXT.md
