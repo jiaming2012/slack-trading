@@ -237,4 +237,4 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 ->
 | 23. Replay & Telemetry | v3.0 | 3/3 | Complete    | 2026-03-31 |
 | 24. Signal RPC Endpoints | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 25. Complete Strategy Migrations | v3.0 | 2/3 | Complete    | 2026-03-31 |
-| 26. Python Datasource Wiring & Observability | v3.0 | 0/1 | Not started | - |
+| 26. Python Datasource Wiring & Observability | v3.0 | 0/1 | Planned    |  |

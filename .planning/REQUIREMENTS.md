@@ -16,7 +16,7 @@
 
 - [x] **DS-01**: Standalone Python datasource scripts produce TradeSignals via WriteSignal RPC
 - [x] **DS-02**: All signals write to a single ordered event stream per symbol; clients filter by name
-- [ ] **DS-03**: Live datasource scripts run from `__main__`; sim strategies import datasource modules directly
+- [x] **DS-03**: Live datasource scripts run from `__main__`; sim strategies import datasource modules directly
 
 ## Strategy Migration
 
