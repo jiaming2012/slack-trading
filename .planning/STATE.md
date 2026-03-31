@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Completed 23-02-PLAN.md
-last_updated: "2026-03-31T03:25:03.415Z"
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-31T03:26:48.693Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 18
-  completed_plans: 13
+  completed_plans: 14
   percent: 29
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 23 (replay-telemetry) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-03-31
 
@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase 22]: on_signal() added as default no-op (not abstract) for backward compat
 - [Phase 22]: Compare at _try_create_group boundary for credit spread diff tests (order placement depends on identical options ladder RPC)
 - [Phase 23]: 5m staleness threshold for datasource heartbeat (10 missed 30s emissions)
+- [Phase 23]: Signal date filtering uses inclusive start, exclusive stop+1day for full coverage
+- [Phase 23]: Replay mode requires ESDB producer; returns error if not configured
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T03:25:03.410Z
-Stopped at: Completed 23-02-PLAN.md
+Last session: 2026-03-31T03:26:48.689Z
+Stopped at: Completed 23-01-PLAN.md
 Resume file: None

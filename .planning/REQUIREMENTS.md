@@ -26,7 +26,7 @@
 
 ## Replay & Queryability
 
-- [ ] **REPLAY-01**: Sim strategies can replay persisted signal streams, gated by playground clock time
+- [x] **REPLAY-01**: Sim strategies can replay persisted signal streams, gated by playground clock time
 - [ ] **REPLAY-02**: Integration tests verify replay results match in-memory datasource results
 - [x] **QUERY-01**: Signals queryable in EventStoreDB by name, symbol, and timeframe attributes
 

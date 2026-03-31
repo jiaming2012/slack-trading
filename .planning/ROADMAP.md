@@ -161,7 +161,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 23-01-PLAN.md — Proto replay_signal_stream field, Go replay preload, signal consumption counter, Python CLI flag
+- [x] 23-01-PLAN.md — Proto replay_signal_stream field, Go replay preload, signal consumption counter, Python CLI flag
 - [x] 23-02-PLAN.md — DatasourceHeartbeat class, Grafana signal panels, datasource heartbeat alert
 - [ ] 23-03-PLAN.md — Dual-run replay integration test (ESDB replay vs in-memory comparison)
 
@@ -178,4 +178,4 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
-| 23. Replay & Telemetry | v3.0 | 1/3 | In Progress|  |
+| 23. Replay & Telemetry | v3.0 | 2/3 | In Progress|  |
