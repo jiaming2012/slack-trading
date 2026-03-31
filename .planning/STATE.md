@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: executing
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-03-31T00:35:22.410Z"
+status: verifying
+stopped_at: Completed 21-02-PLAN.md
+last_updated: "2026-03-31T00:41:35.772Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 29
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 Phase: 21 (first-strategy-migration-validation) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-03-31
 
 Progress: [███░░░░░░░] 29%
@@ -71,6 +71,7 @@ Recent decisions affecting current work:
 - [Phase 20]: Live and reconcile playgrounds both get ESDBSignalRepository; only simulator gets InMemory
 - [Phase 20]: ESDB integration test uses TestContainers with EsdbProducer.Start() for full stack validation
 - [Phase 21]: produce_signals() returns list of dicts for flexible consumption by multiple strategies
+- [Phase 21]: Normalized group_id in order call comparisons for deterministic behavioral diff testing
 
 ### Pending Todos
 
@@ -84,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T00:35:22.405Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-03-31T00:41:35.767Z
+Stopped at: Completed 21-02-PLAN.md
 Resume file: None
