@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: verifying
+status: executing
 stopped_at: Phase 24 context gathered
-last_updated: "2026-03-31T10:33:43.636Z"
-last_activity: 2026-03-31
+last_updated: "2026-03-31T10:49:50.089Z"
+last_activity: 2026-03-31 -- Phase 24 execution started
 progress:
   total_phases: 10
   completed_phases: 5
-  total_plans: 18
+  total_plans: 20
   completed_plans: 15
   percent: 29
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 23 — replay-telemetry
+**Current focus:** Phase 24 — signal-rpc-endpoints
 
 ## Current Position
 
-Phase: 23
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-31
+Phase: 24 (signal-rpc-endpoints) — EXECUTING
+Plan: 2 of 2
+Status: Executing Phase 24
+Last activity: 2026-03-31 -- Phase 24 Plan 01 completed
 
 Progress: [███░░░░░░░] 29%
 
