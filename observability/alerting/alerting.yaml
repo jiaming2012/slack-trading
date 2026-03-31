@@ -121,6 +121,45 @@ groups:
                     type: last
               refId: C
 
+      # Datasource heartbeat stale (>5 minutes = 10 missed 30s heartbeats)
+      - uid: datasource-heartbeat-stale
+        title: Datasource Heartbeat Stale
+        condition: C
+        for: 5m
+        annotations:
+          summary: Datasource heartbeat has not been received for over 5 minutes
+          description: A datasource script has stopped emitting heartbeat. Check if the process is running.
+        labels:
+          severity: critical
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: absent_over_time(grodt_datasource_heartbeat[5m])
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+                  reducer:
+                    type: last
+              refId: C
+
   # Error rate rules (ALERT-03)
   - orgId: 1
     name: grodt-errors
