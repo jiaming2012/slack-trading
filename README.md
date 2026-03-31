@@ -1,591 +1,386 @@
-# slack-trading
-A mock trading platform.
+# slack-trading (grodt)
+
+Event-driven trading platform: Go backend server + Python strategy clients, communicating via Twirp RPC. Features a TradeSignal framework for decoupled signal production/consumption, Metabase analytics dashboards, and OpenTelemetry observability.
 
 ---
 
 ## Table of Contents
-- [Getting Started](#getting-started)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Build & Run](#build--run)
+- [TradeSignal Framework](#tradesignal-framework)
+- [Analytics (Metabase)](#analytics-metabase)
+- [Observability](#observability)
 - [Development](#development)
-- [Machine Learning & Indicators](#machine-learning--indicators)
-- [Docker](#docker)
+- [Docker & Deployment](#docker--deployment)
 - [Infrastructure](#infrastructure)
-- [Kubernetes Cluster Setup](#kubernetes-cluster-setup)
-- [Data](#data)
-- [Telemetry](#telemetry)
 - [Integrations](#integrations)
 
 ---
 
-# Getting Started
+## Architecture
 
-## Install golang and python
-Both golang:1.20 and python3.10 are required.
+Two-process architecture: Go server manages state, order execution, and market data; Python clients implement trading strategies.
 
-If installing on ubuntu:
-``` bash
-sudo apt-get install python3.10-venv
+```
+┌─────────────────────┐     Twirp RPC (5051)     ┌──────────────────────┐
+│   Python Clients    │ ◄──────────────────────► │     Go Server        │
+│                     │                           │                      │
+│ ┌─────────────────┐ │                           │ ┌──────────────────┐ │
+│ │ Datasources     │ │  WriteSignal              │ │ Signal Repo      │ │
+│ │ (ma_crossover,  │─┼──────────────────────────►│ │ (InMemory/ESDB)  │ │
+│ │  credit_spread) │ │                           │ │                  │ │
+│ └─────────────────┘ │                           │ └──────────────────┘ │
+│                     │                           │                      │
+│ ┌─────────────────┐ │  NextTick (signals +      │ ┌──────────────────┐ │
+│ │ Strategies V2   │ │  candles via TickDelta)    │ │ Playground       │ │
+│ │ (MeanReversion, │◄┼──────────────────────────┤│ │ (clock, orders,  │ │
+│ │  CreditSpread,  │ │                           │ │  signal queue)   │ │
+│ │  CoveredCall,   │ │  PlaceOrder (signal_id)   │ │                  │ │
+│ │  Wheel, etc.)   │─┼──────────────────────────►│ │                  │ │
+│ └─────────────────┘ │                           │ └──────────────────┘ │
+└─────────────────────┘                           └──────────────────────┘
+         │                                                  │
+         │ OTel                                    OTel     │
+         ▼                                                  ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    Observability Stack                            │
+│  Grafana (dashboards, alerts) + Loki (logs) + Tempo (traces)    │
+│  + Prometheus (metrics) + OTel Collector                         │
+└──────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│   PostgreSQL     │    │   EventStoreDB   │    │    Metabase      │
+│ (orders, trades, │    │ (signals, events)│    │ (5 dashboards,   │
+│  backtest_runs)  │    │                  │    │  24 cards)        │
+└──────────────────┘    └──────────────────┘    └──────────────────┘
 ```
 
-## Set your PythonPath
-``` bash
-export PYTHONPATH=${PROJECT_DIR}:${PROJECT_DIR}/src/clients/python:${PYTHONPATH}
-```
+### Key Subsystems
 
-## Initiate your python env
-``` bash
-task python:install
-```
-
-## Installation
-1. Make sure docker is running
-2. Install eventstoredb
-``` bash
-docker pull eventstore/eventstore:release-5.0.11
-```
-
-### Database
-See README.md in infra project. Currently running on local Ubuntu box.
-
-## Start Up
-3. Make sure eventstoredb is running
-``` bash
-cd eventstoredb
-docker-compose up
-```
-4. Run the interactive brokers daemon
-``` bash
-cd path/to/grodt/interactive-brokers/clientportal
-./bin/run.sh root/conf.yaml
-```
-Open https://localhost:5000 to login
+- **TradeSignal Framework** (v3.0): Decoupled signal production via datasource modules, consumed by strategies through `on_signal()`. Signals are global events stored in EventStoreDB.
+- **Backtester Loop**: Python creates playground → calls NextTick in loop → receives signals + candles → calls PlaceOrder
+- **Analytics**: 5 Metabase dashboards (Trading Performance, Slippage, Portfolio, Strategy Comparison, Spread Analytics) provisioned via `infra/provision-metabase.py`
+- **Observability**: OpenTelemetry traces + metrics + logs, Grafana dashboards with alerting
 
 ---
 
-# Development
+## Quick Start
 
-## Anaconda
-We use anaconda for managing dependencies, instead of pip:
-``` bash
-conda deactivate
-conda activate trading
+### Prerequisites
+- Go 1.22.4
+- Python 3.10 (conda `grodt` environment)
+- Docker (for PostgreSQL, EventStoreDB, observability stack)
+- Task (taskfile runner)
+
+### Setup
+```bash
+# Clone and set environment
+export PROJECT_DIR=$(pwd)
+export PYTHONPATH=${PROJECT_DIR}:${PROJECT_DIR}/src/clients/python:${PYTHONPATH}
+
+# Create conda environment
+conda env create -f grodt.yml
+conda activate grodt
+
+# Start databases
+task db:start
+
+# Build and run
+task app:dev
 ```
 
-### Installation
-Visit https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install
+---
 
-Setup interpreter
-1. Find anaconda home directory:
-``` bash
-conda info | grep 'base environment'
+## Project Structure
+
+```
+cmd/main.go                          # Server entrypoint
+src/go/
+  backtester-api/
+    models/                          # Domain: Playground, OrderRecord, TradeSignal,
+                                     #   ISignalRepository, InMemory/ESDBSignalRepository
+    router/grpc.go                   # Twirp RPC handlers (WriteSignal, GetSignals, PlaceOrder, etc.)
+    services/                        # Order queue, Tradier broker, live accounts
+    rpc/twirp.go                     # Twirp server setup
+  eventmodels/                       # Shared types: TradeSignal, SignalName, StockSymbol
+  eventservices/                     # Polygon, Tradier, cache
+  eventconsumers/                    # Slack, Tradier, ESDB workers
+  eventproducers/                    # API handlers, ESDB producer
+  data/                              # Database service (Postgres/GORM)
+  telemetry/                         # OTel metrics (SignalsProduced, SignalsConsumed)
+  playground.proto                   # Protobuf definitions (TradeSignalProto, TickDelta, etc.)
+
+src/clients/python/
+  engine/
+    client.py                        # BacktesterPlaygroundClient (Twirp RPC wrapper)
+    trading_engine.py                # Main tick loop with on_signal() dispatch
+    heartbeat.py                     # StrategyHeartbeat (OTel gauge)
+    datasource_heartbeat.py          # DatasourceHeartbeat (OTel gauge)
+    otel.py                          # OTel SDK setup
+    persistence.py                   # save_backtest_run() for Postgres
+  datasources/
+    base.py                          # Datasource skeleton (dual-mode pattern)
+    ma_crossover.py                  # MA crossover signal producer
+    options_ma_crossover.py          # Options MA crossover signals
+    credit_spread_signals.py         # Credit spread signals
+    covered_call_signals.py          # Covered call signals
+    wheel_signals.py                 # Wheel strategy signals
+    pdf_wheel_signals.py             # PDF wheel signals
+  strategies/
+    base_strategy.py                 # BaseStrategy ABC with on_signal() hook
+    mean_reversion_v2.py             # MeanReversionStrategyV2 (signal-based)
+    options_mean_reversion_v2.py     # OptionsMeanReversionStrategyV2
+    credit_spread_v2.py              # CreditSpreadStrategyV2
+    covered_call_v2.py               # OptionsStrategyBasicV2
+    wheel_v2.py                      # WheelStrategyV2
+    pdf_wheel_v2.py                  # PDFWheelStrategyV2
+  demos/                             # Demo/launcher scripts
+  tests/                             # Unit + behavioral diff tests
+  deprecated/                        # V1 strategies (pre-TradeSignal)
+  rpc/                               # Generated protobuf stubs
+  tools/                             # Utility scripts (playground_metrics.py)
+
+infra/
+  analytics-schema.sql               # SQL views + indexes + backtest_runs table
+  provision-metabase.py              # Programmatic Metabase dashboard creation (5 dashboards, 24 cards)
+  init-metabase.sql                  # Metabase app DB + read-only user setup
+
+observability/
+  docker-compose.yaml                # grafana/otel-lgtm all-in-one
+  dashboards/                        # Grafana dashboard JSON (auto-provisioned)
+  alerting/                          # Grafana alert rules YAML
+
+integration_testing/                 # E2E tests (TestContainers: Postgres, ESDB)
 ```
 
-2. Set env variable
-``` bash
-export ANACONDA_HOME="path/to/environment"
+---
+
+## Build & Run
+
+```bash
+go build ./cmd/main.go               # Build server
+go build ./src/go/...                 # Build all packages
+task test                             # Unit tests (backtester-api)
+task test:e2e                         # E2E tests
+task test:integration                 # Integration tests
+task app:dev                          # Run dev server (GO_ENV=development)
+task gen:proto                        # Regenerate protobuf stubs
 ```
 
-3. Set symbolic link for pm2 (on dev machines)
-``` bash
-cd ${PROJECT_DIR}
-ln -s $ANACONDA_HOME anaconda
+### Ports
+| Port | Service |
+|------|---------|
+| 8080 | REST API (Gorilla Mux) |
+| 5051 | Twirp RPC |
+| 5432 | PostgreSQL |
+| 2113 | EventStoreDB HTTP |
+| 3000 | Grafana |
+| 4318 | OTLP HTTP receiver |
+
+---
+
+## TradeSignal Framework
+
+Signals are **global events** — produced independently, consumed by playgrounds.
+
+### Signal Flow
+1. **Datasource** produces signals (e.g. MA crossover detected)
+2. Signal stored in repository (InMemory for sim, ESDB for live)
+3. **Playground** delivers signals via TickDelta, gated by clock time
+4. **Strategy** receives signals via `on_signal()` method
+5. Strategy calls `PlaceOrder` with `signal_id` linking back to the originating signal
+
+### Running a Simulation
+```bash
+cd src/clients/python
+python demos/demo_mean_reversion_v2.py --symbol COIN --start 2025-01-01 --end 2025-03-01
 ```
 
-### Usage
-To setup your trading environment:
-``` bash
-task conda:create
+### Replay from Persisted Signals
+```bash
+python demos/demo_mean_reversion_v2.py --symbol COIN --replay-signals trade-signals
 ```
 
-### Update conda env
-add to taskfile
-``` bash
-conda env update --file conda-env.yaml --prune
+### Save Backtest Results
+```bash
+python demos/demo_mean_reversion_v2.py --symbol COIN --save-to-db --client-id my-backtest-run
 ```
 
-## Taskfile
-We use taskfile as our build tool.
+### Signal Types
+Defined as typed constants in `src/go/eventmodels/signal_name.go`:
+- `ma_crossover` — Moving average crossover
+- `start_of_week` — Calendar-based signal
+- `price_level_break` — Support/resistance break
+- `rsi_threshold` — RSI overbought/oversold
 
-#### On Mac
-``` bash
-brew install go-task
+---
+
+## Analytics (Metabase)
+
+5 dashboards provisioned programmatically via `infra/provision-metabase.py`:
+
+| Dashboard | What it shows |
+|-----------|--------------|
+| Trading Performance | P&L, win rate, profit factor, equity curve with drawdown |
+| Slippage Analysis | Open/close slippage per trade, distribution by symbol |
+| Portfolio Analytics | Per-symbol P&L, position history, asset class breakdown |
+| Strategy Comparison | Backtest runs table, equity curve overlay, parameter comparison |
+| Spread Analytics | Spread P&L summary, win/loss ratio, per-spread detail |
+
+### Provision Dashboards
+```bash
+python infra/provision-metabase.py --url http://localhost:3001 --user admin@example.com --password <pw>
 ```
 
-#### On Linux
-``` bash
-sudo snap install task --classic
+### SQL Views
+`infra/analytics-schema.sql` provides:
+- `v_order_pnl` — Per-order realized P&L (replicates CalcRealizedPL)
+- `v_playground_stats` — Aggregated P&L, win rate, profit factor per playground
+- `v_trade_fills` — Flattened order+trade rows
+- `v_open_slippage`, `v_close_slippage`, `v_all_slippage` — Slippage analysis
+- `v_spread_pnl`, `v_spread_stats` — Spread grouping analytics
+- `backtest_runs` — Summary table for persisted backtests
+
+---
+
+## Observability
+
+Built on OpenTelemetry, visualized in Grafana.
+
+### Stack
+- **Grafana** (port 3000) — Dashboards + alerting
+- **Loki** — Log aggregation (structured logs via OTel bridge)
+- **Tempo** — Distributed tracing
+- **Prometheus** — Metrics
+- **OTel Collector** — OTLP receiver (port 4318)
+
+### Key Metrics
+- `grodt.strategy.heartbeat` — Strategy liveness (per playground)
+- `grodt.datasource.heartbeat` — Datasource script liveness
+- `grodt.signals.produced` — Signal production counter (by name, symbol)
+- `grodt.signals.consumed` — Signal consumption counter (by strategy)
+- `grodt.orders.placed/filled/rejected` — Order lifecycle
+
+### Dashboards
+- `grodt-live-simulation` — System health, orders, market data, signals & datasources
+- `grodt-mean-reversion` — Strategy-specific panels
+- `grodt-covered-call` — Strategy-specific panels
+
+### Alerts
+- Strategy heartbeat stale (5m)
+- Datasource heartbeat stale (5m)
+- Error rate spike
+
+### Run Observability Stack
+```bash
+cd observability
+docker compose up -d
 ```
 
-You can list all commands with:
-``` bash
-task list
+---
+
+## Development
+
+### Conda Environment
+```bash
+conda activate grodt
 ```
 
-## PM2
-PM2 is used for deploying client side.
-
-Start all python scripts:
-``` bash
-pm2 start trading_engine.config.js --env production
+### Taskfile
+```bash
+brew install go-task    # Mac
+task list               # Show all commands
 ```
 
-## Migrations
-Currently, no migrations framework has been chosen an scripts are used if database migrations are needed. The script does a dry-run by default. Running a second time with `--live-run` will apply the migrations.
-
-See examples running `closed_by.py` below:
-
-``` bash
-python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a"
+### Compile Protobuf
+```bash
+task gen:proto
 ```
 
-OUTPUT:
-```
-Adjustment: Order 465 -> Trade 145
-Adjustment: Order 464 -> Trade 146
-Adjustment: Order 458 -> Trade 142
-Adjustment: Order 427 -> Trade 117
-Adjustment: Order 404 -> Trade 101
-Adjustment: Order 396 -> Trade 98
-Adjustment: Order 377 -> Trade 86
-Adjustment: Order 376 -> Trade 85
-Adjustment: Order 365 -> Trade 70
-Adjustment: Order 337 -> Trade 59
-Live run disabled. No database changes were made.
+Or manually:
+```bash
+cd src/go && protoc --go_out=. --twirp_out=. playground.proto
 ```
 
-Run live:
-``` bash
-python closed_by.py --symbol META --playground-id "c9fed5c5-4c2c-4f62-8331-780df11cb61a" --live-run
-```
-
-OUTPUT:
-```
-Adjustment: Order 465 -> Trade 145
-Adjustment: Order 464 -> Trade 146
-Adjustment: Order 458 -> Trade 142
-Adjustment: Order 427 -> Trade 117
-Adjustment: Order 404 -> Trade 101
-Adjustment: Order 396 -> Trade 98
-Adjustment: Order 377 -> Trade 86
-Adjustment: Order 376 -> Trade 85
-Adjustment: Order 365 -> Trade 70
-Adjustment: Order 337 -> Trade 59
-Adjustments have been committed to the database.
-```
-
-## Twirp
-We use twirp for grpc communication over http.
-
-## Debugging
-Port forward to the production ESDB instance:
-``` bash
-kubectl port-forward svc/eventstoredb 21133:2113 -n eventstoredb
-```
-
-## Profiling
-Pprof can be easily set up to do profiling:
-``` bash
+### Profiling
+```bash
 go tool pprof -seconds 30 -http localhost:8090 myserver http://localhost:8080/debug/pprof/profile
 ```
 
 ---
 
-# Machine Learning & Indicators
-We use pandas-ta for indicators.
+## Docker & Deployment
 
-## Installation
-Mac
-``` bash
-brew install ta-lib
-conda env create -f conda-env.yaml
-```
-
-Ubuntu: visit https://docs.conda.io/projects/conda/en/stable/user-guide/install/rpm-debian.html
-
-## Run the ML client (deprecated)
-> **Note:** PPO/RL scripts have been moved to `deprecated/python/backtester/`. See `deprecated/README.md` for details.
-
-``` bash
-cd ${PROJECT_DIR}
-./deprecated/python/backtester/backtester_playground_client.py  # see deprecated/python/backtester/ for PPO scripts
-```
-
-## Plot playground trades
-``` bash
-cd ${PROJECT_DIR}
-MY_PLAYGROUND="05a9b2ea-3fd5-414c-bf77-b73a73bb0d69"
-./src/clients/python/env/bin/python ${PROJECT_DIR}/src/clients/python/plot_playground.py --playground-id ${MY_PLAYGROUND} --host http://localhost:8080
-```
-
-## Compile protobuf file
-``` bash
-cd ${PROJECT_DIR}
-source src/clients/python/env/bin/activate
-protoc --go_out=. --python_out=./src/clients/python --twirp_out=. --twirpy_out=./src/clients/python src/go/playground.proto
-mv ${PROJECT_DIR}/src/clients/python/src/playground_pb2.py ${PROJECT_DIR}/src/clients/python/rpc
-mv ${PROJECT_DIR}/src/clients/python/src/playground_twirp.py ${PROJECT_DIR}/src/clients/python/rpc
-rmdir ${PROJECT_DIR}/src/clients/python/src
-```
-
-Note that in order to run the twirpy plugin, `src/clients/python/env/bin` must be in the terminal's PATH.
-
-## Generate signals
-The heart of the program grabs tick data from polygon and generates signals from them.
-
-``` bash
-cd ${PROJECT_DIR}/src/clients/python
-source env/bin/activate
-python generate_signals.py
-```
-
----
-
-# Docker
-
-## Dev
-The main program can be built with commands:
-``` bash
+### Build Images
+```bash
 docker build -f Dockerfile.base -t grodt-base-image .
 docker build -f Dockerfile.base2 -t grodt-base-image-2 .
-docker build -f Dockerfile.dev -t grodt-main .
+docker build -f Dockerfile -t grodt .
 ```
 
-## Prod
-We currently host the base 1 and base 2 images at vultr. In order to access them, log in with:
-``` bash
-docker login https://ewr.vultrcr.com/base1 -u $VULTR_USER -p $VULTR_PASS
+### Deploy
+```bash
+./deploy-app.sh <patch|minor|major>
 ```
 
-`$VULTR_USER` and `VULTR_PASS` can both be found in the vultr dashboard, under Container Registry.
-
-We are currently using heroku for prod. In order to upload new base images:
-``` bash
-heroku container:login
-docker tag <image> registry.heroku.com/<app>/<process-type>
-docker push registry.heroku.com/<app>/<process-type>
-heroku container:release web -a <app>
-```
-
-For example, *app* is `grodt` and *process-type* is `web`
-
-## Container Registry
-Docker containers are hosted on vultr. Before pushing and pulling, you need to login.
-``` bash
+### Container Registry
+```bash
 docker login https://ewr.vultrcr.com/grodt -u $VULTR_REGISTRY_USER -p $VULTR_REGISTRY_PASS
 ```
-`VULTR_REGISTRY_USER` and `VULTR_REGISTRY_PASS` can be found on the Vultr console.
 
-## Version Management
-
-### Installing bump2version
-``` bash
-python3 -m ensurepip --upgrade
-python3 -m pip install --user bump2version
+### Production Stack (Digital Ocean)
+```bash
+cd /opt/slack-trading
+docker compose -f docker-compose.prod.yaml up -d
 ```
 
-### Managing
-1. Each Dockerfile has a `# Version: 1.x.x` at the top.
-2. Each Dockerfile also has a `.bumpversion.cfg` file, since we want to manage each version number separately.
-
-### Deploying a new version
-The following script takes care of updating the version of the Dockerfile and deploying it to the container registry, updating the Kubernetes deployment file, and pushing the code to Github.
-``` bash
-./deploy-app.sh <version>
-```
-Version can be: patch, minor, major
-
----
-Similarly, the base images can be deployed (if necessary) with the following commands:
-``` bash
-./deploy-base-image.sh <version>
-./deploy-base-image-2.sh <version>
-```
+Services: Go server, PostgreSQL 13, EventStoreDB 24.2.0, grafana/otel-lgtm
 
 ---
 
-# Infrastructure
+## Infrastructure
 
-## DevOps
+### Database
+- **PostgreSQL** — Orders, trades, playgrounds, backtest_runs, analytics views
+- **EventStoreDB** — Event sourcing (signals, account state)
+- **Metabase** — Analytics dashboards (runs on Windows desktop, connects to DO Postgres)
 
-### Delete all playgrounds
-During initial development, it has been useful to soft delete a set of existing playgrounds, with scripts below:
-``` sql
--- mark all playgrounds as deleted
-update playground_sessions set deleted_at = NOW() where environment != 'reconcile' and deleted_at is null ;
+### Kubernetes (Vultr)
+- Flux CD for GitOps
+- Sealed Secrets for secret management
+- Manifests in `.clusters/production/`
 
--- mark order records as deleted
-update order_records as ord
-  set deleted_at = NOW()
-  from playground_sessions as ps
-  where ps.id = ord.playground_id
-    and ps.deleted_at is not null ;
-
--- mark trade records as deleted
-update trade_records as tr
-  set deleted_at = NOW()
-  from order_records as orec
-  where tr.order_id = orec.id
-    and orec.deleted_at is not null ;
-```
-
-### Crane
-Crane: managing remote images in Vultr
-``` bash
-brew install crane
-```
-
-## Common Kubernetes Issues
-Here were some problems that needed to be overcome when running in prod:
-
-1. disk space full
-solution:
-ssh onto each node, run:
-``` bash
-crictl rmi --prune
-```
-
-2. Removing pvc
-solution:
-a. Remove the finializers first
-``` bash
-kubectl patch pvc <pvc-name> -n <namespace> --type=json -p '[{"op": "remove", "path": "/metadata/finalizers"}]'
-```
-
-3. Add the metrics server
-``` bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-kubectl patch deployment metrics-server -n kube-system --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-", "value":"--kubelet-insecure-tls"}]'
-
-```
-
-4. Removed the cpu limits on grodt deployment. You cannot add any deployment that you wish.
-
-5. Create kube dashboard
-``` bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
-kubectl create serviceaccount dashboard-admin -n kubernetes-dashboard
-kubectl create clusterrolebinding dashboard-admin-binding \
-  --clusterrole=cluster-admin \
-  --serviceaccount=kubernetes-dashboard:dashboard-admin
-```
-Get the admin token to log in:
-``` bash
-kubectl -n kubernetes-dashboard create token dashboard-admin
-```
+### Environment Variables
+Key vars (loaded from `.env` via godotenv):
+- `PROJECT_DIR` — Repo root
+- `GO_ENV` — `development` | `production`
+- `POLYGON_API_KEY` — Market data
+- `POSTGRES_HOST/USER/PASSWORD/DB` — Database
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — OTel collector
+- `EVENTSTOREDB_URL` — EventStoreDB
 
 ---
 
-# Kubernetes Cluster Setup
-Our production environment is hosted on vultr and managed with fluxcd. Manifests are stored in `.clusters/production`
+## Integrations
 
-## Spin up a New Cluster
-To start a new cluster, navigate to the Vultr dashboard, click "Kubernetes" and "+ Add Cluster."
-
-### Install the SealedSecrets controller
-``` bash
-brew install helm
-helm repo add bitnami https://charts.bitnami.com/bitnami
-kubectl create namespace sealed-secrets
-helm install sealed-secrets bitnami/sealed-secrets --namespace sealed-secrets
-```
-
-### Install postgres
-Postgres is used to store trade data.
-
-#### Secrets
-The postgres secret file is not checked into version control. Add the following file to `${PROJECT_DIR}/.clusters/production/postgres-secret.yaml`:
-``` yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: database
-type: Opaque
-data:
-  POSTGRES_PASSWORD: $(echo -n "yourpassword" | base64)
-```
-
-A new cluster can be spun up in kubernetes with the following commands:
-``` bash
-kubectl create namespace database
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-configmap.yaml
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-secret.yaml
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-pvc.yaml
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-service.yaml
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/postgres-deployment.yaml
-```
-
-#### Development
-In order to use the app locally, you will need to port-forward the connection:
-``` bash
-kubectl port-forward svc/postgres 5432:5432 -n database
-```
-
-### Create Playground Database
-In a sql editor, run:
-``` sql
-CREATE database playground;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE SEQUENCE IF NOT EXISTS order_id_seq START 1;
-```
-
-### Add a Deploy Key to the Cluster
-(This can be skipped if the sealedsecret has already been created.)
-
-Flux needs a deploy key in order to pull from GitHub. Create one and then apply it to the cluster as a sealed secret.
-
-First, create a namespace for the app and the database
-``` bash
-kubectl create namespace eventstoredb
-```
-
-Second, create a normal secret from the private key file
-``` bash
-kubectl create secret generic flux-git-deploy \
-  --namespace default \
-  --from-file=identity=<absolute-path-to-your-private-key> \
-  --dry-run=client -o yaml > secret.yaml
-```
-
-Third, convert the secret into a sealed secret:
-``` bash
-kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > ${PROJECT_DIR}/.clusters/production/sealedsecret-flux-git-deploy.yaml
-```
-
-Fourth, apply the sealed secret to the cluster
-``` bash
-kubectl apply -f ${PROJECT_DIR}/.clusters/production/sealedsecret-flux-git-deploy.yaml
-```
-
-### Bootstrap the Cluster
-You will need a personal access token in order to bootstrap the cluster.
-
-#### Getting a GitHub personal access token
-1. Go to GitHub:
-
-2. Navigate to GitHub and sign in to your account.
-Go to Settings:
-
-3. In the top-right corner of any GitHub page, click on your profile picture, then click on Settings.
-Access Developer Settings:
-
-4. In the left sidebar, scroll down and click on Developer settings.
-Generate a New Personal Access Token:
-
-In the Developer settings page, click on Personal access tokens.
-Then, click on Tokens (classic), and click on Generate new token or Generate new token (classic).
-Select Scopes:
-
-Give the token a descriptive name (e.g., "Flux GitOps token").
-
-Set an expiration date for the token (or leave it with no expiration if necessary, though it's recommended to have an expiration).
-
-For Flux, you typically need the following scopes:
-
-- repo: Full control of private repositories (if you need to deploy from private repositories).
-- workflow: Update GitHub Actions workflows (optional, if you use GitHub Actions).
-- write:packages: Push packages to GitHub packages (optional, if you are working with GitHub packages).
-- admin:repo_hook: Manage webhooks (optional, needed if Flux will create webhooks).
-
-#### Run the command
-``` bash
-flux bootstrap github --owner=jiaming2012 --repository=slack-trading --branch=main --path=.clusters/production --personal
-```
-
-## Connect to an Existing Cluster
-
-### Configure Local Machine to Remote Cluster
-Log into the Vultr dashboard and download the cluster's config file.
-``` bash
-export KUBECONFIG="/Users/jamal/projects/grodt/vultr-k8s.yaml"
-```
-
-### Secrets
-We use `kubeseal` for managing encrypted secrets
-``` bash
-brew install kubeseal
-```
-
-Assuming you have `.env.production` in the `src/go/` directory, convert an env file to a kubernetes secret:
-``` bash
-cd path/to/cmd
-./convert_env_to_secret.sh
-```
-
-Convert the secret to a sealed secret and deploy with the sealed secret with:
-``` bash
-kubeseal --controller-name=sealed-secrets --controller-namespace=sealed-secrets --format yaml < secret.yaml > .clusters/production/sealedsecret.yaml
-```
-
-### Config
-Similarly, create a configmap from an env file with command:
-``` bash
-cd path/to/cmd
-./convert_env_to_config.sh
-```
-
-Remove any variables that you do not wish to use.
-
-### Connecting
-Go to the vultr dashboard and download the kube context file.
-``` bash
-export KUBECONFIG=/Users/jamal/projects/grodt/vultr-k8s.yaml
-```
+| Service | Purpose |
+|---------|---------|
+| Polygon.io | Market data (stocks, options, candles) |
+| Tradier | Broker (live + sandbox trading) |
+| EventStoreDB | Event sourcing (signals, account state) |
+| Slack | Alerts and notifications |
+| Google Sheets | Trade logging |
 
 ---
 
-# Data
-In order to run scripts for importing data into eventstore db:
-``` bash
-kubectl port-forward pod/eventstoredb-0 2113:2113 -n eventstoredb
-```
-You can now run import scripts from local machine.
+## Version History
 
----
-
-# Telemetry
-Currently using the free tier of telemetry cloud: https://grafana.com/orgs/jac475. Used the following guide to set up: https://grafana.com/docs/grafana-cloud/monitor-applications/application-observability/setup/quickstart/go/
-
-## See Telemetry Data
-1. Launch Grafana
-2. Click "Data Sources" in the side menu
-3. Click grafanacloud-jac475-traces -> "Explore"
-4. Select: Query type -> "Search"
-
----
-
-# Integrations
-
-## Interactive Brokers
-Common instructions for working with interactive brokers
-
-### Add a New Symbol to the Data Feed
-1. Find the conid using postman
-
-![Postman Request](interactive_brokers_fetch_new_symbol.png)
-
-## Google Sheets
-Navigate to console.cloud.google.com (jamal@yumyums.kitchen)
-
-Click the navigation menu (hamburger menu - top left) -> APIs & Services -> Enabled APIs & services. Click the 'Credentials' tab.
-
-To authenticate, create a service account on Google Cloud. Under **Keys**, select "Add Key" -> "Create new key". Download and base64 the JSON credentials file, and set the environment variable `KEY_JSON_BASE64` to base64 string.
-
-## Slack
-UI is administered via slack. Admin page can be found here: https://api.slack.com/apps/A03C4E2TA6M
-
-Events are sent to https://api.slack.com/apps/A03C4E2TA6M/event-subscriptions?
-
-## Heroku
-If deploying to heroku, there are some gochas:
-
-1. If the application does not have a web port, heroku will terminate the application. This can be prevented by running:
-``` bash
-heroku ps:scale worker=1
-```
-
-### Logs
-Logs can be found via command:
-``` bash
-cd path/to/slack-trading
-heroku logs
-```
+| Version | Focus | Date |
+|---------|-------|------|
+| v3.0 | TradeSignal Framework — signal decoupling, strategy migration, replay | 2026-03-31 |
+| v2.0 | Metabase Analytics — dashboards, backtest persistence, spread grouping | 2026-03-30 |
+| v1.1 | Dashboard Enhancements — filtering, per-strategy panels | 2026-03-30 |
+| v1.0 | Live Simulation Observability — OTel, Grafana, production deploy | 2026-03-28 |
