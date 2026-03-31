@@ -54,6 +54,13 @@ class BaseStrategy(ABC):
         Call self.record_decision() to record signal decisions for logging."""
         pass
 
+    def on_signal(self, signal) -> None:
+        """Handle a TradeSignal from TickDelta.new_signals.
+
+        Override in V2 strategies. Default: no-op for backward compatibility.
+        """
+        pass
+
     @abstractmethod
     def get_next_tick_seconds(self) -> int:
         """Return the number of seconds for the next tick (D-03).
