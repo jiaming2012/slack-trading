@@ -144,7 +144,7 @@ Plans:
 
 Plans:
 - [x] 22-01-PLAN.md — BaseStrategy on_signal() hook + OptionsMeanReversion datasource/V2/diff test
-- [ ] 22-02-PLAN.md — CreditSpread datasource/V2/diff test
+- [x] 22-02-PLAN.md — CreditSpread datasource/V2/diff test
 - [ ] 22-03-PLAN.md — CoveredCall + Wheel datasources/V2s/diff tests
 - [ ] 22-04-PLAN.md — PDFWheel datasource/V2/diff test (depends on Wheel V2)
 - [ ] 22-05-PLAN.md — Trading engine on_signal() wiring + move all V1 to deprecated/ + end-to-end verification
@@ -176,5 +176,5 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
-| 22. Remaining Strategy Migrations | v3.0 | 1/5 | In Progress|  |
+| 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
