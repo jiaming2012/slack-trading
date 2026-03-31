@@ -24,7 +24,7 @@ from engine.client import (
     RepositorySource,
 )
 from engine.trading_engine import run_strategy
-from strategies.covered_call import (
+from deprecated.covered_call import (
     OptionsStrategyBasic,
     generate_signal_stats,
 )

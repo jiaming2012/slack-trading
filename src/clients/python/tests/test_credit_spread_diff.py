@@ -182,7 +182,7 @@ class TestCreditSpreadV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both V1 and V2 produce zero groups when no signals are detected."""
-        from strategies.credit_spread import CreditSpreadStrategy
+        from deprecated.credit_spread import CreditSpreadStrategy
         from strategies.credit_spread_v2 import CreditSpreadStrategyV2
 
         # No signals detected
@@ -234,7 +234,7 @@ class TestCreditSpreadV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both produce identical _try_create_group calls on bullish HTF signal."""
-        from strategies.credit_spread import CreditSpreadStrategy
+        from deprecated.credit_spread import CreditSpreadStrategy
         from strategies.credit_spread_v2 import CreditSpreadStrategyV2
 
         bar1 = _make_htf_bar(100.0)
@@ -296,7 +296,7 @@ class TestCreditSpreadV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both produce identical groups on bearish HTF signal (non-long-only)."""
-        from strategies.credit_spread import CreditSpreadStrategy
+        from deprecated.credit_spread import CreditSpreadStrategy
         from strategies.credit_spread_v2 import CreditSpreadStrategyV2
 
         bar1 = _make_htf_bar(100.0)
@@ -361,7 +361,7 @@ class TestCreditSpreadV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both V1 and V2 skip bearish signals when long_only=True."""
-        from strategies.credit_spread import CreditSpreadStrategy
+        from deprecated.credit_spread import CreditSpreadStrategy
         from strategies.credit_spread_v2 import CreditSpreadStrategyV2
 
         bar1 = _make_htf_bar(100.0)
@@ -430,7 +430,7 @@ class TestCreditSpreadV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Multiple HTF signals produce identical group sequences in V1 and V2."""
-        from strategies.credit_spread import CreditSpreadStrategy
+        from deprecated.credit_spread import CreditSpreadStrategy
         from strategies.credit_spread_v2 import CreditSpreadStrategyV2
 
         bar1 = _make_htf_bar(100.0, datetime=datetime(2025, 6, 15, 10, 0))

@@ -51,7 +51,7 @@ from engine.client import (
 from engine.types import LiveAccountType
 from tools.build_pdf_from_polygon import bar_to_dict
 from engine.trading_engine import run_strategy
-from strategies.mean_reversion import MeanReversionStrategy
+from deprecated.mean_reversion import MeanReversionStrategy
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 

@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 
 from lib.deviation_levels import DeviationLevel, DeviationPlan
-from strategies.credit_spread import (
+from deprecated.credit_spread import (
     CreditSpreadStrategy,
     CreditSpreadGroup,
     CreditSpreadEntry,

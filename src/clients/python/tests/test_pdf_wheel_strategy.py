@@ -19,7 +19,7 @@ from lib.pdf_types import (
     PDFDocument,
     compute_percentiles,
 )
-from strategies.pdf_wheel import (
+from deprecated.pdf_wheel import (
     PDFWheelStrategy,
     PDFPutSignal,
     StrikeAllocation,

@@ -52,8 +52,8 @@ from tools.build_pdf_from_polygon import bar_to_dict
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 from engine.trading_engine import run_strategy
-from strategies.pdf_wheel import PDFWheelStrategy
-from strategies.covered_call import generate_signal_stats
+from deprecated.pdf_wheel import PDFWheelStrategy
+from deprecated.covered_call import generate_signal_stats
 
 
 # ------------------------------------------------------------------ #

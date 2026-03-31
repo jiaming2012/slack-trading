@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 
 from lib.deviation_levels import DeviationLevel, DeviationPlan, _compute_p_revert
-from strategies.options_mean_reversion import (
+from deprecated.options_mean_reversion import (
     OptionsMeanReversionStrategy,
     OptionsTradeGroup,
     OptionsContractEntry,

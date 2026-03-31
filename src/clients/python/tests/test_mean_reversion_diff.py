@@ -182,7 +182,7 @@ class TestV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both V1 and V2 produce zero orders when no signals are detected."""
-        from strategies.mean_reversion import MeanReversionStrategy
+        from deprecated.mean_reversion import MeanReversionStrategy
         from strategies.mean_reversion_v2 import MeanReversionStrategyV2
 
         # No signals detected
@@ -240,7 +240,7 @@ class TestV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both produce identical place_order sequences on bullish HTF signal."""
-        from strategies.mean_reversion import MeanReversionStrategy
+        from deprecated.mean_reversion import MeanReversionStrategy
         from strategies.mean_reversion_v2 import MeanReversionStrategyV2
 
         bar1 = _make_htf_bar(100.0)
@@ -316,7 +316,7 @@ class TestV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Multiple HTF signals produce identical order sequences in V1 and V2."""
-        from strategies.mean_reversion import MeanReversionStrategy
+        from deprecated.mean_reversion import MeanReversionStrategy
         from strategies.mean_reversion_v2 import MeanReversionStrategyV2
 
         bar1 = _make_htf_bar(100.0, datetime=datetime(2025, 6, 15, 10, 0))

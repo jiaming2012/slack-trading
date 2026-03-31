@@ -30,7 +30,7 @@ from engine.client import (
     RepositorySource,
 )
 from engine.trading_engine import run_strategy
-from strategies.wheel import WheelStrategy, generate_signal_stats
+from deprecated.wheel import WheelStrategy, generate_signal_stats
 
 
 def main():

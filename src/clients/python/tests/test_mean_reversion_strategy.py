@@ -9,7 +9,7 @@ import pytest
 
 from lib.deviation_levels import DeviationLevel, DeviationPlan
 from lib.partial_exit_manager import ExitPlan, ExitTier
-from strategies.mean_reversion import (
+from deprecated.mean_reversion import (
     MeanReversionStrategy,
     TradeGroup,
     _bar_to_dict,

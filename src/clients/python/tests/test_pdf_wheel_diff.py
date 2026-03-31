@@ -179,7 +179,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         self, mock_v1_detect, mock_v2_detect,
     ):
         """Both V1 and V2 return None when no atomic signals are detected."""
-        from strategies.pdf_wheel import PDFWheelStrategy
+        from deprecated.pdf_wheel import PDFWheelStrategy
         from strategies.pdf_wheel_v2 import PDFWheelStrategyV2
 
         mock_v1_detect.return_value = []
@@ -203,7 +203,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         self, mock_v1_detect, mock_v2_detect,
     ):
         """Both V1 and V2 produce identical PDFPutSignal when PDF has a match."""
-        from strategies.pdf_wheel import PDFWheelStrategy, PDFPutSignal
+        from deprecated.pdf_wheel import PDFWheelStrategy, PDFPutSignal
         from strategies.pdf_wheel_v2 import PDFWheelStrategyV2
 
         signal_key = "bullish_pin_bar|stochrsi_cross_above_20"
@@ -240,7 +240,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         self, mock_v1_detect, mock_v2_detect,
     ):
         """Both V1 and V2 return None when PDF has no matching entry."""
-        from strategies.pdf_wheel import PDFWheelStrategy
+        from deprecated.pdf_wheel import PDFWheelStrategy
         from strategies.pdf_wheel_v2 import PDFWheelStrategyV2
 
         # PDF has a different signal key than what will be detected
@@ -267,7 +267,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         self, mock_v1_detect, mock_v2_detect,
     ):
         """Both V1 and V2 merge daily context signals into the compound key."""
-        from strategies.pdf_wheel import PDFWheelStrategy, PDFPutSignal
+        from deprecated.pdf_wheel import PDFWheelStrategy, PDFPutSignal
         from strategies.pdf_wheel_v2 import PDFWheelStrategyV2
 
         # Signal key includes both LTF and daily signals

@@ -32,8 +32,8 @@ from strategies.covered_call_v2 import OptionsStrategyBasicV2
 from datasources.wheel_signals import produce_open_signals
 
 # Import shared types from V1 to avoid duplication
-from strategies.wheel import WheelPhase, PutSellSignal
-from strategies.covered_call import (
+from deprecated.wheel import WheelPhase, PutSellSignal
+from deprecated.covered_call import (
     OptionContractRepository,
     CloseSignalV2,
     OpenSignalV4,

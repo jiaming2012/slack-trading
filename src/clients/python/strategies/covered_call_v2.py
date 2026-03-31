@@ -38,7 +38,7 @@ from strategies.base_strategy import BaseStrategy
 from datasources.covered_call_signals import produce_open_signals
 
 # Import shared types from V1 to avoid duplication
-from strategies.covered_call import (
+from deprecated.covered_call import (
     OptionContract,
     OptionContractRepository,
     CloseSignalV2,

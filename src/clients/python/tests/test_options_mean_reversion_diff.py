@@ -214,7 +214,7 @@ class TestOptionsV1V2BehavioralDiff:
         no actual place_order calls are made. But the _try_create_group path
         exercises the same logic in both versions.
         """
-        from strategies.options_mean_reversion import OptionsMeanReversionStrategy
+        from deprecated.options_mean_reversion import OptionsMeanReversionStrategy
         from strategies.options_mean_reversion_v2 import OptionsMeanReversionStrategyV2
 
         signal_key = "bullish_supertrend|stochrsi_cross_above_20"
@@ -284,7 +284,7 @@ class TestOptionsV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both V1 and V2 produce identical group creation on bearish HTF signal."""
-        from strategies.options_mean_reversion import OptionsMeanReversionStrategy
+        from deprecated.options_mean_reversion import OptionsMeanReversionStrategy
         from strategies.options_mean_reversion_v2 import OptionsMeanReversionStrategyV2
 
         signal_key = "bearish_supertrend|stochrsi_cross_below_80"
@@ -358,7 +358,7 @@ class TestOptionsV1V2BehavioralDiff:
         mock_v1_bar, mock_v2_bar,
     ):
         """Both V1 and V2 produce zero orders when no signals are detected."""
-        from strategies.options_mean_reversion import OptionsMeanReversionStrategy
+        from deprecated.options_mean_reversion import OptionsMeanReversionStrategy
         from strategies.options_mean_reversion_v2 import OptionsMeanReversionStrategyV2
 
         mock_v1_detect.return_value = []

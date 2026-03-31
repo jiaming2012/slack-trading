@@ -43,8 +43,8 @@ from lib.risk_management import (
     max_contracts,
     allocate_contracts,
 )
-from strategies.wheel import WheelStrategy, WheelPhase
-from strategies.covered_call import (
+from deprecated.wheel import WheelStrategy, WheelPhase
+from deprecated.covered_call import (
     CloseSignalV2,
     OpenSignalV4,
     RollSignalV1,

@@ -126,7 +126,7 @@ class TestWheelV1V2PutSignalDiff:
 
     def test_no_direction_change_produces_no_put_signal(self):
         """Both V1 and V2 return None when no supertrend direction change."""
-        from strategies.wheel import WheelStrategy
+        from deprecated.wheel import WheelStrategy
         from strategies.wheel_v2 import WheelStrategyV2
 
         candle_data = [
@@ -150,7 +150,7 @@ class TestWheelV1V2PutSignalDiff:
 
     def test_direction_change_produces_identical_put_signal(self):
         """Both V1 and V2 produce identical PutSellSignal on supertrend direction change."""
-        from strategies.wheel import WheelStrategy, PutSellSignal
+        from deprecated.wheel import WheelStrategy, PutSellSignal
         from strategies.wheel_v2 import WheelStrategyV2
 
         candle_data = [
@@ -192,9 +192,9 @@ class TestWheelV1V2CoveredCallDiff:
 
     def test_phase2_delegates_to_parent_check_for_new_signal(self):
         """Phase 2 (SELL_CALLS) uses parent's check_for_new_signal in both versions."""
-        from strategies.wheel import WheelStrategy
+        from deprecated.wheel import WheelStrategy
         from strategies.wheel_v2 import WheelStrategyV2
-        from strategies.covered_call import OpenSignalV4
+        from deprecated.covered_call import OpenSignalV4
 
         candle_data = [
             (100.0, 1.0, 98.0),

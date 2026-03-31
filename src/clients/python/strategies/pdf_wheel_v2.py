@@ -48,8 +48,8 @@ from lib.risk_management import (
     allocate_contracts,
 )
 from strategies.wheel_v2 import WheelStrategyV2
-from strategies.wheel import WheelPhase
-from strategies.covered_call import (
+from deprecated.wheel import WheelPhase
+from deprecated.covered_call import (
     CloseSignalV2,
     OpenSignalV4,
     RollSignalV1,
@@ -60,7 +60,7 @@ from strategies.covered_call import (
 from datasources.pdf_wheel_signals import produce_signals
 
 # Import PDF-specific types from V1 to avoid duplication
-from strategies.pdf_wheel import PDFPutSignal, StrikeAllocation
+from deprecated.pdf_wheel import PDFPutSignal, StrikeAllocation
 
 
 # ------------------------------------------------------------------ #

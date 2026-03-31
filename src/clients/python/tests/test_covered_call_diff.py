@@ -141,7 +141,7 @@ class TestCoveredCallV1V2BehavioralDiff:
 
     def test_no_direction_change_produces_no_signal(self):
         """Both V1 and V2 return None when no supertrend direction change."""
-        from strategies.covered_call import OptionsStrategyBasic
+        from deprecated.covered_call import OptionsStrategyBasic
         from strategies.covered_call_v2 import OptionsStrategyBasicV2
 
         # All candles have same supertrend direction (1.0) -- no change
@@ -167,7 +167,7 @@ class TestCoveredCallV1V2BehavioralDiff:
 
     def test_direction_change_produces_identical_signal(self):
         """Both V1 and V2 produce identical OpenSignalV4 on supertrend direction change."""
-        from strategies.covered_call import OptionsStrategyBasic, OpenSignalV4
+        from deprecated.covered_call import OptionsStrategyBasic, OpenSignalV4
         from strategies.covered_call_v2 import OptionsStrategyBasicV2
 
         # Candles with direction 1.0, then changes at index 2 to -1.0
@@ -203,7 +203,7 @@ class TestCoveredCallV1V2BehavioralDiff:
 
     def test_multiple_direction_changes_identical_signals(self):
         """Both produce identical signals across multiple supertrend direction changes."""
-        from strategies.covered_call import OptionsStrategyBasic
+        from deprecated.covered_call import OptionsStrategyBasic
         from strategies.covered_call_v2 import OptionsStrategyBasicV2
 
         # Multiple direction changes

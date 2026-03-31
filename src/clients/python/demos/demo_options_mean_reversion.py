@@ -40,7 +40,7 @@ from engine.client import (
 )
 from tools.build_pdf_from_polygon import bar_to_dict
 from engine.trading_engine import run_strategy
-from strategies.options_mean_reversion import OptionsMeanReversionStrategy
+from deprecated.options_mean_reversion import OptionsMeanReversionStrategy
 from lib.pdf_builder import PDFBuilder
 from lib.pdf_types import PDFDocument
 

@@ -26,7 +26,7 @@ from engine.client import (
     OrderSide,
 )
 from engine.types import SignalDecision
-from strategies.covered_call import (
+from deprecated.covered_call import (
     OptionsStrategyBasic,
     OptionContractRepository,
     CloseSignalV2,
@@ -622,7 +622,7 @@ def run_wheel_strategy(
                         attributes["roll_from"] = signal.option_contract.symbol
                     else:
                         # Buy stock to cover the call if needed
-                        from strategies.covered_call import calculate_stock_quantity
+                        from deprecated.covered_call import calculate_stock_quantity
 
                         stock_qty = calculate_stock_quantity(
                             playground, signal.symbol, -1
