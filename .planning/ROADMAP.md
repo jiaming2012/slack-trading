@@ -169,7 +169,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 17. Signal Foundation | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
-| 20. ESDB Persistence | v3.0 | 2/2 | Complete   | 2026-03-31 |
+| 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
