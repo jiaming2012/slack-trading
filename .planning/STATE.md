@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Phase 25 context gathered
-last_updated: "2026-03-31T11:18:05.831Z"
-last_activity: 2026-03-31 -- Phase 25 execution started
+stopped_at: Completed 25-03-PLAN.md
+last_updated: "2026-03-31T11:40:39.148Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 23
-  completed_plans: 17
+  completed_plans: 19
   percent: 29
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 ## Current Position
 
 Phase: 25 (complete-strategy-migrations) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 25
-Last activity: 2026-03-31 -- Completed 25-01 (CoveredCall + Wheel V2)
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-03-31
 
 Progress: [███░░░░░░░] 29%
 
@@ -80,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 23]: 10 signals across 45min window for dual-run replay test coverage
 - [Phase 24]: Used google.protobuf.timestamp_pb2.Timestamp.FromDatetime for datetime conversion in Python signal RPC wrappers
 - [Phase 25]: Callable-based datasource pattern: feature_vector_fn callable encapsulates stateful supertrend lookback for covered call and wheel signals
+- [Phase 25]: Signal callback pattern: _signal_callback on playground set by trading engine for decoupled on_signal() dispatch
+- [Phase 25]: All 6 V1 strategy files moved to deprecated/, V2-only codebase with updated imports
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T11:26:33Z
-Stopped at: Completed 25-01-PLAN.md
-Resume file: .planning/phases/25-complete-strategy-migrations/25-CONTEXT.md
+Last session: 2026-03-31T11:40:39.142Z
+Stopped at: Completed 25-03-PLAN.md
+Resume file: None
