@@ -174,9 +174,9 @@ class TestV1V2BehavioralDiff:
     """Behavioral diff tests proving V1 and V2 produce identical output."""
 
     @patch("strategies.mean_reversion_v2._bar_to_dict")
-    @patch("strategies.mean_reversion._bar_to_dict")
+    @patch("deprecated.mean_reversion._bar_to_dict")
     @patch("datasources.ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.mean_reversion.detect_atomic_signals_on_bar")
     def test_v1_v2_no_orders_on_no_signal(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -232,9 +232,9 @@ class TestV1V2BehavioralDiff:
         assert orders_v1 == orders_v2
 
     @patch("strategies.mean_reversion_v2._bar_to_dict")
-    @patch("strategies.mean_reversion._bar_to_dict")
+    @patch("deprecated.mean_reversion._bar_to_dict")
     @patch("datasources.ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.mean_reversion.detect_atomic_signals_on_bar")
     def test_v1_v2_identical_orders_on_bullish_signal(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -308,9 +308,9 @@ class TestV1V2BehavioralDiff:
             )
 
     @patch("strategies.mean_reversion_v2._bar_to_dict")
-    @patch("strategies.mean_reversion._bar_to_dict")
+    @patch("deprecated.mean_reversion._bar_to_dict")
     @patch("datasources.ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.mean_reversion.detect_atomic_signals_on_bar")
     def test_v1_v2_identical_on_multi_group_sequence(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,

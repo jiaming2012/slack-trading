@@ -201,9 +201,9 @@ class TestOptionsV1V2BehavioralDiff:
     """Behavioral diff tests proving V1 and V2 produce identical output."""
 
     @patch("strategies.options_mean_reversion_v2._bar_to_dict")
-    @patch("strategies.options_mean_reversion._bar_to_dict")
+    @patch("deprecated.options_mean_reversion._bar_to_dict")
     @patch("datasources.options_ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.options_mean_reversion.detect_atomic_signals_on_bar")
     def test_htf_bullish_signal_produces_identical_orders(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -276,9 +276,9 @@ class TestOptionsV1V2BehavioralDiff:
         assert norm_v1 == norm_v2
 
     @patch("strategies.options_mean_reversion_v2._bar_to_dict")
-    @patch("strategies.options_mean_reversion._bar_to_dict")
+    @patch("deprecated.options_mean_reversion._bar_to_dict")
     @patch("datasources.options_ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.options_mean_reversion.detect_atomic_signals_on_bar")
     def test_htf_bearish_signal_produces_identical_orders(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -350,9 +350,9 @@ class TestOptionsV1V2BehavioralDiff:
         assert norm_v1 == norm_v2
 
     @patch("strategies.options_mean_reversion_v2._bar_to_dict")
-    @patch("strategies.options_mean_reversion._bar_to_dict")
+    @patch("deprecated.options_mean_reversion._bar_to_dict")
     @patch("datasources.options_ma_crossover.detect_atomic_signals_on_bar")
-    @patch("strategies.options_mean_reversion.detect_atomic_signals_on_bar")
+    @patch("deprecated.options_mean_reversion.detect_atomic_signals_on_bar")
     def test_no_signal_produces_no_orders(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,

@@ -174,9 +174,9 @@ class TestCreditSpreadV1V2BehavioralDiff:
     """Behavioral diff tests proving V1 and V2 produce identical group creation."""
 
     @patch("strategies.credit_spread_v2._bar_to_dict")
-    @patch("strategies.credit_spread._bar_to_dict")
+    @patch("deprecated.credit_spread._bar_to_dict")
     @patch("datasources.credit_spread_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.credit_spread.detect_atomic_signals_on_bar")
+    @patch("deprecated.credit_spread.detect_atomic_signals_on_bar")
     def test_no_signal_produces_no_groups(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -226,9 +226,9 @@ class TestCreditSpreadV1V2BehavioralDiff:
         assert groups_v1 == groups_v2
 
     @patch("strategies.credit_spread_v2._bar_to_dict")
-    @patch("strategies.credit_spread._bar_to_dict")
+    @patch("deprecated.credit_spread._bar_to_dict")
     @patch("datasources.credit_spread_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.credit_spread.detect_atomic_signals_on_bar")
+    @patch("deprecated.credit_spread.detect_atomic_signals_on_bar")
     def test_htf_bullish_signal_produces_identical_groups(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -288,9 +288,9 @@ class TestCreditSpreadV1V2BehavioralDiff:
         )
 
     @patch("strategies.credit_spread_v2._bar_to_dict")
-    @patch("strategies.credit_spread._bar_to_dict")
+    @patch("deprecated.credit_spread._bar_to_dict")
     @patch("datasources.credit_spread_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.credit_spread.detect_atomic_signals_on_bar")
+    @patch("deprecated.credit_spread.detect_atomic_signals_on_bar")
     def test_htf_bearish_signal_produces_identical_groups(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -353,9 +353,9 @@ class TestCreditSpreadV1V2BehavioralDiff:
         assert norm_v1[0][2] == "bearish"
 
     @patch("strategies.credit_spread_v2._bar_to_dict")
-    @patch("strategies.credit_spread._bar_to_dict")
+    @patch("deprecated.credit_spread._bar_to_dict")
     @patch("datasources.credit_spread_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.credit_spread.detect_atomic_signals_on_bar")
+    @patch("deprecated.credit_spread.detect_atomic_signals_on_bar")
     def test_bearish_signal_skipped_when_long_only(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,
@@ -422,9 +422,9 @@ class TestCreditSpreadV1V2BehavioralDiff:
         assert groups_v2 == [], f"V2 should skip bearish signal when long_only, got {len(groups_v2)}"
 
     @patch("strategies.credit_spread_v2._bar_to_dict")
-    @patch("strategies.credit_spread._bar_to_dict")
+    @patch("deprecated.credit_spread._bar_to_dict")
     @patch("datasources.credit_spread_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.credit_spread.detect_atomic_signals_on_bar")
+    @patch("deprecated.credit_spread.detect_atomic_signals_on_bar")
     def test_multi_signal_sequence_produces_identical_groups(
         self, mock_v1_detect, mock_v2_detect,
         mock_v1_bar, mock_v2_bar,

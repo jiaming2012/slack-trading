@@ -174,7 +174,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
     """Behavioral diff tests proving V1 and V2 produce identical compound signal detection."""
 
     @patch("datasources.pdf_wheel_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.pdf_wheel.detect_atomic_signals_on_bar")
+    @patch("deprecated.pdf_wheel.detect_atomic_signals_on_bar")
     def test_no_signals_produces_no_pdf_put_signal(
         self, mock_v1_detect, mock_v2_detect,
     ):
@@ -198,7 +198,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         assert result_v2 is None, f"V2 should return None, got {result_v2}"
 
     @patch("datasources.pdf_wheel_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.pdf_wheel.detect_atomic_signals_on_bar")
+    @patch("deprecated.pdf_wheel.detect_atomic_signals_on_bar")
     def test_matching_signal_produces_identical_pdf_put_signal(
         self, mock_v1_detect, mock_v2_detect,
     ):
@@ -235,7 +235,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         assert result_v1.pdf_entry == result_v2.pdf_entry
 
     @patch("datasources.pdf_wheel_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.pdf_wheel.detect_atomic_signals_on_bar")
+    @patch("deprecated.pdf_wheel.detect_atomic_signals_on_bar")
     def test_signal_with_no_pdf_match_produces_no_signal(
         self, mock_v1_detect, mock_v2_detect,
     ):
@@ -262,7 +262,7 @@ class TestPDFWheelV1V2SignalDetectionDiff:
         assert result_v2 is None, f"V2 should return None (no PDF match), got {result_v2}"
 
     @patch("datasources.pdf_wheel_signals.detect_atomic_signals_on_bar")
-    @patch("strategies.pdf_wheel.detect_atomic_signals_on_bar")
+    @patch("deprecated.pdf_wheel.detect_atomic_signals_on_bar")
     def test_daily_context_signals_included_in_compound_key(
         self, mock_v1_detect, mock_v2_detect,
     ):
