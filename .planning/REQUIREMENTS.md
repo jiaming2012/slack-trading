@@ -14,8 +14,8 @@
 
 ## Datasource Scripts
 
-- [ ] **DS-01**: Standalone Python datasource scripts produce TradeSignals via WriteSignal RPC
-- [ ] **DS-02**: All signals write to a single ordered event stream per symbol; clients filter by name
+- [x] **DS-01**: Standalone Python datasource scripts produce TradeSignals via WriteSignal RPC
+- [x] **DS-02**: All signals write to a single ordered event stream per symbol; clients filter by name
 - [ ] **DS-03**: Live datasource scripts run from `__main__`; sim strategies import datasource modules directly
 
 ## Strategy Migration
@@ -32,7 +32,7 @@
 
 ## RPC & Observability
 
-- [ ] **RPC-01**: New gRPC endpoint to view which signals (with timestamps + attributes) were processed by a strategy
+- [x] **RPC-01**: New gRPC endpoint to view which signals (with timestamps + attributes) were processed by a strategy
 - [x] **OBS-01**: Signals visible in OTel/Grafana telemetry framework
 - [x] **OBS-02**: Alerting when a strategy's expected TradeSignal is not produced within expected interval
 
