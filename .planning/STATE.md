@@ -4,7 +4,7 @@ milestone: v3.0
 milestone_name: TradeSignal Framework
 status: verifying
 stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-03-31T11:03:28.083Z"
+last_updated: "2026-03-31T11:06:43.934Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 10
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 ## Current Position
 
-Phase: 24 (signal-rpc-endpoints) — EXECUTING
-Plan: 2 of 2
+Phase: 25
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-03-31
 
