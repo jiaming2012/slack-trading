@@ -113,6 +113,9 @@ def run_strategy(
     tracer = trace.get_tracer("grodt-strategy")
     is_live = getattr(playground, 'environment', '') == 'live'
 
+    # Wire signal callback so tick() dispatches new_signals to strategy (D-03)
+    playground._signal_callback = strategy.on_signal
+
     iteration = 0
     try:
         while not strategy.is_complete():

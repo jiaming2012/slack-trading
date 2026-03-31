@@ -318,6 +318,7 @@ class BacktesterPlaygroundClient:
         self.client_id = getattr(req, 'client_id', '') or ''
         self.current_candles = {}
         self.profiler = None  # Set externally via playground.profiler = RPCProfiler()
+        self._signal_callback = None  # Set externally via playground._signal_callback = strategy.on_signal
         
         current_ltf_candle = self.fetch_most_recent_bar(req.repositories[0].symbol, self.ltf_seconds, self.timestamp)
         set_nested_value(self.current_candles, req.repositories[0].symbol, self.ltf_seconds, current_ltf_candle)   
@@ -616,6 +617,13 @@ class BacktesterPlaygroundClient:
                 positions=positions,
                 meta=self.account.meta if self.account else None,
             )
+
+        # Dispatch new signals to strategy via callback (D-03)
+        if self._signal_callback is not None:
+            new_signals = new_state.new_signals
+            if new_signals:
+                for signal in new_signals:
+                    self._signal_callback(signal)
 
         self._new_state_buffer.append(new_state)
                                     
