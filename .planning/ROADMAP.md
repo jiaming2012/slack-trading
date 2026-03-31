@@ -158,11 +158,12 @@ Plans:
   2. Integration tests verify replay results match in-memory datasource results for the same inputs
   3. Signals appear in Grafana via OTel telemetry (metrics and/or log panels)
   4. An alert fires when a strategy's expected TradeSignal is not produced within the configured interval
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 23-01: TBD
-**UI hint**: yes
+- [ ] 23-01-PLAN.md — Proto replay_signal_stream field, Go replay preload, signal consumption counter, Python CLI flag
+- [ ] 23-02-PLAN.md — DatasourceHeartbeat class, Grafana signal panels, datasource heartbeat alert
+- [ ] 23-03-PLAN.md — Dual-run replay integration test (ESDB replay vs in-memory comparison)
 
 ## Progress
 
@@ -177,4 +178,4 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
-| 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
+| 23. Replay & Telemetry | v3.0 | 0/3 | Not started | - |
