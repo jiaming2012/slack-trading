@@ -198,7 +198,12 @@ Plans:
   4. Trading engine runs end-to-end with only V2 strategies
   5. All V1 strategy files moved to deprecated/ folder
   6. Each migrated strategy passes its behavioral diff test
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — CoveredCall V2 + Wheel V2 datasources, strategies, diff tests
+- [ ] 25-02-PLAN.md — PDFWheel V2 datasource, strategy, diff test
+- [ ] 25-03-PLAN.md — on_signal() wiring in client.py, move V1s to deprecated/
 
 ### Phase 26: Python Datasource Wiring & Observability
 **Goal**: Datasource scripts run standalone via __main__ calling WriteSignal RPC, DatasourceHeartbeat emits metrics
@@ -228,5 +233,5 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 ->
 | 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
 | 23. Replay & Telemetry | v3.0 | 3/3 | Complete    | 2026-03-31 |
 | 24. Signal RPC Endpoints | v3.0 | 2/2 | Complete    | 2026-03-31 |
-| 25. Complete Strategy Migrations | v3.0 | 0/0 | Not started | - |
+| 25. Complete Strategy Migrations | v3.0 | 0/3 | Not started | - |
 | 26. Python Datasource Wiring & Observability | v3.0 | 0/0 | Not started | - |
