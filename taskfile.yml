@@ -384,3 +384,130 @@ tasks:
     vars:
       symbol: ""
     dir: "{{.ROOT_DIR}}"
+
+  # ─── V2 Strategy Commands (TradeSignal Framework) ──────────────────
+
+  strategy:mean-reversion:
+    desc: "Run MeanReversion V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    env:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
+      OTEL_SERVICE_NAME: "grodt-strategy"
+    vars:
+      symbol: "COIN"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  strategy:mean-reversion:live:
+    desc: "Run MeanReversion V2 strategy in live mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --live --client-id {{.client_id}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    env:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
+      OTEL_SERVICE_NAME: "grodt-strategy"
+      TWIRP_HOST: "http://159.89.226.131:5051"
+    vars:
+      symbol: "COIN"
+      client_id: "live-mean-reversion-{{.symbol}}"
+      extra: ""
+
+  strategy:mean-reversion:replay:
+    desc: "Run MeanReversion V2 with signal replay from ESDB"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --replay-signals trade-signals'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "COIN"
+      start: "2025-01-01"
+      end: "2025-04-30"
+
+  strategy:mean-reversion:save:
+    desc: "Run MeanReversion V2 and save results to Postgres"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --save-to-db --client-id {{.client_id}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "COIN"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      client_id: "backtest-{{.symbol}}-{{.start}}"
+
+  strategy:covered-call:
+    desc: "Run CoveredCall V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_covered_call_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "AAPL"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  strategy:credit-spread:
+    desc: "Run CreditSpread V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_credit_spread_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "SPY"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  strategy:wheel:
+    desc: "Run Wheel V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_wheel_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "AAPL"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  strategy:options-mean-reversion:
+    desc: "Run OptionsMeanReversion V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_options_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "COIN"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  strategy:pdf-wheel:
+    desc: "Run PDFWheel V2 strategy in simulation mode"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_pdf_wheel_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      symbol: "AAPL"
+      start: "2025-01-01"
+      end: "2025-04-30"
+      extra: ""
+
+  # ─── Metabase ──────────────────────────────────────────────────────
+
+  metabase:provision:
+    desc: "Provision all Metabase dashboards (5 dashboards, 24 cards)"
+    cmds:
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python infra/provision-metabase.py --url {{.url}} --user {{.user}} --password {{.password}}'
+    dir: "{{.ROOT_DIR}}"
+    vars:
+      url: "http://192.168.8.164:3001"
+      user: "jac475@cornell.edu"
+      password: ""
+
+  metabase:schema:
+    desc: "Apply analytics schema (indexes, views, backtest_runs table)"
+    cmds:
+      - 'PGPASSWORD={{.password}} psql -h {{.host}} -U grodt -d playground -f infra/analytics-schema.sql'
+    dir: "{{.ROOT_DIR}}"
+    vars:
+      host: "159.89.226.131"
+      password: ""
