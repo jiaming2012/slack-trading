@@ -263,6 +263,11 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *models.
 
 	lastCandleInRepo := repo.GetLastCandle()
 
+	if lastCandleInRepo == nil {
+		log.Warnf("Playground %s: no candles in repo for %s (%s), skipping live update", playgroundId, symbol, periodStr)
+		return
+	}
+
 	start, end := w.getStartEndDates(lastCandleInRepo.Timestamp, now, period)
 
 	var candles []eventmodels.ICandle
