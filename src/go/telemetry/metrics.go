@@ -15,6 +15,7 @@ var (
 	OrdersRejected    metric.Int64Counter
 	CandlesProcessed  metric.Int64Counter
 	SignalsGenerated  metric.Int64Counter
+	SignalsConsumed   metric.Int64Counter
 	ActivePlaygrounds metric.Int64Gauge
 	OpenOrders        metric.Int64Gauge
 	UptimeSeconds     metric.Float64Gauge
@@ -60,6 +61,13 @@ func Init() error {
 		metric.WithDescription("Number of signals generated"))
 	if err != nil {
 		return fmt.Errorf("telemetry.Init: failed to create SignalsGenerated counter: %w", err)
+	}
+
+	SignalsConsumed, err = meter.Int64Counter("grodt.signals.consumed",
+		metric.WithUnit("{signal}"),
+		metric.WithDescription("Number of signals consumed by strategies"))
+	if err != nil {
+		return fmt.Errorf("telemetry.Init: failed to create SignalsConsumed counter: %w", err)
 	}
 
 	ActivePlaygrounds, err = meter.Int64Gauge("grodt.heartbeat.active_playgrounds",

@@ -232,6 +232,7 @@ message CreatePolygonPlaygroundRequest {
     string environment = 5;
     optional string client_id = 6;
     repeated string tags = 7;
+    optional string replay_signal_stream = 8;
 }
 
 message DeletePlaygroundRequest {

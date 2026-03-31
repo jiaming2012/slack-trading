@@ -1462,15 +1462,51 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		return nil, fmt.Errorf("s.CreatePlayground: failed to create playground: %w", err)
 	}
 
-	// Environment-based signal repository injection (D-03):
-	// Live playgrounds persist signals to ESDB; sim playgrounds use in-memory.
-	switch playgroundEnvironment {
-	case models.PlaygroundEnvironmentLive, models.PlaygroundEnvironmentReconcile:
-		if s.esdbProducer != nil {
-			playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
+	// Signal repository injection:
+	// When replay_signal_stream is set, preload signals from ESDB into an
+	// InMemorySignalRepository (replay mode). Otherwise, use environment-based
+	// assignment (D-03): live/reconcile → ESDB, simulator → in-memory.
+	if req.ReplaySignalStream != nil && *req.ReplaySignalStream != "" {
+		if s.esdbProducer == nil {
+			return nil, fmt.Errorf("s.CreatePlayground: replay_signal_stream requires ESDB producer")
 		}
-	default:
-		playground.SetSignalRepo(models.NewInMemorySignalRepository())
+
+		// Parse date range for filtering signals
+		startDate, err := time.Parse("2006-01-02", req.StartDate)
+		if err != nil {
+			return nil, fmt.Errorf("s.CreatePlayground: failed to parse start_date for replay: %w", err)
+		}
+		stopDate, err := time.Parse("2006-01-02", req.StopDate)
+		if err != nil {
+			return nil, fmt.Errorf("s.CreatePlayground: failed to parse stop_date for replay: %w", err)
+		}
+
+		// Read all signals from ESDB, filter to date range, load into in-memory repo
+		tempRepo := models.NewESDBSignalRepository(s.esdbProducer)
+		allSignals := tempRepo.GetAll()
+
+		replayRepo := models.NewInMemorySignalRepository()
+		var loaded int
+		for _, sig := range allSignals {
+			if !sig.Timestamp.Before(startDate) && sig.Timestamp.Before(stopDate.AddDate(0, 0, 1)) {
+				if err := replayRepo.Write(sig); err != nil {
+					return nil, fmt.Errorf("s.CreatePlayground: failed to write replay signal: %w", err)
+				}
+				loaded++
+			}
+		}
+
+		playground.SetSignalRepo(replayRepo)
+		log.Infof("CreatePlayground: replay mode, loaded %d signals from ESDB stream (total in stream: %d)", loaded, len(allSignals))
+	} else {
+		switch playgroundEnvironment {
+		case models.PlaygroundEnvironmentLive, models.PlaygroundEnvironmentReconcile:
+			if s.esdbProducer != nil {
+				playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
+			}
+		default:
+			playground.SetSignalRepo(models.NewInMemorySignalRepository())
+		}
 	}
 
 	log.Infof("CreatePlayground: id=%s env=%s balance=%.2f start=%s stop=%s",

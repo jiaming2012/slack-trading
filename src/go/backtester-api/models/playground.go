@@ -1633,6 +1633,17 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 		newSignals = p.signalRepo.ReadPending(p.clock.CurrentTime)
 	}
 
+	// Emit signal consumption telemetry
+	for _, sig := range newSignals {
+		if telemetry.SignalsConsumed != nil {
+			telemetry.SignalsConsumed.Add(context.Background(), 1,
+				metric.WithAttributes(
+					attribute.String("signal_name", string(sig.Name)),
+					attribute.String("symbol", string(sig.Symbol)),
+				))
+		}
+	}
+
 	// update option contracts
 	for instrument := range p.repos.Iter() {
 		switch s := instrument.(type) {
