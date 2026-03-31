@@ -118,17 +118,18 @@ Plans:
 - [x] 20-02-PLAN.md — Environment-based injection wiring, ESDB integration test
 
 ### Phase 21: First Strategy Migration & Validation
-**Goal**: One existing strategy is fully migrated to consume TradeSignals, proving the migration pattern and behavioral diff testing approach
+**Goal**: MeanReversionStrategy migrated to consume TradeSignals from datasource module, proving the migration pattern and behavioral diff testing approach
 **Depends on**: Phase 20
 **Requirements**: MIG-03
 **Success Criteria** (what must be TRUE):
   1. One strategy (e.g., CoveredCall) consumes TradeSignals instead of inline signal detection
   2. Behavioral diff test compares migrated strategy output against original on the same data with zero metric drift
   3. The diff testing pattern is documented and reusable for remaining strategy migrations
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 21-01: TBD
+- [ ] 21-01-PLAN.md — MA crossover datasource module and MeanReversionStrategyV2
+- [ ] 21-02-PLAN.md — Behavioral diff test, datasource unit tests, V2 demo launcher
 
 ### Phase 22: Remaining Strategy Migrations
 **Goal**: All existing strategies consume TradeSignals, with originals moved to deprecated
@@ -170,6 +171,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
 | 20. ESDB Persistence | v3.0 | 2/2 | Complete    | 2026-03-31 |
-| 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
+| 21. First Strategy Migration & Validation | v3.0 | 0/2 | Not started | - |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
