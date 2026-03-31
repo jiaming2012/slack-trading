@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Phase 23 context gathered
-last_updated: "2026-03-31T03:10:53.552Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-03-31T03:25:03.415Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 12
+  total_plans: 18
+  completed_plans: 13
   percent: 29
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 22 — remaining-strategy-migrations
+**Current focus:** Phase 23 — replay-telemetry
 
 ## Current Position
 
-Phase: 22 (remaining-strategy-migrations) — EXECUTING
-Plan: 3 of 5
+Phase: 23 (replay-telemetry) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
 Last activity: 2026-03-31
 
@@ -74,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 21]: Normalized group_id in order call comparisons for deterministic behavioral diff testing
 - [Phase 22]: on_signal() added as default no-op (not abstract) for backward compat
 - [Phase 22]: Compare at _try_create_group boundary for credit spread diff tests (order placement depends on identical options ladder RPC)
+- [Phase 23]: 5m staleness threshold for datasource heartbeat (10 missed 30s emissions)
 
 ### Pending Todos
 
@@ -87,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T03:10:53.535Z
-Stopped at: Phase 23 context gathered
-Resume file: .planning/phases/23-replay-telemetry/23-CONTEXT.md
+Last session: 2026-03-31T03:25:03.410Z
+Stopped at: Completed 23-02-PLAN.md
+Resume file: None

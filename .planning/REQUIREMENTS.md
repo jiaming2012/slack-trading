@@ -33,8 +33,8 @@
 ## RPC & Observability
 
 - [ ] **RPC-01**: New gRPC endpoint to view which signals (with timestamps + attributes) were processed by a strategy
-- [ ] **OBS-01**: Signals visible in OTel/Grafana telemetry framework
-- [ ] **OBS-02**: Alerting when a strategy's expected TradeSignal is not produced within expected interval
+- [x] **OBS-01**: Signals visible in OTel/Grafana telemetry framework
+- [x] **OBS-02**: Alerting when a strategy's expected TradeSignal is not produced within expected interval
 
 ## Future Requirements
 
