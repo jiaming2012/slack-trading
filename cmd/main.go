@@ -491,9 +491,17 @@ func main() {
 		}
 	}()
 
+	// Create global signal repository: ESDB for live mode, in-memory for dev/sim
+	var globalSignalRepo models.ISignalRepository
+	if esdbProducer != nil {
+		globalSignalRepo = models.NewESDBSignalRepository(esdbProducer)
+	} else {
+		globalSignalRepo = models.NewInMemorySignalRepository()
+	}
+
 	// Start Twirp server
 	go func() {
-		rpc.SetupTwirpServer(polygonOptionsClient, dbService, esdbProducer)
+		rpc.SetupTwirpServer(polygonOptionsClient, dbService, esdbProducer, globalSignalRepo)
 	}()
 
 	// Wait for shutdown signal

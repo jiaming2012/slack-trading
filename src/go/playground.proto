@@ -31,6 +31,9 @@ service PlaygroundService {
     rpc MockAddCandle(MockAddCandleRequest) returns (EmptyResponse);
     rpc RecordSignal(RecordSignalRequest) returns (EmptyResponse);
     rpc GetOptionsLadder(GetOptionsLadderRequest) returns (GetOptionsLadderResponse);
+    rpc WriteSignal(WriteSignalRequest) returns (WriteSignalResponse);
+    rpc GetSignals(GetSignalsRequest) returns (GetSignalsResponse);
+    rpc GetProcessedSignals(GetProcessedSignalsRequest) returns (GetProcessedSignalsResponse);
 }
 
 message PlaceMultiLegOrderResponse {
@@ -483,5 +486,39 @@ message TradeSignalProto {
     string symbol = 3;
     google.protobuf.Timestamp timestamp = 4;
     map<string, string> attributes = 5;
+}
+
+message WriteSignalRequest {
+    string name = 1;
+    string symbol = 2;
+    google.protobuf.Timestamp timestamp = 3;
+    map<string, string> attributes = 4;
+}
+
+message WriteSignalResponse {
+    string signal_id = 1;
+}
+
+message GetSignalsRequest {
+    optional string name = 1;
+    optional string symbol = 2;
+    optional google.protobuf.Timestamp start_time = 3;
+    optional google.protobuf.Timestamp end_time = 4;
+}
+
+message GetSignalsResponse {
+    repeated TradeSignalProto signals = 1;
+}
+
+message GetProcessedSignalsRequest {
+    string playground_id = 1;
+    optional string name = 2;
+    optional string symbol = 3;
+    optional google.protobuf.Timestamp start_time = 4;
+    optional google.protobuf.Timestamp end_time = 5;
+}
+
+message GetProcessedSignalsResponse {
+    repeated TradeSignalProto signals = 1;
 }
 
