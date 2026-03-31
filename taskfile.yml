@@ -416,14 +416,18 @@ tasks:
       extra: ""
 
   strategy:mean-reversion:replay:
-    desc: "Run MeanReversion V2 with signal replay from ESDB"
+    desc: "Run MeanReversion V2 with signal replay from ESDB (requires stream name)"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --replay-signals trade-signals'
+      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --replay-signals {{.stream}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       symbol: "COIN"
       start: "2025-01-01"
       end: "2025-04-30"
+      stream: '{{.stream | default ""}}'
+    preconditions:
+      - sh: '[ -n "{{.stream}}" ]'
+        msg: "stream is required. Usage: task strategy:mean-reversion:replay stream=trade-signals"
 
   strategy:mean-reversion:save:
     desc: "Run MeanReversion V2 and save results to Postgres"
