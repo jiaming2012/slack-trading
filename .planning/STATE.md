@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: executing
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-03-31T12:00:51.277Z"
-last_activity: 2026-03-31
+stopped_at: Phase 26 context gathered
+last_updated: "2026-03-31T11:55:33.678Z"
+last_activity: 2026-03-31 -- Phase 26 execution started
 progress:
   total_phases: 10
   completed_phases: 7
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 25 — complete-strategy-migrations
+**Current focus:** Phase 26 — python-datasource-wiring-observability
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-03-31
+Phase: 26 (python-datasource-wiring-observability) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 26
+Last activity: 2026-03-31 -- Phase 26 execution started
 
 Progress: [███░░░░░░░] 29%
 
@@ -82,7 +82,6 @@ Recent decisions affecting current work:
 - [Phase 25]: Callable-based datasource pattern: feature_vector_fn callable encapsulates stateful supertrend lookback for covered call and wheel signals
 - [Phase 25]: Signal callback pattern: _signal_callback on playground set by trading engine for decoupled on_signal() dispatch
 - [Phase 25]: All 6 V1 strategy files moved to deprecated/, V2-only codebase with updated imports
-- [Phase 26]: Used PlaygroundServiceClient directly in standalone __main__ blocks instead of BacktesterPlaygroundClient (avoids complex constructor)
 
 ### Pending Todos
 
@@ -96,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T12:00:51.270Z
-Stopped at: Completed 26-01-PLAN.md
-Resume file: None
+Last session: 2026-03-31T11:49:56.237Z
+Stopped at: Phase 26 context gathered
+Resume file: .planning/phases/26-python-datasource-wiring-observability/26-CONTEXT.md
