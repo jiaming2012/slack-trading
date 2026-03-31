@@ -427,7 +427,10 @@ tasks:
       stream: '{{.stream | default ""}}'
     preconditions:
       - sh: '[ -n "{{.stream}}" ]'
-        msg: "stream is required. Usage: task strategy:mean-reversion:replay stream=trade-signals"
+        msg: |
+          stream is required.
+          Live replay:  task strategy:mean-reversion:replay stream=trade-signals
+          Sim replay:   task strategy:mean-reversion:replay stream=trade-signals-sim-<playground-id>
 
   strategy:mean-reversion:save:
     desc: "Run MeanReversion V2 and save results to Postgres"

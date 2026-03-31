@@ -201,8 +201,16 @@ python demos/demo_mean_reversion_v2.py --symbol COIN --start 2025-01-01 --end 20
 
 ### Replay from Persisted Signals
 ```bash
+# Replay from a sim run (opaque stream name from --save-to-db output)
+python demos/demo_mean_reversion_v2.py --symbol COIN --replay-signals trade-signals-sim-<playground-id>
+
+# Replay from live signal stream
 python demos/demo_mean_reversion_v2.py --symbol COIN --replay-signals trade-signals
 ```
+
+### Signal Stream Naming
+- **Live signals**: Always saved to global `trade-signals` stream
+- **Sim signals**: Saved to opaque per-run streams: `trade-signals-sim-{playground_id}` (only when `--save-to-db` is used)
 
 ### Save Backtest Results
 ```bash

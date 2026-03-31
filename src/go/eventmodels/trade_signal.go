@@ -28,9 +28,20 @@ func NewTradeSignal(name SignalName, symbol StockSymbol, timestamp time.Time, at
 }
 
 func (s *TradeSignal) GetSavedEventParameters() SavedEventParameters {
+	stream := s.streamName
+	if stream == "" {
+		stream = TradeSignalStream
+	}
 	return SavedEventParameters{
-		StreamName:    TradeSignalStream,
+		StreamName:    stream,
 		EventName:     TradeSignalEventName,
 		SchemaVersion: 1,
 	}
+}
+
+// SetStreamName overrides the ESDB stream for this signal.
+// Used by SavePlayground to route sim signals to opaque per-run streams
+// instead of the global trade-signals stream.
+func (s *TradeSignal) SetStreamName(name StreamName) {
+	s.streamName = name
 }

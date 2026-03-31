@@ -33,7 +33,7 @@ func TestTradeSignal_NewTradeSignal(t *testing.T) {
 	assert.Equal(t, float64(20), signal.Attributes["slow_period"])
 }
 
-func TestTradeSignal_GetSavedEventParameters(t *testing.T) {
+func TestTradeSignal_GetSavedEventParameters_DefaultGlobalStream(t *testing.T) {
 	ts := time.Now()
 	signal := eventmodels.NewTradeSignal(
 		eventmodels.SignalMACrossover,
@@ -44,9 +44,32 @@ func TestTradeSignal_GetSavedEventParameters(t *testing.T) {
 
 	params := signal.GetSavedEventParameters()
 
-	assert.Equal(t, eventmodels.StreamName("trade-signals-AAPL"), params.StreamName)
+	// Default: global trade-signals stream (not per-symbol)
+	assert.Equal(t, eventmodels.StreamName("trade-signals"), params.StreamName)
 	assert.Equal(t, eventmodels.TradeSignalEventName, params.EventName)
 	assert.Equal(t, 1, params.SchemaVersion)
+}
+
+func TestTradeSignal_SetStreamName_OverridesStream(t *testing.T) {
+	ts := time.Now()
+	signal := eventmodels.NewTradeSignal(
+		eventmodels.SignalMACrossover,
+		eventmodels.StockSymbol("AAPL"),
+		ts,
+		nil,
+	)
+
+	// Override to a sim stream
+	simStream := eventmodels.NewSimSignalStreamName("abc-123")
+	signal.SetStreamName(simStream)
+
+	params := signal.GetSavedEventParameters()
+	assert.Equal(t, eventmodels.StreamName("trade-signals-sim-abc-123"), params.StreamName)
+}
+
+func TestNewSimSignalStreamName(t *testing.T) {
+	stream := eventmodels.NewSimSignalStreamName("playground-uuid-here")
+	assert.Equal(t, eventmodels.StreamName("trade-signals-sim-playground-uuid-here"), stream)
 }
 
 func TestSignalName_Validate_Known(t *testing.T) {

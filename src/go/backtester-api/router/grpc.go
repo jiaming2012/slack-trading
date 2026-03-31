@@ -702,9 +702,12 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 	}
 
 	// Batch-persist signals to ESDB (per D-04: sim batch-on-save)
+	// Sim signals go to opaque per-playground streams (not the global trade-signals stream)
 	if signalRepo := playground.GetSignalRepo(); signalRepo != nil {
 		signals := signalRepo.GetAll()
+		simStream := eventmodels.NewSimSignalStreamName(playgroundId.String())
 		for _, signal := range signals {
+			signal.SetStreamName(simStream)
 			eventpubsub.PublishAndSaveEvent(
 				"grpc:SavePlayground",
 				eventmodels.TradeSignalEventName,
@@ -712,7 +715,7 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 			)
 		}
 		if len(signals) > 0 {
-			log.Infof("SavePlayground: published %d signals for ESDB persistence", len(signals))
+			log.Infof("SavePlayground: published %d signals to stream %s", len(signals), simStream)
 		}
 	}
 

@@ -32,3 +32,9 @@ func NewFxTickStreamName(symbol FxSymbol) StreamName {
 	return StreamName(fmt.Sprintf("%s-%s", FxTicksStream, symbol))
 }
 
+// NewSimSignalStreamName returns an opaque stream name for persisted sim signals.
+// Sim signals go to per-playground streams, NOT the global trade-signals stream.
+func NewSimSignalStreamName(playgroundID string) StreamName {
+	return StreamName(fmt.Sprintf("%s-sim-%s", TradeSignalStream, playgroundID))
+}
+
