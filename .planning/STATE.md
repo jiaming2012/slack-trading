@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: verifying
-stopped_at: Phase 22 context gathered
-last_updated: "2026-03-31T00:58:02.074Z"
+status: executing
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-03-31T02:09:05.865Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 9
+  total_plans: 15
+  completed_plans: 10
   percent: 29
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-30)
 
 **Core value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing -- even when no trades are being placed.
-**Current focus:** Phase 21 — first-strategy-migration-validation
+**Current focus:** Phase 22 — remaining-strategy-migrations
 
 ## Current Position
 
-Phase: 22
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 22 (remaining-strategy-migrations) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-03-31
 
 Progress: [███░░░░░░░] 29%
@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 20]: ESDB integration test uses TestContainers with EsdbProducer.Start() for full stack validation
 - [Phase 21]: produce_signals() returns list of dicts for flexible consumption by multiple strategies
 - [Phase 21]: Normalized group_id in order call comparisons for deterministic behavioral diff testing
+- [Phase 22]: on_signal() added as default no-op (not abstract) for backward compat
 
 ### Pending Todos
 
@@ -85,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T00:58:02.060Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-remaining-strategy-migrations/22-CONTEXT.md
+Last session: 2026-03-31T02:09:05.860Z
+Stopped at: Completed 22-01-PLAN.md
+Resume file: None
