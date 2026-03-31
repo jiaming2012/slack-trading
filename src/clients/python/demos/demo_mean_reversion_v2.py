@@ -350,6 +350,10 @@ def main():
         "--save-to-db", action="store_true",
         help="Persist backtest results (orders, trades, equity) to Postgres on completion",
     )
+    parser.add_argument(
+        "--replay-signals", type=str, default=None,
+        help="Replay signals from ESDB stream name (e.g., 'trade-signals')",
+    )
 
     args = parser.parse_args()
 
@@ -498,6 +502,10 @@ def main():
     if args.client_id:
         req.client_id = args.client_id
         logger.info(f"Client ID:       {args.client_id}")
+
+    if args.replay_signals:
+        req.replay_signal_stream = args.replay_signals
+        logger.info(f"Replay signals:  {args.replay_signals}")
 
     # ------------------------------------------------------------------
     # 3. Create playground
