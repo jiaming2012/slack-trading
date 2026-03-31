@@ -18,7 +18,8 @@ from opentelemetry import trace
 from opentelemetry.propagate import inject
 
 from rpc.playground_twirp import PlaygroundServiceClient
-from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle
+from google.protobuf.timestamp_pb2 import Timestamp
+from rpc.playground_pb2 import CreatePolygonPlaygroundRequest, DeletePlaygroundRequest, GetAccountRequest, GetCandlesRequest, NextTickRequest, PlaceOrderRequest, TickDelta, GetOpenOrdersRequest, Order, AccountMeta, Bar, CreateLivePlaygroundRequest, Repository, Candle as pb_Candle, WriteSignalRequest, GetSignalsRequest, GetProcessedSignalsRequest
 from engine.types import RepositorySource, OrderSide, LiveAccountType
 from twirp.context import Context
 from twirp.exceptions import TwirpServerException
@@ -686,6 +687,63 @@ class BacktesterPlaygroundClient:
                 raise e
             return None
                     
+    def write_signal(self, name: str, symbol: str, timestamp: datetime, attributes: dict = None) -> str:
+        """Produce a global TradeSignal via WriteSignal RPC. Returns signal_id (UUID string)."""
+        ts = Timestamp()
+        ts.FromDatetime(timestamp)
+
+        req = WriteSignalRequest(
+            name=name,
+            symbol=symbol,
+            timestamp=ts,
+            attributes={k: str(v) for k, v in (attributes or {}).items()},
+        )
+
+        response = self.network_call_with_retry('write_signal', self.client.WriteSignal, req)
+        return response.signal_id
+
+    def get_signals(self, name: str = None, symbol: str = None, start_time: datetime = None, end_time: datetime = None) -> list:
+        """Query all global signals with optional filters. Returns list of TradeSignalProto."""
+        req = GetSignalsRequest()
+
+        if name is not None:
+            req.name = name
+        if symbol is not None:
+            req.symbol = symbol
+        if start_time is not None:
+            ts = Timestamp()
+            ts.FromDatetime(start_time)
+            req.start_time.CopyFrom(ts)
+        if end_time is not None:
+            ts = Timestamp()
+            ts.FromDatetime(end_time)
+            req.end_time.CopyFrom(ts)
+
+        response = self.network_call_with_retry('get_signals', self.client.GetSignals, req)
+        return list(response.signals)
+
+    def get_processed_signals(self, playground_id: str = None, name: str = None, symbol: str = None, start_time: datetime = None, end_time: datetime = None) -> list:
+        """Query signals consumed by a specific playground. Returns list of TradeSignalProto."""
+        pid = playground_id or self.id
+
+        req = GetProcessedSignalsRequest(playground_id=pid)
+
+        if name is not None:
+            req.name = name
+        if symbol is not None:
+            req.symbol = symbol
+        if start_time is not None:
+            ts = Timestamp()
+            ts.FromDatetime(start_time)
+            req.start_time.CopyFrom(ts)
+        if end_time is not None:
+            ts = Timestamp()
+            ts.FromDatetime(end_time)
+            req.end_time.CopyFrom(ts)
+
+        response = self.network_call_with_retry('get_processed_signals', self.client.GetProcessedSignals, req)
+        return list(response.signals)
+
     def create_playground_csv(self, balance: float, symbol: str, start_date: str, stop_date: str, filename: str) -> str:
         raise Exception('Not implemented')
         
