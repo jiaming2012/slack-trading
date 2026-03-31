@@ -95,3 +95,62 @@ def produce_signals(
         "timestamp": dt,
         "signal_name": "PDF_SHORT_PUT_SIGNAL",
     }]
+
+
+if __name__ == "__main__":
+    import argparse
+    import time
+    from datetime import datetime, timezone
+
+    from loguru import logger
+    from rpc.playground_twirp import PlaygroundServiceClient
+    from rpc.playground_pb2 import WriteSignalRequest
+    from google.protobuf.timestamp_pb2 import Timestamp
+    from engine.datasource_heartbeat import DatasourceHeartbeat
+
+    parser = argparse.ArgumentParser(description="PDF Wheel datasource (standalone)")
+    parser.add_argument("--server-url", default="http://localhost:5051")
+    parser.add_argument("--symbol", required=True)
+    parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--signal-name", default="PDF_WHEEL")
+    args = parser.parse_args()
+
+    logger.info(
+        "Starting PDF Wheel datasource | symbol={} server={} interval={}s",
+        args.symbol, args.server_url, args.interval,
+    )
+
+    heartbeat = DatasourceHeartbeat("pdf-wheel", symbol=args.symbol)
+    heartbeat.start()
+
+    client = PlaygroundServiceClient(args.server_url, timeout=30)
+
+    try:
+        prev_bar = None
+        while True:
+            # TODO: Wire real live data fetching here (e.g., Polygon REST/WebSocket).
+            # In sim mode, bar_dict, pdf, and daily_signals come from the backtester tick loop.
+            bar_dict = {}
+            pdf = None
+            daily_signals = {}
+
+            signals = produce_signals(bar_dict, prev_bar, pdf, daily_signals)
+
+            for sig in signals:
+                ts = Timestamp()
+                ts.FromDatetime(datetime.now(timezone.utc))
+                req = WriteSignalRequest(
+                    name=args.signal_name,
+                    symbol=args.symbol,
+                    timestamp=ts,
+                    attributes={k: str(v) for k, v in sig.items() if k not in ("pdf_entry", "bar_dict")},
+                )
+                resp = client.WriteSignal(ctx={}, request=req)
+                logger.info("Signal written | id={}", resp.signal_id)
+
+            heartbeat.record_check()
+            prev_bar = bar_dict if bar_dict else prev_bar
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        logger.info("Shutting down PDF Wheel datasource")
+        heartbeat.stop()

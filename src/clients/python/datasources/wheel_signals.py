@@ -71,3 +71,45 @@ def produce_open_signals(
         "ltf_supertrend_direction": st_direction,
         "expected_volatility": 0.0,
     }]
+
+
+if __name__ == "__main__":
+    import argparse
+    import time
+    from datetime import datetime, timezone
+
+    from loguru import logger
+    from rpc.playground_twirp import PlaygroundServiceClient
+    from rpc.playground_pb2 import WriteSignalRequest
+    from google.protobuf.timestamp_pb2 import Timestamp
+    from engine.datasource_heartbeat import DatasourceHeartbeat
+
+    parser = argparse.ArgumentParser(description="Wheel datasource (standalone)")
+    parser.add_argument("--server-url", default="http://localhost:5051")
+    parser.add_argument("--symbol", required=True)
+    parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--signal-name", default="SHORT_PUT_SIGNAL")
+    args = parser.parse_args()
+
+    logger.info(
+        "Starting Wheel datasource | symbol={} server={} interval={}s",
+        args.symbol, args.server_url, args.interval,
+    )
+
+    heartbeat = DatasourceHeartbeat("wheel", symbol=args.symbol)
+    heartbeat.start()
+
+    client = PlaygroundServiceClient(args.server_url, timeout=30)
+
+    try:
+        while True:
+            # TODO: Wire real live data source here. The feature_vector_fn callable
+            # requires a candle DataFrame with supertrend indicators (e.g., from
+            # Polygon streaming or polling). For now, log and emit heartbeat only.
+            logger.debug("Live data source not yet wired for wheel datasource")
+
+            heartbeat.record_check()
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        logger.info("Shutting down Wheel datasource")
+        heartbeat.stop()
