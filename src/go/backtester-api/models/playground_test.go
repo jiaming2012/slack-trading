@@ -2059,7 +2059,7 @@ func TestValidateCache(t *testing.T) {
 }
 
 func TestOpenOrdersCache(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -2169,7 +2169,7 @@ func TestOpenOrdersCache(t *testing.T) {
 }
 
 func TestLiquidation(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -2436,7 +2436,7 @@ func TestLiquidation(t *testing.T) {
 }
 
 func TestFeed(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -2659,7 +2659,7 @@ func TestFeed(t *testing.T) {
 }
 
 func TestClock(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -2743,7 +2743,7 @@ func TestClock(t *testing.T) {
 }
 
 func TestBalance(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -3133,7 +3133,7 @@ func TestPlaceOrder(t *testing.T) {
 }
 
 func TestPositions(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -3491,7 +3491,7 @@ func TestPositions(t *testing.T) {
 	})
 
 	t.Run("GetPosition - average cost basis - partial closes", func(t *testing.T) {
-		projectDir, err := utils.GetEnv("PROJECT_DIR")
+		projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 		require.NoError(t, err)
 
 		err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -4078,7 +4078,7 @@ func TestPositions(t *testing.T) {
 }
 
 func TestFreeMargin(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -4269,7 +4269,7 @@ func TestFreeMargin(t *testing.T) {
 }
 
 func TestOrders(t *testing.T) {
-	// projectDir, err := utils.GetEnv("PROJECT_DIR")
+	// projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	// require.NoError(t, err)
 
 	// err = utils.InitEnvironmentVariables(projectDir, "test")
@@ -4423,7 +4423,7 @@ func TestOrders(t *testing.T) {
 }
 
 func TestTrades(t *testing.T) {
-	// projectDir, err := utils.GetEnv("PROJECT_DIR")
+	// projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	// require.NoError(t, err)
 
 	// err = utils.InitEnvironmentVariables(projectDir, "test")

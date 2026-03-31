@@ -16,7 +16,7 @@ tasks:
     cmds:
       - 'rm -f .env.machine'
       - 'touch .env.machine'
-      - 'echo PROJECT_DIR=\"{{.ROOT_DIR}}\" >> .env.machine'
+      - 'echo TRADING_PROJECT_DIR=\"{{.ROOT_DIR}}\" >> .env.machine'
       - 'echo ANACONDA_HOME=\"$(conda info --base)\" >> .env.machine'
     dir: "{{.ROOT_DIR}}"
 

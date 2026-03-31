@@ -31,7 +31,7 @@ func MockFetchCalendarMap(start, end eventmodels.PolygonDate) (map[string]*event
 }
 
 func TestCalendar(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	err = utils.InitEnvironmentVariables(projectDir, "test")

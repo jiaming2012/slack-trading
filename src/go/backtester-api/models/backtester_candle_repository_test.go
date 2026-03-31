@@ -11,7 +11,7 @@ import (
 )
 
 func TestSymbol(t *testing.T) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	require.NoError(t, err)
 
 	goEnv := "test"

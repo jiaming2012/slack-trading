@@ -16,4 +16,4 @@ data:" > configmap.yaml
 while IFS='=' read -r key value; do
   # Append the key-value pair to the ConfigMap YAML file
   echo "  $key: $value" >> configmap.yaml
-done < ${PROJECT_DIR}/src/.env.production
+done < ${TRADING_PROJECT_DIR}/src/.env.production

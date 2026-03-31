@@ -10,7 +10,7 @@ if [ -z "$1" ]; then
 fi
 
 BUMP_TYPE=$1
-CONFIG_FILE=${PROJECT_DIR}/.bumpversion.app.cfg
+CONFIG_FILE=${TRADING_PROJECT_DIR}/.bumpversion.app.cfg
 
 # Check if the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -33,8 +33,8 @@ echo "Deploying version $VERSION ..."
 
 # Update the app version in the source code
 sed -i.bak "s/return \".*\"/return \"${VERSION}\"/" /Users/jamal/projects/slack-trading/src/eventservices/app_version.go
-rm ${PROJECT_DIR}/src/eventservices/app_version.go.bak
-git add ${PROJECT_DIR}/src/eventservices/app_version.go
+rm ${TRADING_PROJECT_DIR}/src/eventservices/app_version.go.bak
+git add ${TRADING_PROJECT_DIR}/src/eventservices/app_version.go
 git commit -m "Bump app version to $VERSION in app_version.go"
 
 # Build the Docker image with the version tag

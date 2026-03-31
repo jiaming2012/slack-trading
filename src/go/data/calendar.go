@@ -17,9 +17,9 @@ import (
 )
 
 func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.Calendar, error) {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	if err != nil {
-		return nil, fmt.Errorf("FetchCalendar: error getting PROJECT_DIR: %w", err)
+		return nil, fmt.Errorf("FetchCalendar: error getting TRADING_PROJECT_DIR: %w", err)
 	}
 
 	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")

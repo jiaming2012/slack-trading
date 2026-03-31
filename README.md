@@ -78,8 +78,8 @@ Two-process architecture: Go server manages state, order execution, and market d
 ### Setup
 ```bash
 # Clone and set environment
-export PROJECT_DIR=$(pwd)
-export PYTHONPATH=${PROJECT_DIR}:${PROJECT_DIR}/src/clients/python:${PYTHONPATH}
+export TRADING_PROJECT_DIR=$(pwd)
+export PYTHONPATH=${TRADING_PROJECT_DIR}:${TRADING_PROJECT_DIR}/src/clients/python:${PYTHONPATH}
 
 # Create conda environment
 conda env create -f grodt.yml
@@ -363,7 +363,7 @@ Services: Go server, PostgreSQL 13, EventStoreDB 24.2.0, grafana/otel-lgtm
 
 ### Environment Variables
 Key vars (loaded from `.env` via godotenv):
-- `PROJECT_DIR` — Repo root
+- `TRADING_PROJECT_DIR` — Repo root
 - `GO_ENV` — `development` | `production`
 - `POLYGON_API_KEY` — Market data
 - `POSTGRES_HOST/USER/PASSWORD/DB` — Database

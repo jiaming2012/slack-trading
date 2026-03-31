@@ -18,9 +18,9 @@ import (
 )
 
 func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOutput, error) {
-	projectDir := os.Getenv("PROJECT_DIR")
+	projectDir := os.Getenv("TRADING_PROJECT_DIR")
 	if projectDir == "" {
-		panic("missing PROJECT_DIR environment variable")
+		panic("missing TRADING_PROJECT_DIR environment variable")
 	}
 
 	ctx := context.Background()

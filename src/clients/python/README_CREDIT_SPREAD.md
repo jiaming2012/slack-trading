@@ -193,13 +193,13 @@ The options ladder is the most expensive operation (~20-35 Polygon API calls per
 | Layer | Param | Default | Description |
 |-------|-------|---------|-------------|
 | **Python-side** | `--ladder-cache-minutes` | `15` | Reuses the same ladder across ticks within this window. Option prices don't change meaningfully in 5-15 minutes for strike selection. |
-| **Go server-side** | `POLYGON_CACHE_DIR` | `$PROJECT_DIR/.cache/polygon/` | Persists aggregate bar data to disk. Survives server restarts — second simulation run on the same date range is dramatically faster. |
+| **Go server-side** | `POLYGON_CACHE_DIR` | `$TRADING_PROJECT_DIR/.cache/polygon/` | Persists aggregate bar data to disk. Survives server restarts — second simulation run on the same date range is dramatically faster. |
 
 ### Server Cache
 
 The Go server caches Polygon API responses in memory and persists the aggregate bars bucket to disk:
 
-- **Location:** `$PROJECT_DIR/.cache/polygon/aggregate_bars.json` (gitignored)
+- **Location:** `$TRADING_PROJECT_DIR/.cache/polygon/aggregate_bars.json` (gitignored)
 - **Auto-flush:** Every 50 new cache entries
 - **Startup load:** Reads from disk on server start if file exists
 - **First run:** ~3-5s per ladder fetch (Polygon API calls)

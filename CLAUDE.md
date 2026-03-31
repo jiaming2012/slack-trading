@@ -71,17 +71,17 @@ task gen:proto                        # Regenerate protobuf stubs
 
 ## Environment & Config
 
-- `PROJECT_DIR` → repo root (e.g., `/Users/jamal/projects/slack-trading` or worktree path)
+- `TRADING_PROJECT_DIR` → repo root (e.g., `/Users/jamal/projects/slack-trading` or worktree path)
 - `OPTIONS_CONFIG_FILE` → config filename (e.g., `options-config.yaml`)
 - `OPTIONS_CONFIG_PATH` → full path override (set by `cmd/run-dev.sh` for worktree support)
-- Options config default path: `${PROJECT_DIR}/src/go/${OPTIONS_CONFIG_FILE}`
+- Options config default path: `${TRADING_PROJECT_DIR}/src/go/${OPTIONS_CONFIG_FILE}`
 
 ## Worktree Notes
 
 - Branch `claude/nifty-diffie` lives in worktree `.claude/worktrees/nifty-diffie`
-- `$PROJECT_DIR` points to the repo root (main repo or worktree)
+- `$TRADING_PROJECT_DIR` points to the repo root (main repo or worktree)
 - `cmd/run-dev.sh` auto-resolves `OPTIONS_CONFIG_PATH` relative to its own location
-- Taskfile `dir:` fields should use relative paths (not `$PROJECT_DIR`) for worktree compat
+- Taskfile `dir:` fields should use relative paths (not `$TRADING_PROJECT_DIR`) for worktree compat
 - Cannot `git checkout claude/nifty-diffie` from main repo while worktree is active
 
 ## Gotchas
@@ -188,9 +188,9 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - `github.com/go-playground/validator/v10` v10.22.1 - Input validation
 - `github.com/olekukonko/tablewriter` v0.0.5 - CLI table formatting
 ## Configuration
-- `.env` file loaded via `godotenv` (at `$PROJECT_DIR/.env`)
+- `.env` file loaded via `godotenv` (at `$TRADING_PROJECT_DIR/.env`)
 - `GO_ENV` controls environment: `development` | `production`
-- `PROJECT_DIR` points to repo root
+- `TRADING_PROJECT_DIR` points to repo root
 - `OPTIONS_CONFIG_FILE` / `OPTIONS_CONFIG_PATH` for options trading config
 - `LOG_LEVEL` controls logrus verbosity
 - `taskfile.yml` - All build/test/deploy tasks
@@ -283,7 +283,7 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 ## Configuration
 - Loaded via `github.com/joho/godotenv` from `.env` files
 - Accessed through `utils.GetEnv("VAR_NAME")` helper (returns value + error)
-- Key vars: `PROJECT_DIR`, `GO_ENV`, `POLYGON_API_KEY`, `POSTGRES_HOST`, `LOG_LEVEL`
+- Key vars: `TRADING_PROJECT_DIR`, `GO_ENV`, `POLYGON_API_KEY`, `POSTGRES_HOST`, `LOG_LEVEL`
 - `.env` files are gitignored
 - Options config: `src/go/options-config.yaml` loaded via `gopkg.in/yaml.v3`
 - Conda environment: `grodt.yml`

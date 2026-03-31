@@ -65,13 +65,13 @@ main() {
   echo "Deploying version $VERSION ..."
 
   # Update deployment.yaml with the new image version
-  sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${PROJECT_DIR}/.clusters/production/deployment.yaml
+  sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml
 
   # Remove backup file created by sed
-  rm ${PROJECT_DIR}/.clusters/production/deployment.yaml.bak
+  rm ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml.bak
 
   # Commit the updated deployment.yaml file and the version bump
-  git add ${PROJECT_DIR}/.clusters/production/deployment.yaml
+  git add ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml
   git commit -m "Bump app version to $VERSION in deployment.yaml"
 
   # Push the changes to GitHub

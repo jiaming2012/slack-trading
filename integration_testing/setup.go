@@ -39,7 +39,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
 			Env: map[string]string{
-				"PROJECT_DIR":     "/app/slack-trading",
+				"TRADING_PROJECT_DIR":     "/app/slack-trading",
 				"GO_ENV":           "test",
 				"DRY_RUN":          "false",
 				"POSTGRES_HOST":    "postgres",
@@ -90,11 +90,11 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 }
 
 func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir, networkName string) {
-	// Derive PROJECT_DIR from this file's location (integration_testing/ -> repo root)
-	// so tests work regardless of the shell's PROJECT_DIR value.
+	// Derive TRADING_PROJECT_DIR from this file's location (integration_testing/ -> repo root)
+	// so tests work regardless of the shell's TRADING_PROJECT_DIR value.
 	_, thisFile, _, _ := runtime.Caller(0)
 	projectDir = filepath.Dir(filepath.Dir(thisFile))
-	os.Setenv("PROJECT_DIR", projectDir)
+	os.Setenv("TRADING_PROJECT_DIR", projectDir)
 
 	err := godotenv.Load(filepath.Join(projectDir, ".env"))
 	if err != nil {

@@ -13,10 +13,10 @@ import (
 )
 
 func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
-	// Get the PROJECT_DIR environment variable
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	// Get the TRADING_PROJECT_DIR environment variable
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PROJECT_DIR: %v", err)
+		return nil, fmt.Errorf("failed to get TRADING_PROJECT_DIR: %v", err)
 	}
 
 	anacondaHome, err := utils.GetEnv("ANACONDA_HOME")

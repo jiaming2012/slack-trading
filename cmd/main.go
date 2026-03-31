@@ -148,9 +148,9 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 var db *gorm.DB
 
 func main() {
-	projectDir, err := utils.GetEnv("PROJECT_DIR")
+	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	if err != nil {
-		log.Fatalf("PROJECT_DIR not set: %v", err)
+		log.Fatalf("TRADING_PROJECT_DIR not set: %v", err)
 	}
 
 	goEnv, err := utils.GetEnv("GO_ENV")

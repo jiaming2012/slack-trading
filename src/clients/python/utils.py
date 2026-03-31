@@ -143,9 +143,9 @@ def fetch_polygon_stock_chart_aggregated_as_list(symbol: str, timeframe_value: i
 def _fetch_api_key() -> str:
     from dotenv import load_dotenv
 
-    projectDir = os.getenv('PROJECT_DIR')
+    projectDir = os.getenv('TRADING_PROJECT_DIR')
     if projectDir is None:
-        raise ValueError('PROJECT_DIR environment variable is not set')
+        raise ValueError('TRADING_PROJECT_DIR environment variable is not set')
 
     secrets_dir = os.path.join(projectDir, '.env.production-secrets')
     load_dotenv(secrets_dir)

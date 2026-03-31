@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-CONFIG_FILE=${PROJECT_DIR}/.bumpversion.base2-image.cfg
+CONFIG_FILE=${TRADING_PROJECT_DIR}/.bumpversion.base2-image.cfg
 
 # Check if the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then

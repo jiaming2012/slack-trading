@@ -14,9 +14,9 @@ import (
 )
 
 func Run_SuperTrend1hStochRsi15mDown(args eventmodels.SupertrendRunArgs) (eventmodels.SignalRunOutput, error) {
-	projectDir := os.Getenv("PROJECT_DIR")
+	projectDir := os.Getenv("TRADING_PROJECT_DIR")
 	if projectDir == "" {
-		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing PROJECT_DIR environment variable")
+		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing TRADING_PROJECT_DIR environment variable")
 	}
 
 	log.Debugf("running supertrend_1h_stoch_rsi_15m_down with args: %v", args)
