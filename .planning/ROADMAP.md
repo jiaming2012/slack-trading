@@ -5,7 +5,7 @@
 - ✅ **v1.0 Live Simulation Observability** - Phases 1-7 (shipped 2026-03-28)
 - ✅ **v1.1 Dashboard Enhancements** - Phases 8-11 (shipped 2026-03-30)
 - ✅ **v2.0 Metabase Analytics** - Phases 12-16 (shipped 2026-03-30)
-- 🚧 **v3.0 TradeSignal Framework** - Phases 17-23 (in progress)
+- 🚧 **v3.0 TradeSignal Framework** - Phases 17-26 (in progress)
 
 ## Phases
 
@@ -54,6 +54,9 @@
 - [x] **Phase 21: First Strategy Migration & Validation** - Migrate one strategy end-to-end, prove behavioral diff testing (completed 2026-03-31)
 - [ ] **Phase 22: Remaining Strategy Migrations** - All strategies migrated, originals deprecated
 - [x] **Phase 23: Replay & Telemetry** - Replay from persisted signals, OTel integration, alerting (completed 2026-03-31)
+- [ ] **Phase 24: Signal RPC Endpoints** - WriteSignal/GetSignals/GetProcessedSignals RPCs (gap closure)
+- [ ] **Phase 25: Complete Strategy Migrations** - Recover missing V2s, PDFWheel V2, on_signal() wiring, deprecate V1s (gap closure)
+- [ ] **Phase 26: Python Datasource Wiring & Observability** - Python client wrappers, __main__ blocks, DatasourceHeartbeat (gap closure)
 
 ## Phase Details
 
@@ -165,10 +168,51 @@ Plans:
 - [x] 23-02-PLAN.md — DatasourceHeartbeat class, Grafana signal panels, datasource heartbeat alert
 - [x] 23-03-PLAN.md — Dual-run replay integration test (ESDB replay vs in-memory comparison)
 
+### Phase 24: Signal RPC Endpoints
+**Goal**: WriteSignal, GetSignals, and GetProcessedSignals Twirp RPCs exist and are callable from Python
+**Depends on**: Phase 18 (ISignalRepository)
+**Requirements**: DS-01, DS-02, RPC-01
+**Gap Closure**: Phase 19 work absent from branch — RPCs need to be (re)built
+**Success Criteria** (what must be TRUE):
+  1. WriteSignal RPC endpoint accepts signals from Python clients and stores them via the signal repository
+  2. GetSignals RPC endpoint returns signals filtered by name, symbol, and time range
+  3. GetProcessedSignals RPC endpoint returns signals consumed by a specific playground
+  4. Python proto stubs are regenerated and include all three new RPCs
+  5. OTel counter tracks signals produced via WriteSignal
+  6. Unit tests verify each handler's happy path and validation errors
+**Plans**: TBD
+
+### Phase 25: Complete Strategy Migrations
+**Goal**: All strategies migrated to TradeSignal framework, on_signal() wired in Python client, V1 files moved to deprecated/
+**Depends on**: Phase 24
+**Requirements**: MIG-01, MIG-02
+**Gap Closure**: Phase 22-03 files missing from disk; 22-04/22-05 unexecuted; on_signal() is dead code
+**Success Criteria** (what must be TRUE):
+  1. covered_call_v2.py and wheel_v2.py exist on disk with corresponding datasource modules and diff tests
+  2. PDFWheel V2 strategy and datasource exist with diff test
+  3. Python client.py tick() extracts new_signals from TickDelta and calls strategy.on_signal() for each
+  4. Trading engine runs end-to-end with only V2 strategies
+  5. All V1 strategy files moved to deprecated/ folder
+  6. Each migrated strategy passes its behavioral diff test
+**Plans**: TBD
+
+### Phase 26: Python Datasource Wiring & Observability
+**Goal**: Datasource scripts run standalone via __main__ calling WriteSignal RPC, DatasourceHeartbeat emits metrics
+**Depends on**: Phase 24 (WriteSignal RPC), Phase 25 (V2 strategies)
+**Requirements**: DS-03, OBS-02
+**Gap Closure**: No __main__ blocks on datasources; DatasourceHeartbeat never instantiated
+**Success Criteria** (what must be TRUE):
+  1. Python client wrapper functions write_signal() and get_processed_signals() exist and call the Twirp RPCs
+  2. At least one datasource script has a __main__ block that produces signals via WriteSignal RPC
+  3. Sim strategies can import datasource modules directly (no RPC needed)
+  4. DatasourceHeartbeat is instantiated in at least one datasource script and emits the heartbeat gauge
+  5. OBS-02 alert can fire when heartbeat gauge goes stale
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
+Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25 -> 26
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -179,3 +223,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
 | 23. Replay & Telemetry | v3.0 | 3/3 | Complete    | 2026-03-31 |
+| 24. Signal RPC Endpoints | v3.0 | 0/0 | Not started | - |
+| 25. Complete Strategy Migrations | v3.0 | 0/0 | Not started | - |
+| 26. Python Datasource Wiring & Observability | v3.0 | 0/0 | Not started | - |

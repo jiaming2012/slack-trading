@@ -20,7 +20,7 @@
 
 ## Strategy Migration
 
-- [x] **MIG-01**: All existing strategies migrated to consume TradeSignals instead of inline signal detection
+- [ ] **MIG-01**: All existing strategies migrated to consume TradeSignals instead of inline signal detection
 - [ ] **MIG-02**: Original strategy files moved to `deprecated/` folder
 - [x] **MIG-03**: Each migration validated with behavioral diff tests against original strategy output
 
@@ -51,21 +51,21 @@
 
 | REQ-ID | Phase | Plan | Status |
 |--------|-------|------|--------|
-| SIG-01 | Phase 17 | | Pending |
-| SIG-02 | Phase 17 | | Pending |
-| SIG-03 | Phase 17 | | Pending |
+| SIG-01 | Phase 17 | 17-01 | Complete |
+| SIG-02 | Phase 17 | 17-02 | Complete |
+| SIG-03 | Phase 17 | 17-01 | Complete |
 | REPO-01 | Phase 18 | 18-01 | Complete |
-| REPO-02 | Phase 20 | | Pending |
+| REPO-02 | Phase 20 | 20-01, 20-02 | Complete |
 | REPO-03 | Phase 18 | 18-02 | Complete |
-| DS-01 | Phase 19 | | Pending |
-| DS-02 | Phase 19 | | Pending |
-| DS-03 | Phase 19 | | Pending |
-| MIG-01 | Phase 22 | | Pending |
-| MIG-02 | Phase 22 | | Pending |
-| MIG-03 | Phase 21 | | Pending |
-| REPLAY-01 | Phase 23 | | Pending |
-| REPLAY-02 | Phase 23 | | Pending |
-| QUERY-01 | Phase 20 | | Pending |
-| RPC-01 | Phase 19 | | Pending |
-| OBS-01 | Phase 23 | | Pending |
-| OBS-02 | Phase 23 | | Pending |
+| DS-01 | Phase 24 | | Pending |
+| DS-02 | Phase 24 | | Pending |
+| DS-03 | Phase 26 | | Pending |
+| MIG-01 | Phase 25 | | Pending |
+| MIG-02 | Phase 25 | | Pending |
+| MIG-03 | Phase 21 | | Complete |
+| REPLAY-01 | Phase 23 | | Complete |
+| REPLAY-02 | Phase 23 | | Complete |
+| QUERY-01 | Phase 20 | | Complete |
+| RPC-01 | Phase 24 | | Pending |
+| OBS-01 | Phase 23 | | Complete |
+| OBS-02 | Phase 26 | | Pending |
