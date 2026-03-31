@@ -180,7 +180,11 @@ Plans:
   4. Python proto stubs are regenerated and include all three new RPCs
   5. OTel counter tracks signals produced via WriteSignal
   6. Unit tests verify each handler's happy path and validation errors
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Proto messages, Go RPC handlers (WriteSignal, GetSignals, GetProcessedSignals), globalSignalRepo wiring, OTel counter, unit tests
+- [ ] 24-02-PLAN.md — Python client write_signal()/get_signals()/get_processed_signals() wrapper methods
 
 ### Phase 25: Complete Strategy Migrations
 **Goal**: All strategies migrated to TradeSignal framework, on_signal() wired in Python client, V1 files moved to deprecated/
@@ -223,6 +227,6 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 ->
 | 21. First Strategy Migration & Validation | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 22. Remaining Strategy Migrations | v3.0 | 2/5 | In Progress|  |
 | 23. Replay & Telemetry | v3.0 | 3/3 | Complete    | 2026-03-31 |
-| 24. Signal RPC Endpoints | v3.0 | 0/0 | Not started | - |
+| 24. Signal RPC Endpoints | v3.0 | 0/2 | Not started | - |
 | 25. Complete Strategy Migrations | v3.0 | 0/0 | Not started | - |
 | 26. Python Datasource Wiring & Observability | v3.0 | 0/0 | Not started | - |
