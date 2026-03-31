@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 	"net/http"
+	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -21,7 +22,7 @@ func panicRecoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				log.Errorf("panic in %s %s: %v", r.Method, r.URL.Path, rec)
+				log.Errorf("panic in %s %s: %v\n%s", r.Method, r.URL.Path, rec, debug.Stack())
 				http.Error(w, fmt.Sprintf("internal error: %v", rec), http.StatusInternalServerError)
 			}
 		}()

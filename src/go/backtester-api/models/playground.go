@@ -1897,7 +1897,7 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 	tickDelta.NewTrades = append(tickDelta.NewTrades, newTrades...)
 	tickDelta.InvalidOrders = append(tickDelta.InvalidOrders, invalidOrders...)
 
-	if p.GetMeta().Environment == PlaygroundEnvironmentLive {
+	if p.GetMeta().Environment == PlaygroundEnvironmentLive && tickDelta.EquityPlot != nil {
 		if err := dbService.SaveEquityPlotRecord(p.ID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
 			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
 		}
