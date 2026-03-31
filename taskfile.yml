@@ -77,6 +77,8 @@ tasks:
     cmds:
       - 'go test -count=1 ./...'
     dir: src/go/backtester-api
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
   test:e2e:
     cmds:
