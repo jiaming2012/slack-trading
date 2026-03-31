@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
 status: verifying
-stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-03-31T11:06:43.934Z"
+stopped_at: Phase 25 context gathered
+last_updated: "2026-03-31T11:10:06.597Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 10
@@ -92,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-31T11:03:28.077Z
-Stopped at: Completed 24-02-PLAN.md
-Resume file: None
+Last session: 2026-03-31T11:10:06.583Z
+Stopped at: Phase 25 context gathered
+Resume file: .planning/phases/25-complete-strategy-migrations/25-CONTEXT.md
