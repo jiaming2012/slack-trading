@@ -11,6 +11,7 @@ When a live simulation is running, the operator can always tell whether the syst
 ## Current State
 
 **v2.0 shipped 2026-03-30.** Metabase analytics layer deployed alongside Grafana.
+**v3.0 in progress.** Phase 24 complete — WriteSignal/GetSignals/GetProcessedSignals RPCs added to Twirp server with Python client wrappers.
 
 - 5 Metabase dashboards (Trading Performance, Slippage, Portfolio, Strategy Comparison, Spread Analytics) provisioned programmatically via `infra/provision-metabase.py`
 - 8 SQL analytics views (P&L, slippage, stats, spreads) in `infra/analytics-schema.sql`
@@ -113,4 +114,4 @@ When a live simulation is running, the operator can always tell whether the syst
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-30 after v3.0 milestone start*
+*Last updated: 2026-03-31 after Phase 24 completion*
