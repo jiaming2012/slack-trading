@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: TradeSignal Framework
-status: executing
-stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-03-30T23:58:36.548Z"
-last_activity: 2026-03-30
+status: verifying
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-03-31T00:07:18.929Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
   completed_plans: 6
   percent: 29
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-03-30)
 
 Phase: 20 (esdb-persistence) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-03-30
+Status: Phase complete — ready for verification
+Last activity: 2026-03-31
 
 Progress: [███░░░░░░░] 29%
 
@@ -68,6 +68,8 @@ Recent decisions affecting current work:
 - [Phase 18-02]: ESDB persistence uses existing pub/sub pattern (PublishAndSaveEvent) for architectural consistency
 - [Phase 20]: Removed NewTradeSignalStreamName per D-01 single global stream decision
 - [Phase 20]: ESDBSignalRepository reads full ESDB stream on each call (acceptable at <1000 signals/day)
+- [Phase 20]: Live and reconcile playgrounds both get ESDBSignalRepository; only simulator gets InMemory
+- [Phase 20]: ESDB integration test uses TestContainers with EsdbProducer.Start() for full stack validation
 
 ### Pending Todos
 
@@ -81,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T23:58:36.542Z
-Stopped at: Completed 20-01-PLAN.md
+Last session: 2026-03-31T00:07:18.924Z
+Stopped at: Completed 20-02-PLAN.md
 Resume file: None

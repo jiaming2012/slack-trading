@@ -50,7 +50,7 @@
 - [x] **Phase 17: Signal Foundation** - TradeSignal struct, proto messages, signal_id on orders (completed 2026-03-30)
 - [x] **Phase 18: Signal Repository & Sim Mode** - ISignalRepository interface with in-memory implementation and tick-synchronized delivery (completed 2026-03-30)
 - [ ] **Phase 19: RPC Endpoints & Python Integration** - WriteSignal/GetSignals RPCs, Python client wrappers, datasource script pattern
-- [ ] **Phase 20: ESDB Persistence** - EventStoreDB signal repository for live mode with queryability
+- [x] **Phase 20: ESDB Persistence** - EventStoreDB signal repository for live mode with queryability (completed 2026-03-31)
 - [ ] **Phase 21: First Strategy Migration & Validation** - Migrate one strategy end-to-end, prove behavioral diff testing
 - [ ] **Phase 22: Remaining Strategy Migrations** - All strategies migrated, originals deprecated
 - [ ] **Phase 23: Replay & Telemetry** - Replay from persisted signals, OTel integration, alerting
@@ -115,7 +115,7 @@ Plans:
 
 Plans:
 - [x] 20-01-PLAN.md — ESDBSignalRepository implementation, global stream name fix, unit tests
-- [ ] 20-02-PLAN.md — Environment-based injection wiring, ESDB integration test
+- [x] 20-02-PLAN.md — Environment-based injection wiring, ESDB integration test
 
 ### Phase 21: First Strategy Migration & Validation
 **Goal**: One existing strategy is fully migrated to consume TradeSignals, proving the migration pattern and behavioral diff testing approach
@@ -169,7 +169,7 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 | 17. Signal Foundation | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 18. Signal Repository & Sim Mode | v3.0 | 2/2 | Complete    | 2026-03-30 |
 | 19. RPC Endpoints & Python Integration | v3.0 | 0/2 | Not started | - |
-| 20. ESDB Persistence | v3.0 | 1/2 | In Progress|  |
+| 20. ESDB Persistence | v3.0 | 2/2 | Complete   | 2026-03-31 |
 | 21. First Strategy Migration & Validation | v3.0 | 0/1 | Not started | - |
 | 22. Remaining Strategy Migrations | v3.0 | 0/1 | Not started | - |
 | 23. Replay & Telemetry | v3.0 | 0/1 | Not started | - |
