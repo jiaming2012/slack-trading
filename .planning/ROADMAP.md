@@ -216,7 +216,10 @@ Plans:
   3. Sim strategies can import datasource modules directly (no RPC needed)
   4. DatasourceHeartbeat is instantiated in at least one datasource script and emits the heartbeat gauge
   5. OBS-02 alert can fire when heartbeat gauge goes stale
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 26-01-PLAN.md — __main__ blocks on all 6 datasources with DatasourceHeartbeat and WriteSignal RPC
 
 ## Progress
 
@@ -234,4 +237,4 @@ Phases execute in numeric order: 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 ->
 | 23. Replay & Telemetry | v3.0 | 3/3 | Complete    | 2026-03-31 |
 | 24. Signal RPC Endpoints | v3.0 | 2/2 | Complete    | 2026-03-31 |
 | 25. Complete Strategy Migrations | v3.0 | 2/3 | Complete    | 2026-03-31 |
-| 26. Python Datasource Wiring & Observability | v3.0 | 0/0 | Not started | - |
+| 26. Python Datasource Wiring & Observability | v3.0 | 0/1 | Not started | - |
