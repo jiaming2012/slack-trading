@@ -493,7 +493,7 @@ func main() {
 
 	// Start Twirp server
 	go func() {
-		rpc.SetupTwirpServer(polygonOptionsClient, dbService)
+		rpc.SetupTwirpServer(polygonOptionsClient, dbService, esdbProducer)
 	}()
 
 	// Wait for shutdown signal

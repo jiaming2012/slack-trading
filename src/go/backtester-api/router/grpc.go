@@ -17,6 +17,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
@@ -26,13 +27,15 @@ type Server struct {
 	cache         *models.RequestCache
 	dbService     *data.DatabaseService
 	optionsClient *eventservices.PolygonOptionsClient
+	esdbProducer  *eventproducers.EsdbProducer
 }
 
-func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService) *Server {
+func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer) *Server {
 	return &Server{
 		cache:         models.NewRequestCache(),
 		dbService:     dbService,
 		optionsClient: optionsClient,
+		esdbProducer:  esdbProducer,
 	}
 }
 
@@ -1457,6 +1460,17 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 
 	if err != nil {
 		return nil, fmt.Errorf("s.CreatePlayground: failed to create playground: %w", err)
+	}
+
+	// Environment-based signal repository injection (D-03):
+	// Live playgrounds persist signals to ESDB; sim playgrounds use in-memory.
+	switch playgroundEnvironment {
+	case models.PlaygroundEnvironmentLive, models.PlaygroundEnvironmentReconcile:
+		if s.esdbProducer != nil {
+			playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
+		}
+	default:
+		playground.SetSignalRepo(models.NewInMemorySignalRepository())
 	}
 
 	log.Infof("CreatePlayground: id=%s env=%s balance=%.2f start=%s stop=%s",
