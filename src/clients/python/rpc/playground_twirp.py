@@ -175,6 +175,27 @@ class PlaygroundServiceServer(TwirpServer):
 				input=_sym_db.GetSymbol("playground.GetOptionsLadderRequest"),
 				output=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
 			),
+			"WriteSignal": Endpoint(
+				service_name="PlaygroundService",
+				name="WriteSignal",
+				function=getattr(service, "WriteSignal"),
+				input=_sym_db.GetSymbol("playground.WriteSignalRequest"),
+				output=_sym_db.GetSymbol("playground.WriteSignalResponse"),
+			),
+			"GetSignals": Endpoint(
+				service_name="PlaygroundService",
+				name="GetSignals",
+				function=getattr(service, "GetSignals"),
+				input=_sym_db.GetSymbol("playground.GetSignalsRequest"),
+				output=_sym_db.GetSymbol("playground.GetSignalsResponse"),
+			),
+			"GetProcessedSignals": Endpoint(
+				service_name="PlaygroundService",
+				name="GetProcessedSignals",
+				function=getattr(service, "GetProcessedSignals"),
+				input=_sym_db.GetSymbol("playground.GetProcessedSignalsRequest"),
+				output=_sym_db.GetSymbol("playground.GetProcessedSignalsResponse"),
+			),
 		}
 
 class PlaygroundServiceClient(TwirpClient):
@@ -374,6 +395,33 @@ class PlaygroundServiceClient(TwirpClient):
 			ctx=ctx,
 			request=request,
 			response_obj=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
+			**kwargs,
+		)
+
+	def WriteSignal(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/WriteSignal",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.WriteSignalResponse"),
+			**kwargs,
+		)
+
+	def GetSignals(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetSignals",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetSignalsResponse"),
+			**kwargs,
+		)
+
+	def GetProcessedSignals(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+		return self._make_request(
+			url=F"{server_path_prefix}/playground.PlaygroundService/GetProcessedSignals",
+			ctx=ctx,
+			request=request,
+			response_obj=_sym_db.GetSymbol("playground.GetProcessedSignalsResponse"),
 			**kwargs,
 		)
 
@@ -597,6 +645,36 @@ if _async_available:
 				ctx=ctx,
 				request=request,
 				response_obj=_sym_db.GetSymbol("playground.GetOptionsLadderResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def WriteSignal(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/WriteSignal",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.WriteSignalResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetSignals(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetSignals",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetSignalsResponse"),
+				session=session,
+				**kwargs,
+			)
+
+		async def GetProcessedSignals(self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs):
+			return await self._make_request(
+				url=F"{server_path_prefix}/playground.PlaygroundService/GetProcessedSignals",
+				ctx=ctx,
+				request=request,
+				response_obj=_sym_db.GetSymbol("playground.GetProcessedSignalsResponse"),
 				session=session,
 				**kwargs,
 			)

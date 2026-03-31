@@ -24,18 +24,20 @@ import (
 )
 
 type Server struct {
-	cache         *models.RequestCache
-	dbService     *data.DatabaseService
-	optionsClient *eventservices.PolygonOptionsClient
-	esdbProducer  *eventproducers.EsdbProducer
+	cache            *models.RequestCache
+	dbService        *data.DatabaseService
+	optionsClient    *eventservices.PolygonOptionsClient
+	esdbProducer     *eventproducers.EsdbProducer
+	globalSignalRepo models.ISignalRepository
 }
 
-func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer) *Server {
+func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
 	return &Server{
-		cache:         models.NewRequestCache(),
-		dbService:     dbService,
-		optionsClient: optionsClient,
-		esdbProducer:  esdbProducer,
+		cache:            models.NewRequestCache(),
+		dbService:        dbService,
+		optionsClient:    optionsClient,
+		esdbProducer:     esdbProducer,
+		globalSignalRepo: globalSignalRepo,
 	}
 }
 
@@ -1517,5 +1519,150 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 
 	return &pb.CreatePlaygroundResponse{
 		Id: playground.GetId().String(),
+	}, nil
+}
+
+func filterSignals(signals []*eventmodels.TradeSignal, name *string, symbol *string, startTime *time.Time, endTime *time.Time) []*pb.TradeSignalProto {
+	var result []*pb.TradeSignalProto
+	for _, s := range signals {
+		if name != nil && string(s.Name) != *name {
+			continue
+		}
+		if symbol != nil && string(s.Symbol) != *symbol {
+			continue
+		}
+		if startTime != nil && s.Timestamp.Before(*startTime) {
+			continue
+		}
+		if endTime != nil && s.Timestamp.After(*endTime) {
+			continue
+		}
+		attrs := make(map[string]string, len(s.Attributes))
+		for k, v := range s.Attributes {
+			attrs[k] = fmt.Sprintf("%v", v)
+		}
+		result = append(result, &pb.TradeSignalProto{
+			Id:         s.ID.String(),
+			Name:       string(s.Name),
+			Symbol:     string(s.Symbol),
+			Timestamp:  timestamppb.New(s.Timestamp),
+			Attributes: attrs,
+		})
+	}
+	if result == nil {
+		result = []*pb.TradeSignalProto{}
+	}
+	return result
+}
+
+func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*pb.WriteSignalResponse, error) {
+	signalName := eventmodels.SignalName(req.Name)
+	if err := signalName.Validate(); err != nil {
+		return nil, fmt.Errorf("WriteSignal: invalid signal name %q: %w", req.Name, err)
+	}
+
+	if req.Symbol == "" {
+		return nil, fmt.Errorf("WriteSignal: symbol is required")
+	}
+
+	if req.Timestamp == nil {
+		return nil, fmt.Errorf("WriteSignal: timestamp is required")
+	}
+
+	attrs := make(map[string]interface{}, len(req.Attributes))
+	for k, v := range req.Attributes {
+		attrs[k] = v
+	}
+
+	signal := eventmodels.NewTradeSignal(signalName, eventmodels.StockSymbol(req.Symbol), req.Timestamp.AsTime(), attrs)
+
+	if err := s.globalSignalRepo.Write(signal); err != nil {
+		return nil, fmt.Errorf("WriteSignal: failed to write signal: %w", err)
+	}
+
+	if telemetry.SignalsGenerated != nil {
+		telemetry.SignalsGenerated.Add(ctx, 1,
+			metric.WithAttributes(
+				attribute.String("signal_name", req.Name),
+				attribute.String("symbol", req.Symbol),
+			))
+	}
+
+	log.Infof("WriteSignal: stored signal %s (name=%s, symbol=%s)", signal.ID, req.Name, req.Symbol)
+
+	return &pb.WriteSignalResponse{
+		SignalId: signal.ID.String(),
+	}, nil
+}
+
+func (s *Server) GetSignals(ctx context.Context, req *pb.GetSignalsRequest) (*pb.GetSignalsResponse, error) {
+	allSignals := s.globalSignalRepo.GetAll()
+
+	var name *string
+	if req.Name != nil {
+		name = req.Name
+	}
+	var symbol *string
+	if req.Symbol != nil {
+		symbol = req.Symbol
+	}
+	var startTime *time.Time
+	if req.StartTime != nil {
+		t := req.StartTime.AsTime()
+		startTime = &t
+	}
+	var endTime *time.Time
+	if req.EndTime != nil {
+		t := req.EndTime.AsTime()
+		endTime = &t
+	}
+
+	filtered := filterSignals(allSignals, name, symbol, startTime, endTime)
+
+	return &pb.GetSignalsResponse{
+		Signals: filtered,
+	}, nil
+}
+
+func (s *Server) GetProcessedSignals(ctx context.Context, req *pb.GetProcessedSignalsRequest) (*pb.GetProcessedSignalsResponse, error) {
+	if req.PlaygroundId == "" {
+		return nil, fmt.Errorf("GetProcessedSignals: playground_id is required")
+	}
+
+	playgroundID, err := uuid.Parse(req.PlaygroundId)
+	if err != nil {
+		return nil, fmt.Errorf("GetProcessedSignals: invalid playground_id %q: %w", req.PlaygroundId, err)
+	}
+
+	pg, err := s.dbService.FetchPlayground(playgroundID)
+	if err != nil {
+		return nil, fmt.Errorf("GetProcessedSignals: playground not found: %w", err)
+	}
+
+	consumedSignals := pg.GetSignalRepo().GetAll()
+
+	var name *string
+	if req.Name != nil {
+		name = req.Name
+	}
+	var symbol *string
+	if req.Symbol != nil {
+		symbol = req.Symbol
+	}
+	var startTime *time.Time
+	if req.StartTime != nil {
+		t := req.StartTime.AsTime()
+		startTime = &t
+	}
+	var endTime *time.Time
+	if req.EndTime != nil {
+		t := req.EndTime.AsTime()
+		endTime = &t
+	}
+
+	filtered := filterSignals(consumedSignals, name, symbol, startTime, endTime)
+
+	return &pb.GetProcessedSignalsResponse{
+		Signals: filtered,
 	}, nil
 }

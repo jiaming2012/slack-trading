@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
@@ -28,8 +29,8 @@ func panicRecoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func SetupTwirpServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer) {
-	server := backtester_router.NewServer(optionsClient, dbService, esdbProducer)
+func SetupTwirpServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer, globalSignalRepo backtester_models.ISignalRepository) {
+	server := backtester_router.NewServer(optionsClient, dbService, esdbProducer, globalSignalRepo)
 	twirpHandler := playground.NewPlaygroundServiceServer(server)
 	port := 5051
 
