@@ -1510,7 +1510,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 				playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
 			}
 		default:
-			playground.SetSignalRepo(models.NewInMemorySignalRepository())
+			playground.SetSignalRepo(s.globalSignalRepo)
 		}
 	}
 
