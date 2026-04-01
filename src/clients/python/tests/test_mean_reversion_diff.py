@@ -35,7 +35,7 @@ def _make_mock_playground(equity=100_000.0, free_margin=None):
     pg.account = MagicMock()
     pg.account.equity = equity
     pg.account.free_margin = free_margin if free_margin is not None else equity
-    pg.account.get_quantity = MagicMock(return_value=10000)
+    pg.account.get_quantity = MagicMock(return_value=0)
     pg.place_order = MagicMock()
     pg.is_backtest_complete = False
     return pg
