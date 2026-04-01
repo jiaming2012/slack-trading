@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -30,22 +31,63 @@ func (c *LogConsumer) Accept(l testcontainers.Log) {
 	// }
 }
 
-func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectsDir, networkName string) playground.PlaygroundService {
+func createOtelCollector(ctx context.Context, t *testing.T, networkName string) testcontainers.Container {
+	_, thisFile, _, _ := runtime.Caller(0)
+	configPath := filepath.Join(filepath.Dir(thisFile), "otel_collector_config.yaml")
+
+	collectorContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "otel/opentelemetry-collector-contrib:0.96.0",
+			ExposedPorts: []string{"4317/tcp", "4318/tcp"},
+			Files: []testcontainers.ContainerFile{
+				{
+					HostFilePath:      configPath,
+					ContainerFilePath: "/etc/otelcol-contrib/config.yaml",
+					FileMode:          0644,
+				},
+			},
+			WaitingFor: wait.ForAll(
+				wait.ForLog("Everything is ready").WithStartupTimeout(30*time.Second),
+			),
+			Networks:       []string{networkName},
+			NetworkAliases: map[string][]string{networkName: {"otel-collector"}},
+		},
+		Started: true,
+	})
+	testcontainers.CleanupContainer(t, collectorContainer)
+	require.NoError(t, err)
+
+	return collectorContainer
+}
+
+func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectDir, networkName string) playground.PlaygroundService {
+	return createPlaygroundServerAndClientWithOtel(ctx, t, projectDir, networkName, false)
+}
+
+func createPlaygroundServerAndClientWithOtel(ctx context.Context, t *testing.T, projectDir, networkName string, enableOtel bool) playground.PlaygroundService {
 	logConsumer := &LogConsumer{}
+
+	env := map[string]string{
+		"PROJECTS_DIR":     "/app",
+		"GO_ENV":           "test",
+		"DRY_RUN":          "false",
+		"POSTGRES_HOST":    "postgres",
+		"POSTGRES_PORT":    "5432",
+		"ANACONDA_HOME":    "/opt/conda",
+		"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
+	}
+
+	if enableOtel {
+		env["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://otel-collector:4318"
+		env["OTEL_BSP_SCHEDULE_DELAY"] = "1000"
+		env["OTEL_METRIC_EXPORT_INTERVAL"] = "5000"
+	}
 
 	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
-			Env: map[string]string{
-				"PROJECTS_DIR":     "/app",
-				"GO_ENV":           "test",
-				"DRY_RUN":          "false",
-				"POSTGRES_HOST":    "postgres",
-				"POSTGRES_PORT":    "5432",
-				"ANACONDA_HOME":    "/opt/conda",
-				"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
-			},
+			Env:          env,
 			WaitingFor: wait.ForAll(
 				wait.ForExposedPort(),
 				wait.ForListeningPort("5051/tcp").WithStartupTimeout(30*time.Second),
@@ -53,7 +95,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 			),
 			Files: []testcontainers.ContainerFile{
 				{
-					HostFilePath:      filepath.Join(projectsDir, "slack-trading", ".env"),
+					HostFilePath:      filepath.Join(projectDir, "slack-trading", ".env"),
 					ContainerFilePath: "/app/slack-trading/.env",
 					FileMode:          0644,
 				},
@@ -83,6 +125,13 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projects
 	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)
 
 	return playgroundClient
+}
+
+func setupWithOtel(t *testing.T, ctx context.Context, goEnv string) (playground.PlaygroundService, testcontainers.Container) {
+	projectsDir, networkName := setupDatabases(t, ctx, goEnv)
+	collector := createOtelCollector(ctx, t, networkName)
+	client := createPlaygroundServerAndClientWithOtel(ctx, t, projectsDir, networkName, true)
+	return client, collector
 }
 
 func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDir, networkName string) {
