@@ -636,7 +636,7 @@ class BacktesterPlaygroundClient:
     def get_free_margin_over_equity(self) -> float:
         return self.account.free_margin / self.account.equity if self.account.equity > 0 else 0
         
-    def place_order(self, symbol: str, quantity: float, side: OrderSide, asset_class: str, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None, attributes=None) -> object:
+    def place_order(self, symbol: str, quantity: float, side: OrderSide, asset_class: str, price=0, tag: str = "", close_order_id: str = None, raise_exception=True, with_tick=False, sl: float=None, client_request_id: str=None, attributes=None, signal_id: str = None) -> object:
         if quantity == 0:
             return
         
@@ -673,7 +673,10 @@ class BacktesterPlaygroundClient:
         if attributes:
             for k, v in attributes.items():
                 request.attributes[k] = v
-                        
+
+        if signal_id is not None:
+            request.signal_id = signal_id
+
         try:
             self.logger.info(f"PlaceOrder: {request.side} {request.quantity}x {request.symbol} @ {request.requested_price} [{request.tag or 'no-tag'}]", trading_operation='place_order', timestamp=self.timestamp)
             response = self.network_call_with_retry('place_order', self.client.PlaceOrder, request)
