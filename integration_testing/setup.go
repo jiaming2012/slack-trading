@@ -18,8 +18,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/jiaming2012/slack-trading/src/go/playground"
-	"github.com/jiaming2012/slack-trading/src/go/utils"
+	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/utils"
 )
 
 // LogConsumerCfg is a configuration for a log consumer
@@ -31,23 +31,63 @@ func (c *LogConsumer) Accept(l testcontainers.Log) {
 	// }
 }
 
+func createOtelCollector(ctx context.Context, t *testing.T, networkName string) testcontainers.Container {
+	_, thisFile, _, _ := runtime.Caller(0)
+	configPath := filepath.Join(filepath.Dir(thisFile), "otel_collector_config.yaml")
+
+	collectorContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "otel/opentelemetry-collector-contrib:0.96.0",
+			ExposedPorts: []string{"4317/tcp", "4318/tcp"},
+			Files: []testcontainers.ContainerFile{
+				{
+					HostFilePath:      configPath,
+					ContainerFilePath: "/etc/otelcol-contrib/config.yaml",
+					FileMode:          0644,
+				},
+			},
+			WaitingFor: wait.ForAll(
+				wait.ForLog("Everything is ready").WithStartupTimeout(30*time.Second),
+			),
+			Networks:       []string{networkName},
+			NetworkAliases: map[string][]string{networkName: {"otel-collector"}},
+		},
+		Started: true,
+	})
+	testcontainers.CleanupContainer(t, collectorContainer)
+	require.NoError(t, err)
+
+	return collectorContainer
+}
+
 func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectDir, networkName string) playground.PlaygroundService {
+	return createPlaygroundServerAndClientWithOtel(ctx, t, projectDir, networkName, false)
+}
+
+func createPlaygroundServerAndClientWithOtel(ctx context.Context, t *testing.T, projectDir, networkName string, enableOtel bool) playground.PlaygroundService {
 	logConsumer := &LogConsumer{}
+
+	env := map[string]string{
+		"PROJECTS_DIR":     "/app",
+		"GO_ENV":           "test",
+		"DRY_RUN":          "false",
+		"POSTGRES_HOST":    "postgres",
+		"POSTGRES_PORT":    "5432",
+		"ANACONDA_HOME":    "/opt/conda",
+		"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
+	}
+
+	if enableOtel {
+		env["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://otel-collector:4318"
+		env["OTEL_BSP_SCHEDULE_DELAY"] = "1000"
+		env["OTEL_METRIC_EXPORT_INTERVAL"] = "5000"
+	}
 
 	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
-			Env: map[string]string{
-				"TRADING_PROJECT_DIR":     "/app/slack-trading",
-				"GO_ENV":           "test",
-				"DRY_RUN":          "false",
-				"POSTGRES_HOST":    "postgres",
-				"POSTGRES_PORT":    "5432",
-				"ANACONDA_HOME":    "/opt/conda",
-				"EVENTSTOREDB_URL": "esdb://admin:changeit@eventstoredb:2113?tls=false&keepAliveTimeout=10000&keepAliveInterval=10000",
-				"LOG_LEVEL":        "debug",
-			},
+			Env:          env,
 			WaitingFor: wait.ForAll(
 				wait.ForExposedPort(),
 				wait.ForListeningPort("5051/tcp").WithStartupTimeout(30*time.Second),
@@ -55,7 +95,7 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 			),
 			Files: []testcontainers.ContainerFile{
 				{
-					HostFilePath:      filepath.Join(projectDir, ".env"),
+					HostFilePath:      filepath.Join(projectDir, "slack-trading", ".env"),
 					ContainerFilePath: "/app/slack-trading/.env",
 					FileMode:          0644,
 				},
@@ -77,11 +117,9 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 	require.NoError(t, err)
 
 	twirpUrl := fmt.Sprintf("http://%s:%s", appContainerHost, appContainerPort.Port())
-	// twirpUrl := "http://localhost:5051"
 
 	client := http.Client{
 		Timeout: 30 * time.Second,
-		// Timeout: 30 * time.Minute,
 	}
 
 	playgroundClient := playground.NewPlaygroundServiceProtobufClient(twirpUrl, &client)
@@ -89,20 +127,25 @@ func createPlaygroundServerAndClient(ctx context.Context, t *testing.T, projectD
 	return playgroundClient
 }
 
-func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir, networkName string) {
-	// Derive TRADING_PROJECT_DIR from this file's location (integration_testing/ -> repo root)
-	// so tests work regardless of the shell's TRADING_PROJECT_DIR value.
-	_, thisFile, _, _ := runtime.Caller(0)
-	projectDir = filepath.Dir(filepath.Dir(thisFile))
-	os.Setenv("TRADING_PROJECT_DIR", projectDir)
+func setupWithOtel(t *testing.T, ctx context.Context, goEnv string) (playground.PlaygroundService, testcontainers.Container) {
+	projectsDir, networkName := setupDatabases(t, ctx, goEnv)
+	collector := createOtelCollector(ctx, t, networkName)
+	client := createPlaygroundServerAndClientWithOtel(ctx, t, projectsDir, networkName, true)
+	return client, collector
+}
 
-	err := godotenv.Load(filepath.Join(projectDir, ".env"))
+func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectsDir, networkName string) {
+	err := godotenv.Load()
 	if err != nil {
-		log.Printf("Project directory: %s", projectDir)
+		dir, _ := os.Getwd()
+		log.Printf("Current working directory: %s", dir)
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
-	err = utils.InitEnvironmentVariables(projectDir, goEnv)
+	projectsDir, err = utils.GetEnv("PROJECTS_DIR")
+	require.NoError(t, err)
+
+	err = utils.InitEnvironmentVariables(projectsDir, goEnv)
 	require.NoError(t, err)
 
 	postgresUser, err := utils.GetEnv("POSTGRES_USER")
@@ -176,7 +219,7 @@ func setupDatabases(t *testing.T, ctx context.Context, goEnv string) (projectDir
 	esdbStarted = true
 
 	// Start a Postgres container
-	initScriptPath := filepath.Join(projectDir, "src", "go", "backtester-api", "db", "init.sql")
+	initScriptPath := filepath.Join(projectsDir, "slack-trading", "src", "backtester-api", "db", "init.sql")
 
 	postgresReq := testcontainers.ContainerRequest{
 		Image: "postgres:13",
