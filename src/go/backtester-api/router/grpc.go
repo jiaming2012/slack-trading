@@ -1583,7 +1583,7 @@ func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*
 	if telemetry.SignalsGenerated != nil {
 		telemetry.SignalsGenerated.Add(ctx, 1,
 			metric.WithAttributes(
-				attribute.String("signal_name", req.Name),
+				attribute.String("signal_type", req.Name),
 				attribute.String("symbol", req.Symbol),
 			))
 	}
