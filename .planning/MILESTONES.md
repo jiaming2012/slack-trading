@@ -1,5 +1,34 @@
 # Milestones
 
+## v3.0 TradeSignal Framework (Shipped: 2026-04-01)
+
+**Phases completed:** 10 phases, 24 plans, 40 tasks
+
+**Key accomplishments:**
+
+- TradeSignal Go struct with UUID, SignalName registry, SavedEvent implementation, and TradeSignalProto proto message with signal_id on PlaceOrderRequest and Order
+- Nullable signal_id UUID wired through full order lifecycle: PlaceOrder RPC -> CreateOrderRequest -> commitOrderRecord -> OrderRecord -> convertOrder proto response
+- ISignalRepository interface and InMemorySignalRepository with clock-gated delivery using sorted-slice cursor pattern, verified by 6 TDD test cases including race detection
+- WriteSignal/GetSignals/GetProcessedSignals Twirp RPCs with global signal repository, OTel counter, and 7 unit tests
+- ESDBSignalRepository with write-through ESDB persistence and global trade-signals stream naming fix
+- Environment-based signal repository injection wired through Server/Twirp/main.go with ESDB integration test proving write-read round-trip and filtering by name, symbol, and time
+- Stateless MA crossover datasource module extracting signal detection from V1, consumed by MeanReversionStrategyV2 with identical behavior
+- Behavioral diff tests proving zero metric drift between V1 and V2 mean-reversion strategies, with datasource unit tests and V2 demo launcher
+- BaseStrategy on_signal() hook plus OptionsMeanReversionStrategyV2 with options_ma_crossover datasource and 3 passing diff tests
+- CreditSpreadStrategyV2 consuming credit_spread_signals datasource with bidirectional signal output, validated by 5 behavioral diff tests
+- CoveredCall and Wheel strategies migrated to V2 with supertrend-based datasource extraction and 8 behavioral diff tests proving zero metric drift
+- ESDB signal replay via proto field with date-filtered preload into InMemorySignalRepository, plus grodt.signals.consumed OTel counter
+- DatasourceHeartbeat class emitting grodt.datasource.heartbeat gauge every 30s, Grafana signal panels, and datasource staleness alerting at 5m threshold
+- Dual-run integration test proving ESDB replay delivers identical signals in identical order to in-memory baseline across 10 signals and 10 clock ticks
+- WriteSignal, GetSignals, GetProcessedSignals Twirp RPCs with proto stubs, OTel telemetry, globalSignalRepo wiring, and 10 unit tests
+- Three signal RPC wrapper methods (write_signal, get_signals, get_processed_signals) added to BacktesterPlaygroundClient with protobuf Timestamp conversion and retry logic
+- Extracted supertrend signal detection into callable-based datasources for covered call and wheel strategies, created V2 classes delegating to datasources, and proved V1/V2 behavioral equivalence with 9 diff tests
+- PDFWheelStrategyV2 with compound signal datasource extraction, Kelly sizing, and 6 diff tests proving V1/V2 behavioral equivalence
+- on_signal() callback wired in client.py tick() for TradeSignal delivery; all 6 V1 strategy files moved to deprecated/ with imports updated across 25 files
+- All 6 datasource scripts wired with standalone __main__ blocks using DatasourceHeartbeat gauge and WriteSignal RPC for live signal production
+
+---
+
 ## v2.0 Metabase Analytics (Shipped: 2026-03-30)
 
 **Phases completed:** 5 phases, 8 plans, 17 tasks

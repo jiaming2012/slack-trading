@@ -10,14 +10,15 @@ When a live simulation is running, the operator can always tell whether the syst
 
 ## Current State
 
-**v2.0 shipped 2026-03-30.** Metabase analytics layer deployed alongside Grafana.
-**v3.0 in progress.** Phase 24 complete — WriteSignal/GetSignals/GetProcessedSignals RPCs added to Twirp server with Python client wrappers.
+**v3.0 shipped 2026-04-01.** TradeSignal Framework — decoupled signal production from strategy execution.
 
-- 5 Metabase dashboards (Trading Performance, Slippage, Portfolio, Strategy Comparison, Spread Analytics) provisioned programmatically via `infra/provision-metabase.py`
-- 8 SQL analytics views (P&L, slippage, stats, spreads) in `infra/analytics-schema.sql`
-- Backtest persistence with `--save-to-db` flag, `backtest_runs` summary table
-- Spread grouping: Go server auto-injects `spread_group_key` on PlaceMultiLegOrder
-- Metabase on Windows desktop, Postgres on DO droplet with read-only `metabase_ro` user
+- Canonical TradeSignal type in Go + proto with signal_id linking every order to its originating signal
+- ISignalRepository with InMemory (sim) and ESDB (live) implementations, clock-gated delivery
+- WriteSignal, GetSignals, GetProcessedSignals Twirp RPCs callable from Python
+- All 6 strategies migrated to V2 (signal-consuming), V1s in deprecated/, behavioral diff tests
+- Standalone datasource scripts with DatasourceHeartbeat, OTel metrics, Grafana alerting
+- Signal replay from ESDB streams with integration tests proving equivalence
+- Self-contained OTel E2E tests via TestContainers (collector + Prometheus metrics verification)
 
 <details>
 <summary>v1.1 (shipped 2026-03-30)</summary>
@@ -50,38 +51,22 @@ When a live simulation is running, the operator can always tell whether the syst
 
 - ✓ All v1.0 observability requirements — v1.0 (Phases 1-7)
 - ✓ All v1.1 dashboard enhancement requirements — v1.1 (Phases 8-11)
-- ✓ Metabase infrastructure (docker-compose, metabase_ro, cloud firewall) — v2.0 (Phase 12)
-- ✓ Analytics schema (composite indexes, P&L/slippage/stats SQL views) — v2.0 (Phase 13)
-- ✓ Core performance dashboards (Trading, Slippage, Portfolio) — v2.0 (Phase 14)
-- ✓ Simulator persistence + backtest comparison dashboard — v2.0 (Phase 15)
-- ✓ Spread analytics (grouping, views, dashboard) — v2.0 (Phase 16)
+- ✓ Metabase infrastructure, analytics, dashboards, spread grouping — v2.0 (Phases 12-16)
+- ✓ TradeSignal type, repositories, RPC endpoints, strategy migrations, replay, observability — v3.0 (Phases 17-26)
 
 ### Active
 
-(See REQUIREMENTS.md for v3.0 scoped requirements)
-
-## Current Milestone: v3.0 TradeSignal Framework
-
-**Goal:** Decouple signal production from strategy execution via a unified TradeSignal event stream, enabling replayable simulations, live signal persistence, and consistent live/sim parity.
-
-**Target features:**
-- TradeSignal struct (Name + Attributes + Timestamp) stored in EventStoreDB
-- Signal repositories: in-memory for sim, EventStoreDB for live, opt-in persistence
-- Standalone datasource scripts producing signals to a single event stream
-- Replay mode: simulate from persisted signal streams with integration tests
-- All existing strategies migrated to TradeSignal framework; originals moved to deprecated/
-- Single-signal-per-order rule: every PlaceOrderRequest from one TradeSignal
-- Live/sim parity: same code, only env vars differ
-- Signal queryability via EventStoreDB by name, symbol, timeframe
-- New gRPC endpoint to view processed signals per strategy
-- Telemetry integration: signals in OTel/Grafana, alerting on missing signals
+(Planning next milestone)
 
 ### Out of Scope
 
-- Replacing existing Slack notifications — they continue to work alongside
-- Distributed tracing across external APIs (Polygon, Tradier) — instrument our side only
-- Custom Grafana plugins — use built-in panels and Loki/Tempo data sources
-- Alerting to PagerDuty or other incident tools — Grafana native alerts only for now
+- Composite signal framework (complex multi-signal aggregation)
+- Signal backtesting optimizer (grid search over signal parameters)
+- External signal sources (third-party APIs producing signals)
+- Replacing existing Slack notifications
+- Distributed tracing across external APIs (Polygon, Tradier)
+- Custom Grafana plugins
+- Alerting to PagerDuty or other incident tools
 
 ## Context
 
@@ -93,7 +78,7 @@ When a live simulation is running, the operator can always tell whether the syst
 ## Constraints
 
 - **Tech stack**: OpenTelemetry → Loki (logs) + Tempo (traces) + Prometheus (metrics) + Grafana
-- **Python compatibility**: numpy pinned to 1.23.5 (pandas_ta compat)
+- **Python compatibility**: pandas-ta-classic requires numpy>=2.0
 - **Infrastructure**: DigitalOcean droplet for production, Docker Compose for local dev
 
 ## Key Decisions
@@ -108,10 +93,15 @@ When a live simulation is running, the operator can always tell whether the syst
 | OTel Log SDK bridge for logrus→Loki | otellogrus only adds span events; needed standalone log export | ✓ Good — logs now visible in Loki |
 | pandas_ta_classic over pandas_ta | Original removed from PyPI/GitHub | ✓ Necessary |
 | Cloud Firewall over UFW | Docker bypasses UFW; DO Cloud Firewall operates at network level | ✓ Good |
+| Single global signal stream | All signals in one ESDB stream, filter by attributes not partition | ✓ Good — simpler, proven in replay tests |
+| Datasource dual-mode pattern | __main__ for live (WriteSignal RPC), direct import for sim | ✓ Good — clean separation |
+| Behavioral diff tests for migration | V1/V2 metric comparison proves equivalence | ✓ Good — caught real bugs |
+| Local Docker builds (no registry) | Vultr registry removed, 3-layer local build chain | ✓ Good — simpler, no external dependency |
+| OTel collector in E2E tests | TestContainers + debug exporter + Prometheus /metrics | ✓ Good — self-contained telemetry verification |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-31 after Phase 24 completion*
+*Last updated: 2026-04-01 after v3.0 milestone*
