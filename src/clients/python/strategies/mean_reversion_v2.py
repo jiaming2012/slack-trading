@@ -247,6 +247,22 @@ class MeanReversionStrategyV2(BaseStrategy):
         trade_signals = produce_signals(bar_dict, self._prev_htf_bar, self.pdf)
         self._prev_htf_bar = bar_dict  # Update AFTER produce_signals (matches V1 timing)
 
+        # Write signals to server for observability (queryable via GetProcessedSignals)
+        for sig in trade_signals:
+            try:
+                bar_ts = bar_dict.get("datetime", datetime.now())
+                if isinstance(bar_ts, str):
+                    from dateutil.parser import parse as parse_dt
+                    bar_ts = parse_dt(bar_ts)
+                self.playground.write_signal(
+                    name=sig["signal_key"],
+                    symbol=self.symbol,
+                    timestamp=bar_ts,
+                    attributes={"source": "ma_crossover", "htf_close": str(bar_dict.get("close", ""))},
+                )
+            except Exception as e:
+                self.logger.warning(f"write_signal failed for {sig['signal_key']}: {e}")
+
         for sig in trade_signals:
             pdf_entry = sig["pdf_entry"]
             horizon = pdf_entry.horizons.get(self.htf_horizon)
