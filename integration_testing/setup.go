@@ -18,8 +18,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
-	"github.com/jiaming2012/slack-trading/src/utils"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
+	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 // LogConsumerCfg is a configuration for a log consumer
@@ -85,7 +85,7 @@ func createPlaygroundServerAndClientWithOtel(ctx context.Context, t *testing.T, 
 
 	appContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "ewr.vultrcr.com/grodt/app:latest-dev",
+			Image:        "grodt/app:latest-dev",
 			ExposedPorts: []string{"5051/tcp"},
 			Env:          env,
 			WaitingFor: wait.ForAll(

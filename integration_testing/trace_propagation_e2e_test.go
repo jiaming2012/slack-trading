@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/playground"
+	"github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 // TestTracePropagation_E2E_ParentChildSpanLinkage verifies that when the Python
