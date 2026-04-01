@@ -98,6 +98,12 @@ tasks:
       - task test:e2e:simulate-options
       - task test:e2e:live-account-simulate-options
       - task test:e2e:trace-id
+      - task test:e2e:otel-candle-metrics
+    dir: "{{.ROOT_DIR}}/integration_testing"
+
+  test:e2e:otel-candle-metrics:
+    cmds:
+      - 'go test -tags integration -timeout 180s -v -count=1 -run ^TestLiveCandleMetricPipeline$ github.com/jiaming2012/slack-trading/integration_testing'
     dir: "{{.ROOT_DIR}}/integration_testing"
 
   test:e2e:tradier-place-spread:
@@ -204,7 +210,7 @@ tasks:
 
   app:build:
     cmds:
-      - 'docker build -t ewr.vultrcr.com/grodt/app:latest -f Dockerfile .'
+      - 'docker build -t grodt/app:latest -f Dockerfile .'
     dir: "{{.ROOT_DIR}}"
 
   app:logs:
@@ -230,7 +236,7 @@ tasks:
 
   app:build-dev:
     cmds:
-      - 'docker build -t ewr.vultrcr.com/grodt/app:latest-dev -f Dockerfile .'
+      - 'docker build -t grodt/app:latest-dev -f Dockerfile .'
     dir: "{{.ROOT_DIR}}"
       
   app:deploy:
@@ -287,7 +293,7 @@ tasks:
 
   db:start:
     cmds:
-      - 'docker-compose -f {{.ROOT_DIR}}/eventstoredb/docker-compose.yaml up'
+      - 'docker-compose -f {{.ROOT_DIR}}/infra/docker-compose.yaml up'
 
   observability:start:
     desc: "Start observability stack (Grafana, Tempo, Loki, Prometheus, OTel Collector)"
@@ -392,113 +398,127 @@ tasks:
   strategy:mean-reversion:
     desc: "Run MeanReversion V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
       OTEL_SERVICE_NAME: "grodt-strategy"
     vars:
-      symbol: "COIN"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      BALANCE: '{{.balance | default (.BALANCE | default "100000")}}'
+      PDF_PATH: '{{.pdf_path | default (.PDF_PATH | default "")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:mean-reversion:live:
     desc: "Run MeanReversion V2 strategy in live mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --live --client-id {{.client_id}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --live --client-id {{.CLIENT_ID}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
       OTEL_SERVICE_NAME: "grodt-strategy"
       TWIRP_HOST: "http://159.89.226.131:5051"
     vars:
-      symbol: "COIN"
-      client_id: "live-mean-reversion-{{.symbol}}"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
+      CLIENT_ID: '{{.client_id | default (.CLIENT_ID | default (print "live-mean-reversion-" .SYMBOL))}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:mean-reversion:replay:
     desc: "Run MeanReversion V2 with signal replay from ESDB (requires stream name)"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --replay-signals {{.stream}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --replay-signals {{.STREAM}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "COIN"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      stream: '{{.stream | default ""}}'
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      STREAM: '{{.stream | default (.STREAM | default "")}}'
     preconditions:
-      - sh: '[ -n "{{.stream}}" ]'
+      - sh: '[ -n "{{.STREAM}}" ]'
         msg: |
           stream is required.
-          Live replay:  task strategy:mean-reversion:replay stream=trade-signals
-          Sim replay:   task strategy:mean-reversion:replay stream=trade-signals-sim-<playground-id>
+          task strategy:mean-reversion:replay stream=trade-signals
+          task strategy:mean-reversion:replay stream=trade-signals-sim-<playground-id>
 
   strategy:mean-reversion:save:
     desc: "Run MeanReversion V2 and save results to Postgres"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} --save-to-db --client-id {{.client_id}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --save-to-db --client-id {{.CLIENT_ID}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "COIN"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      client_id: "backtest-{{.symbol}}-{{.start}}"
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      CLIENT_ID: '{{.client_id | default (.CLIENT_ID | default (print "backtest-" .SYMBOL "-" .START))}}'
 
   strategy:covered-call:
     desc: "Run CoveredCall V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_covered_call_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_covered_call_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "AAPL"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:credit-spread:
     desc: "Run CreditSpread V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_credit_spread_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_credit_spread_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "SPY"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "SPY")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:wheel:
     desc: "Run Wheel V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_wheel_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "AAPL"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:options-mean-reversion:
     desc: "Run OptionsMeanReversion V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_options_mean_reversion_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_options_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "COIN"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:pdf-wheel:
     desc: "Run PDFWheel V2 strategy in simulation mode"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_pdf_wheel_v2.py --symbol {{.symbol}} --start {{.start}} --end {{.end}} {{.extra}}'
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_pdf_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
-      symbol: "AAPL"
-      start: "2025-01-01"
-      end: "2025-04-30"
-      extra: ""
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      EXTRA: '{{.extra | default (.EXTRA | default "")}}'
+
+  build:pdf:
+    desc: "Build PDF from Polygon data (e.g. task build:pdf symbol=AAPL start=2025-03-01 end=2025-03-31)"
+    cmds:
+      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python tools/build_pdf_from_polygon.py --strategy {{.STRATEGY}} --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --output {{.OUTPUT}}'
+    dir: "{{.ROOT_DIR}}/src/clients/python"
+    vars:
+      STRATEGY: '{{.strategy | default (.STRATEGY | default "mean_reversion")}}'
+      SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
+      START: '{{.start | default (.START | default "2025-01-01")}}'
+      END: '{{.end | default (.END | default "2025-04-30")}}'
+      OUTPUT: '{{.output | default (.OUTPUT | default (print .SYMBOL "_" .STRATEGY "_" .START "_" .END "_pdf.json"))}}'
 
   # ─── Metabase ──────────────────────────────────────────────────────
 

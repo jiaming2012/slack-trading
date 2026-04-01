@@ -12,18 +12,19 @@ processors:
     send_batch_size: 1
 
 exporters:
-  file/traces:
-    path: /tmp/otel-traces.json
-  file/metrics:
-    path: /tmp/otel-metrics.json
+  debug:
+    verbosity: detailed
 
 service:
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/traces]
+      exporters: [debug]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/metrics]
+      exporters: [debug]

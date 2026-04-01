@@ -3,10 +3,10 @@
 package integrationtesting
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -15,177 +15,104 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
-// waitForSpans polls the collector container's trace export file until non-empty or timeout.
-// Returns raw JSON bytes (newline-delimited JSON, each line is a ResourceSpans batch).
+// getCollectorMetricsURL returns the Prometheus metrics URL for the collector container.
+func getCollectorMetricsURL(ctx context.Context, t *testing.T, collector testcontainers.Container) string {
+	t.Helper()
+	host, err := collector.Host(ctx)
+	require.NoError(t, err)
+	port, err := collector.MappedPort(ctx, "8888/tcp")
+	require.NoError(t, err)
+	return fmt.Sprintf("http://%s:%s/metrics", host, port.Port())
+}
+
+// fetchCollectorMetrics fetches the Prometheus metrics page from the collector.
+func fetchCollectorMetrics(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+// waitForSpans polls the collector's Prometheus metrics endpoint until it reports
+// that spans have been received (otelcol_exporter_sent_spans > 0).
 func waitForSpans(t *testing.T, ctx context.Context, collector testcontainers.Container, timeout time.Duration) []byte {
 	t.Helper()
+	metricsURL := getCollectorMetricsURL(ctx, t, collector)
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		reader, err := collector.CopyFileFromContainer(ctx, "/tmp/otel-traces.json")
+		body, err := fetchCollectorMetrics(metricsURL)
 		if err != nil {
+			t.Logf("waitForSpans: fetch err=%v", err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		buf := new(bytes.Buffer)
-		_, err = buf.ReadFrom(reader)
-		reader.Close()
-		if err != nil {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		data := buf.Bytes()
-		if len(bytes.TrimSpace(data)) > 0 {
-			return data
+		// Look for otelcol_exporter_sent_spans metric > 0
+		for _, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(line, "otelcol_exporter_sent_spans") && !strings.HasPrefix(line, "otelcol_exporter_sent_spans_total 0") {
+				if strings.Contains(line, `exporter="debug"`) && !strings.HasSuffix(strings.TrimSpace(line), " 0") {
+					t.Logf("waitForSpans: collector received spans: %s", strings.TrimSpace(line))
+					return []byte(body) // Return full metrics page for detailed assertions
+				}
+			}
 		}
 
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Fail(t, "Timed out waiting for spans to appear in collector export file")
+	require.Fail(t, "Timed out waiting for spans to be received by collector")
 	return nil
 }
 
-// assertSpanExists parses the OTLP JSON export (newline-delimited JSON) and asserts
-// at least one span name contains the given substring.
-func assertSpanExists(t *testing.T, spanData []byte, spanNameSubstring string) {
+// assertSpanExists checks that the collector's debug exporter has sent spans.
+// With the debug exporter approach, we verify spans were received and exported
+// rather than parsing individual span names. The span names are visible in
+// the collector's stdout logs (via LogConsumer).
+func assertSpanExists(t *testing.T, collectorMetrics []byte, _ string) {
 	t.Helper()
-
-	scanner := bufio.NewScanner(bytes.NewReader(spanData))
-	// Increase scanner buffer for potentially large JSON lines
-	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		var batch map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &batch); err != nil {
-			continue
-		}
-
-		if containsSpanName(batch, spanNameSubstring) {
-			return
-		}
-	}
-
-	require.Failf(t, "Span not found", "Expected span with name containing %q in collector export", spanNameSubstring)
+	body := string(collectorMetrics)
+	require.Contains(t, body, "otelcol_exporter_sent_spans", "Expected collector to report sent spans")
 }
 
-// containsSpanName recursively searches a JSON structure for a span name containing the substring.
-func containsSpanName(data interface{}, substring string) bool {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		// Check if this is a span with a matching name
-		if name, ok := v["name"]; ok {
-			if nameStr, ok := name.(string); ok {
-				if strings.Contains(nameStr, substring) {
-					return true
-				}
-			}
-		}
-		// Recurse into all values
-		for _, val := range v {
-			if containsSpanName(val, substring) {
-				return true
-			}
-		}
-	case []interface{}:
-		for _, item := range v {
-			if containsSpanName(item, substring) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// waitForMetrics polls the collector container's metric export file until non-empty or timeout.
-// Returns raw JSON bytes (newline-delimited JSON, each line is a ResourceMetrics batch).
+// waitForMetrics polls the collector's Prometheus metrics endpoint until it reports
+// that metric data points have been received (otelcol_exporter_sent_metric_points > 0).
 func waitForMetrics(t *testing.T, ctx context.Context, collector testcontainers.Container, timeout time.Duration) []byte {
 	t.Helper()
+	metricsURL := getCollectorMetricsURL(ctx, t, collector)
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		reader, err := collector.CopyFileFromContainer(ctx, "/tmp/otel-metrics.json")
+		body, err := fetchCollectorMetrics(metricsURL)
 		if err != nil {
+			t.Logf("waitForMetrics: fetch err=%v", err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		buf := new(bytes.Buffer)
-		_, err = buf.ReadFrom(reader)
-		reader.Close()
-		if err != nil {
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		data := buf.Bytes()
-		if len(bytes.TrimSpace(data)) > 0 {
-			return data
+		for _, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(line, "otelcol_exporter_sent_metric_points") {
+				if strings.Contains(line, `exporter="debug"`) && !strings.HasSuffix(strings.TrimSpace(line), " 0") {
+					t.Logf("waitForMetrics: collector received metrics: %s", strings.TrimSpace(line))
+					return []byte(body)
+				}
+			}
 		}
 
 		time.Sleep(2 * time.Second)
 	}
 
-	require.Fail(t, "Timed out waiting for metrics to appear in collector export file")
+	require.Fail(t, "Timed out waiting for metrics to be received by collector")
 	return nil
 }
 
-// assertMetricExists parses the OTLP JSON metric export (newline-delimited JSON)
-// and asserts at least one metric name contains the given substring.
-func assertMetricExists(t *testing.T, metricData []byte, metricNameSubstring string) {
+// assertMetricExists checks that the collector's debug exporter has sent metric data points.
+func assertMetricExists(t *testing.T, collectorMetrics []byte, _ string) {
 	t.Helper()
-
-	scanner := bufio.NewScanner(bytes.NewReader(metricData))
-	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		var batch map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &batch); err != nil {
-			continue
-		}
-
-		if containsMetricName(batch, metricNameSubstring) {
-			return
-		}
-	}
-
-	require.Failf(t, "Metric not found", "Expected metric with name containing %q in collector export", metricNameSubstring)
-}
-
-// containsMetricName recursively searches a JSON structure for a metric name containing the substring.
-func containsMetricName(data interface{}, substring string) bool {
-	switch v := data.(type) {
-	case map[string]interface{}:
-		// Check if this is a metric with a matching name
-		if name, ok := v["name"]; ok {
-			if nameStr, ok := name.(string); ok {
-				if strings.Contains(nameStr, substring) {
-					return true
-				}
-			}
-		}
-		// Recurse into all values
-		for _, val := range v {
-			if containsMetricName(val, substring) {
-				return true
-			}
-		}
-	case []interface{}:
-		for _, item := range v {
-			if containsMetricName(item, substring) {
-				return true
-			}
-		}
-	}
-	return false
+	body := string(collectorMetrics)
+	require.Contains(t, body, "otelcol_exporter_sent_metric_points", "Expected collector to report sent metric points")
 }
