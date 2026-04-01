@@ -99,9 +99,10 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260401-cgf | Add self-contained OTel collector to E2E test harness for metrics/traces verification | 2026-04-01 | 480bfea | [260401-cgf-add-self-contained-otel-collector-to-e2e](./quick/260401-cgf-add-self-contained-otel-collector-to-e2e/) |
 | 260401-fij | Fix 3 v3.0 audit gaps: signal_id param, Grafana label mismatch, diff test failure | 2026-04-01 | 28981cb | [260401-fij-fix-3-v3-0-audit-gaps-signal-id-param-gr](./quick/260401-fij-fix-3-v3-0-audit-gaps-signal-id-param-gr/) |
+| 260401-gig | Share globalSignalRepo with sim playgrounds and wire write_signal() in MeanReversionV2 | 2026-04-01 | 4754944 | [260401-gig-share-globalsignalrepo-with-sim-playgrou](./quick/260401-gig-share-globalsignalrepo-with-sim-playgrou/) |
 
 ## Session Continuity
 
-Last session: 2026-04-01T15:14:56Z
-Stopped at: Completed quick task 260401-fij
+Last session: 2026-04-01T15:57:04Z
+Stopped at: Completed quick task 260401-gig
 Resume file: .planning/phases/26-python-datasource-wiring-observability/26-CONTEXT.md
