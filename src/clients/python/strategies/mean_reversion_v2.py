@@ -65,6 +65,7 @@ class TradeGroup:
     stop_price: float = 0.0
     model_name: str = "empirical"
     forward_returns: List[float] = field(default_factory=list)
+    signal_id: Optional[str] = None  # UUID from WriteSignal RPC — links all trades back to the originating signal
 
 
 # ------------------------------------------------------------------ #
@@ -158,6 +159,7 @@ class MeanReversionStrategyV2(BaseStrategy):
             "groups_skipped_budget": 0,
             "groups_skipped_empty_plan": 0,
             "groups_skipped_dedup": 0,
+            "groups_skipped_exposure": 0,
             "entries_placed": 0,
             "exits_placed": 0,
             "stop_outs": 0,
@@ -183,6 +185,38 @@ class MeanReversionStrategyV2(BaseStrategy):
     def _effective_server_position(self) -> float:
         """Server position minus sells already placed this tick but not yet settled."""
         return self.playground.account.get_quantity(self.symbol) - self._sells_placed_this_tick
+
+    def _pending_planned_shares(self) -> int:
+        """Total shares planned across pending/active groups that haven't entered yet."""
+        total = 0
+        for g in self.trade_groups:
+            if g.status not in ("pending", "active"):
+                continue
+            for idx, level in enumerate(g.deviation_plan.levels):
+                if idx not in g.filled_levels and idx not in g.failed_levels:
+                    total += level.shares
+        return total
+
+    def _max_shares_for_margin(self, price: float) -> int:
+        """Max additional shares the account can hold without breaching maintenance margin.
+
+        Maintenance margin is 50% of position notional. We target keeping
+        equity above 120% of maintenance margin to avoid liquidation.
+        """
+        equity = self.playground.account.equity
+        current_qty = self.playground.account.get_quantity(self.symbol)
+        pending = self._pending_planned_shares()
+        committed_qty = current_qty + pending
+
+        # maintenance_margin = 0.5 * total_qty * price
+        # safety: equity >= 1.2 * maintenance_margin
+        # equity >= 1.2 * 0.5 * (committed_qty + new_shares) * price
+        # new_shares <= equity / (0.6 * price) - committed_qty
+        if price <= 0:
+            return 0
+        max_total = int(equity / (0.6 * price))
+        available = max(0, max_total - committed_qty)
+        return available
 
     # ------------------------------------------------------------------ #
     # Repository configuration
@@ -247,19 +281,59 @@ class MeanReversionStrategyV2(BaseStrategy):
         trade_signals = produce_signals(bar_dict, self._prev_htf_bar, self.pdf)
         self._prev_htf_bar = bar_dict  # Update AFTER produce_signals (matches V1 timing)
 
-        # Write signals to server for observability (queryable via GetProcessedSignals)
+        # Write signals to server for observability (queryable via GetProcessedSignals).
+        # Attributes capture the full decision chain: atomic signals detected →
+        # compound key → PDF lookup → sufficient_samples → horizon stats.
         for sig in trade_signals:
             try:
                 bar_ts = bar_dict.get("datetime", datetime.now())
                 if isinstance(bar_ts, str):
                     from dateutil.parser import parse as parse_dt
                     bar_ts = parse_dt(bar_ts)
-                self.playground.write_signal(
-                    name=sig["signal_key"],
+
+                pdf_entry = sig["pdf_entry"]
+                horizon = pdf_entry.horizons.get(self.htf_horizon)
+
+                attrs = {
+                    "signal_key": sig["signal_key"],
+                    "htf_close": str(bar_dict.get("close", "")),
+                    # PDF lookup context
+                    "pdf_sample_size": str(pdf_entry.sample_size),
+                    "pdf_ci_95_width": f"{pdf_entry.ci_95_width:.6f}",
+                    "pdf_sufficient_samples": str(pdf_entry.sufficient_samples),
+                    "pdf_min_ci_width_threshold": f"{self.pdf.min_ci_width_threshold:.6f}",
+                }
+
+                if horizon:
+                    attrs["horizon"] = self.htf_horizon
+                    attrs["horizon_mean"] = f"{horizon.mean:.6f}"
+                    attrs["horizon_stddev"] = f"{horizon.stddev:.6f}"
+                    attrs["horizon_model"] = horizon.model_name
+                    # Decision outcome: did this signal qualify for group creation?
+                    qualifies = horizon.mean > 0
+                    attrs["qualifies_for_group"] = str(qualifies)
+
+                    # Human-readable decision rationale
+                    ci = pdf_entry.ci_95_width
+                    threshold = self.pdf.min_ci_width_threshold
+                    close = bar_dict.get("close", 0.0)
+                    attrs["decision_formula"] = (
+                        f"1) detect_atomic_signals_on_bar(htf_bar, prev_bar) → [{sig['signal_key']}]; "
+                        f"2) compound_key = sort+join → '{sig['signal_key']}'; "
+                        f"3) pdf.get_signal('{sig['signal_key']}') → found={pdf_entry is not None}, "
+                        f"sample_size={pdf_entry.sample_size}; "
+                        f"4) sufficient_samples = ci_95_width({ci:.6f}) < threshold({threshold:.6f}) → {pdf_entry.sufficient_samples}; "
+                        f"5) horizon['{self.htf_horizon}'].mean({horizon.mean:.6f}) > 0 → {qualifies}; "
+                        f"6) RESULT: {'CREATE GROUP at htf_close=' + f'{close:.2f}' if qualifies else 'SKIP (negative expected return)'}"
+                    )
+
+                signal_id = self.playground.write_signal(
+                    name="mean_reversion",
                     symbol=self.symbol,
                     timestamp=bar_ts,
-                    attributes={"source": "ma_crossover", "htf_close": str(bar_dict.get("close", ""))},
+                    attributes=attrs,
                 )
+                sig["signal_id"] = signal_id
             except Exception as e:
                 self.logger.warning(f"write_signal failed for {sig['signal_key']}: {e}")
 
@@ -267,7 +341,7 @@ class MeanReversionStrategyV2(BaseStrategy):
             pdf_entry = sig["pdf_entry"]
             horizon = pdf_entry.horizons.get(self.htf_horizon)
             if horizon and horizon.mean > 0:
-                self._try_create_group(sig["signal_key"], bar_dict, pdf_entry)
+                self._try_create_group(sig["signal_key"], bar_dict, pdf_entry, signal_id=sig.get("signal_id"))
 
         # 2. Evaluate stops on all active groups
         htf_close = bar_dict.get("close", 0.0)
@@ -308,6 +382,7 @@ class MeanReversionStrategyV2(BaseStrategy):
 
     def _try_create_group(
         self, signal_key: str, bar_dict: dict, pdf_entry: SignalPDF,
+        signal_id: str = None,
     ) -> None:
         """Attempt to create a new trade group from an HTF signal."""
         self.funnel["signals_detected"] += 1
@@ -333,6 +408,28 @@ class MeanReversionStrategyV2(BaseStrategy):
         equity = self.playground.account.equity
         max_loss_budget = self.max_loss_pct * equity
 
+        # Cap shares to prevent aggregate exposure from breaching maintenance margin.
+        # Without this, multiple groups each sized to full balance/price can trigger
+        # liquidation when they all enter within a short window.
+        max_new_shares = self._max_shares_for_margin(signal_price)
+        group_shares = int(min(self.total_shares_per_group, max_new_shares))
+
+        if group_shares <= 0:
+            self.funnel["groups_skipped_exposure"] += 1
+            self.logger.info(
+                f"Group skipped [{signal_key}]: aggregate exposure limit"
+                f" (equity=${equity:,.0f},"
+                f" position={self.playground.account.get_quantity(self.symbol):.0f},"
+                f" pending={self._pending_planned_shares()})"
+            )
+            return
+
+        if group_shares < self.total_shares_per_group:
+            self.logger.info(
+                f"Group shares capped: {self.total_shares_per_group}"
+                f" → {group_shares} (exposure limit)"
+            )
+
         # Build deviation plan
         plan = compute_deviation_levels(
             signal_price=signal_price,
@@ -340,7 +437,7 @@ class MeanReversionStrategyV2(BaseStrategy):
             forward_returns=horizon.forward_returns,
             stop_percentile=self.stop_percentile,
             max_loss_budget=max_loss_budget,
-            total_shares=self.total_shares_per_group,
+            total_shares=group_shares,
         )
 
         if not plan.levels:
@@ -365,6 +462,7 @@ class MeanReversionStrategyV2(BaseStrategy):
             deviation_plan=plan,
             stop_price=plan.stop_price,
             forward_returns=list(horizon.forward_returns) if horizon.forward_returns else [],
+            signal_id=signal_id,
         )
 
         self.trade_groups.append(group)
@@ -490,6 +588,7 @@ class MeanReversionStrategyV2(BaseStrategy):
                 "equity",
                 level.price,
                 attributes=attributes,
+                signal_id=group.signal_id,
             )
             group.filled_levels[level_idx] = shares
             if group.status == "pending":
@@ -611,6 +710,7 @@ class MeanReversionStrategyV2(BaseStrategy):
                 "equity",
                 tier.exit_price,
                 attributes=attributes,
+                signal_id=group.signal_id,
             )
             group.triggered_exits.add(tier_id)
             self._sells_placed_this_tick += shares_to_sell
@@ -718,6 +818,7 @@ class MeanReversionStrategyV2(BaseStrategy):
                 OrderSide.SELL,
                 "equity",
                 attributes=attributes,
+                signal_id=group.signal_id,
             )
             self._sells_placed_this_tick += total_remaining
             self.record_decision(SignalDecision(
@@ -775,6 +876,7 @@ class MeanReversionStrategyV2(BaseStrategy):
                                 "group_id": group.group_id,
                                 "action": "end_of_sim_close",
                             },
+                            signal_id=group.signal_id,
                         )
                         self._sells_placed_this_tick += total_remaining
                         self.logger.info(

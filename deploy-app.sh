@@ -46,7 +46,7 @@ main() {
   git merge origin/dev
 
   # Find the latest version of the Docker image
-  VERSION=$(docker images ewr.vultrcr.com/grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
+  VERSION=$(docker images grodt/app --format "{{.Tag}}" | grep -v "latest" | grep -v "<none>" | sort -V | tail -n 1)
 
   if [ -z "$VERSION" ]; then
     echo "Error: Unable to find the latest version of the Docker image"
@@ -56,7 +56,7 @@ main() {
   echo "Latest version found: $VERSION"
 
   # Prompt the user for confirmation
-  read -p "Would you like to deploy ewr.vultrcr.com/grodt/app:$VERSION? (y/n): " CONFIRM
+  read -p "Would you like to deploy grodt/app:$VERSION? (y/n): " CONFIRM
   if [ "$CONFIRM" != "y" ]; then
     echo "Deployment cancelled."
     exit 0
@@ -65,7 +65,7 @@ main() {
   echo "Deploying version $VERSION ..."
 
   # Update deployment.yaml with the new image version
-  sed -i.bak "s|image: ewr.vultrcr.com/grodt/app:[^ ]*|image: ewr.vultrcr.com/grodt/app:$VERSION|" ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml
+  sed -i.bak "s|image: grodt/app:[^ ]*|image: grodt/app:$VERSION|" ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml
 
   # Remove backup file created by sed
   rm ${TRADING_PROJECT_DIR}/.clusters/production/deployment.yaml.bak

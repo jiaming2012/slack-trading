@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(curl -s -X POST http://localhost:5051/twirp/playground.PlaygroundService/GetPlaygrounds -H \"Content-Type: application/json\" -d '{}')",
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(len\\(data.get\\(''playgrounds'', []\\)\\)\\)\")",
@@ -109,7 +108,27 @@
       "Bash(wsl bash:*)",
       "mcp__Claude_Preview__preview_start",
       "Edit(src/clients/python/**)",
-      "Read(src/clients/python/**)"
-    ]
+      "Read(src/clients/python/**)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/pip show:*)",
+      "Bash(task --help)",
+      "Bash(task strategy:mean-reversion --dry symbol=AAPL start=2026-01-01 end=2026-03-31)",
+      "Bash(task --version)",
+      "Bash(task sim:*)",
+      "Bash(task strategy:mean-reversion --dry -- symbol=AAPL)",
+      "Bash(task optimize:*)",
+      "Bash(task build:pdf --dry symbol=AAPL start=2025-03-01 end=2025-03-31)",
+      "Bash(task build:pdf --dry -- symbol=AAPL start=2025-03-01 end=2025-03-31)",
+      "WebFetch(domain:taskfile.dev)",
+      "Bash(task strategy:mean-reversion --dry SYMBOL=AAPL START=2026-01-01 END=2026-03-31 PDF_PATH=my_pdf.json)",
+      "Bash(task build:pdf --dry SYMBOL=MSFT START=2026-01-01 END=2026-03-31)",
+      "Bash(task strategy:mean-reversion:live --dry SYMBOL=AAPL)",
+      "Bash(task build:pdf --dry symbol=AAPL strategy=mean_reversion start=2025-01-01 end=2025-12-31)",
+      "Bash(task strategy:mean-reversion --dry symbol=AAPL start=2026-01-01 end=2026-03-31 pdf_path=my_pdf.json)",
+      "Bash(find /Users/jamal/projects/slack-trading/src -type f -name *.py)",
+      "Bash(find /Users/jamal/projects/slack-trading -path */engine/trading_engine.py -o -path */engine/client.py)",
+      "Bash(/Users/jamal/miniconda3/envs/grodt/bin/python -c \"import ast; ast.parse\\(open\\(''/Users/jamal/projects/slack-trading/src/clients/python/strategies/mean_reversion_v2.py''\\).read\\(\\)\\); print\\(''OK''\\)\")",
+      "Bash(PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python -m pytest tests/test_mean_reversion_strategy.py -x -q)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }

@@ -27,13 +27,17 @@ HTF (1-hour) signal detected
 
 | Module | Purpose |
 |--------|---------|
+| Module | Purpose |
+|--------|---------|
 | `deviation_levels.py` | PDF-adaptive level placement + share sizing |
 | `partial_exit_manager.py` | Partial exit tier computation and monitoring |
 | `return_models.py` | Pluggable statistical models (Empirical, Bayesian NIG) |
-| `mean_reversion_strategy.py` | Strategy class, tick loop, order placement |
+| `mean_reversion_strategy.py` | V1 strategy class (legacy) |
+| `strategies/mean_reversion_v2.py` | **V2 strategy class** (TradeSignal/datasource framework) |
 | `mean_reversion_report.py` | Post-simulation evaluation (expected vs realized P&L) |
-| `demo_mean_reversion.py` | CLI script to run a backtest or live trade |
-| `build_pdf_from_polygon.py` | CLI script to build PDF JSON files from Polygon data |
+| `demos/demo_mean_reversion.py` | V1 CLI script (legacy) |
+| `demos/demo_mean_reversion_v2.py` | **V2 CLI script** (recommended) |
+| `tools/build_pdf_from_polygon.py` | CLI script to build PDF JSON files from Polygon data |
 
 ## Prerequisites
 
@@ -53,14 +57,31 @@ HTF (1-hour) signal detected
 
 The strategy needs a pre-built PDF JSON file that contains forward-return distributions for compound signals. This file maps signal patterns (e.g., `bullish_supertrend|stochrsi_cross_above_20`) to their historical return distributions at various horizons.
 
-`build_pdf_from_polygon.py` supports two strategy presets and custom timeframes:
+`build_pdf_from_polygon.py` supports two strategy presets and custom timeframes. The easiest way to run it is via the `task` command from the repo root:
+
+```bash
+# Mean-reversion (default): 5-min LTF + 1-hour HTF
+task build:pdf symbol=AAPL start=2025-03-01 END=2025-03-31
+
+# Wheel strategy: 15-min LTF + daily HTF
+task build:pdf strategy=wheel symbol=AAPL start=2024-06-01 end=2025-06-01
+
+# Custom output filename
+task build:pdf symbol=AAPL start=2025-01-01 end=2025-04-30 output=my_pdf.json
+```
+
+All parameters have defaults (`strategy=mean_reversion`, `symbol=AAPL`, `start=2025-01-01`, `end=2025-04-30`), so `task build:pdf` works as-is.
+
+### Direct invocation
+
+You can also run the script directly. Make sure to run from `src/clients/python/` so module imports resolve:
 
 ### For the wheel strategy (15-min LTF + daily HTF)
 
 ```bash
 cd src/clients/python
 
-python build_pdf_from_polygon.py \
+python tools/build_pdf_from_polygon.py \
     --strategy wheel \
     --symbol AAPL \
     --start 2024-06-01 \
@@ -73,12 +94,12 @@ python build_pdf_from_polygon.py \
 ### For the mean-reversion strategy (5-min LTF + 1-hour HTF)
 
 ```bash
-python build_pdf_from_polygon.py \
+python tools/build_pdf_from_polygon.py \
     --strategy mean_reversion \
     --symbol AAPL \
-    --start 2024-06-01 \
-    --end 2025-06-01 \
-    --output aapl_5m_1h_pdf.json
+    --start 2025-03-01 \
+    --end 2025-03-31 \
+    --output aapl_5m_1h_2025_pdf.json
 ```
 
 ### Custom timeframes
@@ -86,7 +107,7 @@ python build_pdf_from_polygon.py \
 Override the preset with `--ltf` and `--htf` flags using shorthand notation (`5m`, `15m`, `1h`, `1d`):
 
 ```bash
-python build_pdf_from_polygon.py \
+python tools/build_pdf_from_polygon.py \
     --ltf 5m --htf 1h \
     --symbol AAPL \
     --start 2024-06-01 \
@@ -99,7 +120,7 @@ python build_pdf_from_polygon.py \
 Add `--return-model bayesian_nig` for smoother estimates with small sample sizes:
 
 ```bash
-python build_pdf_from_polygon.py \
+python tools/build_pdf_from_polygon.py \
     --strategy mean_reversion \
     --return-model bayesian_nig \
     --symbol AAPL \
@@ -124,10 +145,38 @@ python build_pdf_from_polygon.py \
 
 ## Step 2: Run the Backtest
 
+### V2 (recommended) — via `task`
+
+The easiest way to run the V2 strategy is via the task runner:
+
+```bash
+# Defaults (COIN, 2025-01-01 to 2025-04-30):
+task strategy:mean-reversion
+
+# Custom symbol and dates:
+task strategy:mean-reversion symbol=AAPL start=2026-01-01 end=2026-03-31
+
+# With PDF and custom balance:
+task strategy:mean-reversion symbol=AAPL pdf_path=aapl_5m_1h_pdf.json balance=50000
+
+# Extra flags (retrain, model tuning, etc.):
+task strategy:mean-reversion symbol=AAPL extra="--retrain-interval weekly --model bayesian_nig"
+
+# Save results to Postgres:
+task strategy:mean-reversion:save symbol=AAPL start=2026-01-01 end=2026-03-31
+
+# Replay signals from ESDB:
+task strategy:mean-reversion:replay symbol=AAPL stream=trade-signals
+```
+
+### V2 — direct invocation
+
+Run from `src/clients/python/` with `PYTHONPATH=.` so module imports resolve:
+
 ```bash
 cd src/clients/python
 
-python demo_mean_reversion.py \
+PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
     --symbol AAPL \
     --start 2025-06-01 \
     --end 2026-02-28 \
@@ -138,7 +187,7 @@ python demo_mean_reversion.py \
     --model bayesian_nig
 ```
 
-### `demo_mean_reversion.py` parameters
+### `demo_mean_reversion_v2.py` parameters
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -146,11 +195,11 @@ python demo_mean_reversion.py \
 | `--start` | `2025-06-01` | Simulation start date |
 | `--end` | `2026-02-28` | Simulation end date |
 | `--balance` | `100000` | Starting account balance |
-| `--pdf-path` | *(required)* | Path to pre-built PDF JSON file |
+| `--pdf-path` | *(empty)* | Path to pre-built PDF JSON file |
 | `--max-loss-pct` | `0.02` | Max potential loss per group as fraction of equity |
 | `--stop-percentile` | `0.95` | HTF stop percentile (higher = wider stop) |
 | `--model` | `bayesian_nig` | Return model: `empirical` or `bayesian_nig` |
-| `--total-shares` | `1000` | Total shares to distribute across entry levels per group |
+| `--total-shares` | `0` (auto) | Total shares per group (0 = auto-size from balance/price) |
 | `--exit-tiers` | `3` | Number of partial exit tiers per entry level |
 | `--htf-horizon` | `1h` | Which PDF horizon to use for deviation calculations |
 | `--tier-spacing` | `even` | Exit tier spacing: `even` (25%,50%,100%) or `tight` (70%,85%,100%) |
@@ -158,19 +207,32 @@ python demo_mean_reversion.py \
 | `--min-expected-profit` | `0.0` | Skip entries with expected profit below threshold |
 | `--ev-model` | `distribution` | EV model: `binary` or `distribution` |
 | `--live` | *(off)* | Run live: `--live` (paper) or `--live margin` (real money) |
+| `--client-id` | *(empty)* | Client ID for playground reuse across restarts |
 | `--retrain-interval` | *(off)* | Rebuild PDF periodically: `weekly` or `monthly` |
 | `--training-start` | *(1yr before --start)* | Start of training data window (with retrain) |
 | `--rolling-window` | *(expanding)* | Rolling window in days (with retrain) |
+| `--save-to-db` | *(off)* | Persist backtest results to Postgres on completion |
+| `--replay-signals` | *(off)* | Replay signals from ESDB stream name |
 | `--twirp-host` | `http://127.0.0.1:5051` | Go server address |
 
 ## Step 2b: Run Live (Paper Money)
 
-To run the strategy against the Tradier paper money account in real time:
+### Via `task` (recommended)
+
+```bash
+# Live paper mode (default symbol COIN):
+task strategy:mean-reversion:live
+
+# Custom symbol:
+task strategy:mean-reversion:live symbol=AAPL
+```
+
+### Direct invocation
 
 ```bash
 cd src/clients/python
 
-python demo_mean_reversion.py \
+PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
     --live \
     --symbol AAPL \
     --balance 100000 \
@@ -187,21 +249,19 @@ python demo_mean_reversion.py \
 
 ### Use --exit-tiers 1 to make all shares exit at signal_price — no early profit-taking:
 
-python demo_mean_reversion.py \
-    --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
-    --balance 100000 --retrain-interval weekly \
-    --max-loss-pct 0.02 --stop-percentile 0.95 \
-    --model bayesian_nig --rolling-window 180 \
-    --exit-tiers 1
+```bash
+task strategy:mean-reversion symbol=AAPL extra="--retrain-interval weekly --exit-tiers 1 --rolling-window 180"
+```
 
 ### Use --tier-spacing tight to cluster exit tiers near signal_price (70%, 85%, 100% of distance) instead of evenly spaced (25%, 50%, 100%):
 
-python demo_mean_reversion.py \
-    --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
-    --balance 100000 --retrain-interval weekly \
-    --max-loss-pct 0.02 --stop-percentile 0.95 \
-    --model bayesian_nig --rolling-window 180 \
-    --tier-spacing tight
+```bash
+task strategy:mean-reversion symbol=AAPL extra="--retrain-interval weekly --tier-spacing tight --rolling-window 180"
+```
+
+### V1 (legacy)
+
+The V1 scripts (`demo_mean_reversion.py`, `mean_reversion_strategy.py`) are still available but no longer recommended. V2 uses the TradeSignal/datasource framework for signal detection.
 
 ## Step 3: Evaluate Results
 

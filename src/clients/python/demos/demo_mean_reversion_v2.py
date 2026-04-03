@@ -11,24 +11,39 @@ MeanReversionStrategyV2 (from the TradeSignal framework migration).
 
 Supports optional periodic PDF retraining during the simulation.
 
-Usage:
+Usage (via task — recommended):
+    # Simulation with defaults:
+    task strategy:mean-reversion
+
+    # Custom symbol/dates:
+    task strategy:mean-reversion symbol=AAPL start=2026-01-01 end=2026-03-31
+
+    # With PDF and custom balance:
+    task strategy:mean-reversion symbol=AAPL pdf_path=aapl_pdf.json balance=50000
+
+    # Live mode:
+    task strategy:mean-reversion:live symbol=AAPL
+
+Usage (direct — run from src/clients/python/ with PYTHONPATH):
+    cd src/clients/python
+
     # Static PDF (simulator):
-    python demo_mean_reversion_v2.py \
+    PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
         --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
         --balance 100000 --pdf-path aapl_5m_1h_pdf.json
 
     # Weekly retraining (simulator):
-    python demo_mean_reversion_v2.py \
+    PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
         --symbol AAPL --start 2025-06-01 --end 2026-02-28 \
         --balance 100000 --retrain-interval weekly --model bayesian_nig
 
     # Live paper money (Tradier sandbox):
-    python demo_mean_reversion_v2.py \
+    PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
         --live --symbol AAPL --balance 100000 \
         --pdf-path aapl_5m_1h_pdf.json
 
     # Live real money (Tradier margin -- requires confirmation):
-    python demo_mean_reversion_v2.py \
+    PYTHONPATH=. python demos/demo_mean_reversion_v2.py \
         --live margin --symbol AAPL --balance 100000 \
         --pdf-path aapl_5m_1h_pdf.json
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Get the latest image tag
-LATEST_TAG=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "ewr.vultrcr.com/grodt/app" | grep -E ':[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)
+LATEST_TAG=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "grodt/app" | grep -E ':[0-9]+(\.[0-9]+)*$' | sort -V | tail -n 1)
 if [ -z "$LATEST_TAG" ]; then
-    echo "No images found for ewr.vultrcr.com/grodt/app."
+    echo "No images found for grodt/app."
     exit 1
 fi
 
@@ -44,8 +44,8 @@ while read -r REPO TAG ID; do
         continue
     fi
 
-    # Delete images from "ewr.vultrcr.com/grodt/app" that are lower than the threshold version
-    if [[ "$REPO" == "ewr.vultrcr.com/grodt/app" && "$TAG" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    # Delete images from "grodt/app" that are lower than the threshold version
+    if [[ "$REPO" == "grodt/app" && "$TAG" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
         MAJOR=${BASH_REMATCH[1]}
         MINOR=${BASH_REMATCH[2]}
         PATCH=${BASH_REMATCH[3]}

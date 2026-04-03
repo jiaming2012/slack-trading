@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define repository and cutoff version
-REPO="ewr.vultrcr.com/grodt/app"
+REPO="grodt/app"
 CUTOFF_VERSION="$1"
 
 # Get list of images that match the repository and extract tag + image ID

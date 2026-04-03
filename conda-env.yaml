@@ -1,0 +1,30 @@
+name: grodt
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - matplotlib
+  - scipy
+  - seaborn
+  - statsmodels
+  - ta-lib
+  - pip
+  - pip:
+      - charset-normalizer==3.4.1
+      - idna==3.10
+      - loguru==0.7.3
+      - numpy>=2.0.0
+      - pandas==2.2.3
+      - pandas-ta-classic==0.4.47
+      - polygon-api-client==1.14.3
+      - protobuf==5.29.3
+      - pytz==2025.1
+      - requests==2.32.3
+      - structlog==25.1.0
+      - twirp==0.0.7
+      - typing-extensions==4.12.2
+      - tzdata==2025.1
+      - urllib3==2.3.0
+      - websockets==14.2
+      - pandas-market-calendars==5.1.1

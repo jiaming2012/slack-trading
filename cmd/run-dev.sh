@@ -2,6 +2,8 @@
 
 export GO_ENV=development
 
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://159.89.226.131:4318"
+
 # Resolve the repo root (parent of this script's directory)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

@@ -486,6 +486,7 @@ message TradeSignalProto {
     string symbol = 3;
     google.protobuf.Timestamp timestamp = 4;
     map<string, string> attributes = 5;
+    repeated uint64 order_ids = 6;  // Orders placed as a result of this signal (empty if signal didn't qualify)
 }
 
 message WriteSignalRequest {

@@ -164,11 +164,31 @@ integration_testing/                 # E2E tests (TestContainers: Postgres, ESDB
 go build ./cmd/main.go               # Build server
 go build ./src/go/...                 # Build all packages
 task test                             # Unit tests (backtester-api)
-task test:e2e                         # E2E tests
+task test:e2e                         # E2E tests (requires Docker — uses TestContainers)
 task test:integration                 # Integration tests
 task app:dev                          # Run dev server (GO_ENV=development)
 task gen:proto                        # Regenerate protobuf stubs
 ```
+
+### E2E Tests
+
+E2E tests use [TestContainers](https://testcontainers.com/) to spin up isolated infrastructure per test: PostgreSQL, EventStoreDB, the app container (`grodt/app:latest-dev`), and an OTel collector.
+
+**Prerequisite:** `task app:build-dev` must have been run at least once to build the app image.
+
+```bash
+task test:e2e                         # Run all E2E tests
+task test:e2e:trace-id                # Trace ID propagation tests (with OTel span assertions)
+task test:e2e:otel-candle-metrics     # OTel metric pipeline E2E test
+```
+
+**OTel E2E tests** (`integration_testing/`):
+- `TestTraceId_E2E_*` — Verify Twirp RPCs produce OTel spans that arrive at the collector
+- `TestLiveCandleMetricPipeline` — Verify the full metric pipeline: app → OTLP → collector
+- `TestTracePropagation_E2E_*` — Verify W3C traceparent header propagation through otelhttp middleware
+- `TestLivePlaygroundEquityTradeAndDashboard` — Full order lifecycle with OTel verification
+
+The OTel collector runs with a `debug` exporter and exposes Prometheus metrics on port 8888. Tests verify telemetry by querying `otelcol_exporter_sent_spans` and `otelcol_exporter_sent_metric_points` from the collector's `/metrics` endpoint — no file exporter needed (the collector image is scratch-based with no filesystem tools).
 
 ### Ports
 | Port | Service |
@@ -322,21 +342,43 @@ go tool pprof -seconds 30 -http localhost:8090 myserver http://localhost:8080/de
 
 ## Docker & Deployment
 
-### Build Images
+### Image Build Chain
+
+All images are built locally (no remote registry). Three layers, built in order:
+
+| Layer | Dockerfile | Image Tag | Contents |
+|-------|-----------|-----------|----------|
+| 1 | `Dockerfile.base` | `grodt-base-image:3.7.0` | Ubuntu 20.04, Python 3.10 (from source), TA-Lib C library, Conda, `grodt` conda env |
+| 2 | `Dockerfile.base2` | `grodt-base-image-2:3.9.0` | Go 1.22.4, `go mod download`, conda env update |
+| 3 | `Dockerfile` | `grodt/app:latest-dev` | App source code, `go build` |
+
 ```bash
-docker build -f Dockerfile.base -t grodt-base-image .
-docker build -f Dockerfile.base2 -t grodt-base-image-2 .
-docker build -f Dockerfile -t grodt .
+# First time only (or when dependencies change):
+docker build -t grodt-base-image:3.7.0 -f Dockerfile.base .       # ~10-15 min
+docker build -t grodt-base-image-2:3.9.0 -f Dockerfile.base2 .    # ~3-5 min
+
+# After code changes:
+task app:build-dev                                                  # ~2-3 min (cached layers)
 ```
+
+Base images are cached locally after the first build. Only rebuild them when:
+- `conda-env.yaml` changes (layer 1)
+- `go.mod`/`go.sum` change (layer 2)
+- System dependencies change (layer 1)
+
+### conda-env.yaml
+
+The conda env file must be **platform-agnostic** (no macOS build hashes like `=h46256e1_0`) since the Docker build targets linux-64. Pin only version numbers for pip packages; let conda resolve platform-specific builds.
+
+Key dependency: `pandas-ta-classic` (not the old `pandas-ta`) requires `numpy>=2.0`.
+
+### .dockerignore
+
+The `.dockerignore` uses a whitelist pattern (`**` ignores everything, then `!path` un-ignores). The `!src/` entry includes Python venvs under `src/`, which inflates the Docker context to ~2GB. Keep this in mind if builds are slow on context transfer.
 
 ### Deploy
 ```bash
 ./deploy-app.sh <patch|minor|major>
-```
-
-### Container Registry
-```bash
-docker login https://ewr.vultrcr.com/grodt -u $VULTR_REGISTRY_USER -p $VULTR_REGISTRY_PASS
 ```
 
 ### Production Stack (Digital Ocean)
@@ -356,10 +398,9 @@ Services: Go server, PostgreSQL 13, EventStoreDB 24.2.0, grafana/otel-lgtm
 - **EventStoreDB** — Event sourcing (signals, account state)
 - **Metabase** — Analytics dashboards (runs on Windows desktop, connects to DO Postgres)
 
-### Kubernetes (Vultr)
-- Flux CD for GitOps
-- Sealed Secrets for secret management
-- Manifests in `.clusters/production/`
+### Deployment (Digital Ocean)
+- Docker Compose on a single droplet
+- Manifests in `.clusters/production/` (legacy Kubernetes, no longer active)
 
 ### Environment Variables
 Key vars (loaded from `.env` via godotenv):

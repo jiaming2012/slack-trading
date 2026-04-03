@@ -29,6 +29,7 @@ type Server struct {
 	optionsClient    *eventservices.PolygonOptionsClient
 	esdbProducer     *eventproducers.EsdbProducer
 	globalSignalRepo models.ISignalRepository
+	simSignalRepo    models.ISignalRepository // set when a sim playground is active; WriteSignal fans out to it
 }
 
 func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
@@ -1510,7 +1511,9 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 				playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
 			}
 		default:
-			playground.SetSignalRepo(s.globalSignalRepo)
+			simRepo := models.NewInMemorySignalRepository()
+			playground.SetSignalRepo(simRepo)
+			s.simSignalRepo = simRepo
 		}
 	}
 
@@ -1576,8 +1579,22 @@ func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*
 
 	signal := eventmodels.NewTradeSignal(signalName, eventmodels.StockSymbol(req.Symbol), req.Timestamp.AsTime(), attrs)
 
+	// When a sim playground is active, write to its in-memory repo first
+	// (the primary store for sim). Global repo write is best-effort since
+	// ESDB may not be available in dev.
+	if s.simSignalRepo != nil {
+		if err := s.simSignalRepo.Write(signal); err != nil {
+			return nil, fmt.Errorf("WriteSignal: failed to write signal to sim repo: %w", err)
+		}
+	}
+
 	if err := s.globalSignalRepo.Write(signal); err != nil {
-		return nil, fmt.Errorf("WriteSignal: failed to write signal: %w", err)
+		if s.simSignalRepo != nil {
+			// Sim repo already has the signal — ESDB failure is non-fatal
+			log.Warnf("WriteSignal: global repo write failed (non-fatal in sim mode): %v", err)
+		} else {
+			return nil, fmt.Errorf("WriteSignal: failed to write signal: %w", err)
+		}
 	}
 
 	if telemetry.SignalsGenerated != nil {
@@ -1661,6 +1678,22 @@ func (s *Server) GetProcessedSignals(ctx context.Context, req *pb.GetProcessedSi
 	}
 
 	filtered := filterSignals(consumedSignals, name, symbol, startTime, endTime)
+
+	// Build signal_id → order_ids map from the playground's orders
+	signalOrderMap := make(map[string][]uint64)
+	for _, order := range pg.GetAllOrders() {
+		if order.SignalID != nil {
+			sid := order.SignalID.String()
+			signalOrderMap[sid] = append(signalOrderMap[sid], uint64(order.ID))
+		}
+	}
+
+	// Enrich signals with their linked order IDs
+	for _, sig := range filtered {
+		if orderIDs, ok := signalOrderMap[sig.Id]; ok {
+			sig.OrderIds = orderIDs
+		}
+	}
 
 	return &pb.GetProcessedSignalsResponse{
 		Signals: filtered,

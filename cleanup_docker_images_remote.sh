@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set your Vultr container registry URL
-REGISTRY="ewr.vultrcr.com/grodt/app"
+REGISTRY="grodt/app"
 
 # Get the list of tags from the registry
 TAGS=$(crane ls $REGISTRY)

@@ -38,11 +38,8 @@ git add ${TRADING_PROJECT_DIR}/src/eventservices/app_version.go
 git commit -m "Bump app version to $VERSION in app_version.go"
 
 # Build the Docker image with the version tag
-docker build -t ewr.vultrcr.com/grodt/app:$VERSION -f Dockerfile .
-
-# Push the Docker image to the registry
-docker push ewr.vultrcr.com/grodt/app:$VERSION
+docker build -t grodt/app:$VERSION -f Dockerfile .
 
 # Update the latest tags
-docker tag ewr.vultrcr.com/grodt/app:$VERSION ewr.vultrcr.com/grodt/app:latest
-docker tag ewr.vultrcr.com/grodt/app:$VERSION ewr.vultrcr.com/grodt/app:latest-dev
+docker tag grodt/app:$VERSION grodt/app:latest
+docker tag grodt/app:$VERSION grodt/app:latest-dev

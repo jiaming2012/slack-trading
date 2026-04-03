@@ -52,6 +52,7 @@ RUN wget https://www.python.org/ftp/python/3.10.15/Python-3.10.15.tgz && \
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
+    git \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

@@ -8,7 +8,7 @@ Event-driven trading platform: Go backend server + Python strategy clients, comm
 - **Import convention**: `github.com/jiaming2012/slack-trading/src/go/<package>`
 - **Proto**: `src/go/playground.proto` → Go stubs in `src/go/playground/`, Python stubs in `src/clients/python/rpc/`
 - **Server entrypoint**: `cmd/main.go` — starts REST (:8080), Twirp (:5051), event consumers
-- **Python env**: `grodt` conda env (`/Users/jamal/miniconda3/envs/grodt/bin/python`), numpy pinned to 1.26.4 (pandas_ta compat)
+- **Python env**: `grodt` conda env (`/Users/jamal/miniconda3/envs/grodt/bin/python`), uses `pandas-ta-classic` (requires numpy>=2.0)
 
 ## Layout
 
@@ -89,15 +89,15 @@ task gen:proto                        # Regenerate protobuf stubs
 - **Polygon.io 403**: Some symbol/date combos (e.g., MSFT 2024) return Forbidden. AAPL 2025 dates work.
 - **Port 8080 conflict**: REST server logs error but doesn't crash (Twirp on 5051 still works)
 - **`gh` alias**: User's shell aliases `gh` to `git checkout`. Use `/usr/local/bin/gh` or `command gh`.
-- **numpy version**: Must be 1.26.4 — pandas_ta requires <2.0, matplotlib requires >=1.23
+- **numpy version**: Must be >=2.0 — `pandas-ta-classic` requires numpy>=2.0
 - **`eventservices/integration_tests`**: Contains an intentionally-failing stub test (`require.Fail(t, "finish the test")`)
 - **Server startup**: Loads all persisted playgrounds from Postgres — emits "no candles found" warnings for live playgrounds (normal when market data hasn't caught up)
 
 ## Deploy
 
-- Kubernetes on Vultr (Flux CD GitOps)
-- Images: `ewr.vultrcr.com/grodt/`
-- Sealed secrets: `sealedsecret.yaml`
+- Docker Compose on Digital Ocean droplet
+- Images built locally: `grodt-base-image:3.7.0` → `grodt-base-image-2:3.9.0` → `grodt/app:latest-dev`
+- Legacy Kubernetes manifests in `.clusters/production/` (no longer active)
 
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
@@ -111,7 +111,7 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 ### Constraints
 
 - **Tech stack**: OpenTelemetry (already partially adopted) → Loki (logs) + Grafana (dashboards/alerts)
-- **Python compatibility**: numpy pinned to 1.26.4 (pandas_ta compat) — OTel Python packages must be compatible
+- **Python compatibility**: `pandas-ta-classic` requires numpy>=2.0 — OTel Python packages must be compatible
 - **Local dev first**: Docker Compose for local iteration, then Digital Ocean for production
 - **Infrastructure provisioning**: Digital Ocean MCP server for creating cloud resources
 <!-- GSD:project-end -->
