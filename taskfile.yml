@@ -447,17 +447,6 @@ tasks:
           task strategy:mean-reversion:replay stream=trade-signals
           task strategy:mean-reversion:replay stream=trade-signals-sim-<playground-id>
 
-  strategy:mean-reversion:save:
-    desc: "Run MeanReversion V2 and save results to Postgres"
-    cmds:
-      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --save-to-db --client-id {{.CLIENT_ID}}'
-    dir: "{{.ROOT_DIR}}/src/clients/python"
-    vars:
-      SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
-      START: '{{.start | default (.START | default "2025-01-01")}}'
-      END: '{{.end | default (.END | default "2025-04-30")}}'
-      CLIENT_ID: '{{.client_id | default (.CLIENT_ID | default (print "backtest-" .SYMBOL "-" .START))}}'
-
   strategy:covered-call:
     desc: "Run CoveredCall V2 strategy in simulation mode"
     cmds:
