@@ -27,6 +27,7 @@ Requires the Go trading server to be running.
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from typing import Dict, Tuple
@@ -161,6 +162,7 @@ def main():
     htf_period = htf_mult * get_timespan_unit(htf_unit)
 
     output_path = args.output or f"models/{symbol.lower()}_pdf.json"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # ------------------------------------------------------------------
     # Logger
