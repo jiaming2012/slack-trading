@@ -230,62 +230,63 @@ def main():
     )
     logger.info(f"Playground created — id: {playground.id}")
 
-    # ------------------------------------------------------------------
-    # 2. Fetch all candles from repos
-    # ------------------------------------------------------------------
-    ts_start = datetime.fromisoformat(start_date).replace(tzinfo=ZoneInfo("America/New_York"))
-    ts_end = datetime.fromisoformat(end_date).replace(tzinfo=ZoneInfo("America/New_York"))
+    try:
+        # ------------------------------------------------------------------
+        # 2. Fetch all candles from repos
+        # ------------------------------------------------------------------
+        ts_start = datetime.fromisoformat(start_date).replace(tzinfo=ZoneInfo("America/New_York"))
+        ts_end = datetime.fromisoformat(end_date).replace(tzinfo=ZoneInfo("America/New_York"))
 
-    logger.info(f"Fetching {ltf_label} candles ...")
-    ltf_bars_pb = playground.fetch_candles_v3(symbol, ltf_period, ts_start, ts_end)
-    logger.info(f"  Got {len(ltf_bars_pb)} {ltf_label} bars")
+        logger.info(f"Fetching {ltf_label} candles ...")
+        ltf_bars_pb = playground.fetch_candles_v3(symbol, ltf_period, ts_start, ts_end)
+        logger.info(f"  Got {len(ltf_bars_pb)} {ltf_label} bars")
 
-    logger.info(f"Fetching {htf_label} candles ...")
-    htf_bars_pb = playground.fetch_candles_v3(symbol, htf_period, ts_start, ts_end)
-    logger.info(f"  Got {len(htf_bars_pb)} {htf_label} bars")
+        logger.info(f"Fetching {htf_label} candles ...")
+        htf_bars_pb = playground.fetch_candles_v3(symbol, htf_period, ts_start, ts_end)
+        logger.info(f"  Got {len(htf_bars_pb)} {htf_label} bars")
 
-    # Convert protobuf bars to dicts
-    ltf_bars = [bar_to_dict(b) for b in ltf_bars_pb]
-    htf_bars = [bar_to_dict(b) for b in htf_bars_pb]
+        # Convert protobuf bars to dicts
+        ltf_bars = [bar_to_dict(b) for b in ltf_bars_pb]
+        htf_bars = [bar_to_dict(b) for b in htf_bars_pb]
 
-    # ------------------------------------------------------------------
-    # 3. Build PDF
-    # ------------------------------------------------------------------
-    logger.info("Building PDF ...")
-    builder = PDFBuilder(
-        symbol=symbol,
-        ltf_bars=ltf_bars,
-        daily_bars=htf_bars,
-        ltf_period_seconds=ltf_period,
-        horizons=horizons,
-        htf_timeframe=htf_timeframe,
-        return_model=args.return_model,
-    )
-    pdf = builder.build()
+        # ------------------------------------------------------------------
+        # 3. Build PDF
+        # ------------------------------------------------------------------
+        logger.info("Building PDF ...")
+        builder = PDFBuilder(
+            symbol=symbol,
+            ltf_bars=ltf_bars,
+            daily_bars=htf_bars,
+            ltf_period_seconds=ltf_period,
+            horizons=horizons,
+            htf_timeframe=htf_timeframe,
+            return_model=args.return_model,
+        )
+        pdf = builder.build()
 
-    # ------------------------------------------------------------------
-    # 4. Summary + save
-    # ------------------------------------------------------------------
-    sufficient = pdf.get_sufficient_signals()
-    logger.info(f"Total compound signals: {len(pdf.signals)}")
-    logger.info(f"Sufficient samples:     {len(sufficient)}")
+        # ------------------------------------------------------------------
+        # 4. Summary + save
+        # ------------------------------------------------------------------
+        sufficient = pdf.get_sufficient_signals()
+        logger.info(f"Total compound signals: {len(pdf.signals)}")
+        logger.info(f"Sufficient samples:     {len(sufficient)}")
 
-    for key, spdf in sorted(pdf.signals.items(), key=lambda x: x[1].sample_size, reverse=True)[:10]:
-        tag = " *" if spdf.sufficient_samples else ""
-        logger.info(f"  {key:50s}  n={spdf.sample_size:>5}{tag}")
+        for key, spdf in sorted(pdf.signals.items(), key=lambda x: x[1].sample_size, reverse=True)[:10]:
+            tag = " *" if spdf.sufficient_samples else ""
+            logger.info(f"  {key:50s}  n={spdf.sample_size:>5}{tag}")
 
-    if len(pdf.signals) > 10:
-        logger.info(f"  ... and {len(pdf.signals) - 10} more")
+        if len(pdf.signals) > 10:
+            logger.info(f"  ... and {len(pdf.signals) - 10} more")
 
-    pdf.save(output_path)
-    logger.info(f"PDF saved to {output_path}")
-
-    # ------------------------------------------------------------------
-    # 5. Cleanup — delete playground from server
-    # ------------------------------------------------------------------
-    logger.info("Deleting playground ...")
-    playground.remove_from_server()
-    logger.info("Playground deleted")
+        pdf.save(output_path)
+        logger.info(f"PDF saved to {output_path}")
+    finally:
+        # ------------------------------------------------------------------
+        # 5. Cleanup — always delete playground from server
+        # ------------------------------------------------------------------
+        logger.info("Deleting playground ...")
+        playground.remove_from_server()
+        logger.info("Playground deleted")
 
 
 if __name__ == "__main__":
