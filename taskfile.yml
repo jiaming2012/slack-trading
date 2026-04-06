@@ -403,7 +403,7 @@ tasks:
   strategy:mean-reversion:
     desc: "Run MeanReversion V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{if eq .SAVE_TO_DB "true"}}--save-to-db{{end}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
@@ -414,6 +414,7 @@ tasks:
       END: '{{.end | default (.END | default "2025-04-30")}}'
       BALANCE: '{{.balance | default (.BALANCE | default "100000")}}'
       PDF_PATH: '{{.pdf_path | default (.PDF_PATH | default "")}}'
+      SAVE_TO_DB: '{{.save_to_db | default (.SAVE_TO_DB | default "")}}'
       EXTRA: '{{.extra | default (.EXTRA | default "")}}'
 
   strategy:mean-reversion:live:
