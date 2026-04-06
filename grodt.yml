@@ -27,4 +27,5 @@ dependencies:
       - opentelemetry-api==1.40.0
       - opentelemetry-sdk==1.40.0
       - opentelemetry-exporter-otlp-proto-http==1.40.0
+      - psycopg2-binary
       # pandas-ta removed from PyPI — install separately from local tarball (see Dockerfile.base)
