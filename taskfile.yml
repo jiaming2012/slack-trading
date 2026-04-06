@@ -518,7 +518,7 @@ tasks:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
       START: '{{.start | default (.START | default "2025-01-01")}}'
       END: '{{.end | default (.END | default "2025-04-30")}}'
-      OUTPUT: '{{.output | default (.OUTPUT | default (print .SYMBOL "_" .STRATEGY "_" .START "_" .END "_pdf.json"))}}'
+      OUTPUT: '{{.output | default (.OUTPUT | default (print "models/" .SYMBOL "_" .STRATEGY "_" .START "_" .END "_pdf.json"))}}'
 
   # ─── Metabase ──────────────────────────────────────────────────────
 

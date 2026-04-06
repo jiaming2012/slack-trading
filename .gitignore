@@ -35,6 +35,7 @@ vke.yaml
 .clusters/production/postgres-secret.yaml
 miniconda3
 src/clients/python/*.json
+src/clients/python/models/
 .cache/
 
 # Track shared config, ignore user-specific data

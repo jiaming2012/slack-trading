@@ -160,7 +160,7 @@ def main():
     ltf_period = ltf_mult * get_timespan_unit(ltf_unit)
     htf_period = htf_mult * get_timespan_unit(htf_unit)
 
-    output_path = args.output or f"{symbol.lower()}_pdf.json"
+    output_path = args.output or f"models/{symbol.lower()}_pdf.json"
 
     # ------------------------------------------------------------------
     # Logger
@@ -277,6 +277,13 @@ def main():
 
     pdf.save(output_path)
     logger.info(f"PDF saved to {output_path}")
+
+    # ------------------------------------------------------------------
+    # 5. Cleanup — delete playground from server
+    # ------------------------------------------------------------------
+    logger.info("Deleting playground ...")
+    playground.remove_from_server()
+    logger.info("Playground deleted")
 
 
 if __name__ == "__main__":
