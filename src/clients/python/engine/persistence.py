@@ -69,6 +69,17 @@ def save_backtest_run(
 
     try:
         with conn.cursor() as cur:
+            # Verify analytics views exist before querying
+            cur.execute(
+                """SELECT 1 FROM information_schema.views
+                   WHERE table_schema = 'public' AND table_name = 'v_playground_stats'"""
+            )
+            if cur.fetchone() is None:
+                raise RuntimeError(
+                    "View 'v_playground_stats' does not exist. "
+                    "Run: task metabase:schema  (or apply infra/analytics-schema.sql manually)"
+                )
+
             # Query v_playground_stats for authoritative metrics
             cur.execute(
                 """SELECT total_trades, total_pnl, win_rate, profit_factor

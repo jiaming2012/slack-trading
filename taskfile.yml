@@ -300,6 +300,11 @@ tasks:
     cmds:
       - 'docker-compose -f {{.ROOT_DIR}}/infra/docker-compose.yaml up'
 
+  db:migrate:
+    desc: "Apply database migrations (extensions, sequences, analytics views)"
+    cmds:
+      - '{{.PYTHON}} {{.ROOT_DIR}}/infra/migrate.py'
+
   observability:start:
     desc: "Start observability stack (Grafana, Tempo, Loki, Prometheus, OTel Collector)"
     cmds:
