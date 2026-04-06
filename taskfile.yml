@@ -1,5 +1,10 @@
 version: '3'
 
+vars:
+  CONDA_BASE:
+    sh: conda info --base
+  PYTHON: '{{.CONDA_BASE}}/envs/grodt/bin/python'
+
 tasks:
   clean:vultr:
     cmds:
@@ -398,7 +403,7 @@ tasks:
   strategy:mean-reversion:
     desc: "Run MeanReversion V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
@@ -414,7 +419,7 @@ tasks:
   strategy:mean-reversion:live:
     desc: "Run MeanReversion V2 strategy in live mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --live --client-id {{.CLIENT_ID}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --live --client-id {{.CLIENT_ID}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
@@ -428,7 +433,7 @@ tasks:
   strategy:mean-reversion:replay:
     desc: "Run MeanReversion V2 with signal replay from ESDB (requires stream name)"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --replay-signals {{.STREAM}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --replay-signals {{.STREAM}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
@@ -445,7 +450,7 @@ tasks:
   strategy:mean-reversion:save:
     desc: "Run MeanReversion V2 and save results to Postgres"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --save-to-db --client-id {{.CLIENT_ID}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --save-to-db --client-id {{.CLIENT_ID}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
@@ -456,7 +461,7 @@ tasks:
   strategy:covered-call:
     desc: "Run CoveredCall V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_covered_call_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_covered_call_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
@@ -467,7 +472,7 @@ tasks:
   strategy:credit-spread:
     desc: "Run CreditSpread V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_credit_spread_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_credit_spread_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "SPY")}}'
@@ -478,7 +483,7 @@ tasks:
   strategy:wheel:
     desc: "Run Wheel V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
@@ -489,7 +494,7 @@ tasks:
   strategy:options-mean-reversion:
     desc: "Run OptionsMeanReversion V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_options_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_options_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
@@ -500,7 +505,7 @@ tasks:
   strategy:pdf-wheel:
     desc: "Run PDFWheel V2 strategy in simulation mode"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python demos/demo_pdf_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
+      - 'PYTHONPATH=. {{.PYTHON}} demos/demo_pdf_wheel_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "AAPL")}}'
@@ -511,7 +516,7 @@ tasks:
   build:pdf:
     desc: "Build PDF from Polygon data (e.g. task build:pdf symbol=AAPL start=2025-03-01 end=2025-03-31)"
     cmds:
-      - 'PYTHONPATH=. /Users/jamal/miniconda3/envs/grodt/bin/python tools/build_pdf_from_polygon.py --strategy {{.STRATEGY}} --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --output {{.OUTPUT}}'
+      - 'PYTHONPATH=. {{.PYTHON}} tools/build_pdf_from_polygon.py --strategy {{.STRATEGY}} --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --output {{.OUTPUT}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     vars:
       STRATEGY: '{{.strategy | default (.STRATEGY | default "mean_reversion")}}'
@@ -525,7 +530,7 @@ tasks:
   metabase:provision:
     desc: "Provision all Metabase dashboards (5 dashboards, 24 cards)"
     cmds:
-      - '/Users/jamal/miniconda3/envs/grodt/bin/python infra/provision-metabase.py --url {{.url}} --user {{.user}} --password {{.password}}'
+      - '{{.PYTHON}} infra/provision-metabase.py --url {{.url}} --user {{.user}} --password {{.password}}'
     dir: "{{.ROOT_DIR}}"
     vars:
       url: "http://192.168.8.164:3001"
