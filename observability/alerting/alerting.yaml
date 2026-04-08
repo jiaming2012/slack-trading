@@ -11,6 +11,7 @@ contactPoints:
         type: slack
         settings:
           url: ${SLACK_OPTION_ALERTS_WEBHOOK_URL}
+          recipient: "#option-alerts"
           title: |
             [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}
           text: |

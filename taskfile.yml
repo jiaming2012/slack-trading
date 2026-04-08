@@ -345,14 +345,69 @@ tasks:
       - 'echo "Run /gsd:execute-phase 7 --wave 2 to reprovision via MCP"'
 
   infra:deploy:
-    desc: "Deploy latest code to production droplet"
+    desc: "Deploy latest code to production droplet (override IP: task infra:deploy PROD_IP=x.x.x.x)"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
     cmds:
-      - 'ssh root@$(doctl compute droplet get grodt-prod --format PublicIPv4 --no-header 2>/dev/null || echo "DROPLET_IP") "cd /opt/slack-trading && git pull && docker compose -f docker-compose.prod.yaml up -d --build"'
+      - |
+        ssh root@{{.PROD_IP}} bash -s <<'DEPLOY_SCRIPT'
+        set -e
+        cd /opt/slack-trading
+
+        # Check for local changes that would block git pull
+        DIRTY_FILES=$(git diff --name-only 2>/dev/null)
+        if [ -n "$DIRTY_FILES" ]; then
+          echo ""
+          echo "=========================================="
+          echo "  LOCAL CHANGES DETECTED ON PROD SERVER"
+          echo "=========================================="
+          echo ""
+          echo "The following files have local modifications:"
+          echo "$DIRTY_FILES" | sed 's/^/  - /'
+          echo ""
+          echo "Options:"
+          echo "  1) Reset these files and continue deploy:"
+          echo "     ssh root@$(hostname -I | awk '{print $1}') 'cd /opt/slack-trading && git checkout -- <file>'"
+          echo "  2) Stash changes for later review:"
+          echo "     ssh root@$(hostname -I | awk '{print $1}') 'cd /opt/slack-trading && git stash'"
+          echo "  3) Force reset all local changes:"
+          echo "     task infra:deploy:force"
+          echo ""
+          echo "Aborting deploy."
+          exit 1
+        fi
+
+        git pull origin dev
+        docker compose -f docker-compose.prod.yaml up -d --build
+        DEPLOY_SCRIPT
+
+  infra:deploy:force:
+    desc: "Deploy to production, discarding any local changes on the droplet"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
+    cmds:
+      - |
+        ssh root@{{.PROD_IP}} bash -s <<'DEPLOY_SCRIPT'
+        set -e
+        cd /opt/slack-trading
+
+        DIRTY_FILES=$(git diff --name-only 2>/dev/null)
+        if [ -n "$DIRTY_FILES" ]; then
+          echo "Resetting local changes:"
+          echo "$DIRTY_FILES" | sed 's/^/  - /'
+          git checkout -- .
+        fi
+
+        git pull origin dev
+        docker compose -f docker-compose.prod.yaml up -d --build
+        DEPLOY_SCRIPT
 
   infra:logs:
     desc: "Stream production logs from all services"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
     cmds:
-      - 'ssh root@$(doctl compute droplet get grodt-prod --format PublicIPv4 --no-header 2>/dev/null || echo "DROPLET_IP") "cd /opt/slack-trading && docker compose -f docker-compose.prod.yaml logs -f"'
+      - 'ssh root@{{.PROD_IP}} "cd /opt/slack-trading && docker compose -f docker-compose.prod.yaml logs -f"'
 
   gen:proto:
     cmds:
