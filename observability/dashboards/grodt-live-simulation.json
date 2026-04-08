@@ -378,8 +378,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_orders_placed_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}",
-          "legendFormat": "Placed",
+          "expr": "sum by (symbol, client_id) (grodt_orders_placed_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"})",
+          "legendFormat": "Placed — {{symbol}} / {{client_id}}",
           "refId": "A"
         },
         {
@@ -387,8 +387,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_orders_filled_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}",
-          "legendFormat": "Filled",
+          "expr": "sum by (symbol, client_id) (grodt_orders_filled_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"})",
+          "legendFormat": "Filled — {{symbol}} / {{client_id}}",
           "refId": "B"
         }
       ],
@@ -453,8 +453,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "increase(grodt_orders_rejected_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}[1h])",
-          "legendFormat": "",
+          "expr": "sum by (symbol, client_id) (increase(grodt_orders_rejected_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}[1h]))",
+          "legendFormat": "{{symbol}} / {{client_id}}",
           "refId": "A"
         }
       ],
