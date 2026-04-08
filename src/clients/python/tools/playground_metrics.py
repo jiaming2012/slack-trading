@@ -1,14 +1,19 @@
 import argparse
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from rpc.playground_twirp import PlaygroundServiceClient
 from rpc.playground_pb2 import GetAccountRequest, GetAccountResponse, GetPlaygroundsRequest, Order, Trade, AccountMeta, Bar, Position
 from twirp.context import Context
 from pprint import pprint
+from statistics import median
 from typing import List, Dict, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 from dateutil.parser import parse, ParserError
 from pytz import timezone, UTC
 import re
+import json
 
 @dataclass
 class TradePosition:
@@ -16,6 +21,15 @@ class TradePosition:
     quantity: float
     current_price: float
     pl: float
+
+    def to_dict(self):
+        return {'vwap': self.vwap, 'quantity': self.quantity, 'current_price': self.current_price, 'pl': self.pl}
+
+class MetricsEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, TradePosition):
+            return obj.to_dict()
+        return super().default(obj)
     
 def fetch_playground_ids(client: PlaygroundServiceClient, tags: List[str]) -> List[str]:
     req = GetPlaygroundsRequest(tags=tags)
@@ -75,10 +89,13 @@ def _calc_trade_duration_list_in_seconds(orders) -> List[int]:
     return trade_durations
 
 def _calc_realized_order_profit(order) -> Tuple[float, float, float]:
+    if order.side not in ('buy', 'buy_to_open', 'sell_short', 'sell_to_open'):
+        return None, 0, 0
+
     pl = 0
     open_price = 0
     close_prices = []
-    
+
     if order.side in ['buy', 'buy_to_open']:
         open_position = _calc_trade_position(order.trades)
         open_price = open_position.vwap
@@ -86,68 +103,10 @@ def _calc_realized_order_profit(order) -> Tuple[float, float, float]:
             if getattr(order, 'class') == 'option':
                 for trade in order.closed_by:
                     pl += (trade.price - open_price) * abs(trade.quantity) * 100.0
-                    close_prices.append(trade.price)
             else:
                 for trade in order.closed_by:
                     pl += (trade.price - open_price) * abs(trade.quantity)
-                    close_prices.append(trade.price)
-                
-    # elif order.side in ['buy_to_cover', 'buy_to_close']:
-    #     if len(order.closes) == 0:
-    #         raise ValueError('buy_to_cover order has no closes')
-        
-    #     total_quantity = 0
-    #     for o in order.closes:
-    #         total_quantity += sum([trade.quantity for trade in o.trades])
-        
-    #     open_position = TradePosition(vwap=0, quantity=0, current_price=0, pl=0)
-    #     if total_quantity < 0:
-    #         for trade in order.closes:
-    #             p = _calc_trade_position(trade.trades)
-    #             open_position.vwap += (p.vwap * p.quantity) / total_quantity
-    #             open_position.quantity += p.quantity
-                
-    #     open_price = open_position.vwap
-    #     if open_price <= 0:
-    #         raise ValueError('buy_to_cover order has no open price')
-        
-    #     if getattr(order, 'class') == 'option':
-    #         for trade in order.trades:
-    #             pl += (open_price - trade.price) * trade.quantity * 100.0
-    #             close_prices.append(trade.price)
-    #     else:
-    #         for trade in order.trades:
-    #             pl += (open_price - trade.price) * abs(trade.quantity)
-    #             close_prices.append(trade.price)
-                
-    # elif order.side in ['sell', 'sell_to_close']:
-    #     if len(order.closes) == 0:
-    #         raise ValueError('sell order has no closes')
-        
-    #     total_quantity = 0
-    #     for o in order.closes:
-    #         total_quantity += sum([trade.quantity for trade in o.trades])
-        
-    #     open_position = TradePosition(vwap=0, quantity=0, current_price=0, pl=0)
-    #     if total_quantity > 0:
-    #         for o in order.closes:
-    #             p = _calc_trade_position(o.trades)
-    #             open_position.vwap += (p.vwap * p.quantity) / total_quantity
-    #             open_position.quantity += p.quantity
-                
-    #     open_price = open_position.vwap
-    #     if open_price <= 0:
-    #         raise ValueError('sell order has no open price')
-        
-    #     if getattr(order, 'class') == 'option':
-    #         for trade in order.trades:
-    #             pl += (trade.price - open_price) * abs(trade.quantity) * 100.0
-    #             close_prices.append(trade.price)
-    #     else:
-    #         for trade in order.trades:
-    #             pl += (trade.price - open_price) * abs(trade.quantity)
-    #             close_prices.append(trade.price)
-                
+
     elif order.side in ['sell_short', 'sell_to_open']:
         open_position = _calc_trade_position(order.trades)
         open_price = open_position.vwap
@@ -155,13 +114,13 @@ def _calc_realized_order_profit(order) -> Tuple[float, float, float]:
             if getattr(order, 'class') == 'option':
                 for trade in order.closed_by:
                     pl += (open_price - trade.price) * trade.quantity * 100.0
-                    close_prices.append(trade.price)
             else:
                 for trade in order.closed_by:
                     pl += (open_price - trade.price) * trade.quantity
-                    close_prices.append(trade.price)
-                
-    close_price = sum(close_prices) / len(close_prices) if len(close_prices) > 0 else 0
+
+    # VWAP close price (quantity-weighted average)
+    total_close_qty = sum(abs(t.quantity) for t in order.closed_by)
+    close_price = sum(t.price * abs(t.quantity) for t in order.closed_by) / total_close_qty if total_close_qty > 0 else 0
     return pl, open_price, close_price
                     
 def _calc_realized_profits_list_2(orders: List[Order]) -> List[float]:
@@ -245,6 +204,9 @@ def calc_total_orders(orders) -> int:
     return len(orders)
 
 def calc_close_order_slippage(order) -> float:
+    if order.requested_price == 0:
+        return 0.0, 0.0
+
     if order.side in ['sell', 'sell_to_close']:
         slippage_in_points = order.requested_price - order.trades[0].price
     elif order.side in ['buy_to_cover', 'buy_to_close']:
@@ -383,37 +345,87 @@ def fetch_account(client: PlaygroundServiceClient, playground_id: str, orders_fr
     
     return acc
 
-def print_trades(orders: List[Order]):
+def build_trades(orders: List[Order]) -> List[dict]:
     closed_orders = {}
     for order in orders:
         if order.side in ['sell', 'sell_to_close', 'buy_to_cover', 'buy_to_close']:
             for open_order in order.closes:
                 if closed_orders.get(open_order.id) is None:
                     closed_orders[open_order.id] = []
-                
+
                 closed_orders[open_order.id].append(order)
-    
+
+    trades = []
     for order in orders:
         if order.side in ['sell', 'sell_to_close', 'buy_to_cover', 'buy_to_close']:
             continue
-        
+
         if order.status != 'filled':
             continue
-        
-        ts = _parse_timestamp(order.create_date).strftime('%Y-%m-%d %H:%M:%S')
+
+        open_timestamp = _parse_timestamp(order.create_date)
+        ts = open_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         open_slippage, _ = calc_open_order_slippage(order)
         pl, open_price, close_price = _calc_realized_order_profit(order)
-        
-        # use closed_orders to get close_slippage 
+
+        # calculate weighted duration
+        close_timestamps = []
+        total_quantity = 0
+        for trade in order.closed_by:
+            close_timestamps.append((_parse_timestamp(trade.create_date), trade.quantity))
+            total_quantity += trade.quantity
+
+        duration_minutes = None
+        if total_quantity != 0:
+            weighted_seconds = sum(
+                (ct - open_timestamp).total_seconds() * (qty / total_quantity)
+                for ct, qty in close_timestamps
+            )
+            duration_minutes = weighted_seconds / 60.0
+
+        # use closed_orders to get close_slippage
         close_ids = []
         requested_close = 0.0
         if closed_orders.get(order.id) is not None:
             for closed_order in closed_orders[order.id]:
                 close_ids.append(closed_order.external_id)
             requested_close = closed_orders[order.id][0].requested_price
-        
-        s = f'ts={ts} open_id={order.external_id} close_id(s)={close_ids} qty={order.quantity:.4f} open_slippage={open_slippage:.4f} side={order.side} symbol={order.symbol} requested_open={order.requested_price:.4f} open_price={open_price:.4f} requested_close={requested_close:.4f} close_price={close_price:.4f} pl={pl:.4f}'
-        
+
+        closed_qty = sum(abs(t.quantity) for t in order.closed_by)
+        partially_closed = abs(closed_qty - order.quantity) > 0.001
+
+        trades.append({
+            'ts': ts,
+            'open_id': order.external_id,
+            'close_ids': close_ids,
+            'qty': order.quantity,
+            'closed_qty': closed_qty if partially_closed else order.quantity,
+            'partially_closed': partially_closed,
+            'duration_minutes': duration_minutes,
+            'open_slippage': open_slippage,
+            'side': order.side,
+            'symbol': order.symbol,
+            'requested_open': order.requested_price,
+            'open_price': open_price,
+            'requested_close': requested_close,
+            'close_price': close_price,
+            'pl': pl,
+        })
+
+    return trades
+
+def print_trades(trades: List[dict]):
+    for t in trades:
+        qty_str = f'{t["closed_qty"]:.4f}/{t["qty"]:.4f}' if t['partially_closed'] else f'{t["qty"]:.4f}'
+
+        if t['duration_minutes'] is None:
+            duration_str = 'n/a'
+        elif t['duration_minutes'] >= 60:
+            duration_str = f'{t["duration_minutes"] / 60.0:.1f}h'
+        else:
+            duration_str = f'{t["duration_minutes"]:.1f}m'
+
+        s = f'ts={t["ts"]} open_id={t["open_id"]} close_id(s)={t["close_ids"]} qty={qty_str} duration={duration_str} open_slippage={t["open_slippage"]:.4f} side={t["side"]} symbol={t["symbol"]} requested_open={t["requested_open"]:.4f} open_price={t["open_price"]:.4f} requested_close={t["requested_close"]:.4f} close_price={t["close_price"]:.4f} pl={t["pl"]:.4f}'
         print(s)
         
 def filter_orders_before(orders: List[Order], from_date: datetime) -> List[Order]:
@@ -455,24 +467,45 @@ def calc_expected_value(orders: List[Order]) -> float:
     return ev    
         
 
-def collect_data(orders: List[Order], position: Position, from_date: datetime) -> dict:
+def _server_positions_to_dict(server_positions) -> Dict[str, TradePosition]:
+    """Convert server-provided positions to TradePosition dict."""
+    positions = {}
+    for symbol, pos in server_positions.items():
+        positions[symbol] = TradePosition(
+            vwap=pos.cost_basis,
+            quantity=pos.quantity,
+            current_price=pos.current_price,
+            pl=pos.pl,
+        )
+    return positions
+
+def collect_data(orders: List[Order], position, from_date: datetime) -> dict:
     if from_date:
         orders = filter_orders_before(orders, from_date)
     
     stock_orders = [order for order in orders if getattr(order, 'class') == 'equity']
     option_orders = [order for order in orders if getattr(order, 'class') == 'option']
-    
+
+    # Split server positions by asset class based on which symbols appear in each order set
+    stock_symbols = {o.symbol for o in stock_orders}
+    option_symbols = {o.symbol for o in option_orders}
+    stock_positions = {s: p for s, p in (position or {}).items() if s in stock_symbols}
+    option_positions = {s: p for s, p in (position or {}).items() if s not in stock_symbols}
+
     gross_data = {}
     profit_list_dict = {}
     trade_duration_list_in_seconds_dict = {}
-    for orders_class, orders in zip(['stock_orders', 'option_orders'], [stock_orders, option_orders]):
+    for orders_class, orders, class_positions in zip(
+        ['stock_orders', 'option_orders'],
+        [stock_orders, option_orders],
+        [stock_positions, option_positions],
+    ):
         profit_list = _calc_realized_profit_list(orders)
         profit_list_dict[orders_class] = profit_list
         trade_duration_list_in_seconds = _calc_trade_duration_list_in_seconds(orders)
         trade_duration_list_in_seconds_dict[orders_class] = trade_duration_list_in_seconds
         
         gross_data[orders_class] = {}
-        gross_data[orders_class]['unrealized_pl_at_open'] = calc_positions(orders)
         gross_data[orders_class]['total_orders'] = calc_total_orders(orders)
         gross_data[orders_class]['total_trades'] = calc_total_trades(orders)
         gross_data[orders_class]['gross_profit'] = calc_gross_profit(profit_list)
@@ -482,9 +515,13 @@ def collect_data(orders: List[Order], position: Position, from_date: datetime) -
         gross_data[orders_class]['breakeven_count'] = calc_breakeven_count(profit_list)
         gross_data[orders_class]['avg_profit'] = calc_avg_profit(profit_list)
         gross_data[orders_class]['avg_loss'] = calc_avg_loss(profit_list)
-        gross_data[orders_class]['min_trade_duration_in_minutes'] = min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
-        gross_data[orders_class]['max_trade_duration_in_minutes'] = max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a'
-        gross_data[orders_class]['positions'] = calc_positions(orders)
+        gross_data[orders_class]['trade_duration_in_minutes'] = {
+            'min': min(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a',
+            'max': max(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a',
+            'avg': sum(trade_duration_list_in_seconds) / len(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a',
+            'median': median(trade_duration_list_in_seconds) / 60.0 if len(trade_duration_list_in_seconds) > 0 else 'n/a',
+        }
+        gross_data[orders_class]['positions'] = _server_positions_to_dict(class_positions) if class_positions else calc_positions(orders)
         gross_data[orders_class]['open_slippage'] = calc_open_slippage(orders)
         gross_data[orders_class]['close_slippage'] = calc_close_slippage(orders)
 
@@ -503,6 +540,14 @@ def collect_data(orders: List[Order], position: Position, from_date: datetime) -
     agg_data['option_total_slippage'] = calc_total_slippage(gross_data['option_orders']['open_slippage'], gross_data['option_orders']['close_slippage'])
     agg_data['option_expected_value'] = calc_expected_value(option_orders)
 
+    stock_unrealized_pl = sum(pos.pl for pos in gross_data['stock_orders']['positions'].values())
+    option_unrealized_pl = sum(pos.pl for pos in gross_data['option_orders']['positions'].values())
+    agg_data['stock_unrealized_pl'] = stock_unrealized_pl
+    agg_data['option_unrealized_pl'] = option_unrealized_pl
+    agg_data['total_unrealized_pl'] = stock_unrealized_pl + option_unrealized_pl
+    agg_data['total_stock_pl'] = agg_data['stock_realized_pl'] + stock_unrealized_pl
+    agg_data['total_option_pl'] = agg_data['option_realized_pl'] + option_unrealized_pl
+
     return {'gross_data': gross_data, 'agg_data': agg_data}
 
 if __name__ == '__main__':
@@ -512,10 +557,15 @@ if __name__ == '__main__':
     args.add_argument('--twirp-host', type=str, default='http://localhost:5051', help="twirp rpc host")
     args.add_argument('--from-date', type=str, default=None, help="start date")
     args.add_argument('--to-date', type=str, default=None, help="end date")
+    args.add_argument('--format', type=str, choices=['text', 'json'], default='text', help="output format")
 
     args = args.parse_args()
 
-    client = PlaygroundServiceClient(args.twirp_host, timeout=60)
+    twirp_host = args.twirp_host
+    if not twirp_host.startswith('http://') and not twirp_host.startswith('https://'):
+        twirp_host = f'http://{twirp_host}'
+
+    client = PlaygroundServiceClient(twirp_host, timeout=60)
 
     all_accounts = []
     all_data = []
@@ -536,24 +586,29 @@ if __name__ == '__main__':
         all_orders_extended.extend(orders)
         
         for account, orders, data in zip(all_accounts, all_orders, all_data):
-            print('Playground ID:', account.meta.playground_id)
-            print('Client ID:', account.meta.client_id)
-            print('*' * 20)
-            
-            print('trades:')
-            print_trades(orders)
-            print('*' * 20)
-            
-            print('agg data:')
-            pprint(data['agg_data'])
-            print('*' * 20)
+            trades = build_trades(orders)
+            combined = {**data['agg_data'], **data['gross_data']}
 
-            print('gross data:')
-            pprint(data['gross_data'])
-            print('-' * 50)
-            
+            if args.format == 'json':
+                output = {
+                    'playground_id': account.meta.playground_id,
+                    'client_id': account.meta.client_id,
+                    'trades': trades,
+                    'metrics': combined,
+                }
+                print(json.dumps(output, indent=2, cls=MetricsEncoder))
+            else:
+                print(f'Playground: {account.meta.playground_id}')
+                if account.meta.client_id:
+                    print(f'Client:     {account.meta.client_id}')
+                print()
+                print_trades(trades)
+                print()
+                pprint(combined)
+                print()
+
     else:
-        if len(args.tags) == 0:
+        if not args.tags:
             print('playground_id or tags is required')
             exit(1)
             
@@ -570,33 +625,44 @@ if __name__ == '__main__':
             all_orders.append(orders)
             all_orders_extended.extend(orders)
             
-        if len(all_data) > 1:
-            aggregate_data = collect_data(all_orders_extended, positions, args.from_date)
-            
-            print('agg data (all playgrounds):')
-            pprint(aggregate_data['agg_data'])
-            
-            print('gross data (all playgrounds):')
-            pprint(aggregate_data['gross_data'])
-            
-            print('-' * 50)
-            
-        for account, orders, data in zip(all_accounts, all_orders, all_data):
-            print('Playground ID:', account.meta.playground_id)
-            print('Client ID:', account.meta.client_id)
-            print('*' * 20)
-            
-            print('trades:')
-            print_trades(orders)
-            print('*' * 20)
-            
-            print('agg data:')
-            pprint(data['agg_data'])
-            print('*' * 20)
+        if args.format == 'json':
+            results = []
+            for account, orders, data in zip(all_accounts, all_orders, all_data):
+                trades = build_trades(orders)
+                combined = {**data['agg_data'], **data['gross_data']}
+                results.append({
+                    'playground_id': account.meta.playground_id,
+                    'client_id': account.meta.client_id,
+                    'trades': trades,
+                    'metrics': combined,
+                })
 
-            print('gross data:')
-            pprint(data['gross_data'])
-            print('-' * 50)
+            output = {'playgrounds': results}
+            if len(all_data) > 1:
+                aggregate_data = collect_data(all_orders_extended, positions, args.from_date)
+                output['aggregate'] = {**aggregate_data['agg_data'], **aggregate_data['gross_data']}
+
+            print(json.dumps(output, indent=2, cls=MetricsEncoder))
+        else:
+            if len(all_data) > 1:
+                aggregate_data = collect_data(all_orders_extended, positions, args.from_date)
+
+                print('=== All Playgrounds ===')
+                combined = {**aggregate_data['agg_data'], **aggregate_data['gross_data']}
+                pprint(combined)
+                print()
+
+            for account, orders, data in zip(all_accounts, all_orders, all_data):
+                trades = build_trades(orders)
+                print(f'Playground: {account.meta.playground_id}')
+                if account.meta.client_id:
+                    print(f'Client:     {account.meta.client_id}')
+                print()
+                print_trades(trades)
+                print()
+                combined = {**data['agg_data'], **data['gross_data']}
+                pprint(combined)
+                print()
             
         
 
