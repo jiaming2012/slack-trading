@@ -330,6 +330,45 @@ const multiplePositionsJSONResponse = `
 }
 `
 
+const quoteWithUnmatchedSymbolsResponse = `
+{
+    "quotes": {
+        "quote": {
+            "symbol": "AAPL",
+            "description": "Apple Inc",
+            "exch": "Q",
+            "type": "stock",
+            "last": 258.43,
+            "change": 4.93,
+            "volume": 19520692,
+            "open": 256.45,
+            "high": 257.7497,
+            "low": 256.53,
+            "close": null,
+            "bid": 256.41,
+            "ask": 256.43,
+            "change_percentage": 1.95,
+            "average_volume": 46654353,
+            "last_volume": 100,
+            "trade_date": 1775667619591,
+            "prevclose": 253.5,
+            "week_52_high": 288.62,
+            "week_52_low": 171.89,
+            "bidsize": 100,
+            "bidexch": "P",
+            "bid_date": 1775667615000,
+            "asksize": 100,
+            "askexch": "Q",
+            "ask_date": 1775667615000,
+            "root_symbols": "AAPL"
+        },
+        "unmatched_symbols": {
+            "symbol": "O:AAPL260327C00255000"
+        }
+    }
+}
+`
+
 func TestParseTradierResponse(t *testing.T) {
 	t.Run("no positions", func(t *testing.T) {
 		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(noPostionsJSONResponse))
@@ -351,6 +390,20 @@ func TestParseTradierResponse(t *testing.T) {
 		require.Equal(t, 995716, dto[0].ID)
 		require.Equal(t, 1.00000000, dto[0].Quantity)
 		require.Equal(t, "COIN240816C00197500", dto[0].Symbol)
+	})
+
+	t.Run("quote with unmatched symbols", func(t *testing.T) {
+		type QuoteDTO struct {
+			Symbol string  `json:"symbol"`
+			Last   float64 `json:"last"`
+		}
+
+		dto, err := ParseTradierResponse[QuoteDTO]([]byte(quoteWithUnmatchedSymbolsResponse))
+
+		require.NoError(t, err)
+		require.Len(t, dto, 1)
+		require.Equal(t, "AAPL", dto[0].Symbol)
+		require.Equal(t, 258.43, dto[0].Last)
 	})
 
 	t.Run("multiple positions", func(t *testing.T) {

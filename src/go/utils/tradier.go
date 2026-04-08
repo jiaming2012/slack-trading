@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 )
 
@@ -86,6 +88,13 @@ func ParseTradierResponse[T any](response []byte) ([]T, error) {
 		data := make(map[string]json.RawMessage)
 		if err := json.Unmarshal(v, &data); err != nil {
 			return nil, fmt.Errorf("ParseTradierResponse(): failed to unmarshal data in response: %w", err)
+		}
+
+		// Tradier may include unmatched_symbols alongside valid data (e.g., expired options).
+		// Log and remove it so the single-key parsing logic below works correctly.
+		if unmatchedRaw, ok := data["unmatched_symbols"]; ok {
+			log.Debugf("ParseTradierResponse: unmatched symbols in response: %s", string(unmatchedRaw))
+			delete(data, "unmatched_symbols")
 		}
 
 		if len(data) == 1 {
