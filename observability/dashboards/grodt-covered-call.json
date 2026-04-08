@@ -318,7 +318,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_orders_placed_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", playground_id=~\"$playground_id\"}",
+          "expr": "grodt_orders_placed_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}",
           "legendFormat": "Placed",
           "refId": "A"
         },
@@ -327,7 +327,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "grodt_orders_filled_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", playground_id=~\"$playground_id\"}",
+          "expr": "grodt_orders_filled_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}",
           "legendFormat": "Filled",
           "refId": "B"
         }
@@ -393,7 +393,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "increase(grodt_orders_rejected_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", playground_id=~\"$playground_id\"}[1h])",
+          "expr": "increase(grodt_orders_rejected_total{environment=~\"live|reconcile\", client_id=~\"$client_id\", client_id=~\"$playground_id\"}[1h])",
           "legendFormat": "",
           "refId": "A"
         }
@@ -435,7 +435,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service_name=\"grodt\"} | logfmt | event=~\"order_placed|order_filled|order_rejected\" | client_id=~\"$client_id\" | playground_id=~\"$playground_id\" | line_format \"{{.event}} {{.symbol}} {{.side}} qty={{.quantity}} price={{.fill_price}} | trace={{.traceID}}\"",
+          "expr": "{service_name=\"grodt\"} | logfmt | event=~\"order_placed|order_filled|order_rejected\" | client_id=~\"$client_id\" | client_id=~\"$playground_id\" | line_format \"{{.event}} {{.symbol}} {{.side}} qty={{.quantity}} price={{.fill_price}} | trace={{.traceID}}\"",
           "maxLines": 30,
           "refId": "A"
         }
@@ -551,14 +551,14 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(grodt_orders_placed_total, playground_id)",
+        "definition": "label_values(grodt_orders_placed_total{client_id!=\"\"}, client_id)",
         "includeAll": true,
         "label": "Playground",
         "multi": false,
         "name": "playground_id",
         "query": {
           "qryType": 1,
-          "query": "label_values(grodt_orders_placed_total, playground_id)"
+          "query": "label_values(grodt_orders_placed_total{client_id!=\"\"}, client_id)"
         },
         "refresh": 2,
         "sort": 1,
