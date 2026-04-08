@@ -15,6 +15,9 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
+# Install pandas_ta_classic (not in base image yet)
+RUN /opt/conda/envs/grodt/bin/pip install pandas_ta_classic==0.4.47 --no-deps
+
 # Build the Go app
 RUN go build -o main ./cmd/main.go
 
