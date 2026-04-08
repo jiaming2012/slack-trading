@@ -4,8 +4,8 @@ Mirrors Go utils.SetupOTelSDK. Creates TracerProvider and MeterProvider
 with OTLP HTTP exporters. Configuration via OTEL_* environment variables.
 """
 import os
-import logging
 
+from loguru import logger
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -16,7 +16,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.semconv.resource import ResourceAttributes
 
-logger = logging.getLogger(__name__)
+
 
 _initialized = False
 _shutdown_fn = None
@@ -67,5 +67,5 @@ def setup_otel(service_name: str = None, service_version: str = "1.0.0"):
     _initialized = True
     _shutdown_fn = shutdown
 
-    logger.info("OTel SDK initialized: service_name=%s", service_name)
+    logger.info(f"OTel SDK initialized: service_name={service_name}")
     return shutdown
