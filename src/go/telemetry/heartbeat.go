@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -66,7 +67,11 @@ func emitHeartbeatMetrics(ctx context.Context, stats HeartbeatStats, startTime t
 	}
 
 	if UptimeSeconds != nil {
-		UptimeSeconds.Record(ctx, uptime)
+		hostname, _ := os.Hostname()
+		UptimeSeconds.Record(ctx, uptime,
+			metric.WithAttributes(
+				attribute.String("host", hostname),
+			))
 	}
 }
 
