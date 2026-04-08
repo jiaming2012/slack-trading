@@ -85,7 +85,7 @@
             "uid": "prometheus"
           },
           "expr": "grodt_heartbeat_uptime_seconds",
-          "legendFormat": "",
+          "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ],
@@ -302,6 +302,7 @@
         "x": 16,
         "y": 1
       },
+      "description": "Only shows playgrounds that have processed candles. See the Heartbeat panel for all live strategies.",
       "id": 4,
       "options": {
         "showHeader": true
@@ -545,8 +546,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (symbol) (grodt_candles_processed_total{symbol=~\"$symbol\", client_id=~\"$client_id\"})",
-          "legendFormat": "{{symbol}}",
+          "expr": "sum by (symbol, playground_id) (grodt_candles_processed_total{symbol=~\"$symbol\", client_id=~\"$client_id\", playground_id=~\"$playground_id\"})",
+          "legendFormat": "{{symbol}} / {{playground_id}}",
           "refId": "A"
         }
       ],
@@ -824,14 +825,14 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(grodt_orders_placed_total, client_id)",
+        "definition": "label_values(grodt_strategy_heartbeat, client_id)",
         "includeAll": true,
         "label": "Client",
         "multi": false,
         "name": "client_id",
         "query": {
           "qryType": 1,
-          "query": "label_values(grodt_orders_placed_total, client_id)"
+          "query": "label_values(grodt_strategy_heartbeat, client_id)"
         },
         "refresh": 2,
         "sort": 1,
@@ -848,14 +849,14 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(grodt_orders_placed_total, playground_id)",
+        "definition": "label_values(grodt_strategy_heartbeat, playground_id)",
         "includeAll": true,
         "label": "Playground",
         "multi": false,
         "name": "playground_id",
         "query": {
           "qryType": 1,
-          "query": "label_values(grodt_orders_placed_total, playground_id)"
+          "query": "label_values(grodt_strategy_heartbeat, playground_id)"
         },
         "refresh": 2,
         "sort": 1,
