@@ -502,7 +502,7 @@ tasks:
 
         echo ""
         echo "=== OTel Collector ==="
-        if curl -s -o /dev/null -w '%{http_code}' http://localhost:4318/ | grep -q '405\|200'; then
+        if curl -s -o /dev/null -w '%{http_code}' http://localhost:4318/ | grep -q '200\|404\|405'; then
           echo "  OK  OTLP HTTP (port 4318) accepting connections"
         else
           echo "  DOWN  OTLP HTTP (port 4318) not responding"
