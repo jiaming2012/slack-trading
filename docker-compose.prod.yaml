@@ -28,6 +28,8 @@ services:
 
   postgres:
     image: postgres:13
+    env_file:
+      - .env.prod
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -43,6 +45,8 @@ services:
   # --- Observability ---
   otel-lgtm:
     image: grafana/otel-lgtm
+    env_file:
+      - .env.prod
     ports:
       - "3000:3000"    # Grafana UI
       - "4317:4317"    # OTLP gRPC receiver
