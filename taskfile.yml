@@ -410,6 +410,131 @@ tasks:
         docker compose -f docker-compose.prod.yaml up -d --build
         DEPLOY_SCRIPT
 
+  infra:verify:
+    desc: "Verify production deployment matches local dashboards and services are healthy"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
+      GF_PASS:
+        sh: 'ssh root@{{.PROD_IP}} "grep GF_ADMIN_PASSWORD /opt/slack-trading/.env.prod 2>/dev/null | cut -d= -f2" 2>/dev/null || echo "admin"'
+    cmds:
+      - |
+        ssh root@{{.PROD_IP}} bash -s <<'VERIFY_SCRIPT'
+        set -e
+        cd /opt/slack-trading
+
+        GF_PASS=$(grep GF_ADMIN_PASSWORD .env.prod 2>/dev/null | cut -d= -f2)
+        GF_PASS=${GF_PASS:-admin}
+
+        echo "=== Service Health ==="
+        docker compose -f docker-compose.prod.yaml ps --format '{{`{{.Name}}`}} {{`{{.Status}}`}}'
+
+        echo ""
+        echo "=== Git Status ==="
+        echo "Branch: $(git rev-parse --abbrev-ref HEAD)"
+        echo "Commit: $(git rev-parse --short HEAD) — $(git log -1 --format='%s')"
+        DIRTY=$(git diff --name-only 2>/dev/null)
+        if [ -n "$DIRTY" ]; then
+          echo "WARNING: Local changes detected:"
+          echo "$DIRTY" | sed 's/^/  - /'
+        else
+          echo "Clean (no local changes)"
+        fi
+
+        echo ""
+        echo "=== Dashboard Verification ==="
+        DASHBOARDS="grodt-live-sim grodt-covered-call grodt-mean-reversion"
+        ALL_OK=true
+        for UID in $DASHBOARDS; do
+          # Get file checksum (normalize: remove whitespace)
+          case "$UID" in
+            grodt-live-sim) FILE="observability/dashboards/grodt-live-simulation.json" ;;
+            grodt-covered-call) FILE="observability/dashboards/grodt-covered-call.json" ;;
+            grodt-mean-reversion) FILE="observability/dashboards/grodt-mean-reversion.json" ;;
+          esac
+
+          # Get panel count from file
+          FILE_PANELS=$(python3 -c "import json; d=json.load(open('$FILE')); print(len(d.get('panels',[])))" 2>/dev/null || echo "?")
+
+          # Get panel count and version from Grafana API
+          API_RESPONSE=$(curl -s -u "admin:$GF_PASS" "http://localhost:3000/api/dashboards/uid/$UID" 2>/dev/null)
+          API_PANELS=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('dashboard',{}).get('panels',[])))" 2>/dev/null || echo "?")
+          API_VERSION=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('dashboard',{}).get('version','?'))" 2>/dev/null || echo "?")
+
+          # Compare a sample query from file vs API
+          FILE_SAMPLE=$(python3 -c "
+        import json
+        d=json.load(open('$FILE'))
+        for p in d.get('panels',[]):
+            for t in p.get('targets',[]):
+                if 'expr' in t:
+                    print(t['expr'][:60])
+                    break
+            else: continue
+            break
+        " 2>/dev/null || echo "?")
+
+          API_SAMPLE=$(echo "$API_RESPONSE" | python3 -c "
+        import sys,json
+        d=json.load(sys.stdin).get('dashboard',{})
+        for p in d.get('panels',[]):
+            for t in p.get('targets',[]):
+                if 'expr' in t:
+                    print(t['expr'][:60])
+                    break
+            else: continue
+            break
+        " 2>/dev/null || echo "?")
+
+          if [ "$FILE_PANELS" = "$API_PANELS" ] && [ "$FILE_SAMPLE" = "$API_SAMPLE" ]; then
+            echo "  OK  $UID (v$API_VERSION, $API_PANELS panels)"
+          else
+            echo "  STALE  $UID — Grafana has v$API_VERSION ($API_PANELS panels), file has $FILE_PANELS panels"
+            echo "         Run: task infra:refresh-dashboards"
+            ALL_OK=false
+          fi
+        done
+
+        if [ "$ALL_OK" = "false" ]; then
+          echo ""
+          echo "WARNING: Some dashboards are stale. Grafana caches provisioned dashboards."
+          exit 1
+        fi
+
+        echo ""
+        echo "=== OTel Collector ==="
+        if curl -s -o /dev/null -w '%{http_code}' http://localhost:4318/ | grep -q '405\|200'; then
+          echo "  OK  OTLP HTTP (port 4318) accepting connections"
+        else
+          echo "  DOWN  OTLP HTTP (port 4318) not responding"
+        fi
+        VERIFY_SCRIPT
+
+  infra:refresh-dashboards:
+    desc: "Force Grafana to re-read dashboards from provisioned files (recreates otel-lgtm volume)"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
+    cmds:
+      - |
+        ssh root@{{.PROD_IP}} bash -s <<'REFRESH_SCRIPT'
+        set -e
+        cd /opt/slack-trading
+        echo "Recreating otel-lgtm with fresh Grafana DB..."
+        docker compose -f docker-compose.prod.yaml stop otel-lgtm
+        docker compose -f docker-compose.prod.yaml rm -f otel-lgtm
+        docker volume rm slack-trading_otel-lgtm-data 2>/dev/null || true
+        docker compose -f docker-compose.prod.yaml up -d otel-lgtm
+        echo "Waiting for Grafana to start..."
+        sleep 15
+        GF_PASS=$(grep GF_ADMIN_PASSWORD .env.prod 2>/dev/null | cut -d= -f2)
+        GF_PASS=${GF_PASS:-admin}
+        STATUS=$(curl -s -o /dev/null -w '%{http_code}' -u "admin:$GF_PASS" http://localhost:3000/api/health)
+        if [ "$STATUS" = "200" ]; then
+          echo "Grafana is up. Dashboards re-provisioned from files."
+        else
+          echo "WARNING: Grafana returned HTTP $STATUS"
+        fi
+        REFRESH_SCRIPT
+
   infra:logs:
     desc: "Stream production logs from all services"
     vars:
