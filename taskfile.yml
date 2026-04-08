@@ -444,9 +444,9 @@ tasks:
         echo "=== Dashboard Verification ==="
         DASHBOARDS="grodt-live-sim grodt-covered-call grodt-mean-reversion"
         ALL_OK=true
-        for UID in $DASHBOARDS; do
+        for DASH_UID in $DASHBOARDS; do
           # Get file checksum (normalize: remove whitespace)
-          case "$UID" in
+          case "$DASH_UID" in
             grodt-live-sim) FILE="observability/dashboards/grodt-live-simulation.json" ;;
             grodt-covered-call) FILE="observability/dashboards/grodt-covered-call.json" ;;
             grodt-mean-reversion) FILE="observability/dashboards/grodt-mean-reversion.json" ;;
@@ -456,7 +456,7 @@ tasks:
           FILE_PANELS=$(python3 -c "import json; d=json.load(open('$FILE')); print(len(d.get('panels',[])))" 2>/dev/null || echo "?")
 
           # Get panel count and version from Grafana API
-          API_RESPONSE=$(curl -s -u "admin:$GF_PASS" "http://localhost:3000/api/dashboards/uid/$UID" 2>/dev/null)
+          API_RESPONSE=$(curl -s -u "admin:$GF_PASS" "http://localhost:3000/api/dashboards/uid/$DASH_UID" 2>/dev/null)
           API_PANELS=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('dashboard',{}).get('panels',[])))" 2>/dev/null || echo "?")
           API_VERSION=$(echo "$API_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('dashboard',{}).get('version','?'))" 2>/dev/null || echo "?")
 
@@ -486,9 +486,9 @@ tasks:
         " 2>/dev/null || echo "?")
 
           if [ "$FILE_PANELS" = "$API_PANELS" ] && [ "$FILE_SAMPLE" = "$API_SAMPLE" ]; then
-            echo "  OK  $UID (v$API_VERSION, $API_PANELS panels)"
+            echo "  OK  $DASH_UID (v$API_VERSION, $API_PANELS panels)"
           else
-            echo "  STALE  $UID — Grafana has v$API_VERSION ($API_PANELS panels), file has $FILE_PANELS panels"
+            echo "  STALE  $DASH_UID — Grafana has v$API_VERSION ($API_PANELS panels), file has $FILE_PANELS panels"
             echo "         Run: task infra:refresh-dashboards"
             ALL_OK=false
           fi
