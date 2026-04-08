@@ -378,6 +378,10 @@ tasks:
         fi
 
         git pull origin dev
+
+        # Symlink .env -> .env.prod so docker-compose can interpolate variables
+        ln -sf .env.prod .env
+
         docker compose -f docker-compose.prod.yaml up -d --build
         DEPLOY_SCRIPT
 
@@ -399,6 +403,10 @@ tasks:
         fi
 
         git pull origin dev
+
+        # Symlink .env -> .env.prod so docker-compose can interpolate variables
+        ln -sf .env.prod .env
+
         docker compose -f docker-compose.prod.yaml up -d --build
         DEPLOY_SCRIPT
 
