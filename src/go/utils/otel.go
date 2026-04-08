@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
@@ -54,11 +55,17 @@ func SetupOTelSDK(ctx context.Context, serviceName, serviceVersion string) (shut
 	)
 	otel.SetTextMapPropagator(prop)
 
-	// Create resource with service name and version
+	// Create resource with service name, version, and instance ID (hostname)
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "unknown"
+	}
+
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(serviceVersion),
+			semconv.ServiceInstanceID(hostname),
 		),
 	)
 	if err != nil {

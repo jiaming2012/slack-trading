@@ -85,7 +85,7 @@
             "uid": "prometheus"
           },
           "expr": "grodt_heartbeat_uptime_seconds",
-          "legendFormat": "{{service_name}}",
+          "legendFormat": "{{service_name}} ({{service_instance_id}})",
           "refId": "A"
         }
       ],
