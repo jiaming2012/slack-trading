@@ -95,9 +95,10 @@ task gen:proto                        # Regenerate protobuf stubs
 
 ## Deploy
 
-- Docker Compose on Digital Ocean droplet
+- Docker Compose on Digital Ocean droplet (159.89.226.131)
 - Images built locally: `grodt-base-image:3.7.0` → `grodt-base-image-2:3.9.0` → `grodt/app:latest-dev`
 - Legacy Kubernetes manifests in `.clusters/production/` (no longer active)
+- **After every `task infra:deploy` or `task infra:deploy:force`, MUST run `task infra:verify`** to confirm services are healthy and Grafana dashboards match the provisioned files. If dashboards show STALE, run `task infra:refresh-dashboards` and re-verify.
 
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
