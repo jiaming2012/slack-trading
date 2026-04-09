@@ -95,10 +95,14 @@ task gen:proto                        # Regenerate protobuf stubs
 
 ## Deploy
 
-- Docker Compose on Digital Ocean droplet (159.89.226.131)
+- **Trading app**: Docker Compose on Digital Ocean droplet (159.89.226.131) — grodt, postgres, eventstore
+- **Observability**: otel-lgtm on Windows desktop (Tailscale IP: 100.70.200.55, LAN: 192.168.8.164) — Grafana, Prometheus, Loki, Tempo, OTel Collector
+- **Networking**: Tailscale mesh VPN connects DO droplet ↔ Windows PC. grodt pushes OTel to `http://100.70.200.55:4318`
+- **Grafana**: http://100.70.200.55:3000 (admin/grodt2026)
 - Images built locally: `grodt-base-image:3.7.0` → `grodt-base-image-2:3.9.0` → `grodt/app:latest-dev`
 - Legacy Kubernetes manifests in `.clusters/production/` (no longer active)
 - **After every `task infra:deploy` or `task infra:deploy:force`, MUST run `task infra:verify`** to confirm services are healthy and Grafana dashboards match the provisioned files. If dashboards show STALE, run `task infra:refresh-dashboards` and re-verify.
+- **Dashboard updates**: After changing `observability/dashboards/*.json`, must also run `cd C:\Users\jcole\slack-trading-observability && git pull` on Windows PC to update the bind-mounted files.
 
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
