@@ -39,32 +39,9 @@ services:
     restart: unless-stopped
 
   # --- Observability ---
-  otel-lgtm:
-    image: grafana/otel-lgtm
-    env_file:
-      - .env.prod
-    mem_limit: 2g
-    memswap_limit: 2g
-    ports:
-      - "3000:3000"    # Grafana UI
-      - "4317:4317"    # OTLP gRPC receiver
-      - "4318:4318"    # OTLP HTTP receiver
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD}
-      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json
-      # Reduce Tempo memory usage on constrained droplet
-      - TEMPO_MEMORY_LIMIT=128m
-    volumes:
-      - otel-lgtm-data:/data
-      # Dashboard provisioning
-      - ./observability/dashboards/dashboards-provider.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
-      - ./observability/dashboards/grodt-live-simulation.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-live-simulation.json:ro
-      - ./observability/dashboards/grodt-mean-reversion.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-mean-reversion.json:ro
-      - ./observability/dashboards/grodt-covered-call.json:/otel-lgtm/grafana/conf/provisioning/dashboards/custom/grodt-covered-call.json:ro
-      # Alert provisioning
-      - ./observability/alerting/alerting.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/grodt-alerting.yaml:ro
-    restart: unless-stopped
+  # otel-lgtm moved to Windows desktop (Tailscale IP: 100.70.200.55)
+  # Grafana: http://100.70.200.55:3000
+  # OTel collector: http://100.70.200.55:4318
 
   # --- Trading App ---
   grodt:
@@ -74,16 +51,16 @@ services:
     depends_on:
       - postgres
       - eventstore.db
-      - otel-lgtm
     env_file:
       - .env.prod
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://100.70.200.55:4318
     ports:
       - "8080:8080"    # REST API
       - "5051:5051"    # Twirp RPC
     restart: unless-stopped
 
 volumes:
-  otel-lgtm-data:
   eventstore-volume-data:
   eventstore-volume-logs:
   postgres-volume-data:
