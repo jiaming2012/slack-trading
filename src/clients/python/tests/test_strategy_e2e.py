@@ -8,7 +8,7 @@ subclass through a manual tick loop.
 
 Run:
     PYTHONPATH=src/clients/python RUN_E2E_PRODUCTION=1 \
-    OTEL_EXPORTER_OTLP_ENDPOINT=http://159.89.226.131:4318 \
+    OTEL_EXPORTER_OTLP_ENDPOINT=http://100.70.200.55:4318 \
     /Users/jamal/miniconda3/envs/grodt/bin/python -m pytest \
     src/clients/python/tests/test_strategy_e2e.py -v -s
 

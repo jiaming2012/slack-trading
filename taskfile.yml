@@ -599,7 +599,7 @@ tasks:
       - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --start {{.START}} --end {{.END}} --balance {{.BALANCE}} {{if .PDF_PATH}}--pdf-path {{.PDF_PATH}}{{end}} {{if eq .SAVE_TO_DB "true"}}--save-to-db{{end}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://100.70.200.55:4318"
       OTEL_SERVICE_NAME: "grodt-strategy"
     vars:
       SYMBOL: '{{.symbol | default (.SYMBOL | default "COIN")}}'
@@ -616,7 +616,7 @@ tasks:
       - 'PYTHONPATH=. {{.PYTHON}} demos/demo_mean_reversion_v2.py --symbol {{.SYMBOL}} --live --client-id {{.CLIENT_ID}} {{.EXTRA}}'
     dir: "{{.ROOT_DIR}}/src/clients/python"
     env:
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://159.89.226.131:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://100.70.200.55:4318"
       OTEL_SERVICE_NAME: "grodt-strategy"
       TWIRP_HOST: "http://159.89.226.131:5051"
     vars:
