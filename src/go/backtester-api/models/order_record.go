@@ -373,7 +373,7 @@ func (o *OrderRecord) IsPending() bool {
 func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
 	if o.instrument == nil {
 		switch o.Class {
-		case OrderRecordClassEquity:
+		case OrderRecordClassEquity, "":
 			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
 		case OrderRecordClassOption:
 			o.instrument = eventmodels.OptionSymbol(o.Symbol)
