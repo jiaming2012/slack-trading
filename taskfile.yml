@@ -535,6 +535,21 @@ tasks:
         fi
         REFRESH_SCRIPT
 
+  db:playgrounds:
+    desc: "List all playgrounds with IDs, client IDs, and environment"
+    vars:
+      HOST: '{{.HOST | default "192.168.8.164"}}'
+      DOCKER_CONTAINER: '{{.DOCKER_CONTAINER | default "infra-postgres-1"}}'
+    cmds:
+      - 'ssh jcole@{{.HOST}} "wsl -e bash -c \"docker exec {{.DOCKER_CONTAINER}} psql -U grodt -d playground -c ''SELECT id, client_id, environment, created_at FROM playground_sessions ORDER BY created_at DESC;''\""'
+
+  db:playgrounds:prod:
+    desc: "List all playgrounds on production droplet"
+    vars:
+      PROD_IP: '{{.PROD_IP | default "159.89.226.131"}}'
+    cmds:
+      - 'ssh root@{{.PROD_IP}} "docker exec slack-trading-postgres-1 psql -U grodt -d playground -c ''SELECT id, client_id, environment, created_at FROM playground_sessions ORDER BY created_at DESC;''"'
+
   infra:logs:
     desc: "Stream production logs from all services"
     vars:
