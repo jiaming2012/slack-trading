@@ -771,7 +771,9 @@ func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositor
 		}
 
 		if repo.Source.Type == eventmodels.RepositorySourceTradier {
-			// pass
+			// "tradier" marks live playground repos: candles arrive via the live feed,
+			// so there are no historical bars to backfill here. The value is persisted
+			// in playground records — do not rename or remove without a data migration.
 		} else if repo.Source.Type == eventmodels.RepositorySourcePolygon {
 			bars, err = s.polygonClient.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
 			if err != nil {

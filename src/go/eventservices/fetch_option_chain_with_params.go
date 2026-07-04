@@ -16,24 +16,6 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func FetchTradierMarketData(ctx context.Context, optionsByExpirationURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType) (*eventmodels.OptionContractDTO, *eventmodels.StockTickItemDTO, error) {
-	tracer := otel.Tracer("FetchTradierMarketData")
-	_, span := tracer.Start(ctx, "FetchTradierMarketData")
-	defer span.End()
-
-	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
-	}
-
-	stockTickDTO, err := FetchStockTicks(symbol, stockURL, bearerToken)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch stock tick: %v", err)
-	}
-
-	return optionsDTO, stockTickDTO, nil
-}
-
 func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3, baseStrikePrice float64, expirationInDays []int, optionTypes []eventmodels.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
 	expirationDates, filteredOptions := filterOptionContractsV3(optionContracts, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, baseStrikePrice, now)
 	return expirationDates, filteredOptions
