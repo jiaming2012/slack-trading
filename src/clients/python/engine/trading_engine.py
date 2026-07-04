@@ -32,11 +32,9 @@ logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG
 logger = logger.bind(timestamp="", trading_operation="")
 logger.add("trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
 
-env = os.getenv("PLAYGROUND_ENV")
-if env == "live":
-    level = "TRACE"
-else:
-    level = "INFO"
+# Mode-blind logging (ADR-0002): verbosity comes from LOG_LEVEL, never from
+# which mode the strategy runs in.
+level = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Add a console sink
 logger.add(
@@ -111,7 +109,6 @@ def run_strategy(
 
     # Get tracer for span creation
     tracer = trace.get_tracer("grodt-strategy")
-    is_live = getattr(playground, 'environment', '') == 'live'
 
     # Wire signal callback so tick() dispatches new_signals to strategy (D-03)
     playground._signal_callback = strategy.on_signal
@@ -124,32 +121,15 @@ def run_strategy(
                 logger.warning(f"Max iterations ({max_iterations}) reached")
                 break
 
-            if is_live:
-                with tracer.start_as_current_span(
-                    "strategy.tick",
-                    attributes={
-                        "playground_id": playground.id,
-                        "tick_number": iteration,
-                        "symbol": strategy.symbol,
-                        "strategy_name": strategy_name,
-                    }
-                ) as span:
-                    tick_deltas = playground.flush_new_state_buffer()
-                    strategy.on_tick(tick_deltas)
-                    if hasattr(strategy, '_flush_decisions'):
-                        strategy._flush_decisions()
-
-                    if on_tick is not None:
-                        on_tick(strategy, tick_deltas)
-
-                    if enable_retraining:
-                        strategy.on_retrain()
-
-                    tick_seconds = strategy.get_next_tick_seconds()
-                    fetch_account = strategy.should_fetch_account()
-                    playground.tick(tick_seconds, fetch_account=fetch_account)
-            else:
-                # Simulator/backtest path -- no spans (Pitfall 3)
+            with tracer.start_as_current_span(
+                "strategy.tick",
+                attributes={
+                    "playground_id": playground.id,
+                    "tick_number": iteration,
+                    "symbol": strategy.symbol,
+                    "strategy_name": strategy_name,
+                }
+            ) as span:
                 tick_deltas = playground.flush_new_state_buffer()
                 strategy.on_tick(tick_deltas)
                 if hasattr(strategy, '_flush_decisions'):

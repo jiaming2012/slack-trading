@@ -23,7 +23,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple
-from zoneinfo import ZoneInfo
 
 import numpy as np
 from loguru import logger as _default_logger
@@ -31,7 +30,6 @@ from loguru import logger as _default_logger
 from engine.client import (
     BacktesterPlaygroundClient,
     CreatePolygonPlaygroundRequest,
-    PlaygroundEnvironment,
     Repository,
     RepositorySource,
 )
@@ -1016,7 +1014,6 @@ def run_mean_reversion_v2(
     wall_start = time.monotonic()
     last_status_time = wall_start
     status_interval = 30  # seconds between status lines
-    is_live = playground.environment == PlaygroundEnvironment.LIVE.value
 
     def _print_status():
         nonlocal last_status_time
@@ -1070,27 +1067,16 @@ def run_mean_reversion_v2(
             g.status in ("pending", "active") for g in strategy.trade_groups
         )
 
-        if is_live:
-            # In live mode, sleep in short increments so status updates
-            # print every ~30s.  Only issue the tick RPC once the full
-            # LTF period has elapsed.  playground.tick() sleeps internally
-            # for the entire period, so we bypass that by sleeping here
-            # and only calling tick() when it's time.
-            wait_until = playground.next_tick_at
-            while True:
-                now = datetime.now(ZoneInfo("America/New_York"))
-                if now >= wait_until:
-                    break
-                remaining = (wait_until - now).total_seconds()
-                time.sleep(min(remaining, status_interval))
-                _print_status()
-
-            # next_tick_at has been reached — tick() will not sleep
-            playground.tick(playground.ltf_seconds, fetch_account=has_active)
-        else:
-            # In sim mode, skip ahead by HTF when idle to reduce RPCs.
-            tick_seconds = playground.ltf_seconds if has_active else playground.htf_seconds
-            playground.tick(tick_seconds, fetch_account=has_active)
+        # Advance by LTF while groups are active, HTF when idle (fewer RPCs).
+        # Same policy in every mode (ADR-0002): tick() blocks until the next
+        # candle exists and calls _print_status during any real-time wait.
+        tick_seconds = playground.ltf_seconds if has_active else playground.htf_seconds
+        playground.tick(
+            tick_seconds,
+            fetch_account=has_active,
+            on_wait=_print_status,
+            on_wait_interval=status_interval,
+        )
 
     # End-of-sim cleanup
     strategy.close_all_active_groups()

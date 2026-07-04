@@ -543,6 +543,29 @@ class BacktesterPlaygroundClient:
         
         return response.bars
     
+    def _wait_until_next_tick(self, seconds: int, on_wait, on_wait_interval: int):
+        """Absorb real time behind the tick() interface.
+
+        No-op in simulation. Otherwise sleeps until ``next_tick_at``,
+        invoking ``on_wait`` at most every ``on_wait_interval`` seconds so
+        callers can surface liveness without owning the clock.
+        """
+        if self.environment != PlaygroundEnvironment.LIVE.value:
+            return
+
+        started_at = datetime.now(ZoneInfo("America/New_York"))
+        now = started_at
+        while now < self.next_tick_at:
+            remaining = (self.next_tick_at - now).total_seconds()
+            if on_wait is not None:
+                time.sleep(min(remaining, on_wait_interval))
+                on_wait()
+            else:
+                time.sleep(remaining)
+            now = datetime.now(ZoneInfo("America/New_York"))
+
+        self.next_tick_at = started_at + timedelta(seconds=seconds)
+
     def preview_tick(self, seconds: int) -> object:
         request = NextTickRequest(
             playground_id=self.id,
@@ -561,14 +584,16 @@ class BacktesterPlaygroundClient:
     # PERF TODO (Phase 4): Add a BatchTick RPC to advance multiple ticks in a
     # single call when no signal processing is needed. This would reduce the number
     # of RPC round-trips during long stretches without signals.
-    def tick(self, seconds: int, raise_exception=True, fetch_account: bool = True):
-        if self.environment == PlaygroundEnvironment.LIVE.value:
-            now = datetime.now(ZoneInfo("America/New_York"))
-            if now < self.next_tick_at:
-                wait_period = (self.next_tick_at - now).total_seconds()
-                time.sleep(wait_period)
+    def tick(self, seconds: int, raise_exception=True, fetch_account: bool = True, on_wait=None, on_wait_interval: int = 30):
+        """Advance the playground and block until the next candle exists.
 
-            self.next_tick_at = now + timedelta(seconds=seconds)
+        The blocking contract (ADR-0002): returns instantly in simulation,
+        waits out real time otherwise. Strategies never sleep, poll, or read
+        the wall clock — pass ``on_wait`` to be notified (at most every
+        ``on_wait_interval`` seconds) while the client waits, e.g. to print
+        a status line.
+        """
+        self._wait_until_next_tick(seconds, on_wait, on_wait_interval)
 
         request = NextTickRequest(
             playground_id=self.id,

@@ -16,11 +16,9 @@ logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG
 logger = logger.bind(timestamp="", trading_operation="")
 logger.add("trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
 
-env = os.getenv("PLAYGROUND_ENV")
-if env == "live":
-    level = "TRACE"
-else:
-    level = "INFO"
+# Mode-blind logging (ADR-0002): verbosity comes from LOG_LEVEL, never from
+# which mode the strategy runs in.
+level = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # Add a console sink
 logger.add(
