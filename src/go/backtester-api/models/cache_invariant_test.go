@@ -63,7 +63,13 @@ func newCacheTestEnv(t *testing.T, optionSyms []eventmodels.OptionSymbol, option
 	}
 
 	clock := NewClock(start, end, nil)
-	pg, err := NewPlayground(nil, nil, nil, 100_000, 100_000, clock, nil, PlaygroundEnvironmentSimulator, start, []string{}, nil, repos...)
+	pg, err := NewPlayground(PlaygroundConfig{
+		Balance: 100_000,
+		Clock:   clock,
+		Env:     PlaygroundEnvironmentSimulator,
+		Now:     start,
+		Feeds:   repos,
+	})
 	require.NoError(t, err)
 	pg.OptionsBroker = &MockOptionsBroker{data: brokerData}
 

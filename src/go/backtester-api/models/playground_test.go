@@ -69,7 +69,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -121,7 +127,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -194,7 +206,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -267,7 +285,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -386,7 +410,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -523,7 +553,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -691,7 +727,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -813,7 +855,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -968,7 +1016,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -1136,7 +1190,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -1279,7 +1339,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 100000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -1438,7 +1504,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 100000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -1615,7 +1687,13 @@ func TestOptions(t *testing.T) {
 
 		balance := 10000.0
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
@@ -1982,7 +2060,13 @@ func TestValidateCache(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, feed1, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeSimulator, startTime, string(symbol), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2127,7 +2211,13 @@ func TestOpenOrdersCache(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		return playground, err
 	}
 
@@ -2215,7 +2305,13 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2311,7 +2407,13 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2400,7 +2502,13 @@ func TestLiquidation(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2470,7 +2578,13 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1},
+		})
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -2505,7 +2619,13 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1},
+		})
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -2575,7 +2695,13 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 
 		// initial tick: new APPL and GOOG candles
@@ -2648,7 +2774,13 @@ func TestFeed(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo1)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo1},
+		})
 		require.NoError(t, err)
 
 		candle, err := playground.GetCandle(symbol1, period)
@@ -2694,7 +2826,13 @@ func TestClock(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -2760,7 +2898,12 @@ func TestBalance(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+		})
 		require.NoError(t, err)
 
 		initialBalance := playground.GetBalance()
@@ -2786,7 +2929,13 @@ func TestBalance(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2889,7 +3038,14 @@ func TestBalance(t *testing.T) {
 		// create playground
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, []*OrderRecord{order1, order2, order3}, env, startTime, []string{}, nil, repo1, repo2)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance:        balance,
+			Clock:          clock,
+			BackfillOrders: []*OrderRecord{order1, order2, order3},
+			Env:            env,
+			Now:            startTime,
+			Feeds:          []*CandleRepository{repo1, repo2},
+		})
 		require.NoError(t, err)
 
 		// check initial position
@@ -2960,7 +3116,13 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// open 1st order
@@ -3074,7 +3236,13 @@ func TestBalance(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3121,7 +3289,12 @@ func TestPlaceOrder(t *testing.T) {
 		now := startTime
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3166,7 +3339,13 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a new playground
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// Place a buy order
@@ -3231,7 +3410,12 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+		})
 		require.NoError(t, err)
 
 		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
@@ -3262,7 +3446,13 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a new playground
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// Place a buy order
@@ -3329,7 +3519,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3408,7 +3604,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// 1st order
@@ -3539,7 +3741,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// 1st order
@@ -3668,7 +3876,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// 1st order
@@ -3829,7 +4043,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3888,7 +4108,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3929,7 +4155,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3977,7 +4209,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 100000.0, 100000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 100000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4036,7 +4274,13 @@ func TestPositions(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 100000.0, 100000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 100000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4117,7 +4361,13 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		freeMargin, err := playground.GetFreeMargin()
@@ -4129,7 +4379,13 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// place order
@@ -4170,7 +4426,13 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		tradeQty := 1.0
@@ -4200,7 +4462,13 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		tradeQty := 1.0
@@ -4230,7 +4498,13 @@ func TestFreeMargin(t *testing.T) {
 		balance := 1000.0
 		clock := NewClock(startTime, endTime, nil)
 
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		// place order equal to free margin
@@ -4296,7 +4570,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4324,7 +4604,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 10000.0, 10000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 10000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4351,7 +4637,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4365,7 +4657,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4385,7 +4683,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		price := float64(0)
@@ -4400,7 +4704,13 @@ func TestOrders(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		id := uint(1)
@@ -4462,7 +4772,13 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, startTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     startTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		now := startTime
@@ -4499,7 +4815,13 @@ func TestTrades(t *testing.T) {
 		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, source)
 		require.NoError(t, err)
 
-		playground, err := NewPlayground(nil, nil, nil, 1000.0, 1000.0, clock, nil, env, now, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: 1000.0,
+			Clock:   clock,
+			Env:     env,
+			Now:     now,
+			Feeds:   []*CandleRepository{repo},
+		})
 		require.NoError(t, err)
 
 		quantity := 10.0

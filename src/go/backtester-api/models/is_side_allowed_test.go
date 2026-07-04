@@ -42,7 +42,13 @@ func setupOptionPlayground(t *testing.T, optionSymbol eventmodels.OptionSymbol, 
 	balance := 100000.0
 	clock := NewClock(startTime, endTime, nil)
 
-	playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, PlaygroundEnvironmentSimulator, startTime, []string{}, nil, repo1, repo2)
+	playground, err := NewPlayground(PlaygroundConfig{
+		Balance: balance,
+		Clock:   clock,
+		Env:     PlaygroundEnvironmentSimulator,
+		Now:     startTime,
+		Feeds:   []*CandleRepository{repo1, repo2},
+	})
 	require.NoError(t, err)
 
 	// Set up mock options broker
@@ -216,7 +222,13 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	balance := 100000.0
 	clock := NewClock(startTime, endTime, nil)
 
-	playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, PlaygroundEnvironmentSimulator, startTime, []string{}, nil, repo1, repo2, repo3)
+	playground, err := NewPlayground(PlaygroundConfig{
+		Balance: balance,
+		Clock:   clock,
+		Env:     PlaygroundEnvironmentSimulator,
+		Now:     startTime,
+		Feeds:   []*CandleRepository{repo1, repo2, repo3},
+	})
 	require.NoError(t, err)
 
 	data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)

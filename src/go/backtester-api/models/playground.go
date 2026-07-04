@@ -2924,32 +2924,54 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	return nil
 }
 
-func PopulatePlaygroundDeprecated(playground *Playground, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, optionsBroker IOptionsBroker, feeds ...(*CandleRepository)) error {
-	req := &PopulatePlaygroundRequest{
-		Account: CreateAccountRequest{
-			Source:  source,
-			Balance: balance,
-		},
-		Env:            env,
-		ClientID:       clientID,
-		InitialBalance: initialBalance,
-		BackfillOrders: orders,
-		OptionsBroker:  optionsBroker,
-		Tags:           tags,
-	}
-
-	return PopulatePlayground(playground, req, clock, now, nil, nil, nil, feeds...)
+// PlaygroundConfig configures NewPlayground. Zero values apply defaults:
+// InitialBalance defaults to Balance and Env defaults to the simulator
+// environment.
+type PlaygroundConfig struct {
+	ID             *uuid.UUID
+	Source         *CreateAccountRequestSource
+	ClientID       *string
+	Balance        float64
+	InitialBalance float64
+	Clock          *Clock
+	BackfillOrders []*OrderRecord
+	Env            PlaygroundEnvironment
+	Now            time.Time
+	Tags           []string
+	OptionsBroker  IOptionsBroker
+	Feeds          []*CandleRepository
 }
 
 // todo: change repository on playground to BacktesterCandleRepository
-func NewPlayground(playgroundId *uuid.UUID, source *CreateAccountRequestSource, clientID *string, balance, initialBalance float64, clock *Clock, orders []*OrderRecord, env PlaygroundEnvironment, now time.Time, tags []string, optionsBroker IOptionsBroker, feeds ...(*CandleRepository)) (*Playground, error) {
-	playground := new(Playground)
-
-	if playgroundId != nil {
-		playground.ID = *playgroundId
+func NewPlayground(cfg PlaygroundConfig) (*Playground, error) {
+	if cfg.InitialBalance == 0 {
+		cfg.InitialBalance = cfg.Balance
 	}
 
-	if err := PopulatePlaygroundDeprecated(playground, source, clientID, balance, initialBalance, clock, orders, env, now, tags, optionsBroker, feeds...); err != nil {
+	if cfg.Env == "" {
+		cfg.Env = PlaygroundEnvironmentSimulator
+	}
+
+	playground := new(Playground)
+
+	if cfg.ID != nil {
+		playground.ID = *cfg.ID
+	}
+
+	req := &PopulatePlaygroundRequest{
+		Account: CreateAccountRequest{
+			Source:  cfg.Source,
+			Balance: cfg.Balance,
+		},
+		Env:            cfg.Env,
+		ClientID:       cfg.ClientID,
+		InitialBalance: cfg.InitialBalance,
+		BackfillOrders: cfg.BackfillOrders,
+		OptionsBroker:  cfg.OptionsBroker,
+		Tags:           cfg.Tags,
+	}
+
+	if err := PopulatePlayground(playground, req, cfg.Clock, cfg.Now, nil, nil, nil, cfg.Feeds...); err != nil {
 		return nil, fmt.Errorf("error populating playground: %w", err)
 	}
 

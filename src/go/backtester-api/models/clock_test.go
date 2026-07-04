@@ -79,7 +79,13 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		balance := 1000.0
-		playground, err := NewPlayground(nil, nil, nil, balance, balance, clock, nil, env, clock.CurrentTime, []string{}, nil, repo)
+		playground, err := NewPlayground(PlaygroundConfig{
+			Balance: balance,
+			Clock:   clock,
+			Env:     env,
+			Now:     clock.CurrentTime,
+			Feeds:   []*CandleRepository{repo},
+		})
 		return playground, err
 	}
 
