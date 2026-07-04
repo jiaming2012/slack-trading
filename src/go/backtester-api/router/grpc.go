@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
@@ -40,142 +39,6 @@ func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *dat
 		esdbProducer:     esdbProducer,
 		globalSignalRepo: globalSignalRepo,
 	}
-}
-
-func convertOrders(orders []*models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) []*pb.Order {
-	out := make([]*pb.Order, 0)
-
-	for _, order := range orders {
-		if o := convertOrder(order, externalIdMap); o != nil {
-			out = append(out, o)
-		}
-	}
-
-	return out
-}
-
-func convertOrder(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) *pb.Order {
-	var trades []*pb.Trade
-	for _, trade := range o.GetTrades() {
-		var orderId *uint64
-		if trade.OrderID != nil {
-			_orderId := uint64(*trade.OrderID)
-			orderId = &_orderId
-		}
-
-		var reconcileOrderId *uint64
-		if trade.ReconcileOrderID != nil {
-			_reconcileOrderId := uint64(*trade.ReconcileOrderID)
-			reconcileOrderId = &_reconcileOrderId
-		}
-
-		trades = append(trades, &pb.Trade{
-			Id:               uint64(trade.ID),
-			CreateDate:       trade.Timestamp.String(),
-			Quantity:         trade.Quantity,
-			Price:            trade.Price,
-			OrderId:          orderId,
-			ReconcileOrderId: reconcileOrderId,
-		})
-	}
-
-	var closes []*pb.Order
-	for _, order := range o.Closes {
-		closes = append(closes, convertOrder(order, externalIdMap))
-	}
-
-	var pl *float64
-	if len(closes) > 0 {
-		calculatedPL := o.CalcRealizedPL()
-		pl = &calculatedPL
-	}
-
-	var closedBy []*pb.Trade
-	for _, trade := range o.ClosedBy {
-		closedBy = append(closedBy, &pb.Trade{
-			Id:         uint64(trade.ID),
-			CreateDate: trade.Timestamp.String(),
-			Quantity:   trade.Quantity,
-			Price:      trade.Price,
-		})
-	}
-
-	var reconciles []*pb.Order
-	for _, order := range o.Reconciles {
-		reconciles = append(reconciles, convertOrder(order, externalIdMap))
-	}
-
-	var externalId *uint64
-	if externalIdMap != nil {
-		if reconcileOrder, ok := externalIdMap[o.ID]; ok {
-			_id := uint64(*reconcileOrder.ExternalOrderID)
-			externalId = &_id
-		}
-	} else if o.ExternalOrderID != nil {
-		_externalId := uint64(*o.ExternalOrderID)
-		externalId = &_externalId
-	}
-
-	previousPosition := &pb.Position{
-		Quantity:          o.PreviousPosition.Quantity,
-		CostBasis:         o.PreviousPosition.CostBasis,
-		Pl:                o.PreviousPosition.PL,
-		MaintenanceMargin: o.PreviousPosition.MaintenanceMargin,
-		CurrentPrice:      o.PreviousPosition.CurrentPrice,
-		Timestamp:         o.PreviousPosition.Timestamp,
-	}
-
-	var closeOrderId *uint64
-	if o.CloseOrderId != nil {
-		_closeOrderId := uint64(*o.CloseOrderId)
-		closeOrderId = &_closeOrderId
-	}
-
-	var signalIdStr *string
-	if o.SignalID != nil {
-		s := o.SignalID.String()
-		signalIdStr = &s
-	}
-
-	order := &pb.Order{
-		Id:               uint64(o.ID),
-		ExternalId:       externalId,
-		ClientRequestId:  o.ClientRequestID,
-		Class:            string(o.Class),
-		Symbol:           o.GetInstrument().GetTicker(),
-		Side:             string(o.Side),
-		Quantity:         o.AbsoluteQuantity,
-		Type:             string(o.OrderType),
-		Duration:         string(o.Duration),
-		RequestedPrice:   o.RequestedPrice,
-		Tag:              o.Tag,
-		Trades:           trades,
-		Status:           string(o.Status),
-		CreateDate:       o.Timestamp.String(),
-		ClosedBy:         closedBy,
-		Closes:           closes,
-		Reconciles:       reconciles,
-		PreviousPosition: previousPosition,
-		CloseOrderId:     closeOrderId,
-		Attributes:       o.Attributes,
-		PreviousBalance:  o.PreviousBalance,
-		Pl:               pl,
-		SignalId:         signalIdStr,
-	}
-
-	if o.Price != nil {
-		order.Price = *o.Price
-	}
-
-	if o.StopPrice != nil {
-		order.StopPrice = *o.StopPrice
-	}
-
-	if o.RejectReason != nil {
-		order.RejectReason = *o.RejectReason
-	}
-
-	return order
 }
 
 func (s *Server) GetDailyTickerSummaryFromPolygon(ctx context.Context, req *pb.GetDailyTickerSummaryFromPolygonRequest) (*pb.GetDailyTickerSummaryFromPolygonResponse, error) {
@@ -226,7 +89,7 @@ func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.Ord
 		return nil, fmt.Errorf("failed to get order: %v", err)
 	}
 
-	return convertOrder(order, nil), nil
+	return orderToProto(order, nil), nil
 }
 
 // PERF TODO (Phase 5): For backtesting, pre-fetch all option chain data for the
@@ -258,22 +121,8 @@ func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderR
 		return nil, fmt.Errorf("failed to fetch options ladder: %v", err)
 	}
 
-	var contracts []*pb.OptionLadderContract
-	for _, contract := range resp.OptionContracts {
-		contracts = append(contracts, &pb.OptionLadderContract{
-			Symbol:         string(contract.Symbol),
-			ExpirationDate: string(contract.ExpirationDate),
-			Timestamp:      contract.Timestamp.Format(time.RFC3339),
-			Strike:         contract.Strike,
-			Type:           string(contract.OptionType),
-			Bid:            contract.Bid,
-			Ask:            contract.Ask,
-			ContractSize:   float64(contract.ContractSize),
-		})
-	}
-
 	return &pb.GetOptionsLadderResponse{
-		Contracts: contracts,
+		Contracts: optionLadderContractsToProto(resp.OptionContracts),
 	}, nil
 }
 
@@ -419,16 +268,9 @@ func (s *Server) GetEquityReport(ctx context.Context, req *pb.GetEquityReportReq
 		return nil, fmt.Errorf("failed to get equity report: %v", err)
 	}
 
-	var items []*pb.LiveAccountPlot
-	for _, item := range equityReportItems {
-		if item.Equity == nil {
-			return nil, fmt.Errorf("failed to get equity report: equity is nil")
-		}
-
-		items = append(items, &pb.LiveAccountPlot{
-			Timestamp: item.Timestamp.Format(time.RFC3339),
-			Equity:    *item.Equity,
-		})
+	items, err := liveAccountPlotsToProto(equityReportItems)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get equity report: %v", err)
 	}
 
 	return &pb.GetEquityReportResponse{
@@ -457,13 +299,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
 
-	var brokerPositions []*pb.PositionReport
-	for _, p := range positions {
-		brokerPositions = append(brokerPositions, &pb.PositionReport{
-			Symbol:   p.Symbol,
-			Quantity: p.Quantity,
-		})
-	}
+	brokerPositions := tradierPositionReportsToProto(positions)
 
 	// Get reconciliation playground positions
 	reconciliationPlaygroundPositionCache, err := playground.UpdatePricesAndGetPositionCache()
@@ -471,14 +307,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
 
-	var reconcilePositions []*pb.PositionReport
-	for symbol, p := range reconciliationPlaygroundPositionCache.Iter() {
-		reconcilePositions = append(reconcilePositions, &pb.PositionReport{
-			Symbol:       symbol,
-			Quantity:     p.Quantity,
-			PlaygroundId: &req.ReconcilePlaygroundId,
-		})
-	}
+	reconcilePositions := positionReportsToProto(reconciliationPlaygroundPositionCache, &req.ReconcilePlaygroundId)
 
 	// Get live playground positions
 	livePlaygrounds, err := s.dbService.GetPlaygroundsByReconcileId(reconcilePlaygroundId)
@@ -493,13 +322,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		if err != nil {
 			return nil, fmt.Errorf("failed to get %s positions: %v", playgroundId, err)
 		}
-		for symbol, pos := range positionCache.Iter() {
-			livePlaygroundPositions = append(livePlaygroundPositions, &pb.PositionReport{
-				Symbol:       symbol,
-				Quantity:     pos.Quantity,
-				PlaygroundId: &playgroundId,
-			})
-		}
+		livePlaygroundPositions = append(livePlaygroundPositions, positionReportsToProto(positionCache, &playgroundId)...)
 	}
 
 	return &pb.GetReconciliationReportResponse{
@@ -522,13 +345,7 @@ func (s *Server) GetAccountStats(ctx context.Context, req *pb.GetAccountStatsReq
 			return nil, fmt.Errorf("GetAccountStats: failed to get account stats: %v", err)
 		}
 
-		equityPlot = make([]*pb.EquityPlot, 0)
-		for _, p := range plots {
-			equityPlot = append(equityPlot, &pb.EquityPlot{
-				CreatedAt: p.Timestamp.Format(time.RFC3339),
-				Equity:    p.Value,
-			})
-		}
+		equityPlot = equityPlotsToProto(plots)
 	}
 
 	return &pb.GetAccountStatsResponse{
@@ -553,84 +370,9 @@ func (s *Server) GetPlaygrounds(ctx context.Context, req *pb.GetPlaygroundsReque
 			}
 		}
 
-		meta := p.GetMeta()
-		positionCache, err := p.UpdatePricesAndGetPositionCache()
+		pg, err := playgroundToProto(p)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get playground positions: %v", err)
-		}
-
-		balance := p.GetBalance()
-		equity := p.GetEquity(positionCache)
-		freeMargin, err := p.GetFreeMargin()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get playground free margin: %v", err)
-		}
-
-		positionsDTO := make(map[string]*pb.Position)
-		for symbol, pos := range positionCache.Iter() {
-			positionsDTO[symbol] = &pb.Position{
-				Quantity:          pos.Quantity,
-				CostBasis:         pos.CostBasis,
-				Pl:                pos.PL,
-				MaintenanceMargin: pos.MaintenanceMargin,
-				CurrentPrice:      pos.CurrentPrice,
-				Timestamp:         pos.Timestamp,
-			}
-		}
-
-		var clockStop *string
-		if meta.EndAt != nil {
-			_stop := meta.EndAt.Format(time.RFC3339)
-			clockStop = &_stop
-		}
-
-		var repos []*pb.Repository
-		for _, repo := range p.GetRepositories() {
-			repos = append(repos, &pb.Repository{
-				Symbol:             repo.GetSymbol().GetTicker(),
-				TimespanMultiplier: uint32(repo.GetPolygonTimespan().Multiplier),
-				TimespanUnit:       string(repo.GetPolygonTimespan().Unit),
-				Indicators:         repo.GetIndicators(),
-				HistoryInDays:      repo.GetHistoryInDays(),
-			})
-		}
-
-		var liveAccountType *string
-		if err := meta.LiveAccountType.Validate(); err == nil {
-			liveAccountType = new(string)
-			*liveAccountType = string(meta.LiveAccountType)
-		}
-
-		var reconcilePlaygroundId *string
-		if p.ReconcilePlayground != nil {
-			_reconcilePlaygroundId := p.ReconcilePlayground.GetId().String()
-			reconcilePlaygroundId = &_reconcilePlaygroundId
-		}
-
-		createdOn := p.CreatedAt.Format(time.RFC3339)
-
-		pg := &pb.PlaygroundSession{
-			PlaygroundId: p.GetId().String(),
-			Meta: &pb.AccountMeta{
-				PlaygroundId:          p.GetId().String(),
-				ReconcilePlaygroundId: reconcilePlaygroundId,
-				InitialBalance:        meta.InitialBalance,
-				Environment:           string(meta.Environment),
-				LiveAccountType:       liveAccountType,
-				Tags:                  meta.Tags,
-				ClientId:              p.ClientID,
-				CreatedAt:             createdOn,
-			},
-			Clock: &pb.Clock{
-				Start:       meta.StartAt.Format(time.RFC3339),
-				Stop:        clockStop,
-				CurrentTime: p.GetCurrentTime().Format(time.RFC3339),
-			},
-			Repositories: repos,
-			Balance:      balance,
-			Equity:       equity,
-			FreeMargin:   freeMargin,
-			Positions:    positionsDTO,
+			return nil, err
 		}
 
 		sortedPlaygrounds = append(sortedPlaygrounds, sortedPlayground{
@@ -738,7 +480,7 @@ func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest
 	}
 
 	orders := playground.GetOpenOrders(symbol)
-	ordersDTO := convertOrders(orders, nil)
+	ordersDTO := ordersToProto(orders, nil)
 
 	return &pb.GetOpenOrdersResponse{
 		Orders: ordersDTO,
@@ -874,118 +616,9 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 		"duration_s":      req.Seconds,
 	}).Debug("tick processed")
 
-	newTrades := make([]*pb.Trade, 0)
-	for _, trade := range tick.NewTrades {
-		var orderId *uint64
-		if trade.OrderID != nil {
-			_orderId := uint64(*trade.OrderID)
-			orderId = &_orderId
-		}
-
-		var reconcileOrderId *uint64
-		if trade.ReconcileOrderID != nil {
-			_reconcileOrderId := uint64(*trade.ReconcileOrderID)
-			reconcileOrderId = &_reconcileOrderId
-		}
-
-		newTrades = append(newTrades, &pb.Trade{
-			Id:               uint64(trade.ID),
-			CreateDate:       trade.Timestamp.String(),
-			Quantity:         trade.Quantity,
-			Price:            trade.Price,
-			OrderId:          orderId,
-			ReconcileOrderId: reconcileOrderId,
-		})
-	}
-
-	newCandles := make([]*pb.Candle, 0)
-	for _, c := range tick.NewCandles {
-		newCandles = append(newCandles, &pb.Candle{
-			Symbol: c.Symbol.GetTicker(),
-			Period: int32(c.Period.Seconds()),
-			Bar:    c.Bar.ToProto(),
-		})
-	}
-
-	invalidOrdersDTO := convertOrders(tick.InvalidOrders, nil)
-
-	tickDeltaEvents := make([]*pb.TickDeltaEvent, 0)
-	for _, event := range tick.Events {
-		if event.LiquidationEvent != nil {
-			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced, nil)
-
-			liquidationEvent := &pb.LiquidationEvent{
-				OrdersPlaced: ordersPlaced,
-			}
-
-			tickDeltaEvents = append(tickDeltaEvents, &pb.TickDeltaEvent{
-				Type:             string(models.TickDeltaEventTypeLiquidation),
-				LiquidationEvent: liquidationEvent,
-			})
-		}
-
-		if event.OptionExpirationEvent != nil {
-			components, err := event.OptionExpirationEvent.Symbol.Components()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get option components: %v", err)
-			}
-
-			optionExpiredEvent := &pb.OptionExpirationEvent{
-				OptionSymbol:                string(components.Symbol.GetTicker()),
-				UnderlyingSymbol:            string(components.Underlying),
-				Timestamp:                   event.OptionExpirationEvent.Timestamp.Format(time.RFC3339),
-				ExpirationDate:              components.Expiration.Format(time.RFC3339),
-				UnderlyingPriceAtExpiration: event.OptionExpirationEvent.UnderlyingPriceAtExpiry,
-				Strike:                      components.StrikePrice,
-			}
-
-			tickDeltaEvents = append(tickDeltaEvents, &pb.TickDeltaEvent{
-				Type:                  string(models.TickDeltaEventTypeOptionExpired),
-				OptionExpirationEvent: optionExpiredEvent,
-			})
-		}
-	}
-
-	positions := make(map[string]*pb.Position)
-	for k, v := range tick.Positions {
-		positions[k] = &pb.Position{
-			Quantity:          v.Quantity,
-			CostBasis:         v.CostBasis,
-			Pl:                v.PL,
-			MaintenanceMargin: v.MaintenanceMargin,
-			CurrentPrice:      v.CurrentPrice,
-			Timestamp:         v.Timestamp,
-		}
-	}
-
-	// Convert signals to proto
-	newSignals := make([]*pb.TradeSignalProto, 0, len(tick.NewSignals))
-	for _, sig := range tick.NewSignals {
-		attrs := make(map[string]string, len(sig.Attributes))
-		for k, v := range sig.Attributes {
-			attrs[k] = fmt.Sprintf("%v", v)
-		}
-		newSignals = append(newSignals, &pb.TradeSignalProto{
-			Id:         sig.ID.String(),
-			Name:       string(sig.Name),
-			Symbol:     string(sig.Symbol),
-			Timestamp:  timestamppb.New(sig.Timestamp),
-			Attributes: attrs,
-		})
-	}
-
-	tickDelta = &pb.TickDelta{
-		NewTrades:          newTrades,
-		NewCandles:         newCandles,
-		InvalidOrders:      invalidOrdersDTO,
-		Events:             tickDeltaEvents,
-		CurrentTime:        tick.CurrentTime,
-		IsBacktestComplete: tick.IsBacktestComplete,
-		Balance:            tick.Balance,
-		Equity:             tick.Equity,
-		FreeMargin:         tick.FreeMargin,
-		Positions:          positions,
-		NewSignals:         newSignals,
+	tickDelta, err = tickDeltaToProto(tick)
+	if err != nil {
+		return nil, err
 	}
 
 	isComplete = true
@@ -1042,24 +675,6 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
 
-	positions := make(map[string]*pb.Position)
-	for k, v := range account.Positions {
-		positions[k] = &pb.Position{
-			Quantity:          v.Quantity,
-			CostBasis:         v.CostBasis,
-			Pl:                v.PL,
-			MaintenanceMargin: v.MaintenanceMargin,
-			CurrentPrice:      v.CurrentPrice,
-			Timestamp:         v.Timestamp,
-		}
-	}
-
-	var endAt *string
-	if account.Meta.EndAt != nil {
-		_endAt := account.Meta.EndAt.Format(time.RFC3339)
-		endAt = &_endAt
-	}
-
 	var externalIdMap map[uint]*models.OrderRecord
 	if req.FetchExternalId && account.Meta.Environment == models.PlaygroundEnvironmentLive {
 		externalIdMap, err = s.dbService.FetchExternalIdMap(account.Orders)
@@ -1068,90 +683,12 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		}
 	}
 
-	ordersDTO := convertOrders(account.Orders, externalIdMap)
-
-	var liveAccountType *string
-	if err := account.Meta.LiveAccountType.Validate(); err == nil {
-		liveAccountType = new(string)
-		*liveAccountType = string(account.Meta.LiveAccountType)
-	}
+	ordersDTO := ordersToProto(account.Orders, externalIdMap)
 
 	log.Debugf("%v: GetAccount:Orders Count: %d", requestUUID, len(ordersDTO))
 	log.Tracef("%v: GetAccount:end", requestUUID)
 
-	var events []*pb.TickDeltaEvent
-	for _, event := range account.Events {
-		if event.LiquidationEvent != nil {
-			ordersPlaced := convertOrders(event.LiquidationEvent.OrdersPlaced, nil)
-
-			liquidationEvent := &pb.LiquidationEvent{
-				OrdersPlaced: ordersPlaced,
-			}
-
-			events = append(events, &pb.TickDeltaEvent{
-				Type:             string(models.TickDeltaEventTypeLiquidation),
-				LiquidationEvent: liquidationEvent,
-			})
-		}
-
-		if event.OptionExpirationEvent != nil {
-			components, err := event.OptionExpirationEvent.Symbol.Components()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get option components: %v", err)
-			}
-
-			optionExpiredEvent := &pb.OptionExpirationEvent{
-				OptionSymbol:                string(components.Symbol.GetTicker()),
-				UnderlyingSymbol:            string(components.Underlying),
-				Timestamp:                   event.OptionExpirationEvent.Timestamp.Format(time.RFC3339),
-				ExpirationDate:              components.Expiration.Format(time.RFC3339),
-				UnderlyingPriceAtExpiration: event.OptionExpirationEvent.UnderlyingPriceAtExpiry,
-				Strike:                      components.StrikePrice,
-			}
-
-			events = append(events, &pb.TickDeltaEvent{
-				Type:                  string(models.TickDeltaEventTypeOptionExpired),
-				OptionExpirationEvent: optionExpiredEvent,
-			})
-		}
-
-		if event.OptionAssignmentEvent != nil {
-			optionAssignedEvent := &pb.OptionAssignmentEvent{
-				OrderId:          uint64(event.OptionAssignmentEvent.OrderId),
-				Symbol:           event.OptionAssignmentEvent.Symbol.GetTicker(),
-				Timestamp:        event.OptionAssignmentEvent.Timestamp.Format(time.RFC3339),
-				AssignedQuantity: event.OptionAssignmentEvent.AssignedQuantity,
-				AssignedPrice:    event.OptionAssignmentEvent.AssignedPrice,
-			}
-
-			events = append(events, &pb.TickDeltaEvent{
-				Type:                  string(models.TickDeltaEventTypeOptionAssigned),
-				OptionAssignmentEvent: optionAssignedEvent,
-			})
-		}
-	}
-
-	return &pb.GetAccountResponse{
-		Meta: &pb.AccountMeta{
-			PlaygroundId:          account.Meta.PlaygroundId,
-			ReconcilePlaygroundId: account.Meta.ReconcilePlaygroundId,
-			InitialBalance:        account.Meta.InitialBalance,
-			StartDate:             account.Meta.StartAt.Format(time.RFC3339),
-			EndDate:               endAt,
-			Symbols:               account.Meta.Symbols,
-			Environment:           string(account.Meta.Environment),
-			LiveAccountType:       liveAccountType,
-			Tags:                  account.Meta.Tags,
-			ClientId:              account.Meta.ClientID,
-			CurrentTime:           account.Meta.CurrentTime.Format(time.RFC3339),
-		},
-		Balance:    account.Balance,
-		Equity:     account.Equity,
-		FreeMargin: account.FreeMargin,
-		Positions:  positions,
-		Orders:     ordersDTO,
-		Events:     events,
-	}, nil
+	return accountToProto(account, ordersDTO)
 }
 
 func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOrderRequest) (*pb.PlaceMultiLegOrderResponse, error) {
@@ -1181,7 +718,7 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 	var resultOrders []*pb.Order
 	for _, order := range orders {
-		orderDTO := convertOrder(order, nil)
+		orderDTO := orderToProto(order, nil)
 		resultOrders = append(resultOrders, orderDTO)
 
 		log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
@@ -1249,7 +786,7 @@ func (s *Server) checkOrderExists(ctx context.Context, clientRequestId *string) 
 			var results []*pb.Order
 			for _, order := range orders {
 				log.Debugf("%v: checkOrderExists:Order already exists", *clientRequestId)
-				orderDTO := convertOrder(order, nil)
+				orderDTO := orderToProto(order, nil)
 				results = append(results, orderDTO)
 			}
 
@@ -1329,7 +866,7 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		return nil, fmt.Errorf("failed to place order: %v", webErr)
 	}
 
-	orderDTO := convertOrder(order, nil)
+	orderDTO := orderToProto(order, nil)
 
 	log.Infof("%v: PlaceOrder %d:end", req.ClientRequestId, order.ID)
 
@@ -1354,21 +891,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
-	var repositoryRequests []eventmodels.CreateRepositoryRequest
-	for _, repo := range req.Repositories {
-		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
-			Symbol: repo.Symbol,
-			Timespan: eventmodels.PolygonTimespanRequest{
-				Multiplier: int(repo.TimespanMultiplier),
-				Unit:       repo.TimespanUnit,
-			},
-			Source: eventmodels.RepositorySource{
-				Type: eventmodels.RepositorySourceTradier,
-			},
-			Indicators:    repo.Indicators,
-			HistoryInDays: repo.HistoryInDays,
-		})
-	}
+	repositoryRequests := repositoryRequestsFromProto(req.Repositories, eventmodels.RepositorySourceTradier)
 
 	vars := models.NewLiveAccountVariables(models.LiveAccountType(req.AccountType))
 	accountId, err := vars.GetTradierTradesAccountID()
@@ -1431,21 +954,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
-	var repositoryRequests []eventmodels.CreateRepositoryRequest
-	for _, repo := range req.Repositories {
-		repositoryRequests = append(repositoryRequests, eventmodels.CreateRepositoryRequest{
-			Symbol: repo.Symbol,
-			Timespan: eventmodels.PolygonTimespanRequest{
-				Multiplier: int(repo.TimespanMultiplier),
-				Unit:       repo.TimespanUnit,
-			},
-			Source: eventmodels.RepositorySource{
-				Type: eventmodels.RepositorySourcePolygon,
-			},
-			Indicators:    repo.Indicators,
-			HistoryInDays: repo.HistoryInDays,
-		})
-	}
+	repositoryRequests := repositoryRequestsFromProto(req.Repositories, eventmodels.RepositorySourcePolygon)
 
 	playground := &models.Playground{}
 	err := s.dbService.CreatePlayground(playground, &models.PopulatePlaygroundRequest{
@@ -1540,17 +1049,7 @@ func filterSignals(signals []*eventmodels.TradeSignal, name *string, symbol *str
 		if endTime != nil && s.Timestamp.After(*endTime) {
 			continue
 		}
-		attrs := make(map[string]string, len(s.Attributes))
-		for k, v := range s.Attributes {
-			attrs[k] = fmt.Sprintf("%v", v)
-		}
-		result = append(result, &pb.TradeSignalProto{
-			Id:         s.ID.String(),
-			Name:       string(s.Name),
-			Symbol:     string(s.Symbol),
-			Timestamp:  timestamppb.New(s.Timestamp),
-			Attributes: attrs,
-		})
+		result = append(result, tradeSignalToProto(s))
 	}
 	if result == nil {
 		result = []*pb.TradeSignalProto{}
