@@ -85,7 +85,9 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+1 pending todo in `.planning/todos/pending/`:
+
+- **Reconcile models and eventmodels into one package** (2026-07-04, area: general) — 47 colliding diverged types; per-type canonical selection with diff testing. Sized as its own phase.
 
 ### Blockers/Concerns
 
@@ -100,7 +102,7 @@ None yet.
 | 260401-cgf | Add self-contained OTel collector to E2E test harness for metrics/traces verification | 2026-04-01 | 480bfea | [260401-cgf-add-self-contained-otel-collector-to-e2e](./quick/260401-cgf-add-self-contained-otel-collector-to-e2e/) |
 | 260401-fij | Fix 3 v3.0 audit gaps: signal_id param, Grafana label mismatch, diff test failure | 2026-04-01 | 28981cb | [260401-fij-fix-3-v3-0-audit-gaps-signal-id-param-gr](./quick/260401-fij-fix-3-v3-0-audit-gaps-signal-id-param-gr/) |
 | 260401-gig | Share globalSignalRepo with sim playgrounds and wire write_signal() in MeanReversionV2 | 2026-04-01 | 4754944 | [260401-gig-share-globalsignalrepo-with-sim-playgrou](./quick/260401-gig-share-globalsignalrepo-with-sim-playgrou/) |
-| 260410-3a0 | Python script to fetch and list Zoho Calendar Payments events for the upcoming week | 2026-04-10 | pending | [260410-3a0-python-script-to-fetch-and-list-zoho-cal](./quick/260410-3a0-python-script-to-fetch-and-list-zoho-cal/) |
+| 260410-3a0 | Python script to fetch and list Zoho Calendar Payments events for the upcoming week | 2026-04-10 | 99431e4 | [260410-3a0-python-script-to-fetch-and-list-zoho-cal](./quick/260410-3a0-python-script-to-fetch-and-list-zoho-cal/) |
 
 ## Session Continuity
 
