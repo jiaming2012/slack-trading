@@ -21,500 +21,53 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-const FetchTradesFromReconciliationOrdersSql = `
-SELECT
-  t.*
-FROM order_reconciles orr
-JOIN order_records orec on orr.order_record_id = orec.id
-JOIN trade_records t on orec.id = t.reconcile_order_id
-WHERE orr.reconcile_id = $1 AND t.deleted_at IS NULL
-`
-
-const FetchReconciliationOrderSql = `
-SELECT orec.*
-FROM order_reconciles orr
-JOIN order_records orec on orr.order_record_id = orec.id
-WHERE orr.reconcile_id = $1 AND orec.deleted_at IS NULL
-`
-
-const FetchReconciliationOrdersSql = `
-SELECT o1.reconcile_id, o2.* from order_reconciles o1
-  JOIN order_records o2 on o1.order_record_id = o2.id
-  WHERE reconcile_id in ?
-`
-
-const FetchMockMaxExternalIdSql = `
-SELECT max(orec.external_id) 
-  FROM order_records orec 
-  JOIN order_reconciles or2 on or2.order_record_id = orec.id
-  JOIN order_records orec2 on orec2.id = or2.reconcile_id  
-  WHERE orec2.account_type = 'mock'
-`
-
-const FetchMockOrderCountSql = `
-SELECT count(id)
-  FROM order_records orec
-  WHERE account_type = 'mock'
-`
-
+// DatabaseService is the public facade over four focused stores:
+//
+//   - playgroundStore:  playground + reconcile-playground caches and queries
+//   - orderStore:       order/trade caches and queries
+//   - liveAccountStore: live accounts, broker map, live candle repositories
+//   - equityStore:      equity plot queries
+//
+// The public surface (all methods, signatures, and behavior) is unchanged;
+// each public method is a thin delegation, and methods that span concerns
+// remain here as orchestration. Locking granularity is intentionally
+// unchanged: the single service-wide mutex (mu) still guards the in-memory
+// caches, and the stores rely on their callers holding it.
 type DatabaseService struct {
 	mu                   sync.Mutex
 	db                   *gorm.DB
-	playgrounds          map[uuid.UUID]*models.Playground
-	ordersCache          map[uint]*models.OrderRecord
-	tradesCache          map[uint]*models.TradeRecord
-	liveAccounts         map[models.CreateAccountRequestSource]models.ILiveAccount
-	reconcilePlaygrounds map[models.CreateAccountRequestSource]models.IReconcilePlayground
 	projectsDir          string
 	polygonClient        models.IPolygonClient
-	liveRepositories     map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository
-	brokerMap            map[models.CreateAccountRequestSource]models.IBroker
-	liveAccountsMutex    sync.Mutex
 	polygonOptionsBroker models.IOptionsBroker
+
+	playgroundStore  *playgroundStore
+	orderStore       *orderStore
+	liveAccountStore *liveAccountStore
+	equityStore      *equityStore
 }
 
 func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient, optionsBroker models.IOptionsBroker) *DatabaseService {
 	return &DatabaseService{
 		db:                   db,
-		playgrounds:          make(map[uuid.UUID]*models.Playground),
-		liveAccounts:         make(map[models.CreateAccountRequestSource]models.ILiveAccount),
-		reconcilePlaygrounds: make(map[models.CreateAccountRequestSource]models.IReconcilePlayground),
-		liveRepositories:     make(map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository),
+		playgroundStore:      newPlaygroundStore(db),
+		orderStore:           newOrderStore(db),
+		liveAccountStore:     newLiveAccountStore(db),
+		equityStore:          newEquityStore(db),
 		polygonClient:        polygonClient,
-		ordersCache:          make(map[uint]*models.OrderRecord),
-		tradesCache:          make(map[uint]*models.TradeRecord),
 		polygonOptionsBroker: optionsBroker,
 	}
-}
-
-func (s *DatabaseService) GetHeartbeatStats() telemetry.HeartbeatStats {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	stats := telemetry.HeartbeatStats{}
-	var latestTick time.Time
-
-	for _, p := range s.playgrounds {
-		switch p.Meta.Environment {
-		case models.PlaygroundEnvironmentLive:
-			stats.LiveCount++
-		case models.PlaygroundEnvironmentReconcile:
-			stats.ReconcileCount++
-		case models.PlaygroundEnvironmentSimulator:
-			stats.SimulatorCount++
-		}
-
-		// Count open orders for live/reconcile only
-		if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
-			for _, order := range p.GetAllOrders() {
-				if order.Status == models.OrderRecordStatusNew ||
-					order.Status == models.OrderRecordStatusPending ||
-					order.Status == models.OrderRecordStatusPartiallyFilled {
-					stats.OpenOrderCount++
-				}
-			}
-		}
-
-		// Track latest tick time across all live playgrounds
-		if p.Meta.Environment == models.PlaygroundEnvironmentLive {
-			currentTime := p.Meta.CurrentTime
-			if currentTime.After(latestTick) {
-				latestTick = currentTime
-			}
-		}
-	}
-
-	stats.LastTickTime = latestTick
-	return stats
 }
 
 func (s *DatabaseService) GetPolygonClient() models.IPolygonClient {
 	return s.polygonClient
 }
 
-func (s *DatabaseService) GetEquityPlots(playgroundId uuid.UUID) ([]models.LiveAccountPlot, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	playground, found := s.playgrounds[playgroundId]
-	if !found {
-		return nil, fmt.Errorf("failed to find playground: %s", playgroundId.String())
-	}
-
-	liveAccount := playground.GetLiveAccount()
-	if liveAccount == nil {
-		return nil, fmt.Errorf("failed to find live account for playground: %s", playgroundId.String())
-	}
-
-	var items []models.LiveAccountPlot
-	if err := s.db.Where("live_account_id = ?", liveAccount.GetId()).Order("timestamp DESC").Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("failed to append equity plot records: %w", err)
-	}
-
-	return items, nil
-}
-
-func (s *DatabaseService) GetOrdersByClientId(clientId string) ([]*models.OrderRecord, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var orders []*models.OrderRecord
-	if err := s.db.Where("client_request_id = ?", clientId).Error; err != nil {
-		return nil, fmt.Errorf("failed to get order: %w", err)
-	}
-
-	if len(orders) == 0 {
-		return []*models.OrderRecord{}, nil
-	}
-
-	return orders, nil
-}
-
-func (s *DatabaseService) GetOrder(id uint) (*models.OrderRecord, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var order *models.OrderRecord
-	if err := s.db.Where("id = ?", id).First(&order).Error; err != nil {
-		return nil, fmt.Errorf("failed to get order: %w", err)
-	}
-
-	if order == nil {
-		return nil, fmt.Errorf("failed to find order with id: %d", id)
-	}
-
-	return order, nil
-}
-
-func (s *DatabaseService) DeleteMockOrders() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Soft delete mock orders
-	if err := s.db.Exec("UPDATE order_records SET deleted_at = NOW() WHERE account_type = 'mock'").Error; err != nil {
-		return fmt.Errorf("failed to soft delete mock orders: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) GetMockOrderIdStartIndex() (uint, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var mockOrderCount uint
-	if err := s.db.Raw(FetchMockOrderCountSql).Scan(&mockOrderCount).Error; err != nil {
-		return 0, fmt.Errorf("failed to get mock order count: %w", err)
-	}
-
-	if mockOrderCount == 0 {
-		return 1, nil
-	}
-
-	var mockMaxExternalId uint
-	if err := s.db.Raw(FetchMockMaxExternalIdSql).Scan(&mockMaxExternalId).Error; err != nil {
-		log.Errorf("failed to get mock order id start index: %v", err)
-		log.Debug("setting mockMaxExternalId to 0")
-		mockMaxExternalId = 0
-	}
-
-	return mockMaxExternalId + 1, nil
-}
-
-func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for b, val := range s.brokerMap {
-		if b.LiveAccountType == models.LiveAccountTypeMock {
-			if b.Broker == broker {
-				return val, nil
-			}
-		}
-	}
-
-	return &models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
-}
-
-type ReconcileOrderRecord struct {
-	models.OrderRecord
-	ReconcileId uint `gorm:"column:reconcile_id" copier:"must,nopanic"`
-}
-
-func (s *DatabaseService) FetchExternalIdMap(orders []*models.OrderRecord) (map[uint]*models.OrderRecord, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// var orderIds strings.Builder
-	// for i := 0; i < len(orders)-1; i++ {
-	// 	orderIds.WriteString(fmt.Sprintf("%d,", orders[i].ID))
-	// }
-	var orderIds []uint
-	for _, o := range orders {
-		orderIds = append(orderIds, o.ID)
-	}
-
-	// orderIds.WriteString(fmt.Sprintf("%d", orders[len(orders)-1].ID))
-
-	var reconcileOrders []*ReconcileOrderRecord
-	if err := s.db.Raw(FetchReconciliationOrdersSql, orderIds).Scan(&reconcileOrders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
-	}
-
-	externalIdMap := make(map[uint]*models.OrderRecord)
-
-	for _, o := range reconcileOrders {
-		externalIdMap[o.ReconcileId] = &o.OrderRecord
-	}
-
-	return externalIdMap, nil
-}
-
-func (s *DatabaseService) FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.OrderRecord, error) {
-	var orders []*models.OrderRecord
-	if err := s.db.Raw(FetchReconciliationOrderSql, reconcileId).Scan(&orders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch reconciliation orders: %w", err)
-	}
-
-	if seekFromPlayground {
-		return s.seekOrdersFromPlayground(orders)
-	}
-
-	return orders, nil
-}
-
-func (s *DatabaseService) FetchTradesFromReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*models.TradeRecord, error) {
-	var trades []*models.TradeRecord
-	if err := s.db.Raw(FetchTradesFromReconciliationOrdersSql, reconcileId).Scan(&trades).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch trades from reconciliation orders: %w", err)
-	}
-
-	if seekFromPlayground {
-		return s.seekTradesFromPlayground(trades)
-	}
-
-	return trades, nil
-}
-
-func (s *DatabaseService) FetchReconcilePlayground(source models.CreateAccountRequestSource) (models.IReconcilePlayground, bool, error) {
-	reconcilePlayground, found := s.reconcilePlaygrounds[source]
-	return reconcilePlayground, found, nil
-}
-
-func (s *DatabaseService) fetchPlaygroundFromDB(playgroundId uuid.UUID) (*models.Playground, error) {
-	var playground *models.Playground
-
-	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Trades", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.ReconcileTrades", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.ClosedBy", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Closes", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Closes.ClosedBy", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Closes.Trades", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Reconciles", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("Orders.Reconciles.Trades", func(db *gorm.DB) *gorm.DB {
-		return db.Order("id ASC")
-	}).Preload("EquityPlotRecords").Where("id = ?", playgroundId).First(&playground).Error; err != nil {
-		return nil, fmt.Errorf("loadPlaygrounds: failed to load orders in playgrounds: %w", err)
-	}
-
-	if playground == nil {
-		return nil, fmt.Errorf("failed to find playground in DB: %s", playgroundId.String())
-	}
-
-	return playground, nil
-}
-
-func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *models.OrderRecord) (models.IReconcilePlayground, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	playground, err := s.fetchPlayground(order.PlaygroundID)
-	if err != nil {
-		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to fetch playground: %w", err)
-	}
-
-	if playground.ReconcilePlaygroundID == nil {
-		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: reconcile playground id is nil: %v", playground)
-	}
-
-	for _, rp := range s.reconcilePlaygrounds {
-		if rp.GetId() == *playground.ReconcilePlaygroundID {
-			return rp, true, nil
-		}
-	}
-
-	return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to find reconcile playground: %v", playground.ReconcilePlaygroundID)
-}
-
-func (s *DatabaseService) fetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
-	if playground, found := s.playgrounds[playgroundId]; found {
-		return playground, nil
-	}
-
-	return nil, fmt.Errorf("DatabaseService: playground not found: %s", playgroundId.String())
-}
-
-func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// return s.fetchPlaygroundFromDB(playgroundId)
-	return s.fetchPlayground(playgroundId)
-}
-
-func (s *DatabaseService) SavePlaygroundInMemory(p *models.Playground) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.playgrounds[p.GetId()] = p
-	return nil
-}
-
+// CreateTransaction exposes a raw *gorm.DB transaction to callers. This is a
+// known gorm.DB leak through the IDatabaseService interface into the models
+// package (used by models/playground.go). Closing it is out of scope for the
+// store split — see database_service_interface.go.
 func (s *DatabaseService) CreateTransaction(transaction func(tx *gorm.DB) error) error {
 	return s.db.Transaction(transaction)
-}
-
-func (s *DatabaseService) PopulateLiveAccount(a *models.LiveAccount) error {
-	if a.BrokerName != "tradier" {
-		return fmt.Errorf("unsupported broker: %s", a.BrokerName)
-	}
-
-	if s.brokerMap == nil {
-		return fmt.Errorf("must call LoadLiveAccounts before calling PopulateLiveAccount")
-	}
-
-	source := a.GetSource()
-	broker, found := s.brokerMap[source]
-
-	if !found {
-		return fmt.Errorf("loadLiveAccounts: failed to find broker: %v", a.BrokerName)
-	}
-
-	a.SetBroker(broker)
-	a.SetDatabase(s)
-
-	return nil
-}
-
-func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountRequestSource]models.IBroker) error {
-	var liveAccountsRecords []*models.LiveAccount
-
-	s.brokerMap = brokerMap
-
-	if err := s.db.Find(&liveAccountsRecords).Error; err != nil {
-		return fmt.Errorf("loadLiveAccounts: failed to load live accounts: %w", err)
-	}
-
-	for _, a := range liveAccountsRecords {
-		source := a.GetSource()
-
-		broker, found := brokerMap[source]
-		if !found {
-			return fmt.Errorf("loadLiveAccounts: failed to find broker: %v", a.BrokerName)
-		}
-
-		a.SetBroker(broker)
-		a.SetDatabase(s)
-
-		s.liveAccounts[source] = a
-	}
-
-	for source, broker := range brokerMap {
-		if _, found := s.liveAccounts[source]; !found {
-			a, err := models.NewLiveAccount(broker, s)
-			if err != nil {
-				return fmt.Errorf("failed to create live account: %w", err)
-			}
-
-			a.SetBroker(broker)
-			a.SetDatabase(s)
-
-			if err := s.db.Save(a).Error; err != nil {
-				return fmt.Errorf("failed to save live account: %w", err)
-			}
-
-			s.liveAccounts[source] = a
-		}
-	}
-
-	log.Info("loaded all live accounts")
-
-	return nil
-}
-
-func (s *DatabaseService) seekOrdersFromPlayground(orders []*models.OrderRecord) ([]*models.OrderRecord, error) {
-	var out []*models.OrderRecord
-
-	for _, o := range orders {
-		o2, found := s.ordersCache[o.ID]
-		if !found {
-			log.Errorf("failed to find order in memory: %d, excluding from results ...", o.ID)
-			continue
-		}
-
-		out = append(out, o2)
-	}
-
-	return out, nil
-}
-
-func (s *DatabaseService) seekTradesFromPlayground(trades []*models.TradeRecord) ([]*models.TradeRecord, error) {
-	var out []*models.TradeRecord
-
-	for _, t := range trades {
-		t2, found := s.tradesCache[t.ID]
-		if !found {
-			log.Errorf("failed to find trade in memory: %d, excluding from results ...", t.ID)
-			continue
-		}
-
-		out = append(out, t2)
-	}
-
-	return out, nil
-}
-
-func (s *DatabaseService) FetchNewOrders() (newOrders []*models.OrderRecord, err error) {
-	var orders []*models.OrderRecord
-
-	if err := s.db.Where("status = ?", string(models.OrderRecordStatusNew)).Find(&orders).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to fetch new order: %w", err)
-	}
-
-	if len(orders) > 0 {
-		return orders, nil
-	}
-
-	return nil, nil
-}
-
-func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
-	var orders []*models.OrderRecord
-
-	if err := s.db.Joins("JOIN playground_sessions ON playground_sessions.id = order_records.playground_id").
-		Where("playground_sessions.deleted_at IS NULL and order_records.status = ? and order_records.account_type in (?)", string(models.OrderRecordStatusPending), liveAccountTypes).Find(&orders).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch pending orders: %w", err)
-	}
-
-	for _, o := range orders {
-		if o.ID == 612 {
-			log.Infof("found order: %d", o.ID)
-		}
-	}
-
-	return orders, nil
 }
 
 func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error {
@@ -559,15 +112,15 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 				return fmt.Errorf("loadPlaygrounds: failed to hydrate order: %w", err)
 			}
 
-			s.ordersCache[o.ID] = o
+			s.orderStore.ordersCache[o.ID] = o
 
 			// Store trades in memory
 			for _, t := range o.Trades {
-				s.tradesCache[t.ID] = t
+				s.orderStore.tradesCache[t.ID] = t
 			}
 
 			for _, t := range o.ReconcileTrades {
-				s.tradesCache[t.ID] = t
+				s.orderStore.tradesCache[t.ID] = t
 			}
 		}
 	}
@@ -595,7 +148,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 			return fmt.Errorf("loadPlaygrounds: failed to get source for reconcile playground: %w", err)
 		}
 
-		liveAccount := s.liveAccounts[source]
+		liveAccount := s.liveAccountStore.liveAccounts[source]
 
 		if liveAccount == nil {
 			return fmt.Errorf("loadPlaygrounds: failed to find live account for reconcile playground: %s", p.ID.String())
@@ -606,7 +159,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 			return fmt.Errorf("loadPlaygrounds: failed to create reconcile playground: %w", err)
 		}
 
-		s.reconcilePlaygrounds[source] = reconcilePlayground
+		s.playgroundStore.reconcilePlaygrounds[source] = reconcilePlayground
 	}
 
 	// load other playgrounds
@@ -615,7 +168,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 			continue
 		}
 
-		if _, found := s.playgrounds[p.ID]; found {
+		if _, found := s.playgroundStore.playgrounds[p.ID]; found {
 			log.Warnf("loadPlaygrounds: skipping duplicate playground id: %s", p.ID.String())
 			continue
 		}
@@ -629,7 +182,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 }
 
 func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Playground, *models.OrderRecord, error) {
-	playground, found := s.playgrounds[playgroundId]
+	playground, found := s.playgroundStore.playgrounds[playgroundId]
 	if !found {
 		return nil, nil, fmt.Errorf("failed to find playground using id %s", playgroundId)
 	}
@@ -642,121 +195,6 @@ func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Pl
 	}
 
 	return nil, nil, fmt.Errorf("failed to find Order in playground %s", playground.GetId().String())
-}
-
-func (s *DatabaseService) UpdatePlaygroundSession(playgroundSession *models.Playground) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.db.Save(playgroundSession).Error; err != nil {
-		return fmt.Errorf("DatabaseService: failed to update playground session: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) FetchBalances(url string, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
-	return eventmodels.FetchTradierBalancesResponseDTO{}, nil
-}
-
-// func (s *DatabaseService) CreateLiveAccount(broker models.IBroker, accountType models.LiveAccountType) (*models.LiveAccount, error) {
-// if balance < 0 {
-// 	return nil, fmt.Errorf("balance cannot be negative")
-// }
-
-// if err := source.Validate(); err != nil {
-// 	return nil, fmt.Errorf("invalid source: %w", err)
-// }
-
-// balance check
-// if balance > 0 {
-// 	balances, err := source.FetchEquity()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to fetch equity: %w", err)
-// 	}
-
-// 	if balances.Equity < balance {
-// 		return nil, fmt.Errorf("balance %.2f is greater than equity %.2f", balance, balances.Equity)
-// 	}
-// }
-
-// 	account, err := models.NewLiveAccount(broker, s)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to create live account: %w", err)
-// 	}
-
-// 	return account, nil
-// }
-
-func (s *DatabaseService) FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
-	s.liveAccountsMutex.Lock()
-	defer s.liveAccountsMutex.Unlock()
-
-	repositories = []*models.CandleRepository{}
-	for _, symbolRepo := range s.liveRepositories {
-		for _, periodRepos := range symbolRepo {
-			repositories = append(repositories, periodRepos...)
-		}
-	}
-
-	return repositories, func() {
-		s.liveAccountsMutex.Unlock()
-	}, nil
-}
-
-func (s *DatabaseService) RemoveLiveRepository(repo *models.CandleRepository) error {
-	s.liveAccountsMutex.Lock()
-	defer s.liveAccountsMutex.Unlock()
-
-	symbolRepo, ok := s.liveRepositories[repo.GetSymbol()]
-	if !ok {
-		return fmt.Errorf("DeleteLiveRepository: symbol %s not found", repo.GetSymbol())
-	}
-
-	periodRepos, ok := symbolRepo[repo.GetPeriod()]
-	if !ok {
-		return fmt.Errorf("DeleteLiveRepository: period %s not found", repo.GetPeriod())
-	}
-
-	foundRepo := false
-	for i, r := range periodRepos {
-		if r == repo {
-			periodRepos = append(periodRepos[:i], periodRepos[i+1:]...)
-			foundRepo = true
-			break
-		}
-	}
-
-	if !foundRepo {
-		return fmt.Errorf("DeleteLiveRepository: repository not found")
-	}
-
-	symbolRepo[repo.GetPeriod()] = periodRepos
-	s.liveRepositories[repo.GetSymbol()] = symbolRepo
-
-	return nil
-}
-
-func (s *DatabaseService) SaveLiveRepository(repo *models.CandleRepository) error {
-	s.liveAccountsMutex.Lock()
-	defer s.liveAccountsMutex.Unlock()
-
-	symbolRepo, ok := s.liveRepositories[repo.GetSymbol()]
-	if !ok {
-		symbolRepo = map[time.Duration][]*models.CandleRepository{}
-	}
-
-	periodRepos, ok := symbolRepo[repo.GetPeriod()]
-	if !ok {
-		periodRepos = []*models.CandleRepository{}
-	}
-
-	// append the repo to the periodRepos
-	periodRepos = append(periodRepos, repo)
-	symbolRepo[repo.GetPeriod()] = periodRepos
-	s.liveRepositories[repo.GetSymbol()] = symbolRepo
-
-	return nil
 }
 
 func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {
@@ -907,7 +345,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			}
 
 			// save reconcile playground
-			s.reconcilePlaygrounds[*req.Account.Source] = reconcilePlayground
+			s.playgroundStore.reconcilePlaygrounds[*req.Account.Source] = reconcilePlayground
 		}
 
 		req.ReconcilePlayground = reconcilePlayground
@@ -973,22 +411,6 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 	return nil
 }
 
-func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var playgrounds []*models.Playground
-	for _, p := range s.playgrounds {
-		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
-			if p.Meta.Environment == models.PlaygroundEnvironmentLive {
-				playgrounds = append(playgrounds, p)
-			}
-		}
-	}
-
-	return playgrounds, nil
-}
-
 func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
@@ -1025,18 +447,6 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 	clock := models.NewClock(fromDate, toDate, calendar)
 
 	return clock, nil
-}
-
-func (s *DatabaseService) GetLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	liveAccount, found := s.liveAccounts[source]
-	if !found {
-		return nil, fmt.Errorf("failed to find live account: %v", source)
-	}
-
-	return liveAccount, nil
 }
 
 func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eventmodels.MarketCalendar) error {
@@ -1184,99 +594,6 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 	return nil
 }
 
-func (s *DatabaseService) waitForOrderRecord(orderID uint) error {
-	timeout := time.After(10 * time.Second)
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeout:
-			return fmt.Errorf("timeout waiting for order %d", orderID)
-		case <-ticker.C:
-			var order models.OrderRecord
-			result := s.db.First(&order, orderID)
-			if result.Error == nil && result.RowsAffected > 0 {
-				return nil // order found
-			}
-		}
-	}
-}
-
-func (s *DatabaseService) CancelOrder(order *models.OrderRecord) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	playground, err := s.fetchPlayground(order.PlaygroundID)
-	if err != nil {
-		return fmt.Errorf("CancelOrder: failed to fetch playground: %w", err)
-	}
-
-	if err := s.db.Model(order).Update("status", models.OrderRecordStatusCanceled).Error; err != nil {
-		return fmt.Errorf("CancelOrder: failed to update order status to cancelled: %w", err)
-	}
-
-	order.Status = models.OrderRecordStatusCanceled
-
-	if err = playground.AddToOrderQueue(order); err != nil {
-		return fmt.Errorf("CancelOrder: failed to add order to queue: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) RejectOrder(order *models.OrderRecord, reason string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	playground, err := s.fetchPlayground(order.PlaygroundID)
-	if err != nil {
-		return fmt.Errorf("RejectOrder: failed to fetch playground: %w", err)
-	}
-
-	err = s.db.Transaction(func(tx *gorm.DB) error {
-		if err := s.db.Model(order).Update("status", models.OrderRecordStatusRejected).Error; err != nil {
-			return fmt.Errorf("RejectOrder: failed to update order status to rejected: %w", err)
-		}
-
-		if err := s.db.Model(order).Update("reject_reason", reason).Error; err != nil {
-			return fmt.Errorf("RejectOrder: failed to update order reject reason: %w", err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("RejectOrder: failed to update order in transaction: %w", err)
-	}
-
-	order.Status = models.OrderRecordStatusRejected
-	order.RejectReason = &reason
-
-	if telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
-		log.WithFields(log.Fields{
-			"event":         "order_rejected",
-			"playground_id": playground.GetId().String(),
-			"order_id":      order.ID,
-			"symbol":        order.Symbol,
-			"reject_reason": reason,
-			"environment":   string(playground.Meta.Environment),
-			"account_type":  string(playground.Meta.LiveAccountType),
-			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
-		}).Warn("order rejected")
-
-		if telemetry.OrdersRejected != nil {
-			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
-		}
-	}
-
-	if err = playground.AddToOrderQueue(order); err != nil {
-		return fmt.Errorf("RejectOrder: failed to add order to queue: %w", err)
-	}
-
-	return nil
-}
-
 func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, requests *models.CreateOrderRequest) (*models.OrderRecord, error) {
 	orders, err := s.PlaceOrders(playgroundID, []*models.CreateOrderRequest{requests})
 	if err != nil {
@@ -1290,7 +607,7 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	playground, err := s.fetchPlayground(playgroundID)
+	playground, err := s.playgroundStore.fetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", err)
 	}
@@ -1319,7 +636,7 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 		}
 
 		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
-			if err := s.waitForOrderRecord(order.ID); err != nil {
+			if err := s.orderStore.waitForOrderRecord(order.ID); err != nil {
 				return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
 			}
 		}
@@ -1433,7 +750,7 @@ func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*even
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	playground, err := s.fetchPlayground(playgroundID)
+	playground, err := s.playgroundStore.fetchPlayground(playgroundID)
 	if err != nil {
 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
 	}
@@ -1446,7 +763,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	internalPlayground := s.getPlayground(playgroundID)
+	internalPlayground := s.playgroundStore.getPlayground(playgroundID)
 	if internalPlayground == nil {
 		return nil, eventmodels.NewWebError(404, "playground not found internally", nil)
 	}
@@ -1455,7 +772,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	if internalPlayground.GetEnvironment() == models.PlaygroundEnvironmentSimulator {
 		orders = internalPlayground.GetAllOrders()
 	} else {
-		playground, err := s.fetchPlaygroundFromDB(playgroundID)
+		playground, err := s.playgroundStore.fetchPlaygroundFromDB(playgroundID)
 		if err != nil {
 			return nil, eventmodels.NewWebError(404, "playground not found", nil)
 		}
@@ -1588,26 +905,15 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 // 	return orderRecord.ID, true
 // }
 
-func (s *DatabaseService) DeletePlaygroundSession(playground *models.Playground) error {
-	session := &models.Playground{
-		ID: playground.GetId(),
-	}
-
-	if err := s.db.Delete(&session).Error; err != nil {
-		return fmt.Errorf("deletePlayground: failed to delete playground: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNew bool) error {
-	return saveOrderRecordsTx(s.db, orders, forceNew)
-}
-
+// SavePlayground spans concerns (playground session + order records + equity
+// plots), so it stays here as orchestration over the shared tx helpers.
 func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Simulator playgrounds use in-memory nonce IDs that would collide
 		// with existing GORM auto-increment IDs. Remap them to fresh IDs.
+		//
+		// Note: models.RemapAndSavePlayground takes a raw *gorm.DB — a known
+		// gorm.DB leak into the models package, out of scope for this refactor.
 		if playground.GetMeta().Environment == models.PlaygroundEnvironmentSimulator {
 			return models.RemapAndSavePlayground(tx, playground)
 		}
@@ -1635,68 +941,6 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 
 	if err != nil {
 		return fmt.Errorf("savePlayground: failed to save playground: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
-	rec := &models.EquityPlotRecord{
-		PlaygroundID: playgroundId,
-		Timestamp:    timestamp,
-		Equity:       equity,
-	}
-
-	if err := s.db.Create(rec).Error; err != nil {
-		return fmt.Errorf("SaveEquityPlotRecord: failed to save equity plot record: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) error {
-	return savePlaygroundTx(s.db, playground)
-}
-
-func (s *DatabaseService) SaveOrderRecordTx(tx *gorm.DB, order *models.OrderRecord, forceNew bool) error {
-	if err := saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); err != nil {
-		return fmt.Errorf("saveOrderRecordTx: failed to save order record: %w", err)
-	}
-
-	return nil
-}
-
-func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var e error
-		if e = saveOrderRecordsTx(tx, []*models.OrderRecord{order}, forceNew); e != nil {
-			return fmt.Errorf("saveOrderRecord: failed to save order records: %w", e)
-		}
-
-		if newBalance != nil {
-			if e := saveBalance(tx, order.PlaygroundID, *newBalance); e != nil {
-				return fmt.Errorf("saveOrderRecord: failed to save balance: %w", e)
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("saveOrderRecord: save order record transaction failed: %w", err)
-	}
-
-	log.Infof("SaveOrderRecord: order record: %d saved to db", order.ID)
-
-	// save in cache
-	s.ordersCache[order.ID] = order
-
-	for _, t := range order.Trades {
-		s.tradesCache[t.ID] = t
-	}
-
-	for _, t := range order.ReconcileTrades {
-		s.tradesCache[t.ID] = t
 	}
 
 	return nil
