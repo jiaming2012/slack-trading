@@ -1,0 +1,28 @@
+Architecture refactor
+    Target architecture ADRs
+        broker-seam-adr-0001: |{"bg":"#C5E1A5"}
+        mode-blind-clients-adr-0002: |{"bg":"#C5E1A5"}
+        remove-dead-tradier-feeds-adr-0003: |{"bg":"#C5E1A5"}
+        split-database-service-stores: |{"bg":"#C5E1A5"}
+        playground-config-constructor: |{"bg":"#C5E1A5"}
+    Package reconciliation
+        reconcile-models-packages: |{"bg":"#FFFFFF"}
+        rename-event-packages: |{"bg":"#FFFFFF"}
+    Mode presets
+        migrate-crossed-enums: |{"bg":"#FFFFFF"}
+Live simulation observability
+    v3 closeout
+        close-v3-milestone: |{"bg":"#FFFFFF"}
+        verify-grafana-heartbeat-and-stale-alert: |{"bg":"#FFFFFF"}
+Trading stack v4
+    Foundations
+        trading-stack-schema: |{"bg":"#FFFFFF"}
+        simulator-adaptation: |{"bg":"#FFFFFF"}
+    Market scanning
+        scanner-l1-l2: |{"bg":"#FFFFFF"}
+    Safety rails
+        kill-switch-and-broker-side-stops: |{"bg":"#FFFFFF"}
+    Feedback loop
+        fidelity-checker: |{"bg":"#FFFFFF"}
+        ev-tracker: |{"bg":"#FFFFFF"}
+        optimizers: |{"bg":"#FFFFFF"}

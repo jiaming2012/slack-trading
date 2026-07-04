@@ -432,6 +432,8 @@ This project uses **OpenSpec** (spec-driven changes in `openspec/`). Do **not** 
 
 When starting work on a new feature, invoke the `/spec-feature` skill — it orchestrates the full lifecycle below with the mandatory operator sign-off pause. To align on what to do next, invoke `/spec-next` (advisor only — it recommends, the operator decides).
 
+The project roadmap is `usm/roadmap.txt` (TextUSM story map — source of truth) plus `ROADMAP.md` (narrative companion) — maintained per the `roadmaps` skill. Every OpenSpec change flips its roadmap card(s) in the same change set: draft → yellow `#FFF59D`, archive → green `#C5E1A5`.
+
 ## Spec-first discipline (enforced)
 
 Before writing or editing any code, build target, config, or dependency, an OpenSpec change MUST exist that covers it, be validated, and be explicitly signed off by the operator.
