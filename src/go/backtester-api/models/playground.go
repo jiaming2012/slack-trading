@@ -10,13 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -1497,249 +1494,27 @@ func (p *Playground) CommitOrderQueue(orderExecutionRequests map[*OrderRecord]Ex
 	return newTrades, invalidOrdersDTO, positionCache, nil
 }
 
-func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, error) {
-	if isPreview {
-		nextTick := p.clock.GetNext(p.clock.CurrentTime, d)
-
-		var newCandles []*BacktesterCandle
-		for instrument, periodRepoMap := range p.repos.Iter() {
-			for period, repo := range periodRepoMap {
-				newCandle, err := repo.FetchCandlesAtOrAfter(nextTick)
-				if err != nil {
-					log.Warnf("repo.FetchCandlesAtOrAfter [%s]: %v", instrument, err)
-					return nil, fmt.Errorf("backtest complete: no more ticks")
-				}
-
-				if newCandle != nil {
-					newCandles = append(newCandles, &BacktesterCandle{
-						Symbol: instrument,
-						Period: period,
-						Bar:    newCandle,
-					})
-				}
-			}
-		}
-
-		isBacktestComplete := p.clock.IsTimeExpired(nextTick)
-
-		return &TickDelta{
-			NewCandles:         newCandles,
-			CurrentTime:        nextTick.Format(time.RFC3339),
-			IsBacktestComplete: isBacktestComplete,
-		}, nil
-	}
-
-	// Update the account
-	p.account.mutex.Lock()
-	defer p.account.mutex.Unlock()
-
-	orderExecutionRequests := make(map[*OrderRecord]ExecutionFillRequest)
-	for _, order := range p.account.PendingOrders {
-		price, err := p.FetchCurrentPrice(context.Background(), order.GetInstrument())
-		if err != nil {
-			if errors.Is(err, ErrCurrentPriceNotSet) {
-				log.Warn("current price not set")
-				continue
-			}
-
-			if errors.Is(err, models.ErrNoCandlesFound) {
-				order.Reject(err)
-				if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
-					log.WithFields(log.Fields{
-						"event":         "data_gap",
-						"playground_id": p.Meta.PlaygroundId,
-						"symbol":        order.GetInstrument().GetTicker(),
-						"timeframe":     d.String(),
-						"timestamp":     p.clock.CurrentTime.Format(time.RFC3339),
-						"environment":   string(p.Meta.Environment),
-					}).Warn("simulateTick: no candles found")
-				}
-				continue
-			}
-
-			return nil, fmt.Errorf("error fetching price: %w", err)
-		}
-
-		orderExecutionRequests[order] = ExecutionFillRequest{
-			Price:    price,
-			Time:     p.clock.CurrentTime,
-			Quantity: order.GetQuantity(),
-		}
-	}
-
-	newTrades, invalidOrdersDTO, positionCache, err := p.CommitOrderQueue(orderExecutionRequests)
-	if err != nil {
-		return nil, fmt.Errorf("error updating order queue: %w", err)
-	}
-
-	// Check for liquidations
-	liquidationEvents, err := p.checkForLiquidations(positionCache)
-	if err != nil {
-		return nil, fmt.Errorf("error checking for liquidations: %w", err)
-	}
-
-	var tickDeltaEvents []*TickDeltaEvent
-	if liquidationEvents != nil {
-		tickDeltaEvents = append(tickDeltaEvents, liquidationEvents)
-	}
-
-	// Update the clock
-	if !p.clock.IsExpired() {
-		p.clock.Add(d)
-	}
-
-	if p.clock.IsExpired() {
-		if p.isBacktestComplete {
-			return nil, fmt.Errorf("backtest complete: clock expired")
-		}
-
-		p.isBacktestComplete = true
-
-		log.Infof("setting status -> backtest complete: clock expired")
-
-		return &TickDelta{
-			IsBacktestComplete: true,
-		}, nil
-	}
-
-	// Update prices in candle repos
-	var newCandles []*BacktesterCandle
-	for instrument, periodRepoMap := range p.repos.Iter() {
-		for period, repo := range periodRepoMap {
-			newCandle, err := repo.Update(p.clock.CurrentTime)
-
-			if err != nil {
-				if errors.Is(err, models.ErrOptionContractIsExpired) {
-
-				} else {
-					log.Warnf("repo.Next [%s]: %v", instrument, err)
-					return nil, fmt.Errorf("backtest complete: no more ticks")
-				}
-			}
-
-			if newCandle != nil {
-				newCandles = append(newCandles, &BacktesterCandle{
-					Symbol: instrument,
-					Period: period,
-					Bar:    newCandle,
-				})
-			}
-		}
-	}
-
-	// Drain clock-gated signals from repository
-	var newSignals []*eventmodels.TradeSignal
-	if p.signalRepo != nil {
-		newSignals = p.signalRepo.ReadPending(p.clock.CurrentTime)
-	}
-
-	// Emit signal consumption telemetry
-	for _, sig := range newSignals {
-		if telemetry.SignalsConsumed != nil {
-			telemetry.SignalsConsumed.Add(context.Background(), 1,
-				metric.WithAttributes(
-					attribute.String("signal_name", string(sig.Name)),
-					attribute.String("symbol", string(sig.Symbol)),
-				))
-		}
-	}
-
-	// update option contracts
-	for instrument := range p.repos.Iter() {
-		switch s := instrument.(type) {
-		case *eventmodels.OptionContractV3:
-			isExpired := s.Expiration.Before(p.clock.CurrentTime) || s.Expiration.Equal(p.clock.CurrentTime)
-			if isExpired {
-				currentPrice, err := p.getPriceAt(s.UnderlyingSymbol, s.Expiration)
-				if err != nil {
-					log.Warnf("error getting current prices for %s: %v", s.UnderlyingSymbol, err)
-					continue
-				}
-
-				tickDeltaEvents = append(tickDeltaEvents, &TickDeltaEvent{
-					Type: TickDeltaEventTypeOptionExpired,
-					OptionExpirationEvent: &OptionExpirationEvent{
-						Symbol:                  s.Symbol,
-						UnderlyingPriceAtExpiry: currentPrice,
-						Timestamp:               p.clock.CurrentTime,
-					},
-				})
-			}
-		case eventmodels.OptionSymbol:
-			log.Fatal("option symbols not supported in simulateTick")
-		}
-	}
-
-	// check option assignments
-	exerciseOptionsRequests := p.exerciseOptionsRequestQueue.Drain()
-	for _, req := range exerciseOptionsRequests {
-		order := req.Order.(*OrderRecord)
-
-		tickDeltaEvents = append(tickDeltaEvents, &TickDeltaEvent{
-			Type: TickDeltaEventTypeOptionAssigned,
-			OptionAssignmentEvent: &OptionAssignmentEvent{
-				OrderId:          order.ID,
-				Symbol:           order.GetInstrument(),
-				AssignedQuantity: req.AssignedQuantity,
-				AssignedPrice:    req.AssignmentPrice,
-				Timestamp:        p.clock.CurrentTime,
-			},
-		})
-	}
-
-	if _, err := p.updateAccountStats(p.GetCurrentTime()); err != nil {
-		return nil, fmt.Errorf("error updating account stats: %w", err)
-	}
-
-	return &TickDelta{
-		NewTrades:     newTrades,
-		NewCandles:    newCandles,
-		NewSignals:    newSignals,
-		CurrentTime:   p.clock.CurrentTime.Format(time.RFC3339),
-		InvalidOrders: invalidOrdersDTO,
-		Events:        tickDeltaEvents,
-	}, nil
-}
-
 func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseService) (*TickDelta, error) {
-	switch p.Meta.Environment {
-	case PlaygroundEnvironmentLive:
-		delta, err := p.liveTick(d, isPreview)
-		if err != nil {
-			return nil, fmt.Errorf("error in live tick: %w", err)
-		}
-
-		if dbService != nil { // todo: make dbService non-nilable: currently nil to not break old tests
-			delta, err = p.postTickProcessing(delta, dbService)
-			if err != nil {
-				return nil, fmt.Errorf("error in post tick processing: %w", err)
-			}
-		} else {
-			log.Warn("dbService is nil in live tick")
-		}
-
-		return delta, nil
-
-	case PlaygroundEnvironmentSimulator:
-		delta, err := p.simulateTick(d, isPreview)
-		if err != nil {
-			return nil, fmt.Errorf("error simulating tick: %w", err)
-		}
-
-		if dbService != nil { // todo: make dbService non-nilable: currently nil to not break old tests
-			delta, err = p.postTickProcessing(delta, dbService)
-			if err != nil {
-				return nil, fmt.Errorf("error in post tick processing: %w", err)
-			}
-		} else {
-			log.Warn("dbService is nil in simulator tick")
-		}
-
-		return delta, nil
-
-	default:
+	broker, err := brokerFor(p.Meta.Environment)
+	if err != nil {
 		return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.Environment)
 	}
+
+	delta, err := broker.Tick(p, d, isPreview)
+	if err != nil {
+		return nil, err
+	}
+
+	if dbService != nil { // todo: make dbService non-nilable: currently nil to not break old tests
+		delta, err = p.postTickProcessing(delta, dbService)
+		if err != nil {
+			return nil, fmt.Errorf("error in post tick processing: %w", err)
+		}
+	} else {
+		log.Warnf("dbService is nil in %s tick", p.Meta.Environment)
+	}
+
+	return delta, nil
 }
 
 func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabaseService) (*TickDelta, error) {
@@ -2320,74 +2095,6 @@ func (p *Playground) GetFreeMargin() (float64, error) {
 	return p.GetFreeMarginFromPositionMap(positions), nil
 }
 
-func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelta, error) {
-	if isPreview {
-		return nil, fmt.Errorf("live playground does not support preview")
-	}
-
-	var newCandles []*BacktesterCandle
-
-	for {
-		candle, ok := p.GetNewCandlesQueue().Dequeue()
-		if ok {
-			newCandles = append(newCandles, candle)
-
-			if telemetry.CandlesProcessed != nil {
-				telemetry.CandlesProcessed.Add(context.Background(), 1,
-					telemetry.PlaygroundAttrs(string(p.Meta.Environment), string(p.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(p.GetClientId())),
-					metric.WithAttributes(
-						attribute.String("symbol", candle.Symbol.GetTicker()),
-					))
-			}
-
-			continue
-		}
-
-		break
-	}
-
-	var newTrades []*TradeRecord
-
-	for {
-		trade, ok := p.GetNewTradesQueue().Dequeue()
-		if ok {
-			newTrades = append(newTrades, trade)
-			continue
-		}
-
-		break
-	}
-
-	var invalidOrders []*OrderRecord
-
-	for {
-		order, ok := p.GetInvalidOrdersQueue().Dequeue()
-		if ok {
-			invalidOrders = append(invalidOrders, order)
-			continue
-		}
-
-		break
-	}
-
-	currentTime := p.GetCurrentTime()
-
-	equityPlot, err := p.updateAccountStats(currentTime)
-	if err != nil {
-		log.Warnf("failed to update account stats: %v", err)
-	}
-
-	return &TickDelta{
-		NewCandles:         newCandles,
-		NewTrades:          newTrades,
-		InvalidOrders:      invalidOrders,
-		Events:             nil,
-		CurrentTime:        currentTime.Format(time.RFC3339),
-		IsBacktestComplete: false,
-		EquityPlot:         equityPlot,
-	}, nil
-}
-
 func (p *Playground) SetNewCandlesQueue(queue *eventmodels.FIFOQueue[*BacktesterCandle]) {
 	p.newCandlesQueue = queue
 }
@@ -2418,126 +2125,6 @@ func (p *Playground) SetInvalidOrdersQueue(queue *eventmodels.FIFOQueue[*OrderRe
 
 func (p *Playground) GetInvalidOrdersQueue() *eventmodels.FIFOQueue[*OrderRecord] {
 	return p.invalidOrdersQueue
-}
-
-func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	var changes []*PlaceOrderChanges
-
-	pendingOrders := p.GetPendingOrders()
-	for i := len(pendingOrders) - 1; i >= 0; i-- {
-		o := pendingOrders[i]
-		if o.ID == order.ID {
-			pendingOrders = append(pendingOrders[:i], pendingOrders[i+1:]...)
-		}
-	}
-
-	if len(pendingOrders) > 0 {
-		o := pendingOrders[0]
-		cliReqID := ""
-		if o.ClientRequestID != nil {
-			cliReqID = *o.ClientRequestID
-		}
-
-		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing order %d into new orders queue", o.ID, cliReqID, order.ID)
-
-		changes = append(changes, &PlaceOrderChanges{
-			Commit: func(tx *gorm.DB) error {
-				p.AddToNewOrdersQueue(order)
-				return nil
-			},
-			Info: fmt.Sprintf("adding order %d to new orders queue", order.ID),
-		})
-	} else {
-		// no pending orders, place the order
-		if p.ReconcilePlayground.GetLiveAccount() == nil {
-			return nil, fmt.Errorf("live account is not set")
-		}
-
-		reconcilePlayground := p.ReconcilePlayground
-		if reconcilePlayground == nil {
-			return nil, fmt.Errorf("reconcile playground is not set")
-		}
-
-		if reconcilePlayground.GetId() == p.GetId() {
-			return nil, fmt.Errorf("cannot place order in the same playground")
-		}
-
-		// todo: place all changes inside of a single transaction
-		playgroundChanges, err := p.placeOrder(order) // remove from new queue and place into pending
-		if err != nil {
-			return nil, fmt.Errorf("failed to place order in live playground: %w", err)
-		}
-
-		// todo: place all changes inside of a single transaction
-		reconciliationChanges, reconciliationOrders, err := reconcilePlayground.PlaceOrder(order)
-		if err != nil {
-			return nil, fmt.Errorf("failed to place order in reconcile playground: %w", err)
-		}
-
-		changes = append(changes, reconciliationChanges...)
-		changes = append(changes, playgroundChanges...)
-
-		for i, o := range reconciliationOrders {
-			changes = append(changes, &PlaceOrderChanges{
-				Commit: func(tx *gorm.DB) error {
-					_order := o
-					forceNew := true
-					if _order.ID > 0 {
-						forceNew = false
-					}
-
-					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, forceNew); err != nil {
-						return fmt.Errorf("failed to save reconciliation order record: %w", err)
-					}
-
-					return nil
-				},
-				Info: fmt.Sprintf("iteration %d - save reconciliation order record %d", i+1, order.ID),
-			})
-		}
-	}
-
-	changes = append(changes, &PlaceOrderChanges{
-		Commit: func(tx *gorm.DB) error {
-			forceNew := true
-			if order.ID > 0 {
-				forceNew = false
-			}
-
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, forceNew); err != nil {
-				return fmt.Errorf("failed to update live order record: %w", err)
-			}
-
-			return nil
-		},
-		Info: "update live order record",
-	})
-
-	return changes, nil
-}
-
-func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
-		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
-	}
-
-	changes, err := p.placeOrder(order)
-	if err != nil {
-		return nil, fmt.Errorf("failed to place adjustment order in reconcile playground: %w", err)
-	}
-
-	changes = append(changes, &PlaceOrderChanges{
-		Commit: func(tx *gorm.DB) error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, false); err != nil {
-				return fmt.Errorf("failed to update live order record: %w", err)
-			}
-
-			return nil
-		},
-		Info: "update live order record",
-	})
-
-	return changes, nil
 }
 
 func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, setCloseInfo bool) ([]*CloseByRequest, error) {
@@ -2736,16 +2323,12 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 }
 
 func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	switch p.Meta.Environment {
-	case PlaygroundEnvironmentLive:
-		return p.placeLiveOrder(order)
-	case PlaygroundEnvironmentSimulator:
-		return p.placeOrder(order)
-	case PlaygroundEnvironmentReconcile:
-		return p.placeReconcileAdjustmentOrder(order)
-	default:
+	broker, err := brokerFor(p.Meta.Environment)
+	if err != nil {
 		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
 	}
+
+	return broker.PlaceOrder(p, order)
 }
 
 func (p *Playground) GetLiveAccount() ILiveAccount {
