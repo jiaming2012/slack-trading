@@ -320,8 +320,7 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 ## Git Workflow
 - Feature branches: `claude/<descriptive-name>` (e.g., `claude/nifty-diffie`)
 - Main branches: `main`, `dev`
-- Short imperative messages, often single-quoted: `'update readme'`, `'update for running in live mode'`
-- No conventional commits prefix (no `feat:`, `fix:`, etc.)
+- Historical commits are short imperative messages without prefixes; NEW commits use conventional-commit prefixes per the OpenSpec workflow section below
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
@@ -425,22 +424,52 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 ## Cross-Cutting Concerns
 <!-- GSD:architecture-end -->
 
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
+# OpenSpec spec-first workflow — Claude operating guide
 
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+## Workflow
 
-Use these entry points:
-- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd:debug` for investigation and bug fixing
-- `/gsd:execute-phase` for planned phase work
+This project uses **OpenSpec** (spec-driven changes in `openspec/`). Do **not** use `/gsd-*` commands here.
 
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
+When starting work on a new feature, invoke the `/spec-feature` skill — it orchestrates the full lifecycle below with the mandatory operator sign-off pause. To align on what to do next, invoke `/spec-next` (advisor only — it recommends, the operator decides).
 
-<!-- GSD:profile-start -->
-## Developer Profile
+## Spec-first discipline (enforced)
 
-> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+Before writing or editing any code, build target, config, or dependency, an OpenSpec change MUST exist that covers it, be validated, and be explicitly signed off by the operator.
+
+The order is strict:
+
+1. **Draft** `proposal.md`, spec deltas under `specs/<capability>/spec.md`, `design.md` (only when cross-cutting / new dependency / ambiguous), and `tasks.md`.
+2. **Validate** with `openspec validate <slug>` — it MUST pass before proceeding.
+3. **🛑 Operator sign-off (plain English, non-technical).** Before writing any code, present the proposed change as a non-engineer would read it. Pull from `proposal.md` (Why, What Changes, Impact) and `design.md` decisions where they affect day-to-day operator experience. Cover:
+   - **What you get** — the new capability described the way the operator will experience it (no class names, no code paths, just "type this command, see this result")
+   - **What changes day-to-day** — how normal use is different from today
+   - **Trade-offs** — new dependencies, costs, risks, limitations
+   - **Not covered yet** — explicit non-goals deferred to future changes
+
+   Then ask: "Sign off before I write code? (yes / change X / discuss)". Do **not** proceed until the operator says yes.
+4. **Implement** by working through `tasks.md`, marking `- [ ]` → `- [x]` as each task completes. If implementation reveals a design problem, pause and update the artifacts — do not silently deviate.
+5. **Commit.** One or more commits per change (atomic by logical unit — parser commit, tests commit, CLI wiring commit, etc.). **Every commit body MUST end with the trailer:**
+
+       OpenSpec-Change: <slug>
+
+   The first commit MUST include the `openspec/changes/<slug>/` folder. Subsequent commits contain implementation code, all referencing the same slug.
+6. **Archive** with `openspec archive <slug>` once every task closes (including operator-only follow-ups).
+
+### Exceptions (no spec change required)
+
+- Typo / wording fixes in docs, comments, or commit messages
+- Test additions that lock in *already-spec'd* behavior
+- Reverting a single faulty commit
+- Editing CLAUDE.md itself or other meta-files (this rule is bootstrap-exempt; otherwise the rule establishing the rule needs a rule, and the recursion never bottoms out)
+
+For these, commit directly with `chore:` / `docs:` / `revert:` and no `OpenSpec-Change:` trailer.
+
+### When in doubt
+
+Open the change. The cost of a tiny change file is near zero; the cost of code drifting from spec is real. If the operator asks for code without an existing change, the correct response is "drafting the change first — give me a sec", not jumping to implementation.
+
+## Conventions
+
+- Commit messages use conventional-commit prefixes: `feat(<module>): <summary>`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
+- Every commit related to an OpenSpec change MUST end its body with the trailer `OpenSpec-Change: <slug>` (see Spec-first discipline above). Exception-class commits omit the trailer.
+- This project uses a Taskfile (`taskfile.yml`) as the entry-point wrapper: every new operator-visible command or run-able workflow MUST also gain a matching `task` target in the same change. Don't ship an entry point without its wrapper.
