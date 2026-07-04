@@ -42,3 +42,6 @@ src/clients/python/models/
 .claude/worktrees/
 .claude/projects/
 
+node_modules/
+*.prof
+credentials.json
