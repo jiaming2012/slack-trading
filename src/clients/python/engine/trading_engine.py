@@ -30,7 +30,7 @@ logger.add(sys.stdout, filter=lambda record: record["level"].name not in ["DEBUG
 
 # Configure loguru to log to both console and file
 logger = logger.bind(timestamp="", trading_operation="")
-logger.add("trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
+logger.add("logs/trading_engine_{time}.log", format="timestamp={extra[timestamp]} trading_operation={extra[trading_operation]} {message}", rotation="1 day", retention="14 days", level="INFO")
 
 # Mode-blind logging (ADR-0002): verbosity comes from LOG_LEVEL, never from
 # which mode the strategy runs in.
