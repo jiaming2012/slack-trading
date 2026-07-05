@@ -19,6 +19,15 @@ The system SHALL provide a halt controller consulted before any order reaches th
 - **WHEN** the halt controller is engaged and order-submission requests arrive for Simulation, Paper, and Margin Playgrounds
 - **THEN** every one of those requests SHALL be rejected with the halt error regardless of Mode
 
+### Requirement: Forced Simulation liquidations are exempt from the halt
+
+Forced maintenance-margin liquidations in Simulation Mode SHALL remain exempt from the halt: they are risk-*reducing* closes that commit directly through the Simulated fill engine (`CommitOrderQueue`) and never cross the halt-gated Broker seam (`Playground.PlaceOrder`) that new, risk-*increasing* order submission flows through. This is deliberate: a kill switch exists to stop the system from opening or adding to exposure, not to strand a Simulation account above its maintenance-margin limit by blocking the very closes that de-risk it.
+
+#### Scenario: Simulation liquidation proceeds while the halt is engaged
+
+- **WHEN** the halt controller is engaged and a Simulation Playground breaches its maintenance margin, triggering a forced liquidation
+- **THEN** the liquidating (position-closing) orders SHALL still be committed through the Simulated fill engine, because they are risk-reducing closes that do not cross the halt-gated Broker seam
+
 ### Requirement: Manual engage and release via REST
 
 The system SHALL expose REST endpoints to engage the kill switch, release it, and read its status. Engaging SHALL move the controller to the engaged state and record the source as manual; releasing SHALL move it to the clear state; the status endpoint SHALL report whether the halt is engaged, the recorded reason and source, and whether a cooldown acknowledgment is required.
