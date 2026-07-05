@@ -2,8 +2,8 @@
 
 ## 1. Baseline capture and diff-test harness
 
-- [ ] 1.1 Confirm the pre-merge baseline is green: `go build ./src/go/... ./cmd/...` and `task test` both pass at HEAD; record the commit SHA.
-- [ ] 1.2 Record the Wave-0 Python baseline failure set: run the pytest suite, capture the exact failing test IDs (expected ~179), commit the list as the parity-gate reference.
+- [x] 1.1 Confirm the pre-merge baseline is green: `go build ./src/go/... ./cmd/...` and `task test` both pass at HEAD; record the commit SHA.
+- [x] 1.2 Record the Wave-0 Python baseline failure set: run the pytest suite, capture the exact failing test IDs (expected ~179), commit the list as the parity-gate reference.
 - [ ] 1.3 Define the fixed diff-test scenario (AAPL 2025 dates, deterministic strategy config) and record its inputs alongside the fixture.
 - [ ] 1.4 Run the fixed scenario at the baseline HEAD and commit its serialized output as the byte-for-byte reference fixture.
 - [ ] 1.5 Add a `taskfile.yml` target (e.g. `test:model-diff`) that runs the fixed scenario against the current tree and diffs its output byte-for-byte against the reference, exiting non-zero and naming the scenario on any difference.
