@@ -1,0 +1,321 @@
+{
+  "final_account": {
+    "balance": "99971.300000",
+    "equity": "99971.300000",
+    "positions": {},
+    "realized_pnl": "-28.700000",
+    "timestamp": "2025-01-10 15:30:00-05:00"
+  },
+  "orders": [
+    {
+      "class": "equity",
+      "client_request_id": "model-diff-scenario-open",
+      "closed_by": [
+        {
+          "create_date": "2025-01-08 10:30:00 -0500 EST",
+          "id": "2",
+          "price": "243.470000",
+          "quantity": "-10.000000"
+        }
+      ],
+      "create_date": "2025-01-06 10:30:00 -0500 EST",
+      "duration": "day",
+      "external_id": "1",
+      "id": "1",
+      "previous_position": {},
+      "quantity": "10.000000",
+      "side": "buy",
+      "status": "filled",
+      "symbol": "AAPL",
+      "tag": "model-diff-open",
+      "trades": [
+        {
+          "create_date": "2025-01-06 10:30:00 -0500 EST",
+          "id": "1",
+          "price": "246.340000",
+          "quantity": "10.000000"
+        }
+      ],
+      "type": "market"
+    },
+    {
+      "class": "equity",
+      "client_request_id": "model-diff-scenario-close",
+      "close_order_id": "1",
+      "closes": [
+        {
+          "class": "equity",
+          "client_request_id": "model-diff-scenario-open",
+          "closed_by": [
+            {
+              "create_date": "2025-01-08 10:30:00 -0500 EST",
+              "id": "2",
+              "price": "243.470000",
+              "quantity": "-10.000000"
+            }
+          ],
+          "create_date": "2025-01-06 10:30:00 -0500 EST",
+          "duration": "day",
+          "external_id": "1",
+          "id": "1",
+          "previous_position": {},
+          "quantity": "10.000000",
+          "side": "buy",
+          "status": "filled",
+          "symbol": "AAPL",
+          "tag": "model-diff-open",
+          "trades": [
+            {
+              "create_date": "2025-01-06 10:30:00 -0500 EST",
+              "id": "1",
+              "price": "246.340000",
+              "quantity": "10.000000"
+            }
+          ],
+          "type": "market"
+        }
+      ],
+      "create_date": "2025-01-08 10:30:00 -0500 EST",
+      "duration": "day",
+      "external_id": "2",
+      "id": "2",
+      "pl": "-28.700000",
+      "previous_balance": "100000.000000",
+      "previous_position": {
+        "cost_basis": "246.340000",
+        "current_price": "243.470000",
+        "maintenance_margin": "1231.700000",
+        "pl": "-28.700000",
+        "quantity": "10.000000",
+        "timestamp": "2025-01-08T10:00:00-05:00"
+      },
+      "quantity": "10.000000",
+      "side": "sell",
+      "status": "filled",
+      "symbol": "AAPL",
+      "tag": "model-diff-close",
+      "trades": [
+        {
+          "create_date": "2025-01-08 10:30:00 -0500 EST",
+          "id": "2",
+          "price": "243.470000",
+          "quantity": "-10.000000"
+        }
+      ],
+      "type": "market"
+    }
+  ],
+  "scenario": {
+    "balance": "100000.000000",
+    "description": "Fixed, deterministic backtester scenario used by `task test:model-diff` (MIG-03) to prove the reconcile-models-packages package merge introduces zero behavioral drift. AAPL 2025 dates per project gotcha (MSFT 2024 returns Polygon 403).",
+    "end_date": "2025-01-10",
+    "environment": "simulator",
+    "orders": [
+      {
+        "action": "open",
+        "asset_class": "equity",
+        "client_request_id": "model-diff-scenario-open",
+        "quantity": 10,
+        "side": "buy",
+        "tag": "model-diff-open",
+        "trigger_tick_index": 1
+      },
+      {
+        "action": "close",
+        "asset_class": "equity",
+        "client_request_id": "model-diff-scenario-close",
+        "closes": "model-diff-open",
+        "quantity": 10,
+        "side": "sell",
+        "tag": "model-diff-close",
+        "trigger_tick_index": 15
+      }
+    ],
+    "repository": {
+      "history_in_days": 1,
+      "indicators": [],
+      "symbol": "AAPL",
+      "timespan_multiplier": 1,
+      "timespan_unit": "hour"
+    },
+    "start_date": "2025-01-06",
+    "symbol": "AAPL",
+    "tick_seconds": 3600
+  },
+  "ticks": [
+    {
+      "balance": "100000.000000",
+      "equity": "100000.000000",
+      "tick_index": 0,
+      "timestamp": "2025-01-06 09:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "100000.000000",
+      "tick_index": 1,
+      "timestamp": "2025-01-06 10:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99999.100000",
+      "tick_index": 2,
+      "timestamp": "2025-01-06 11:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99986.100000",
+      "tick_index": 3,
+      "timestamp": "2025-01-06 12:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99985.300000",
+      "tick_index": 4,
+      "timestamp": "2025-01-06 13:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99982.500000",
+      "tick_index": 5,
+      "timestamp": "2025-01-06 14:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99986.600000",
+      "tick_index": 6,
+      "timestamp": "2025-01-06 15:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99985.800000",
+      "tick_index": 7,
+      "timestamp": "2025-01-07 09:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99983.300000",
+      "tick_index": 8,
+      "timestamp": "2025-01-07 10:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99967.400000",
+      "tick_index": 9,
+      "timestamp": "2025-01-07 11:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99959.200000",
+      "tick_index": 10,
+      "timestamp": "2025-01-07 12:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99959.900000",
+      "tick_index": 11,
+      "timestamp": "2025-01-07 13:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99958.702000",
+      "tick_index": 12,
+      "timestamp": "2025-01-07 14:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99958.500000",
+      "tick_index": 13,
+      "timestamp": "2025-01-07 15:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99945.886000",
+      "tick_index": 14,
+      "timestamp": "2025-01-08 09:30:00-05:00"
+    },
+    {
+      "balance": "100000.000000",
+      "equity": "99971.300000",
+      "tick_index": 15,
+      "timestamp": "2025-01-08 10:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 16,
+      "timestamp": "2025-01-08 11:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 17,
+      "timestamp": "2025-01-08 12:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 18,
+      "timestamp": "2025-01-08 13:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 19,
+      "timestamp": "2025-01-08 14:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 20,
+      "timestamp": "2025-01-08 15:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 21,
+      "timestamp": "2025-01-10 09:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 22,
+      "timestamp": "2025-01-10 10:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 23,
+      "timestamp": "2025-01-10 11:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 24,
+      "timestamp": "2025-01-10 12:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 25,
+      "timestamp": "2025-01-10 13:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 26,
+      "timestamp": "2025-01-10 14:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 27,
+      "timestamp": "2025-01-10 15:30:00-05:00"
+    },
+    {
+      "balance": "99971.300000",
+      "equity": "99971.300000",
+      "tick_index": 28,
+      "timestamp": "2025-01-10 15:30:00-05:00"
+    }
+  ]
+}
