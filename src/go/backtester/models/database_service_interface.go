@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
@@ -28,7 +27,6 @@ type IDatabaseService interface {
 	FetchPendingOrders(accountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
-	CreateTransaction(transaction func(tx *gorm.DB) error) error
 	PopulatePlayground(p *Playground, calendar *models.MarketCalendar) error
 	PopulateLiveAccount(a *LiveAccount) error
 	LoadLiveAccounts(brokerMap map[CreateAccountRequestSource]IBroker) error
@@ -38,7 +36,6 @@ type IDatabaseService interface {
 	SavePlaygroundSession(playground *Playground) error
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
-	SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error
 	SaveOrderRecordIntents(intents []OrderSaveIntent) error
 	SaveCanceledOrderWithReconciles(order *OrderRecord) error
 	SaveRejectedOrderWithReconciles(order *OrderRecord) error

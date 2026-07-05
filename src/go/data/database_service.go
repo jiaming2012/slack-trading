@@ -62,14 +62,6 @@ func (s *DatabaseService) GetPolygonClient() backtester_models.IPolygonClient {
 	return s.polygonClient
 }
 
-// CreateTransaction exposes a raw *gorm.DB transaction to callers. This is a
-// known gorm.DB leak through the IDatabaseService interface into the models
-// package (used by models/playground.go). Closing it is out of scope for the
-// store split — see database_service_interface.go.
-func (s *DatabaseService) CreateTransaction(transaction func(tx *gorm.DB) error) error {
-	return s.db.Transaction(transaction)
-}
-
 func (s *DatabaseService) LoadPlaygrounds(calendar *models.MarketCalendar) error {
 	var playgroundsSlice []*backtester_models.Playground
 	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {

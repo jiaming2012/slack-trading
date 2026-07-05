@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
@@ -91,10 +90,6 @@ func (m *MockDatabase) GetEquityPlots(playgroundId uuid.UUID) ([]LiveAccountPlot
 
 func (m *MockDatabase) FetchExternalIdMap(orders []*OrderRecord) (map[uint]*OrderRecord, error) {
 	return nil, nil
-}
-
-func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error {
-	return m.SaveOrderRecord(order, nil, forceNew)
 }
 
 func (m *MockDatabase) SaveOrderRecordIntents(intents []OrderSaveIntent) error {
@@ -445,10 +440,6 @@ func (m *MockDatabase) PopulateLiveAccount(l *LiveAccount) error {
 
 func (m *MockDatabase) LoadLiveAccounts(brokerMap map[CreateAccountRequestSource]IBroker) error {
 	return nil
-}
-
-func (m *MockDatabase) CreateTransaction(transaction func(tx *gorm.DB) error) error {
-	return transaction(nil)
 }
 
 func NewMockDatabase() *MockDatabase {

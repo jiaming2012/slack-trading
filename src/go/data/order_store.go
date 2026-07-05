@@ -547,13 +547,6 @@ func (s *DatabaseService) SaveOrderRecords(orders []*models.OrderRecord, forceNe
 	return s.orderStore.saveOrderRecords(orders, forceNew)
 }
 
-// SaveOrderRecordTx accepts a caller-supplied *gorm.DB transaction — part of the
-// IDatabaseService gorm.DB leak into the models package (see database_service_interface.go).
-// Closing that leak is out of scope for this refactor.
-func (s *DatabaseService) SaveOrderRecordTx(tx *gorm.DB, order *models.OrderRecord, forceNew bool) error {
-	return s.orderStore.saveOrderRecordTx(tx, order, forceNew)
-}
-
 func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	return s.orderStore.saveOrderRecord(order, newBalance, forceNew)
 }

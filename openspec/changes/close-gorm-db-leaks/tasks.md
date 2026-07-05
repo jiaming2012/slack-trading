@@ -21,9 +21,9 @@
 
 ## 4. Remove the raw-handle public surface
 
-- [ ] 4.1 Delete `CreateTransaction` and `SaveOrderRecordTx` from `IDatabaseService` and drop the now-unused `gorm` import from `database_service_interface.go`.
-- [ ] 4.2 Delete `CreateTransaction` (`database_service.go`) and `SaveOrderRecordTx` (`order_store.go`) from `*DatabaseService`; add the narrow replacement decls; leave all other 49 public signatures untouched.
-- [ ] 4.3 Update `MockDatabase` to drop the two removed methods and implement the narrow replacements.
+- [x] 4.1 Delete `CreateTransaction` and `SaveOrderRecordTx` from `IDatabaseService` and drop the now-unused `gorm` import from `database_service_interface.go`.
+- [x] 4.2 Delete `CreateTransaction` (`database_service.go`) and `SaveOrderRecordTx` (`order_store.go`) from `*DatabaseService`; add the narrow replacement decls; leave all other 49 public signatures untouched.
+- [x] 4.3 Update `MockDatabase` to drop the two removed methods and implement the narrow replacements.
 
 ## 5. Leak-guard task
 
