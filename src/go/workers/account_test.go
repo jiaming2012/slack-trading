@@ -9,7 +9,7 @@ import (
 )
 
 func createAccountFixtures(accountName string, symbol string, direction models.Direction, strategyName string, balance float64, priceLevels []*models.PriceLevel, datafeed *models.Datafeed) ([]*models.Account, error) {
-	accountFixture, err := models.NewAccount(accountName, balance, datafeed)
+	accountFixture, err := models.NewAccount(accountName, balance, datafeed, "test")
 	if err != nil {
 		return nil, err
 	}

@@ -55,7 +55,7 @@ func TestRealizedDrawdown(t *testing.T) {
 		},
 	}
 
-	account, err := models.NewAccount("testAccount", 1000, datafeed)
+	account, err := models.NewAccount("testAccount", 1000, datafeed, "test")
 	require.NoError(t, err)
 
 	buyStrategy, err := models.NewStrategyDeprecated("longStrategy", symbol, models.Up, 100, priceLevelsUp, account)
@@ -64,7 +64,7 @@ func TestRealizedDrawdown(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ignores candles before trade open", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, datafeed)
+		account, err := models.NewAccount("testAccount", 1000, datafeed, "test")
 		require.NoError(t, err)
 
 		sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
@@ -131,7 +131,7 @@ func TestRealizedDrawdown(t *testing.T) {
 	})
 
 	t.Run("sell trade", func(t *testing.T) {
-		account, err := models.NewAccount("testAccount", 1000, datafeed)
+		account, err := models.NewAccount("testAccount", 1000, datafeed, "test")
 		require.NoError(t, err)
 
 		sellStrategy, err := models.NewStrategyDeprecated("shortStrategy", symbol, models.Down, 100, priceLevelsDown, account)
