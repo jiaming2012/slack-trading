@@ -36,6 +36,6 @@
 - [x] 6.1 G1: run `go build ./src/go/... ./cmd/...` and confirm it exits 0.
 - [x] 6.2 G2: run `task test` and confirm it exits 0 with no new failures versus the Wave-0 baseline.
 - [x] 6.3 G4: re-run the MIG-03 fixed backtest scenario and confirm its output is byte-for-byte identical to the Wave-0 reference capture (zero diff lines).
-- [ ] 6.4 G6: request the Fable adversarial review pass on the full diff (renames, import rewrites, doc updates, new Taskfile target) and obtain explicit approval before the final commit.
+- [x] 6.4 G6: request the Fable adversarial review pass on the full diff (renames, import rewrites, doc updates, new Taskfile target) and obtain explicit approval before the final commit.
 - [x] 6.5 Run `task lint:package-names` one last time on the final tree and confirm it passes.
 - [ ] 6.6 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).

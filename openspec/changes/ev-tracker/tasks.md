@@ -38,5 +38,5 @@
 - [x] 7.1 Unit + testcontainers tests pass: `task test:ev-tracker` green (formula, windows, slope, all weight bands, ranking, persistence, retired-exclusion, re-run).
 - [x] 7.2 G1 — `go build ./src/go/... ./cmd/...` green.
 - [x] 7.3 G2 — `task test` green (existing backtester-api suite unaffected).
-- [ ] 7.4 G6 — Fable adversarial review approves the diff (formula faithfulness, band-boundary correctness, determinism, no leakage into playground or cost logic) before commit.
+- [x] 7.4 G6 — Fable adversarial review approves the diff (formula faithfulness, band-boundary correctness, determinism, no leakage into playground or cost logic) before commit.
 - [ ] 7.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).

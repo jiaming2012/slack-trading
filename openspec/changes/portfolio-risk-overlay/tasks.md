@@ -56,6 +56,6 @@
 - [x] 8.1 Unit tests for every limit-breach scenario pass (`task test:portfolio-risk-overlay`) — gross, net, sector, drawdown (trip + boundary), strategy allocation (incl. zero-weight), crowding, reduction-order bypass, multi-breach, and config-loader cases.
 - [x] 8.2 G1: `go build ./src/go/... ./cmd/...` — green.
 - [x] 8.3 G2: `task test` — green (existing `backtester-api` suite unaffected).
-- [ ] 8.4 G6 (MANDATORY, safety-critical): Fable adversarial review approves the diff, explicitly confirming the Simulation-only guard, the reduction-order bypass, and every `>` vs `>=` boundary before commit.
+- [x] 8.4 G6 (MANDATORY, safety-critical): Fable adversarial review approves the diff, explicitly confirming the Simulation-only guard, the reduction-order bypass, and every `>` vs `>=` boundary before commit.
 - [x] 8.5 Run `openspec validate portfolio-risk-overlay --strict` — passes.
 - [ ] 8.6 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).

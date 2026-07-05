@@ -32,5 +32,5 @@
 - [x] 6.1 Testcontainers round-trip tests pass: `task test:trading-stack` green (migration, six round-trips, three negative/constraint cases, rollback).
 - [x] 6.2 G1 — `go build ./src/go/... ./cmd/...` green.
 - [x] 6.3 G2 — `task test` green (existing backtester-api suite unaffected).
-- [ ] 6.4 G6 — Fable adversarial review approves the diff (schema faithful to architecture SQL, no leakage into playground tables) before commit.
+- [x] 6.4 G6 — Fable adversarial review approves the diff (schema faithful to architecture SQL, no leakage into playground tables) before commit.
 - [ ] 6.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).

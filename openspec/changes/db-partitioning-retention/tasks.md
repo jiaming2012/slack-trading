@@ -33,5 +33,5 @@
 
 - [x] 5.1 Testcontainers partition test suite green (partition-routing tests from 4.1/4.2 and detach/retention tests from 4.3/4.4)
 - [x] 5.2 G1: `go build ./src/go/... ./cmd/...` green
-- [ ] 5.3 G6: Fable adversarial review approves the diff (DDL correctness, composite-PK/dropped-FK trade-offs, stub archiver never deletes data)
+- [x] 5.3 G6: Fable adversarial review approves the diff (DDL correctness, composite-PK/dropped-FK trade-offs, stub archiver never deletes data)
 - [ ] 5.4 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time)

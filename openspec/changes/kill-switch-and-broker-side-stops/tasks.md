@@ -32,7 +32,7 @@
 
 - [x] 6.1 Extend `src/go/backtester-api/models/mock_broker.go` to record received stop orders (side, quantity, stop price)
 - [x] 6.2 Implement the companion-stop placement library (`PlaceCompanionStop`): given a live (Paper/Margin) entry fill, construct a `Stop` order at the configured distance on the protective side, sized to the filled quantity, and place it via the Broker seam; return `(nil, nil)` (place nothing) in Simulation Mode. Delivered and unit-tested against MockBroker — NOT yet invoked from the live fill pipeline (see 6.5)
-- [ ] 6.5 **[Deferred → `wire-companion-stops`]** Invoke `PlaceCompanionStop` from the live fill pipeline (`DrainTradierOrderQueue`) on each real live entry fill, and make protective companion-stop placement bypass an engaged halt (kill switch must never strand an open position without its protective exit). Deferred out of this change because wiring it overnight would place unverifiable real broker orders
+- 6.5 *(scope note — NOT a task of this change)* **[Deferred → `wire-companion-stops`]** Invoke `PlaceCompanionStop` from the live fill pipeline (`DrainTradierOrderQueue`) on each real live entry fill, and make protective companion-stop placement bypass an engaged halt (kill switch must never strand an open position without its protective exit). Deferred out of this change because wiring it overnight would place unverifiable real broker orders
 - [x] 6.3 Add and validate positive stop-distance configuration; non-positive value errors instead of placing a stop at/through the fill price
 - [x] 6.4 Unit tests against MockBroker: long-entry stop below fill, short-entry stop above fill, Simulation places no stop, non-positive distance errors
 
@@ -41,5 +41,5 @@
 - [x] 7.1 Unit tests green for every trigger (rejection-rate, fill-deviation, trades-per-hour, feed-staleness incl. absent-signal) and the full cooldown path, plus persistence and MockBroker companion-stop assertions
 - [x] 7.2 G1: `go build ./src/go/... ./cmd/...` green
 - [x] 7.3 G2: `task test` green
-- [ ] 7.4 G6: mandatory Fable adversarial review of the full diff (safety-critical) — explicit approval required before commit
+- [x] 7.4 G6: mandatory Fable adversarial review of the full diff (safety-critical) — explicit approval required before commit
 - [ ] 7.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time)

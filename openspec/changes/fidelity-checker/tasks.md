@@ -48,5 +48,5 @@
 - [x] 10.1 Unit tests with synthetic sim-vs-live pairs of known drift pass: `go test -count=1 ./src/go/tradingstack/fidelity/...` green (pairing, comparison, scoring/clamping/monotonicity, aggregation/mapping, gate/alert).
 - [x] 10.2 G1 — `go build ./src/go/... ./cmd/...` green (new package and `cmd/fidelity-check` compile, nothing else broken).
 - [x] 10.3 G2 — `task test` green (existing backtester-api suite unaffected).
-- [ ] 10.4 G6 — Fable adversarial review approves the diff (deterministic pairing/scoring, correct sim-minus-live sign on `drift_pnl`, `drift_score` clamping and monotonicity, gate raises exactly one alert per breach and never stops an optimizer, no leakage into playground tables) before commit.
+- [x] 10.4 G6 — Fable adversarial review approves the diff (deterministic pairing/scoring, correct sim-minus-live sign on `drift_pnl`, `drift_score` clamping and monotonicity, gate raises exactly one alert per breach and never stops an optimizer, no leakage into playground tables) before commit.
 - [ ] 10.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).

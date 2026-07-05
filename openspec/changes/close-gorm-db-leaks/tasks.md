@@ -36,5 +36,5 @@
 - [x] 6.2 G2: `task test` is green with no new failures versus the Wave-0 baseline.
 - [x] 6.3 `task test:no-gorm-leaks` exits zero.
 - [x] 6.4 Diff the exported `*DatabaseService` signatures against the 6.2 baseline: only the two removed methods and the narrow additions differ; confirm no mutex was added, removed, or rescoped (locking granularity unchanged).
-- [ ] 6.5 G6: Fable adversarial diff review approves (bodies moved verbatim, atomicity preserved on every replaced site, public surface and locking preserved).
+- [x] 6.5 G6: Fable adversarial diff review approves (bodies moved verbatim, atomicity preserved on every replaced site, public surface and locking preserved).
 - [ ] 6.6 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).
