@@ -93,6 +93,14 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:crowding-detection:
+    desc: 'Run the crowding-detection package unit test suite (fixtures only, no Docker required)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/crowding/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev

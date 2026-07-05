@@ -33,12 +33,12 @@
 
 ## 6. Taskfile wiring
 
-- [ ] 6.1 Add `test:crowding-detection` target to `taskfile.yml` running `go test -count=1 ./src/go/tradingstack/crowding/...` with `TRADING_PROJECT_DIR` set, matching the style of the existing `test` and `test:trading-stack` targets.
+- [x] 6.1 Add `test:crowding-detection` target to `taskfile.yml` running `go test -count=1 ./src/go/tradingstack/crowding/...` with `TRADING_PROJECT_DIR` set, matching the style of the existing `test` and `test:trading-stack` targets.
 
 ## 7. Verification and closeout
 
-- [ ] 7.1 Run unit tests with fixture overlap scenarios (`task test:crowding-detection`) — all pass, including the known-percentage, zero-overlap, full-overlap, no-strategy, and threshold-boundary cases.
-- [ ] 7.2 Run G1: `go build ./src/go/... ./cmd/...` — green.
-- [ ] 7.3 Run G2: `task test` — green (existing `backtester-api` suite unaffected).
-- [ ] 7.4 Run `openspec validate crowding-detection --strict` — passes.
+- [x] 7.1 Run unit tests with fixture overlap scenarios (`task test:crowding-detection`) — all pass, including the known-percentage, zero-overlap, full-overlap, no-strategy, and threshold-boundary cases.
+- [x] 7.2 Run G1: `go build ./src/go/... ./cmd/...` — green.
+- [x] 7.3 Run G2: `task test` — green (existing `backtester-api` suite unaffected).
+- [x] 7.4 Run `openspec validate crowding-detection --strict` — passes.
 - [ ] 7.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).
