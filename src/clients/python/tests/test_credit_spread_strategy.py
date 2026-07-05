@@ -18,24 +18,16 @@ from deprecated.credit_spread import (
 )
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
+from tests.fixtures.mock_playground import make_mock_playground
+
 
 # ------------------------------------------------------------------ #
 # Helpers
 # ------------------------------------------------------------------ #
 
 def _make_mock_playground(equity=100_000.0):
-    """Create a mock playground with minimal interface."""
-    pg = MagicMock()
-    pg.htf_seconds = 3600
-    pg.ltf_seconds = 300
-    pg.id = "test-pg-id"
-    pg.account = MagicMock()
-    pg.account.equity = equity
-    pg.account.free_margin = equity
-    pg.account.get_position = MagicMock(return_value=None)
-    pg.place_order = MagicMock()
-    pg.fetch_ladder = MagicMock()
-    return pg
+    """Create a contract-faithful fake playground (shared fixture)."""
+    return make_mock_playground(equity=equity)
 
 
 def _make_pdf(
@@ -254,7 +246,8 @@ class TestBullPutSpreadEntry:
     def test_bull_put_spread_entry(self):
         """SELL_TO_OPEN + BUY_TO_OPEN placed with correct strikes and sides."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        # min_otm_pct=0.0 restores pre-OTM-floor short selection (short at level price)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group()
         strategy.trade_groups.append(group)
@@ -376,7 +369,7 @@ class TestBullPutSpreadEntry:
         """Full lifecycle: signal → entry → exit → closed."""
         pg = _make_mock_playground()
         strategy = CreditSpreadStrategy(
-            pg, "AAPL", min_hold_candles=0, profit_target_pct=0.50,
+            pg, "AAPL", min_hold_candles=0, profit_target_pct=0.50, min_otm_pct=0.0,
         )
 
         group = _make_group(
@@ -385,8 +378,11 @@ class TestBullPutSpreadEntry:
         )
         strategy.trade_groups.append(group)
 
-        # Place entry
-        short_put = _make_put_contract(strike=99.0, bid=2.00, ask=2.20)
+        # Place entry. Short symbol must encode strike 99 so the get_pos matcher
+        # below (keyed on "099") can value the short leg at exit time.
+        short_put = _make_put_contract(
+            symbol="O:AAPL250718P00099000", strike=99.0, bid=2.00, ask=2.20,
+        )
         long_put = _make_put_contract(
             symbol="O:AAPL250718P00094000", strike=94.0, bid=0.50, ask=0.60,
         )
@@ -431,7 +427,10 @@ class TestStrikeSelection:
     def test_spread_strike_selection_exact(self):
         """Ladder has strikes at exact $5 intervals → selects perfect pair."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", spread_width=5.0)
+        # min_otm_pct=0.0 restores the pre-OTM-floor short selection (short at
+        # level price); target_width is now an explicit arg to the strike
+        # selector (was the constructor's removed `spread_width`).
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_otm_pct=0.0)
 
         group = _make_group()
         level = group.deviation_plan.levels[0]  # price=99.0
@@ -442,7 +441,7 @@ class TestStrikeSelection:
             _make_put_contract(symbol="P94", strike=94.0, bid=0.50, ask=0.60),
         ]
 
-        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0)
+        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0, target_width=5.0)
         assert result is not None
         short, long = result
         assert short.strike == 99.0
@@ -451,7 +450,7 @@ class TestStrikeSelection:
     def test_spread_strike_selection_nearest(self):
         """No strike at exact width → picks nearest within tolerance."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", spread_width=5.0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_otm_pct=0.0)
 
         group = _make_group()
         level = group.deviation_plan.levels[0]
@@ -461,7 +460,7 @@ class TestStrikeSelection:
             _make_put_contract(symbol="P95", strike=95.0, bid=0.80, ask=0.95),
         ]
 
-        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0)
+        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0, target_width=5.0)
         assert result is not None
         short, long = result
         assert short.strike == 99.0
@@ -471,7 +470,7 @@ class TestStrikeSelection:
         """Only strikes within $2 available → skips (< min width)."""
         pg = _make_mock_playground()
         strategy = CreditSpreadStrategy(
-            pg, "AAPL", spread_width=5.0, min_spread_width=2.50,
+            pg, "AAPL", min_otm_pct=0.0, min_spread_width=2.50,
         )
 
         group = _make_group()
@@ -482,7 +481,7 @@ class TestStrikeSelection:
             _make_put_contract(symbol="P97", strike=97.5, bid=1.50, ask=1.70),
         ]
 
-        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0)
+        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0, target_width=5.0)
         # 99 - 97.5 = 1.5 < 2.50 min
         assert result is None
         assert strategy.funnel["entries_skipped_no_long"] >= 1
@@ -501,14 +500,14 @@ class TestStrikeSelection:
         ]
 
         # Stock price is at 101 — above all candidates
-        result = strategy._select_bull_put_strikes(level, contracts, group, 101.0)
+        result = strategy._select_bull_put_strikes(level, contracts, group, 101.0, target_width=5.0)
         assert result is None
         assert strategy.funnel["entries_skipped_no_short"] >= 1
 
     def test_spread_strike_no_long_available(self):
         """Short found but no protective long within tolerance → skip."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", spread_width=5.0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_otm_pct=0.0)
 
         group = _make_group()
         level = group.deviation_plan.levels[0]
@@ -518,7 +517,7 @@ class TestStrikeSelection:
             _make_put_contract(strike=99.0, bid=2.00, ask=2.20),
         ]
 
-        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0)
+        result = strategy._select_bull_put_strikes(level, contracts, group, 100.0, target_width=5.0)
         assert result is None
         assert strategy.funnel["entries_skipped_no_long"] >= 1
 
@@ -561,8 +560,8 @@ class TestCollateralManagement:
         strategy = CreditSpreadStrategy(
             pg, "AAPL",
             max_collateral_pct=0.01,  # $100 per group
-            spread_width=5.0,
             min_hold_candles=0,
+            min_otm_pct=0.0,
         )
 
         group = _make_group(
@@ -592,8 +591,8 @@ class TestCollateralManagement:
             pg, "AAPL",
             max_collateral_pct=1.0,     # high per-group limit
             max_total_collateral_pct=0.05,  # $500 total
-            spread_width=5.0,
             min_hold_candles=0,
+            min_otm_pct=0.0,
         )
 
         # Pre-commit most of the collateral
@@ -639,7 +638,7 @@ class TestCollateralManagement:
         """When actual width ≠ target, collateral = actual * 100 * contracts."""
         pg = _make_mock_playground()
         strategy = CreditSpreadStrategy(
-            pg, "AAPL", spread_width=5.0, min_hold_candles=0,
+            pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0,
         )
 
         group = _make_group(
@@ -778,7 +777,9 @@ class TestExitLogic:
     def test_exit_reversion_complete(self):
         """Stock crosses signal price → all entries closed."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        # Reversion exit is opt-in now (enable_reversion_exit default False);
+        # this test exercises that path, so enable it explicitly.
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, enable_reversion_exit=True)
 
         entry = _make_spread_entry()
         entry.candles_held = 100
@@ -882,7 +883,7 @@ class TestSkipFilters:
         """Net credit below min → skipped."""
         pg = _make_mock_playground()
         strategy = CreditSpreadStrategy(
-            pg, "AAPL", min_credit_per_spread=0.50, min_hold_candles=0,
+            pg, "AAPL", min_credit_per_spread=0.50, min_hold_candles=0, min_otm_pct=0.0,
         )
 
         group = _make_group(
@@ -907,7 +908,7 @@ class TestSkipFilters:
     def test_debit_spread_rejected(self):
         """short_bid < long_ask → skipped."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group(
             levels=[DeviationLevel(price=99.0, shares=1, sigma_distance=0.5, p_revert=0.6)],
@@ -930,7 +931,7 @@ class TestSkipFilters:
     def test_negative_ev_skipped(self):
         """Expected profit < 0 → skipped."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         # Forward returns that mostly go below short strike → negative EV
         forward_returns = [-0.10] * 100  # stock drops 10% every time
@@ -956,7 +957,7 @@ class TestSkipFilters:
     def test_wide_bid_ask_skipped(self):
         """Bid-ask ratio > 20% → skipped."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         group = _make_group(
             levels=[DeviationLevel(price=99.0, shares=1, sigma_distance=0.5, p_revert=0.6)],
@@ -979,7 +980,7 @@ class TestSkipFilters:
     def test_duplicate_strike_expiry_skipped(self):
         """Same (expiry, short_strike) already open → skipped."""
         pg = _make_mock_playground()
-        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0)
+        strategy = CreditSpreadStrategy(pg, "AAPL", min_hold_candles=0, min_otm_pct=0.0)
 
         # Pre-register the spread key
         strategy._open_spread_keys.add(("2025-07-18", 99.0))
@@ -1075,8 +1076,14 @@ class TestProbabilityAndEV:
         contracts = 1
 
         ev = strategy._compute_expected_profit(group, None, short_c, long_c, contracts)
-        # All returns above 95 → each scenario nets credit_per (1.00-0.30=0.70) * 100 * 1
-        expected = 0.70 * 100 * 1
+        # All returns above 95 → each scenario nets credit_per (1.00-0.30=0.70).
+        # The EV model subtracts estimated exit slippage on every scenario
+        # (added in commit 4059b408 "refine spread ev calculations"):
+        #   slippage = ((short_ask-short_bid) + (long_ask-long_bid)) / 2
+        #            = ((1.20-1.00) + (0.30-0.20)) / 2 = 0.15 per contract
+        credit_per = 1.00 - 0.30
+        slippage = ((1.20 - 1.00) + (0.30 - 0.20)) / 2
+        expected = (credit_per - slippage) * 100 * 1
         assert abs(ev - expected) < 0.01
 
     def test_expected_profit_all_max_loss(self):
@@ -1094,10 +1101,13 @@ class TestProbabilityAndEV:
         contracts = 1
 
         ev = strategy._compute_expected_profit(group, None, short_c, long_c, contracts)
-        # All below 90 → net = (1.00-0.30) - 5.0 = -4.30 per contract
+        # All below 90 → net = (1.00-0.30) - 5.0 = -4.30 per contract, minus
+        # exit slippage of 0.15/contract (commit 4059b408 "refine spread ev
+        # calculations": EV subtracts estimated exit slippage on every scenario).
         credit_per = 1.00 - 0.30
         width = 5.0
-        expected = (credit_per - width) * 100 * 1  # -4.30 * 100 = -430.0
+        slippage = ((1.20 - 1.00) + (0.30 - 0.20)) / 2  # 0.15
+        expected = (credit_per - width - slippage) * 100 * 1  # -4.45 * 100 = -445.0
         assert abs(ev - expected) < 0.01
 
     def test_expected_profit_mixed(self):
@@ -1120,7 +1130,10 @@ class TestProbabilityAndEV:
         long_c = _make_put_contract(symbol="P90", strike=90.0, bid=0.20, ask=0.30)
 
         ev = strategy._compute_expected_profit(group, None, short_c, long_c, 1)
-        expected_per = (0.70 + 0.70 + 0.70 + (-0.30) + (-4.30)) / 5
+        # Per-scenario P&L minus per-contract exit slippage of 0.15 (commit
+        # 4059b408 "refine spread ev calculations": slippage subtracted always).
+        slippage = ((1.20 - 1.00) + (0.30 - 0.20)) / 2  # 0.15
+        expected_per = (0.70 + 0.70 + 0.70 + (-0.30) + (-4.30)) / 5 - slippage
         expected = expected_per * 100 * 1
         assert abs(ev - expected) < 0.01
 
@@ -1139,7 +1152,10 @@ class TestProbabilityAndEV:
         ev = strategy._compute_expected_profit(group, None, short_c, long_c, 1)
         credit_per = 1.50 - 0.40  # 1.10
         partial = credit_per - (98.0 - 96.0)  # 1.10 - 2.0 = -0.90
-        expected = partial * 100 * 1
+        # Minus per-contract exit slippage of 0.15 (commit 4059b408 "refine
+        # spread ev calculations": slippage subtracted on every scenario).
+        slippage = ((1.70 - 1.50) + (0.40 - 0.30)) / 2  # 0.15
+        expected = (partial - slippage) * 100 * 1
         assert abs(ev - expected) < 0.01
 
 

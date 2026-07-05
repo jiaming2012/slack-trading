@@ -16,22 +16,21 @@ from deprecated.mean_reversion import (
 )
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
+from tests.fixtures.mock_playground import make_mock_playground
+
 
 # ------------------------------------------------------------------ #
 # Helpers
 # ------------------------------------------------------------------ #
 
 def _make_mock_playground(equity=100_000.0, free_margin=None):
-    """Create a mock playground with minimal interface."""
-    pg = MagicMock()
-    pg.htf_seconds = 3600
-    pg.ltf_seconds = 300
-    pg.account = MagicMock()
-    pg.account.equity = equity
-    pg.account.free_margin = free_margin if free_margin is not None else equity
+    """Create a contract-faithful fake playground (shared fixture).
+
+    Preserves this suite's prior default of a non-zero position quantity so
+    tests reading ``account.get_quantity`` keep their scenario intent.
+    """
+    pg = make_mock_playground(equity=equity, free_margin=free_margin)
     pg.account.get_quantity = MagicMock(return_value=10000)
-    pg.place_order = MagicMock()
-    pg.is_backtest_complete = False
     return pg
 
 
@@ -807,8 +806,8 @@ class TestBarToDict:
         """_bar_to_dict extracts expected fields from a protobuf-like bar."""
         bar = MagicMock()
         # Mock _get and _get_dt to return specific values
-        with patch("strategies.mean_reversion._get") as mock_get, \
-             patch("strategies.mean_reversion._get_dt") as mock_get_dt:
+        with patch("deprecated.mean_reversion._get") as mock_get, \
+             patch("deprecated.mean_reversion._get_dt") as mock_get_dt:
             mock_get.side_effect = lambda b, field: {
                 "open": 99.5, "high": 100.5, "low": 99.0, "close": 100.0,
                 "superD_50_3": 1.0,
@@ -1099,8 +1098,8 @@ class TestEVModelFlag:
         strategy = MeanReversionStrategy(pg, "AAPL", pdf=pdf)
 
         from unittest.mock import patch as _patch
-        with _patch("strategies.mean_reversion.detect_atomic_signals_on_bar") as mock_detect, \
-             _patch("strategies.mean_reversion.compute_deviation_levels") as mock_compute:
+        with _patch("deprecated.mean_reversion.detect_atomic_signals_on_bar") as mock_detect, \
+             _patch("deprecated.mean_reversion.compute_deviation_levels") as mock_compute:
             mock_detect.return_value = [
                 "bullish_supertrend", "stochrsi_cross_above_20",
             ]

@@ -18,26 +18,16 @@ from deprecated.options_mean_reversion import (
 )
 from lib.pdf_types import HorizonStats, PDFDocument, SignalPDF
 
+from tests.fixtures.mock_playground import make_mock_playground
+
 
 # ------------------------------------------------------------------ #
 # Helpers
 # ------------------------------------------------------------------ #
 
 def _make_mock_playground(equity=100_000.0, free_margin=None):
-    """Create a mock playground with minimal interface."""
-    pg = MagicMock()
-    pg.htf_seconds = 3600
-    pg.ltf_seconds = 300
-    pg.id = "test-pg-id"
-    pg.account = MagicMock()
-    pg.account.equity = equity
-    pg.account.free_margin = free_margin if free_margin is not None else equity
-    pg.account.get_quantity = MagicMock(return_value=0)
-    pg.account.get_position = MagicMock(return_value=None)
-    pg.place_order = MagicMock()
-    pg.fetch_ladder = MagicMock()
-    pg.is_backtest_complete = False
-    return pg
+    """Create a contract-faithful fake playground (shared fixture)."""
+    return make_mock_playground(equity=equity, free_margin=free_margin)
 
 
 def _make_pdf(
