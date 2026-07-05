@@ -5,63 +5,63 @@
 
 ## 1. Mode type
 
-- [ ] 1.1 Add `src/go/backtester-api/models/mode.go`: `type Mode string`, consts
+- [x] 1.1 Add `src/go/backtester-api/models/mode.go`: `type Mode string`, consts
       `Simulation` / `Paper` / `Margin`, and `Validate()` accepting exactly those three.
-- [ ] 1.2 Add a table-driven unit test asserting the three values validate and any other
+- [x] 1.2 Add a table-driven unit test asserting the three values validate and any other
       value (including `"reconcile"`, `"mock"`) returns an error.
 
 ## 2. Boundary compatibility mapping
 
-- [ ] 2.1 Add `src/go/backtester-api/models/mode_compat.go` with
+- [x] 2.1 Add `src/go/backtester-api/models/mode_compat.go` with
       `ModeFromLegacy(environment, liveAccountType string) (Mode, error)` implementing
       the design.md mapping table, returning an explicit error naming offending values
       for unrecognized combinations.
-- [ ] 2.2 Add `(Mode).ToLegacy() (environment, liveAccountType string)` returning the
+- [x] 2.2 Add `(Mode).ToLegacy() (environment, liveAccountType string)` returning the
       canonical legacy pair per the table.
-- [ ] 2.3 Unit test: every mapping-table combination resolves to the expected `Mode`;
+- [x] 2.3 Unit test: every mapping-table combination resolves to the expected `Mode`;
       round-trip `ModeFromLegacy(ToLegacy(m)) == m` for all three modes; unrecognized
       combination errors.
 
 ## 3. Replace crossed enums in the domain model
 
-- [ ] 3.1 Collapse `Meta.Environment` + `Meta.LiveAccountType` into a single in-memory
+- [x] 3.1 Collapse `Meta.Environment` + `Meta.LiveAccountType` into a single in-memory
       `Meta.Mode`; keep the `environment` / `live_account_type` GORM columns unchanged
       by serializing through `ToLegacy` / `ModeFromLegacy`.
-- [ ] 3.2 Update every construction path (playground, account, broker) to take a single
+- [x] 3.2 Update every construction path (playground, account, broker) to take a single
       `Mode` instead of an `(environment, liveAccountType)` pair.
-- [ ] 3.3 Delete `playground_environment.go` and `live_account_type.go`; rewrite all
+- [x] 3.3 Delete `playground_environment.go` and `live_account_type.go`; rewrite all
       references across the 38 files to `Mode`.
-- [ ] 3.4 `grep` confirms no non-test `src/go/**` source references
+- [x] 3.4 `grep` confirms no non-test `src/go/**` source references
       `PlaygroundEnvironment` or `LiveAccountType`.
 
 ## 4. Persistence boundary
 
-- [ ] 4.1 In the playground/account stores under `src/go/data/`, call `ModeFromLegacy`
+- [x] 4.1 In the playground/account stores under `src/go/data/`, call `ModeFromLegacy`
       on the read path after scanning the two columns and `ToLegacy` on the write path.
-- [ ] 4.2 Confirm no schema migration, backfill, or bulk `UPDATE` against playground
+- [x] 4.2 Confirm no schema migration, backfill, or bulk `UPDATE` against playground
       rows is introduced (diff review).
-- [ ] 4.3 Unit test with fixture rows for each legacy combination (including a `mock`
+- [x] 4.3 Unit test with fixture rows for each legacy combination (including a `mock`
       row) verifying read → `Mode` and round-trip write → re-read idempotence.
 
 ## 5. RPC boundary
 
-- [ ] 5.1 In `CreatePlayground` (`router/grpc.go` + `proto_converters.go`), map request
+- [x] 5.1 In `CreatePlayground` (`router/grpc.go` + `proto_converters.go`), map request
       `environment` / `live_account_type` to `Mode` via `ModeFromLegacy` and reject
       combinations that do not resolve.
-- [ ] 5.2 Unit test: a valid `(live, paper)` request resolves to `Paper`; a
+- [x] 5.2 Unit test: a valid `(live, paper)` request resolves to `Paper`; a
       contradictory `(live, simulator)` request is rejected with no playground created.
 
 ## 6. Retire operator-facing reconcile concept
 
-- [ ] 6.1 Remove any operator entry point that creates/selects a reconcile playground;
+- [x] 6.1 Remove any operator entry point that creates/selects a reconcile playground;
       keep the internal reconciliation adapter behind the Broker seam.
-- [ ] 6.2 Ensure legacy `environment="reconcile"` rows load into the internal
+- [x] 6.2 Ensure legacy `environment="reconcile"` rows load into the internal
       reconciliation path without panicking; add a load test for such a row.
-- [ ] 6.3 Confirm `Mode` enumeration contains no reconcile value.
+- [x] 6.3 Confirm `Mode` enumeration contains no reconcile value.
 
 ## 7. Verification task target
 
-- [ ] 7.1 Add a `taskfile.yml` target (e.g. `test:migrate-crossed-enums`) that runs the
+- [x] 7.1 Add a `taskfile.yml` target (e.g. `test:migrate-crossed-enums`) that runs the
       mode round-trip / diff-test (MIG-03 pattern) and exits non-zero on any mismatch.
 
 ## 8. Verification and closeout

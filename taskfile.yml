@@ -85,6 +85,15 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:migrate-crossed-enums:
+    desc: 'migrate-crossed-enums G4 companion (MIG-03 pattern): verify the mode round-trip — every legacy (environment, live_account_type) combination maps to the expected Mode, re-reads idempotently with byte-identical column values, reconcile rows stay internal, and invalid combinations are rejected. Exits non-zero on any mismatch.'
+    cmds:
+      - go test -count=1 -run 'TestMode|TestAccountRole|TestMetaLegacy|TestMetaUnknownLegacyRowFailsLoad|TestNewMetaConstructionWritesCanonicalLegacyBytes' -v ./models/
+      - go test -count=1 -run 'TestCreateLivePlayground_Rejects|TestCreateLivePlayground_ValidCombination|TestCreatePlayground_RejectsNonSimulationEnvironments' -v ./router/
+    dir: src/go/backtester
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:model-diff:
     desc: 'MIG-03: run the fixed AAPL model-diff backtester scenario and diff its output byte-for-byte against the committed baseline reference (reconcile-models-packages G4). Requires the Go trading server to be running (task app:dev).'
     cmds:
