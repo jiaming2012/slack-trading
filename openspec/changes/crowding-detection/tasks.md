@@ -2,25 +2,25 @@
 
 ## 1. Package scaffolding
 
-- [ ] 1.1 Create `src/go/tradingstack/crowding/` package skeleton (package `crowding`), importing `github.com/jiaming2012/slack-trading/src/go/tradingstack` for reference types.
-- [ ] 1.2 Add `candidate.go` with the `ScanCandidate` struct (`ScanResultID`, `Ticker`, `ScannedAt`, `StrategyIDs []string`).
+- [x] 1.1 Create `src/go/tradingstack/crowding/` package skeleton (package `crowding`), importing `github.com/jiaming2012/slack-trading/src/go/tradingstack` for reference types.
+- [x] 1.2 Add `candidate.go` with the `ScanCandidate` struct (`ScanResultID`, `Ticker`, `ScannedAt`, `StrategyIDs []string`).
 
 ## 2. Overlap detection core logic
 
-- [ ] 2.1 Add `detector.go` with the `CrowdingResult` struct (`ScannedAt`, `TotalCandidates`, `OverlappingCandidates`, `OverlapPct`, `ThresholdPct`, `Flagged`, `OverlappingCandidateDetails []ScanCandidate`).
-- [ ] 2.2 Implement `DetectCrowding(candidates []ScanCandidate, thresholdPct float64) (CrowdingResult, error)`: count total candidates, count candidates with `len(distinct StrategyIDs) >= 2`, compute `OverlapPct`, set `Flagged = OverlapPct > thresholdPct` (strict).
-- [ ] 2.3 Add `config.go` with `DefaultOverlapThresholdPct = 30.0` and an optional `CROWDING_OVERLAP_THRESHOLD_PCT` env override via `utils.GetEnv`.
+- [x] 2.1 Add `detector.go` with the `CrowdingResult` struct (`ScannedAt`, `TotalCandidates`, `OverlappingCandidates`, `OverlapPct`, `ThresholdPct`, `Flagged`, `OverlappingCandidateDetails []ScanCandidate`).
+- [x] 2.2 Implement `DetectCrowding(candidates []ScanCandidate, thresholdPct float64) (CrowdingResult, error)`: count total candidates, count candidates with `len(distinct StrategyIDs) >= 2`, compute `OverlapPct`, set `Flagged = OverlapPct > thresholdPct` (strict).
+- [x] 2.3 Add `config.go` with `DefaultOverlapThresholdPct = 30.0` and an optional `CROWDING_OVERLAP_THRESHOLD_PCT` env override via `utils.GetEnv`.
 
 ## 3. Persistence models and migration
 
-- [ ] 3.1 Add `models.go` with `CrowdingMetric` (`TableName() "crowding_metrics"`) and `CrowdingFlaggedCandidate` (`TableName() "crowding_flagged_candidates"`), plus a shared `BeforeCreate` UUID hook.
-- [ ] 3.2 Add `migrate.go` with `MigrateCrowdingDetection(db *gorm.DB) error`: `AutoMigrate` both models and add the `crowding_metric_id` / `scan_result_id` foreign keys idempotently, touching no other table.
+- [x] 3.1 Add `models.go` with `CrowdingMetric` (`TableName() "crowding_metrics"`) and `CrowdingFlaggedCandidate` (`TableName() "crowding_flagged_candidates"`), plus a shared `BeforeCreate` UUID hook.
+- [x] 3.2 Add `migrate.go` with `MigrateCrowdingDetection(db *gorm.DB) error`: `AutoMigrate` both models and add the `crowding_metric_id` / `scan_result_id` foreign keys idempotently, touching no other table.
 
 ## 4. Store abstraction
 
-- [ ] 4.1 Add `store.go` with the `CrowdingStore` interface (`Persist(metric CrowdingMetric, flagged []CrowdingFlaggedCandidate) error`).
-- [ ] 4.2 Implement `GormCrowdingStore` (production, writes `CrowdingMetric` + `CrowdingFlaggedCandidate` rows in one transaction).
-- [ ] 4.3 Implement `FakeCrowdingStore` (in-memory, records the last-persisted metric and flagged candidates, used only by tests).
+- [x] 4.1 Add `store.go` with the `CrowdingStore` interface (`Persist(metric CrowdingMetric, flagged []CrowdingFlaggedCandidate) error`).
+- [x] 4.2 Implement `GormCrowdingStore` (production, writes `CrowdingMetric` + `CrowdingFlaggedCandidate` rows in one transaction).
+- [x] 4.3 Implement `FakeCrowdingStore` (in-memory, records the last-persisted metric and flagged candidates, used only by tests).
 
 ## 5. Fixture-based unit tests
 
