@@ -31,9 +31,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// 	}
 
 	// 	switch event := request.(type) {
-	// 	case eventmodels.AddAccountRequestEvent:
+	// 	case models.AddAccountRequestEvent:
 	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.AddAccountRequestEvent, event)
-	// 	case eventmodels.GetAccountsRequestEvent:
+	// 	case models.GetAccountsRequestEvent:
 	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.GetAccountsRequestEvent, event)
 	// 	default:
 	// 		eventpubsub.PublishError("TradeApiHandler/accounts", fmt.Errorf("unknown request type: %T", request))

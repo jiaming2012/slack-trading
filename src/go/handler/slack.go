@@ -7,9 +7,8 @@ import (
 	"github.com/gorilla/schema"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
-	models "github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,9 +24,9 @@ func SlackApiEventHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		req := new(eventmodels.IncomingSlackRequest)
+		req := new(models.IncomingSlackRequest)
 		schema.NewDecoder().Decode(req, r.Form)
-		eventpubsub.PublishEvent("SlackApiEventHandler", eventmodels.GetAccountsRequestEventName, *req)
+		eventpubsub.PublishEvent("SlackApiEventHandler", models.GetAccountsRequestEventName, *req)
 	case "application/json":
 		decoder := json.NewDecoder(r.Body)
 

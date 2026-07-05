@@ -3,7 +3,7 @@ package models
 import (
 	"sync"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type OrderCache struct {
@@ -11,14 +11,14 @@ type OrderCache struct {
 	mutex     *sync.Mutex
 }
 
-func (c *OrderCache) Add(order *eventmodels.TradierOrder, entry ExecutionFillRequest) {
+func (c *OrderCache) Add(order *models.TradierOrder, entry ExecutionFillRequest) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	c.container[order.ID] = entry
 }
 
-func (c *OrderCache) Get(order *eventmodels.TradierOrder) (ExecutionFillRequest, bool) {
+func (c *OrderCache) Get(order *models.TradierOrder) (ExecutionFillRequest, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

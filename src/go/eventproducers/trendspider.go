@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventdto"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
@@ -82,7 +82,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.SupportBreakSignalEventName, eventmodels.SupportBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", models.SupportBreakSignalEventName, models.SupportBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -95,7 +95,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.ResistanceBreakSignalEventName, eventmodels.ResistanceBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", models.ResistanceBreakSignalEventName, models.ResistanceBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,
@@ -108,7 +108,7 @@ func (c *trendSpiderClient) webhookHandler(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			pubsub.PublishEvent("trendSpiderClient.handleWebhook", eventmodels.TrendlineBreakSignalEventName, eventmodels.TrendlineBreakSignal{
+			pubsub.PublishEvent("trendSpiderClient.handleWebhook", models.TrendlineBreakSignalEventName, models.TrendlineBreakSignal{
 				Symbol:           payload.Header.Symbol,
 				Timeframe:        timeframeDuration,
 				Price:            price,

@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/jiaming2012/slack-trading/src/go/eventconsumers"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type GetStateExecutor struct {
 	tracker *eventconsumers.TrackerConsumerV3
 }
 
-func (s *GetStateExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {
+func (s *GetStateExecutor) Serve(r *http.Request, request models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
 	state, unlock := s.tracker.GetState()
 	defer unlock()
 

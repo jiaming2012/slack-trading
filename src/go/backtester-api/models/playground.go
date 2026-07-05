@@ -12,7 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
@@ -42,9 +41,9 @@ type Playground struct {
 	OptionsBroker               IOptionsBroker                            `gorm:"-"`
 	positionCache               *PositionsCache                           `gorm:"-"`
 	openOrdersCache             *OpenOrdersCache                          `gorm:"-"`
-	newCandlesQueue             *eventmodels.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
-	newTradesQueue              *eventmodels.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
-	invalidOrdersQueue          *eventmodels.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
+	newCandlesQueue             *models.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
+	newTradesQueue              *models.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
+	invalidOrdersQueue          *models.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
 	minimumPeriod               time.Duration                             `gorm:"-"` // This is a new field
 	placeOrderMutex             *sync.Mutex                               `json:"-" gorm:"-"`
 	newOrdersQueueMutex         *sync.Mutex                               `json:"-" gorm:"-"`
@@ -76,17 +75,17 @@ func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPric
 		return fmt.Errorf("assigned quantity exceeds remaining open quantity: %w", ErrOptionAssignmentInvalidQuantity)
 	}
 
-	optionContract, ok := order.GetInstrument().(*eventmodels.OptionContractV3)
+	optionContract, ok := order.GetInstrument().(*models.OptionContractV3)
 	if !ok {
 		return fmt.Errorf("order instrument is not an option contract")
 	}
 
 	switch optionContract.OptionType {
-	case eventmodels.OptionTypeCall:
+	case models.OptionTypeCall:
 		if assignedPrice < optionContract.Strike {
 			return fmt.Errorf("assigned price %.2f is below strike price %.2f for a call option: %w", assignedPrice, optionContract.Strike, ErrOptionAssignmentInvalidPrice)
 		}
-	case eventmodels.OptionTypePut:
+	case models.OptionTypePut:
 		if assignedPrice > optionContract.Strike {
 			return fmt.Errorf("assigned price %.2f is above strike price %.2f for a put option: %w", assignedPrice, optionContract.Strike, ErrOptionAssignmentInvalidPrice)
 		}
@@ -94,7 +93,7 @@ func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPric
 		return fmt.Errorf("exercise option not yet implemented for %s", optionContract.OptionType)
 	}
 
-	p.exerciseOptionsRequestQueue.Enqueue(&eventmodels.ExerciseOptionRequest{
+	p.exerciseOptionsRequestQueue.Enqueue(&models.ExerciseOptionRequest{
 		Order:            order,
 		AssignedQuantity: assignedQuantity,
 		AssignmentPrice:  assignedPrice,
@@ -258,16 +257,16 @@ func (p *Playground) GetLiveAccountType() LiveAccountType {
 	return p.Meta.LiveAccountType
 }
 
-func (p *Playground) SetEquityPlot(equityPlot []*eventmodels.EquityPlot) {
+func (p *Playground) SetEquityPlot(equityPlot []*models.EquityPlot) {
 	p.account.EquityPlot = equityPlot
 }
 
-func (p *Playground) GetEquityPlot() []*eventmodels.EquityPlot {
+func (p *Playground) GetEquityPlot() []*models.EquityPlot {
 	return p.account.EquityPlot
 }
 
-func (p *Playground) appendStat(currentTime time.Time, positionCache *PositionsCache) (*eventmodels.EquityPlot, error) {
-	plot := &eventmodels.EquityPlot{
+func (p *Playground) appendStat(currentTime time.Time, positionCache *PositionsCache) (*models.EquityPlot, error) {
+	plot := &models.EquityPlot{
 		Timestamp: currentTime,
 		Value:     p.GetEquity(positionCache),
 	}
@@ -342,7 +341,7 @@ func (p *Playground) GetRepositories() []*CandleRepository {
 	return repos
 }
 
-func (p *Playground) GetOpenOrders(symbol eventmodels.Instrument) []*OrderRecord {
+func (p *Playground) GetOpenOrders(symbol models.Instrument) []*OrderRecord {
 	return p.openOrdersCache.Get(symbol.GetTicker())
 }
 
@@ -593,7 +592,7 @@ func calcVwap(orders []*OrderRecord) float64 {
 	return totalValue / totalQuantity
 }
 
-func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, positionCache *PositionsCache, symbol eventmodels.Instrument, trade *TradeRecord, isClose bool) {
+func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, positionCache *PositionsCache, symbol models.Instrument, trade *TradeRecord, isClose bool) {
 	position := positionCache.Get(symbol.GetTicker())
 
 	totalQuantity := position.Quantity + trade.Quantity
@@ -616,7 +615,7 @@ func (p *Playground) updatePositionsCache(openOrdersCache *OpenOrdersCache, posi
 	}
 }
 
-func (p *Playground) getPriceAt(symbol eventmodels.Instrument, timestamp time.Time) (float64, error) {
+func (p *Playground) getPriceAt(symbol models.Instrument, timestamp time.Time) (float64, error) {
 	repo, ok := p.repos.Get(symbol, p.minimumPeriod)
 	if !ok {
 		return 0, fmt.Errorf("getPriceAt: no repository found for symbol %s and period %s", symbol, p.minimumPeriod)
@@ -631,7 +630,7 @@ func (p *Playground) getPriceAt(symbol eventmodels.Instrument, timestamp time.Ti
 }
 
 // todo: test this
-func (p *Playground) populateRepo(symbol eventmodels.OptionSymbol, from time.Time, to *time.Time) (*CandleRepository, error) {
+func (p *Playground) populateRepo(symbol models.OptionSymbol, from time.Time, to *time.Time) (*CandleRepository, error) {
 	candles, err := p.OptionsBroker.GetCandles(p.ID, symbol, p.minimumPeriod, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("populateRepo: error getting option candles: %w", err)
@@ -649,14 +648,14 @@ func (p *Playground) populateRepo(symbol eventmodels.OptionSymbol, from time.Tim
 			return nil, fmt.Errorf("populateRepo: error adding candles to repository: %w", err)
 		}
 	} else {
-		var barsWithIndicators []*eventmodels.PolygonAggregateBarV2
+		var barsWithIndicators []*models.PolygonAggregateBarV2
 		for _, c := range candles {
 			barsWithIndicators = append(barsWithIndicators, c.ToPolygonAggregateBarV2())
 		}
 
 		indicators := []string{}
 		historyInDays := uint32(0)
-		repoSource := eventmodels.CandleRepositorySource{Type: "polygon"}
+		repoSource := models.CandleRepositorySource{Type: "polygon"}
 
 		repo, err = NewCandleRepository(symbol, p.minimumPeriod, barsWithIndicators, indicators, nil, historyInDays, repoSource)
 		if err != nil {
@@ -671,7 +670,7 @@ func (p *Playground) populateRepo(symbol eventmodels.OptionSymbol, from time.Tim
 	return repo, nil
 }
 
-func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[string]*Tick, error) {
+func (p *Playground) getCurrentPrices(symbols []models.Instrument) (map[string]*Tick, error) {
 	result := make(map[string]*Tick)
 
 	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
@@ -703,17 +702,17 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 		for _, symbol := range symbols {
 			var repo *CandleRepository
 			var ok bool
-			var optionSymbol eventmodels.OptionSymbol
+			var optionSymbol models.OptionSymbol
 			var expiration time.Time
 
 			switch s := symbol.(type) {
-			case eventmodels.StockSymbol:
+			case models.StockSymbol:
 				repo, ok = p.repos.Get(s, p.minimumPeriod)
 				if !ok {
 					return nil, fmt.Errorf("getCurrentPrice: no repository found for symbol %s and period %s", s, p.minimumPeriod)
 				}
 
-			case eventmodels.OptionSymbol:
+			case models.OptionSymbol:
 				optionSymbol = s
 				components, err := s.Components()
 				if err != nil {
@@ -722,7 +721,7 @@ func (p *Playground) getCurrentPrices(symbols []eventmodels.Instrument) (map[str
 
 				expiration = components.Expiration
 
-			case *eventmodels.OptionContractV3:
+			case *models.OptionContractV3:
 				optionSymbol = s.Symbol
 				expiration = s.Expiration
 
@@ -804,7 +803,7 @@ func (p *Playground) SetOpenOrdersCache() error {
 // 	p.addToCache(p.openOrdersCache, order)
 // }
 
-func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord, order *OrderRecord) {
+func (p *Playground) addToCache(cache map[models.Instrument][]*OrderRecord, order *OrderRecord) {
 	openOrders, found := cache[order.GetInstrument()]
 	if !found {
 		openOrders = []*OrderRecord{}
@@ -813,7 +812,7 @@ func (p *Playground) addToCache(cache map[eventmodels.Instrument][]*OrderRecord,
 	cache[order.GetInstrument()] = append(openOrders, order)
 }
 
-// func (p *Playground) deleteFromOpenOrdersCache(symbol eventmodels.Instrument, index int) {
+// func (p *Playground) deleteFromOpenOrdersCache(symbol models.Instrument, index int) {
 // 	p.openOrdersCache[symbol] = append(p.openOrdersCache[symbol][:index], p.openOrdersCache[symbol][index+1:]...)
 // }
 
@@ -1237,12 +1236,12 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	return trade, orderIsFilled, nil
 }
 
-func (p *Playground) updateBalance(symbol eventmodels.Instrument, trade *TradeRecord, previousPositionCache *PositionsCache) {
+func (p *Playground) updateBalance(symbol models.Instrument, trade *TradeRecord, previousPositionCache *PositionsCache) {
 	previousPosition := previousPositionCache.Get(symbol.GetTicker())
 
 	isOptionContract := false
 	switch symbol.(type) {
-	case eventmodels.OptionSymbol, *eventmodels.OptionContractV3:
+	case models.OptionSymbol, *models.OptionContractV3:
 		isOptionContract = true
 	}
 
@@ -1279,7 +1278,7 @@ func (p *Playground) GetCurrentTime() time.Time {
 	return p.clock.CurrentTime
 }
 
-func (p *Playground) FetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
+func (p *Playground) FetchCurrentPrice(ctx context.Context, symbol models.Instrument) (float64, error) {
 	lastCandle, err := p.FetchCurrentCandle(ctx, symbol)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching current candle: %w", err)
@@ -1288,12 +1287,12 @@ func (p *Playground) FetchCurrentPrice(ctx context.Context, symbol eventmodels.I
 	return lastCandle.Close, nil
 }
 
-func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol eventmodels.Instrument) (*eventmodels.AggregateBarWithIndicators, error) {
-	var optionSymbol *eventmodels.OptionSymbol
+func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol models.Instrument) (*models.AggregateBarWithIndicators, error) {
+	var optionSymbol *models.OptionSymbol
 
 	switch s := symbol.(type) {
-	case eventmodels.StockSymbol:
-		result, err := p.getCurrentPrices([]eventmodels.Instrument{symbol})
+	case models.StockSymbol:
+		result, err := p.getCurrentPrices([]models.Instrument{symbol})
 		if err != nil {
 			return nil, fmt.Errorf("error fetching current price: %w", err)
 		}
@@ -1304,7 +1303,7 @@ func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol eventmodels.
 		}
 
 		// todo: should be refactor to use a stockBroker interface to get candles
-		return &eventmodels.AggregateBarWithIndicators{
+		return &models.AggregateBarWithIndicators{
 			Timestamp: tick.Timestamp,
 			Open:      tick.Value,
 			High:      tick.Value,
@@ -1312,9 +1311,9 @@ func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol eventmodels.
 			Close:     tick.Value,
 			Volume:    0,
 		}, nil
-	case eventmodels.OptionSymbol:
+	case models.OptionSymbol:
 		optionSymbol = &s
-	case *eventmodels.OptionContractV3:
+	case *models.OptionContractV3:
 		optionSymbol = &s.Symbol
 	}
 
@@ -1342,7 +1341,7 @@ func (p *Playground) FetchCurrentCandle(ctx context.Context, symbol eventmodels.
 	return nil, fmt.Errorf("fetchCurrentPrice: unsupported symbol type %T", symbol)
 }
 
-func (p *Playground) performLiquidations(symbol eventmodels.Instrument, position *Position, tag string) (*OrderRecord, error) {
+func (p *Playground) performLiquidations(symbol models.Instrument, position *Position, tag string) (*OrderRecord, error) {
 	var order *OrderRecord
 
 	requestedPrice, err := p.FetchCurrentPrice(context.Background(), symbol)
@@ -1453,7 +1452,7 @@ func (p *Playground) checkForLiquidations(positionCache *PositionsCache) (*TickD
 	return nil, nil
 }
 
-func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (p *Playground) FetchCandles(symbol models.Instrument, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	repo, ok := p.repos.Get(symbol, period)
 	if !ok {
 		return nil, fmt.Errorf("period %s not found in repos", period)
@@ -1467,7 +1466,7 @@ func (p *Playground) FetchCandles(symbol eventmodels.Instrument, period time.Dur
 	return candles, nil
 }
 
-func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.EquityPlot, error) {
+func (p *Playground) updateAccountStats(currentTime time.Time) (*models.EquityPlot, error) {
 	positions, err := p.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return nil, fmt.Errorf("error getting positions: %w", err)
@@ -1476,7 +1475,7 @@ func (p *Playground) updateAccountStats(currentTime time.Time) (*eventmodels.Equ
 	return p.appendStat(currentTime, positions)
 }
 
-func (p *Playground) DeleteRepository(symbol eventmodels.Instrument) {
+func (p *Playground) DeleteRepository(symbol models.Instrument) {
 	p.repos.Delete(symbol)
 }
 
@@ -1594,14 +1593,14 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 				var closePriceAtExpiration float64
 				switch components.OptionType {
-				case eventmodels.OptionTypeCall:
+				case models.OptionTypeCall:
 					if event.OptionExpirationEvent.UnderlyingPriceAtExpiry > components.StrikePrice {
 						closePriceAtExpiration = event.OptionExpirationEvent.UnderlyingPriceAtExpiry - components.StrikePrice
 					} else {
 						closePriceAtExpiration = 0
 					}
 
-				case eventmodels.OptionTypePut:
+				case models.OptionTypePut:
 					if event.OptionExpirationEvent.UnderlyingPriceAtExpiry < components.StrikePrice {
 						closePriceAtExpiration = components.StrikePrice - event.OptionExpirationEvent.UnderlyingPriceAtExpiry
 					} else {
@@ -1727,7 +1726,7 @@ func (p *Playground) GetAllOrders() []*OrderRecord {
 	return p.getAllOrders()
 }
 
-func (p *Playground) GetPosition(symbol eventmodels.Instrument, checkExists bool) (Position, error) {
+func (p *Playground) GetPosition(symbol models.Instrument, checkExists bool) (Position, error) {
 	positionCache, err := p.UpdatePricesAndGetPositionCache()
 	if err != nil {
 		return Position{}, fmt.Errorf("error getting positions: %w", err)
@@ -1835,9 +1834,9 @@ func (p *Playground) UpdatePricesAndGetPositionCache() (*PositionsCache, error) 
 
 func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 	positions := make(map[string]*Position)
-	instruments := make([]eventmodels.Instrument, 0)
-	uniqueInstruments := make(map[string]eventmodels.Instrument)
-	positionToInstrumentMap := make(map[*Position]eventmodels.Instrument)
+	instruments := make([]models.Instrument, 0)
+	uniqueInstruments := make(map[string]models.Instrument)
+	positionToInstrumentMap := make(map[*Position]models.Instrument)
 
 	allTrades := make(map[string][]*TradeRecord)
 	for _, order := range p.account.Orders {
@@ -1947,9 +1946,9 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 			}
 
 			switch instrument.(type) {
-			case *eventmodels.OptionContractV3, eventmodels.OptionSymbol:
+			case *models.OptionContractV3, models.OptionSymbol:
 				positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity * 100
-			case eventmodels.StockSymbol:
+			case models.StockSymbol:
 				positions[symbol].PL = (tick.Value - costBasis) * positions[symbol].Quantity
 			default:
 				return nil, fmt.Errorf("unsupported instrument type for symbol %s", symbol)
@@ -1969,7 +1968,7 @@ func (p *Playground) UpdatePositionCachePositions() (*PositionsCache, error) {
 	return p.positionCache, nil
 }
 
-func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Duration) (*eventmodels.PolygonAggregateBarV2, error) {
+func (p *Playground) GetCandle(symbol models.Instrument, period time.Duration) (*models.PolygonAggregateBarV2, error) {
 	repo, ok := p.repos.Get(symbol, period)
 	if !ok {
 		return nil, fmt.Errorf("GetTick: symbol %s not found in repos", symbol)
@@ -1987,7 +1986,7 @@ func (p *Playground) GetCandle(symbol eventmodels.Instrument, period time.Durati
 	return nil, nil
 }
 
-func (p *Playground) isSideAllowed(symbol eventmodels.Instrument, side TradierOrderSide, positionQuantity float64, includePendingOrders bool) error {
+func (p *Playground) isSideAllowed(symbol models.Instrument, side TradierOrderSide, positionQuantity float64, includePendingOrders bool) error {
 	if includePendingOrders {
 		for _, o := range p.account.PendingOrders {
 			if o.GetInstrument() == symbol {
@@ -2095,19 +2094,19 @@ func (p *Playground) GetFreeMargin() (float64, error) {
 	return p.GetFreeMarginFromPositionMap(positions), nil
 }
 
-func (p *Playground) SetNewCandlesQueue(queue *eventmodels.FIFOQueue[*BacktesterCandle]) {
+func (p *Playground) SetNewCandlesQueue(queue *models.FIFOQueue[*BacktesterCandle]) {
 	p.newCandlesQueue = queue
 }
 
-func (p *Playground) GetNewCandlesQueue() *eventmodels.FIFOQueue[*BacktesterCandle] {
+func (p *Playground) GetNewCandlesQueue() *models.FIFOQueue[*BacktesterCandle] {
 	return p.newCandlesQueue
 }
 
-func (p *Playground) SetNewTradesQueue(queue *eventmodels.FIFOQueue[*TradeRecord]) {
+func (p *Playground) SetNewTradesQueue(queue *models.FIFOQueue[*TradeRecord]) {
 	p.newTradesQueue = queue
 }
 
-func (p *Playground) GetNewTradesQueue() *eventmodels.FIFOQueue[*TradeRecord] {
+func (p *Playground) GetNewTradesQueue() *models.FIFOQueue[*TradeRecord] {
 	return p.newTradesQueue
 }
 
@@ -2119,11 +2118,11 @@ func (p *Playground) GetSignalRepo() ISignalRepository {
 	return p.signalRepo
 }
 
-func (p *Playground) SetInvalidOrdersQueue(queue *eventmodels.FIFOQueue[*OrderRecord]) {
+func (p *Playground) SetInvalidOrdersQueue(queue *models.FIFOQueue[*OrderRecord]) {
 	p.invalidOrdersQueue = queue
 }
 
-func (p *Playground) GetInvalidOrdersQueue() *eventmodels.FIFOQueue[*OrderRecord] {
+func (p *Playground) GetInvalidOrdersQueue() *models.FIFOQueue[*OrderRecord] {
 	return p.invalidOrdersQueue
 }
 
@@ -2335,7 +2334,7 @@ func (p *Playground) GetLiveAccount() ILiveAccount {
 	return p.LiveAccount
 }
 
-func (p *Playground) GetCalendarRepository() eventmodels.CalendarRepository {
+func (p *Playground) GetCalendarRepository() models.CalendarRepository {
 	return p.clock.GetCalendarRepository()
 }
 
@@ -2346,7 +2345,7 @@ func (p *Playground) SetLiveAccount(account ILiveAccount) {
 	p.LiveAccountID = &id
 }
 
-func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *eventmodels.FIFOQueue[*TradeRecord], invalidOrdersQueue *eventmodels.FIFOQueue[*OrderRecord], calendar *eventmodels.MarketCalendar, feeds ...(*CandleRepository)) error {
+func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, clock *Clock, now time.Time, newTradesQueue *models.FIFOQueue[*TradeRecord], invalidOrdersQueue *models.FIFOQueue[*OrderRecord], calendar *models.MarketCalendar, feeds ...(*CandleRepository)) error {
 	source := req.Account.Source
 	clientID := req.ClientID
 	balance := req.Account.Balance
@@ -2355,7 +2354,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	tags := req.Tags
 	env := req.Env
 
-	repos := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
+	repos := make(map[models.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 	var startAt time.Time
@@ -2430,17 +2429,17 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 			symbol := feed.GetSymbol()
 
-			if optionSymbol, ok := symbol.(eventmodels.OptionSymbol); ok {
+			if optionSymbol, ok := symbol.(models.OptionSymbol); ok {
 				components, err := optionSymbol.Components()
 				if err != nil {
 					return fmt.Errorf("error getting option components: %w", err)
 				}
 
-				symbol = &eventmodels.OptionContractV3{
+				symbol = &models.OptionContractV3{
 					Symbol:           optionSymbol,
-					UnderlyingSymbol: eventmodels.StockSymbol(components.Underlying),
+					UnderlyingSymbol: models.StockSymbol(components.Underlying),
 					Expiration:       components.Expiration,
-					ExpirationDate:   eventmodels.ExpirationDate(components.Expiration.Format("%Y-%m-%d")),
+					ExpirationDate:   models.ExpirationDate(components.Expiration.Format("%Y-%m-%d")),
 					Strike:           components.StrikePrice,
 					OptionType:       components.OptionType,
 				}

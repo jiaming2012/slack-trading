@@ -8,12 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 // MockFetchCalendarMap returns the mock calendar data
-func MockFetchCalendarMap(start, end eventmodels.PolygonDate) (map[string]*eventmodels.Calendar, error) {
+func MockFetchCalendarMap(start, end models.PolygonDate) (map[string]*models.Calendar, error) {
 	mockData := `{
         "2021-01-12": {"Date": "2021-01-12", "MarketOpen": "2021-01-12T14:30:00Z", "MarketClose": "2021-01-12T21:00:00Z"},
         "2021-01-13": {"Date": "2021-01-13", "MarketOpen": "2021-01-13T14:30:00Z", "MarketClose": "2021-01-13T21:00:00Z"},
@@ -21,7 +21,7 @@ func MockFetchCalendarMap(start, end eventmodels.PolygonDate) (map[string]*event
         "2021-01-15": {"Date": "2021-01-15", "MarketOpen": "2021-01-15T14:30:00Z", "MarketClose": "2021-01-15T21:00:00Z"}
     }`
 
-	var calendar map[string]*eventmodels.Calendar
+	var calendar map[string]*models.Calendar
 	err := json.Unmarshal([]byte(mockData), &calendar)
 	if err != nil {
 		return nil, err
@@ -41,11 +41,11 @@ func TestCalendar(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
+		calendar, err := MockFetchCalendarMap(models.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),
-		}, eventmodels.PolygonDate{
+		}, models.PolygonDate{
 			Year:  endTime.Year(),
 			Month: int(endTime.Month()),
 			Day:   endTime.Day(),
@@ -68,10 +68,10 @@ func TestCalendar(t *testing.T) {
 		require.Equal(t, nextMarketOpen, clock.CurrentTime)
 	})
 
-	createPlayground := func(symbol eventmodels.Instrument, clock *Clock, feed []*eventmodels.PolygonAggregateBarV2) (*Playground, error) {
+	createPlayground := func(symbol models.Instrument, clock *Clock, feed []*models.PolygonAggregateBarV2) (*Playground, error) {
 		period := time.Minute
 		env := PlaygroundEnvironmentSimulator
-		source := eventmodels.CandleRepositorySource{
+		source := models.CandleRepositorySource{
 			Type: "test",
 		}
 
@@ -90,7 +90,7 @@ func TestCalendar(t *testing.T) {
 	}
 
 	t.Run("orders placed outside of market hours are filled at next open", func(t *testing.T) {
-		symbol := eventmodels.StockSymbol("AAPL")
+		symbol := models.StockSymbol("AAPL")
 
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 14, 0, 0, 0, 0, time.UTC)
@@ -104,7 +104,7 @@ func TestCalendar(t *testing.T) {
 		marketCloseTime := time.Date(2021, time.January, 12, 21, 0, 0, 0, time.UTC)
 		u1 := marketCloseTime.Add(1 * time.Minute)
 
-		feed := []*eventmodels.PolygonAggregateBarV2{
+		feed := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     10.0,
@@ -135,11 +135,11 @@ func TestCalendar(t *testing.T) {
 			},
 		}
 
-		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
+		calendar, err := MockFetchCalendarMap(models.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),
-		}, eventmodels.PolygonDate{
+		}, models.PolygonDate{
 			Year:  endTime.Year(),
 			Month: int(endTime.Month()),
 			Day:   endTime.Day(),
@@ -181,11 +181,11 @@ func TestCalendar(t *testing.T) {
 		startTime := time.Date(2021, time.January, 12, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 17, 0, 0, 0, 0, time.UTC)
 
-		calendar, err := MockFetchCalendarMap(eventmodels.PolygonDate{
+		calendar, err := MockFetchCalendarMap(models.PolygonDate{
 			Year:  startTime.Year(),
 			Month: int(startTime.Month()),
 			Day:   startTime.Day(),
-		}, eventmodels.PolygonDate{
+		}, models.PolygonDate{
 			Year:  endTime.Year(),
 			Month: int(endTime.Month()),
 			Day:   endTime.Day(),

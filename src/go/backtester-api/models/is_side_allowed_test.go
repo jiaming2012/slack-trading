@@ -7,15 +7,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // setupOptionPlayground creates a playground with a stock and option repo,
 // places an initial order, and ticks to fill it, returning the playground and mock DB.
-func setupOptionPlayground(t *testing.T, optionSymbol eventmodels.OptionSymbol, initialSide TradierOrderSide, quantity float64) (*Playground, *MockDatabase) {
+func setupOptionPlayground(t *testing.T, optionSymbol models.OptionSymbol, initialSide TradierOrderSide, quantity float64) (*Playground, *MockDatabase) {
 	t.Helper()
 
-	stockSymbol := eventmodels.StockSymbol("AAPL")
+	stockSymbol := models.StockSymbol("AAPL")
 	period := time.Minute
 	tz, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
@@ -23,20 +23,20 @@ func setupOptionPlayground(t *testing.T, optionSymbol eventmodels.OptionSymbol, 
 	startTime := time.Date(2025, time.June, 3, 9, 30, 0, 0, tz)
 	endTime := time.Date(2025, time.June, 10, 16, 0, 0, 0, tz)
 
-	stockCandles := []*eventmodels.PolygonAggregateBarV2{
+	stockCandles := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 200},
 		{Timestamp: startTime.Add(time.Minute), Close: 201},
 	}
 
-	optionCandles := []*eventmodels.PolygonAggregateBarV2{
+	optionCandles := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 5.0},
 		{Timestamp: startTime.Add(time.Minute), Close: 5.5},
 	}
 
-	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
 
-	repo2, err := NewCandleRepository(optionSymbol, period, optionCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo2, err := NewCandleRepository(optionSymbol, period, optionCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
 
 	balance := 100000.0
@@ -52,8 +52,8 @@ func setupOptionPlayground(t *testing.T, optionSymbol eventmodels.OptionSymbol, 
 	require.NoError(t, err)
 
 	// Set up mock options broker
-	data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
-	var bars []*eventmodels.AggregateBarWithIndicators
+	data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
+	var bars []*models.AggregateBarWithIndicators
 	for _, c := range optionCandles {
 		bars = append(bars, c.ToAggregateBarWithIndicators())
 	}
@@ -83,7 +83,7 @@ func setupOptionPlayground(t *testing.T, optionSymbol eventmodels.OptionSymbol, 
 }
 
 func TestIsSideAllowed_SellToOpenBlockedWhenLong(t *testing.T) {
-	optionSymbol := eventmodels.OptionSymbol("O:AAPL250703C00210000")
+	optionSymbol := models.OptionSymbol("O:AAPL250703C00210000")
 
 	// Create playground with a long option position (buy_to_open)
 	playground, _ := setupOptionPlayground(t, optionSymbol, TradierOrderSideBuyToOpen, 5)
@@ -103,7 +103,7 @@ func TestIsSideAllowed_SellToOpenBlockedWhenLong(t *testing.T) {
 }
 
 func TestIsSideAllowed_BuyToOpenBlockedWhenShort(t *testing.T) {
-	optionSymbol := eventmodels.OptionSymbol("O:AAPL250703C00210000")
+	optionSymbol := models.OptionSymbol("O:AAPL250703C00210000")
 
 	// Create playground with a short option position (sell_to_open)
 	playground, _ := setupOptionPlayground(t, optionSymbol, TradierOrderSideSellToOpen, 5)
@@ -123,7 +123,7 @@ func TestIsSideAllowed_BuyToOpenBlockedWhenShort(t *testing.T) {
 }
 
 func TestIsSideAllowed_SellToCloseAllowedWhenLong(t *testing.T) {
-	optionSymbol := eventmodels.OptionSymbol("O:AAPL250703C00210000")
+	optionSymbol := models.OptionSymbol("O:AAPL250703C00210000")
 
 	// Create playground with a long option position (buy_to_open)
 	playground, mockDB := setupOptionPlayground(t, optionSymbol, TradierOrderSideBuyToOpen, 5)
@@ -153,7 +153,7 @@ func TestIsSideAllowed_SellToCloseAllowedWhenLong(t *testing.T) {
 }
 
 func TestIsSideAllowed_BuyToCloseAllowedWhenShort(t *testing.T) {
-	optionSymbol := eventmodels.OptionSymbol("O:AAPL250703C00210000")
+	optionSymbol := models.OptionSymbol("O:AAPL250703C00210000")
 
 	// Create playground with a short option position (sell_to_open)
 	playground, mockDB := setupOptionPlayground(t, optionSymbol, TradierOrderSideSellToOpen, 5)
@@ -183,10 +183,10 @@ func TestIsSideAllowed_BuyToCloseAllowedWhenShort(t *testing.T) {
 }
 
 func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
-	optionSymbol1 := eventmodels.OptionSymbol("O:AAPL250703C00210000")
-	optionSymbol2 := eventmodels.OptionSymbol("O:AAPL250703C00205000")
+	optionSymbol1 := models.OptionSymbol("O:AAPL250703C00210000")
+	optionSymbol2 := models.OptionSymbol("O:AAPL250703C00205000")
 
-	stockSymbol := eventmodels.StockSymbol("AAPL")
+	stockSymbol := models.StockSymbol("AAPL")
 	period := time.Minute
 	tz, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
@@ -194,29 +194,29 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	startTime := time.Date(2025, time.June, 3, 9, 30, 0, 0, tz)
 	endTime := time.Date(2025, time.June, 10, 16, 0, 0, 0, tz)
 
-	stockCandles := []*eventmodels.PolygonAggregateBarV2{
+	stockCandles := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 200},
 		{Timestamp: startTime.Add(time.Minute), Close: 201},
 		{Timestamp: startTime.Add(2 * time.Minute), Close: 202},
 	}
 
-	optionCandles1 := []*eventmodels.PolygonAggregateBarV2{
+	optionCandles1 := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 3.0},
 		{Timestamp: startTime.Add(time.Minute), Close: 3.5},
 		{Timestamp: startTime.Add(2 * time.Minute), Close: 4.0},
 	}
 
-	optionCandles2 := []*eventmodels.PolygonAggregateBarV2{
+	optionCandles2 := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 5.0},
 		{Timestamp: startTime.Add(time.Minute), Close: 5.5},
 		{Timestamp: startTime.Add(2 * time.Minute), Close: 6.0},
 	}
 
-	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
-	repo2, err := NewCandleRepository(optionSymbol1, period, optionCandles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo2, err := NewCandleRepository(optionSymbol1, period, optionCandles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
-	repo3, err := NewCandleRepository(optionSymbol2, period, optionCandles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo3, err := NewCandleRepository(optionSymbol2, period, optionCandles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
 
 	balance := 100000.0
@@ -231,9 +231,9 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
-	for sym, candles := range map[eventmodels.OptionSymbol][]*eventmodels.PolygonAggregateBarV2{optionSymbol1: optionCandles1, optionSymbol2: optionCandles2} {
-		var bars []*eventmodels.AggregateBarWithIndicators
+	data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
+	for sym, candles := range map[models.OptionSymbol][]*models.PolygonAggregateBarV2{optionSymbol1: optionCandles1, optionSymbol2: optionCandles2} {
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}

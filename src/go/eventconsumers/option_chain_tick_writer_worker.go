@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
@@ -68,7 +68,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 				continue
 			}
 
-			var ticks []*eventmodels.OptionChainTickV1
+			var ticks []*models.OptionChainTickV1
 
 			// get real time stock symbols and option contracts
 			allOptionContracts, allOptionContractsDone := optionContractsClient.GetSavedEvents()
@@ -89,14 +89,14 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 				stockTickDTO, err := eventservices.FetchStockTicks(symbol, w.stockQuotesURL, w.brokerBearerToken)
 				if err == nil {
 					stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
-					eventpubsub.PublishEvent("main", eventmodels.CreateNewStockTickEvent, stockTick)
+					eventpubsub.PublishEvent("main", models.CreateNewStockTickEvent, stockTick)
 				} else {
 					log.Errorf("Failed to fetch stock ticks: %v", err)
 				}
 			}
 
 			// record option contract ticks
-			cache := map[string]*eventmodels.OptionChainTickDTO{}
+			cache := map[string]*models.OptionChainTickDTO{}
 			expirations := optionContracts.GetListOfExpirations()
 			underlyingSymbols := optionContracts.GetListOfUnderlyingSymbols()
 			for _, underlyingSymbol := range underlyingSymbols {
@@ -126,7 +126,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 
 			for _, tick := range ticks {
 				t := tick
-				eventpubsub.PublishEvent("main", eventmodels.CreateNewOptionChainTickEvent, t)
+				eventpubsub.PublishEvent("main", models.CreateNewOptionChainTickEvent, t)
 			}
 
 			// log.Debugf("Recorded %d option contract ticks", len(ticks))

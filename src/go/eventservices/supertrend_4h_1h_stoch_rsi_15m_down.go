@@ -9,25 +9,25 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func Run_Supertrend4h1hStochRsi15mDown(args eventmodels.SupertrendRunArgs) (eventmodels.SignalRunOutput, error) {
+func Run_Supertrend4h1hStochRsi15mDown(args models.SupertrendRunArgs) (models.SignalRunOutput, error) {
 	projectDir := os.Getenv("TRADING_PROJECT_DIR")
 	if projectDir == "" {
-		return eventmodels.SignalRunOutput{}, fmt.Errorf("missing TRADING_PROJECT_DIR environment variable")
+		return models.SignalRunOutput{}, fmt.Errorf("missing TRADING_PROJECT_DIR environment variable")
 	}
 
 	log.Debugf("running supertrend_4h_1h_stoch_rsi_15m_down with args: %v", args)
 
 	// import data
-	data := make([]eventmodels.TradingViewCandles, 3)
+	data := make([]models.TradingViewCandles, 3)
 	durations := []int{15, 60, 240}
 	for i, duration := range durations {
 		streamName := fmt.Sprintf("candles-%s-%d", strings.ToUpper(string(args.Ticker)), duration)
 
-		output, err := ExportData(eventmodels.ExportDataRunArgs{
+		output, err := ExportData(models.ExportDataRunArgs{
 			InputStreamName: streamName,
 			StartsAt:        args.StartsAt,
 			EndsAt:          args.EndsAt,
@@ -35,19 +35,19 @@ func Run_Supertrend4h1hStochRsi15mDown(args eventmodels.SupertrendRunArgs) (even
 		})
 
 		if err != nil {
-			return eventmodels.SignalRunOutput{}, fmt.Errorf("error exporting data for %v: %v", streamName, err)
+			return models.SignalRunOutput{}, fmt.Errorf("error exporting data for %v: %v", streamName, err)
 		}
 
-		data[i], err = eventmodels.ImportAndSortCandles(output.ExportedFilepath, time.Duration(duration)*time.Minute)
+		data[i], err = models.ImportAndSortCandles(output.ExportedFilepath, time.Duration(duration)*time.Minute)
 		if err != nil {
-			return eventmodels.SignalRunOutput{}, fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
+			return models.SignalRunOutput{}, fmt.Errorf("error fetching candles for stream %v: %v", streamName, err)
 		}
 	}
 
 	// process data
-	var candles15 eventmodels.TradingViewCandles = data[0]
-	var candles60 eventmodels.TradingViewCandles = data[1]
-	var candles240 eventmodels.TradingViewCandles = data[2]
+	var candles15 models.TradingViewCandles = data[0]
+	var candles60 models.TradingViewCandles = data[1]
+	var candles240 models.TradingViewCandles = data[2]
 
 	log.Infof("processing %d 15m candles", len(candles15))
 
@@ -79,10 +79,10 @@ func Run_Supertrend4h1hStochRsi15mDown(args eventmodels.SupertrendRunArgs) (even
 	outDirs, err := utils.ExportToCsv(candles15, args.LookaheadCandlesCount, candleDuration, outDir, fname)
 
 	if err != nil {
-		return eventmodels.SignalRunOutput{}, fmt.Errorf("error exporting to csv: %v", err)
+		return models.SignalRunOutput{}, fmt.Errorf("error exporting to csv: %v", err)
 	}
 
-	return eventmodels.SignalRunOutput{
+	return models.SignalRunOutput{
 		ExportedFilepaths: outDirs,
 	}, nil
 }

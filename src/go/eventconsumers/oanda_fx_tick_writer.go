@@ -10,7 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
 
@@ -21,13 +21,13 @@ type OandaFxTickWriter struct {
 	bearerToken   string
 }
 
-func (w *OandaFxTickWriter) getActiveSymbols() []eventmodels.FxSymbol {
+func (w *OandaFxTickWriter) getActiveSymbols() []models.FxSymbol {
 	trackers, done := w.trackerCli.GetSavedEvents()
 	done()
 
 	activeFxTrackers := eventservices.GetActiveFxTrackers(trackers)
 
-	symbols := make([]eventmodels.FxSymbol, 0, len(activeFxTrackers))
+	symbols := make([]models.FxSymbol, 0, len(activeFxTrackers))
 
 	for _, tracker := range activeFxTrackers {
 		symbols = append(symbols, tracker.StartFxTracker.Symbol)
@@ -36,7 +36,7 @@ func (w *OandaFxTickWriter) getActiveSymbols() []eventmodels.FxSymbol {
 	return symbols
 }
 
-func (w *OandaFxTickWriter) FetchLastCandle(ctx context.Context, symbol eventmodels.FxSymbol) (*eventmodels.OandaFetchQuotesResponseDTO, error) {
+func (w *OandaFxTickWriter) FetchLastCandle(ctx context.Context, symbol models.FxSymbol) (*models.OandaFetchQuotesResponseDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -62,7 +62,7 @@ func (w *OandaFxTickWriter) FetchLastCandle(ctx context.Context, symbol eventmod
 		return nil, fmt.Errorf("OandaFxTickWriter: Failed to fetch quotes, http code %v", resp.Status)
 	}
 
-	var dto eventmodels.OandaFetchQuotesResponseDTO
+	var dto models.OandaFetchQuotesResponseDTO
 	if err := json.NewDecoder(resp.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("OandaFxTickWriter: Failed to decode json: %v", err)
 	}
@@ -70,7 +70,7 @@ func (w *OandaFxTickWriter) FetchLastCandle(ctx context.Context, symbol eventmod
 	return &dto, nil
 }
 
-func (w *OandaFxTickWriter) run(ctx context.Context, candlesCh chan<- *eventmodels.FxTick) {
+func (w *OandaFxTickWriter) run(ctx context.Context, candlesCh chan<- *models.FxTick) {
 	defer w.wg.Done()
 
 	ticker := time.NewTicker(20 * time.Second)
@@ -93,7 +93,7 @@ func (w *OandaFxTickWriter) run(ctx context.Context, candlesCh chan<- *eventmode
 					continue
 				}
 
-				candlesCh <- &eventmodels.FxTick{
+				candlesCh <- &models.FxTick{
 					Symbol:    s,
 					Timestamp: candle.Timestamp,
 					Price:     candle.Close,
@@ -105,7 +105,7 @@ func (w *OandaFxTickWriter) run(ctx context.Context, candlesCh chan<- *eventmode
 	}
 }
 
-func (w *OandaFxTickWriter) Start(ctx context.Context, candlesCh chan<- *eventmodels.FxTick) {
+func (w *OandaFxTickWriter) Start(ctx context.Context, candlesCh chan<- *models.FxTick) {
 	w.wg.Add(1)
 
 	log.Debug("Starting OandaFxTickWriter...")

@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/worker"
 )
@@ -17,13 +17,13 @@ type TradeExecutor struct {
 	webHookURL string
 }
 
-func (r *TradeExecutor) executeTrade(request eventmodels.TradeRequestEvent) {
+func (r *TradeExecutor) executeTrade(request models.TradeRequestEvent) {
 	log.Debugf("TradeExecutor.executeTrade <- %v", request)
 
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	pubsub.PublishResponse("TradeExecutor.executeTrade", eventmodels.TradeFulfilledEventName, &eventmodels.TradeFulfilledEvent{
+	pubsub.PublishResponse("TradeExecutor.executeTrade", models.TradeFulfilledEventName, &models.TradeFulfilledEvent{
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Symbol,
 		RequestedPrice: request.Price,
@@ -33,7 +33,7 @@ func (r *TradeExecutor) executeTrade(request eventmodels.TradeRequestEvent) {
 	}, &request.Meta)
 }
 
-func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent) {
+func (r *TradeExecutor) executeBotTrade(request models.BotTradeRequestEvent) {
 	log.Debugf("TradeExecutor.executeBotTrade <- %v", request)
 
 	btcPriceCh := worker.FetchCurrentPrice()
@@ -43,7 +43,7 @@ func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent
 	// todo: add a requestID
 	request.Trade.Execute(btcPrice, request.Trade.ExecutedVolume)
 
-	pubsub.PublishResponse("TradeExecutor.executeBotTrade", eventmodels.TradeFulfilledEventName, &eventmodels.TradeFulfilledEvent{
+	pubsub.PublishResponse("TradeExecutor.executeBotTrade", models.TradeFulfilledEventName, &models.TradeFulfilledEvent{
 		Timestamp:      time.Now().UTC(),
 		Symbol:         request.Trade.Symbol,
 		RequestedPrice: request.Trade.RequestedPrice,
@@ -56,8 +56,8 @@ func (r *TradeExecutor) executeBotTrade(request eventmodels.BotTradeRequestEvent
 func (r *TradeExecutor) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("TradeExecutor", eventmodels.TradeRequestEventName, r.executeTrade)
-	pubsub.Subscribe("TradeExecutor", eventmodels.BotTradeRequestEventName, r.executeBotTrade)
+	pubsub.Subscribe("TradeExecutor", models.TradeRequestEventName, r.executeTrade)
+	pubsub.Subscribe("TradeExecutor", models.BotTradeRequestEventName, r.executeBotTrade)
 
 	go func() {
 		defer r.wg.Done()

@@ -15,20 +15,19 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.OptionSpreadContractDTO, riskProfile *eventmodels.RiskProfileConstraint) (long []*eventmodels.OptionSpreadContractDTO, short []*eventmodels.OptionSpreadContractDTO, err error) {
+func FindHighestEVPerExpiration(ctx context.Context, options []*models.OptionSpreadContractDTO, riskProfile *models.RiskProfileConstraint) (long []*models.OptionSpreadContractDTO, short []*models.OptionSpreadContractDTO, err error) {
 	tracer := otel.GetTracerProvider().Tracer("getTradeComponents")
 	ctx, span := tracer.Start(ctx, "getTradeComponents")
 	defer span.End()
 
 	logger := log.WithContext(ctx)
 
-	highestEVLongMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
-	highestEVShortMap := make(map[time.Time]*eventmodels.OptionSpreadContractDTO)
+	highestEVLongMap := make(map[time.Time]*models.OptionSpreadContractDTO)
+	highestEVShortMap := make(map[time.Time]*models.OptionSpreadContractDTO)
 
 	for _, option := range options {
 		expiration, err := option.GetExpiration()
@@ -56,8 +55,8 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 		}
 	}
 
-	var highestEVLong []*eventmodels.OptionSpreadContractDTO
-	var highestEVShort []*eventmodels.OptionSpreadContractDTO
+	var highestEVLong []*models.OptionSpreadContractDTO
+	var highestEVShort []*models.OptionSpreadContractDTO
 
 	for _, option := range highestEVLongMap {
 		if option.Stats.ExpectedProfitLong > 0 {
@@ -122,7 +121,7 @@ func FindHighestEVPerExpiration(ctx context.Context, options []*eventmodels.Opti
 	return highestEVLong, highestEVShort, nil
 }
 
-func CheckMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecuter, symbol eventmodels.StockSymbol, requestedQty, maxNoOfPositions int) error {
+func CheckMaxNoOfPositions(tradierOrderExecuter *models.TradierOrderExecuter, symbol models.StockSymbol, requestedQty, maxNoOfPositions int) error {
 	positionsDTO, err := tradierOrderExecuter.PositionFetcher()
 	if err != nil {
 		return fmt.Errorf("checkMaxNoOfPositions: failed to fetch positions: %w", err)
@@ -146,7 +145,7 @@ func CheckMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecute
 			return fmt.Errorf("checkMaxNoOfPositions: failed to get underlying: %w", err)
 		}
 
-		if eventmodels.NewStockSymbol(option.Underlying) == symbol {
+		if models.NewStockSymbol(option.Underlying) == symbol {
 			if p.Quantity > 0 {
 				longPositions++
 			} else if p.Quantity < 0 {
@@ -163,7 +162,7 @@ func CheckMaxNoOfPositions(tradierOrderExecuter *eventmodels.TradierOrderExecute
 	return nil
 }
 
-func symbolPriceAdjustment(symbol eventmodels.StockSymbol, price float64) float64 {
+func symbolPriceAdjustment(symbol models.StockSymbol, price float64) float64 {
 	if symbol == "SPX" {
 		// must follow a tick size of 0.05
 		return math.Round(price*20) / 20
@@ -172,15 +171,15 @@ func symbolPriceAdjustment(symbol eventmodels.StockSymbol, price float64) float6
 	return price
 }
 
-func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, options []*eventmodels.OptionSpreadContractDTO, event eventmodels.SignalTriggeredEvent, riskProfileConstraint *eventmodels.RiskProfileConstraint) ([]*eventmodels.TradeSpreadRequestComponents, error) {
+func getTradeComponents(ctx context.Context, optionType models.OptionType, options []*models.OptionSpreadContractDTO, event models.SignalTriggeredEvent, riskProfileConstraint *models.RiskProfileConstraint) ([]*models.TradeSpreadRequestComponents, error) {
 	tracer := otel.GetTracerProvider().Tracer("getTradeComponents")
 	ctx, span := tracer.Start(ctx, "getTradeComponents")
 	defer span.End()
 
 	var side string
-	if optionType == eventmodels.OptionTypeCall {
+	if optionType == models.OptionTypeCall {
 		side = "Call"
-	} else if optionType == eventmodels.OptionTypePut {
+	} else if optionType == models.OptionTypePut {
 		side = "Put"
 	} else {
 		return nil, fmt.Errorf("getTradeComponents: invalid option type: %s", optionType)
@@ -188,7 +187,7 @@ func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, 
 
 	logger := log.WithContext(ctx)
 
-	var results []*eventmodels.TradeSpreadRequestComponents
+	var results []*models.TradeSpreadRequestComponents
 
 	highestEVLongSpreads, highestEVShortSpreads, err := FindHighestEVPerExpiration(ctx, options, riskProfileConstraint)
 	if err != nil {
@@ -222,7 +221,7 @@ func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, 
 
 			span.AddEvent(fmt.Sprintf("PlaceTradeSpread:%s", side), trace.WithAttributes(attribute.String("tag", tag)))
 
-			results = append(results, &eventmodels.TradeSpreadRequestComponents{
+			results = append(results, &models.TradeSpreadRequestComponents{
 				Tag:            tag,
 				Spread:         spread,
 				RequestedPrice: requestedPrc,
@@ -235,25 +234,25 @@ func getTradeComponents(ctx context.Context, optionType eventmodels.OptionType, 
 	return results, nil
 }
 
-func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, riskProfileConstraint *eventmodels.RiskProfileConstraint) ([]*eventmodels.TradeSpreadRequestComponents, error) {
+func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event models.SignalTriggeredEvent, tradierOrderExecuter *models.TradierOrderExecuter, riskProfileConstraint *models.RiskProfileConstraint) ([]*models.TradeSpreadRequestComponents, error) {
 	tracer := otel.GetTracerProvider().Tracer("DeriveHighestEVOrders")
 	ctx, span := tracer.Start(ctx, "DeriveHighestEVOrders")
 	defer span.End()
 
 	logger := log.WithContext(ctx)
 
-	var results []*eventmodels.TradeSpreadRequestComponents
+	var results []*models.TradeSpreadRequestComponents
 
 	select {
 	case result := <-resultCh:
 		if result != nil {
-			options, ok := result["options"].(map[string][]*eventmodels.OptionSpreadContractDTO)
+			options, ok := result["options"].(map[string][]*models.OptionSpreadContractDTO)
 			if !ok {
 				return nil, fmt.Errorf("options not found in result")
 			}
 
 			if calls, ok := options["calls"]; ok {
-				callResults, err := getTradeComponents(ctx, eventmodels.OptionTypeCall, calls, event, riskProfileConstraint)
+				callResults, err := getTradeComponents(ctx, models.OptionTypeCall, calls, event, riskProfileConstraint)
 				if err == nil {
 					results = append(results, callResults...)
 				} else {
@@ -264,7 +263,7 @@ func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interfa
 			}
 
 			if puts, ok := options["puts"]; ok {
-				putResults, err := getTradeComponents(ctx, eventmodels.OptionTypePut, puts, event, riskProfileConstraint)
+				putResults, err := getTradeComponents(ctx, models.OptionTypePut, puts, event, riskProfileConstraint)
 				if err == nil {
 					results = append(results, putResults...)
 				} else {
@@ -282,7 +281,7 @@ func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interfa
 	return results, nil
 }
 
-func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *eventmodels.TradierOrderExecuter, tradeRequest eventmodels.PlaceTradeSpreadRequest) error {
+func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *models.TradierOrderExecuter, tradeRequest models.PlaceTradeSpreadRequest) error {
 	tracer := otel.Tracer("PlaceTradeSpread")
 	ctx, span := tracer.Start(ctx, "PlaceTradeSpread", trace.WithAttributes(
 		attribute.String("underlying", string(tradeRequest.Underlying)),

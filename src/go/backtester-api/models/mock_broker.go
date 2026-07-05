@@ -6,17 +6,17 @@ import (
 	"math"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type MockBroker struct {
 	requests []*PlaceOrderRequest
-	orders   []*eventmodels.TradierOrder
+	orders   []*models.TradierOrder
 	orderId  uint
 	source   ILiveAccountSource
 }
 
-func (b *MockBroker) ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error {
+func (b *MockBroker) ExerciseOption(ctx context.Context, req *models.ExerciseOptionRequest) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -24,18 +24,18 @@ func (b *MockBroker) GetSource() ILiveAccountSource {
 	return b.source
 }
 
-func (b *MockBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
-	return &eventmodels.FetchAccountEquityResponse{
+func (b *MockBroker) FetchEquity() (*models.FetchAccountEquityResponse, error) {
+	return &models.FetchAccountEquityResponse{
 		Equity: 10000000.00,
 	}, nil
 }
 
-func (b *MockBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) {
+func (b *MockBroker) FetchPositions() ([]models.TradierPositionDTO, error) {
 	return nil, nil
 }
 
 func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceOrderRequest) {
-	o := &eventmodels.TradierOrder{
+	o := &models.TradierOrder{
 		Symbol:                    req.Symbol,
 		AbsoluteQuantity:          float64(req.Quantities[0]),
 		Side:                      string(req.Sides[0]),
@@ -100,15 +100,15 @@ func (b *MockBroker) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (ma
 	return resp, nil
 }
 
-func (b *MockBroker) FetchOrders(ctx context.Context) ([]*eventmodels.TradierOrder, error) {
+func (b *MockBroker) FetchOrders(ctx context.Context) ([]*models.TradierOrder, error) {
 	return b.orders, nil
 }
 
-func (b *MockBroker) FetchBalances(url string, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
-	return eventmodels.FetchTradierBalancesResponseDTO{}, nil
+func (b *MockBroker) FetchBalances(url string, token string) (models.FetchTradierBalancesResponseDTO, error) {
+	return models.FetchTradierBalancesResponseDTO{}, nil
 }
 
-func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*TradierQuoteDTO, error) {
+func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []models.Instrument) ([]*TradierQuoteDTO, error) {
 	var quotes []*TradierQuoteDTO
 	for _, symbol := range symbols {
 		quotes = append(quotes, &TradierQuoteDTO{
@@ -121,7 +121,7 @@ func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Inst
 	return quotes, nil
 }
 
-func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*eventmodels.TradierOrder, error) {
+func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*models.TradierOrder, error) {
 	for _, o := range b.orders {
 		if o.ID == orderId {
 			return o, nil
@@ -136,7 +136,7 @@ func NewMockBroker(orderIdStartIndex uint, existingOrders []*PlaceOrderRequest) 
 
 	broker := &MockBroker{
 		requests: make([]*PlaceOrderRequest, 0),
-		orders:   make([]*eventmodels.TradierOrder, 0),
+		orders:   make([]*models.TradierOrder, 0),
 		orderId:  orderIdStartIndex,
 		source:   source,
 	}

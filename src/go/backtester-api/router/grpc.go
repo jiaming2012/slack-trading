@@ -15,7 +15,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"

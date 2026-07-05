@@ -1,14 +1,14 @@
 package eventservices
 
 import (
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func GetActiveFxTrackers(trackers []*eventmodels.TrackerV3) map[eventmodels.EventStreamID]*eventmodels.TrackerV3 {
-	activeTrackersMap := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV3)
+func GetActiveFxTrackers(trackers []*models.TrackerV3) map[models.EventStreamID]*models.TrackerV3 {
+	activeTrackersMap := make(map[models.EventStreamID]*models.TrackerV3)
 
 	for _, tracker := range trackers {
-		if tracker.Type == eventmodels.TrackerTypeStartFx {
+		if tracker.Type == models.TrackerTypeStartFx {
 			id := tracker.GetMetaData().GetEventStreamID()
 			if tracker.StartFxTracker != nil && tracker.StartFxTracker.Symbol != "" {
 				activeTrackersMap[id] = tracker
@@ -17,7 +17,7 @@ func GetActiveFxTrackers(trackers []*eventmodels.TrackerV3) map[eventmodels.Even
 	}
 
 	for _, tracker := range trackers {
-		if tracker.Type == eventmodels.TrackerTypeStop {
+		if tracker.Type == models.TrackerTypeStop {
 			delete(activeTrackersMap, tracker.StopTracker.TrackerStartID)
 		}
 	}
@@ -25,18 +25,18 @@ func GetActiveFxTrackers(trackers []*eventmodels.TrackerV3) map[eventmodels.Even
 	return activeTrackersMap
 }
 
-func GetActiveStockAndOptionTrackers(trackers map[eventmodels.EventStreamID]*eventmodels.TrackerV3) map[eventmodels.EventStreamID]*eventmodels.TrackerV3 {
-	activeTrackers := make(map[eventmodels.EventStreamID]*eventmodels.TrackerV3)
+func GetActiveStockAndOptionTrackers(trackers map[models.EventStreamID]*models.TrackerV3) map[models.EventStreamID]*models.TrackerV3 {
+	activeTrackers := make(map[models.EventStreamID]*models.TrackerV3)
 
 	for _, tracker := range trackers {
-		if tracker.Type == eventmodels.TrackerTypeStart {
+		if tracker.Type == models.TrackerTypeStart {
 			id := tracker.GetMetaData().GetEventStreamID()
 			activeTrackers[id] = tracker
 		}
 	}
 
 	for _, tracker := range trackers {
-		if tracker.Type == eventmodels.TrackerTypeStop {
+		if tracker.Type == models.TrackerTypeStop {
 			delete(activeTrackers, tracker.StopTracker.TrackerStartID)
 		}
 	}

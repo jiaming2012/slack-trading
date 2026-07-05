@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // liveAccountStore owns the live-account cache, the broker map, and the live

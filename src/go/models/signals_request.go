@@ -17,10 +17,6 @@ type NewSignalRequestEvent struct {
 	LastUpdated time.Time     `json:"lastUpdated"`
 }
 
-func NewSignalRequest(requestID uuid.UUID, name string) *NewSignalRequestEvent {
-	return &NewSignalRequestEvent{RequestID: requestID, Name: name}
-}
-
 func (r *NewSignalRequestEvent) String() string {
 	return fmt.Sprintf("SignalRequest: %v, source=%v", r.Name, r.Source)
 }

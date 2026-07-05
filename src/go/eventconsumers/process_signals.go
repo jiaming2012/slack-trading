@@ -8,11 +8,11 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
-func ProcessSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradierOrderExecuter *eventmodels.TradierOrderExecuter, optionsRequestExecutor *eventmodels.ReadOptionChainRequestExecutor, config *eventmodels.OptionYAML, loc *time.Location, goEnv string) (*eventmodels.ReadOptionChainRequest, error) {
+func ProcessSignalTriggeredEvent(event models.SignalTriggeredEvent, tradierOrderExecuter *models.TradierOrderExecuter, optionsRequestExecutor *models.ReadOptionChainRequestExecutor, config *models.OptionYAML, loc *time.Location, goEnv string) (*models.ReadOptionChainRequest, error) {
 	tracer := otel.GetTracerProvider().Tracer("main:signal")
 	ctx, span := tracer.Start(event.Ctx, "<- SignalTriggeredEvent")
 	defer span.End()
@@ -37,14 +37,14 @@ func ProcessSignalTriggeredEvent(event eventmodels.SignalTriggeredEvent, tradier
 
 	span.SetAttributes(attribute.String("symbol", string(event.Symbol)), attribute.String("startsAt", startsAt.String()), attribute.String("endsAt", endsAt.String()))
 
-	return &eventmodels.ReadOptionChainRequest{
+	return &models.ReadOptionChainRequest{
 		Symbol:                    event.Symbol,
-		OptionTypes:               []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut},
+		OptionTypes:               []models.OptionType{models.OptionTypeCall, models.OptionTypePut},
 		ExpirationsInDays:         config.ExpirationsInDays,
 		MinDistanceBetweenStrikes: config.MinDistanceBetweenStrikes,
 		MaxNoOfStrikes:            config.MaxNoOfStrikes,
 		IsHistorical:              true,
-		EV: &eventmodels.ReadOptionChainExpectedValue{
+		EV: &models.ReadOptionChainExpectedValue{
 			StartsAt: startsAt,
 			EndsAt:   endsAt,
 			Signal:   event.Signal,

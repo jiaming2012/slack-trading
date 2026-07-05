@@ -146,7 +146,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 1300.0, Ask: 1300.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 1300.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 50.0, stats.RealizedPL)
@@ -169,7 +169,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 400.0})
 		require.NoError(t, err)
 
 		require.Equal(t, -250.0, stats.RealizedPL)
@@ -195,7 +195,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err = trades.GetTradeStats(Tick{Bid: 400.0, Ask: 400.0})
+		stats, err = trades.GetTradeStats(Tick{Price: 400.0})
 		require.NoError(t, err)
 
 		require.Equal(t, -550.0, stats.RealizedPL)
@@ -237,7 +237,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 300.0, Ask: 300.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 300.0})
 		require.NoError(t, err)
 
 		require.LessOrEqual(t, -400.0-stats.RealizedPL, SmallRoundingError)
@@ -262,7 +262,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err = trades.GetTradeStats(Tick{Bid: 5000.0, Ask: 5000.0})
+		stats, err = trades.GetTradeStats(Tick{Price: 5000.0})
 		require.NoError(t, err)
 
 		require.LessOrEqual(t, -250.0+1200.0-stats.RealizedPL, SmallRoundingError)
@@ -271,7 +271,7 @@ func TestProfit(t *testing.T) {
 
 	t.Run("no trades", func(t *testing.T) {
 		trades := Trades([]*Trade{})
-		stats, err := trades.GetTradeStats(Tick{Bid: 1000.0, Ask: 1000.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 1000.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 0.0, stats.RealizedPL)
@@ -286,7 +286,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 2000.0, Ask: 2000.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 2000.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 0.0, stats.RealizedPL)
@@ -305,7 +305,7 @@ func TestProfit(t *testing.T) {
 			},
 		}
 
-		stats, err = trades.GetTradeStats(Tick{Bid: 2000.0, Ask: 2000.0})
+		stats, err = trades.GetTradeStats(Tick{Price: 2000.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 1000.0, stats.RealizedPL)
@@ -324,7 +324,7 @@ func TestProfit(t *testing.T) {
 			},
 		})
 
-		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 3000.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 0.0, stats.RealizedPL)
@@ -339,7 +339,7 @@ func TestProfit(t *testing.T) {
 				ExecutedPrice:  1000.0,
 			},
 		})
-		stats, err := trades.GetTradeStats(Tick{Bid: 3000.0, Ask: 3000.0})
+		stats, err := trades.GetTradeStats(Tick{Price: 3000.0})
 		require.NoError(t, err)
 
 		require.Equal(t, 0.0, stats.RealizedPL)

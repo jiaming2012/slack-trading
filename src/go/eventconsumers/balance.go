@@ -7,10 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
-	models "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
-	models2 "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/worker"
 )
@@ -32,7 +30,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
+	profit, statsErr := trades.GetTradeStats(models.Tick{Price: btcPrice})
 	if statsErr != nil {
 		pubsub.PublishError("BalanceWorker.calculateBalance", statsErr)
 		return
@@ -45,7 +43,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEvent("BalanceWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEvent("BalanceWorker", models.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -56,7 +54,7 @@ func (r *BalanceWorker) calculateBalance(symbol string) {
 func (r *BalanceWorker) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("BalanceWorker", eventmodels.BalanceRequestEventName, r.calculateBalance)
+	pubsub.Subscribe("BalanceWorker", models.BalanceRequestEventName, r.calculateBalance)
 
 	go func() {
 		defer r.wg.Done()

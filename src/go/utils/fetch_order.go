@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type OptionProfit struct {
@@ -16,18 +16,18 @@ type OptionProfit struct {
 	IsInMoney bool
 }
 
-func findOratsOptionDataAt(timestamp time.Time, data []eventmodels.OratsOptionData) (eventmodels.OratsOptionData, error) {
+func findOratsOptionDataAt(timestamp time.Time, data []models.OratsOptionData) (models.OratsOptionData, error) {
 	for _, d := range data {
 		if d.TradeDate == timestamp.Format("2006-01-02") {
 			return d, nil
 		}
 	}
 
-	return eventmodels.OratsOptionData{}, errors.New("no matching data found")
+	return models.OratsOptionData{}, errors.New("no matching data found")
 }
 
-func findCandleDTOAt(timestamp time.Time, data []*eventmodels.CandleDTO) (*eventmodels.CandleDTO, error) {
-	var previousData *eventmodels.CandleDTO
+func findCandleDTOAt(timestamp time.Time, data []*models.CandleDTO) (*models.CandleDTO, error) {
+	var previousData *models.CandleDTO
 	for _, d := range data {
 		dateStamp, err := time.Parse("2006-01-02 15:04:00", d.Date)
 		if err != nil {
@@ -52,11 +52,11 @@ func findCandleDTOAt(timestamp time.Time, data []*eventmodels.CandleDTO) (*event
 	return nil, errors.New("findCandleDTOAt: no matching data found")
 }
 
-func isOptionExpired(option eventmodels.OptionSymbolComponents, now time.Time) bool {
+func isOptionExpired(option models.OptionSymbolComponents, now time.Time) bool {
 	return option.Expiration.Before(now)
 }
 
-func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
+func calcOptionSpreadCostBasis(spread models.TradierOrder) float64 {
 	option1Cost := spread.Leg[0].AvgFillPrice * spread.Leg[0].ExecQuantity
 	if spread.Leg[0].Type == "sell_to_open" {
 		option1Cost = -option1Cost
@@ -70,7 +70,7 @@ func calcOptionSpreadCostBasis(spread eventmodels.TradierOrder) float64 {
 	return option1Cost + option2Cost
 }
 
-func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, side string, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
+func calculateOptionProfitAtExpiry(option models.OptionSymbolComponents, side string, underlyingPriceAtExpiry float64, optionMultiplier float64) (float64, error) {
 	if option.OptionType == "C" {
 		if underlyingPriceAtExpiry > option.StrikePrice {
 			profit := (underlyingPriceAtExpiry - option.StrikePrice) * optionMultiplier
@@ -104,7 +104,7 @@ func calculateOptionProfitAtExpiry(option eventmodels.OptionSymbolComponents, si
 	}
 }
 
-func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, side1 string, optionPremium float64, option2 eventmodels.OptionSymbolComponents, side2 string, optionPremium2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
+func calculateSpreadProfitAtExpiry(option1 models.OptionSymbolComponents, side1 string, optionPremium float64, option2 models.OptionSymbolComponents, side2 string, optionPremium2 float64, underlyingClosePrcAtExpiry float64, optionMultiplier float64) (OptionProfit, OptionProfit, error) {
 	profit1, err := calculateOptionProfitAtExpiry(option1, side1, underlyingClosePrcAtExpiry, optionMultiplier)
 	if err != nil {
 		return OptionProfit{}, OptionProfit{}, fmt.Errorf("calculateSpreadProfitAtExpiry: failed to calculate option1 profit: %w", err)
@@ -119,13 +119,13 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	}
 
 	var optionProfit1 OptionProfit
-	if option1.OptionType == eventmodels.OptionTypeCall {
+	if option1.OptionType == models.OptionTypeCall {
 		if underlyingClosePrcAtExpiry > option1.StrikePrice {
 			optionProfit1.IsInMoney = true
 		} else {
 			optionProfit1.IsInMoney = false
 		}
-	} else if option1.OptionType == eventmodels.OptionTypePut {
+	} else if option1.OptionType == models.OptionTypePut {
 		if underlyingClosePrcAtExpiry < option1.StrikePrice {
 			optionProfit1.IsInMoney = true
 		} else {
@@ -151,13 +151,13 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	}
 
 	var optionProfit2 OptionProfit
-	if option2.OptionType == eventmodels.OptionTypeCall {
+	if option2.OptionType == models.OptionTypeCall {
 		if underlyingClosePrcAtExpiry > option2.StrikePrice {
 			optionProfit2.IsInMoney = true
 		} else {
 			optionProfit2.IsInMoney = false
 		}
-	} else if option2.OptionType == eventmodels.OptionTypePut {
+	} else if option2.OptionType == models.OptionTypePut {
 		if underlyingClosePrcAtExpiry < option2.StrikePrice {
 			optionProfit2.IsInMoney = true
 		} else {
@@ -172,7 +172,7 @@ func calculateSpreadProfitAtExpiry(option1 eventmodels.OptionSymbolComponents, s
 	return optionProfit1, optionProfit2, nil
 }
 
-func FormatOptionSymbol(s eventmodels.OptionSymbol) eventmodels.OptionSymbol {
+func FormatOptionSymbol(s models.OptionSymbol) models.OptionSymbol {
 	upper := strings.ToUpper(string(s))
 	if upper[:2] == "O:" {
 		return s[2:]
@@ -181,7 +181,7 @@ func FormatOptionSymbol(s eventmodels.OptionSymbol) eventmodels.OptionSymbol {
 	return s
 }
 
-func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisRequest, underlyingDailyCandles []*eventmodels.CandleDTO, optionMultiplier float64) (*eventmodels.OptionOrderSpreadResult, error) {
+func CalculateOptionOrderSpreadResult(req models.OptionSpreadAnalysisRequest, underlyingDailyCandles []*models.CandleDTO, optionMultiplier float64) (*models.OptionOrderSpreadResult, error) {
 	log.Infof("processing option spread analysis request %v", req)
 	log.Infof("leg 1: %v", req.Leg1)
 	log.Infof("leg 2: %v", req.Leg2)
@@ -200,32 +200,32 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 	symbolLeg1 := FormatOptionSymbol(req.Leg1.Symbol)
 	symbolLeg2 := FormatOptionSymbol(req.Leg2.Symbol)
 
-	option1, err := eventmodels.NewOptionSymbolComponents(symbolLeg1)
+	option1, err := models.NewOptionSymbolComponents(symbolLeg1)
 	side1 := req.Leg1.Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option1 ticker %v: %w", symbolLeg1, err)
 	}
 
-	var option1Type eventmodels.OptionType
+	var option1Type models.OptionType
 	if option1.OptionType == "C" {
-		option1Type = eventmodels.OptionTypeCall
+		option1Type = models.OptionTypeCall
 	} else if option1.OptionType == "P" {
-		option1Type = eventmodels.OptionTypePut
+		option1Type = models.OptionTypePut
 	} else {
 		return nil, fmt.Errorf("invalid option1 type %v", option1.OptionType)
 	}
 
-	option2, err := eventmodels.NewOptionSymbolComponents(symbolLeg2)
+	option2, err := models.NewOptionSymbolComponents(symbolLeg2)
 	side2 := req.Leg2.Side
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse option2 ticker %v: %w", symbolLeg2, err)
 	}
 
-	var option2Type eventmodels.OptionType
+	var option2Type models.OptionType
 	if option2.OptionType == "C" {
-		option2Type = eventmodels.OptionTypeCall
+		option2Type = models.OptionTypeCall
 	} else if option2.OptionType == "P" {
-		option2Type = eventmodels.OptionTypePut
+		option2Type = models.OptionTypePut
 	} else {
 		return nil, fmt.Errorf("invalid option2 type %v", option2.OptionType)
 	}
@@ -237,7 +237,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		return nil, errors.New("both options must have the same expiration status")
 	}
 
-	expirationDate, err := eventmodels.ConvertToMarketClose(option1.Expiration)
+	expirationDate, err := models.ConvertToMarketClose(option1.Expiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert expiration to market close %v: %w", option1.Expiration, err)
 	}
@@ -260,7 +260,7 @@ func CalculateOptionOrderSpreadResult(req eventmodels.OptionSpreadAnalysisReques
 		minDistBetweenStrikes = *req.Config.MinDistanceBetweenStrikes
 	}
 
-	result := eventmodels.OptionOrderSpreadResult{
+	result := models.OptionOrderSpreadResult{
 		OrderID:                         req.ID,
 		Underlying:                      req.Underlying,
 		ExecutionType:                   req.ExecutionType,

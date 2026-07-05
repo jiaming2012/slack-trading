@@ -2,86 +2,15 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-type CloseTradesRequestV1 []*CloseTradeRequestV1
-
-type CloseTradeRequestV1 struct {
-	Trade     *Trade
-	Strategy  *Strategy
-	Timeframe int
-	Volume    float64
-	Reason    string
-}
-
-type CloseTradeRequestV2 struct {
-	Trade     *Trade
-	Timeframe *int
-	Percent   float64
-	Reason    string
-}
-
-func (r *CloseTradeRequestV2) Validate() error {
-	if r.Trade == nil {
-		return fmt.Errorf("CloseTradesRequest.Validate: trade not set")
-	}
-
-	if r.Timeframe != nil && *r.Timeframe <= 0 {
-		return InvalidTimeframeErr
-	}
-
-	if r.Percent < 0 || r.Percent > 1 {
-		return InvalidClosePercentErr
-	}
-
-	return nil
-}
-
-type CloseTradesRequest struct {
-	Strategy        *Strategy
-	Timeframe       *int
-	PriceLevelIndex int
-	Percent         float64
-	Reason          string
-}
-
-func (r *CloseTradesRequest) Validate() error {
-	if r.Strategy == nil {
-		return fmt.Errorf("CloseTradesRequest.Validate: strategy not set")
-	}
-
-	if r.Timeframe != nil && *r.Timeframe <= 0 {
-		return InvalidTimeframeErr
-	}
-
-	if r.PriceLevelIndex < 0 {
-		return fmt.Errorf("CloseTradesRequest.Validate: found %v: %w", r.PriceLevelIndex, InvalidPriceLevelIndexErr)
-	}
-
-	if r.Percent < 0 || r.Percent > 1 {
-		return InvalidClosePercentErr
-	}
-
-	if r.Reason == "" {
-		return fmt.Errorf("CloseTradesRequest.Validate: reason not set")
-	}
-
-	return nil
-}
-
-func NewCloseTradesRequest(strategy *Strategy, timeframe *int, priceLevelIndex int, percent float64, reason string) (*CloseTradesRequest, error) {
-	closeReq := &CloseTradesRequest{Strategy: strategy, Timeframe: timeframe, PriceLevelIndex: priceLevelIndex, Percent: percent, Reason: reason}
-
-	if err := closeReq.Validate(); err != nil {
-		return nil, fmt.Errorf("NewCloseTradesRequest validation failed: %w", err)
-	}
-
-	return closeReq, nil
-}
-
+// Validate is ported from the pre-merge legacy models.CloseTradeRequestV1 onto
+// the canonical (merged) CloseTradeRequestV1 type, which has identical fields
+// (reconcile-models-packages: method port).
 func (r *CloseTradeRequestV1) Validate() error {
 	if r.Reason == "" {
 		return fmt.Errorf("CloseTradeRequestV1: reason was not set")
@@ -150,19 +79,6 @@ func (r *BulkCloseRequest) Execute(price float64, symbol string, timeframe *int)
 type OpenTradeRequest struct {
 	Timeframe *int
 	Strategy  *Strategy
-}
-
-func NewOpenTradeRequest(timeframe *int, strategy *Strategy) (*OpenTradeRequest, error) {
-	request := &OpenTradeRequest{
-		Timeframe: timeframe,
-		Strategy:  strategy,
-	}
-
-	if err := request.Validate(); err != nil {
-		return nil, fmt.Errorf("NewOpenTradeRequest validation failed: %w", err)
-	}
-
-	return request, nil
 }
 
 func (r *OpenTradeRequest) Validate() error {

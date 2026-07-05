@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type CandleRepositoryDTO struct {
@@ -33,30 +33,30 @@ func (r *CandleRepositoryDTO) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (r *CandleRepositoryDTO) ToCreateRepositoryRequest() (eventmodels.CreateRepositoryRequest, error) {
-	return eventmodels.CreateRepositoryRequest{
+func (r *CandleRepositoryDTO) ToCreateRepositoryRequest() (models.CreateRepositoryRequest, error) {
+	return models.CreateRepositoryRequest{
 		Symbol: r.Symbol,
-		Timespan: eventmodels.PolygonTimespanRequest{
+		Timespan: models.PolygonTimespanRequest{
 			Multiplier: r.PolygonTimespanMultipler,
 			Unit:       r.PolygonTimespanUnit,
 		},
 		HistoryInDays: r.HistoryInDays,
-		Source: eventmodels.RepositorySource{
-			Type: eventmodels.RepositorySourceType(r.SourceType),
+		Source: models.RepositorySource{
+			Type: models.RepositorySourceType(r.SourceType),
 		},
 		Indicators: r.Indicators,
 	}, nil
 }
 
-// func (r *CandleRepositoryDTO) ToCandleRepository(candles []*eventmodels.PolygonAggregateBarV2, queue *eventmodels.FIFOQueue[*BacktesterCandle]) (*CandleRepository, error) {
+// func (r *CandleRepositoryDTO) ToCandleRepository(candles []*models.PolygonAggregateBarV2, queue *models.FIFOQueue[*BacktesterCandle]) (*CandleRepository, error) {
 // 	return NewCandleRepository(
-// 		eventmodels.NewStockSymbol(r.Symbol),
+// 		models.NewStockSymbol(r.Symbol),
 // 		r.Duration,
 // 		candles,
 // 		r.Indicators,
 // 		queue,
 // 		r.HistoryInDays,
-// 		eventmodels.CandleRepositorySource{
+// 		models.CandleRepositorySource{
 // 			Type: r.SourceType,
 // 		},
 // 	)

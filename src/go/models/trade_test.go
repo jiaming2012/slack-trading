@@ -23,12 +23,12 @@ func TestTrade_IsStopLossTriggered(t *testing.T) {
 		require.NoError(t, err)
 
 		// should not trigger when Bid > sl
-		closeTradeReq, err := tr.IsStopLossTriggered(Tick{Bid: 2.1, Ask: 2.0})
+		closeTradeReq, err := tr.IsStopLossTriggered(Tick{Price: 2.1})
 		require.NoError(t, err)
 		require.Nil(t, closeTradeReq)
 
 		// trigger
-		closeTradeReq, err = tr.IsStopLossTriggered(Tick{Bid: 2.0, Ask: 2.0})
+		closeTradeReq, err = tr.IsStopLossTriggered(Tick{Price: 2.0})
 		require.NoError(t, err)
 		require.Equal(t, tr, closeTradeReq.Trade)
 		require.Nil(t, closeTradeReq.Timeframe)
@@ -43,12 +43,12 @@ func TestTrade_IsStopLossTriggered(t *testing.T) {
 		require.NoError(t, err)
 
 		// should not trigger when Ask < sl
-		closeTradeReq, err := tr.IsStopLossTriggered(Tick{Bid: 6, Ask: 6.98})
+		closeTradeReq, err := tr.IsStopLossTriggered(Tick{Price: 6.98})
 		require.NoError(t, err)
 		require.Nil(t, closeTradeReq)
 
 		// trigger
-		closeTradeReq, err = tr.IsStopLossTriggered(Tick{Bid: 2.0, Ask: 7.5})
+		closeTradeReq, err = tr.IsStopLossTriggered(Tick{Price: 7.5})
 		require.NoError(t, err)
 		require.Equal(t, tr, closeTradeReq.Trade)
 		require.Nil(t, closeTradeReq.Timeframe)

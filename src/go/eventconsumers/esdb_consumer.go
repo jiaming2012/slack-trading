@@ -11,26 +11,26 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
 
-type OptionContractConsumer = esdbConsumer[*eventmodels.OptionContractV1]
+type OptionContractConsumer = esdbConsumer[*models.OptionContractV1]
 
-type TrackerClientV1 = esdbConsumer[*eventmodels.TrackerV1]
+type TrackerClientV1 = esdbConsumer[*models.TrackerV1]
 
-type TrackerClientV3 = esdbConsumer[*eventmodels.TrackerV3]
+type TrackerClientV3 = esdbConsumer[*models.TrackerV3]
 
-type esdbConsumer[T eventmodels.SavedEvent] struct {
+type esdbConsumer[T models.SavedEvent] struct {
 	wg          *sync.WaitGroup
 	db          *esdb.Client
 	url         string
 	mu          sync.Mutex
 	savedEvents []T
-	streamName  eventmodels.StreamName
+	streamName  models.StreamName
 }
 
-func NewESDBConsumer[T eventmodels.SavedEvent](wg *sync.WaitGroup, url string, instance T) *esdbConsumer[T] {
+func NewESDBConsumer[T models.SavedEvent](wg *sync.WaitGroup, url string, instance T) *esdbConsumer[T] {
 	return &esdbConsumer[T]{
 		wg:          wg,
 		url:         url,
@@ -63,7 +63,7 @@ func (cli *esdbConsumer[T]) run(ctx context.Context, errCh chan error) {
 	}
 }
 
-func (cli *esdbConsumer[T]) subscribeToStream(ctx context.Context, streamName eventmodels.StreamName, initialEventNumber uint64) (chan error, error) {
+func (cli *esdbConsumer[T]) subscribeToStream(ctx context.Context, streamName models.StreamName, initialEventNumber uint64) (chan error, error) {
 	subscription, err := cli.db.SubscribeToStream(ctx, string(streamName), esdb.SubscribeToStreamOptions{
 		From: esdb.Revision(initialEventNumber),
 	})
@@ -140,7 +140,7 @@ func (cli *esdbConsumer[T]) processEvent(event *esdb.RecordedEvent) error {
 	return nil
 }
 
-func (cli *esdbConsumer[T]) replayEvents(ctx context.Context, name eventmodels.StreamName, lastEventNumber uint64) error {
+func (cli *esdbConsumer[T]) replayEvents(ctx context.Context, name models.StreamName, lastEventNumber uint64) error {
 	if lastEventNumber == 0 {
 		return nil
 	}

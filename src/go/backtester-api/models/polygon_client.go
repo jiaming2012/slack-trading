@@ -1,8 +1,8 @@
 package models
 
-import "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/go/models"
 
 type IPolygonClient interface {
-	FetchAggregateBars(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error)
-	FetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error)
+	FetchAggregateBars(ticker models.Instrument, timespan models.PolygonTimespan, from, to *models.PolygonDate) ([]*models.PolygonAggregateBarV2, error)
+	FetchPastCandles(symbol models.StockSymbol, timespan models.PolygonTimespan, daysPast int, end *models.PolygonDate) ([]*models.PolygonAggregateBarV2, error)
 }

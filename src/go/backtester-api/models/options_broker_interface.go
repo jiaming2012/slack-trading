@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type IOptionsBroker interface {
-	GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error)
-	ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error
+	GetCandles(playgroundID uuid.UUID, symbol models.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error)
+	ExerciseOption(ctx context.Context, req *models.ExerciseOptionRequest) error
 }

@@ -3,7 +3,7 @@ package utils
 import (
 	"testing"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/stretchr/testify/require"
 )
 
@@ -371,7 +371,7 @@ const quoteWithUnmatchedSymbolsResponse = `
 
 func TestParseTradierResponse(t *testing.T) {
 	t.Run("no positions", func(t *testing.T) {
-		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(noPostionsJSONResponse))
+		dto, err := ParseTradierResponse[models.TradierPositionDTO]([]byte(noPostionsJSONResponse))
 
 		require.NoError(t, err)
 
@@ -379,7 +379,7 @@ func TestParseTradierResponse(t *testing.T) {
 	})
 
 	t.Run("single position", func(t *testing.T) {
-		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(singlePositionJSONResponse))
+		dto, err := ParseTradierResponse[models.TradierPositionDTO]([]byte(singlePositionJSONResponse))
 
 		require.NoError(t, err)
 
@@ -407,7 +407,7 @@ func TestParseTradierResponse(t *testing.T) {
 	})
 
 	t.Run("multiple positions", func(t *testing.T) {
-		dto, err := ParseTradierResponse[eventmodels.TradierPositionDTO]([]byte(multiplePositionsJSONResponse))
+		dto, err := ParseTradierResponse[models.TradierPositionDTO]([]byte(multiplePositionsJSONResponse))
 
 		require.NoError(t, err)
 
@@ -423,7 +423,7 @@ func TestParseTradierResponse(t *testing.T) {
 
 func TestCreateTag(t *testing.T) {
 	t.Run("Encode Tag", func(t *testing.T) {
-		signal := eventmodels.SignalName("supertrend-4h-1h_stoch_rsi_15m_up")
+		signal := models.SignalName("supertrend-4h-1h_stoch_rsi_15m_up")
 		tag := EncodeTag(signal, 9.53, 21.45)
 		require.Equal(t, tag, "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45")
 	})
@@ -432,7 +432,7 @@ func TestCreateTag(t *testing.T) {
 		tag := "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45"
 		signal, expectedProfit, requestedPrc, err := DecodeTag(tag)
 		require.NoError(t, err)
-		require.Equal(t, eventmodels.SignalName("supertrend-4h-1h_stoch_rsi_15m_up"), signal)
+		require.Equal(t, models.SignalName("supertrend-4h-1h_stoch_rsi_15m_up"), signal)
 		require.Equal(t, 9.53, expectedProfit)
 		require.Equal(t, 21.45, requestedPrc)
 	})

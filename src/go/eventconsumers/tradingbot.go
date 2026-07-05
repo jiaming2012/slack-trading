@@ -6,9 +6,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/models"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
 type TradingBot struct {
@@ -16,7 +15,7 @@ type TradingBot struct {
 	strategy *models.Strategy
 }
 
-func (b *TradingBot) placeTrade(signal eventmodels.RsiTradeSignal) {
+func (b *TradingBot) placeTrade(signal models.RsiTradeSignal) {
 	//var t *models.PriceLevel
 	//var err error
 	//stopLossDistance := 3000.0
@@ -38,24 +37,24 @@ func (b *TradingBot) placeTrade(signal eventmodels.RsiTradeSignal) {
 	//	}
 	//}
 	//
-	//pubsub.Publish("TradingBot", pubsub.BotTradeRequestEvent, eventmodels.BotTradeRequestEvent{
+	//pubsub.Publish("TradingBot", pubsub.BotTradeRequestEvent, models.BotTradeRequestEvent{
 	//	PriceLevel: t,
 	//})
 }
 
-func (b *TradingBot) handleSupportBreakSignal(signal eventmodels.SupportBreakSignal) {
+func (b *TradingBot) handleSupportBreakSignal(signal models.SupportBreakSignal) {
 	log.Infof("TradingBot.handleSupportBreakSignal: %v", signal)
 }
 
-func (b *TradingBot) handleResistanceBreakSignal(signal eventmodels.ResistanceBreakSignal) {
+func (b *TradingBot) handleResistanceBreakSignal(signal models.ResistanceBreakSignal) {
 	log.Infof("TradingBot.handleResistanceBreakSignal: %v", signal)
 }
 
-func (b *TradingBot) handleTrendlineBreakSignal(signal eventmodels.TrendlineBreakSignal) {
+func (b *TradingBot) handleTrendlineBreakSignal(signal models.TrendlineBreakSignal) {
 	log.Infof("TradingBot.handleTrendlineBreakSignal: %v", signal)
 }
 
-func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
+func (b *TradingBot) handleAddStrategy(ev models.AddStrategyRequest) {
 	//var signal models.Signal
 	//
 	//timeframe, err := ev.Timeframe.Validate()
@@ -71,7 +70,7 @@ func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
 	//	log.Error("TradingBot.handleAddStrategy::resistance-break: not yet implemented")
 	//	return
 	//case "trendline-break":
-	//	signal = eventmodels.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.ExecutedPrice, ev.Direction, ev.PriceActionEvent)
+	//	signal = models.NewTrendlineBreakSignal(ev.Symbol, timeframe, ev.ExecutedPrice, ev.Direction, ev.PriceActionEvent)
 	//default:
 	//	log.Errorf("TradingBot.handleAddStrategy: unknown signal %v", ev.Header.Signal)
 	//	return
@@ -85,10 +84,10 @@ func (b *TradingBot) handleAddStrategy(ev eventmodels.AddStrategyRequest) {
 func (b *TradingBot) Start(ctx context.Context) {
 	b.wg.Add(1)
 
-	pubsub.Subscribe("TradingBot", eventmodels.SupportBreakSignalEventName, b.handleSupportBreakSignal)
-	pubsub.Subscribe("TradingBot", eventmodels.ResistanceBreakSignalEventName, b.handleResistanceBreakSignal)
-	pubsub.Subscribe("TradingBot", eventmodels.TrendlineBreakSignalEventName, b.handleTrendlineBreakSignal)
-	pubsub.Subscribe("TradingBot", eventmodels.AddStrategyRequestEventName, b.handleAddStrategy)
+	pubsub.Subscribe("TradingBot", models.SupportBreakSignalEventName, b.handleSupportBreakSignal)
+	pubsub.Subscribe("TradingBot", models.ResistanceBreakSignalEventName, b.handleResistanceBreakSignal)
+	pubsub.Subscribe("TradingBot", models.TrendlineBreakSignalEventName, b.handleTrendlineBreakSignal)
+	pubsub.Subscribe("TradingBot", models.AddStrategyRequestEventName, b.handleAddStrategy)
 
 	go func() {
 		defer b.wg.Done()

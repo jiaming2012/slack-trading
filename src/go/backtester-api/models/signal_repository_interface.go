@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // ISignalRepository stores and retrieves TradeSignals.
@@ -11,14 +11,14 @@ import (
 // Symbol is a filter attribute on TradeSignal, not a partition key.
 type ISignalRepository interface {
 	// Write stores a signal in the repository, maintaining timestamp sort order.
-	Write(signal *eventmodels.TradeSignal) error
+	Write(signal *models.TradeSignal) error
 
 	// ReadPending returns signals with Timestamp <= upTo that have not yet been
 	// delivered. Returns them in timestamp order. Advances the internal cursor
 	// past returned signals so they are not re-delivered on subsequent calls.
-	ReadPending(upTo time.Time) []*eventmodels.TradeSignal
+	ReadPending(upTo time.Time) []*models.TradeSignal
 
 	// GetAll returns all signals in the repository regardless of cursor position.
 	// Used for batch persistence (e.g., ESDB write on SavePlayground).
-	GetAll() []*eventmodels.TradeSignal
+	GetAll() []*models.TradeSignal
 }

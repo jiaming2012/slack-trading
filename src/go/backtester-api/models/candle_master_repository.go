@@ -4,17 +4,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type CandleMasterRepository struct {
 	data           map[string]map[time.Duration]*CandleRepository
-	instrumentMeta map[string]eventmodels.Instrument
+	instrumentMeta map[string]models.Instrument
 }
 
-func NewCandleMasterRepository(repos map[eventmodels.Instrument]map[time.Duration]*CandleRepository) *CandleMasterRepository {
+func NewCandleMasterRepository(repos map[models.Instrument]map[time.Duration]*CandleRepository) *CandleMasterRepository {
 	data := make(map[string]map[time.Duration]*CandleRepository)
-	instrumentMeta := make(map[string]eventmodels.Instrument)
+	instrumentMeta := make(map[string]models.Instrument)
 
 	for k, v := range repos {
 		data[k.GetTicker()] = v
@@ -27,12 +27,12 @@ func NewCandleMasterRepository(repos map[eventmodels.Instrument]map[time.Duratio
 	}
 }
 
-func (r *CandleMasterRepository) HasInstrument(instrument eventmodels.Instrument) bool {
+func (r *CandleMasterRepository) HasInstrument(instrument models.Instrument) bool {
 	_, ok := r.data[instrument.GetTicker()]
 	return ok
 }
 
-func (r *CandleMasterRepository) Add(instrument eventmodels.Instrument, period time.Duration, repo *CandleRepository) {
+func (r *CandleMasterRepository) Add(instrument models.Instrument, period time.Duration, repo *CandleRepository) {
 	if r.data == nil {
 		r.data = make(map[string]map[time.Duration]*CandleRepository)
 	}
@@ -42,7 +42,7 @@ func (r *CandleMasterRepository) Add(instrument eventmodels.Instrument, period t
 	r.data[instrument.GetTicker()][period] = repo
 }
 
-func (r *CandleMasterRepository) Get(instrument eventmodels.Instrument, period time.Duration) (*CandleRepository, bool) {
+func (r *CandleMasterRepository) Get(instrument models.Instrument, period time.Duration) (*CandleRepository, bool) {
 	if periodRepos, ok := r.data[instrument.GetTicker()]; ok {
 		if repo, ok := periodRepos[period]; ok {
 			return repo, true
@@ -51,13 +51,13 @@ func (r *CandleMasterRepository) Get(instrument eventmodels.Instrument, period t
 	return nil, false
 }
 
-func (r *CandleMasterRepository) Iter() map[eventmodels.Instrument]map[time.Duration]*CandleRepository {
-	out := make(map[eventmodels.Instrument]map[time.Duration]*CandleRepository)
+func (r *CandleMasterRepository) Iter() map[models.Instrument]map[time.Duration]*CandleRepository {
+	out := make(map[models.Instrument]map[time.Duration]*CandleRepository)
 	for k, v := range r.data {
 		if instrument, found := r.instrumentMeta[k]; found {
 			out[instrument] = v
 		} else {
-			if optionSymbol, err := eventmodels.NewOptionSymbolFromString(k); err == nil {
+			if optionSymbol, err := models.NewOptionSymbolFromString(k); err == nil {
 				optionContract, err := optionSymbol.ConvertToOptionContractV3()
 				if err != nil {
 					log.Fatalf("failed to convert option symbol to OptionContractV3 for key: %s, error: %v", k, err)
@@ -72,7 +72,7 @@ func (r *CandleMasterRepository) Iter() map[eventmodels.Instrument]map[time.Dura
 	return out
 }
 
-func (r *CandleMasterRepository) Delete(instrument eventmodels.Instrument) {
+func (r *CandleMasterRepository) Delete(instrument models.Instrument) {
 	ticker := instrument.GetTicker()
 	delete(r.data, ticker)
 	delete(r.instrumentMeta, ticker)

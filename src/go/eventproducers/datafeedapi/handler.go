@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 )
 
@@ -17,7 +17,7 @@ func datafeedHandler(w http.ResponseWriter, r *http.Request) {
 		if feedName, found := vars["feedName"]; found {
 			switch feedName {
 			case "manual":
-				eventproducers.ApiRequestHandler2(eventmodels.ManualDatafeedUpdateRequestEventName, &eventmodels.ManualDatafeedUpdateRequest{}, &eventmodels.ManualDatafeedUpdateResult{}, w, r)
+				eventproducers.ApiRequestHandler2(models.ManualDatafeedUpdateRequestEventName, &models.ManualDatafeedUpdateRequest{}, &models.ManualDatafeedUpdateResult{}, w, r)
 			default:
 				err := fmt.Errorf("unknown feedName, found %v", feedName)
 				if respErr := eventproducers.SetErrorResponse("request", 400, err, w); respErr != nil {

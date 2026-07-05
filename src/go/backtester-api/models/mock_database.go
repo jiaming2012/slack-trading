@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type MockDatabase struct {
@@ -147,15 +147,15 @@ func (m *MockDatabase) GetOrder(id uint) (*OrderRecord, error) {
 
 func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error {
 	period := time.Minute
-	source := eventmodels.CandleRepositorySource{
+	source := models.CandleRepositorySource{
 		Type: "test",
 	}
 
-	var symbol eventmodels.StockSymbol
+	var symbol models.StockSymbol
 	if len(req.Repositories) == 0 {
-		symbol = eventmodels.NewStockSymbol("AAPL")
+		symbol = models.NewStockSymbol("AAPL")
 	} else if len(req.Repositories) == 1 {
-		symbol = eventmodels.NewStockSymbol(req.Repositories[0].Symbol)
+		symbol = models.NewStockSymbol(req.Repositories[0].Symbol)
 	} else {
 		return fmt.Errorf("only one repository is supported in mock environment")
 	}
@@ -172,7 +172,7 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 
 	clock := NewClock(startDate, stopDate, nil)
 
-	feed := []*eventmodels.PolygonAggregateBarV2{
+	feed := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: startDate,
 			Open:      100.0,
@@ -188,8 +188,8 @@ func (m *MockDatabase) CreatePlayground(playground *Playground, req *PopulatePla
 		return fmt.Errorf("failed to create mock candle repository: %v", err)
 	}
 
-	newTradesQueue := eventmodels.NewFIFOQueue[*TradeRecord]("newTradesQueue", 999)
-	invalidOrdersQueue := eventmodels.NewFIFOQueue[*OrderRecord]("invalidOrdersQueue", 999)
+	newTradesQueue := models.NewFIFOQueue[*TradeRecord]("newTradesQueue", 999)
+	invalidOrdersQueue := models.NewFIFOQueue[*OrderRecord]("invalidOrdersQueue", 999)
 	return PopulatePlayground(playground, req, clock, clock.CurrentTime, newTradesQueue, invalidOrdersQueue, req.Calendar, repo)
 }
 
@@ -272,7 +272,7 @@ func (m *MockDatabase) SaveOrderRecord(order *OrderRecord, newBalance *float64, 
 	return nil
 }
 
-func (m *MockDatabase) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error {
+func (m *MockDatabase) LoadPlaygrounds(calendar *models.MarketCalendar) error {
 	return nil
 }
 
@@ -399,7 +399,7 @@ func (m *MockDatabase) FetchPendingOrders(liveAccountTypes []LiveAccountType, se
 	return orders, nil
 }
 
-func (m *MockDatabase) CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]) ([]*CandleRepository, *eventmodels.WebError) {
+func (m *MockDatabase) CreateRepos(repoRequests []models.CreateRepositoryRequest, from, to *models.PolygonDate, newCandlesQueue *models.FIFOQueue[*BacktesterCandle]) ([]*CandleRepository, *models.WebError) {
 	return nil, nil
 }
 
@@ -411,7 +411,7 @@ func (m *MockDatabase) SaveLiveRepository(repo *CandleRepository) error {
 	return nil
 }
 
-func (m *MockDatabase) PopulatePlayground(p *Playground, calendar *eventmodels.MarketCalendar) error {
+func (m *MockDatabase) PopulatePlayground(p *Playground, calendar *models.MarketCalendar) error {
 	return nil
 }
 

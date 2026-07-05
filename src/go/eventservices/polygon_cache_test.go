@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func TestPolygonCache_Contracts(t *testing.T) {
 	cache := NewPolygonCache()
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	gte := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	lte := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
 
@@ -20,8 +20,8 @@ func TestPolygonCache_Contracts(t *testing.T) {
 	}
 
 	// Store and hit
-	resp := &eventmodels.PolygonBulkResponse{
-		Contracts: []eventmodels.OptionContractV3{
+	resp := &models.PolygonBulkResponse{
+		Contracts: []models.OptionContractV3{
 			{Strike: 100, Symbol: "O:AAPL250101C00100000"},
 		},
 	}
@@ -44,7 +44,7 @@ func TestPolygonCache_Contracts(t *testing.T) {
 func TestPolygonCache_StockTick(t *testing.T) {
 	cache := NewPolygonCache()
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	at := time.Date(2025, 1, 15, 10, 30, 45, 0, time.UTC)
 
 	// Miss
@@ -52,7 +52,7 @@ func TestPolygonCache_StockTick(t *testing.T) {
 		t.Fatal("expected nil on cache miss")
 	}
 
-	tick := &eventmodels.StockTickItemDTO{
+	tick := &models.StockTickItemDTO{
 		Symbol: "AAPL",
 		Bid:    240.0,
 		Ask:    240.5,
@@ -79,7 +79,7 @@ func TestPolygonCache_StockTick(t *testing.T) {
 func TestPolygonCache_AggregateBars(t *testing.T) {
 	cache := NewPolygonCache()
 
-	sym := eventmodels.OptionSymbol("O:AAPL250103C00242500")
+	sym := models.OptionSymbol("O:AAPL250103C00242500")
 	start := time.Date(2024, 12, 30, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
 
@@ -88,9 +88,9 @@ func TestPolygonCache_AggregateBars(t *testing.T) {
 		t.Fatal("expected nil on cache miss")
 	}
 
-	bars := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	bars := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 2,
-		Results: []eventmodels.PolygonAggregateBar{
+		Results: []models.PolygonAggregateBar{
 			{Open: 5.0, Close: 5.1},
 			{Open: 5.1, Close: 5.2},
 		},
@@ -108,17 +108,17 @@ func TestPolygonCache_AggregateBars(t *testing.T) {
 
 func TestPolygonCache_TimeframeIsolation(t *testing.T) {
 	cache := NewPolygonCache()
-	sym := eventmodels.OptionSymbol("O:AAPL250703C00200000")
+	sym := models.OptionSymbol("O:AAPL250703C00200000")
 	start := time.Date(2025, 5, 29, 9, 30, 0, 0, time.UTC)
 	end := time.Date(2025, 6, 1, 16, 0, 0, 0, time.UTC)
 
-	minuteBars := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	minuteBars := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 1,
-		Results:      []eventmodels.PolygonAggregateBar{{Open: 5.0}},
+		Results:      []models.PolygonAggregateBar{{Open: 5.0}},
 	}
-	wideBars := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	wideBars := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 1,
-		Results:      []eventmodels.PolygonAggregateBar{{Open: 6.0}},
+		Results:      []models.PolygonAggregateBar{{Open: 6.0}},
 	}
 
 	cache.SetAggregateBars(sym, start, end, "1m", minuteBars)
@@ -144,12 +144,12 @@ func TestPolygonCache_EmptyResultsNotCachedPolicy(t *testing.T) {
 	// simulation time advances and data becomes available.
 
 	cache := NewPolygonCache()
-	sym := eventmodels.OptionSymbol("O:AAPL250703C00197500")
+	sym := models.OptionSymbol("O:AAPL250703C00197500")
 	start := time.Date(2025, 5, 29, 9, 30, 0, 0, time.UTC)
 	end := time.Date(2025, 6, 1, 16, 0, 0, 0, time.UTC)
 
 	// Simulate: fetch returns empty → only cache if non-empty (production policy)
-	emptyResult := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	emptyResult := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 0,
 		Results:      nil,
 	}
@@ -164,9 +164,9 @@ func TestPolygonCache_EmptyResultsNotCachedPolicy(t *testing.T) {
 	}
 
 	// Simulate: later fetch returns data → gets cached
-	nonEmptyResult := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	nonEmptyResult := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 1,
-		Results:      []eventmodels.PolygonAggregateBar{{Open: 16.5, Close: 16.55}},
+		Results:      []models.PolygonAggregateBar{{Open: 16.5, Close: 16.55}},
 	}
 	if len(nonEmptyResult.Results) > 0 {
 		cache.SetAggregateBars(sym, start, end, "1m", nonEmptyResult)
@@ -186,15 +186,15 @@ func TestPolygonCache_WideVsNarrowKeyIsolation(t *testing.T) {
 	// (StartDate → expiration) use different cache keys and must not collide.
 
 	cache := NewPolygonCache()
-	sym := eventmodels.OptionSymbol("O:AAPL250703C00197500")
+	sym := models.OptionSymbol("O:AAPL250703C00197500")
 	start := time.Date(2025, 5, 29, 9, 30, 0, 0, time.UTC)
 	narrowEnd := time.Date(2025, 6, 1, 16, 0, 0, 0, time.UTC)
 	wideEnd := time.Date(2025, 7, 3, 0, 0, 0, 0, time.UTC) // contract expiration
 
 	// Wide fetch finds data
-	wideResult := &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+	wideResult := &models.AggregateResult[models.PolygonAggregateBar]{
 		ResultsCount: 1,
-		Results:      []eventmodels.PolygonAggregateBar{{Open: 16.5}},
+		Results:      []models.PolygonAggregateBar{{Open: 16.5}},
 	}
 	cache.SetAggregateBars(sym, start, wideEnd, "1m-wide", wideResult)
 
@@ -222,10 +222,10 @@ func TestPolygonCache_Stats(t *testing.T) {
 		t.Fatalf("expected all zeros, got %d %d %d", c, s, a)
 	}
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	gte := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	lte := time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC)
-	cache.SetContracts(symbol, gte, lte, false, &eventmodels.PolygonBulkResponse{})
+	cache.SetContracts(symbol, gte, lte, false, &models.PolygonBulkResponse{})
 
 	c, s, a = cache.Stats()
 	if c != 1 || s != 0 || a != 0 {

@@ -12,26 +12,26 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-type EsdbEvent[T eventmodels.SavedEvent] struct {
+type EsdbEvent[T models.SavedEvent] struct {
 	Event       T
 	IsReplay    bool
 	SpanContext trace.SpanContext
 }
 
-type esdbConsumerStream[T eventmodels.SavedEvent] struct {
+type esdbConsumerStream[T models.SavedEvent] struct {
 	wg            *sync.WaitGroup
 	db            *esdb.Client
 	url           string
 	savedEventsCh chan EsdbEvent[T]
-	streamName    eventmodels.StreamName
+	streamName    models.StreamName
 }
 
-func NewESDBConsumerStream[T eventmodels.SavedEvent](wg *sync.WaitGroup, url string, instance T) *esdbConsumerStream[T] {
+func NewESDBConsumerStream[T models.SavedEvent](wg *sync.WaitGroup, url string, instance T) *esdbConsumerStream[T] {
 	return &esdbConsumerStream[T]{
 		wg:            wg,
 		url:           url,
@@ -40,7 +40,7 @@ func NewESDBConsumerStream[T eventmodels.SavedEvent](wg *sync.WaitGroup, url str
 	}
 }
 
-func NewESDBConsumerStreamV2[T eventmodels.SavedEvent](wg *sync.WaitGroup, url string, instance T, streamName eventmodels.StreamName) *esdbConsumerStream[T] {
+func NewESDBConsumerStreamV2[T models.SavedEvent](wg *sync.WaitGroup, url string, instance T, streamName models.StreamName) *esdbConsumerStream[T] {
 	return &esdbConsumerStream[T]{
 		wg:            wg,
 		url:           url,
@@ -72,7 +72,7 @@ func (cli *esdbConsumerStream[T]) run(ctx context.Context, errCh chan error) {
 	}
 }
 
-func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamName eventmodels.StreamName, initialEventNumber uint64) (chan error, error) {
+func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamName models.StreamName, initialEventNumber uint64) (chan error, error) {
 	subscription, err := cli.db.SubscribeToStream(ctx, string(streamName), esdb.SubscribeToStreamOptions{
 		From: esdb.Revision(initialEventNumber),
 	})
@@ -140,7 +140,7 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	var spanCtx trace.SpanContext
 
 	if !isReplay {
-		var meta eventmodels.EsdbMetadata
+		var meta models.EsdbMetadata
 		if err := json.Unmarshal(event.UserMetadata, &meta); err != nil {
 			log.Warnf("esdbConsumerStream: processEvent: failed to unmarshal user metadata: %v", err)
 		} else {
@@ -168,7 +168,7 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	return nil
 }
 
-func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name eventmodels.StreamName, startEventNumber, lastEventNumber uint64) error {
+func (cli *esdbConsumerStream[T]) replayEvents(ctx context.Context, name models.StreamName, startEventNumber, lastEventNumber uint64) error {
 	if lastEventNumber == 0 {
 		return nil
 	}

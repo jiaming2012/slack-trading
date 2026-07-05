@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type LiveAccount struct {
@@ -48,8 +48,8 @@ func (a *LiveAccount) GetBroker() IBroker {
 	return a.Broker
 }
 
-func (a *LiveAccount) FetchCurrentPrice(ctx context.Context, symbol eventmodels.Instrument) (float64, error) {
-	quotes, err := a.Broker.FetchQuotes(ctx, []eventmodels.Instrument{symbol})
+func (a *LiveAccount) FetchCurrentPrice(ctx context.Context, symbol models.Instrument) (float64, error) {
+	quotes, err := a.Broker.FetchQuotes(ctx, []models.Instrument{symbol})
 	if err != nil {
 		return 0, fmt.Errorf("LiveAccount.FetchCurrentPrice: failed to fetch quotes: %w", err)
 	}

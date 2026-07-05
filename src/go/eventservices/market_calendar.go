@@ -9,12 +9,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-var cachedPayload *eventmodels.MarketCalendar
+var cachedPayload *models.MarketCalendar
 
-func IsMarketOpen(calendar *eventmodels.MarketCalendar, now time.Time) (bool, error) {
+func IsMarketOpen(calendar *models.MarketCalendar, now time.Time) (bool, error) {
 	dateStr := now.Format("2006-01-02")
 	timeStr := now.Format("15:04")
 
@@ -45,7 +45,7 @@ func IsMarketOpen(calendar *eventmodels.MarketCalendar, now time.Time) (bool, er
 	return false, nil
 }
 
-func FetchMarketCalendar(url, bearerToken string, now time.Time) (*eventmodels.MarketCalendar, error) {
+func FetchMarketCalendar(url, bearerToken string, now time.Time) (*models.MarketCalendar, error) {
 	currentMonth := now.Format("2006-01")
 	currentMonthInt, err := strconv.Atoi(currentMonth[5:])
 	if err != nil {
@@ -81,7 +81,7 @@ func FetchMarketCalendar(url, bearerToken string, now time.Time) (*eventmodels.M
 		return nil, fmt.Errorf("FetchMarketCalendar: failed to fetch market calendar, http code %v", res.Status)
 	}
 
-	var dto eventmodels.MarketCalendar
+	var dto models.MarketCalendar
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("FetchMarketCalendar: failed to decode json: %w", err)
 	}

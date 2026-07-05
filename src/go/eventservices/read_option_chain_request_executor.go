@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func Serve_ReadOptionChainRequestExecutor(s *eventmodels.ReadOptionChainRequestExecutor, r *http.Request, request eventmodels.ApiRequest3, projectDir string, resultCh chan map[string]interface{}, errorCh chan error) {
-	req := request.(*eventmodels.ReadOptionChainRequest)
+func Serve_ReadOptionChainRequestExecutor(s *models.ReadOptionChainRequestExecutor, r *http.Request, request models.ApiRequest3, projectDir string, resultCh chan map[string]interface{}, errorCh chan error) {
+	req := request.(*models.ReadOptionChainRequest)
 
 	bFindSpreads := false
 	if r.URL.Path == "/options/spreads" {

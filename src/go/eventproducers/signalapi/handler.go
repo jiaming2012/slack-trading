@@ -5,13 +5,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 )
 
 func signalsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler2(eventmodels.CreateSignalRequestEventName, &eventmodels.CreateSignalRequestEventV1DTO{}, &eventmodels.CreateSignalResponseEvent{}, w, r)
+		eventproducers.ApiRequestHandler2(models.CreateSignalRequestEventName, &models.CreateSignalRequestEventV1DTO{}, &models.CreateSignalResponseEvent{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

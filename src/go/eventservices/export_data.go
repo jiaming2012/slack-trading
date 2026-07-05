@@ -12,12 +12,12 @@ import (
 	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOutput, error) {
+func ExportData(args models.ExportDataRunArgs) (models.ExportDataRunOutput, error) {
 	projectDir := os.Getenv("TRADING_PROJECT_DIR")
 	if projectDir == "" {
 		panic("missing TRADING_PROJECT_DIR environment variable")
@@ -31,7 +31,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 	// check if file exists
 	if _, err := os.Stat(outdir); err == nil {
 		log.Infof("Data file %s already exists", outdir)
-		return eventmodels.ExportDataRunOutput{
+		return models.ExportDataRunOutput{
 			ExportedFilepath: outdir,
 		}, nil
 	}
@@ -41,24 +41,24 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 	eventpubsub.Init()
 
 	if err := utils.InitEnvironmentVariables(projectDir, args.GoEnv); err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error initializing environment variables: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error initializing environment variables: %v", err)
 	}
 
 	settings, err := esdb.ParseConnectionString(os.Getenv("EVENTSTOREDB_URL"))
 	if err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error parsing connection string: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error parsing connection string: %v", err)
 	}
 
 	esdbClient, err := esdb.NewClient(settings)
 	if err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error creating new client: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error creating new client: %v", err)
 	}
 
 	// Fetch all data
-	csvCandleInstance := eventmodels.NewCsvCandleDTO(eventmodels.StreamName(args.InputStreamName), eventmodels.CandleSavedEvent, 1)
+	csvCandleInstance := models.NewCsvCandleDTO(models.StreamName(args.InputStreamName), models.CandleSavedEvent, 1)
 	dataMap, err := FetchAll(ctx, esdbClient, csvCandleInstance)
 	if err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error fetching all candles: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error fetching all candles: %v", err)
 	}
 
 	log.Infof("Fetched %d candles", len(dataMap))
@@ -66,22 +66,22 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 	// Process the data
 	duration, err := utils.GetDurationFromStreamName(args.InputStreamName)
 	if err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error getting duration from stream name: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error getting duration from stream name: %v", err)
 	}
 
-	var candles eventmodels.TradingViewCandles
+	var candles models.TradingViewCandles
 	for _, candleDTO := range dataMap {
 		c, err := candleDTO.ToModel()
 		if err != nil {
-			return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error converting to model: %v", err)
+			return models.ExportDataRunOutput{}, fmt.Errorf("error converting to model: %v", err)
 		}
 
 		candles = append(candles, c)
 	}
 
-	candles = eventmodels.SortCandles(candles, duration)
+	candles = models.SortCandles(candles, duration)
 
-	var filteredCandles eventmodels.TradingViewCandles
+	var filteredCandles models.TradingViewCandles
 	for _, c := range candles {
 		if c.Timestamp.Before(args.StartsAt) {
 			continue
@@ -96,18 +96,18 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 
 	// Checks
 	if len(filteredCandles) == 0 {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("no candles to export")
+		return models.ExportDataRunOutput{}, fmt.Errorf("no candles to export")
 	}
 
 	firstCandleTimestamp := filteredCandles[0].Timestamp
 	lastCandleTimestamp := filteredCandles[len(filteredCandles)-1].Timestamp
 
 	if firstCandleTimestamp.After(args.StartsAt) {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("start candle date %v is after start: %v", firstCandleTimestamp, args.StartsAt)
+		return models.ExportDataRunOutput{}, fmt.Errorf("start candle date %v is after start: %v", firstCandleTimestamp, args.StartsAt)
 	}
 
 	if lastCandleTimestamp.Add(duration).Before(args.EndsAt) {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("end candle date %v is before end: %v", lastCandleTimestamp.Add(duration), args.EndsAt)
+		return models.ExportDataRunOutput{}, fmt.Errorf("end candle date %v is before end: %v", lastCandleTimestamp.Add(duration), args.EndsAt)
 	}
 
 	// Export the data
@@ -118,7 +118,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 
 	file, err := os.Create(outdir)
 	if err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error creating CSV file: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error creating CSV file: %v", err)
 	}
 
 	defer file.Close()
@@ -129,7 +129,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 	candlesOUT := filteredCandles.ToDTO()
 
 	if err := gocsv.MarshalFile(&candlesOUT, file); err != nil {
-		return eventmodels.ExportDataRunOutput{}, fmt.Errorf("error marshalling file: %v", err)
+		return models.ExportDataRunOutput{}, fmt.Errorf("error marshalling file: %v", err)
 	}
 
 	if args.StartsAt.IsZero() {
@@ -138,7 +138,7 @@ func ExportData(args eventmodels.ExportDataRunArgs) (eventmodels.ExportDataRunOu
 		log.Infof("Exported %d candles to %s from %s to %s", len(filteredCandles), outdir, args.StartsAt.Format("2006-01-02 15:04:05"), args.EndsAt.Format("2006-01-02"))
 	}
 
-	return eventmodels.ExportDataRunOutput{
+	return models.ExportDataRunOutput{
 		ExportedFilepath: outdir,
 	}, nil
 }

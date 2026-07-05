@@ -10,7 +10,7 @@ import (
 	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type percentChangeData struct {
@@ -18,7 +18,7 @@ type percentChangeData struct {
 	PercentChange float64
 }
 
-func findPercentChange(candles []*eventmodels.TradingViewCandle, index, lookahead int) float64 {
+func findPercentChange(candles []*models.TradingViewCandle, index, lookahead int) float64 {
 	if index+lookahead >= len(candles) {
 		return (candles[len(candles)-1].Close - candles[index].Close) / candles[index].Close * 100
 	}
@@ -35,7 +35,7 @@ func convertTimestampToNewYorkTime(timestamp time.Time) (time.Time, error) {
 	return timestamp.In(loc), nil
 }
 
-func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func ImportCandlesFromCsv(path string) ([]*models.PolygonAggregateBarV2, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("ImportCandlesFromCsv: error opening CSV file: %w", err)
@@ -43,7 +43,7 @@ func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, er
 
 	defer file.Close()
 
-	var dto []*eventmodels.PolygonAggregateBarV2DTO
+	var dto []*models.PolygonAggregateBarV2DTO
 
 	reader := csv.NewReader(file)
 
@@ -51,7 +51,7 @@ func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, er
 		return nil, fmt.Errorf("ImportCandlesFromCsv: error unmarshalling CSV: %w", err)
 	}
 
-	candles := make([]*eventmodels.PolygonAggregateBarV2, len(dto))
+	candles := make([]*models.PolygonAggregateBarV2, len(dto))
 	for i, d := range dto {
 		candles[i], err = d.ToModel()
 		if err != nil {
@@ -67,7 +67,7 @@ func ImportCandlesFromCsv(path string) ([]*eventmodels.PolygonAggregateBarV2, er
 	return candles, nil
 }
 
-func ExportToCsv(candles []*eventmodels.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) ([]string, error) {
+func ExportToCsv(candles []*models.TradingViewCandle, lookaheadPeriods []int, candleDuration time.Duration, outDir string, fname string) ([]string, error) {
 	data := make(map[int][]percentChangeData)
 
 	for index, c := range candles {

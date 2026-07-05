@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConvertOratsOptionDataToCandlesDTO__Calls(t *testing.T) {
-	data := []eventmodels.OratsOptionData{
+	data := []models.OratsOptionData{
 		{
 			Ticker:          "IWM",
 			SnapShotEstTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -48,14 +48,14 @@ func TestConvertOratsOptionDataToCandlesDTO__Calls(t *testing.T) {
 	}
 
 	t.Run("data is empty", func(t *testing.T) {
-		data := []eventmodels.OratsOptionData{}
-		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 1*time.Minute, eventmodels.OptionTypeCall)
+		data := []models.OratsOptionData{}
+		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 1*time.Minute, models.OptionTypeCall)
 		require.NoError(t, err)
 		require.Len(t, candlesDTO, 0)
 	})
 
 	t.Run("convert call options", func(t *testing.T) {
-		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 15*time.Minute, eventmodels.OptionTypeCall)
+		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 15*time.Minute, models.OptionTypeCall)
 		require.NoError(t, err)
 		require.Len(t, candlesDTO, 3)
 
@@ -77,7 +77,7 @@ func TestConvertOratsOptionDataToCandlesDTO__Calls(t *testing.T) {
 }
 
 func TestConvertOratsOptionDataToCandlesDTO__Puts(t *testing.T) {
-	data := []eventmodels.OratsOptionData{
+	data := []models.OratsOptionData{
 		{
 			Ticker:          "IWM",
 			SnapShotEstTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -116,14 +116,14 @@ func TestConvertOratsOptionDataToCandlesDTO__Puts(t *testing.T) {
 	}
 
 	t.Run("data is empty", func(t *testing.T) {
-		data := []eventmodels.OratsOptionData{}
-		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 1*time.Minute, eventmodels.OptionTypePut)
+		data := []models.OratsOptionData{}
+		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 1*time.Minute, models.OptionTypePut)
 		require.NoError(t, err)
 		require.Len(t, candlesDTO, 0)
 	})
 
 	t.Run("convert call options", func(t *testing.T) {
-		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 15*time.Minute, eventmodels.OptionTypePut)
+		candlesDTO, err := ConvertOratsOptionDataToCandlesDTO(data, 15*time.Minute, models.OptionTypePut)
 		require.NoError(t, err)
 		require.Len(t, candlesDTO, 3)
 

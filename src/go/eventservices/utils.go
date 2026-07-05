@@ -7,19 +7,19 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func FetchOptionCandles(client *PolygonOptionsClient, playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func FetchOptionCandles(client *PolygonOptionsClient, playgroundID uuid.UUID, symbol models.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	result, err := client.FetchPolygonOptionAggregateBars(playgroundID, symbol, period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("fetchOptionCandles: failed to fetch option candles: %w", err)
 	}
 
-	var candles []*eventmodels.AggregateBarWithIndicators
+	var candles []*models.AggregateBarWithIndicators
 	for _, bar := range result.Results {
 		timestamp := time.UnixMilli(int64(bar.Time))
-		candles = append(candles, &eventmodels.AggregateBarWithIndicators{
+		candles = append(candles, &models.AggregateBarWithIndicators{
 			Timestamp: timestamp,
 			Open:      bar.Open,
 			Close:     bar.Close,
@@ -33,8 +33,8 @@ func FetchOptionCandles(client *PolygonOptionsClient, playgroundID uuid.UUID, sy
 	return candles, nil
 }
 
-func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (float64, error) {
-	var closestCandle *eventmodels.Candle
+func findClosestPriceBeforeOrAt(candles []*models.Candle, at time.Time) (float64, error) {
+	var closestCandle *models.Candle
 	for _, candle := range candles {
 		if candle.Timestamp.After(at) {
 			break
@@ -50,7 +50,7 @@ func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (fl
 	return closestCandle.Open, nil
 }
 
-// func transformSPYtoSPX(result *eventmodels.StockTickItemDTO) {
+// func transformSPYtoSPX(result *models.StockTickItemDTO) {
 // 	if result.Symbol == "SPY" {
 // 		result.Symbol = "SPX"
 // 		result.Bid *=  10
@@ -58,7 +58,7 @@ func findClosestPriceBeforeOrAt(candles []*eventmodels.Candle, at time.Time) (fl
 // 	}
 // }
 
-func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
+func FindClosestStockTickItemDTO(req models.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*models.StockTickItemDTO, error) {
 	// if req.Root == "SPX" {
 	// 	req.Root = "SPY"
 	// }
@@ -72,7 +72,7 @@ func FindClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 	return result, err
 }
 
-func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*eventmodels.StockTickItemDTO, error) {
+func findClosestStockTickItemDTO(req models.PolygonDataBulkHistOptionOHLCRequest, at time.Time, spreadPerc float64) (*models.StockTickItemDTO, error) {
 	var targetPrice *float64
 	maxAttempts := 10
 
@@ -82,7 +82,7 @@ func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 			return nil, fmt.Errorf("failed to fetch underlying price near close: %w", err)
 		}
 
-		var candlesNearPriceDTO []*eventmodels.CandleDTO
+		var candlesNearPriceDTO []*models.CandleDTO
 		for _, c := range resp.Results {
 			dto, err := c.ToCandleDTO()
 			if err != nil {
@@ -92,7 +92,7 @@ func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 			candlesNearPriceDTO = append(candlesNearPriceDTO, dto)
 		}
 
-		var candles []*eventmodels.Candle
+		var candles []*models.Candle
 		for _, dto := range candlesNearPriceDTO {
 			c, err := dto.ToCandle(time.UTC)
 			if err != nil {
@@ -124,7 +124,7 @@ func findClosestStockTickItemDTO(req eventmodels.PolygonDataBulkHistOptionOHLCRe
 		return nil, fmt.Errorf("failed to find closest price before or at %v after %d attempts", at, maxAttempts)
 	}
 
-	return &eventmodels.StockTickItemDTO{
+	return &models.StockTickItemDTO{
 		Timestamp: at,
 		Symbol:    string(req.Root),
 		Bid:       *targetPrice,

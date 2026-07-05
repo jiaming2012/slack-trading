@@ -12,11 +12,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.Calendar, error) {
+func FetchCalendar(startDate, endDate models.PolygonDate) ([]*models.Calendar, error) {
 	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	if err != nil {
 		return nil, fmt.Errorf("FetchCalendar: error getting TRADING_PROJECT_DIR: %w", err)
@@ -46,7 +46,7 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 		return nil, fmt.Errorf("FetchCalendar: error unmarshalling CSV: %w", err)
 	}
 
-	var result []*eventmodels.Calendar
+	var result []*models.Calendar
 	for _, schedule := range schedules {
 		result = append(result, &schedule)
 	}
@@ -54,8 +54,8 @@ func FetchCalendar(startDate, endDate eventmodels.PolygonDate) ([]*eventmodels.C
 	return result, nil
 }
 
-func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (eventmodels.CalendarRepository, error) {
-	repo := eventmodels.NewCalendarRepository()
+func FetchCalendarMap(startDate, endDate models.PolygonDate) (models.CalendarRepository, error) {
+	repo := models.NewCalendarRepository()
 
 	schedules, err := FetchCalendar(startDate, endDate)
 	if err != nil {
@@ -69,7 +69,7 @@ func FetchCalendarMap(startDate, endDate eventmodels.PolygonDate) (eventmodels.C
 	return repo, nil
 }
 
-func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
+func unmarshalCSV(data []byte) ([]models.Calendar, error) {
 	r := csv.NewReader(strings.NewReader(string(data)))
 	r.FieldsPerRecord = -1 // Allow variable number of fields per record
 
@@ -79,7 +79,7 @@ func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
 		return nil, err
 	}
 
-	var schedules []eventmodels.Calendar
+	var schedules []models.Calendar
 	const layout = "2006-01-02 15:04:05-07:00" // Custom layout to match the time format
 
 	for {
@@ -101,7 +101,7 @@ func unmarshalCSV(data []byte) ([]eventmodels.Calendar, error) {
 			return nil, err
 		}
 
-		schedule := eventmodels.Calendar{
+		schedule := models.Calendar{
 			Date:        record[0],
 			MarketOpen:  marketOpen,
 			MarketClose: marketClose,

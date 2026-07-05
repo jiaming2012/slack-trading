@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func TestLiveAccount(t *testing.T) {

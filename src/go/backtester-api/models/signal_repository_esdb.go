@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
@@ -28,7 +28,7 @@ func NewESDBSignalRepository(esdbProducer *eventproducers.EsdbProducer) *ESDBSig
 	}
 }
 
-func (r *ESDBSignalRepository) Write(signal *eventmodels.TradeSignal) error {
+func (r *ESDBSignalRepository) Write(signal *models.TradeSignal) error {
 	if signal == nil {
 		return fmt.Errorf("cannot write nil signal")
 	}
@@ -43,17 +43,17 @@ func (r *ESDBSignalRepository) Write(signal *eventmodels.TradeSignal) error {
 	return nil
 }
 
-func (r *ESDBSignalRepository) ReadPending(upTo time.Time) []*eventmodels.TradeSignal {
+func (r *ESDBSignalRepository) ReadPending(upTo time.Time) []*models.TradeSignal {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	signals, err := r.fetchAllFromESDB()
 	if err != nil {
 		log.Errorf("ESDBSignalRepository.ReadPending: failed to fetch signals from ESDB: %v", err)
-		return []*eventmodels.TradeSignal{}
+		return []*models.TradeSignal{}
 	}
 
-	var result []*eventmodels.TradeSignal
+	var result []*models.TradeSignal
 	for _, s := range signals {
 		if !s.Timestamp.After(upTo) {
 			result = append(result, s)
@@ -61,29 +61,29 @@ func (r *ESDBSignalRepository) ReadPending(upTo time.Time) []*eventmodels.TradeS
 	}
 
 	if result == nil {
-		return []*eventmodels.TradeSignal{}
+		return []*models.TradeSignal{}
 	}
 	return result
 }
 
-func (r *ESDBSignalRepository) GetAll() []*eventmodels.TradeSignal {
+func (r *ESDBSignalRepository) GetAll() []*models.TradeSignal {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	signals, err := r.fetchAllFromESDB()
 	if err != nil {
 		log.Errorf("ESDBSignalRepository.GetAll: failed to fetch signals from ESDB: %v", err)
-		return []*eventmodels.TradeSignal{}
+		return []*models.TradeSignal{}
 	}
 
 	return signals
 }
 
-func (r *ESDBSignalRepository) fetchAllFromESDB() ([]*eventmodels.TradeSignal, error) {
+func (r *ESDBSignalRepository) fetchAllFromESDB() ([]*models.TradeSignal, error) {
 	ctx := context.Background()
 	client := r.esdbProducer.GetClient()
 
-	signals, err := eventservices.FetchAll[*eventmodels.TradeSignal](ctx, client, &eventmodels.TradeSignal{})
+	signals, err := eventservices.FetchAll[*models.TradeSignal](ctx, client, &models.TradeSignal{})
 	if err != nil {
 		return nil, fmt.Errorf("fetchAllFromESDB: %w", err)
 	}

@@ -3,7 +3,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type PlaceOrderRequest struct {
@@ -51,14 +51,14 @@ func (r *PlaceOrderRequest) validate() error {
 	return nil
 }
 
-func NewMultiLegOptionPlaceOrderRequest(instruments []eventmodels.Instrument, quantities []int, sides []TradierOrderSide, tag string, dryRun bool) (*PlaceOrderRequest, error) {
+func NewMultiLegOptionPlaceOrderRequest(instruments []models.Instrument, quantities []int, sides []TradierOrderSide, tag string, dryRun bool) (*PlaceOrderRequest, error) {
 	var underlyingSymbol string
 	var optionSymbols []string
 
 	for _, instrument := range instruments {
 		var symbol string
 		switch i := instrument.(type) {
-		case eventmodels.OptionSymbol:
+		case models.OptionSymbol:
 			components, err := i.Components()
 			if err != nil {
 				return nil, fmt.Errorf("NewPlaceOrderRequest: failed to get option components: %w", err)
@@ -66,7 +66,7 @@ func NewMultiLegOptionPlaceOrderRequest(instruments []eventmodels.Instrument, qu
 
 			symbol = components.Underlying
 			optionSymbols = append(optionSymbols, i.NoPrefix())
-		case *eventmodels.OptionContractV3:
+		case *models.OptionContractV3:
 			symbol = i.UnderlyingSymbol.GetTicker()
 			optionSymbols = append(optionSymbols, i.Symbol.NoPrefix())
 		default:
@@ -110,16 +110,16 @@ func NewMultiLegOptionPlaceOrderRequest(instruments []eventmodels.Instrument, qu
 	return req, nil
 }
 
-func NewPlaceOrderRequest(instrument eventmodels.Instrument, quantity int, side TradierOrderSide, orderType OrderRecordType, tag string, dryRun bool) (*PlaceOrderRequest, error) {
+func NewPlaceOrderRequest(instrument models.Instrument, quantity int, side TradierOrderSide, orderType OrderRecordType, tag string, dryRun bool) (*PlaceOrderRequest, error) {
 	var symbol string
 	var optionSymbols []string
 	var class OrderRecordClass
 
 	switch i := instrument.(type) {
-	case eventmodels.StockSymbol:
+	case models.StockSymbol:
 		symbol = instrument.GetTicker()
 		class = OrderRecordClassEquity
-	case eventmodels.OptionSymbol:
+	case models.OptionSymbol:
 		components, err := i.Components()
 		if err != nil {
 			return nil, fmt.Errorf("NewPlaceOrderRequest: failed to get option components: %w", err)
@@ -128,7 +128,7 @@ func NewPlaceOrderRequest(instrument eventmodels.Instrument, quantity int, side 
 		symbol = components.Underlying
 		optionSymbols = []string{i.NoPrefix()}
 		class = OrderRecordClassOption
-	case *eventmodels.OptionContractV3:
+	case *models.OptionContractV3:
 		symbol = i.UnderlyingSymbol.GetTicker()
 		optionSymbols = []string{i.Symbol.NoPrefix()}
 		class = OrderRecordClassOption

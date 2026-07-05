@@ -9,10 +9,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRequest) (*eventmodels.ThetaDataResponse, error) {
+func FetchHistOptionOHLC(baseURL string, r models.ThetaDataHistOptionOHLCRequest) (*models.ThetaDataResponse, error) {
 	client := http.Client{
 		Timeout: 15 * time.Second,
 	}
@@ -49,7 +49,7 @@ func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRe
 		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to fetch option ohlc, http code %v", res.Status)
 	}
 
-	var dto eventmodels.ThetaDataResponse
+	var dto models.ThetaDataResponse
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("FetchHistOptionOHLC: failed to decode json: %w", err)
 	}
@@ -57,14 +57,14 @@ func FetchHistOptionOHLC(baseURL string, r eventmodels.ThetaDataHistOptionOHLCRe
 	return &dto, nil
 }
 
-func FetchThetaDataHistOptionOHLC(baseURL string, root eventmodels.StockSymbol, optionType eventmodels.OptionType, expiration time.Time, startDate time.Time, endDate time.Time, interval time.Duration, strike float64) (eventmodels.ThetaDataResponseDTO, error) {
-	var result eventmodels.ThetaDataResponseDTO
+func FetchThetaDataHistOptionOHLC(baseURL string, root models.StockSymbol, optionType models.OptionType, expiration time.Time, startDate time.Time, endDate time.Time, interval time.Duration, strike float64) (models.ThetaDataResponseDTO, error) {
+	var result models.ThetaDataResponseDTO
 
 	var right string
 	switch optionType {
-	case eventmodels.OptionTypeCall:
+	case models.OptionTypeCall:
 		right = "C"
-	case eventmodels.OptionTypePut:
+	case models.OptionTypePut:
 		right = "P"
 	default:
 		return result, fmt.Errorf("FetchThetaDataOHLC: invalid option type: %v", optionType)

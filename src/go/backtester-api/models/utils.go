@@ -3,11 +3,11 @@ package models
 import (
 	"math"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func isOptionSymbol(symbol string) bool {
-	_, err := eventmodels.NewOptionSymbolFromString(symbol)
+	_, err := models.NewOptionSymbolFromString(symbol)
 	return err == nil
 }
 
@@ -61,16 +61,16 @@ func calculateInitialMarginRequirement(stockQuantity, stockPrice float64) float6
 	return 0
 }
 
-func GetInstrument(symbol string) eventmodels.Instrument {
-	if _, err := eventmodels.NewOptionSymbolFromString(symbol); err == nil {
-		return eventmodels.OptionSymbol(symbol)
+func GetInstrument(symbol string) models.Instrument {
+	if _, err := models.NewOptionSymbolFromString(symbol); err == nil {
+		return models.OptionSymbol(symbol)
 	} else {
-		return eventmodels.StockSymbol(symbol)
+		return models.StockSymbol(symbol)
 	}
 }
 
-func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.Instrument, []*Position) {
-	sortedInstruments := make([]eventmodels.Instrument, 0)
+func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]models.Instrument, []*Position) {
+	sortedInstruments := make([]models.Instrument, 0)
 	sortedPositions := make([]*Position, 0)
 
 	instruments, positions := positionCache.List()
@@ -91,7 +91,7 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 			sortedPositionSize := math.Abs(sortedPosition.Quantity) * sortedPosition.CostBasis
 
 			if insertPositionSize > sortedPositionSize {
-				sortedInstruments = append(sortedInstruments[:i], append([]eventmodels.Instrument{instrument}, sortedInstruments[i:]...)...)
+				sortedInstruments = append(sortedInstruments[:i], append([]models.Instrument{instrument}, sortedInstruments[i:]...)...)
 				sortedPositions = append(sortedPositions[:i], append([]*Position{position}, sortedPositions[i:]...)...)
 				foundInsertionPoint = true
 				break
@@ -107,11 +107,11 @@ func sortPositionsByQuantityDesc(positionCache *PositionsCache) ([]eventmodels.I
 	return sortedInstruments, sortedPositions
 }
 
-func GetClass(symbol eventmodels.Instrument) OrderRecordClass {
+func GetClass(symbol models.Instrument) OrderRecordClass {
 	switch symbol.(type) {
-	case eventmodels.StockSymbol:
+	case models.StockSymbol:
 		return OrderRecordClassEquity
-	case eventmodels.OptionSymbol, *eventmodels.OptionContractV3:
+	case models.OptionSymbol, *models.OptionContractV3:
 		return OrderRecordClassOption
 	default:
 		return OrderRecordClassUnknown

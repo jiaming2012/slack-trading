@@ -8,7 +8,7 @@ import (
 	polygon "github.com/polygon-io/client-go/rest"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type PolygonTickDataMachine struct {
@@ -16,13 +16,13 @@ type PolygonTickDataMachine struct {
 	ApiKey string
 }
 
-func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2DTO, error) {
+func (m *PolygonTickDataMachine) FetchAggregateBarsDTO(ticker models.Instrument, timespan models.PolygonTimespan, from, to *models.PolygonDate) ([]*models.PolygonAggregateBarV2DTO, error) {
 	bars, err := m.FetchAggregateBars(ticker, timespan, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch aggregate bars: %w", err)
 	}
 
-	var barsDTO []*eventmodels.PolygonAggregateBarV2DTO
+	var barsDTO []*models.PolygonAggregateBarV2DTO
 	for _, bar := range bars {
 		dto := bar.ToDTO()
 		barsDTO = append(barsDTO, &dto)
@@ -35,7 +35,7 @@ func isInBetween(t time.Time, from, to time.Time) bool {
 	return (t.Equal(from) || t.After(from)) && (t.Equal(to) || t.Before(to))
 }
 
-func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, from, to *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (m *PolygonTickDataMachine) FetchAggregateBars(ticker models.Instrument, timespan models.PolygonTimespan, from, to *models.PolygonDate) ([]*models.PolygonAggregateBarV2, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -59,14 +59,14 @@ func (m *PolygonTickDataMachine) FetchAggregateBars(ticker eventmodels.Instrumen
 	return m.FetchAggregateBarsWithDates(ticker, timespan, fromDate, toDate, loc)
 }
 
-func (m *PolygonTickDataMachine) FetchPastCandles(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, daysPast int, end *eventmodels.PolygonDate) ([]*eventmodels.PolygonAggregateBarV2, error) {
+func (m *PolygonTickDataMachine) FetchPastCandles(symbol models.StockSymbol, timespan models.PolygonTimespan, daysPast int, end *models.PolygonDate) ([]*models.PolygonAggregateBarV2, error) {
 	to := end.GetPreviousDay(1)
 	from := to.GetPreviousDay(daysPast)
 	maxAttempts := 5
 
 	errMsg := ""
 	for i := 0; true; i++ {
-		pastBars, err := m.FetchAggregateBars(eventmodels.StockSymbol(symbol), timespan, from, to)
+		pastBars, err := m.FetchAggregateBars(models.StockSymbol(symbol), timespan, from, to)
 		if err != nil {
 			if i == maxAttempts-1 {
 				errMsg = fmt.Sprintf("failed to fetch past candles from %s to %s: %v", from.ToString(), to.ToString(), err)
@@ -82,13 +82,13 @@ func (m *PolygonTickDataMachine) FetchPastCandles(symbol eventmodels.StockSymbol
 		return pastBars, nil
 	}
 
-	return nil, eventmodels.NewWebError(500, errMsg, nil)
+	return nil, models.NewWebError(500, errMsg, nil)
 }
 
-func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.Instrument, timespan eventmodels.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*eventmodels.PolygonAggregateBarV2, error) {
-	var bars []*eventmodels.PolygonAggregateBarV2
+func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker models.Instrument, timespan models.PolygonTimespan, fromDate, toDate time.Time, loc *time.Location) ([]*models.PolygonAggregateBarV2, error) {
+	var bars []*models.PolygonAggregateBarV2
 
-	symbol := eventmodels.StockSymbol(ticker.GetTicker())
+	symbol := models.StockSymbol(ticker.GetTicker())
 	result, err := FetchPolygonStockChart(symbol, timespan.Multiplier, string(timespan.Unit), fromDate, toDate, m.ApiKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data from polygon api: %w", err)
@@ -101,7 +101,7 @@ func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.
 		}
 
 		if isInBetween(bar.Timestamp, fromDate, toDate) {
-			bars = append(bars, &eventmodels.PolygonAggregateBarV2{
+			bars = append(bars, &models.PolygonAggregateBarV2{
 				Volume:    bar.Volume,
 				Open:      bar.Open,
 				Close:     bar.Close,
@@ -129,10 +129,10 @@ func (m *PolygonTickDataMachine) FetchAggregateBarsWithDates(ticker eventmodels.
 	return bars, nil
 }
 
-func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {
-	dto, ok := apiRequest.(*eventmodels.PolygonDataReadRequestDTO)
+func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
+	dto, ok := apiRequest.(*models.PolygonDataReadRequestDTO)
 	if !ok {
-		errCh <- eventmodels.ErrInvalidRequestType
+		errCh <- models.ErrInvalidRequestType
 		return
 	}
 
@@ -144,18 +144,18 @@ func (m *PolygonTickDataMachine) Serve(r *http.Request, apiRequest eventmodels.A
 
 	log.Debugf("fetching polygon tick data from api for symbol %s", req.Symbol)
 
-	timespan := eventmodels.PolygonTimespan{
+	timespan := models.PolygonTimespan{
 		Multiplier: req.Multiplier,
-		Unit:       eventmodels.PolygonTimespanUnit(req.Timespan),
+		Unit:       models.PolygonTimespanUnit(req.Timespan),
 	}
 
-	from, err := eventmodels.NewPolygonDate(req.From)
+	from, err := models.NewPolygonDate(req.From)
 	if err != nil {
 		errCh <- fmt.Errorf("failed to parse from date: %w", err)
 		return
 	}
 
-	to, err := eventmodels.NewPolygonDate(req.To)
+	to, err := models.NewPolygonDate(req.To)
 	if err != nil {
 		errCh <- fmt.Errorf("failed to parse to date: %w", err)
 		return

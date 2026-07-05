@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 func TestOptions(t *testing.T) {
-	stockSymbol := eventmodels.StockSymbol("AAPL")
-	optionSymbol := eventmodels.OptionSymbol("AAPL250905C230000")
+	stockSymbol := models.StockSymbol("AAPL")
+	optionSymbol := models.OptionSymbol("AAPL250905C230000")
 
 	period := time.Minute
 	tz, err := time.LoadLocation("America/New_York")
@@ -32,7 +32,7 @@ func TestOptions(t *testing.T) {
 	t3 := t2.Add(24 * time.Hour)
 
 	optionSellPrice := 2.00
-	candles2 := []*eventmodels.PolygonAggregateBarV2{
+	candles2 := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: startTime,
 			Close:     optionSellPrice,
@@ -54,17 +54,17 @@ func TestOptions(t *testing.T) {
 	t.Run("assign option early - fails when no option position", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -79,10 +79,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -112,17 +112,17 @@ func TestOptions(t *testing.T) {
 	t.Run("assign option early - fails when assigned quantity exceeds position", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -137,10 +137,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -191,17 +191,17 @@ func TestOptions(t *testing.T) {
 	t.Run("assign option early - fails when option is not ITM", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -216,10 +216,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -270,17 +270,17 @@ func TestOptions(t *testing.T) {
 	t.Run("assign short ITM call option early", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -295,10 +295,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -395,17 +395,17 @@ func TestOptions(t *testing.T) {
 	t.Run("assign long ITM call option early", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -420,10 +420,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -522,7 +522,7 @@ func TestOptions(t *testing.T) {
 
 		priceAtExpiration := 235.0
 		timeBeforeExpiration := t2
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -545,10 +545,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -563,10 +563,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -617,7 +617,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(48*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -696,7 +696,7 @@ func TestOptions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		priceAtExpiration := 229.5
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -719,10 +719,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -737,10 +737,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -783,7 +783,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -824,7 +824,7 @@ func TestOptions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		priceAtExpiration := 235.0
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -847,10 +847,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -865,10 +865,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -917,7 +917,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -985,7 +985,7 @@ func TestOptions(t *testing.T) {
 
 		priceAtExpiration := 235.0
 		timeBeforeExpiration := t2
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -1008,10 +1008,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -1026,10 +1026,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -1080,7 +1080,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(48*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -1159,7 +1159,7 @@ func TestOptions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		priceAtExpiration := 229.5
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -1182,10 +1182,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -1200,10 +1200,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -1246,7 +1246,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -1284,11 +1284,11 @@ func TestOptions(t *testing.T) {
 	})
 
 	t.Run("sell a cash secured put - expire in the money -> buy shares at strike", func(t *testing.T) {
-		putOptionSymbol := eventmodels.OptionSymbol("AAPL250905P230000")
+		putOptionSymbol := models.OptionSymbol("AAPL250905P230000")
 		clock := NewClock(startTime, endTime, nil)
 
 		stockPriceAtExpiration := 220.0 // below strike of $230, so put is ITM
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     240,
@@ -1312,7 +1312,7 @@ func TestOptions(t *testing.T) {
 		}
 
 		putOptionSellPrice := 3.50
-		putCandles := []*eventmodels.PolygonAggregateBarV2{
+		putCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     putOptionSellPrice,
@@ -1331,10 +1331,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(putOptionSymbol, period, putCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(putOptionSymbol, period, putCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 100000.0
@@ -1349,10 +1349,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range putCandles {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -1401,7 +1401,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypePut, components.OptionType)
+		require.Equal(t, models.OptionTypePut, components.OptionType)
 
 		// tick to expiration — put expires ITM (stock $220 < strike $230)
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
@@ -1473,7 +1473,7 @@ func TestOptions(t *testing.T) {
 
 		stockPriceAtExpiration := 235.0
 		stockPriceAtOpen := 210.0
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     stockPriceAtOpen,
@@ -1496,10 +1496,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 100000.0
@@ -1514,10 +1514,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -1583,7 +1583,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -1656,7 +1656,7 @@ func TestOptions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
 		priceAtExpiration := 235.0
-		stockCandles := []*eventmodels.PolygonAggregateBarV2{
+		stockCandles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     210,
@@ -1679,10 +1679,10 @@ func TestOptions(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(optionSymbol, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 10000.0
@@ -1697,10 +1697,10 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, playground)
 
-		data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+		data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 		// create mock options broker
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var bars []*models.AggregateBarWithIndicators
 		for _, c := range candles2 {
 			bars = append(bars, c.ToAggregateBarWithIndicators())
 		}
@@ -1749,7 +1749,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, time.Date(2025, time.September, 5, 16, 0, 0, 0, tz), components.Expiration)
 		require.Equal(t, 230.0, components.StrikePrice)
-		require.Equal(t, eventmodels.OptionTypeCall, components.OptionType)
+		require.Equal(t, models.OptionTypeCall, components.OptionType)
 
 		delta, err = playground.Tick(55*time.Hour, false, mockDBService)
 		require.NoError(t, err)
@@ -1825,7 +1825,7 @@ func TestValidateCache(t *testing.T) {
 		order := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
 			Symbol:           "AAPL",
-			instrument:       eventmodels.StockSymbol("AAPL"),
+			instrument:       models.StockSymbol("AAPL"),
 			AbsoluteQuantity: 10,
 			Side:             TradierOrderSideBuy,
 			Status:           OrderRecordStatusPending,
@@ -1838,7 +1838,7 @@ func TestValidateCache(t *testing.T) {
 	})
 
 	t.Run("positive case: multiple symbols", func(t *testing.T) {
-		instrument1 := eventmodels.StockSymbol("GOOG")
+		instrument1 := models.StockSymbol("GOOG")
 
 		order1 := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
@@ -1855,7 +1855,7 @@ func TestValidateCache(t *testing.T) {
 			},
 		}
 
-		instrument2 := eventmodels.StockSymbol("AAPL")
+		instrument2 := models.StockSymbol("AAPL")
 
 		order2 := &OrderRecord{
 			Model:            gorm.Model{ID: 2},
@@ -1900,7 +1900,7 @@ func TestValidateCache(t *testing.T) {
 	})
 
 	t.Run("positive case: positive quantity", func(t *testing.T) {
-		instrument := eventmodels.StockSymbol("AAPL")
+		instrument := models.StockSymbol("AAPL")
 
 		order1 := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
@@ -1946,7 +1946,7 @@ func TestValidateCache(t *testing.T) {
 		order := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
 			Symbol:           "AAPL",
-			instrument:       eventmodels.StockSymbol("AAPL"),
+			instrument:       models.StockSymbol("AAPL"),
 			AbsoluteQuantity: 10,
 			Status:           OrderRecordStatusFilled,
 			Side:             TradierOrderSideSellShort,
@@ -1970,7 +1970,7 @@ func TestValidateCache(t *testing.T) {
 		order := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
 			Symbol:           "AAPL",
-			instrument:       eventmodels.StockSymbol("AAPL"),
+			instrument:       models.StockSymbol("AAPL"),
 			AbsoluteQuantity: 10,
 			Status:           OrderRecordStatusFilled,
 			Side:             TradierOrderSideSellShort,
@@ -1996,13 +1996,13 @@ func TestValidateCache(t *testing.T) {
 			Price:    100.0,
 		}
 
-		pg.positionCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
+		pg.positionCache.Add(models.NewStockSymbol("GOOG"), trade)
 
 		require.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("negative case: position", func(t *testing.T) {
-		instument1 := eventmodels.StockSymbol("AAPL")
+		instument1 := models.StockSymbol("AAPL")
 		order1 := &OrderRecord{
 			Model:            gorm.Model{ID: 1},
 			Symbol:           "AAPL",
@@ -2028,20 +2028,20 @@ func TestValidateCache(t *testing.T) {
 			Price:    100.0,
 		}
 
-		pg.positionCache.Add(eventmodels.NewStockSymbol("GOOG"), trade)
+		pg.positionCache.Add(models.NewStockSymbol("GOOG"), trade)
 
 		require.Error(t, pg.validateCache(pg.openOrdersCache, pg.positionCache))
 	})
 
 	t.Run("unable to fill order if cache doesn't match", func(t *testing.T) {
 		balance := 1000.0
-		symbol := eventmodels.StockSymbol("AAPL")
+		symbol := models.StockSymbol("AAPL")
 		period := time.Minute
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
 		clock := NewClock(startTime, endTime, nil)
 
-		feed1 := []*eventmodels.PolygonAggregateBarV2{
+		feed1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     10.0,
@@ -2053,7 +2053,7 @@ func TestValidateCache(t *testing.T) {
 		}
 
 		env := PlaygroundEnvironmentSimulator
-		source := eventmodels.CandleRepositorySource{
+		source := models.CandleRepositorySource{
 			Type: "test",
 		}
 
@@ -2149,11 +2149,11 @@ func TestOpenOrdersCache(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol1 := eventmodels.StockSymbol("AAPL")
-	symbol2 := eventmodels.StockSymbol("GOOG")
+	symbol1 := models.StockSymbol("AAPL")
+	symbol2 := models.StockSymbol("GOOG")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{
+	source := models.CandleRepositorySource{
 		Type: "test",
 	}
 
@@ -2166,7 +2166,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		t1 := startTime.Add(time.Minute)
 		t2 := startTime.Add(2 * time.Minute)
 
-		feed1 := []*eventmodels.PolygonAggregateBarV2{
+		feed1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t_minus_1,
 				Close:     5.0,
@@ -2185,7 +2185,7 @@ func TestOpenOrdersCache(t *testing.T) {
 			},
 		}
 
-		feed2 := []*eventmodels.PolygonAggregateBarV2{
+		feed2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t_minus_1,
 				Close:     100.0,
@@ -2265,8 +2265,8 @@ func TestLiquidation(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol1 := eventmodels.StockSymbol("AAPL")
-	symbol2 := eventmodels.StockSymbol("GOOG")
+	symbol1 := models.StockSymbol("AAPL")
+	symbol2 := models.StockSymbol("GOOG")
 	period := time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
@@ -2276,7 +2276,7 @@ func TestLiquidation(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
 
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     10.0,
@@ -2287,7 +2287,7 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		candles2 := []*eventmodels.PolygonAggregateBarV2{
+		candles2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -2298,10 +2298,10 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2378,7 +2378,7 @@ func TestLiquidation(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		t1 := startTime.Add(5 * time.Minute)
 
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     10.0,
@@ -2389,7 +2389,7 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		candles2 := []*eventmodels.PolygonAggregateBarV2{
+		candles2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -2400,10 +2400,10 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2473,7 +2473,7 @@ func TestLiquidation(t *testing.T) {
 		t1 := startTime
 		t2 := startTime.Add(5 * time.Minute)
 
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1,
 				Close:     10.0,
@@ -2484,7 +2484,7 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		candles2 := []*eventmodels.PolygonAggregateBarV2{
+		candles2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1,
 				Close:     100.0,
@@ -2495,10 +2495,10 @@ func TestLiquidation(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2550,8 +2550,8 @@ func TestFeed(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol1 := eventmodels.StockSymbol("AAPL")
-	symbol2 := eventmodels.StockSymbol("GOOG")
+	symbol1 := models.StockSymbol("AAPL")
+	symbol2 := models.StockSymbol("GOOG")
 	period := time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
@@ -2563,7 +2563,7 @@ func TestFeed(t *testing.T) {
 		t1_appl := startTime
 		t2_appl := startTime.Add(5 * time.Minute)
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1_appl,
 				Close:     10.0,
@@ -2574,7 +2574,7 @@ func TestFeed(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2600,7 +2600,7 @@ func TestFeed(t *testing.T) {
 		t2_appl := startTime.Add(5 * time.Minute)
 		t3_appl := startTime.Add(10 * time.Minute)
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1_appl,
 				Close:     10.0,
@@ -2615,7 +2615,7 @@ func TestFeed(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2654,7 +2654,7 @@ func TestFeed(t *testing.T) {
 		t2_goog := startTime.Add(10 * time.Minute)
 		t3_goog := startTime.Add(20 * time.Minute)
 
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1_appl,
 				Close:     10.0,
@@ -2673,7 +2673,7 @@ func TestFeed(t *testing.T) {
 			},
 		}
 
-		candles2 := []*eventmodels.PolygonAggregateBarV2{
+		candles2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1_goog,
 				Close:     100.0,
@@ -2688,10 +2688,10 @@ func TestFeed(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2759,7 +2759,7 @@ func TestFeed(t *testing.T) {
 	t.Run("GetCandle returns first candle", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     10.0,
@@ -2770,7 +2770,7 @@ func TestFeed(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2803,11 +2803,11 @@ func TestClock(t *testing.T) {
 	env := PlaygroundEnvironmentSimulator
 
 	t.Run("Backtester is complete", func(t *testing.T) {
-		symbol := eventmodels.StockSymbol("AAPL")
+		symbol := models.StockSymbol("AAPL")
 
 		clock := NewClock(startTime, endTime, nil)
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -2822,7 +2822,7 @@ func TestClock(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		balance := 1000.0
@@ -2887,12 +2887,12 @@ func TestBalance(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	period := time.Minute
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{Type: "test"}
+	source := models.CandleRepositorySource{Type: "test"}
 
 	t.Run("GetAccountBalance", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -2914,7 +2914,7 @@ func TestBalance(t *testing.T) {
 	t.Run("GetAccountBalance - increase after profitable trade", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		now := startTime
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -2974,8 +2974,8 @@ func TestBalance(t *testing.T) {
 	})
 
 	t.Run("Starts with correct initial position when playground has existing orders", func(t *testing.T) {
-		symbol1 := eventmodels.StockSymbol("AAPL")
-		symbol2 := eventmodels.StockSymbol("GOOG")
+		symbol1 := models.StockSymbol("AAPL")
+		symbol2 := models.StockSymbol("GOOG")
 		now := startTime
 
 		// existing orders
@@ -3006,7 +3006,7 @@ func TestBalance(t *testing.T) {
 		// create repos
 		t1 := startTime.Add(5 * time.Minute)
 		symbol1_Price := 250.0
-		candles1 := []*eventmodels.PolygonAggregateBarV2{
+		candles1 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     symbol1_Price,
@@ -3018,7 +3018,7 @@ func TestBalance(t *testing.T) {
 		}
 
 		symbol2_Price := 500.0
-		candles2 := []*eventmodels.PolygonAggregateBarV2{
+		candles2 := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     symbol2_Price,
@@ -3029,10 +3029,10 @@ func TestBalance(t *testing.T) {
 			},
 		}
 
-		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo1, err := NewCandleRepository(symbol1, period, candles1, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
-		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo2, err := NewCandleRepository(symbol2, period, candles2, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		// create playground
@@ -3090,7 +3090,7 @@ func TestBalance(t *testing.T) {
 
 		balance := 100000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1,
 				Close:     prices[0],
@@ -3218,7 +3218,7 @@ func TestBalance(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: t1,
 				Close:     prices[0],
@@ -3312,19 +3312,19 @@ func TestPositions(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{Type: "test"}
+	source := models.CandleRepositorySource{Type: "test"}
 
 	t.Run("Order.PreviousPosition", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		now := startTime
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -3335,7 +3335,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		// Create a new playground
@@ -3364,7 +3364,7 @@ func TestPositions(t *testing.T) {
 		require.NotNil(t, delta)
 
 		// assert single open trade
-		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position1, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 
 		require.Equal(t, 10.0, position1.Quantity)
@@ -3397,7 +3397,7 @@ func TestPositions(t *testing.T) {
 		newTrades := delta.NewTrades
 		require.Len(t, newTrades, 2)
 
-		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position2, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, 30.0, position2.Quantity)
 
@@ -3418,7 +3418,7 @@ func TestPositions(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.ErrorContains(t, err, "position not found")
 		require.Equal(t, 0.0, position.Quantity)
 		require.Equal(t, 0.0, position.CostBasis)
@@ -3431,7 +3431,7 @@ func TestPositions(t *testing.T) {
 		now := startTime
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -3442,7 +3442,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		// Create a new playground
@@ -3471,7 +3471,7 @@ func TestPositions(t *testing.T) {
 		require.NotNil(t, delta)
 
 		// assert single open trade
-		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position1, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 
 		require.Equal(t, 10.0, position1.Quantity)
@@ -3491,7 +3491,7 @@ func TestPositions(t *testing.T) {
 		require.NotNil(t, delta)
 
 		// assert single open trade volume decreased
-		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position2, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, 5.0, position2.Quantity)
 	})
@@ -3505,7 +3505,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -3516,7 +3516,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		playground, err := NewPlayground(PlaygroundConfig{
@@ -3542,7 +3542,7 @@ func TestPositions(t *testing.T) {
 		require.NotNil(t, delta)
 
 		// assert single open trade
-		position1, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position1, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position1.Quantity)
 
@@ -3561,7 +3561,7 @@ func TestPositions(t *testing.T) {
 		require.Len(t, delta.NewTrades, 1)
 
 		// assert single open trade volume decreased
-		position2, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position2, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -5.0, position2.Quantity)
 	})
@@ -3578,7 +3578,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -3601,7 +3601,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		playground, err := NewPlayground(PlaygroundConfig{
@@ -3711,7 +3711,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -3738,7 +3738,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		playground, err := NewPlayground(PlaygroundConfig{
@@ -3846,7 +3846,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -3873,7 +3873,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		playground, err := NewPlayground(PlaygroundConfig{
@@ -4025,7 +4025,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 1000000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     100.0,
@@ -4040,7 +4040,7 @@ func TestPositions(t *testing.T) {
 			},
 		}
 
-		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+		repo, err := NewCandleRepository(symbol, period, candles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 		require.NoError(t, err)
 
 		playground, err := NewPlayground(PlaygroundConfig{
@@ -4098,7 +4098,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 100000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     1000.0,
@@ -4130,7 +4130,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, 10.0, position.Quantity)
 		require.Equal(t, 1000.0, position.CostBasis)
@@ -4145,7 +4145,7 @@ func TestPositions(t *testing.T) {
 
 		balance := 100000.0
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -4189,7 +4189,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, 5.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
@@ -4199,7 +4199,7 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		now := startTime
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -4231,7 +4231,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
@@ -4251,7 +4251,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err = playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err = playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -15.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
@@ -4264,7 +4264,7 @@ func TestPositions(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
 		now := startTime
 
-		candles := []*eventmodels.PolygonAggregateBarV2{
+		candles := []*models.PolygonAggregateBarV2{
 			{
 				Timestamp: startTime,
 				Close:     250.0,
@@ -4296,7 +4296,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err := playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err := playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
@@ -4314,7 +4314,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		position, err = playground.GetPosition(eventmodels.StockSymbol("AAPL"), true)
+		position, err = playground.GetPosition(models.StockSymbol("AAPL"), true)
 		require.NoError(t, err)
 		require.Equal(t, -5.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
@@ -4328,18 +4328,18 @@ func TestFreeMargin(t *testing.T) {
 	err = utils.InitEnvironmentVariables(projectDir, "test")
 	require.NoError(t, err)
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	t1 := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 2, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
 	now := startTime
-	source := eventmodels.CandleRepositorySource{
+	source := models.CandleRepositorySource{
 		Type: "test",
 	}
 
-	candles := []*eventmodels.PolygonAggregateBarV2{
+	candles := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: startTime,
 			Close:     100.0,
@@ -4549,17 +4549,17 @@ func TestOrders(t *testing.T) {
 	// err = utils.InitEnvironmentVariables(projectDir, "test")
 	// require.NoError(t, err)
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	clock := NewClock(startTime, endTime, nil)
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{Type: "test"}
+	source := models.CandleRepositorySource{Type: "test"}
 
 	now := startTime
 
-	candles := []*eventmodels.PolygonAggregateBarV2{
+	candles := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: startTime,
 			Close:     100.0,
@@ -4739,19 +4739,19 @@ func TestTrades(t *testing.T) {
 	// err = utils.InitEnvironmentVariables(projectDir, "test")
 	// require.NoError(t, err)
 
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	env := PlaygroundEnvironmentSimulator
-	source := eventmodels.CandleRepositorySource{Type: "test"}
+	source := models.CandleRepositorySource{Type: "test"}
 
 	prices := []float64{100.0, 105.0, 110.0}
 	t1 := startTime
 	t2 := startTime.Add(time.Minute)
 	t3 := startTime.Add(2 * time.Minute)
 
-	candles := []*eventmodels.PolygonAggregateBarV2{
+	candles := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: t1,
 			Close:     prices[0],

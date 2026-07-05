@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/schema"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 var NoRequestParamsErr = fmt.Errorf("no request params found")
@@ -120,12 +120,12 @@ func parseAccountRequestParams(params string) (interface{}, error) {
 }
 
 func parseAccountRequest(data url.Values) (interface{}, error) {
-	req := new(eventmodels.IncomingSlackRequest)
+	req := new(models.IncomingSlackRequest)
 	schema.NewDecoder().Decode(req, data)
 
 	request, err := parseAccountRequestParams(req.Params)
 	if err == NoRequestParamsErr {
-		return eventmodels.GetAccountsRequestEvent{}, nil
+		return models.GetAccountsRequestEvent{}, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("parseAccountRequestParams failed: %v", err)
 	}
@@ -133,21 +133,21 @@ func parseAccountRequest(data url.Values) (interface{}, error) {
 	return request, nil
 }
 
-func parseBTCTradeRequest(data url.Values) (eventmodels.TradeRequestEvent, error) {
+func parseBTCTradeRequest(data url.Values) (models.TradeRequestEvent, error) {
 	paramsPayload, ok := data["text"]
 
 	if !ok {
-		return eventmodels.TradeRequestEvent{}, fmt.Errorf("Could not find text\n")
+		return models.TradeRequestEvent{}, fmt.Errorf("Could not find text\n")
 	}
 
 	if len(paramsPayload) != 1 {
-		return eventmodels.TradeRequestEvent{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
+		return models.TradeRequestEvent{}, fmt.Errorf("Invalid paramsPayload length: %d\n", len(paramsPayload))
 	}
 
 	params := strings.Fields(paramsPayload[0])
 
 	// todo: add request ID
-	tradeReq := eventmodels.TradeRequestEvent{
+	tradeReq := models.TradeRequestEvent{
 		Timestamp: time.Now().UTC(),
 		Symbol:    "btc",
 	}
@@ -158,7 +158,7 @@ func parseBTCTradeRequest(data url.Values) (eventmodels.TradeRequestEvent, error
 		} else if volume, err := parseVolume(param); err == nil {
 			tradeReq.Volume = volume
 		} else {
-			return eventmodels.TradeRequestEvent{}, fmt.Errorf("failed to parse payload param: %v", param)
+			return models.TradeRequestEvent{}, fmt.Errorf("failed to parse payload param: %v", param)
 		}
 	}
 

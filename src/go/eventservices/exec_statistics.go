@@ -16,10 +16,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, createSignalStatsfunc eventmodels.CreateSignalStatsFunc) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string, lookaheadToOptionContractsMap map[int][]models.OptionContractV3, stockInfo *models.StockTickItemDTO, createSignalStatsfunc models.CreateSignalStatsFunc) (map[string]models.ExpectedProfitItemSpread, map[string]models.ExpectedProfitItemSpread, error) {
 	tracer := otel.Tracer("ExecSignalStatisicalPipelineSpreads")
 	_, span := tracer.Start(ctx, "ExecSignalStatisicalPipelineSpreads", trace.WithAttributes(attribute.String("symbol", string(stockInfo.Symbol))))
 	defer span.End()
@@ -34,8 +34,8 @@ func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string,
 		return nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_down: %w", err)
 	}
 
-	resultMapLongSpread := make(map[string]eventmodels.ExpectedProfitItemSpread)
-	resultMapShortSpread := make(map[string]eventmodels.ExpectedProfitItemSpread)
+	resultMapLongSpread := make(map[string]models.ExpectedProfitItemSpread)
+	resultMapShortSpread := make(map[string]models.ExpectedProfitItemSpread)
 
 	logger.Infof("exported %v files", len(output.ExportedFilepaths))
 
@@ -52,7 +52,7 @@ func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string,
 			return nil, nil, fmt.Errorf("FetchEV: error running derive_expected_profit_spreads.py: %w", err)
 		}
 
-		var results []eventmodels.ExpectedProfitItemSpread
+		var results []models.ExpectedProfitItemSpread
 		for _, dto := range resultsDTO {
 			r, err := dto.ToModel()
 			if err != nil {
@@ -108,7 +108,7 @@ func ExecFitDistribution(ctx context.Context, projectDir, percentChangeInDir str
 	return "", fmt.Errorf("ExecFitDistribution: missing outDir in JSON output")
 }
 
-func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemSpreadDTO, error) {
+func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributionInDir string, stockInfo *models.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]models.OptionContractV3) ([]models.ExpectedProfitItemSpreadDTO, error) {
 	tracer := otel.Tracer("ExecDeriveExpectedProfitSpreads")
 	_, span := tracer.Start(ctx, "ExecDeriveExpectedProfitSpreads")
 	defer span.End()
@@ -145,7 +145,7 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributi
 		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error running derive_expected_profit.py: %v", err)
 	}
 
-	var results []eventmodels.ExpectedProfitItemSpreadDTO
+	var results []models.ExpectedProfitItemSpreadDTO
 	if err := json.Unmarshal(output, &results); err != nil {
 		return nil, fmt.Errorf("ExecDeriveExpectedProfitSpreads: error unmarshalling JSON output: %v", err)
 	}
@@ -153,7 +153,7 @@ func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributi
 	return results, nil
 }
 
-func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) (string, error) {
+func getOptionsStandardIn(distributionInDir string, stockInfo *models.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]models.OptionContractV3) (string, error) {
 	lookahead, err := getLookaheadFromFilePath(distributionInDir)
 	if err != nil {
 		return "", fmt.Errorf("getOptionsStandardIn: error getting lookahead from file path: %v", err)
@@ -164,7 +164,7 @@ func getOptionsStandardIn(distributionInDir string, stockInfo *eventmodels.Stock
 		return "", fmt.Errorf("getOptionsStandardIn: missing options for lookahead: %d", lookahead)
 	}
 
-	var filteredOptionsDTO []*eventmodels.OptionContractV1DTO
+	var filteredOptionsDTO []*models.OptionContractV1DTO
 	for _, option := range filteredOptions {
 		filteredOptionsDTO = append(filteredOptionsDTO, option.ToDTOV1())
 	}
@@ -199,7 +199,7 @@ func getLookaheadFromFilePath(filePath string) (int, error) {
 	return lookahead, nil
 }
 
-func ExecDeriveExpectedProfit(projectDir, distributionInDir string, stockInfo *eventmodels.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]eventmodels.OptionContractV3) ([]eventmodels.ExpectedProfitItemDTO, error) {
+func ExecDeriveExpectedProfit(projectDir, distributionInDir string, stockInfo *models.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]models.OptionContractV3) ([]models.ExpectedProfitItemDTO, error) {
 	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
 	deriveExpectedProfitPath := path.Join(projectDir, "src", "cmd", "stats", "derive_expected_profit.py")
 
@@ -217,7 +217,7 @@ func ExecDeriveExpectedProfit(projectDir, distributionInDir string, stockInfo *e
 		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error running derive_expected_profit.py: %v", err)
 	}
 
-	var results []eventmodels.ExpectedProfitItemDTO
+	var results []models.ExpectedProfitItemDTO
 	if err := json.Unmarshal(output, &results); err != nil {
 		return nil, fmt.Errorf("ExecDeriveExpectedProfit: error unmarshalling JSON output: %v", err)
 	}

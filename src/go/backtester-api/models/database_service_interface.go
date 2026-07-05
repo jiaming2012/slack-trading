@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type IDatabaseService interface {
@@ -29,12 +29,12 @@ type IDatabaseService interface {
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	CreateTransaction(transaction func(tx *gorm.DB) error) error
-	PopulatePlayground(p *Playground, calendar *eventmodels.MarketCalendar) error
+	PopulatePlayground(p *Playground, calendar *models.MarketCalendar) error
 	PopulateLiveAccount(a *LiveAccount) error
 	LoadLiveAccounts(brokerMap map[CreateAccountRequestSource]IBroker) error
-	CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle]) ([]*CandleRepository, *eventmodels.WebError)
+	CreateRepos(repoRequests []models.CreateRepositoryRequest, from, to *models.PolygonDate, newCandlesQueue *models.FIFOQueue[*BacktesterCandle]) ([]*CandleRepository, *models.WebError)
 	RemoveLiveRepository(repo *CandleRepository) error
-	LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error
+	LoadPlaygrounds(calendar *models.MarketCalendar) error
 	SavePlaygroundSession(playground *Playground) error
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error

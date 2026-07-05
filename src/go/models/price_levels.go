@@ -2,11 +2,12 @@ package models
 
 import (
 	"fmt"
+	"math"
+	"strings"
+
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
-	"math"
-	"strings"
 )
 
 type PriceLevels struct {

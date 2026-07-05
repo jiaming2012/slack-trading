@@ -1,5 +1,5 @@
 package eventconsumers
 
-import "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/go/models"
 
-type TrackerV3Client = esdbConsumerStream[*eventmodels.TrackerV3]
+type TrackerV3Client = esdbConsumerStream[*models.TrackerV3]

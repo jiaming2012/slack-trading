@@ -1,44 +1,44 @@
 package eventpubsub
 
-import "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/go/models"
 
 type RequestEvent interface {
-	GetMetaData() *eventmodels.MetaData
-	SetMetaData(*eventmodels.MetaData)
+	GetMetaData() *models.MetaData
+	SetMetaData(*models.MetaData)
 }
 
 type SagaFlow struct {
 	Generate func() RequestEvent
 }
 
-func NewSagaFlow() map[eventmodels.EventName]SagaFlow {
-	return map[eventmodels.EventName]SagaFlow{
-		eventmodels.CreateAccountRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateAccountRequestEventV1{} },
+func NewSagaFlow() map[models.EventName]SagaFlow {
+	return map[models.EventName]SagaFlow{
+		models.CreateAccountRequestEventName: {
+			Generate: func() RequestEvent { return &models.CreateAccountRequestEventV1{} },
 		},
-		eventmodels.CreateAccountStrategyRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateAccountStrategyRequestEvent{} },
+		models.CreateAccountStrategyRequestEventName: {
+			Generate: func() RequestEvent { return &models.CreateAccountStrategyRequestEvent{} },
 		},
-		eventmodels.CreateSignalRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateSignalRequestEventV1DTO{} },
+		models.CreateSignalRequestEventName: {
+			Generate: func() RequestEvent { return &models.CreateSignalRequestEventV1DTO{} },
 		},
-		eventmodels.CreateOptionAlertRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.CreateOptionAlertRequestEvent{} },
+		models.CreateOptionAlertRequestEventName: {
+			Generate: func() RequestEvent { return &models.CreateOptionAlertRequestEvent{} },
 		},
-		eventmodels.DeleteOptionAlertRequestEventName: {
-			Generate: func() RequestEvent { return &eventmodels.DeleteOptionAlertRequestEvent{} },
+		models.DeleteOptionAlertRequestEventName: {
+			Generate: func() RequestEvent { return &models.DeleteOptionAlertRequestEvent{} },
 		},
-		eventmodels.OptionAlertUpdateEventName: {
-			Generate: func() RequestEvent { return &eventmodels.OptionAlertUpdateEvent{} },
+		models.OptionAlertUpdateEventName: {
+			Generate: func() RequestEvent { return &models.OptionAlertUpdateEvent{} },
 		},
-		eventmodels.CreateNewOptionChainTickEvent: {
-			Generate: func() RequestEvent { return &eventmodels.OptionChainTickV1{} },
+		models.CreateNewOptionChainTickEvent: {
+			Generate: func() RequestEvent { return &models.OptionChainTickV1{} },
 		},
-		eventmodels.CreateNewStockTickEvent: {
-			Generate: func() RequestEvent { return &eventmodels.StockTickV1{} },
+		models.CreateNewStockTickEvent: {
+			Generate: func() RequestEvent { return &models.StockTickV1{} },
 		},
-		eventmodels.CreateOptionContractEvent: {
-			Generate: func() RequestEvent { return &eventmodels.OptionContractV1{} },
+		models.CreateOptionContractEvent: {
+			Generate: func() RequestEvent { return &models.OptionContractV1{} },
 		},
 	}
 }

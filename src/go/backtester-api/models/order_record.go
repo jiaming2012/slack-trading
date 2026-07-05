@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type Attributes map[string]string
@@ -75,7 +75,7 @@ type OrderRecord struct {
 	PreviousPosition Position               `gorm:"type:json" copier:"must,nopanic"`
 	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
 	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
-	instrument       eventmodels.Instrument `gorm:"-" copier:"must,nopanic"`
+	instrument       models.Instrument `gorm:"-" copier:"must,nopanic"`
 	PreviousBalance  *float64               `gorm:"column:previous_balance;type:numeric" copier:"must,nopanic"`
 	SignalID         *uuid.UUID             `gorm:"column:signal_id;type:uuid;index:idx_signal_id" copier:"must,nopanic"`
 	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
@@ -186,13 +186,13 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 
 			// option expired ITM
 			if requestedPrice > 0 {
-				optionContract, ok := o.GetInstrument().(*eventmodels.OptionContractV3)
+				optionContract, ok := o.GetInstrument().(*models.OptionContractV3)
 
 				if !ok {
 					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
 				}
 
-				if optionContract.OptionType == eventmodels.OptionTypeCall {
+				if optionContract.OptionType == models.OptionTypeCall {
 					var buyQty float64
 					if requestedQuantity != nil {
 						if *requestedQuantity < 0 {
@@ -227,7 +227,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 
 			// option expired ITM
 			if requestedPrice > 0 {
-				optionContract, ok := o.GetInstrument().(*eventmodels.OptionContractV3)
+				optionContract, ok := o.GetInstrument().(*models.OptionContractV3)
 
 				if !ok {
 					return nil, fmt.Errorf("CreateCloseOrder: failed to cast instrument to OptionSymbol")
@@ -246,7 +246,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 				}
 
 				switch optionContract.OptionType {
-				case eventmodels.OptionTypeCall:
+				case models.OptionTypeCall:
 					stockOpenQty := 0.0
 					currentPosition := positionCache.Get(optionContract.UnderlyingSymbol.GetTicker())
 					if currentPosition != nil {
@@ -289,7 +289,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 						}
 					}
 
-				case eventmodels.OptionTypePut:
+				case models.OptionTypePut:
 					buyQty := math.Abs(optionCloseQty) * float64(optionContract.ContractSize)
 
 					stockOrderRequest = &CreateOrderRequest{
@@ -370,13 +370,13 @@ func (o *OrderRecord) IsPending() bool {
 	return false
 }
 
-func (o *OrderRecord) GetInstrument() eventmodels.Instrument {
+func (o *OrderRecord) GetInstrument() models.Instrument {
 	if o.instrument == nil {
 		switch o.Class {
 		case OrderRecordClassEquity, "":
-			o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+			o.instrument = models.NewStockSymbol(o.Symbol)
 		case OrderRecordClassOption:
-			o.instrument = eventmodels.OptionSymbol(o.Symbol)
+			o.instrument = models.OptionSymbol(o.Symbol)
 		default:
 			panic(fmt.Sprintf("unsupported order record class: %s", o.Class))
 		}
@@ -475,9 +475,9 @@ func (o *OrderRecord) Hydrate() error {
 		if o.Symbol != "" {
 			switch o.Class {
 			case OrderRecordClassEquity:
-				o.instrument = eventmodels.NewStockSymbol(o.Symbol)
+				o.instrument = models.NewStockSymbol(o.Symbol)
 			case OrderRecordClassOption:
-				o.instrument = eventmodels.OptionSymbol(o.Symbol)
+				o.instrument = models.OptionSymbol(o.Symbol)
 			default:
 				return fmt.Errorf("unsupported order record class: %s", o.Class)
 			}
@@ -673,7 +673,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 }
 
 func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) error {
-	instrument, err := eventmodels.NewInstrument(string(class), symbol)
+	instrument, err := models.NewInstrument(string(class), symbol)
 	if err != nil {
 		return fmt.Errorf("makeOrderRecord: failed to create instrument for class %s and symbol %s: %w", class, symbol, err)
 	}

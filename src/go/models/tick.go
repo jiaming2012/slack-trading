@@ -1,9 +1,19 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type Tick struct {
-	Timestamp time.Time `json:"timestamp"`
-	Bid       float64   `json:"bid"`
-	Ask       float64   `json:"ask"`
+	Timestamp time.Time
+	Price     float64
+	Source    DatafeedName
+}
+
+func NewTick(timestamp time.Time, price float64, datafeed DatafeedName) *Tick {
+	return &Tick{
+		Timestamp: timestamp,
+		Price:     price,
+		Source:    datafeed,
+	}
 }

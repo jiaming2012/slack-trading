@@ -8,11 +8,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indicators []string) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func AddIndicatorsToCandles(candles []*models.PolygonAggregateBarV2, indicators []string) ([]*models.AggregateBarWithIndicators, error) {
 	// Get the TRADING_PROJECT_DIR environment variable
 	projectDir, err := utils.GetEnv("TRADING_PROJECT_DIR")
 	if err != nil {
@@ -62,7 +62,7 @@ func AddIndicatorsToCandles(candles []*eventmodels.PolygonAggregateBarV2, indica
 	}
 
 	// Unmarshall the json output from create_indicators.py
-	var data []*eventmodels.AggregateBarWithIndicators
+	var data []*models.AggregateBarWithIndicators
 	if err = json.Unmarshal(out.Bytes(), &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON output from create_indicators.py: %v", err)
 	}

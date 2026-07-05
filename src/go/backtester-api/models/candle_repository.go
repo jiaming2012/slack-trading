@@ -8,29 +8,28 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
 
 type CandleRepository struct {
-	symbol                eventmodels.Instrument
+	symbol                models.Instrument
 	period                time.Duration
 	periodStr             string
-	fetchInterval         eventmodels.TradierInterval
-	polygonTimespan       eventmodels.PolygonTimespan
-	candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
-	baseCandles           []*eventmodels.PolygonAggregateBarV2
+	fetchInterval         models.TradierInterval
+	polygonTimespan       models.PolygonTimespan
+	candlesWithIndicators []*models.AggregateBarWithIndicators
+	baseCandles           []*models.PolygonAggregateBarV2
 	indicators            []string
 	position              int
 	startingPosition      *int
-	newCandlesQueue       *eventmodels.FIFOQueue[*BacktesterCandle]
+	newCandlesQueue       *models.FIFOQueue[*BacktesterCandle]
 	isInitialTick         bool
 	historyInDays         uint32
 	nextUpdateAt          *time.Time
-	source                eventmodels.CandleRepositorySource
+	source                models.CandleRepositorySource
 	mutex                 *sync.Mutex
-	optionComponents      *eventmodels.OptionSymbolComponents
+	optionComponents      *models.OptionSymbolComponents
 }
 
 func (r *CandleRepository) Count() int {
@@ -49,13 +48,13 @@ func (r *CandleRepository) Sort() {
 	})
 }
 
-func (r *CandleRepository) AddCandles(candles []*eventmodels.AggregateBarWithIndicators) error {
+func (r *CandleRepository) AddCandles(candles []*models.AggregateBarWithIndicators) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	switch r.symbol.(type) {
-	case eventmodels.OptionSymbol:
-	case *eventmodels.OptionContractV3:
+	case models.OptionSymbol:
+	case *models.OptionContractV3:
 	default:
 		return fmt.Errorf("AddCandles: unsupported symbol type: %T", r.symbol)
 	}
@@ -98,7 +97,7 @@ func (r *CandleRepository) ToDTO() CandleRepositoryDTO {
 	}
 }
 
-func (r *CandleRepository) GetSymbol() eventmodels.Instrument {
+func (r *CandleRepository) GetSymbol() models.Instrument {
 	return r.symbol
 }
 
@@ -114,11 +113,11 @@ func (r *CandleRepository) GetPeriodStr() string {
 	return r.periodStr
 }
 
-func (r *CandleRepository) GetPolygonTimespan() eventmodels.PolygonTimespan {
+func (r *CandleRepository) GetPolygonTimespan() models.PolygonTimespan {
 	return r.polygonTimespan
 }
 
-func (r *CandleRepository) GetFetchInterval() eventmodels.TradierInterval {
+func (r *CandleRepository) GetFetchInterval() models.TradierInterval {
 	return r.fetchInterval
 }
 
@@ -126,7 +125,7 @@ func (r *CandleRepository) GetHistoryInDays() uint32 {
 	return r.historyInDays
 }
 
-func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicators {
+func (r *CandleRepository) GetLastCandle() *models.AggregateBarWithIndicators {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -137,7 +136,7 @@ func (r *CandleRepository) GetLastCandle() *eventmodels.AggregateBarWithIndicato
 	return r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
 }
 
-func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env PlaygroundEnvironment, calendar *eventmodels.MarketCalendar) error {
+func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env PlaygroundEnvironment, calendar *models.MarketCalendar) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -185,7 +184,7 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 	return fmt.Errorf("no candles found at or after %s", currentTime)
 }
 
-func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*models.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -200,7 +199,7 @@ func (r *CandleRepository) FetchCandlesAtOrAfter(tstamp time.Time) (*eventmodels
 	return nil, nil
 }
 
-func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, error) {
+func (r *CandleRepository) AppendBars(bars []models.ICandle) (time.Time, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -215,7 +214,7 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 			return time.Time{}, fmt.Errorf("new bar[%d] timestamp %v is not after the last bar timestamp %v (symbol=%s)", i, bar.GetTimestamp(), lastBar.Timestamp, r.symbol)
 		}
 
-		r.baseCandles = append(r.baseCandles, &eventmodels.PolygonAggregateBarV2{
+		r.baseCandles = append(r.baseCandles, &models.PolygonAggregateBarV2{
 			Timestamp: bar.GetTimestamp(),
 			Open:      bar.GetOpen(),
 			High:      bar.GetHigh(),
@@ -253,11 +252,11 @@ func (r *CandleRepository) AppendBars(bars []eventmodels.ICandle) (time.Time, er
 	return maxTimestamp, nil
 }
 
-func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	var candles []*eventmodels.AggregateBarWithIndicators
+	var candles []*models.AggregateBarWithIndicators
 	for _, candle := range r.candlesWithIndicators {
 		if (candle.Timestamp.Equal(startTime) || candle.Timestamp.After(startTime)) && (endTime == nil || candle.Timestamp.Before(*endTime)) {
 			candles = append(candles, candle)
@@ -275,7 +274,7 @@ func (r *CandleRepository) FetchCandles(startTime time.Time, endTime *time.Time)
 	return candles, nil
 }
 
-func (r *CandleRepository) GetCandleAt(at time.Time, maxAge time.Duration) (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) GetCandleAt(at time.Time, maxAge time.Duration) (*models.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -296,7 +295,7 @@ func (r *CandleRepository) GetCandleAt(at time.Time, maxAge time.Duration) (*eve
 	return nil, fmt.Errorf("No candles found for %s at or after %s", r.symbol, at)
 }
 
-func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) getCurrentCandle() (*models.AggregateBarWithIndicators, error) {
 	if r.position >= len(r.candlesWithIndicators) {
 		if r.position == 0 {
 			return nil, fmt.Errorf("found empty candlesWithIndicators for symbol %s", r.symbol.GetTicker())
@@ -316,14 +315,14 @@ func (r *CandleRepository) getCurrentCandle() (*eventmodels.AggregateBarWithIndi
 	return nil, nil
 }
 
-func (r *CandleRepository) GetCurrentCandle() (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) GetCurrentCandle() (*models.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	return r.getCurrentCandle()
 }
 
-func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.AggregateBarWithIndicators, error) {
+func (r *CandleRepository) Update(currentTime time.Time) (*models.AggregateBarWithIndicators, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -337,7 +336,7 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 		return nil, fmt.Errorf("no more candles: %w", ErrCurrentPriceNotSet)
 	}
 
-	var newCandle *eventmodels.AggregateBarWithIndicators
+	var newCandle *models.AggregateBarWithIndicators
 	var err error
 	for {
 		if r.position >= len(r.candlesWithIndicators)-1 {
@@ -370,29 +369,29 @@ func (r *CandleRepository) Update(currentTime time.Time) (*eventmodels.Aggregate
 	return newCandle, nil
 }
 
-func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, candles []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*BacktesterCandle], historyInDays uint32, source eventmodels.CandleRepositorySource) (*CandleRepository, error) {
-	var interval eventmodels.TradierInterval
+func NewCandleRepository(symbol models.Instrument, period time.Duration, candles []*models.PolygonAggregateBarV2, indicators []string, newCandlesQueue *models.FIFOQueue[*BacktesterCandle], historyInDays uint32, source models.CandleRepositorySource) (*CandleRepository, error) {
+	var interval models.TradierInterval
 	switch period {
 	case time.Minute:
-		interval = eventmodels.TradierInterval1Min
+		interval = models.TradierInterval1Min
 	case 5 * time.Minute:
-		interval = eventmodels.TradierInterval5Min
+		interval = models.TradierInterval5Min
 	case 15 * time.Minute:
-		interval = eventmodels.TradierInterval15Min
+		interval = models.TradierInterval15Min
 	default:
 		if period%(15*time.Minute) != 0 {
 			return nil, fmt.Errorf("period must be a multiple of 15 minutes: %s", period)
 		}
 
-		interval = eventmodels.TradierInterval15Min
+		interval = models.TradierInterval15Min
 	}
 
-	polygonTimespan, err := eventmodels.NewPolygonTimespanRequest(period)
+	polygonTimespan, err := models.NewPolygonTimespanRequest(period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create polygon timespan: %v", err)
 	}
 
-	var candlesWithIndicators []*eventmodels.AggregateBarWithIndicators
+	var candlesWithIndicators []*models.AggregateBarWithIndicators
 	if len(indicators) > 0 {
 		candlesWithIndicators, err = eventservices.AddIndicatorsToCandles(candles, indicators)
 		if err != nil {
@@ -400,7 +399,7 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		}
 	} else {
 		for _, candle := range candles {
-			candlesWithIndicators = append(candlesWithIndicators, &eventmodels.AggregateBarWithIndicators{
+			candlesWithIndicators = append(candlesWithIndicators, &models.AggregateBarWithIndicators{
 				Volume:    candle.Volume,
 				Open:      candle.Open,
 				High:      candle.High,
@@ -411,9 +410,9 @@ func NewCandleRepository(symbol eventmodels.Instrument, period time.Duration, ca
 		}
 	}
 
-	var optionComponents *eventmodels.OptionSymbolComponents
+	var optionComponents *models.OptionSymbolComponents
 	switch optSymbol := symbol.(type) {
-	case eventmodels.OptionSymbol:
+	case models.OptionSymbol:
 		components, err := optSymbol.Components()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get option symbol components: %v", err)

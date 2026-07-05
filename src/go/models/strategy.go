@@ -42,7 +42,7 @@ func (s *Strategy) Validate() error {
 }
 
 // UpdateExitConditions todo: test this
-func (s *Strategy) UpdateExitConditions(newSignal *NewSignalRequestEvent) int {
+func (s *Strategy) UpdateExitConditions(newSignal *CreateSignalRequestEventV1DTO) int {
 	conditionsAffected := 0
 	// now := time.Now().UTC()
 
@@ -64,7 +64,7 @@ func (s *Strategy) UpdateExitConditions(newSignal *NewSignalRequestEvent) int {
 	return conditionsAffected
 }
 
-func (s *Strategy) UpdateEntryConditions(newSignal *NewSignalRequestEvent) int {
+func (s *Strategy) UpdateEntryConditions(newSignal *CreateSignalRequestEventV1DTO) int {
 	conditionsAffected := 0
 
 	for _, condition := range s.EntryConditions {
@@ -168,7 +168,7 @@ func (s *Strategy) GetTradesByPriceLevel(openTradesOnly bool) []*TradeLevels {
 	var priceLevelTrades []*TradeLevels
 
 	for index, level := range s.PriceLevels.Bands {
-		var trades []*TradeDTO
+		trades := make([]*TradeDTO, 0)
 
 		if openTradesOnly {
 			for _, tr := range *level.Trades.OpenTrades() {
@@ -428,6 +428,11 @@ func (s *Strategy) ExecuteOpenTradeRequest(trade *Trade, price float64, volume f
 		PriceLevelIndex: priceLevelIndex,
 		Trade:           trade,
 	}, nil
+	// return &ExecuteOpenTradeResult{
+	// 	Meta:      NewMetaData(nil),
+	// 	RequestID: trade.ID,
+	// 	Side:      trade.Type.String(),
+	// }, nil
 }
 
 func (s *Strategy) CanPlaceTrade(trade *Trade, isClose bool) error {

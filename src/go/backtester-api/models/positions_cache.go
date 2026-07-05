@@ -8,12 +8,12 @@ import (
 	"github.com/jinzhu/copier"
 	logger "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type PositionsCache struct {
 	cache       map[string]*Position
-	instruments map[string]eventmodels.Instrument
+	instruments map[string]models.Instrument
 }
 
 func (o *PositionsCache) Update(symbol string, pl float64, currentPrice float64, timestamp time.Time) {
@@ -33,13 +33,13 @@ func (o *PositionsCache) Update(symbol string, pl float64, currentPrice float64,
 	o.cache[symbol].Timestamp = timestamp.Format(time.RFC3339)
 }
 
-func (o *PositionsCache) Set(symbol eventmodels.Instrument, position *Position) {
+func (o *PositionsCache) Set(symbol models.Instrument, position *Position) {
 	if o.cache == nil {
 		o.cache = make(map[string]*Position)
 	}
 
 	if o.instruments == nil {
-		o.instruments = make(map[string]eventmodels.Instrument)
+		o.instruments = make(map[string]models.Instrument)
 	}
 
 	ticker := symbol.GetTicker()
@@ -60,12 +60,12 @@ func (o *PositionsCache) Iter() map[string]*Position {
 	return o.cache
 }
 
-func (o *PositionsCache) List() ([]eventmodels.Instrument, []*Position) {
+func (o *PositionsCache) List() ([]models.Instrument, []*Position) {
 	if o.cache == nil {
 		return nil, nil
 	}
 
-	var instruments []eventmodels.Instrument
+	var instruments []models.Instrument
 	var positions []*Position
 	for k, v := range o.cache {
 		instrument, found := o.instruments[k]
@@ -79,7 +79,7 @@ func (o *PositionsCache) List() ([]eventmodels.Instrument, []*Position) {
 	return instruments, positions
 }
 
-func (o *PositionsCache) Delete(symbol eventmodels.Instrument) {
+func (o *PositionsCache) Delete(symbol models.Instrument) {
 	if o.cache == nil {
 		return
 	}
@@ -94,13 +94,13 @@ func (o *PositionsCache) Delete(symbol eventmodels.Instrument) {
 	delete(o.instruments, ticker)
 }
 
-func (o *PositionsCache) Add(symbol eventmodels.Instrument, trade *TradeRecord) {
+func (o *PositionsCache) Add(symbol models.Instrument, trade *TradeRecord) {
 	if o.cache == nil {
 		o.cache = make(map[string]*Position)
 	}
 
 	if o.instruments == nil {
-		o.instruments = make(map[string]eventmodels.Instrument)
+		o.instruments = make(map[string]models.Instrument)
 	}
 
 	ticker := symbol.GetTicker()
@@ -142,7 +142,7 @@ func (o *PositionsCache) Get(ticker string) *Position {
 	return pos
 }
 
-func (o *PositionsCache) Exists(symbol eventmodels.Instrument) bool {
+func (o *PositionsCache) Exists(symbol models.Instrument) bool {
 	if o.cache == nil {
 		return false
 	}
@@ -151,9 +151,9 @@ func (o *PositionsCache) Exists(symbol eventmodels.Instrument) bool {
 	return found
 }
 
-func (o *PositionsCache) SetCache(cache map[string]*Position, positionToInstrumentsMap map[*Position]eventmodels.Instrument) error {
+func (o *PositionsCache) SetCache(cache map[string]*Position, positionToInstrumentsMap map[*Position]models.Instrument) error {
 	internal := make(map[string]*Position)
-	instruments := make(map[string]eventmodels.Instrument)
+	instruments := make(map[string]models.Instrument)
 
 	for symbol, position := range cache {
 		instrument, found := positionToInstrumentsMap[position]
@@ -186,6 +186,6 @@ func (o *PositionsCache) Copy() *PositionsCache {
 func NewPositionCache() *PositionsCache {
 	return &PositionsCache{
 		cache:       make(map[string]*Position),
-		instruments: make(map[string]eventmodels.Instrument),
+		instruments: make(map[string]models.Instrument),
 	}
 }

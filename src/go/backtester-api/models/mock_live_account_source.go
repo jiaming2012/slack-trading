@@ -1,6 +1,6 @@
 package models
 
-import "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/go/models"
 
 type MockLiveAccountSource struct{}
 
@@ -28,8 +28,8 @@ func (m *MockLiveAccountSource) Validate() error {
 	return nil
 }
 
-func (m *MockLiveAccountSource) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
-	return &eventmodels.FetchAccountEquityResponse{
+func (m *MockLiveAccountSource) FetchEquity() (*models.FetchAccountEquityResponse, error) {
+	return &models.FetchAccountEquityResponse{
 		Equity:  10000000.00,
 		OpenPL:  0.0,
 		ClosePL: 0.0,

@@ -11,10 +11,10 @@ import (
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName eventmodels.StreamName) (int64, error) {
+func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamName models.StreamName) (int64, error) {
 	var size int64
 	readOptions := esdb.ReadStreamOptions{
 		Direction: esdb.Forwards,
@@ -57,7 +57,7 @@ func CalculateStreamSize(ctx context.Context, esdbClient *esdb.Client, streamNam
 	return size, nil
 }
 
-func FetchAllData[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) ([]map[string]interface{}, error) {
+func FetchAllData[T models.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) ([]map[string]interface{}, error) {
 	results := make([]map[string]interface{}, 0)
 	var currentEventNumber uint64
 
@@ -118,7 +118,7 @@ func FetchAllData[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esd
 	return results, nil
 }
 
-func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) ([]T, error) {
+func FetchAll[T models.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) ([]T, error) {
 	results := []T{}
 	var currentEventNumber uint64
 
@@ -179,9 +179,9 @@ func FetchAll[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Cl
 	return results, nil
 }
 
-func FetchAllDeprecated[T eventmodels.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[eventmodels.EventStreamID]T, error) {
+func FetchAllDeprecated[T models.SavedEvent](ctx context.Context, esdbClient *esdb.Client, instance T) (map[models.EventStreamID]T, error) {
 	panic("not implemented")
-	// results := make(map[eventmodels.EventStreamID]T)
+	// results := make(map[models.EventStreamID]T)
 	// var currentEventNumber uint64
 
 	// params := instance.GetSavedEventParameters()
@@ -241,7 +241,7 @@ func FetchAllDeprecated[T eventmodels.SavedEvent](ctx context.Context, esdbClien
 	// return results, nil
 }
 
-func FindStreamLastEventNumber(ctx context.Context, db *esdb.Client, streamName eventmodels.StreamName) (uint64, error) {
+func FindStreamLastEventNumber(ctx context.Context, db *esdb.Client, streamName models.StreamName) (uint64, error) {
 	stream, err := db.ReadStream(ctx, string(streamName), esdb.ReadStreamOptions{
 		Direction: esdb.Backwards,
 		From:      esdb.End{},
@@ -267,7 +267,7 @@ func FindStreamLastEventNumber(ctx context.Context, db *esdb.Client, streamName 
 	return event.Event.EventNumber, nil
 }
 
-func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []eventmodels.StreamName {
+func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []models.StreamName {
 	readOptions := esdb.ReadStreamOptions{
 		Direction: esdb.Forwards,
 		From:      esdb.Start{},
@@ -279,7 +279,7 @@ func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []eventmodels.
 	}
 	defer stream.Close()
 
-	streams := make([]eventmodels.StreamName, 0)
+	streams := make([]models.StreamName, 0)
 	for {
 		event, err := stream.Recv()
 		if err != nil {
@@ -290,7 +290,7 @@ func ListAllStreams(ctx context.Context, esdbClient *esdb.Client) []eventmodels.
 			continue
 		}
 
-		streams = append(streams, eventmodels.StreamName(name))
+		streams = append(streams, models.StreamName(name))
 	}
 
 	return streams

@@ -113,7 +113,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			profit, getStatsErr := trades.GetTradeStats(models.Tick{Bid: btcPrice, Ask: btcPrice})
+			profit, getStatsErr := trades.GetTradeStats(models.Tick{Price: btcPrice})
 			if getStatsErr != nil {
 				errMsg := fmt.Sprintf("failed to get trade stats: %v", getStatsErr)
 				log.Errorf(errMsg)

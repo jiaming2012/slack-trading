@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 	"github.com/stretchr/testify/require"
@@ -28,12 +28,12 @@ func TestPolygonClient(t *testing.T) {
 		tz, err := time.LoadLocation("America/New_York")
 		require.NoError(t, err)
 
-		ts := eventmodels.PolygonTimespan{
+		ts := models.PolygonTimespan{
 			Multiplier: 30,
-			Unit:       eventmodels.PolygonTimespanUnitMinute,
+			Unit:       models.PolygonTimespanUnitMinute,
 		}
 
-		ticker := eventmodels.NewStockSymbol("AAPL")
+		ticker := models.NewStockSymbol("AAPL")
 
 		start := time.Date(2025, 1, 29, 22, 0, 0, 0, time.UTC)
 		end := time.Date(2025, 1, 29, 23, 0, 0, 0, time.UTC)

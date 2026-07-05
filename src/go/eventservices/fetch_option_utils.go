@@ -10,10 +10,10 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func findOptionContractsGroupedByExpirationV3(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContractV3) (time.Time, []eventmodels.OptionContractV3, error) {
+func findOptionContractsGroupedByExpirationV3(targetExpirationDate string, contractMap map[time.Time][]models.OptionContractV3) (time.Time, []models.OptionContractV3, error) {
 	var closestContractExpDate time.Time = time.Time{}
 	minDiff := int(^uint(0) >> 1) // Max int
 
@@ -41,7 +41,7 @@ func findOptionContractsGroupedByExpirationV3(targetExpirationDate string, contr
 	return closestContractExpDate, contractMap[closestContractExpDate], nil
 }
 
-func findOptionContractsGroupedByExpiration(targetExpirationDate string, contractMap map[time.Time][]eventmodels.OptionContractV1) (time.Time, []eventmodels.OptionContractV1, error) {
+func findOptionContractsGroupedByExpiration(targetExpirationDate string, contractMap map[time.Time][]models.OptionContractV1) (time.Time, []models.OptionContractV1, error) {
 	var closestContractExpDate time.Time = time.Time{}
 	minDiff := int(^uint(0) >> 1) // Max int
 
@@ -69,7 +69,7 @@ func findOptionContractsGroupedByExpiration(targetExpirationDate string, contrac
 	return closestContractExpDate, contractMap[closestContractExpDate], nil
 }
 
-func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
+func addAdditionInfoToOptionsV2(options []models.OptionContractV1, optionChainMap map[time.Time][]*models.OptionChainTickDTO) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
@@ -80,7 +80,7 @@ func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionCh
 
 		for _, tick := range chain {
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
-				options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
+				options[i].Symbol = models.OptionSymbol(tick.Symbol)
 				options[i].Description = tick.Description
 				options[i].ExpirationType = tick.ExpirationType
 				options[i].Bid = tick.Bid
@@ -98,7 +98,7 @@ func addAdditionInfoToOptionsV2(options []eventmodels.OptionContractV1, optionCh
 	return nil
 }
 
-func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.OptionContractV1, optionChainMap map[time.Time][]*eventmodels.OptionChainTickDTO) error {
+func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []models.OptionContractV1, optionChainMap map[time.Time][]*models.OptionChainTickDTO) error {
 	for i, option := range options {
 		chain, ok := optionChainMap[option.Expiration]
 		if !ok {
@@ -109,8 +109,8 @@ func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.Optio
 
 		for _, tick := range chain {
 			if tick.OptionType == string(option.OptionType) && tick.Strike == option.Strike && tick.ContractSize == option.ContractSize {
-				options[i].SetMetaData(&eventmodels.MetaData{RequestID: requestID})
-				options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
+				options[i].SetMetaData(&models.MetaData{RequestID: requestID})
+				options[i].Symbol = models.OptionSymbol(tick.Symbol)
 				options[i].Description = tick.Description
 				options[i].ExpirationType = tick.ExpirationType
 				found = true
@@ -126,8 +126,8 @@ func addAdditionInfoToOptionsV1(requestID uuid.UUID, options []eventmodels.Optio
 	return nil
 }
 
-func FetchOptionChainsV3(url, bearerToken string, symbol eventmodels.StockSymbol, expirations []time.Time) (map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO, error) {
-	optionChainMapCh := make(map[eventmodels.ExpirationDate][]*eventmodels.OptionChainTickDTO)
+func FetchOptionChainsV3(url, bearerToken string, symbol models.StockSymbol, expirations []time.Time) (map[models.ExpirationDate][]*models.OptionChainTickDTO, error) {
+	optionChainMapCh := make(map[models.ExpirationDate][]*models.OptionChainTickDTO)
 
 	for _, expiration := range expirations {
 		expirationStr := expiration.Format("2006-01-02")
@@ -137,15 +137,15 @@ func FetchOptionChainsV3(url, bearerToken string, symbol eventmodels.StockSymbol
 			return nil, fmt.Errorf("failed to fetch option chain tick: %v", err)
 		}
 
-		expirationDate := eventmodels.ExpirationDate(expirationStr)
+		expirationDate := models.ExpirationDate(expirationStr)
 		optionChainMapCh[expirationDate] = optionChainTickDTO
 	}
 
 	return optionChainMapCh, nil
 }
 
-func fetchOptionChains(url, bearerToken string, symbol eventmodels.StockSymbol, expirations []time.Time) (map[time.Time][]*eventmodels.OptionChainTickDTO, error) {
-	optionChainMapCh := make(map[time.Time][]*eventmodels.OptionChainTickDTO)
+func fetchOptionChains(url, bearerToken string, symbol models.StockSymbol, expirations []time.Time) (map[time.Time][]*models.OptionChainTickDTO, error) {
+	optionChainMapCh := make(map[time.Time][]*models.OptionChainTickDTO)
 
 	for _, expiration := range expirations {
 		expirationStr := expiration.Format("2006-01-02")
@@ -161,18 +161,18 @@ func fetchOptionChains(url, bearerToken string, symbol eventmodels.StockSymbol, 
 	return optionChainMapCh, nil
 }
 
-func splitAndSortContractsByStrikeV3(contracts []eventmodels.OptionContractV3, strike float64) eventmodels.OptionLadderV3 {
-	var ladder eventmodels.OptionLadderV3
+func splitAndSortContractsByStrikeV3(contracts []models.OptionContractV3, strike float64) models.OptionLadderV3 {
+	var ladder models.OptionLadderV3
 
 	for _, c := range contracts {
 		switch c.OptionType {
-		case eventmodels.OptionTypeCall:
+		case models.OptionTypeCall:
 			if c.Strike < strike {
 				ladder.CallsBelowStrike = append(ladder.CallsBelowStrike, c)
 			} else {
 				ladder.CallsAboveStrike = append(ladder.CallsAboveStrike, c)
 			}
-		case eventmodels.OptionTypePut:
+		case models.OptionTypePut:
 			if c.Strike < strike {
 				ladder.PutsBelowStrike = append(ladder.PutsBelowStrike, c)
 			} else {
@@ -202,18 +202,18 @@ func splitAndSortContractsByStrikeV3(contracts []eventmodels.OptionContractV3, s
 	return ladder
 }
 
-func splitAndSortContractsByStrike(contracts []eventmodels.OptionContractV1, strike float64) eventmodels.OptionLadder {
-	var ladder eventmodels.OptionLadder
+func splitAndSortContractsByStrike(contracts []models.OptionContractV1, strike float64) models.OptionLadder {
+	var ladder models.OptionLadder
 
 	for _, c := range contracts {
 		switch c.OptionType {
-		case eventmodels.OptionTypeCall:
+		case models.OptionTypeCall:
 			if c.Strike < strike {
 				ladder.CallsBelowStrike = append(ladder.CallsBelowStrike, c)
 			} else {
 				ladder.CallsAboveStrike = append(ladder.CallsAboveStrike, c)
 			}
-		case eventmodels.OptionTypePut:
+		case models.OptionTypePut:
 			if c.Strike < strike {
 				ladder.PutsBelowStrike = append(ladder.PutsBelowStrike, c)
 			} else {
@@ -243,13 +243,13 @@ func splitAndSortContractsByStrike(contracts []eventmodels.OptionContractV1, str
 	return ladder
 }
 
-func filterOptionContractsV3(contractMap map[time.Time][]eventmodels.OptionContractV3, expirationInDays []int, optionTypes []eventmodels.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
-	allResults := make([]eventmodels.OptionContractV3, 0)
+func filterOptionContractsV3(contractMap map[time.Time][]models.OptionContractV3, expirationInDays []int, optionTypes []models.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []models.OptionContractV3) {
+	allResults := make([]models.OptionContractV3, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
-		if optionType == eventmodels.OptionTypeCall {
+		if optionType == models.OptionTypeCall {
 			includeCalls = true
-		} else if optionType == eventmodels.OptionTypePut {
+		} else if optionType == models.OptionTypePut {
 			includePuts = true
 		}
 	}
@@ -274,8 +274,8 @@ func filterOptionContractsV3(contractMap map[time.Time][]eventmodels.OptionContr
 
 		expirationDates = append(expirationDates, contractsExpirationDate)
 
-		callResults := make([]eventmodels.OptionContractV3, 0)
-		putResults := make([]eventmodels.OptionContractV3, 0)
+		callResults := make([]models.OptionContractV3, 0)
+		putResults := make([]models.OptionContractV3, 0)
 		var callStrikesAbove, callStrikesBelow, putStrikesAbove, putStrikesBelow int
 
 		ladder := splitAndSortContractsByStrikeV3(contracts, underlyingStockPrice)
@@ -347,13 +347,13 @@ func filterOptionContractsV3(contractMap map[time.Time][]eventmodels.OptionContr
 	return expirationDates, allResults
 }
 
-func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContractV1, expirationInDays []int, optionTypes []eventmodels.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []eventmodels.OptionContractV1) {
-	allResults := make([]eventmodels.OptionContractV1, 0)
+func filterOptionContracts(contractMap map[time.Time][]models.OptionContractV1, expirationInDays []int, optionTypes []models.OptionType, maxStrikesAbove int, maxStrikesBelow int, minDistanceBetweenStrikes float64, underlyingStockPrice float64, now time.Time) ([]time.Time, []models.OptionContractV1) {
+	allResults := make([]models.OptionContractV1, 0)
 	var includeCalls, includePuts bool
 	for _, optionType := range optionTypes {
-		if optionType == eventmodels.OptionTypeCall {
+		if optionType == models.OptionTypeCall {
 			includeCalls = true
-		} else if optionType == eventmodels.OptionTypePut {
+		} else if optionType == models.OptionTypePut {
 			includePuts = true
 		}
 	}
@@ -369,8 +369,8 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 
 		expirationDates = append(expirationDates, contractsExpirationDate)
 
-		callResults := make([]eventmodels.OptionContractV1, 0)
-		putResults := make([]eventmodels.OptionContractV1, 0)
+		callResults := make([]models.OptionContractV1, 0)
+		putResults := make([]models.OptionContractV1, 0)
 		var callStrikesAbove, callStrikesBelow, putStrikesAbove, putStrikesBelow int
 
 		ladder := splitAndSortContractsByStrike(contracts, underlyingStockPrice)
@@ -442,7 +442,7 @@ func filterOptionContracts(contractMap map[time.Time][]eventmodels.OptionContrac
 	return expirationDates, allResults
 }
 
-func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels.StockSymbol) (*eventmodels.OptionContractDTO, error) {
+func fetchTradierOptionsByExpiration(url, bearerToken string, symbol models.StockSymbol) (*models.OptionContractDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -474,7 +474,7 @@ func fetchTradierOptionsByExpiration(url, bearerToken string, symbol eventmodels
 		return nil, fmt.Errorf("fetchExpirations: failed to fetch option chain, http code %v", res.Status)
 	}
 
-	var dto eventmodels.OptionContractDTO
+	var dto models.OptionContractDTO
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("fetchExpirations: failed to decode json: %w", err)
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func TestSortPositionsByQuantityDesc(t *testing.T) {
@@ -20,7 +20,7 @@ func TestSortPositionsByQuantityDesc(t *testing.T) {
 
 	t.Run("1 position", func(t *testing.T) {
 		positionCache := NewPositionCache()
-		positionCache.Add(eventmodels.NewStockSymbol("ABC"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("ABC"), &TradeRecord{
 			Quantity: 1.0,
 			Price:    1.0,
 		})
@@ -29,17 +29,17 @@ func TestSortPositionsByQuantityDesc(t *testing.T) {
 
 		require.Len(t, sortedInstruments, 1)
 		require.Len(t, sortedPositions, 1)
-		require.Equal(t, eventmodels.NewStockSymbol("ABC"), sortedInstruments[0])
+		require.Equal(t, models.NewStockSymbol("ABC"), sortedInstruments[0])
 		require.Equal(t, 1.0, sortedPositions[0].Quantity)
 	})
 
 	t.Run("2 positions", func(t *testing.T) {
 		positionCache := NewPositionCache()
-		positionCache.Add(eventmodels.NewStockSymbol("ABC"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("ABC"), &TradeRecord{
 			Quantity: 1.0,
 			Price:    2.0,
 		})
-		positionCache.Add(eventmodels.NewStockSymbol("DEF"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("DEF"), &TradeRecord{
 			Quantity: -5.0,
 			Price:    1.0,
 		})
@@ -48,23 +48,23 @@ func TestSortPositionsByQuantityDesc(t *testing.T) {
 
 		require.Len(t, sortedInstruments, 2)
 		require.Len(t, sortedPositions, 2)
-		require.Equal(t, eventmodels.NewStockSymbol("DEF"), sortedInstruments[0])
+		require.Equal(t, models.NewStockSymbol("DEF"), sortedInstruments[0])
 		require.Equal(t, -5.0, sortedPositions[0].Quantity)
-		require.Equal(t, eventmodels.NewStockSymbol("ABC"), sortedInstruments[1])
+		require.Equal(t, models.NewStockSymbol("ABC"), sortedInstruments[1])
 		require.Equal(t, 1.0, sortedPositions[1].Quantity)
 	})
 
 	t.Run("3 positions", func(t *testing.T) {
 		positionCache := NewPositionCache()
-		positionCache.Add(eventmodels.NewStockSymbol("ABC"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("ABC"), &TradeRecord{
 			Quantity: 1.0,
 			Price:    1.0,
 		})
-		positionCache.Add(eventmodels.NewStockSymbol("DEF"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("DEF"), &TradeRecord{
 			Quantity: -5.0,
 			Price:    1.0,
 		})
-		positionCache.Add(eventmodels.NewStockSymbol("GHI"), &TradeRecord{
+		positionCache.Add(models.NewStockSymbol("GHI"), &TradeRecord{
 			Quantity: 3.0,
 			Price:    2.0,
 		})
@@ -73,11 +73,11 @@ func TestSortPositionsByQuantityDesc(t *testing.T) {
 
 		require.Len(t, sortedInstruments, 3)
 		require.Len(t, sortedPositions, 3)
-		require.Equal(t, eventmodels.NewStockSymbol("GHI"), sortedInstruments[0])
+		require.Equal(t, models.NewStockSymbol("GHI"), sortedInstruments[0])
 		require.Equal(t, 3.0, sortedPositions[0].Quantity)
-		require.Equal(t, eventmodels.NewStockSymbol("DEF"), sortedInstruments[1])
+		require.Equal(t, models.NewStockSymbol("DEF"), sortedInstruments[1])
 		require.Equal(t, -5.0, sortedPositions[1].Quantity)
-		require.Equal(t, eventmodels.NewStockSymbol("ABC"), sortedInstruments[2])
+		require.Equal(t, models.NewStockSymbol("ABC"), sortedInstruments[2])
 		require.Equal(t, 1.0, sortedPositions[2].Quantity)
 	})
 }

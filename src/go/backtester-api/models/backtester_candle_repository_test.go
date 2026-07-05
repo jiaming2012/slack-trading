@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -20,9 +20,9 @@ func TestSymbol(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("returns the symbol", func(t *testing.T) {
-		symbol := eventmodels.StockSymbol("AAPL")
+		symbol := models.StockSymbol("AAPL")
 		period := time.Minute
-		source := eventmodels.CandleRepositorySource{
+		source := models.CandleRepositorySource{
 			Type: "polygon",
 		}
 
@@ -35,13 +35,13 @@ func TestSymbol(t *testing.T) {
 }
 
 func TestNext(t *testing.T) {
-	symbol := eventmodels.StockSymbol("AAPL")
+	symbol := models.StockSymbol("AAPL")
 	period := time.Minute
-	source := eventmodels.CandleRepositorySource{
+	source := models.CandleRepositorySource{
 		Type: "polygon",
 	}
 
-	candles := []*eventmodels.PolygonAggregateBarV2{
+	candles := []*models.PolygonAggregateBarV2{
 		{
 			Timestamp: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
 		},

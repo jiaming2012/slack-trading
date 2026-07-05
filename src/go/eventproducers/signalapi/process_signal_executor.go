@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 )
 
@@ -16,16 +16,16 @@ type ProcessSignalExecutor struct {
 	esdbProducer *eventproducers.EsdbProducer
 }
 
-func (s *ProcessSignalExecutor) Serve(r *http.Request, request eventmodels.ApiRequest3, resultCh chan interface{}, errCh chan error) {
+func (s *ProcessSignalExecutor) Serve(r *http.Request, request models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
 	tracer := otel.Tracer("ProcessSignalExecutor")
 	ctx, span := tracer.Start(r.Context(), "ProcessSignalExecutor.Serve")
 	defer span.End()
 
 	logger := log.WithContext(ctx)
 
-	req, ok := request.(*eventmodels.CreateSignalRequestEventV1DTO)
+	req, ok := request.(*models.CreateSignalRequestEventV1DTO)
 	if !ok {
-		errCh <- eventmodels.ErrInvalidRequestType
+		errCh <- models.ErrInvalidRequestType
 		return
 	}
 

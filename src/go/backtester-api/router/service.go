@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func (s Server) fetchOptionCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {

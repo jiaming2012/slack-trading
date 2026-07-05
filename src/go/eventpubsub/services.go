@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 var bus EventBus.Bus
@@ -16,12 +16,12 @@ func Init() {
 	bus = EventBus.New()
 }
 
-func PublishCompletedResponse(publisherName string, event RequestEvent, meta *eventmodels.MetaData) {
+func PublishCompletedResponse(publisherName string, event RequestEvent, meta *models.MetaData) {
 	event.SetMetaData(meta)
-	publish(publisherName, eventmodels.ProcessRequestCompleteEventName, event)
+	publish(publisherName, models.ProcessRequestCompleteEventName, event)
 }
 
-func PublishResponse(publisherName string, topic eventmodels.EventName, event RequestEvent, meta *eventmodels.MetaData) {
+func PublishResponse(publisherName string, topic models.EventName, event RequestEvent, meta *models.MetaData) {
 	event.SetMetaData(meta)
 	publish(publisherName, topic, event)
 }
@@ -30,33 +30,33 @@ func PublishError(publisherName string, err error) {
 	publishError(publisherName, err)
 }
 
-func PublishEvent(publisherName string, topic eventmodels.EventName, event interface{}) {
+func PublishEvent(publisherName string, topic models.EventName, event interface{}) {
 	publish(publisherName, topic, event)
 }
 
-func PublishAndSaveEvent(publisherName string, topic eventmodels.EventName, event eventmodels.SavedEvent) {
+func PublishAndSaveEvent(publisherName string, topic models.EventName, event models.SavedEvent) {
 	PublishEvent(publisherName, topic, event)
 }
 
-func PublishRequestError(publisherName string, err error, meta *eventmodels.MetaData) {
+func PublishRequestError(publisherName string, err error, meta *models.MetaData) {
 	log.Error(err)
 
-	terminalErr := eventmodels.NewTerminalError(meta, err)
-	publish(publisherName, eventmodels.TerminalErrorName, terminalErr)
-	publish("PublishEventError2", eventmodels.ProcessRequestCompleteEventName, terminalErr)
+	terminalErr := models.NewTerminalError(meta, err)
+	publish(publisherName, models.TerminalErrorName, terminalErr)
+	publish("PublishEventError2", models.ProcessRequestCompleteEventName, terminalErr)
 }
 
 func publishError(publisherName string, err error) {
 	log.Error(err)
-	publish(publisherName, eventmodels.Error, err)
+	publish(publisherName, models.Error, err)
 }
 
 // Publish todo: only publish pointers to events
-func publish(publisherName string, topic eventmodels.EventName, event interface{}) {
+func publish(publisherName string, topic models.EventName, event interface{}) {
 	publishWithFlags(publisherName, topic, event, true)
 }
 
-func publishWithFlags(publisherName string, topic eventmodels.EventName, event interface{}, logEvent bool) {
+func publishWithFlags(publisherName string, topic models.EventName, event interface{}, logEvent bool) {
 	var requestID uuid.UUID = uuid.Nil
 
 	if reqEvent, ok := event.(RequestEvent); ok {
@@ -77,7 +77,7 @@ func publishWithFlags(publisherName string, topic eventmodels.EventName, event i
 	bus.Publish(string(topic), event)
 }
 
-func Subscribe(subscriberName string, topic eventmodels.EventName, callbackFn interface{}) {
+func Subscribe(subscriberName string, topic models.EventName, callbackFn interface{}) {
 	if err := bus.SubscribeAsync(string(topic), callbackFn, false); err != nil {
 		log.Errorf("[%v] error: %v", subscriberName, err)
 	}
@@ -85,7 +85,7 @@ func Subscribe(subscriberName string, topic eventmodels.EventName, callbackFn in
 	log.Infof("[%v] Subscribed to topic %s", subscriberName, topic)
 }
 
-func Unsubscribe(subscriberName string, topic eventmodels.EventName, handler interface{}) error {
+func Unsubscribe(subscriberName string, topic models.EventName, handler interface{}) error {
 	err := bus.Unsubscribe(string(topic), handler)
 
 	if err == nil {

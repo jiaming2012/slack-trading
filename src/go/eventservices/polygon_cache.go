@@ -10,7 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // PolygonCache provides an in-memory cache for Polygon API responses to avoid
@@ -29,19 +29,19 @@ type PolygonCache struct {
 	contractsMu sync.RWMutex
 	// contracts caches fetchPolygonBulkHistOptionOhlc results keyed by
 	// (symbol, expGTE, expLTE, isExpired)
-	contracts map[string]*eventmodels.PolygonBulkResponse
+	contracts map[string]*models.PolygonBulkResponse
 
 	// stockTickMu guards the stockTick cache
 	stockTickMu sync.RWMutex
 	// stockTick caches FindClosestStockTickItemDTO results keyed by
 	// (symbol, timestamp rounded to minute)
-	stockTick map[string]*eventmodels.StockTickItemDTO
+	stockTick map[string]*models.StockTickItemDTO
 
 	// aggregateBarsMu guards the aggregateBars cache
 	aggregateBarsMu sync.RWMutex
 	// aggregateBars caches per-contract option aggregate bar fetches keyed by
 	// (optionSymbol, startDate, endDate)
-	aggregateBars map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]
+	aggregateBars map[string]*models.AggregateResult[models.PolygonAggregateBar]
 
 	// cacheDir is the directory for disk persistence (empty = no persistence)
 	cacheDir string
@@ -53,9 +53,9 @@ type PolygonCache struct {
 // persisted aggregate bars from disk.
 func NewPolygonCache(cacheDir ...string) *PolygonCache {
 	c := &PolygonCache{
-		contracts:     make(map[string]*eventmodels.PolygonBulkResponse),
-		stockTick:     make(map[string]*eventmodels.StockTickItemDTO),
-		aggregateBars: make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]),
+		contracts:     make(map[string]*models.PolygonBulkResponse),
+		stockTick:     make(map[string]*models.StockTickItemDTO),
+		aggregateBars: make(map[string]*models.AggregateResult[models.PolygonAggregateBar]),
 	}
 
 	if len(cacheDir) > 0 && cacheDir[0] != "" {
@@ -89,12 +89,12 @@ func (c *PolygonCache) Stats() (contracts, stockTicks, aggregateBars int) {
 // Contract list cache (fetchPolygonBulkHistOptionOhlc)
 // ---------------------------------------------------------------------------
 
-func contractsCacheKey(symbol eventmodels.StockSymbol, expGTE, expLTE time.Time, isExpired bool) string {
+func contractsCacheKey(symbol models.StockSymbol, expGTE, expLTE time.Time, isExpired bool) string {
 	return fmt.Sprintf("%s|%s|%s|%t", symbol, expGTE.Format("2006-01-02"), expLTE.Format("2006-01-02"), isExpired)
 }
 
 // GetContracts returns a cached contract list, or nil if not present.
-func (c *PolygonCache) GetContracts(symbol eventmodels.StockSymbol, expGTE, expLTE time.Time, isExpired bool) *eventmodels.PolygonBulkResponse {
+func (c *PolygonCache) GetContracts(symbol models.StockSymbol, expGTE, expLTE time.Time, isExpired bool) *models.PolygonBulkResponse {
 	key := contractsCacheKey(symbol, expGTE, expLTE, isExpired)
 	c.contractsMu.RLock()
 	defer c.contractsMu.RUnlock()
@@ -106,7 +106,7 @@ func (c *PolygonCache) GetContracts(symbol eventmodels.StockSymbol, expGTE, expL
 }
 
 // SetContracts stores a contract list in the cache.
-func (c *PolygonCache) SetContracts(symbol eventmodels.StockSymbol, expGTE, expLTE time.Time, isExpired bool, resp *eventmodels.PolygonBulkResponse) {
+func (c *PolygonCache) SetContracts(symbol models.StockSymbol, expGTE, expLTE time.Time, isExpired bool, resp *models.PolygonBulkResponse) {
 	key := contractsCacheKey(symbol, expGTE, expLTE, isExpired)
 	c.contractsMu.Lock()
 	c.contracts[key] = resp
@@ -118,14 +118,14 @@ func (c *PolygonCache) SetContracts(symbol eventmodels.StockSymbol, expGTE, expL
 // Stock tick cache (FindClosestStockTickItemDTO)
 // ---------------------------------------------------------------------------
 
-func stockTickCacheKey(symbol eventmodels.StockSymbol, at time.Time) string {
+func stockTickCacheKey(symbol models.StockSymbol, at time.Time) string {
 	// Round to the minute so nearby calls within the same minute share cache
 	rounded := at.Truncate(time.Minute)
 	return fmt.Sprintf("%s|%s", symbol, rounded.Format("2006-01-02T15:04"))
 }
 
 // GetStockTick returns a cached stock tick, or nil if not present.
-func (c *PolygonCache) GetStockTick(symbol eventmodels.StockSymbol, at time.Time) *eventmodels.StockTickItemDTO {
+func (c *PolygonCache) GetStockTick(symbol models.StockSymbol, at time.Time) *models.StockTickItemDTO {
 	key := stockTickCacheKey(symbol, at)
 	c.stockTickMu.RLock()
 	defer c.stockTickMu.RUnlock()
@@ -137,7 +137,7 @@ func (c *PolygonCache) GetStockTick(symbol eventmodels.StockSymbol, at time.Time
 }
 
 // SetStockTick stores a stock tick in the cache.
-func (c *PolygonCache) SetStockTick(symbol eventmodels.StockSymbol, at time.Time, tick *eventmodels.StockTickItemDTO) {
+func (c *PolygonCache) SetStockTick(symbol models.StockSymbol, at time.Time, tick *models.StockTickItemDTO) {
 	key := stockTickCacheKey(symbol, at)
 	c.stockTickMu.Lock()
 	c.stockTick[key] = tick
@@ -149,13 +149,13 @@ func (c *PolygonCache) SetStockTick(symbol eventmodels.StockSymbol, at time.Time
 // Aggregate bars cache (per-option-contract minute bars)
 // ---------------------------------------------------------------------------
 
-func aggregateBarsCacheKey(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string) string {
+func aggregateBarsCacheKey(optionSymbol models.OptionSymbol, startDate, endDate time.Time, timeframe string) string {
 	return fmt.Sprintf("%s|%s|%s|%s", optionSymbol, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), timeframe)
 }
 
 // GetAggregateBars returns cached aggregate bars for a single option contract,
 // or nil if not present.
-func (c *PolygonCache) GetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string) *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar] {
+func (c *PolygonCache) GetAggregateBars(optionSymbol models.OptionSymbol, startDate, endDate time.Time, timeframe string) *models.AggregateResult[models.PolygonAggregateBar] {
 	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate, timeframe)
 	c.aggregateBarsMu.RLock()
 	defer c.aggregateBarsMu.RUnlock()
@@ -168,7 +168,7 @@ func (c *PolygonCache) GetAggregateBars(optionSymbol eventmodels.OptionSymbol, s
 
 // SetAggregateBars stores aggregate bars for a single option contract.
 // If disk persistence is enabled, flushes to disk periodically.
-func (c *PolygonCache) SetAggregateBars(optionSymbol eventmodels.OptionSymbol, startDate, endDate time.Time, timeframe string, bars *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]) {
+func (c *PolygonCache) SetAggregateBars(optionSymbol models.OptionSymbol, startDate, endDate time.Time, timeframe string, bars *models.AggregateResult[models.PolygonAggregateBar]) {
 	key := aggregateBarsCacheKey(optionSymbol, startDate, endDate, timeframe)
 	c.aggregateBarsMu.Lock()
 	c.aggregateBars[key] = bars
@@ -200,7 +200,7 @@ func (c *PolygonCache) FlushAggregateBars() error {
 	}
 
 	// Snapshot the data under read lock
-	data := make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], len(c.aggregateBars))
+	data := make(map[string]*models.AggregateResult[models.PolygonAggregateBar], len(c.aggregateBars))
 	for k, v := range c.aggregateBars {
 		data[k] = v
 	}
@@ -250,7 +250,7 @@ func (c *PolygonCache) loadAggregateBarsFromDisk() error {
 	}
 	defer f.Close()
 
-	data := make(map[string]*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar])
+	data := make(map[string]*models.AggregateResult[models.PolygonAggregateBar])
 	if err := json.NewDecoder(f).Decode(&data); err != nil {
 		return fmt.Errorf("decode: %w", err)
 	}

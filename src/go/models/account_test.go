@@ -13,6 +13,7 @@ func TestAccountStrategy(t *testing.T) {
 	direction := Direction("up")
 	symbol := "symbol"
 	balance := 100.0
+	env := "test"
 	priceLevels := []*PriceLevel{
 		{
 			Price:             1.0,
@@ -34,7 +35,7 @@ func TestAccountStrategy(t *testing.T) {
 
 	t.Run("cannot add a strategy with the same name", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, 1000, df)
+		account, err := NewAccount(name, 1000, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
@@ -58,6 +59,7 @@ func TestPlacingTrades(t *testing.T) {
 	direction := Up
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	symbol := "TestSymbol"
+	env := "test"
 
 	timeframe := new(int)
 	*timeframe = 5
@@ -107,7 +109,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("can place an open trade request", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
@@ -135,7 +137,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("can place a sell order", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance/2.0, newDownPriceLevels(), account)
@@ -163,7 +165,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to place trade in another band when original band is full", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
@@ -217,7 +219,8 @@ func TestPlacingTrades(t *testing.T) {
 		requestedPrice := 1.5
 
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
+		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevels, account)
 		require.NoError(t, err)
@@ -246,7 +249,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to place additional trades in bands once previous trade is closed", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		curPrice := 1.5
 		require.NoError(t, err)
 
@@ -296,7 +299,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("able to close a trade outside of price bands", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newUpPriceLevels(), account)
@@ -326,7 +329,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("closing trades must have close percentage", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
@@ -343,12 +346,12 @@ func TestPlacingTrades(t *testing.T) {
 
 		tr1ClosePrc := 10.5
 		_, _, err = NewCloseTrade(id, []*Trade{tr1}, timeframe, timestamp, tr1ClosePrc, -tr1Volume-0.001, nil)
-		require.ErrorIs(t, err, DuplicateCloseTradeErr)
+		require.ErrorIs(t, err, ErrDuplicateCloseTrade)
 	})
 
 	t.Run("closing one half of a trade twice increases the number of trades allowed by one", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
@@ -387,7 +390,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("volume increases in a specific band as winners increase", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
@@ -417,7 +420,7 @@ func TestPlacingTrades(t *testing.T) {
 
 	t.Run("volume decreases in a specific band as losers increase", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newUpPriceLevels(), account)
@@ -452,6 +455,7 @@ func TestUpdate(t *testing.T) {
 	name := "Test Placing Trades"
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
 	direction := Up
+	env := "test"
 
 	timeframe := new(int)
 	*timeframe = 5
@@ -480,7 +484,7 @@ func TestUpdate(t *testing.T) {
 		}
 
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, priceLevel, account)
@@ -489,17 +493,17 @@ func TestUpdate(t *testing.T) {
 		err = account.AddStrategy(strategy)
 		require.NoError(t, err)
 
-		closeReq := account.checkSL(Tick{Bid: 1.5, Ask: 1.5})
+		closeReq := account.checkSL(Tick{Price: 1.5})
 		require.Nil(t, closeReq)
 
 		t0, _, err := strategy.NewOpenTrade(id, timeframe, timestamp, 1.5)
 		strategy.AutoExecuteTrade(t0)
 		require.NoError(t, err)
 
-		closeReq = account.checkSL(Tick{Bid: band1SL + 0.2, Ask: band1SL + 0.2})
+		closeReq = account.checkSL(Tick{Price: band1SL + 0.2})
 		require.Nil(t, closeReq)
 
-		closeReq = account.checkSL(Tick{Bid: band1SL, Ask: band1SL})
+		closeReq = account.checkSL(Tick{Price: band1SL})
 		require.NotNil(t, closeReq)
 		require.Equal(t, 1, len(closeReq))
 		require.Equal(t, 0, closeReq[0].PriceLevelIndex)
@@ -529,7 +533,7 @@ func TestUpdate(t *testing.T) {
 		}
 
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Up, balance, priceLevels, account)
@@ -550,7 +554,7 @@ func TestUpdate(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(trade2)
 		require.NoError(t, err)
 
-		tick := Tick{Bid: curPrice, Ask: curPrice}
+		tick := Tick{Price: curPrice}
 		closeReq, err := account.CheckStopOut(tick)
 		require.NoError(t, err)
 		require.Nil(t, closeReq)
@@ -559,7 +563,7 @@ func TestUpdate(t *testing.T) {
 		vwap := (trade1.ExecutedPrice * (trade1.ExecutedVolume / totalVol)) + (trade2.ExecutedPrice * (trade2.ExecutedVolume / totalVol))
 		stopOutPrice := ((vwap * totalVol) - maxLoss) / totalVol
 
-		tick = Tick{Bid: stopOutPrice, Ask: stopOutPrice}
+		tick = Tick{Price: stopOutPrice}
 		closeReq, err = account.CheckStopOut(tick)
 		require.NoError(t, err)
 		require.NotNil(t, closeReq)
@@ -589,7 +593,7 @@ func TestUpdate(t *testing.T) {
 		}
 
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, Down, balance, priceLevels, account)
@@ -610,14 +614,14 @@ func TestUpdate(t *testing.T) {
 		_, err = strategy.AutoExecuteTrade(trade2)
 		require.NoError(t, err)
 
-		closeReq, err := account.CheckStopOut(Tick{Bid: openPrice + 5000.0, Ask: openPrice + 5000.0})
+		closeReq, err := account.CheckStopOut(Tick{Price: openPrice + 5000.0})
 		require.NoError(t, err)
 		require.Nil(t, closeReq)
 
 		vwap, vol, _ := strategy.GetTrades().GetTradeStatsItems()
 		stopOutPrice := float64(vwap) - (maxLoss / float64(vol))
 
-		closeReq, err = account.CheckStopOut(Tick{Bid: stopOutPrice, Ask: stopOutPrice})
+		closeReq, err = account.CheckStopOut(Tick{Price: stopOutPrice})
 		require.NoError(t, err)
 		require.NotNil(t, closeReq)
 		require.Len(t, closeReq, 1)
@@ -635,6 +639,7 @@ func TestTradeValidation(t *testing.T) {
 	direction := Up
 	id := uuid.MustParse("69359037-9599-48e7-b8f2-48393c019135")
 	timestamp := time.Date(2023, 01, 01, 12, 0, 0, 0, time.UTC)
+	env := "test"
 
 	newPriceLevels := func() []*PriceLevel {
 		return []*PriceLevel{
@@ -666,7 +671,8 @@ func TestTradeValidation(t *testing.T) {
 
 	t.Run("errors when placing a trade outside of a trading band", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
+		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance, newPriceLevels(), account)
 		require.NoError(t, err)
@@ -680,7 +686,7 @@ func TestTradeValidation(t *testing.T) {
 
 	t.Run("errors if checking to placing a trade outside of range", func(t *testing.T) {
 		df := NewDatafeed(ManualDatafeed)
-		account, err := NewAccount(name, balance, df)
+		account, err := NewAccount(name, balance, df, env)
 		require.NoError(t, err)
 
 		strategy, err := NewStrategyDeprecated(name, symbol, direction, balance/2.0, newPriceLevels(), account)

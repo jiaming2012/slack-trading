@@ -7,9 +7,8 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/models"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
 type SignalRequest interface {
@@ -17,7 +16,7 @@ type SignalRequest interface {
 	GetSource() models.RequestSource
 }
 
-func ApiRequestHandler3(ctx context.Context, req eventmodels.ApiRequest3, requestExector eventmodels.RequestExecutor, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler3(ctx context.Context, req models.ApiRequest3, requestExector models.RequestExecutor, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler: failed to parse http parameters: %v", respErr)
@@ -38,7 +37,7 @@ func ApiRequestHandler3(ctx context.Context, req eventmodels.ApiRequest3, reques
 	// todo: like the idea of automatically assinging a request id
 	// id := uuid.New()
 
-	// meta := &eventmodels.MetaData{
+	// meta := &models.MetaData{
 	// 	RequestID:         id,
 	// 	IsExternalRequest: true,
 	// }
@@ -64,7 +63,7 @@ func ApiRequestHandler3(ctx context.Context, req eventmodels.ApiRequest3, reques
 	}
 }
 
-func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp any, w http.ResponseWriter, r *http.Request) {
+func ApiRequestHandler2(eventName models.EventName, req ApiRequest2, resp any, w http.ResponseWriter, r *http.Request) {
 	if err := req.ParseHTTPRequest(r); err != nil {
 		if respErr := SetErrorResponse("parser", 400, err, w); respErr != nil {
 			log.Errorf("ApiRequestHandler2: failed to parse http parameters: %v", respErr)
@@ -84,12 +83,12 @@ func ApiRequestHandler2(eventName eventmodels.EventName, req ApiRequest2, resp a
 
 	id := uuid.New()
 
-	meta := &eventmodels.MetaData{
+	meta := &models.MetaData{
 		RequestID:         id,
 		IsExternalRequest: true,
 	}
 
-	resultCh, errCh := eventmodels.RegisterResultCallback(id)
+	resultCh, errCh := models.RegisterResultCallback(id)
 
 	pubsub.PublishResponse("ApiRequestHandler2", eventName, req, meta)
 

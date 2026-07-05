@@ -6,15 +6,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 	optionMultiplier := 100.0
 
 	t.Run("order is nil", func(t *testing.T) {
-		var order eventmodels.OptionSpreadAnalysisRequest
-		data := []*eventmodels.CandleDTO{
+		var order models.OptionSpreadAnalysisRequest
+		data := []*models.CandleDTO{
 			{
 				Date:  "2021-01-01",
 				Open:  100,
@@ -32,14 +32,14 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 		createdTstamp, err := time.Parse("2006-01-02", "2021-01-01")
 		require.Nil(t, err)
 
-		order := eventmodels.OptionSpreadAnalysisRequest{
+		order := models.OptionSpreadAnalysisRequest{
 			ID:            1,
 			Underlying:    "AAPL",
 			ExecutionType: "market",
 			CreateDate:    createdTstamp,
 			Tag:           "",
 			AvgFillPrice:  1,
-			Leg1: eventmodels.OptionSpreadLeg{
+			Leg1: models.OptionSpreadLeg{
 				ID:           1,
 				Timestamp:    createdTstamp,
 				Symbol:       "AAPL_011521P100",
@@ -47,7 +47,7 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 				Quantity:     1,
 				AvgFillPrice: 1,
 			},
-			Leg2: eventmodels.OptionSpreadLeg{
+			Leg2: models.OptionSpreadLeg{
 				ID:           1,
 				Timestamp:    createdTstamp,
 				Symbol:       "AAPL_011521P95",
@@ -56,7 +56,7 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 				AvgFillPrice: 1,
 			},
 		}
-		data := []*eventmodels.CandleDTO{}
+		data := []*models.CandleDTO{}
 
 		_, err = CalculateOptionOrderSpreadResult(order, data, optionMultiplier)
 
@@ -67,14 +67,14 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 		createdTstamp, err := time.Parse("2006-01-02T15:04:05", "2021-05-03T09:30:00")
 		require.Nil(t, err)
 
-		order := eventmodels.OptionSpreadAnalysisRequest{
+		order := models.OptionSpreadAnalysisRequest{
 			ID:            1,
 			Underlying:    "NVDA",
 			ExecutionType: "market",
 			CreateDate:    createdTstamp,
 			Tag:           EncodeTag("Signal1", 10.0, 12.0),
 			AvgFillPrice:  1,
-			Leg1: eventmodels.OptionSpreadLeg{
+			Leg1: models.OptionSpreadLeg{
 				ID:           1,
 				Timestamp:    createdTstamp,
 				Symbol:       "NVDA210507C00567500",
@@ -82,7 +82,7 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 				Quantity:     1,
 				AvgFillPrice: 24.4,
 			},
-			Leg2: eventmodels.OptionSpreadLeg{
+			Leg2: models.OptionSpreadLeg{
 				ID:           1,
 				Timestamp:    createdTstamp,
 				Symbol:       "NVDA210507C00577500",
@@ -91,7 +91,7 @@ func TestCalculateOptionOrderSpreadResult(t *testing.T) {
 				AvgFillPrice: 13.1,
 			},
 		}
-		data := []*eventmodels.CandleDTO{
+		data := []*models.CandleDTO{
 			{
 				Date:  "2021-05-03 09:30:00",
 				Open:  574.0,
@@ -121,11 +121,11 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	optionMultiplier := 100.0
 
 	t.Run("order is nil", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{}
+		option1 := models.OptionSymbolComponents{}
 		side1 := "sell_to_open"
 		optionPremium1 := 0.0
 
-		option2 := eventmodels.OptionSymbolComponents{}
+		option2 := models.OptionSymbolComponents{}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.0
 
@@ -137,16 +137,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("call spread: both options expire out of the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -161,16 +161,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("call spread: both options expire in the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -185,16 +185,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("call spread: short option expires in the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 120,
-			OptionType:  eventmodels.OptionTypeCall,
+			OptionType:  models.OptionTypeCall,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -209,16 +209,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("put spread: both options expire out of the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -233,16 +233,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("put spread: both options expire in the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -257,16 +257,16 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 	})
 
 	t.Run("put spread: short option expires in the money", func(t *testing.T) {
-		option1 := eventmodels.OptionSymbolComponents{
+		option1 := models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side1 := "sell_to_open"
 		optionPremium1 := 1.0
 
-		option2 := eventmodels.OptionSymbolComponents{
+		option2 := models.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 		side2 := "buy_to_open"
 		optionPremium2 := 0.5
@@ -280,17 +280,17 @@ func TestCalculateOptionsPriceAtExpiry(t *testing.T) {
 		require.Equal(t, OptionProfit{Profit: -50.0, IsInMoney: false}, optionProfit2)
 
 		// flip the options
-		option1 = eventmodels.OptionSymbolComponents{
+		option1 = models.OptionSymbolComponents{
 			StrikePrice: 80,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 
 		side1 = "buy_to_open"
 		optionPremium1 = 0.5
 
-		option2 = eventmodels.OptionSymbolComponents{
+		option2 = models.OptionSymbolComponents{
 			StrikePrice: 100,
-			OptionType:  eventmodels.OptionTypePut,
+			OptionType:  models.OptionTypePut,
 		}
 
 		side2 = "sell_to_open"

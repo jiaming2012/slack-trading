@@ -7,9 +7,8 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
-	modelsV1 "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 )
 
@@ -18,10 +17,10 @@ type GoogleSheetsClient struct {
 	wg  *sync.WaitGroup
 }
 
-func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent eventmodels.TradeFulfilledEvent) {
+func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent models.TradeFulfilledEvent) {
 	log.Debugf("GoogleSheetsClient.writeToCSV <- %v", tradeFulfilledEvent)
 
-	err := sheets.AppendTrade(c.ctx, &modelsV1.Trade{
+	err := sheets.AppendTrade(c.ctx, &models.Trade{
 		ID:              uuid.New(),
 		Symbol:          tradeFulfilledEvent.Symbol,
 		Timestamp:       tradeFulfilledEvent.Timestamp,
@@ -36,11 +35,11 @@ func (c *GoogleSheetsClient) writeTradeToCSV(tradeFulfilledEvent eventmodels.Tra
 	}
 }
 
-func (c *GoogleSheetsClient) writeCandleToCSV(candle eventmodels.Candle) {
+func (c *GoogleSheetsClient) writeCandleToCSV(candle models.Candle) {
 	log.Debugf("GoogleSheetsClient.writeCandleToCSV <- %v", candle)
 
-	// todo: no need to go from Candle -> eventmodels.Candle -> Candle
-	err := sheets.AppendCandle(c.ctx, &modelsV1.Candle{
+	// todo: no need to go from Candle -> models.Candle -> Candle
+	err := sheets.AppendCandle(c.ctx, &models.Candle{
 		Timestamp:   candle.Timestamp,
 		LastUpdated: candle.LastUpdated,
 		Open:        candle.Open,
@@ -57,8 +56,8 @@ func (c *GoogleSheetsClient) writeCandleToCSV(candle eventmodels.Candle) {
 func (c *GoogleSheetsClient) Start() {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("GoogleSheetsClient", eventmodels.TradeFulfilledEventName, c.writeTradeToCSV)
-	pubsub.Subscribe("GoogleSheetsClient", eventmodels.NewCandleEventName, c.writeCandleToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", models.TradeFulfilledEventName, c.writeTradeToCSV)
+	pubsub.Subscribe("GoogleSheetsClient", models.NewCandleEventName, c.writeCandleToCSV)
 
 	go func() {
 		defer c.wg.Done()

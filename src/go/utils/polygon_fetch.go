@@ -6,14 +6,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func FetchRecursively[T any](url, apiKey string, fetchDataFn eventmodels.FetchDataFunc[T]) (*eventmodels.AggregateResult[T], error) {
+func FetchRecursively[T any](url, apiKey string, fetchDataFn models.FetchDataFunc[T]) (*models.AggregateResult[T], error) {
 	const maxRetries = 3
 	retryBackoff := []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second}
 
-	var aggregateResult eventmodels.AggregateResult[T]
+	var aggregateResult models.AggregateResult[T]
 	currentURL := url
 
 	for {

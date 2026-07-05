@@ -3,7 +3,7 @@ package models
 import (
 	"sync"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type BacktesterAccount struct {
@@ -14,7 +14,7 @@ type BacktesterAccount struct {
 	Orders        []*OrderRecord
 	PendingOrders []*OrderRecord
 	NewOrders     []*OrderRecord
-	EquityPlot    []*eventmodels.EquityPlot
+	EquityPlot    []*models.EquityPlot
 }
 
 func (a *BacktesterAccount) NextOrderID() uint {

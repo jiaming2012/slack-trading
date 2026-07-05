@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.TradierOrderSpreadDTO, error) {
+func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*models.TradierOrderSpreadDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -52,7 +52,7 @@ func FetchTradierOrder(baseUrl, bearerToken string, orderID int) (*eventmodels.T
 		return nil, fmt.Errorf("FetchTradierOrder: failed to fetch option chain, http code %v, fetching from %v", res.Status, req.URL.String())
 	}
 
-	var dto eventmodels.TradierOrderSpreadDTO
+	var dto models.TradierOrderSpreadDTO
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("FetchTradierOrder: failed to decode json: %w", err)
 	}

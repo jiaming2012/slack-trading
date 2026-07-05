@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
@@ -15,13 +15,13 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 	t.Run("check for delete returns empty list", func(t *testing.T) {
 		// arrange
 		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
-		order := &eventmodels.TradierOrder{
+		order := &models.TradierOrder{
 			ID: 1,
 		}
 		worker.orders.Add(order)
 
 		// act
-		fetchedOrders := []*eventmodels.TradierOrderDTO{
+		fetchedOrders := []*models.TradierOrderDTO{
 			{
 				ID: 1,
 			},
@@ -35,13 +35,13 @@ func Test_TradierApiWorker_CheckForDelete(t *testing.T) {
 	t.Run("check for delete returns list of order IDs", func(t *testing.T) {
 		// arrange
 		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
-		order := &eventmodels.TradierOrder{
+		order := &models.TradierOrder{
 			ID: 1,
 		}
 		worker.orders.Add(order)
 
 		// act
-		fetchedOrders := []*eventmodels.TradierOrderDTO{}
+		fetchedOrders := []*models.TradierOrderDTO{}
 		deletedOrders := worker.checkForDelete(fetchedOrders)
 
 		// assert
@@ -56,7 +56,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 	t.Run("check for create order", func(t *testing.T) {
 		// arrange
 		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
-		orders := []*eventmodels.TradierOrderDTO{
+		orders := []*models.TradierOrderDTO{
 			{
 				ID:              3,
 				CreateDate:      "2021-01-01T00:00:00Z",
@@ -76,7 +76,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 	t.Run("check for update order", func(t *testing.T) {
 		// arrange
 		worker := NewTradierApiWorker(&wg, "", "", nil, nil, "", nil, nil)
-		orders1 := []*eventmodels.TradierOrderDTO{
+		orders1 := []*models.TradierOrderDTO{
 			{
 				ID:              3,
 				CreateDate:      "2021-01-01T00:00:00Z",
@@ -86,7 +86,7 @@ func Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate(t *testing.T) {
 		}
 		worker.checkForCreateOrUpdate(orders1)
 
-		orders2 := []*eventmodels.TradierOrderDTO{
+		orders2 := []*models.TradierOrderDTO{
 			{
 				ID:              3,
 				CreateDate:      "2021-01-01T00:00:00Z",

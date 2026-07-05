@@ -8,10 +8,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
-	models "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
-	models2 "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/worker"
 )
@@ -22,7 +20,7 @@ const (
 
 type CandleWorker struct {
 	wg     *sync.WaitGroup
-	candle *models2.Candle
+	candle *models.Candle
 	timer  *time.Timer
 	mu     sync.Mutex
 }
@@ -40,7 +38,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 	btcPriceCh := worker.FetchCurrentPrice()
 	btcPrice := <-btcPriceCh
 
-	profit, statsErr := trades.GetTradeStats(models2.Tick{Bid: btcPrice, Ask: btcPrice})
+	profit, statsErr := trades.GetTradeStats(models.Tick{Price: btcPrice})
 	if statsErr != nil {
 		pubsub.PublishError("CandleWorker.calculateBalance: statsErr", statsErr)
 		return
@@ -53,7 +51,7 @@ func (w *CandleWorker) calculateBalance(symbol string) {
 		log.Warnf("Unexpected different volumes: %v, %v", profit.Volume, volume)
 	}
 
-	pubsub.PublishEvent("CandleWorker", eventmodels.BalanceResultEventName, models.Balance{
+	pubsub.PublishEvent("CandleWorker", models.BalanceResultEventName, models.Balance{
 		Floating: profit.FloatingPL,
 		Realized: realizedPL,
 		Vwap:     vwap,
@@ -66,7 +64,7 @@ func (w *CandleWorker) Update(tick models.Tick) {
 	defer w.mu.Unlock()
 
 	if w.candle == nil {
-		w.candle = models2.NewCandle(tick.Price)
+		w.candle = models.NewCandle(tick.Price)
 		return
 	}
 
@@ -101,13 +99,13 @@ func (w *CandleWorker) CreateNewCandle() {
 
 	w.mu.Unlock()
 
-	pubsub.PublishEvent("CandleWorker.CreateNewCandle", eventmodels.NewCandleEventName, newCandle)
+	pubsub.PublishEvent("CandleWorker.CreateNewCandle", models.NewCandleEventName, newCandle)
 }
 
 func (w *CandleWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	pubsub.Subscribe("CandleWorker", eventmodels.NewTickEventName, w.Update)
+	pubsub.Subscribe("CandleWorker", models.NewTickEventName, w.Update)
 
 	go func() {
 		defer w.wg.Done()

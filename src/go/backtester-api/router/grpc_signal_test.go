@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
 

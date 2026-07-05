@@ -3,68 +3,10 @@ package models
 import (
 	"fmt"
 	"math"
-	"sync"
 	"time"
 )
 
 type Trades []*Trade // todo: maybe???: should be refactored to be a struct with a price level
-type Vwap float64
-type Volume float64
-type RealizedPL float64
-type FloatingPL float64
-
-func (vwap Vwap) Validate() error {
-	if math.IsNaN(float64(vwap)) {
-		return fmt.Errorf("vwap.Validate: NaN is not a valid value")
-	}
-
-	if math.IsInf(float64(vwap), 0) {
-		return fmt.Errorf("vwap.Validate: +/- Inf is not a valid value")
-	}
-
-	return nil
-}
-
-func (volume Volume) Validate() error {
-	if math.IsNaN(float64(volume)) {
-		return fmt.Errorf("vwap.volume: NaN is not a valid value")
-	}
-
-	if math.IsInf(float64(volume), 0) {
-		return fmt.Errorf("vwap.volume: +/- Inf is not a valid value")
-	}
-
-	return nil
-}
-
-func (realizedPL RealizedPL) Validate() error {
-	if math.IsNaN(float64(realizedPL)) {
-		return fmt.Errorf("realizedPL.Validate: NaN is not a valid value")
-	}
-
-	if math.IsInf(float64(realizedPL), 0) {
-		return fmt.Errorf("realizedPL.Validate: +/- Inf is not a valid value")
-	}
-
-	return nil
-}
-
-func (floatingPL FloatingPL) Validate() error {
-	if math.IsNaN(float64(floatingPL)) {
-		return fmt.Errorf("vwap.Validate: NaN is not a valid value")
-	}
-
-	if math.IsInf(float64(floatingPL), 0) {
-		return fmt.Errorf("vwap.Validate: +/- Inf is not a valid value")
-	}
-
-	return nil
-}
-
-type TradeGroup struct {
-	Trades Trades
-	mutex  sync.Mutex
-}
 
 func (trades *Trades) Count() int {
 	if trades == nil {
@@ -240,9 +182,9 @@ func (trades *Trades) GetTradeStats(tick Tick) (TradeStats, error) {
 		return TradeStats{}, fmt.Errorf("Trades.GetTradeStats vwap validation to calculate floatingPL failed: %w", err)
 	}
 	if volume > 0 {
-		floatingPL = (tick.Bid - float64(vwap)) * float64(volume)
+		floatingPL = (tick.Price - float64(vwap)) * float64(volume)
 	} else if volume < 0 {
-		floatingPL = (float64(vwap) - tick.Ask) * math.Abs(float64(volume))
+		floatingPL = (float64(vwap) - tick.Price) * math.Abs(float64(volume))
 	}
 
 	_floatingPL := FloatingPL(floatingPL)

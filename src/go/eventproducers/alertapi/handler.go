@@ -5,20 +5,20 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 )
 
 func fetchAlerts(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler2(eventmodels.GetOptionAlertRequestEventName, &eventmodels.GetOptionAlertRequestEvent{}, &eventmodels.GetOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(models.GetOptionAlertRequestEventName, &models.GetOptionAlertRequestEvent{}, &models.GetOptionAlertResponseEvent{}, w, r)
 }
 
 func createAlert(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler2(eventmodels.CreateOptionAlertRequestEventName, &eventmodels.CreateOptionAlertRequestEvent{}, &eventmodels.CreateOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(models.CreateOptionAlertRequestEventName, &models.CreateOptionAlertRequestEvent{}, &models.CreateOptionAlertResponseEvent{}, w, r)
 }
 
 func deleteAlert(w http.ResponseWriter, r *http.Request) {
-	eventproducers.ApiRequestHandler2(eventmodels.DeleteOptionAlertRequestEventName, &eventmodels.DeleteOptionAlertRequestEvent{}, &eventmodels.DeleteOptionAlertResponseEvent{}, w, r)
+	eventproducers.ApiRequestHandler2(models.DeleteOptionAlertRequestEventName, &models.DeleteOptionAlertRequestEvent{}, &models.DeleteOptionAlertResponseEvent{}, w, r)
 }
 
 func handleAlerts(w http.ResponseWriter, r *http.Request) {

@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -36,7 +36,7 @@ var polygonHTTPClient = &http.Client{
 	},
 }
 
-func makePolygonAggsTickerRequestURL(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
+func makePolygonAggsTickerRequestURL(symbol models.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time) (string, error) {
 	// Parse the base URL
 	parsedURL, err := url.Parse("https://api.polygon.io/v2/aggs/ticker")
 	if err != nil {
@@ -63,7 +63,7 @@ type DailyTickerSummaryResponse struct {
 	Volume     int64   `json:"volume"`
 }
 
-func fetchPolygonDailyTickerSummary(symbol string, date eventmodels.PolygonDate, apiKey string) (*DailyTickerSummaryResponse, error) {
+func fetchPolygonDailyTickerSummary(symbol string, date models.PolygonDate, apiKey string) (*DailyTickerSummaryResponse, error) {
 	url := fmt.Sprintf("https://api.polygon.io/v1/open-close/%s/%s?apiKey=%s", symbol, date.ToString(), apiKey)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -91,7 +91,7 @@ func fetchPolygonDailyTickerSummary(symbol string, date eventmodels.PolygonDate,
 	return &dto, nil
 }
 
-func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleResponse, error) {
+func fetchPolygonStockChart(url, apiKey string) (*models.PolygonCandleResponse, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetchPolygonStockChart: failed to create request: %w", err)
@@ -118,7 +118,7 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 		return nil, fmt.Errorf("fetchPolygonStockChart: failed to fetch stock tick, http code %v", res.Status)
 	}
 
-	var dto eventmodels.PolygonCandleResponse
+	var dto models.PolygonCandleResponse
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("fetchPolygonStockChart: failed to decode json: %w", err)
 	}
@@ -130,12 +130,12 @@ func fetchPolygonStockChart(url, apiKey string) (*eventmodels.PolygonCandleRespo
 	return &dto, nil
 }
 
-func FetchPolygonIndexChart(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time, apiKey string) (*eventmodels.PolygonCandleResponse, error) {
-	symbol = eventmodels.StockSymbol(fmt.Sprintf("I:%v", symbol))
+func FetchPolygonIndexChart(symbol models.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time, apiKey string) (*models.PolygonCandleResponse, error) {
+	symbol = models.StockSymbol(fmt.Sprintf("I:%v", symbol))
 	return FetchPolygonStockChart(symbol, timeframeValue, timeframeUnit, fromDate, toDate, apiKey)
 }
 
-func FetchPolygonOptionAggregateBars(symbol string, from time.Time, to *time.Time, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+func FetchPolygonOptionAggregateBars(symbol string, from time.Time, to *time.Time, apiKey string) (*models.AggregateResult[models.PolygonAggregateBar], error) {
 	now := time.Now()
 	if from.After(now) { // fixes api error when from is in the future
 		from = now.AddDate(0, 0, -1)
@@ -152,14 +152,14 @@ func FetchPolygonOptionAggregateBars(symbol string, from time.Time, to *time.Tim
 	return FetchPolygonAggregateBars(false)(url, apiKey)
 }
 
-func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time, apiKey string) (*eventmodels.PolygonCandleResponse, error) {
+func FetchPolygonStockChart(symbol models.StockSymbol, timeframeValue int, timeframeUnit string, fromDate time.Time, toDate time.Time, apiKey string) (*models.PolygonCandleResponse, error) {
 	backOff := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 16 * time.Second, 32 * time.Second, 64 * time.Second, 128 * time.Second}
-	var aggregateResult eventmodels.PolygonCandleResponse
+	var aggregateResult models.PolygonCandleResponse
 
 	counter := 0
 	isDone := false
 
-	var inputSymbol eventmodels.StockSymbol
+	var inputSymbol models.StockSymbol
 
 	if symbol == "SPX" {
 		inputSymbol = "SPY"
@@ -173,7 +173,7 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 			return nil, fmt.Errorf("FetchPolygonStockChart: failed to make request URL: %w", err)
 		}
 
-		aggregateResult = eventmodels.PolygonCandleResponse{}
+		aggregateResult = models.PolygonCandleResponse{}
 
 		if counter > 0 {
 			log.Warnf("FetchPolygonStockChart: backoff %v", backOff[counter])
@@ -239,8 +239,8 @@ func FetchPolygonStockChart(symbol eventmodels.StockSymbol, timeframeValue int, 
 	return &aggregateResult, nil
 }
 
-func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmodels.PolygonAggregateBar] {
-	return func(url, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+func FetchPolygonAggregateBars(expired bool) models.FetchDataFunc[models.PolygonAggregateBar] {
+	return func(url, apiKey string) (*models.AggregateResult[models.PolygonAggregateBar], error) {
 		client := http.Client{
 			Timeout: 45 * time.Second,
 		}
@@ -274,7 +274,7 @@ func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmode
 			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to fetch option contracts, http code %v", res.Status)
 		}
 
-		var dto eventmodels.PolygonGetV3ReferenceOptionsContractsResponse[eventmodels.PolygonAggregateBar]
+		var dto models.PolygonGetV3ReferenceOptionsContractsResponse[models.PolygonAggregateBar]
 		if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 			return nil, fmt.Errorf("FetchPolygonAggregateBars: failed to decode json: %w", err)
 		}
@@ -283,7 +283,7 @@ func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmode
 			log.Warnf("FetchPolygonAggregateBars: (%d results) response status is DELAYED, this might be due to the API rate limit or other issues. URL: %s", len(dto.Results), req.URL.String())
 		}
 
-		return &eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]{
+		return &models.AggregateResult[models.PolygonAggregateBar]{
 			QueryCount:   1,
 			ResultsCount: len(dto.Results),
 			Results:      dto.Results,
@@ -292,7 +292,7 @@ func FetchPolygonAggregateBars(expired bool) eventmodels.FetchDataFunc[eventmode
 	}
 }
 
-// func FetchHistoricalOptionChainDataInput(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*eventmodels.FetchOptionChainDataInput, error) {
+// func FetchHistoricalOptionChainDataInput(symbol models.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int) (*models.FetchOptionChainDataInput, error) {
 type PolygonOptionsClient struct {
 	BaseURL string
 	ApiKey  string
@@ -311,11 +311,11 @@ func NewPolygonOptionsClient(baseUrl, apiKey string, cacheDir ...string) *Polygo
 	}
 }
 
-func (fetcher *PolygonOptionsClient) ExerciseOption(ctx context.Context, req *eventmodels.ExerciseOptionRequest) error {
+func (fetcher *PolygonOptionsClient) ExerciseOption(ctx context.Context, req *models.ExerciseOptionRequest) error {
 	return fmt.Errorf("ExerciseOption: not implemented for live polygon options broker")
 }
 
-func (fetcher *PolygonOptionsClient) GetCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (fetcher *PolygonOptionsClient) GetCandles(playgroundID uuid.UUID, symbol models.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	candles, err := FetchOptionCandles(fetcher, playgroundID, symbol, period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("PolygonOptionsClient.GetCandles: failed to fetch option candles: %w", err)
@@ -324,11 +324,11 @@ func (fetcher *PolygonOptionsClient) GetCandles(playgroundID uuid.UUID, symbol e
 	return candles, nil
 }
 
-func (fetcher *PolygonOptionsClient) FetchPolygonOptionAggregateBars(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) (*eventmodels.AggregateResult[eventmodels.PolygonAggregateBar], error) {
+func (fetcher *PolygonOptionsClient) FetchPolygonOptionAggregateBars(playgroundID uuid.UUID, symbol models.OptionSymbol, period time.Duration, from time.Time, to *time.Time) (*models.AggregateResult[models.PolygonAggregateBar], error) {
 	return FetchPolygonOptionAggregateBars(string(symbol), from, to, fetcher.ApiKey)
 }
 
-func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, projectDir string, signalName eventmodels.SignalName, bFindSpreads bool, startsAt, endsAt time.Time, ticker eventmodels.StockSymbol, goEnv string, options []eventmodels.OptionContractV3, stockInfo *eventmodels.StockTickItemDTO, now time.Time) (map[string]eventmodels.ExpectedProfitItemSpread, map[string]eventmodels.ExpectedProfitItemSpread, error) {
+func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, projectDir string, signalName models.SignalName, bFindSpreads bool, startsAt, endsAt time.Time, ticker models.StockSymbol, goEnv string, options []models.OptionContractV3, stockInfo *models.StockTickItemDTO, now time.Time) (map[string]models.ExpectedProfitItemSpread, map[string]models.ExpectedProfitItemSpread, error) {
 	tracer := otel.Tracer("FetchEVSpreads")
 	_, span := tracer.Start(ctx, "FetchEVSpreads")
 	defer span.End()
@@ -340,10 +340,10 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 	logger.Infof("Running %v with lookaheadCandlesCount: %v", signalName, lookaheadCandlesCount)
 
 	switch signalName {
-	case eventmodels.SuperTrend1hStochRsi15mUp:
+	case models.SuperTrend1hStochRsi15mUp:
 		span.AddEvent("Executing SuperTrend1hStochRsi15mUp")
-		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
-			return Run_Supertrend1hStochRsi15mUp(eventmodels.SupertrendRunArgs{
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
+			return Run_Supertrend1hStochRsi15mUp(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
 				EndsAt:                endsAt,
 				Ticker:                ticker,
@@ -352,10 +352,10 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 			})
 		})
 
-	case eventmodels.SuperTrend1hStochRsi15mDown:
+	case models.SuperTrend1hStochRsi15mDown:
 		span.AddEvent("Executing SuperTrend1hStochRsi15mDown")
-		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
-			return Run_SuperTrend1hStochRsi15mDown(eventmodels.SupertrendRunArgs{
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
+			return Run_SuperTrend1hStochRsi15mDown(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
 				EndsAt:                endsAt,
 				Ticker:                ticker,
@@ -364,10 +364,10 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 			})
 		})
 
-	case eventmodels.SuperTrend4h1hStochRsi15mDown:
+	case models.SuperTrend4h1hStochRsi15mDown:
 		span.AddEvent("Executing SuperTrend4h1hStochRsi15mDown")
-		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
-			return Run_Supertrend4h1hStochRsi15mDown(eventmodels.SupertrendRunArgs{
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
+			return Run_Supertrend4h1hStochRsi15mDown(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
 				EndsAt:                endsAt,
 				Ticker:                ticker,
@@ -376,10 +376,10 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 			})
 		})
 
-	case eventmodels.SuperTrend4h1hStochRsi15mUp:
+	case models.SuperTrend4h1hStochRsi15mUp:
 		span.AddEvent("Executing SuperTrend4h1hStochRsi15mUp")
-		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (eventmodels.SignalRunOutput, error) {
-			return Run_Supertrend4h1hStochRsi15mUp(eventmodels.SupertrendRunArgs{
+		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
+			return Run_Supertrend4h1hStochRsi15mUp(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
 				EndsAt:                endsAt,
 				Ticker:                ticker,
@@ -393,8 +393,8 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 	}
 }
 
-func filterOptionContractsV3BySymbol(contracts []eventmodels.OptionContractV3, includeSymbolPrefixes []string) []eventmodels.OptionContractV3 {
-	out := make([]eventmodels.OptionContractV3, 0)
+func filterOptionContractsV3BySymbol(contracts []models.OptionContractV3, includeSymbolPrefixes []string) []models.OptionContractV3 {
+	out := make([]models.OptionContractV3, 0)
 
 	for _, c := range contracts {
 		for _, symbolPrefix := range includeSymbolPrefixes {
@@ -423,7 +423,7 @@ func (fetcher *PolygonOptionsClient) maxExpirationInDays(expirationInDays []int)
 	return max
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo eventmodels.CalendarRepository) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol models.StockSymbol, timestamp time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo models.CalendarRepository) (*models.FetchOptionChainDataInput, error) {
 	expirationGTE := timestamp
 
 	maxDays := fetcher.maxExpirationInDays(expirationInDays)
@@ -432,14 +432,14 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV2(symbol eventmodels.Stock
 	return fetcher.FetchOptionChainV1(symbol, timestamp, expirationGTE, expirationLTE, maxNoOfStrikes, minDistanceBetweenStrikes, expirationInDays, maxTickAge, baseStrikePrice, calendarRepo)
 }
 
-func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo eventmodels.CalendarRepository) (*eventmodels.FetchOptionChainDataInput, error) {
+func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol models.StockSymbol, timestamp time.Time, expirationGTE, expirationLTE time.Time, maxNoOfStrikes int, minDistanceBetweenStrikes float64, expirationInDays []int, maxTickAge time.Duration, baseStrikePrice *float64, calendarRepo models.CalendarRepository) (*models.FetchOptionChainDataInput, error) {
 	if maxTickAge <= 0 {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: maxTickAge must be greater than 0")
 	}
 
 	optionSpreadPerc := 0.005
 
-	request := eventmodels.PolygonDataBulkHistOptionOHLCRequest{
+	request := models.PolygonDataBulkHistOptionOHLCRequest{
 		Root:                       symbol,
 		ExpirationLessThanEqual:    expirationLTE,
 		ExpirationGreaterThanEqual: expirationGTE,
@@ -491,7 +491,7 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		contracts = filterOptionContractsV3BySymbol(contracts, []string{"SPXW"})
 	}
 
-	optionTypes := []eventmodels.OptionType{eventmodels.OptionTypeCall, eventmodels.OptionTypePut}
+	optionTypes := []models.OptionType{models.OptionTypeCall, models.OptionTypePut}
 
 	optionTickByExpirationTimeMap, err := convertToTimeMap(contracts)
 	if err != nil {
@@ -524,17 +524,17 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 		timestamp,
 	)
 
-	marketOpen, err := eventmodels.ConvertToMarketOpen(timestamp)
+	marketOpen, err := models.ConvertToMarketOpen(timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market open: %w", err)
 	}
 
-	marketClose, err := eventmodels.ConvertToMarketClose(timestamp)
+	marketClose, err := models.ConvertToMarketClose(timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("FetchHistoricalOptionChainDataInput: failed to convert to market close: %w", err)
 	}
 
-	polygonOptionTickDataReq := &eventmodels.PolygonOptionTickDataRequest{
+	polygonOptionTickDataReq := &models.PolygonOptionTickDataRequest{
 		BaseURL:   fetcher.BaseURL,
 		StartDate: marketOpen.AddDate(0, 0, -3),
 		EndDate:   marketClose,
@@ -559,14 +559,14 @@ func (fetcher *PolygonOptionsClient) FetchOptionChainV1(symbol eventmodels.Stock
 	// use the option's timestamp filter out data that is too old
 	options = filterOptionsBeforeTime(options, timestamp, maxTickAge, calendarRepo)
 
-	return &eventmodels.FetchOptionChainDataInput{
+	return &models.FetchOptionChainDataInput{
 		StockTickItemDTO: closestStockTickDTO,
 		OptionContracts:  options,
 	}, nil
 }
 
-func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, targetTime time.Time, threshold time.Duration, calendarRepo eventmodels.CalendarRepository) []eventmodels.OptionContractV3 {
-	filtered := make([]eventmodels.OptionContractV3, 0)
+func filterOptionsBeforeTime(contracts []models.OptionContractV3, targetTime time.Time, threshold time.Duration, calendarRepo models.CalendarRepository) []models.OptionContractV3 {
+	filtered := make([]models.OptionContractV3, 0)
 
 	for _, c := range contracts {
 		// skip if the option's timestamp + threshold is before the target time, unless timestamp + threshold
@@ -593,8 +593,8 @@ func filterOptionsBeforeTime(contracts []eventmodels.OptionContractV3, targetTim
 	return filtered
 }
 
-func convertToTimeMap(contracts []eventmodels.OptionContractV3) (map[time.Time][]eventmodels.OptionContractV3, error) {
-	result := make(map[time.Time][]eventmodels.OptionContractV3)
+func convertToTimeMap(contracts []models.OptionContractV3) (map[time.Time][]models.OptionContractV3, error) {
+	result := make(map[time.Time][]models.OptionContractV3)
 	for _, c := range contracts {
 		ts, err := time.Parse("2006-01-02", string(c.ExpirationDate))
 		if err != nil {
@@ -602,7 +602,7 @@ func convertToTimeMap(contracts []eventmodels.OptionContractV3) (map[time.Time][
 		}
 
 		if _, ok := result[ts]; !ok {
-			result[ts] = make([]eventmodels.OptionContractV3, 0)
+			result[ts] = make([]models.OptionContractV3, 0)
 		}
 
 		result[ts] = append(result[ts], c)
@@ -611,22 +611,22 @@ func convertToTimeMap(contracts []eventmodels.OptionContractV3) (map[time.Time][
 	return result, nil
 }
 
-func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHLCRequest) (*eventmodels.PolygonBulkResponse, error) {
+func fetchPolygonBulkHistOptionOhlc(req models.PolygonDataBulkHistOptionOHLCRequest) (*models.PolygonBulkResponse, error) {
 	url := "https://api.polygon.io/v3/reference/options/contracts"
 	polygonContracts, err := utils.FetchRecursively(url, req.ApiKey, fetchPolygonReferenceOptionsContracts(req.Root, req.ExpirationGreaterThanEqual, req.ExpirationLessThanEqual, req.IsExpired))
 	if err != nil {
 		return nil, fmt.Errorf("fetchPolygonBulkHistOptionOhlc: failed to fetch option contracts: %w", err)
 	}
 
-	var contracts []eventmodels.OptionContractV3
+	var contracts []models.OptionContractV3
 	for _, c := range polygonContracts.Results {
 		expiration, err := time.Parse("2006-01-02", c.ExpirationDate)
 		if err != nil {
 			return nil, fmt.Errorf("fetchPolygonBulkHistOptionOhlc: failed to parse expiration date %s: %w", c.ExpirationDate, err)
 		}
 
-		contract := eventmodels.OptionContractV3{
-			ExpirationDate:   eventmodels.ExpirationDate(c.ExpirationDate),
+		contract := models.OptionContractV3{
+			ExpirationDate:   models.ExpirationDate(c.ExpirationDate),
 			Expiration:       expiration,
 			OptionType:       c.ContractType,
 			Strike:           c.StrikePrice,
@@ -638,16 +638,16 @@ func fetchPolygonBulkHistOptionOhlc(req eventmodels.PolygonDataBulkHistOptionOHL
 		contracts = append(contracts, contract)
 	}
 
-	ticksMap := make(map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO)
+	ticksMap := make(map[models.ExpirationDate]map[models.OptionType]map[float64][]*models.OptionChainTickDTO)
 
-	return &eventmodels.PolygonBulkResponse{
+	return &models.PolygonBulkResponse{
 		Contracts: contracts,
 		TicksMap:  ticksMap,
 	}, nil
 }
 
-func fetchPolygonReferenceOptionsContracts(symbol eventmodels.StockSymbol, expirationGreaterThanEqual, expirationLessThanEqual time.Time, isExpired bool) eventmodels.FetchDataFunc[eventmodels.PolygonOptionContract] {
-	return func(url, apiKey string) (*eventmodels.AggregateResult[eventmodels.PolygonOptionContract], error) {
+func fetchPolygonReferenceOptionsContracts(symbol models.StockSymbol, expirationGreaterThanEqual, expirationLessThanEqual time.Time, isExpired bool) models.FetchDataFunc[models.PolygonOptionContract] {
+	return func(url, apiKey string) (*models.AggregateResult[models.PolygonOptionContract], error) {
 		client := http.Client{
 			Timeout: 45 * time.Second,
 		}
@@ -684,12 +684,12 @@ func fetchPolygonReferenceOptionsContracts(symbol eventmodels.StockSymbol, expir
 			return nil, fmt.Errorf("fetchPolygonReferenceOptionsContracts: failed to fetch option contracts, http code %v", res.Status)
 		}
 
-		var dto eventmodels.PolygonGetV3ReferenceOptionsContractsResponse[eventmodels.PolygonOptionContract]
+		var dto models.PolygonGetV3ReferenceOptionsContractsResponse[models.PolygonOptionContract]
 		if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 			return nil, fmt.Errorf("fetchPolygonReferenceOptionsContracts: failed to decode json: %w", err)
 		}
 
-		return &eventmodels.AggregateResult[eventmodels.PolygonOptionContract]{
+		return &models.AggregateResult[models.PolygonOptionContract]{
 			QueryCount:   1,
 			ResultsCount: len(dto.Results),
 			Results:      dto.Results,
@@ -698,16 +698,16 @@ func fetchPolygonReferenceOptionsContracts(symbol eventmodels.StockSymbol, expir
 	}
 }
 
-func calculateLookaheadCandlesCount(now time.Time, options []eventmodels.OptionContractV3, candleDuration time.Duration) ([]int, map[int][]eventmodels.OptionContractV3) {
-	var uniqueExpirationDates = make(map[eventmodels.ExpirationDate]eventmodels.OptionContractV3)
-	lookaheadToOptionContractsMap := make(map[int][]eventmodels.OptionContractV3)
+func calculateLookaheadCandlesCount(now time.Time, options []models.OptionContractV3, candleDuration time.Duration) ([]int, map[int][]models.OptionContractV3) {
+	var uniqueExpirationDates = make(map[models.ExpirationDate]models.OptionContractV3)
+	lookaheadToOptionContractsMap := make(map[int][]models.OptionContractV3)
 
 	for _, option := range options {
 		uniqueExpirationDates[option.ExpirationDate] = option
 	}
 
 	lookaheadCandlesCount := []int{}
-	optionExpirationToLookahead := make(map[eventmodels.ExpirationDate]int)
+	optionExpirationToLookahead := make(map[models.ExpirationDate]int)
 	for _, option := range uniqueExpirationDates {
 		timeToExpiration := option.TimeUntilExpiration(now)
 		if timeToExpiration.Minutes() > 0 {

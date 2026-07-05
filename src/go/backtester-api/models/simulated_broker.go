@@ -10,7 +10,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
@@ -164,7 +163,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	}
 
 	// Drain clock-gated signals from repository
-	var newSignals []*eventmodels.TradeSignal
+	var newSignals []*models.TradeSignal
 	if p.signalRepo != nil {
 		newSignals = p.signalRepo.ReadPending(p.clock.CurrentTime)
 	}
@@ -183,7 +182,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 	// update option contracts
 	for instrument := range p.repos.Iter() {
 		switch s := instrument.(type) {
-		case *eventmodels.OptionContractV3:
+		case *models.OptionContractV3:
 			isExpired := s.Expiration.Before(p.clock.CurrentTime) || s.Expiration.Equal(p.clock.CurrentTime)
 			if isExpired {
 				currentPrice, err := p.getPriceAt(s.UnderlyingSymbol, s.Expiration)
@@ -201,7 +200,7 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 					},
 				})
 			}
-		case eventmodels.OptionSymbol:
+		case models.OptionSymbol:
 			log.Fatal("option symbols not supported in simulateTick")
 		}
 	}

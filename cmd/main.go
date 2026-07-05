@@ -28,7 +28,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
 	"github.com/jiaming2012/slack-trading/src/go/eventconsumers"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/accountapi"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/alertapi"

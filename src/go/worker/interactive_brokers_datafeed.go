@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
@@ -192,10 +192,10 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO, c *
 					continue
 				}
 
-				eventpubsub.PublishEvent("IBTickListener.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
+				eventpubsub.PublishEvent("IBTickListener.worker", models.NewTickEventName, models.NewTick(
 					tick.Timestamp,
 					tick.Price,
-					eventmodels.IBDatafeed,
+					models.IBDatafeed,
 				))
 			}
 		}

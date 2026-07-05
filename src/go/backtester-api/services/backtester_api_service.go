@@ -1,7 +1,7 @@
 package services
 
 // 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-// 	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+// 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 // )
 
 // type BacktesterApiService struct {

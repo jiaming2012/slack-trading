@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // TestReplayMatchesInMemory proves that signals written to ESDB and read back

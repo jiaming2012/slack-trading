@@ -1,9 +1,9 @@
 package models
 
-import "github.com/jiaming2012/slack-trading/src/go/eventmodels"
+import "github.com/jiaming2012/slack-trading/src/go/models"
 
 type TradierOrderCreateEvent struct {
-	Order               *eventmodels.TradierOrder
+	Order               *models.TradierOrder
 	OrderRecord         *OrderRecord
 	ReconcilePlayground IReconcilePlayground
 }

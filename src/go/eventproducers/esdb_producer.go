@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
@@ -24,14 +24,14 @@ type EsdbProducer struct {
 	wg                     *sync.WaitGroup
 	db                     *esdb.Client
 	url                    string
-	readStreamParams       []eventmodels.StreamParameter
+	readStreamParams       []models.StreamParameter
 	lastEventNumber        uint64
-	allEventsAtStartupRead map[eventmodels.StreamName]chan bool
-	startRead              map[eventmodels.StreamName]chan bool
-	saga                   map[eventmodels.EventName]pubsub.SagaFlow
+	allEventsAtStartupRead map[models.StreamName]chan bool
+	startRead              map[models.StreamName]chan bool
+	saga                   map[models.EventName]pubsub.SagaFlow
 }
 
-func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.EventName, streamName string, meta []byte, data []byte) error {
+func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName models.EventName, streamName string, meta []byte, data []byte) error {
 	eventData := esdb.EventData{
 		ContentType: esdb.ContentTypeJson,
 		EventType:   string(eventName),
@@ -55,9 +55,9 @@ func (cli *EsdbProducer) insertEvent(ctx context.Context, eventName eventmodels.
 	return nil
 }
 
-func (cli *EsdbProducer) insertData(ctx context.Context, event eventmodels.SavedEvent, data map[string]interface{}) error {
+func (cli *EsdbProducer) insertData(ctx context.Context, event models.SavedEvent, data map[string]interface{}) error {
 	// set the event streamID
-	eventID := eventmodels.EventStreamID(uuid.New())
+	eventID := models.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
 	metaData.SetEventStreamID(eventID)
 
@@ -84,7 +84,7 @@ func (cli *EsdbProducer) insertData(ctx context.Context, event eventmodels.Saved
 	return nil
 }
 
-func (cli *EsdbProducer) insert(ctx context.Context, event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) insert(ctx context.Context, event models.SavedEvent) error {
 	// todo: unify metadata with the structs metadata field
 	// set the metadata
 	var metaBytes []byte
@@ -97,7 +97,7 @@ func (cli *EsdbProducer) insert(ctx context.Context, event eventmodels.SavedEven
 			return fmt.Errorf("failed to serialize trace context: %w", err)
 		}
 
-		meta := eventmodels.EsdbMetadata{
+		meta := models.EsdbMetadata{
 			SpanContext: serializedSpanCtx,
 		}
 
@@ -110,7 +110,7 @@ func (cli *EsdbProducer) insert(ctx context.Context, event eventmodels.SavedEven
 	}
 
 	// set the event streamID
-	eventID := eventmodels.EventStreamID(uuid.New())
+	eventID := models.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
 	metaData.SetEventStreamID(eventID)
 
@@ -137,7 +137,7 @@ func (cli *EsdbProducer) insert(ctx context.Context, event eventmodels.SavedEven
 	return nil
 }
 
-func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context, request *eventmodels.CreateSignalRequestEventV1DTO) (bool, error) {
+func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context, request *models.CreateSignalRequestEventV1DTO) (bool, error) {
 	tracer := otel.Tracer("ProcessSaveCreateSignalRequestEvent")
 	ctx, span := tracer.Start(ctx, "ProcessSaveCreateSignalRequestEvent")
 	defer span.End()
@@ -181,7 +181,7 @@ func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context
 	return true, nil
 }
 
-func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels.CreateSignalRequestEventV1DTO) {
+func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *models.CreateSignalRequestEventV1DTO) {
 	if ok, err := cli.ProcessSaveCreateSignalRequestEvent(context.Background(), request); err != nil {
 		if ok {
 			log.WithFields(log.Fields{
@@ -194,13 +194,13 @@ func (cli *EsdbProducer) handleSaveCreateSignalRequestEvent(request *eventmodels
 		}
 	}
 
-	pubsub.PublishCompletedResponse("esdbProducer:cli.handleSaveCreateSignalRequest", &eventmodels.CreateSignalResponseEvent{
+	pubsub.PublishCompletedResponse("esdbProducer:cli.handleSaveCreateSignalRequest", &models.CreateSignalResponseEvent{
 		Name: request.Name,
 	}, request.GetMetaData())
 }
 
 func (cli *EsdbProducer) saveRequest(ctx context.Context, request interface{}) error {
-	event, ok := request.(eventmodels.SavedEvent)
+	event, ok := request.(models.SavedEvent)
 	if !ok {
 		log.Fatalf("%T does not implement the SavedEvent interface", request)
 	}
@@ -214,12 +214,12 @@ func (cli *EsdbProducer) saveRequest(ctx context.Context, request interface{}) e
 
 func (cli *EsdbProducer) handleSaveRequest(request interface{}) {
 	if err := cli.saveRequest(context.Background(), request); err != nil {
-		meta := request.(eventmodels.SavedEvent).GetMetaData()
+		meta := request.(models.SavedEvent).GetMetaData()
 		pubsub.PublishRequestError("esdbProducer:cli.saveEvent", err, meta)
 	}
 }
 
-func (cli *EsdbProducer) SaveEvent(ctx context.Context, event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) SaveEvent(ctx context.Context, event models.SavedEvent) error {
 	log.WithField("event", event.GetSavedEventParameters().EventName).Debug("EsdbProducer.saveEvent")
 
 	if err := cli.insert(ctx, event); err != nil {
@@ -230,7 +230,7 @@ func (cli *EsdbProducer) SaveEvent(ctx context.Context, event eventmodels.SavedE
 }
 
 // todo: replace in favor of esdbConsumer
-func (cli *EsdbProducer) readStreamDeprecated(streamName eventmodels.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
+func (cli *EsdbProducer) readStreamDeprecated(streamName models.StreamName, stream *esdb.Subscription, streamMutex *sync.Mutex, lastEventNumberAtStartup uint64) {
 	cli.init()
 
 	if lastEventNumberAtStartup == 0 {
@@ -265,7 +265,7 @@ func (cli *EsdbProducer) readStreamDeprecated(streamName eventmodels.StreamName,
 		}
 
 		// todo: add to interface method
-		eventName := eventmodels.EventName(ev.EventType)
+		eventName := models.EventName(ev.EventType)
 
 		model, found := cli.saga[eventName]
 		if !found {
@@ -284,15 +284,15 @@ func (cli *EsdbProducer) readStreamDeprecated(streamName eventmodels.StreamName,
 		meta := request.GetMetaData()
 
 		requestID = meta.RequestID
-		isExternalRequest = eventmodels.DispatchedRequestExists(requestID)
+		isExternalRequest = models.DispatchedRequestExists(requestID)
 
-		request.SetMetaData(&eventmodels.MetaData{
+		request.SetMetaData(&models.MetaData{
 			Mutex:             streamMutex,
 			RequestID:         requestID,
 			IsExternalRequest: isExternalRequest,
 		})
 
-		nextEvent := eventmodels.NewSavedEvent(eventName)
+		nextEvent := models.NewSavedEvent(eventName)
 
 		streamMutex.Lock()
 		pubsub.PublishEvent("esdbProducer", nextEvent, request)
@@ -314,7 +314,7 @@ func (cli *EsdbProducer) init() {
 	cli.saga = pubsub.NewSagaFlow()
 }
 
-func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodels.FxTick) {
+func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *models.FxTick) {
 	cli.wg.Add(1)
 
 	settings, err := esdb.ParseConnectionString(cli.url)
@@ -344,17 +344,17 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 		}
 	}()
 
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewStockTickEvent, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateNewOptionChainTickEvent, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateAccountRequestEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateAccountStrategyRequestEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateSignalRequestEventName, cli.handleSaveCreateSignalRequestEvent)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateOptionAlertRequestEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.DeleteOptionAlertRequestEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.OptionAlertUpdateEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.CreateOptionContractEvent, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.TradeSignalEventName, cli.handleSaveRequest)
-	pubsub.Subscribe("esdbProducer", eventmodels.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
+	pubsub.Subscribe("esdbProducer", models.CreateNewStockTickEvent, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.CreateNewOptionChainTickEvent, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.CreateAccountRequestEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.CreateAccountStrategyRequestEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.CreateSignalRequestEventName, cli.handleSaveCreateSignalRequestEvent)
+	pubsub.Subscribe("esdbProducer", models.CreateOptionAlertRequestEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.DeleteOptionAlertRequestEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.OptionAlertUpdateEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.CreateOptionContractEvent, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.TradeSignalEventName, cli.handleSaveRequest)
+	pubsub.Subscribe("esdbProducer", models.ProcessRequestCompleteEventName, cli.handleProcessRequestComplete)
 
 	for _, param := range cli.readStreamParams {
 		mutex := param.Mutex
@@ -409,15 +409,15 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *eventmodel
 	}()
 }
 
-func (cli *EsdbProducer) SaveData(ctx context.Context, event eventmodels.SavedEvent, data map[string]interface{}) error {
+func (cli *EsdbProducer) SaveData(ctx context.Context, event models.SavedEvent, data map[string]interface{}) error {
 	return cli.insertData(ctx, event, data)
 }
 
-func (cli *EsdbProducer) Save(ctx context.Context, event eventmodels.SavedEvent) error {
+func (cli *EsdbProducer) Save(ctx context.Context, event models.SavedEvent) error {
 	return cli.insert(ctx, event)
 }
 
-func (cli *EsdbProducer) StartRead(name eventmodels.StreamName) {
+func (cli *EsdbProducer) StartRead(name models.StreamName) {
 	channel, found := cli.startRead[name]
 	if !found {
 		log.Fatalf("stream %s not found", name)
@@ -426,7 +426,7 @@ func (cli *EsdbProducer) StartRead(name eventmodels.StreamName) {
 	channel <- true
 }
 
-func (cli *EsdbProducer) AllEventsAtStartUpRead(streamName eventmodels.StreamName) <-chan bool {
+func (cli *EsdbProducer) AllEventsAtStartUpRead(streamName models.StreamName) <-chan bool {
 	channel, found := cli.allEventsAtStartupRead[streamName]
 	if !found {
 		log.Fatalf("esdbProducer:stream %s not found", streamName)
@@ -439,9 +439,9 @@ func (cli *EsdbProducer) GetClient() *esdb.Client {
 	return cli.db
 }
 
-func NewESDBProducer(wg *sync.WaitGroup, url string, readStreamParams []eventmodels.StreamParameter) *EsdbProducer {
-	m1 := make(map[eventmodels.StreamName]chan bool)
-	m2 := make(map[eventmodels.StreamName]chan bool)
+func NewESDBProducer(wg *sync.WaitGroup, url string, readStreamParams []models.StreamParameter) *EsdbProducer {
+	m1 := make(map[models.StreamName]chan bool)
+	m2 := make(map[models.StreamName]chan bool)
 
 	for _, param := range readStreamParams {
 		m1[param.StreamName] = make(chan bool, 1)

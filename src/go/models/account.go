@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -87,7 +86,7 @@ func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 	for _, strategy := range a.Strategies {
 		for levelIndex, level := range strategy.PriceLevels.Bands {
 			if strategy.Direction == Up {
-				if tick.Ask <= level.StopLoss {
+				if tick.Price <= level.StopLoss {
 					if level.Trades.OpenTrades().Count() > 0 {
 						requests = append(requests, &CloseTradesRequest{
 							Strategy:        strategy,
@@ -99,7 +98,7 @@ func (a *Account) checkSL(tick Tick) []*CloseTradesRequest {
 					}
 				}
 			} else if strategy.Direction == Down {
-				if tick.Bid >= level.StopLoss {
+				if tick.Price >= level.StopLoss {
 					if level.Trades.OpenTrades().Count() > 0 {
 						requests = append(requests, &CloseTradesRequest{
 							Strategy:        strategy,
@@ -143,7 +142,7 @@ func (a *Account) CheckStopOut(tick Tick) ([]*CloseTradesRequest, error) {
 	for _, s := range a.Strategies {
 		// todo: analyze if calling PL() so many times on each tick causes a bottleneck
 		vwap, vol, realizedPL := s.GetTrades().GetTradeStatsItems()
-		unrealizedPL := UnrealizedPL(vwap, vol, tick)
+		unrealizedPL := CalculateUnrealizedPL(vwap, vol, tick)
 		pl := unrealizedPL + float64(realizedPL)
 
 		var closeTradeRequests []*CloseTradesRequest
@@ -267,12 +266,12 @@ func (a *Account) PlaceOrderClose(priceLevel *PriceLevel, closePercentage float6
 	return closeTradesRequests, nil
 }
 
-func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, error) {
+func NewAccount(name string, balance float64, datafeed *Datafeed, env string) (*Account, error) {
 	switch datafeed.Name {
 	case CoinbaseDatafeed:
 	case IBDatafeed:
 	case ManualDatafeed:
-		if os.Getenv("ENV") == "PRODUCTION" {
+		if env == "PRODUCTION" {
 			log.Fatalf("cannot use manual datafeed in production")
 		}
 	default:
@@ -280,8 +279,9 @@ func NewAccount(name string, balance float64, datafeed *Datafeed) (*Account, err
 	}
 
 	return &Account{
-		Name:     name,
-		Balance:  balance,
-		Datafeed: datafeed,
+		Name:       name,
+		Strategies: make([]*Strategy, 0),
+		Balance:    balance,
+		Datafeed:   datafeed,
 	}, nil
 }

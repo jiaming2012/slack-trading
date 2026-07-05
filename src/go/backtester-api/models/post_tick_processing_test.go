@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T) {
@@ -18,8 +18,8 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	// "cannot sell to close when no position exists" because the pending close
 	// already offset the position to zero.
 
-	optionSymbol := eventmodels.OptionSymbol("O:AAPL250703C00210000")
-	stockSymbol := eventmodels.StockSymbol("AAPL")
+	optionSymbol := models.OptionSymbol("O:AAPL250703C00210000")
+	stockSymbol := models.StockSymbol("AAPL")
 	period := time.Minute
 	tz, err := time.LoadLocation("America/New_York")
 	require.NoError(t, err)
@@ -28,20 +28,20 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	endTime := time.Date(2025, time.July, 4, 16, 0, 0, 0, tz)
 	expirationTime := time.Date(2025, time.July, 3, 16, 0, 0, 0, tz)
 
-	stockCandles := []*eventmodels.PolygonAggregateBarV2{
+	stockCandles := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 215},
 		{Timestamp: startTime.Add(time.Minute), Close: 215},
 	}
 
-	optionCandles := []*eventmodels.PolygonAggregateBarV2{
+	optionCandles := []*models.PolygonAggregateBarV2{
 		{Timestamp: startTime, Close: 5.0},
 		{Timestamp: startTime.Add(time.Minute), Close: 5.5},
 	}
 
-	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo1, err := NewCandleRepository(stockSymbol, period, stockCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
 
-	repo2, err := NewCandleRepository(optionSymbol, period, optionCandles, []string{}, nil, 0, eventmodels.CandleRepositorySource{Type: "test"})
+	repo2, err := NewCandleRepository(optionSymbol, period, optionCandles, []string{}, nil, 0, models.CandleRepositorySource{Type: "test"})
 	require.NoError(t, err)
 
 	balance := 100000.0
@@ -56,8 +56,8 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	})
 	require.NoError(t, err)
 
-	data := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
-	var bars []*eventmodels.AggregateBarWithIndicators
+	data := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
+	var bars []*models.AggregateBarWithIndicators
 	for _, c := range optionCandles {
 		bars = append(bars, c.ToAggregateBarWithIndicators())
 	}
@@ -109,7 +109,7 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 				},
 			},
 		},
-		EquityPlot: &eventmodels.EquityPlot{
+		EquityPlot: &models.EquityPlot{
 			Timestamp: expirationTime,
 			Value:     balance,
 		},

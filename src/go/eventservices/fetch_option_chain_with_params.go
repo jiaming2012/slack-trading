@@ -12,17 +12,17 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
-func FilterOptions(optionContracts map[time.Time][]eventmodels.OptionContractV3, baseStrikePrice float64, expirationInDays []int, optionTypes []eventmodels.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []eventmodels.OptionContractV3) {
+func FilterOptions(optionContracts map[time.Time][]models.OptionContractV3, baseStrikePrice float64, expirationInDays []int, optionTypes []models.OptionType, minDistanceBetweenStrikes float64, maxNoOfStrikes int, now time.Time) ([]time.Time, []models.OptionContractV3) {
 	expirationDates, filteredOptions := filterOptionContractsV3(optionContracts, expirationInDays, optionTypes, maxNoOfStrikes, maxNoOfStrikes, minDistanceBetweenStrikes, baseStrikePrice, now)
 	return expirationDates, filteredOptions
 }
 
-func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, optionChainMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, now time.Time) ([]eventmodels.OptionContractV3, error) {
-	var resultContracts []eventmodels.OptionContractV3
+func addAdditionalInfoToOptionsV3(options []models.OptionContractV3, optionChainMap map[models.ExpirationDate]map[models.OptionType]map[float64][]*models.OptionChainTickDTO, now time.Time) ([]models.OptionContractV3, error) {
+	var resultContracts []models.OptionContractV3
 
 	for i, option := range options {
 		expirationMap, ok := optionChainMap[option.ExpirationDate]
@@ -66,7 +66,7 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 			continue
 		}
 
-		exp, err = eventmodels.ConvertToMarketClose(exp)
+		exp, err = models.ConvertToMarketClose(exp)
 		if err != nil {
 			log.Errorf("addAdditionInfoToOptionsHistoricalV3: failed to convert expiration date to market close: %v", err)
 			continue
@@ -75,9 +75,9 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 		var avgFillPrice float64
 
 		switch option.OptionType {
-		case eventmodels.OptionTypeCall:
+		case models.OptionTypeCall:
 			avgFillPrice = tick.Ask
-		case eventmodels.OptionTypePut:
+		case models.OptionTypePut:
 			avgFillPrice = tick.Bid
 		default:
 			log.Errorf("addAdditionInfoToOptionsHistoricalV3: invalid option type %s", option.OptionType)
@@ -85,7 +85,7 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 		}
 
 		options[i].Timestamp = tick.Timestamp
-		options[i].Symbol = eventmodels.OptionSymbol(tick.Symbol)
+		options[i].Symbol = models.OptionSymbol(tick.Symbol)
 		options[i].Description = tick.Description
 		options[i].ExpirationType = tick.ExpirationType
 		options[i].Bid = tick.Bid
@@ -103,14 +103,14 @@ func addAdditionalInfoToOptionsV3(options []eventmodels.OptionContractV3, option
 	return resultContracts, nil
 }
 
-func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, optionChainTickMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, cache *PolygonCache) error {
+func populateTickDataToOptionChainMap(contracts []models.OptionContractV3, optionChainTickMap map[models.ExpirationDate]map[models.OptionType]map[float64][]*models.OptionChainTickDTO, polygonTickDataReq *models.PolygonOptionTickDataRequest, cache *PolygonCache) error {
 	log.Debugf("populateTickDataToOptionChainMap: start populating tick data to option chain map for %d contracts", len(contracts))
 
 	const maxConcurrency = 3
 
 	type contractResult struct {
-		contract eventmodels.OptionContractV3
-		dtos     *eventmodels.AggregateResult[eventmodels.PolygonAggregateBar]
+		contract models.OptionContractV3
+		dtos     *models.AggregateResult[models.PolygonAggregateBar]
 	}
 
 	var (
@@ -125,7 +125,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	for _, c := range contracts {
 		c := c
 		g.Go(func() error {
-			optionSymbol := eventmodels.OptionSymbol(c.Symbol)
+			optionSymbol := models.OptionSymbol(c.Symbol)
 
 			if cache != nil {
 				if cached := cache.GetAggregateBars(optionSymbol, polygonTickDataReq.StartDate, polygonTickDataReq.EndDate, "1m"); cached != nil {
@@ -162,7 +162,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	}
 
 	// Phase 2: Identify contracts with empty minute bars, retry with widened date range
-	var emptyContracts []eventmodels.OptionContractV3
+	var emptyContracts []models.OptionContractV3
 	minuteBarCount := 0
 
 	for _, r := range results {
@@ -190,7 +190,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 					return nil
 				}
 
-				optionSymbol := eventmodels.OptionSymbol(c.Symbol)
+				optionSymbol := models.OptionSymbol(c.Symbol)
 				wideEndDate := expTime
 
 				// Use a "wide" cache key so it doesn't collide with the narrow fetch
@@ -249,7 +249,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	for _, r := range results {
 		c := r.contract
 		for _, dto := range r.dtos.Results {
-			tick := eventmodels.OptionChainTickDTO{
+			tick := models.OptionChainTickDTO{
 				Open:           dto.Open,
 				Close:          dto.Close,
 				High:           dto.High,
@@ -267,15 +267,15 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate]; !ok {
-				optionChainTickMap[c.ExpirationDate] = make(map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO)
+				optionChainTickMap[c.ExpirationDate] = make(map[models.OptionType]map[float64][]*models.OptionChainTickDTO)
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate][c.OptionType]; !ok {
-				optionChainTickMap[c.ExpirationDate][c.OptionType] = make(map[float64][]*eventmodels.OptionChainTickDTO)
+				optionChainTickMap[c.ExpirationDate][c.OptionType] = make(map[float64][]*models.OptionChainTickDTO)
 			}
 
 			if _, ok := optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike]; !ok {
-				optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike] = make([]*eventmodels.OptionChainTickDTO, 0)
+				optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike] = make([]*models.OptionChainTickDTO, 0)
 			}
 
 			optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike] = append(optionChainTickMap[c.ExpirationDate][c.OptionType][c.Strike], &tick)
@@ -300,7 +300,7 @@ func populateTickDataToOptionChainMap(contracts []eventmodels.OptionContractV3, 
 	return nil
 }
 
-func makeOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, options []eventmodels.OptionContractV3, optionChainTicksByExpirationMap map[eventmodels.ExpirationDate]map[eventmodels.OptionType]map[float64][]*eventmodels.OptionChainTickDTO, polygonTickDataReq *eventmodels.PolygonOptionTickDataRequest, now time.Time, cache *PolygonCache) ([]eventmodels.OptionContractV3, error) {
+func makeOptionsChain(ctx context.Context, symbol models.StockSymbol, options []models.OptionContractV3, optionChainTicksByExpirationMap map[models.ExpirationDate]map[models.OptionType]map[float64][]*models.OptionChainTickDTO, polygonTickDataReq *models.PolygonOptionTickDataRequest, now time.Time, cache *PolygonCache) ([]models.OptionContractV3, error) {
 	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
 	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
 	defer span.End()
@@ -309,7 +309,7 @@ func makeOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, optio
 		return nil, fmt.Errorf("failed to add tick data to options: %v", err)
 	}
 
-	var filteredOptions []eventmodels.OptionContractV3
+	var filteredOptions []models.OptionContractV3
 	var err error
 	filteredOptions, err = addAdditionalInfoToOptionsV3(options, optionChainTicksByExpirationMap, now)
 	if err != nil {
@@ -319,7 +319,7 @@ func makeOptionsChain(ctx context.Context, symbol eventmodels.StockSymbol, optio
 	return filteredOptions, nil
 }
 
-func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, *eventmodels.StockTickItemDTO, error) {
+func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol models.StockSymbol, optionTypes []models.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]models.OptionContractV1, *models.StockTickItemDTO, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch Tradier options: %v", err)
@@ -351,7 +351,7 @@ func FetchOptionChainWithParamsV2(optionsByExpirationURL, optionChainURL, stockU
 	return filteredOptions, stockTickDTO, nil
 }
 
-func FetchOptionChainWithParamsV1(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol eventmodels.StockSymbol, optionTypes []eventmodels.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]eventmodels.OptionContractV1, error) {
+func FetchOptionChainWithParamsV1(requestID uuid.UUID, optionsByExpirationURL, optionChainURL, stockURL, bearerToken string, symbol models.StockSymbol, optionTypes []models.OptionType, expirationInDays []int, minDistanceBetweenStrikes float64, maxNoOfStrikes int) ([]models.OptionContractV1, error) {
 	optionsDTO, err := fetchTradierOptionsByExpiration(optionsByExpirationURL, bearerToken, symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Tradier options: %v", err)

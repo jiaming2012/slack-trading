@@ -2,64 +2,7 @@ package models
 
 import (
 	"fmt"
-	"time"
 )
-
-type SignalType int
-
-const (
-	SignalTypeEntry SignalType = iota
-	SignalTypeExit
-	SignalTypeReset
-)
-
-type ExitSignalDTO struct {
-	Signal      *SignalV2DTO `json:"signal"`
-	ResetSignal *ResetSignal `json:"resetSignal"`
-}
-
-func (s *ExitSignalDTO) ToExitSignal() *ExitSignal {
-	var signal *SignalV2
-
-	if s.Signal != nil {
-		signal = s.Signal.ToSignalV2()
-		s.ResetSignal.AffectedSignal = signal
-	}
-
-	return &ExitSignal{
-		Signal:      signal,
-		ResetSignal: s.ResetSignal,
-	}
-}
-
-func (s *ExitSignal) ConvertToDTO() *ExitSignalDTO {
-	return &ExitSignalDTO{
-		Signal:      s.Signal.ConvertToDTO(),
-		ResetSignal: s.ResetSignal,
-	}
-}
-
-type ExitSignal struct {
-	Signal      *SignalV2
-	ResetSignal *ResetSignal
-}
-
-func NewExitSignal(signal *SignalV2, resetSignal *ResetSignal) *ExitSignal {
-	return &ExitSignal{Signal: signal, ResetSignal: resetSignal}
-}
-
-func (s *ExitSignal) Update(signalType SignalType) {
-	now := time.Now().UTC()
-
-	switch signalType {
-	case SignalTypeExit:
-		s.Signal.Update(true, now)
-	case SignalTypeReset:
-		s.ResetSignal.Update(now)
-	default:
-		return
-	}
-}
 
 type TrendLineBreakSignal struct {
 	Name      string
@@ -90,16 +33,18 @@ func (s MovingAverageBreakSignal) IsSatisfied(prices []Tick, trades Trades) bool
 }
 
 func lineBreakSignalIsSatisfied(direction Direction, targetPrice float64, prices []Tick, trades Trades) bool {
+	// Adapted from legacy bid/ask ticks to the canonical single-price Tick model
+	// (reconcile-models-packages: bid/ask -> Price).
 	switch direction {
 	case Up:
 		for _, p := range prices {
-			if p.Bid >= targetPrice {
+			if p.Price >= targetPrice {
 				return true
 			}
 		}
 	case Down:
 		for _, p := range prices {
-			if p.Ask <= targetPrice {
+			if p.Price <= targetPrice {
 				return true
 			}
 		}

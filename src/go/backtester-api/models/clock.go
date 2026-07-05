@@ -5,17 +5,17 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type Clock struct {
 	CurrentTime time.Time
 	EndTime     time.Time
-	Calendar    map[string]*eventmodels.Calendar
+	Calendar    map[string]*models.Calendar
 	location    *time.Location
 }
 
-func (c *Clock) GetCalendarRepository() eventmodels.CalendarRepository {
+func (c *Clock) GetCalendarRepository() models.CalendarRepository {
 	return c.Calendar
 }
 
@@ -67,7 +67,7 @@ func (c *Clock) advanceToNextMarketOpen(currentTime *time.Time) {
 	}
 }
 
-func NewClock(startTime time.Time, endTime time.Time, calendar map[string]*eventmodels.Calendar) *Clock {
+func NewClock(startTime time.Time, endTime time.Time, calendar map[string]*models.Calendar) *Clock {
 	// Load the New York time zone
 	location, err := time.LoadLocation("America/New_York")
 	if err != nil {

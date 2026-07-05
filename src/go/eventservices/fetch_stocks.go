@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func FetchStockTicks(symbol eventmodels.StockSymbol, url, bearerToken string) (*eventmodels.StockTickItemDTO, error) {
+func FetchStockTicks(symbol models.StockSymbol, url, bearerToken string) (*models.StockTickItemDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -37,7 +37,7 @@ func FetchStockTicks(symbol eventmodels.StockSymbol, url, bearerToken string) (*
 		return nil, fmt.Errorf("fetchStockTicks: failed to fetch stock tick, http code %v", res.Status)
 	}
 
-	var dto eventmodels.StockTickDTO
+	var dto models.StockTickDTO
 	if err := json.NewDecoder(res.Body).Decode(&dto); err != nil {
 		return nil, fmt.Errorf("fetchOptionContractTicks: failed to decode json: %w", err)
 	}

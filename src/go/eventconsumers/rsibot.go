@@ -6,13 +6,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	models2 "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 
 	"github.com/jiaming2012/slack-trading/src/go/indicators"
 
 	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
 )
 
 type RsiBot struct {
@@ -21,8 +20,8 @@ type RsiBot struct {
 	prevRsi float64
 }
 
-func (r *RsiBot) update(candle eventmodels.Candle) {
-	rsi := r.rsiM5.Update(models2.Candle{
+func (r *RsiBot) update(candle models.Candle) {
+	rsi := r.rsiM5.Update(models.Candle{
 		Timestamp:   candle.Timestamp,
 		LastUpdated: candle.LastUpdated,
 		Open:        candle.Open,
@@ -35,7 +34,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 
 	if rsi > 0 {
 		if rsi <= 30 && r.prevRsi > 30 {
-			pubsub.PublishEvent("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
+			pubsub.PublishEvent("RsiBot.update", models.RsiTradeSignalEventName, models.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          true,
 				RequestedPrice: candle.Close,
@@ -43,7 +42,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 		}
 
 		if rsi >= 70 && r.prevRsi < 70 {
-			pubsub.PublishEvent("RsiBot.update", eventmodels.RsiTradeSignalEventName, eventmodels.RsiTradeSignal{
+			pubsub.PublishEvent("RsiBot.update", models.RsiTradeSignalEventName, models.RsiTradeSignal{
 				Value:          rsi,
 				IsBuy:          false,
 				RequestedPrice: candle.Close,
@@ -57,7 +56,7 @@ func (r *RsiBot) update(candle eventmodels.Candle) {
 func (r *RsiBot) Start(ctx context.Context) {
 	r.wg.Add(1)
 
-	pubsub.Subscribe("RsiBot", eventmodels.NewCandleEventName, r.update)
+	pubsub.Subscribe("RsiBot", models.NewCandleEventName, r.update)
 
 	go func() {
 		defer r.wg.Done()

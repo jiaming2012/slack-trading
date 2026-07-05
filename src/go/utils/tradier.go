@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func ValidateTag(tag string) error {
@@ -26,7 +26,7 @@ func ValidateTag(tag string) error {
 	return nil
 }
 
-func EncodeTag(signal eventmodels.SignalName, expectedProfit float64, requestedPrc float64) string {
+func EncodeTag(signal models.SignalName, expectedProfit float64, requestedPrc float64) string {
 	signal_part := strings.Replace(string(signal), "-", "--", -1)
 	signal_part = strings.Replace(signal_part, "_", "-", -1)
 	expectedProfit_part := strings.Replace(fmt.Sprintf("%.2f", expectedProfit), ".", "-", -1)
@@ -37,7 +37,7 @@ func EncodeTag(signal eventmodels.SignalName, expectedProfit float64, requestedP
 
 // supertrend-4h-1h_stoch_rsi_15m_up
 // "supertrend--4h--1h-stoch-rsi-15m-up---9-53---21-45"
-func DecodeTag(tag string) (eventmodels.SignalName, float64, float64, error) {
+func DecodeTag(tag string) (models.SignalName, float64, float64, error) {
 	parts := strings.Split(tag, "---")
 	if len(parts) != 3 {
 		return "", 0, 0, fmt.Errorf("invalid tag: expected 3 parts: %s", tag)
@@ -49,7 +49,7 @@ func DecodeTag(tag string) (eventmodels.SignalName, float64, float64, error) {
 	expectedProfit_part := strings.Replace(parts[1], "-", ".", -1)
 	requestedPrc_part := strings.Replace(parts[2], "-", ".", -1)
 
-	signal := eventmodels.SignalName(signal_part)
+	signal := models.SignalName(signal_part)
 	expectedProfit := 0.0
 	requestedPrc := 0.0
 

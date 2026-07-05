@@ -6,25 +6,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // InMemorySignalRepository implements ISignalRepository using a sorted slice
 // with a cursor index for clock-gated delivery. Thread-safe via sync.Mutex.
 type InMemorySignalRepository struct {
-	signals []*eventmodels.TradeSignal
+	signals []*models.TradeSignal
 	cursor  int
 	mutex   sync.Mutex
 }
 
 func NewInMemorySignalRepository() *InMemorySignalRepository {
 	return &InMemorySignalRepository{
-		signals: make([]*eventmodels.TradeSignal, 0),
+		signals: make([]*models.TradeSignal, 0),
 		cursor:  0,
 	}
 }
 
-func (r *InMemorySignalRepository) Write(signal *eventmodels.TradeSignal) error {
+func (r *InMemorySignalRepository) Write(signal *models.TradeSignal) error {
 	if signal == nil {
 		return fmt.Errorf("cannot write nil signal")
 	}
@@ -50,27 +50,27 @@ func (r *InMemorySignalRepository) Write(signal *eventmodels.TradeSignal) error 
 	return nil
 }
 
-func (r *InMemorySignalRepository) ReadPending(upTo time.Time) []*eventmodels.TradeSignal {
+func (r *InMemorySignalRepository) ReadPending(upTo time.Time) []*models.TradeSignal {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	var result []*eventmodels.TradeSignal
+	var result []*models.TradeSignal
 	for r.cursor < len(r.signals) && !r.signals[r.cursor].Timestamp.After(upTo) {
 		result = append(result, r.signals[r.cursor])
 		r.cursor++
 	}
 
 	if result == nil {
-		return []*eventmodels.TradeSignal{}
+		return []*models.TradeSignal{}
 	}
 	return result
 }
 
-func (r *InMemorySignalRepository) GetAll() []*eventmodels.TradeSignal {
+func (r *InMemorySignalRepository) GetAll() []*models.TradeSignal {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	out := make([]*eventmodels.TradeSignal, len(r.signals))
+	out := make([]*models.TradeSignal, len(r.signals))
 	copy(out, r.signals)
 	return out
 }

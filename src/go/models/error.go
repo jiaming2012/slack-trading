@@ -2,8 +2,6 @@ package models
 
 import "fmt"
 
-var ErrOptionContractIsExpired = fmt.Errorf("option contract is expired")
-var ErrNoCandlesFound = fmt.Errorf("no candles found")
 var NoRequestParams = fmt.Errorf("no request params found")
 var BalanceOutOfRangeErr = fmt.Errorf("balance is out of range")
 var MaxLossPercentErr = fmt.Errorf("maxLossPercentage must be a value between 0 and 1")
@@ -43,8 +41,5 @@ var PriceLevelMinimumDistanceNotSatisfiedError = fmt.Errorf("price level minimum
 var PriceLevelStopLossMustBeOutsideLowerAndUpperRangeErr = fmt.Errorf("sl of price level must be less than the lower level and greater than the upper level")
 var InvalidPriceLevelIndexErr = fmt.Errorf("price level index must be greater than or equal to zero")
 var PartialCloseItemNotSetErr = fmt.Errorf("partial close item was not set on offsetting trade. This is most likely an internal error")
-var DuplicateCloseTradeErr = fmt.Errorf("trade already closed")
-
-type ErrorDTO struct {
-	Msg string `json:"msg"`
-}
+var ErrDuplicateCloseTrade = fmt.Errorf("trade already closed")
+var ErrInvalidRequestType = fmt.Errorf("invalid request type")

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // -------------------------------------------------------
@@ -19,7 +19,7 @@ type cacheTestEnv struct {
 	nextOrderID uint
 }
 
-func newCacheTestEnv(t *testing.T, optionSyms []eventmodels.OptionSymbol, optionPrices [][]float64) *cacheTestEnv {
+func newCacheTestEnv(t *testing.T, optionSyms []models.OptionSymbol, optionPrices [][]float64) *cacheTestEnv {
 	t.Helper()
 
 	tz, err := time.LoadLocation("America/New_York")
@@ -28,13 +28,13 @@ func newCacheTestEnv(t *testing.T, optionSyms []eventmodels.OptionSymbol, option
 	start := time.Date(2025, time.September, 3, 9, 30, 0, 0, tz)
 	end := time.Date(2025, time.September, 6, 16, 0, 0, 0, tz)
 	period := time.Minute
-	source := eventmodels.CandleRepositorySource{Type: "test"}
-	stockSym := eventmodels.StockSymbol("AAPL")
+	source := models.CandleRepositorySource{Type: "test"}
+	stockSym := models.StockSymbol("AAPL")
 
 	n := 30 // enough candles so clock doesn't expire
-	var stockCandles []*eventmodels.PolygonAggregateBarV2
+	var stockCandles []*models.PolygonAggregateBarV2
 	for i := 0; i < n; i++ {
-		stockCandles = append(stockCandles, &eventmodels.PolygonAggregateBarV2{
+		stockCandles = append(stockCandles, &models.PolygonAggregateBarV2{
 			Timestamp: start.Add(time.Duration(i) * period),
 			Close:     210.0,
 		})
@@ -43,16 +43,16 @@ func newCacheTestEnv(t *testing.T, optionSyms []eventmodels.OptionSymbol, option
 	require.NoError(t, err)
 
 	repos := []*CandleRepository{stockRepo}
-	brokerData := make(map[eventmodels.OptionSymbol][]*eventmodels.AggregateBarWithIndicators)
+	brokerData := make(map[models.OptionSymbol][]*models.AggregateBarWithIndicators)
 
 	for idx, sym := range optionSyms {
 		prices := optionPrices[idx]
-		var candles []*eventmodels.PolygonAggregateBarV2
-		var bars []*eventmodels.AggregateBarWithIndicators
+		var candles []*models.PolygonAggregateBarV2
+		var bars []*models.AggregateBarWithIndicators
 		for i, p := range prices {
 			ts := start.Add(time.Duration(i) * period)
-			candles = append(candles, &eventmodels.PolygonAggregateBarV2{Timestamp: ts, Close: p})
-			bars = append(bars, &eventmodels.AggregateBarWithIndicators{
+			candles = append(candles, &models.PolygonAggregateBarV2{Timestamp: ts, Close: p})
+			bars = append(bars, &models.AggregateBarWithIndicators{
 				Timestamp: ts, Open: p, High: p, Low: p, Close: p,
 			})
 		}
@@ -123,12 +123,12 @@ func (e *cacheTestEnv) assertCache(t *testing.T) {
 // -------------------------------------------------------
 
 func TestCacheInvariant(t *testing.T) {
-	optC230 := eventmodels.OptionSymbol("AAPL250905C230000")
-	optC235 := eventmodels.OptionSymbol("AAPL250905C235000")
+	optC230 := models.OptionSymbol("AAPL250905C230000")
+	optC235 := models.OptionSymbol("AAPL250905C235000")
 
 	t.Run("credit spread full close in one tick", func(t *testing.T) {
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230, optC235},
+			[]models.OptionSymbol{optC230, optC235},
 			[][]float64{rep(30, 5.0), rep(30, 3.0)},
 		)
 
@@ -151,7 +151,7 @@ func TestCacheInvariant(t *testing.T) {
 
 	t.Run("multiple closes same instrument one tick", func(t *testing.T) {
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 
@@ -170,7 +170,7 @@ func TestCacheInvariant(t *testing.T) {
 
 	t.Run("distributed close across multiple opens", func(t *testing.T) {
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 
@@ -217,7 +217,7 @@ func TestCacheInvariant(t *testing.T) {
 	t.Run("close rejected when no matching open side", func(t *testing.T) {
 		// sell_to_close when only sell_to_open exists should be rejected at PlaceOrder time.
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 
@@ -242,7 +242,7 @@ func TestCacheInvariant(t *testing.T) {
 
 	t.Run("partial close preserves cache", func(t *testing.T) {
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 
@@ -272,10 +272,10 @@ func TestCacheInvariant(t *testing.T) {
 
 	t.Run("two independent spreads open and close separately", func(t *testing.T) {
 		// Two spreads on different strikes, close one at a time.
-		optC240 := eventmodels.OptionSymbol("AAPL250905C240000")
-		optC245 := eventmodels.OptionSymbol("AAPL250905C245000")
+		optC240 := models.OptionSymbol("AAPL250905C240000")
+		optC245 := models.OptionSymbol("AAPL250905C245000")
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230, optC235, optC240, optC245},
+			[]models.OptionSymbol{optC230, optC235, optC240, optC245},
 			[][]float64{rep(30, 5.0), rep(30, 3.0), rep(30, 2.0), rep(30, 1.0)},
 		)
 
@@ -312,10 +312,10 @@ func TestCacheInvariant(t *testing.T) {
 
 	t.Run("two independent spreads close simultaneously", func(t *testing.T) {
 		// Same as above but close all 4 legs in one tick.
-		optC240 := eventmodels.OptionSymbol("AAPL250905C240000")
-		optC245 := eventmodels.OptionSymbol("AAPL250905C245000")
+		optC240 := models.OptionSymbol("AAPL250905C240000")
+		optC245 := models.OptionSymbol("AAPL250905C245000")
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230, optC235, optC240, optC245},
+			[]models.OptionSymbol{optC230, optC235, optC240, optC245},
 			[][]float64{rep(30, 5.0), rep(30, 3.0), rep(30, 2.0), rep(30, 1.0)},
 		)
 
@@ -341,7 +341,7 @@ func TestCacheInvariant(t *testing.T) {
 		// sell_to_open when there's already a long position should be rejected.
 		// The correct action is sell_to_close to reduce the position.
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 
@@ -370,7 +370,7 @@ func TestCacheInvariant(t *testing.T) {
 		// buy_to_open when there's already a short position should be rejected.
 		// The correct action is buy_to_close to reduce the position.
 		env := newCacheTestEnv(t,
-			[]eventmodels.OptionSymbol{optC230},
+			[]models.OptionSymbol{optC230},
 			[][]float64{rep(30, 5.0)},
 		)
 

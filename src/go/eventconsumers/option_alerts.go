@@ -11,32 +11,32 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
 type OptionAlertWorker struct {
 	wg                *sync.WaitGroup
-	optionAlerts      []*eventmodels.OptionAlert
+	optionAlerts      []*models.OptionAlert
 	brokerURL         string
 	brokerBearerToken string
 }
 
-func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *eventmodels.GetOptionAlertRequestEvent) {
+func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *models.GetOptionAlertRequestEvent) {
 	log.Debugf("OptionAlertWorker.handleGetOptionAlertRequestEvent: %v", event)
 
-	currentAlerts := []eventmodels.OptionAlert{}
+	currentAlerts := []models.OptionAlert{}
 
 	for _, alert := range w.optionAlerts {
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.GetOptionAlertResponseEvent{
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.GetOptionAlertResponseEvent{
 		Alerts: currentAlerts,
 	}, &event.Meta)
 }
 
-func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmodels.CreateOptionAlertRequestEvent) {
+func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *models.CreateOptionAlertRequestEvent) {
 	log.Debugf("OptionAlertWorker.handleCreateOptionAlertRequestEvent: %v", event)
 
 	optionAlert, err := event.NewObject(event.ID)
@@ -47,12 +47,12 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *eventmode
 
 	w.optionAlerts = append(w.optionAlerts, optionAlert)
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.CreateOptionAlertResponseEvent{
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.CreateOptionAlertResponseEvent{
 		ID: optionAlert.ID.String(),
 	}, &event.Meta)
 }
 
-func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmodels.DeleteOptionAlertRequestEvent) {
+func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *models.DeleteOptionAlertRequestEvent) {
 	log.Debugf("OptionAlertWorker.handleDeleteOptionAlertRequestEvent: %v", event)
 
 	for i, alert := range w.optionAlerts {
@@ -62,7 +62,7 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *eventmode
 		}
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.DeleteOptionAlertResponseEvent{}, &event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.DeleteOptionAlertResponseEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -75,7 +75,7 @@ func (w *OptionAlertWorker) getSymbolList() string {
 	return symbols.String()
 }
 
-func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, error) {
+func (w *OptionAlertWorker) fetchOptionQuotes() (*models.OptionQuotesDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -104,7 +104,7 @@ func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, e
 		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: invalid status code: %s", res.Status)
 	}
 
-	var optionQuotesDTO eventmodels.OptionQuotesDTO
+	var optionQuotesDTO models.OptionQuotesDTO
 	if err := json.NewDecoder(res.Body).Decode(&optionQuotesDTO); err != nil {
 		return nil, fmt.Errorf("OptionAlertWorker.fetchOptionQuotes: failed to decode json: %w", err)
 	}
@@ -112,8 +112,8 @@ func (w *OptionAlertWorker) fetchOptionQuotes() (*eventmodels.OptionQuotesDTO, e
 	return &optionQuotesDTO, nil
 }
 
-func (w *OptionAlertWorker) checkOptionAlerts(quoteMap eventmodels.OptionQuoteMap) []*eventmodels.OptionAlertUpdateEvent {
-	var triggeredAlerts []*eventmodels.OptionAlertUpdateEvent
+func (w *OptionAlertWorker) checkOptionAlerts(quoteMap models.OptionQuoteMap) []*models.OptionAlertUpdateEvent {
+	var triggeredAlerts []*models.OptionAlertUpdateEvent
 	for _, alert := range w.optionAlerts {
 		if alert.TriggeredAt != nil {
 			continue
@@ -131,9 +131,9 @@ func (w *OptionAlertWorker) checkOptionAlerts(quoteMap eventmodels.OptionQuoteMa
 
 		var alertValue float64
 		switch alert.AlertType {
-		case eventmodels.LastPrice:
+		case models.LastPrice:
 			alertValue = quote.LastPrice
-		case eventmodels.Delta:
+		case models.Delta:
 			alertValue = quote.Delta
 		default:
 			log.Errorf("OptionAlertWorker:checkOptionAlerts(): invalid alert type: %s", alert.AlertType.String())
@@ -141,19 +141,19 @@ func (w *OptionAlertWorker) checkOptionAlerts(quoteMap eventmodels.OptionQuoteMa
 		}
 
 		switch alert.Condition.Type {
-		case eventmodels.Cross:
+		case models.Cross:
 			switch alert.Condition.Direction {
-			case eventmodels.Above:
+			case models.Above:
 				if alertValue > alert.Condition.Value {
-					triggeredAlerts = append(triggeredAlerts, &eventmodels.OptionAlertUpdateEvent{
+					triggeredAlerts = append(triggeredAlerts, &models.OptionAlertUpdateEvent{
 						AlertID:      alert.ID,
 						CreatedAt:    time.Now(),
 						AlertMessage: fmt.Sprintf("Option %s %s crossed above %f", alert.OptionSymbol, alert.AlertType, alert.Condition.Value),
 					})
 				}
-			case eventmodels.Below:
+			case models.Below:
 				if alertValue < alert.Condition.Value {
-					triggeredAlerts = append(triggeredAlerts, &eventmodels.OptionAlertUpdateEvent{
+					triggeredAlerts = append(triggeredAlerts, &models.OptionAlertUpdateEvent{
 						AlertID:      alert.ID,
 						CreatedAt:    time.Now(),
 						AlertMessage: fmt.Sprintf("Option %s %s crossed below %f", alert.OptionSymbol, alert.AlertType, alert.Condition.Value),
@@ -172,7 +172,7 @@ func (w *OptionAlertWorker) checkOptionAlerts(quoteMap eventmodels.OptionQuoteMa
 	return triggeredAlerts
 }
 
-func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAlertUpdateEvent) {
+func (w *OptionAlertWorker) handleOptionAlertUpdate(event *models.OptionAlertUpdateEvent) {
 	log.Debugf("OptionAlertWorker.handleOptionAlertUpdate: %v", event)
 
 	var found bool
@@ -188,16 +188,16 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *eventmodels.OptionAle
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &eventmodels.OptionAlertUpdateCompletedEvent{}, &event.Meta)
+	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.OptionAlertUpdateCompletedEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.NewSavedEvent(eventmodels.CreateOptionAlertRequestEventName), w.handleCreateOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.NewSavedEvent(eventmodels.DeleteOptionAlertRequestEventName), w.handleDeleteOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", eventmodels.NewSavedEvent(eventmodels.OptionAlertUpdateEventName), w.handleOptionAlertUpdate)
+	eventpubsub.Subscribe("OptionAlertWorker", models.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.CreateOptionAlertRequestEventName), w.handleCreateOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.DeleteOptionAlertRequestEventName), w.handleDeleteOptionAlertRequestEvent)
+	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.OptionAlertUpdateEventName), w.handleOptionAlertUpdate)
 
 	timer := time.NewTicker(15 * time.Second)
 
@@ -228,7 +228,7 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 
 				triggeredEvents := w.checkOptionAlerts(quotes)
 				for _, event := range triggeredEvents {
-					eventpubsub.PublishResponse("OptionAlertWorker", eventmodels.OptionAlertUpdateEventName, event, &eventmodels.MetaData{})
+					eventpubsub.PublishResponse("OptionAlertWorker", models.OptionAlertUpdateEventName, event, &models.MetaData{})
 				}
 			}
 		}
@@ -240,6 +240,6 @@ func NewOptionAlertWorker(wg *sync.WaitGroup, dataURL string, brokerBearerToken 
 		wg:                wg,
 		brokerURL:         dataURL,
 		brokerBearerToken: brokerBearerToken,
-		optionAlerts:      []*eventmodels.OptionAlert{},
+		optionAlerts:      []*models.OptionAlert{},
 	}
 }

@@ -13,17 +13,17 @@ import (
 
 	"github.com/gocarina/gocsv"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func deriveCandleEndTime(data *eventmodels.OratsOptionData, period time.Duration) time.Time {
+func deriveCandleEndTime(data *models.OratsOptionData, period time.Duration) time.Time {
 	return data.SnapShotEstTime.Truncate(period).Add(period)
 }
 
-func ConvertOratsOptionDataToCandlesDTO(data []eventmodels.OratsOptionData, period time.Duration, optionType eventmodels.OptionType) ([]eventmodels.CandleDTO, error) {
-	candlesDTO := make([]eventmodels.CandleDTO, 0)
+func ConvertOratsOptionDataToCandlesDTO(data []models.OratsOptionData, period time.Duration, optionType models.OptionType) ([]models.CandleDTO, error) {
+	candlesDTO := make([]models.CandleDTO, 0)
 
-	if optionType != eventmodels.OptionTypeCall && optionType != eventmodels.OptionTypePut {
+	if optionType != models.OptionTypeCall && optionType != models.OptionTypePut {
 		return nil, fmt.Errorf("unknown option type: %v", optionType)
 	}
 
@@ -35,7 +35,7 @@ func ConvertOratsOptionDataToCandlesDTO(data []eventmodels.OratsOptionData, peri
 	var candleEndTime time.Time
 	for _, d := range data {
 		var price float64
-		if optionType == eventmodels.OptionTypeCall {
+		if optionType == models.OptionTypeCall {
 			price = d.CallBidPrice
 		} else {
 			price = d.PutBidPrice
@@ -47,7 +47,7 @@ func ConvertOratsOptionDataToCandlesDTO(data []eventmodels.OratsOptionData, peri
 			// 	return nil, fmt.Errorf("error parsing date: %v", err)
 			// }
 
-			candlesDTO = append(candlesDTO, eventmodels.CandleDTO{
+			candlesDTO = append(candlesDTO, models.CandleDTO{
 				Open:  price,
 				High:  price,
 				Low:   price,
@@ -74,7 +74,7 @@ func ConvertOratsOptionDataToCandlesDTO(data []eventmodels.OratsOptionData, peri
 	return candlesDTO, nil
 }
 
-func GenerateFetchOratsDataMock(url string) func(ticker eventmodels.StockSymbol, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
+func GenerateFetchOratsDataMock(url string) func(ticker models.StockSymbol, token string, fromDate, toDate time.Time) ([]models.OratsOptionData, error) {
 	f, err := os.Open(url)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
@@ -85,7 +85,7 @@ func GenerateFetchOratsDataMock(url string) func(ticker eventmodels.StockSymbol,
 		log.Fatalf("error reading file: %v", err)
 	}
 
-	return func(ticker eventmodels.StockSymbol, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
+	return func(ticker models.StockSymbol, token string, fromDate, toDate time.Time) ([]models.OratsOptionData, error) {
 		options, err := ParseCSV(string(data))
 
 		if err != nil {
@@ -97,7 +97,7 @@ func GenerateFetchOratsDataMock(url string) func(ticker eventmodels.StockSymbol,
 }
 
 // FetchData fetches the data from the URL and parses it into OptionData.
-func FetchOratsData(ticker, token string, fromDate, toDate time.Time) ([]eventmodels.OratsOptionData, error) {
+func FetchOratsData(ticker, token string, fromDate, toDate time.Time) ([]models.OratsOptionData, error) {
 	tradeDate := fmt.Sprintf("%s,%s", fromDate.Format("200601021504"), toDate.Format("200601021504"))
 	url := fmt.Sprintf("https://api.orats.io/datav2/hist/one-minute/strikes/option?token=%s&ticker=%s&tradeDate=%s", token, ticker, tradeDate)
 	resp, err := http.Get(url)
@@ -125,8 +125,8 @@ func FetchOratsData(ticker, token string, fromDate, toDate time.Time) ([]eventmo
 	return options, nil
 }
 
-func ParseCSV(data string) ([]eventmodels.OratsOptionData, error) {
-	var out []eventmodels.OratsOptionData
+func ParseCSV(data string) ([]models.OratsOptionData, error) {
+	var out []models.OratsOptionData
 	if err := gocsv.UnmarshalBytes([]byte(data), &out); err != nil {
 		return nil, fmt.Errorf("error unmarshalling CSV: %v", err)
 	}
@@ -135,7 +135,7 @@ func ParseCSV(data string) ([]eventmodels.OratsOptionData, error) {
 }
 
 // ParseCSV parses CSV data into a slice of OratsOptionData.
-func ParseCSVOld(data string) ([]eventmodels.OratsOptionData, error) {
+func ParseCSVOld(data string) ([]models.OratsOptionData, error) {
 	r := csv.NewReader(strings.NewReader(data))
 	r.TrimLeadingSpace = true
 	r.FieldsPerRecord = -1 // Allow variable fields per record
@@ -146,7 +146,7 @@ func ParseCSVOld(data string) ([]eventmodels.OratsOptionData, error) {
 		return nil, err
 	}
 
-	var options []eventmodels.OratsOptionData
+	var options []models.OratsOptionData
 	for {
 		record, err := r.Read()
 		if err == io.EOF {
@@ -166,229 +166,229 @@ func ParseCSVOld(data string) ([]eventmodels.OratsOptionData, error) {
 	return options, nil
 }
 
-// parseRecord parses a single CSV record into an eventmodels.OratsOptionData.
-func parseRecord(record []string) (eventmodels.OratsOptionData, error) {
+// parseRecord parses a single CSV record into an models.OratsOptionData.
+func parseRecord(record []string) (models.OratsOptionData, error) {
 	dte, err := strconv.Atoi(record[3])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing DTE: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing DTE: %v", err)
 	}
 
 	strike, err := strconv.ParseFloat(record[4], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing strike: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing strike: %v", err)
 	}
 
 	stockPrice, err := strconv.ParseFloat(record[5], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing stock price: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing stock price: %v", err)
 	}
 
 	callVolume, err := strconv.Atoi(record[6])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call volume: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing call volume: %v", err)
 	}
 
 	callOpenInterest, err := strconv.Atoi(record[7])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call open interest: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing call open interest: %v", err)
 	}
 
 	callBidSize, err := strconv.Atoi(record[8])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call bid size: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing call bid size: %v", err)
 	}
 
 	callAskSize, err := strconv.Atoi(record[9])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, fmt.Errorf("error parsing call ask size: %v", err)
+		return models.OratsOptionData{}, fmt.Errorf("error parsing call ask size: %v", err)
 	}
 
 	putVolume, err := strconv.Atoi(record[10])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putOpenInterest, err := strconv.Atoi(record[11])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putBidSize, err := strconv.Atoi(record[12])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putAskSize, err := strconv.Atoi(record[13])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callBidPrice, err := strconv.ParseFloat(record[14], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callValue, err := strconv.ParseFloat(record[15], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callAskPrice, err := strconv.ParseFloat(record[16], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putBidPrice, err := strconv.ParseFloat(record[17], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putValue, err := strconv.ParseFloat(record[18], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putAskPrice, err := strconv.ParseFloat(record[19], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callBidIv, err := strconv.ParseFloat(record[20], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callMidIv, err := strconv.ParseFloat(record[21], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callAskIv, err := strconv.ParseFloat(record[22], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	smvVol, err := strconv.ParseFloat(record[23], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putBidIv, err := strconv.ParseFloat(record[24], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putMidIv, err := strconv.ParseFloat(record[25], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putAskIv, err := strconv.ParseFloat(record[26], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	residualRate, err := strconv.ParseFloat(record[27], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	delta, err := strconv.ParseFloat(record[28], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	gamma, err := strconv.ParseFloat(record[29], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	theta, err := strconv.ParseFloat(record[30], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	vega, err := strconv.ParseFloat(record[31], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	rho, err := strconv.ParseFloat(record[32], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	phi, err := strconv.ParseFloat(record[33], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	driftlessTheta, err := strconv.ParseFloat(record[34], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	callSmvVol, err := strconv.ParseFloat(record[35], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	putSmvVol, err := strconv.ParseFloat(record[36], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	extSmvVol, err := strconv.ParseFloat(record[37], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	extCallValue, err := strconv.ParseFloat(record[38], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	extPutValue, err := strconv.ParseFloat(record[39], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	spotPrice, err := strconv.ParseFloat(record[40], 64)
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	quoteDate, err := time.Parse(time.RFC3339, record[41])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	updatedAt, err := time.Parse(time.RFC3339, record[42])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	snapShotEstTime, err := time.Parse(time.RFC3339, record[43])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	snapShotDate, err := time.Parse(time.RFC3339, record[44])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	tickerId, err := strconv.Atoi(record[46])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
 	monthId, err := strconv.Atoi(record[47])
 	if err != nil {
-		return eventmodels.OratsOptionData{}, err
+		return models.OratsOptionData{}, err
 	}
 
-	return eventmodels.OratsOptionData{
+	return models.OratsOptionData{
 		Ticker:           record[0],
 		TradeDate:        record[1],
 		ExpirDate:        record[2],

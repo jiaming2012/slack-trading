@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,9 +22,9 @@ func TestInMemorySignalRepository_ClockGatedDelivery(t *testing.T) {
 	repo := NewInMemorySignalRepository()
 	base := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 
-	s0 := eventmodels.NewTradeSignal(eventmodels.SignalMeanReversion, eventmodels.StockSymbol("AAPL"), base, nil)
-	s5 := eventmodels.NewTradeSignal(eventmodels.SignalCoveredCall, eventmodels.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
-	s10 := eventmodels.NewTradeSignal(eventmodels.SignalMACrossover, eventmodels.StockSymbol("AAPL"), base.Add(10*time.Minute), nil)
+	s0 := models.NewTradeSignal(models.SignalMeanReversion, models.StockSymbol("AAPL"), base, nil)
+	s5 := models.NewTradeSignal(models.SignalCoveredCall, models.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
+	s10 := models.NewTradeSignal(models.SignalMACrossover, models.StockSymbol("AAPL"), base.Add(10*time.Minute), nil)
 
 	require.NoError(t, repo.Write(s0))
 	require.NoError(t, repo.Write(s5))
@@ -56,9 +56,9 @@ func TestInMemorySignalRepository_OutOfOrderWrites(t *testing.T) {
 	repo := NewInMemorySignalRepository()
 	base := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 
-	s10 := eventmodels.NewTradeSignal(eventmodels.SignalMACrossover, eventmodels.StockSymbol("AAPL"), base.Add(10*time.Minute), nil)
-	s0 := eventmodels.NewTradeSignal(eventmodels.SignalMeanReversion, eventmodels.StockSymbol("AAPL"), base, nil)
-	s5 := eventmodels.NewTradeSignal(eventmodels.SignalCoveredCall, eventmodels.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
+	s10 := models.NewTradeSignal(models.SignalMACrossover, models.StockSymbol("AAPL"), base.Add(10*time.Minute), nil)
+	s0 := models.NewTradeSignal(models.SignalMeanReversion, models.StockSymbol("AAPL"), base, nil)
+	s5 := models.NewTradeSignal(models.SignalCoveredCall, models.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
 
 	require.NoError(t, repo.Write(s10))
 	require.NoError(t, repo.Write(s0))
@@ -77,8 +77,8 @@ func TestInMemorySignalRepository_GetAllAfterPartialConsumption(t *testing.T) {
 	repo := NewInMemorySignalRepository()
 	base := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 
-	s0 := eventmodels.NewTradeSignal(eventmodels.SignalMeanReversion, eventmodels.StockSymbol("AAPL"), base, nil)
-	s5 := eventmodels.NewTradeSignal(eventmodels.SignalCoveredCall, eventmodels.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
+	s0 := models.NewTradeSignal(models.SignalMeanReversion, models.StockSymbol("AAPL"), base, nil)
+	s5 := models.NewTradeSignal(models.SignalCoveredCall, models.StockSymbol("AAPL"), base.Add(5*time.Minute), nil)
 
 	require.NoError(t, repo.Write(s0))
 	require.NoError(t, repo.Write(s5))
@@ -119,9 +119,9 @@ func TestInMemorySignalRepository_ConcurrentWrites(t *testing.T) {
 		wg.Add(1)
 		go func(offset int) {
 			defer wg.Done()
-			s := eventmodels.NewTradeSignal(
-				eventmodels.SignalMeanReversion,
-				eventmodels.StockSymbol("AAPL"),
+			s := models.NewTradeSignal(
+				models.SignalMeanReversion,
+				models.StockSymbol("AAPL"),
 				base.Add(time.Duration(offset)*time.Second),
 				nil,
 			)

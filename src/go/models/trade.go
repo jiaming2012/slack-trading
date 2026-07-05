@@ -2,10 +2,11 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type TradeType int
@@ -311,7 +312,7 @@ func (tr *Trade) Validate(partialCloseItems []*PartialCloseItemRequest) error {
 		}
 
 		if math.Abs(tr.RequestedVolume) > math.Abs(totalOffsetVolume)+SmallRoundingError {
-			return DuplicateCloseTradeErr
+			return ErrDuplicateCloseTrade
 		}
 	}
 
@@ -380,7 +381,7 @@ func (tr *Trade) PreparePartialCloseItems(executedPrice float64, executedVolume 
 func (tr *Trade) IsStopLossTriggered(tick Tick) (*CloseTradeRequestV2, error) {
 	switch tr.Type {
 	case TradeTypeBuy:
-		if tick.Bid <= tr.StopLoss {
+		if tick.Price <= tr.StopLoss {
 			return &CloseTradeRequestV2{
 				Trade:     tr,
 				Timeframe: nil,
@@ -389,7 +390,7 @@ func (tr *Trade) IsStopLossTriggered(tick Tick) (*CloseTradeRequestV2, error) {
 			}, nil
 		}
 	case TradeTypeSell:
-		if tick.Ask >= tr.StopLoss {
+		if tick.Price >= tr.StopLoss {
 			return &CloseTradeRequestV2{
 				Trade:     tr,
 				Timeframe: nil,
@@ -490,7 +491,7 @@ func newTrade(id uuid.UUID, tradeType TradeType, symbol string, timeframe *int, 
 		}
 
 		if absVol != 0 {
-			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, DuplicateCloseTradeErr)
+			return nil, nil, fmt.Errorf("remaining absVol(%v) != 0: %w", absVol, ErrDuplicateCloseTrade)
 		}
 	}
 

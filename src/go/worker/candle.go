@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventmodels"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
 )
 
@@ -80,10 +80,10 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
 					panic(err)
 				}
 
-				eventpubsub.PublishEvent("Coinbase.worker", eventmodels.NewTickEventName, eventmodels.NewTick(
+				eventpubsub.PublishEvent("Coinbase.worker", models.NewTickEventName, models.NewTick(
 					time.Now().UTC(),
 					price,
-					eventmodels.CoinbaseDatafeed,
+					models.CoinbaseDatafeed,
 				))
 
 				// todo: should this be moved to a separate service? or send the current price to a channel to be consumed by pubsub subscribers
