@@ -116,6 +116,34 @@ tasks:
         echo "test:model-diff PASSED — scenario '${SCENARIO_NAME}' matches the baseline reference byte-for-byte."
     dir: src/clients/python
 
+  test:no-gorm-leaks:
+    desc: 'Guard against gorm.DB reappearing on the public database surface: the IDatabaseService interface (src/go/backtester/models/database_service_interface.go) and the exported *DatabaseService method declarations (src/go/data). Package-internal helpers may use gorm freely (close-gorm-db-leaks).'
+    cmds:
+      - |
+        set -u
+        FAIL=0
+
+        IFACE_HITS="$(grep -n 'gorm\.DB' src/go/backtester/models/database_service_interface.go 2>/dev/null || true)"
+        if [ -n "$IFACE_HITS" ]; then
+          echo "GORM LEAK: gorm.DB found on the IDatabaseService interface:" >&2
+          echo "$IFACE_HITS" >&2
+          FAIL=1
+        fi
+
+        METHOD_HITS="$(grep -rnE 'func \([A-Za-z_]+ \*DatabaseService\) [A-Z][A-Za-z0-9_]*\(.*gorm\.DB' --include='*.go' src/go/data 2>/dev/null || true)"
+        if [ -n "$METHOD_HITS" ]; then
+          echo "GORM LEAK: gorm.DB found in an exported *DatabaseService method signature:" >&2
+          echo "$METHOD_HITS" >&2
+          FAIL=1
+        fi
+
+        if [ "$FAIL" -ne 0 ]; then
+          exit 1
+        fi
+
+        echo "test:no-gorm-leaks PASSED — no gorm.DB on the public database surface."
+    dir: "{{.ROOT_DIR}}"
+
   lint:package-names:
     desc: 'Guard against drift back to the pre-rename-event-packages package names (eventservices, eventconsumers, eventproducers, eventpubsub, backtester-api). Scans live Go source and live architecture docs only -- historical/archival material (.planning/milestones, .planning/todos, openspec/changes/*, todo/, docs/adr/) is intentionally excluded.'
     cmds:

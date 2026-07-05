@@ -27,8 +27,8 @@
 
 ## 5. Leak-guard task
 
-- [ ] 5.1 Add `test:no-gorm-leaks` to `taskfile.yml`: a static check over the public database-surface files that exits non-zero if the `gorm.DB` token appears on the interface or the exported `*DatabaseService` methods.
-- [ ] 5.2 Verify the guard fails when `gorm.DB` is temporarily reintroduced and passes on the closed surface.
+- [x] 5.1 Add `test:no-gorm-leaks` to `taskfile.yml`: a static check over the public database-surface files that exits non-zero if the `gorm.DB` token appears on the interface or the exported `*DatabaseService` methods.
+- [x] 5.2 Verify the guard fails when `gorm.DB` is temporarily reintroduced and passes on the closed surface.
 
 ## 6. Verification and closeout
 
