@@ -44,6 +44,10 @@ New package `src/go/scanner/` (package name `scanner`, import path `github.com/j
              Postgres scan_results (via trading-stack-schema)
 ```
 
+## Persistence gap discovered
+
+Implementation surfaced a gap between the architecture doc and the schema it depends on: `BuildFeatureVector` computes all eight architecture-doc features, but the `trading-stack-schema` `scan_results` table (owned by a different, already-landed change) only has columns for five of them — `rsi_14`, `volume_ratio`, `atr_pct`, `short_interest`, and `regime_tag`. It has no column for `price_vs_50ma`, `compression_score`, or `sector_momentum`. Re-opening `trading-stack-schema` to widen the table was judged out of scope for this change (which only consumes that schema, per the dependency ordering below). Per the spec-first discipline's "implementation reveals a design problem" rule, this design doc and the `scanner-feature-extraction` spec delta were amended in place rather than silently shipping code that persists fewer fields than the spec originally claimed: `pipeline.go` persists the five columned features plus `scanner_version`/`data_as_of`, and the remaining three are computed and available on the in-memory `FeatureVector` for any in-process caller, but are not (yet) written to `scan_results`. Widening `scan_results` to add the missing three columns is deferred to a named future change, `widen-scan-results-columns`.
+
 ## Out of scope
 
 - Layer 3 ML ranking (XGBoost scoring, `scanner_version`-tagged model weights) — separate future roadmap card `scanner-ml-ranking`.

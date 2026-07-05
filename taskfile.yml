@@ -172,6 +172,11 @@ tasks:
     desc: 'Run the crowding-detection package unit test suite (fixtures only, no Docker required)'
     cmds:
       - 'go test -count=1 ./src/go/tradingstack/crowding/...'
+
+  test:scanner:
+    desc: 'Run the scanner package fixture-driven and testcontainers persistence suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/scanner/...'
     dir: "{{.ROOT_DIR}}"
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
