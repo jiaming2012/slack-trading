@@ -6,8 +6,8 @@
 
 ## 2. Order-submission halt gate
 
-- [ ] 2.1 Consult `controller.AllowOrder()` in `src/go/backtester-api/router/grpc.go` `PlaceOrder` and in `src/go/backtester-api/services/order_queue.go` before an order reaches the Broker seam; return a distinct halt error when engaged
-- [ ] 2.2 Unit tests: order rejected while engaged (all three Modes), order forwarded while clear — using MockBroker, asserting no forward-to-Broker occurs when halted
+- [x] 2.1 Consult `controller.AllowOrder()` in `src/go/backtester-api/router/grpc.go` `PlaceOrder` and in `src/go/backtester-api/services/order_queue.go` before an order reaches the Broker seam; return a distinct halt error when engaged
+- [x] 2.2 Unit tests: order rejected while engaged (all three Modes), order forwarded while clear — using MockBroker, asserting no forward-to-Broker occurs when halted
 
 ## 3. Anomaly guards
 

@@ -2297,6 +2297,15 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 }
 
 func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
+	// Kill-switch chokepoint: this is the single Broker seam through which every
+	// order in every Mode is placed (broker_seam.go). Consulting the gate here,
+	// immediately before an order can reach any Broker, guarantees a halt cannot
+	// be bypassed by any Mode or code path. A nil gate (the default, and the
+	// state in all simulation/model-diff paths) permits the order.
+	if err := CheckOrderGate(); err != nil {
+		return nil, err
+	}
+
 	broker, err := brokerFor(&p.Meta)
 	if err != nil {
 		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.LegacyEnv)

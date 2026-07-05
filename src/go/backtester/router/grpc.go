@@ -806,6 +806,15 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	})
 	logger.Info("PlaceOrder:start")
 
+	// Kill-switch fast path: reject synchronously so the client sees the halt
+	// error directly instead of an accepted order that never fills. This shares
+	// the same process-wide gate consulted authoritatively at the Broker seam
+	// (Playground.PlaceOrder), so it is the same single source of truth.
+	if err := backtester_models.CheckOrderGate(); err != nil {
+		logger.Warnf("PlaceOrder: rejected by kill switch: %v", err)
+		return nil, fmt.Errorf("PlaceOrder: %w", err)
+	}
+
 	if req.TraceId != "" {
 		span := trace.SpanFromContext(ctx)
 		span.SetAttributes(attribute.String("trace_id", req.TraceId))
