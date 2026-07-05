@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/worker"
 )
 

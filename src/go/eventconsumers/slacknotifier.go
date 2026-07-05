@@ -16,7 +16,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 type SlackNotifierClient struct {

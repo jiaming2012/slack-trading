@@ -2,7 +2,7 @@ package slack
 
 import (
 	"net/http"
-	// "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	// "github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 func Handler(w http.ResponseWriter, r *http.Request) {

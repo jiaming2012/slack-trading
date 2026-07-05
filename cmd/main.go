@@ -35,7 +35,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/datafeedapi"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/signalapi"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/tradeapi"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
@@ -165,7 +165,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	eventpubsub.Init()
+	pubsub.Init()
 
 	// Configure logrus logfmt formatter (D-04, D-05)
 	log.SetFormatter(&log.TextFormatter{

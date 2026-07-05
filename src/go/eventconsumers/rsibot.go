@@ -10,7 +10,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/indicators"
 
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 
 )
 

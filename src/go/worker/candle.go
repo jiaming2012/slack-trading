@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 const (
@@ -80,7 +80,7 @@ func Run(ctx context.Context, tickerCh chan CoinbaseDTO, c *websocket.Conn) {
 					panic(err)
 				}
 
-				eventpubsub.PublishEvent("Coinbase.worker", models.NewTickEventName, models.NewTick(
+				pubsub.PublishEvent("Coinbase.worker", models.NewTickEventName, models.NewTick(
 					time.Now().UTC(),
 					price,
 					models.CoinbaseDatafeed,

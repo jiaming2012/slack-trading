@@ -14,7 +14,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/eventdto"
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 type trendSpiderClient struct {

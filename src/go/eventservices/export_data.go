@@ -13,7 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -38,7 +38,7 @@ func ExportData(args models.ExportDataRunArgs) (models.ExportDataRunOutput, erro
 
 	log.Infof("Exporting %s to csv", args.InputStreamName)
 
-	eventpubsub.Init()
+	pubsub.Init()
 
 	if err := utils.InitEnvironmentVariables(projectDir, args.GoEnv); err != nil {
 		return models.ExportDataRunOutput{}, fmt.Errorf("error initializing environment variables: %v", err)

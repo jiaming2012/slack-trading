@@ -1,4 +1,4 @@
-package eventpubsub
+package pubsub
 
 type Proc func(chan error)
 

@@ -17,7 +17,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
@@ -453,7 +453,7 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 		simStream := eventmodels.NewSimSignalStreamName(playgroundId.String())
 		for _, signal := range signals {
 			signal.SetStreamName(simStream)
-			eventpubsub.PublishAndSaveEvent(
+			pubsub.PublishAndSaveEvent(
 				"grpc:SavePlayground",
 				eventmodels.TradeSignalEventName,
 				signal,

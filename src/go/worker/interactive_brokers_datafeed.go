@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 func IBSubscribe(conId string) []byte {
@@ -192,7 +192,7 @@ func IBTickListener(ctx context.Context, info IBTickInfo, ch chan IBTickDTO, c *
 					continue
 				}
 
-				eventpubsub.PublishEvent("IBTickListener.worker", models.NewTickEventName, models.NewTick(
+				pubsub.PublishEvent("IBTickListener.worker", models.NewTickEventName, models.NewTick(
 					tick.Timestamp,
 					tick.Price,
 					models.IBDatafeed,

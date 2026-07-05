@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
 type OptionAlertWorker struct {
@@ -31,7 +31,7 @@ func (w *OptionAlertWorker) handleGetOptionAlertRequestEvent(event *models.GetOp
 		currentAlerts = append(currentAlerts, *alert)
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.GetOptionAlertResponseEvent{
+	pubsub.PublishCompletedResponse("OptionAlertWorker", &models.GetOptionAlertResponseEvent{
 		Alerts: currentAlerts,
 	}, &event.Meta)
 }
@@ -41,13 +41,13 @@ func (w *OptionAlertWorker) handleCreateOptionAlertRequestEvent(event *models.Cr
 
 	optionAlert, err := event.NewObject(event.ID)
 	if err != nil {
-		eventpubsub.PublishRequestError("OptionAlertWorker", err, &event.Meta)
+		pubsub.PublishRequestError("OptionAlertWorker", err, &event.Meta)
 		return
 	}
 
 	w.optionAlerts = append(w.optionAlerts, optionAlert)
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.CreateOptionAlertResponseEvent{
+	pubsub.PublishCompletedResponse("OptionAlertWorker", &models.CreateOptionAlertResponseEvent{
 		ID: optionAlert.ID.String(),
 	}, &event.Meta)
 }
@@ -62,7 +62,7 @@ func (w *OptionAlertWorker) handleDeleteOptionAlertRequestEvent(event *models.De
 		}
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.DeleteOptionAlertResponseEvent{}, &event.Meta)
+	pubsub.PublishCompletedResponse("OptionAlertWorker", &models.DeleteOptionAlertResponseEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) getSymbolList() string {
@@ -188,16 +188,16 @@ func (w *OptionAlertWorker) handleOptionAlertUpdate(event *models.OptionAlertUpd
 		log.Warnf("OptionAlertWorker.handleOptionAlertUpdate: alert not found: %s", event.AlertID)
 	}
 
-	eventpubsub.PublishCompletedResponse("OptionAlertWorker", &models.OptionAlertUpdateCompletedEvent{}, &event.Meta)
+	pubsub.PublishCompletedResponse("OptionAlertWorker", &models.OptionAlertUpdateCompletedEvent{}, &event.Meta)
 }
 
 func (w *OptionAlertWorker) Start(ctx context.Context) {
 	w.wg.Add(1)
 
-	eventpubsub.Subscribe("OptionAlertWorker", models.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.CreateOptionAlertRequestEventName), w.handleCreateOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.DeleteOptionAlertRequestEventName), w.handleDeleteOptionAlertRequestEvent)
-	eventpubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.OptionAlertUpdateEventName), w.handleOptionAlertUpdate)
+	pubsub.Subscribe("OptionAlertWorker", models.GetOptionAlertRequestEventName, w.handleGetOptionAlertRequestEvent)
+	pubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.CreateOptionAlertRequestEventName), w.handleCreateOptionAlertRequestEvent)
+	pubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.DeleteOptionAlertRequestEventName), w.handleDeleteOptionAlertRequestEvent)
+	pubsub.Subscribe("OptionAlertWorker", models.NewSavedEvent(models.OptionAlertUpdateEventName), w.handleOptionAlertUpdate)
 
 	timer := time.NewTicker(15 * time.Second)
 
@@ -228,7 +228,7 @@ func (w *OptionAlertWorker) Start(ctx context.Context) {
 
 				triggeredEvents := w.checkOptionAlerts(quotes)
 				for _, event := range triggeredEvents {
-					eventpubsub.PublishResponse("OptionAlertWorker", models.OptionAlertUpdateEventName, event, &models.MetaData{})
+					pubsub.PublishResponse("OptionAlertWorker", models.OptionAlertUpdateEventName, event, &models.MetaData{})
 				}
 			}
 		}

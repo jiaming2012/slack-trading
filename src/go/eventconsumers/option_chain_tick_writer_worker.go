@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
 
@@ -89,7 +89,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 				stockTickDTO, err := eventservices.FetchStockTicks(symbol, w.stockQuotesURL, w.brokerBearerToken)
 				if err == nil {
 					stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
-					eventpubsub.PublishEvent("main", models.CreateNewStockTickEvent, stockTick)
+					pubsub.PublishEvent("main", models.CreateNewStockTickEvent, stockTick)
 				} else {
 					log.Errorf("Failed to fetch stock ticks: %v", err)
 				}
@@ -126,7 +126,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 
 			for _, tick := range ticks {
 				t := tick
-				eventpubsub.PublishEvent("main", models.CreateNewOptionChainTickEvent, t)
+				pubsub.PublishEvent("main", models.CreateNewOptionChainTickEvent, t)
 			}
 
 			// log.Debugf("Recorded %d option contract ticks", len(ticks))

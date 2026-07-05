@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	pubsub "github.com/jiaming2012/slack-trading/src/go/eventpubsub"
+	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
