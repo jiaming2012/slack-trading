@@ -39,6 +39,9 @@ type IDatabaseService interface {
 	SavePlaygroundInMemory(p *Playground) error
 	SaveOrderRecord(order *OrderRecord, newBalance *float64, forceNew bool) error
 	SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceNew bool) error
+	SaveOrderRecordIntents(intents []OrderSaveIntent) error
+	SaveCanceledOrderWithReconciles(order *OrderRecord) error
+	SaveRejectedOrderWithReconciles(order *OrderRecord) error
 	SaveOrderRecords(order []*OrderRecord, forceNew bool) error
 	SaveLiveRepository(repo *CandleRepository) error
 	UpdatePlaygroundSession(playgroundSession *Playground) error

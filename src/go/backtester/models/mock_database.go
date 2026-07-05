@@ -99,6 +99,32 @@ func (m *MockDatabase) SaveOrderRecordTx(tx *gorm.DB, order *OrderRecord, forceN
 	return m.SaveOrderRecord(order, nil, forceNew)
 }
 
+func (m *MockDatabase) SaveOrderRecordIntents(intents []OrderSaveIntent) error {
+	for _, intent := range intents {
+		if err := m.SaveOrderRecord(intent.Order, nil, intent.ForceNew); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *MockDatabase) SaveCanceledOrderWithReconciles(order *OrderRecord) error {
+	if order == nil {
+		return fmt.Errorf("MockDatabase: order is nil")
+	}
+
+	return nil
+}
+
+func (m *MockDatabase) SaveRejectedOrderWithReconciles(order *OrderRecord) error {
+	if order == nil {
+		return fmt.Errorf("MockDatabase: order is nil")
+	}
+
+	return nil
+}
+
 func (m *MockDatabase) CancelOrder(order *OrderRecord) error {
 	if order == nil {
 		return fmt.Errorf("MockDatabase: order is nil")

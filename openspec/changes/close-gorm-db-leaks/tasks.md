@@ -2,14 +2,14 @@
 
 ## 1. Inventory and baseline
 
-- [ ] 1.1 Grep the annotations and call graph to confirm the complete leak-site list (`CreateTransaction`, `SaveOrderRecordTx`, `PlaceOrderChanges.Commit`, and their consumers); record it against the table in design.md.
-- [ ] 1.2 Capture the pre-change exported `*DatabaseService` method-signature list (all 51) as the baseline to diff against at closeout.
-- [ ] 1.3 Confirm `go build ./src/go/... ./cmd/...` and `task test` are green at HEAD before editing.
+- [x] 1.1 Grep the annotations and call graph to confirm the complete leak-site list (`CreateTransaction`, `SaveOrderRecordTx`, `PlaceOrderChanges.Commit`, and their consumers); record it against the table in design.md.
+- [x] 1.2 Capture the pre-change exported `*DatabaseService` method-signature list (all 51) as the baseline to diff against at closeout.
+- [x] 1.3 Confirm `go build ./src/go/... ./cmd/...` and `task test` are green at HEAD before editing.
 
 ## 2. Narrow store methods (data package)
 
-- [ ] 2.1 Add the transaction-free order-save-intent value in `models` (order record + force-new flag) and a narrow batch method on `*DatabaseService`/`orderStore` that persists a slice of intents inside one internally-owned transaction, preserving all-or-nothing semantics.
-- [ ] 2.2 Add narrow cancel-with-reconciles and reject-with-reconciles store methods that own their transaction, doing the DB writes currently in `Playground.CancelOrder`/`RejectOrder`.
+- [x] 2.1 Add the transaction-free order-save-intent value in `models` (order record + force-new flag) and a narrow batch method on `*DatabaseService`/`orderStore` that persists a slice of intents inside one internally-owned transaction, preserving all-or-nothing semantics.
+- [x] 2.2 Add narrow cancel-with-reconciles and reject-with-reconciles store methods that own their transaction, doing the DB writes currently in `Playground.CancelOrder`/`RejectOrder`.
 - [ ] 2.3 Switch the internal self-call at `database_service.go:730` from `CreateTransaction` to a private `s.db.Transaction(...)`.
 
 ## 3. De-leak the carrier and consumers (models / services)

@@ -336,6 +336,100 @@ func (st *orderStore) saveOrderRecordTx(tx *gorm.DB, order *models.OrderRecord, 
 	return nil
 }
 
+// saveOrderRecordIntents persists a batch of order-save intents inside one
+// internally-owned transaction: either every intent is saved or none are.
+func (st *orderStore) saveOrderRecordIntents(intents []models.OrderSaveIntent) error {
+	if len(intents) == 0 {
+		return nil
+	}
+
+	return st.db.Transaction(func(tx *gorm.DB) error {
+		for _, intent := range intents {
+			if err := saveOrderRecordsTx(tx, []*models.OrderRecord{intent.Order}, intent.ForceNew); err != nil {
+				return fmt.Errorf("saveOrderRecordIntents: failed to save order record: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// saveCanceledOrderWithReconciles persists the DB writes of an order
+// cancellation — the order row plus each of its reconciled order rows —
+// inside one internally-owned transaction. Body moved verbatim from
+// models.Playground.CancelOrder; the in-memory queue mutations stay in models.
+func (st *orderStore) saveCanceledOrderWithReconciles(order *models.OrderRecord) error {
+	return st.db.Transaction(func(tx *gorm.DB) error {
+		for _, o := range order.Reconciles {
+			if o.ID == 0 {
+				return fmt.Errorf("CancelOrder: order.Reconciles order ID is 0")
+			}
+
+			var existing models.OrderRecord
+			if err := tx.First(&existing, o.ID).Error; err != nil {
+				return fmt.Errorf("CancelOrder order.Reconciles: failed to find existing order: %w", err)
+			}
+
+			if err := tx.Save(o).Error; err != nil {
+				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
+			}
+		}
+
+		if order.ID == 0 {
+			return fmt.Errorf("CancelOrder: order ID is 0")
+		}
+
+		var existing models.OrderRecord
+		if err := tx.First(&existing, order.ID).Error; err != nil {
+			return fmt.Errorf("CancelOrder: failed to find existing order: %w", err)
+		}
+
+		if err := tx.Save(order).Error; err != nil {
+			return fmt.Errorf("CancelOrder: failed to save order: %w", err)
+		}
+
+		return nil
+	})
+}
+
+// saveRejectedOrderWithReconciles persists the DB writes of an order
+// rejection — the order row plus each of its reconciled order rows — inside
+// one internally-owned transaction. Body moved verbatim from
+// models.Playground.RejectOrder; the in-memory queue mutations stay in models.
+func (st *orderStore) saveRejectedOrderWithReconciles(order *models.OrderRecord) error {
+	return st.db.Transaction(func(tx *gorm.DB) error {
+		for _, o := range order.Reconciles {
+			if o.ID == 0 {
+				return fmt.Errorf("RejectOrder order.Reconciles: order ID is 0")
+			}
+
+			var existing models.OrderRecord
+			if err := tx.First(&existing, o.ID).Error; err != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to find existing order: %w", err)
+			}
+
+			if err := tx.Save(o).Error; err != nil {
+				return fmt.Errorf("RejectOrder order.Reconciles: failed to save reconciled order: %w", err)
+			}
+		}
+
+		if order.ID == 0 {
+			return fmt.Errorf("RejectOrder: order ID is 0")
+		}
+
+		var existing models.OrderRecord
+		if err := tx.First(&existing, order.ID).Error; err != nil {
+			return fmt.Errorf("RejectOrder: failed to find existing order: %w", err)
+		}
+
+		if err := tx.Save(order).Error; err != nil {
+			return fmt.Errorf("RejectOrder: failed to save order: %w", err)
+		}
+
+		return nil
+	})
+}
+
 func (st *orderStore) saveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	err := st.db.Transaction(func(tx *gorm.DB) error {
 		var e error
@@ -462,4 +556,30 @@ func (s *DatabaseService) SaveOrderRecordTx(tx *gorm.DB, order *models.OrderReco
 
 func (s *DatabaseService) SaveOrderRecord(order *models.OrderRecord, newBalance *float64, forceNew bool) error {
 	return s.orderStore.saveOrderRecord(order, newBalance, forceNew)
+}
+
+// SaveOrderRecordIntents persists a batch of staged order-save intents inside
+// one store-owned transaction with all-or-nothing semantics. This is the
+// narrow replacement for the removed SaveOrderRecordTx/CreateTransaction
+// raw-handle methods.
+//
+// Locking: takes no service lock, matching the raw-handle path it replaces.
+func (s *DatabaseService) SaveOrderRecordIntents(intents []models.OrderSaveIntent) error {
+	return s.orderStore.saveOrderRecordIntents(intents)
+}
+
+// SaveCanceledOrderWithReconciles persists a canceled order and its reconciled
+// orders inside one store-owned transaction.
+//
+// Locking: takes no service lock, matching the CreateTransaction path it replaces.
+func (s *DatabaseService) SaveCanceledOrderWithReconciles(order *models.OrderRecord) error {
+	return s.orderStore.saveCanceledOrderWithReconciles(order)
+}
+
+// SaveRejectedOrderWithReconciles persists a rejected order and its reconciled
+// orders inside one store-owned transaction.
+//
+// Locking: takes no service lock, matching the CreateTransaction path it replaces.
+func (s *DatabaseService) SaveRejectedOrderWithReconciles(order *models.OrderRecord) error {
+	return s.orderStore.saveRejectedOrderWithReconciles(order)
 }
