@@ -25,11 +25,13 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/api/accountapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/alertapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/datafeedapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/killswitchapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
 	"github.com/jiaming2012/slack-trading/src/go/backtester/rpc"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/safety"
 	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
@@ -348,6 +350,28 @@ func main() {
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
+
+	// Hard kill switch: construct the persisted halt controller, install it as
+	// the process-wide order gate consulted at the Broker seam, and expose the
+	// operator REST surface. The state file defaults to <projectDir>/.cache/
+	// safety/halt-state.json (override with KILL_SWITCH_STATE_PATH). If the
+	// server was halted before a restart, NewHaltController restores that state
+	// so it comes back up halted.
+	killSwitchStatePath := os.Getenv("KILL_SWITCH_STATE_PATH")
+	if killSwitchStatePath == "" {
+		killSwitchStatePath = filepath.Join(projectDir, ".cache", "safety", "halt-state.json")
+	}
+	haltController, err := safety.NewHaltController(safety.NewFileHaltStore(killSwitchStatePath))
+	if err != nil {
+		log.Fatalf("failed to construct kill-switch halt controller: %v", err)
+	}
+	backtester_models.SetOrderGate(haltController)
+	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController)
+	if st := haltController.Status(); st.Engaged {
+		log.Warnf("kill switch is ENGAGED on startup (source=%s, reason=%q) — order submission is halted until released", st.Source, st.Reason)
+	} else {
+		log.Infof("kill switch initialized (disengaged); state file: %s", killSwitchStatePath)
+	}
 
 	liveOrdersUpdateQueue := models.NewFIFOQueue[*backtester_models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 

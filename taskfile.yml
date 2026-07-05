@@ -378,6 +378,45 @@ tasks:
       - 'git commit -m "{{.CLI_ARGS}}"'
       - 'git push'
       
+  kill-switch:engage:
+    desc: 'Engage the hard kill switch: halt ALL order submission in every Mode. Optional reason via REASON env var. Host override via KILL_SWITCH_HOST (default http://localhost:8080).'
+    cmds:
+      - |
+        set -eu
+        HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
+        REASON="${REASON:-manual kill switch engaged via task}"
+        curl -sS -X POST "${HOST}/kill-switch/engage" \
+          -H 'Content-Type: application/json' \
+          -d "{\"reason\": \"${REASON}\"}"
+        echo ""
+
+  kill-switch:release:
+    desc: 'Release the kill switch and resume order submission. Rejected (409) while an auto-halt still needs acknowledgment — run task kill-switch:acknowledge first. Host override via KILL_SWITCH_HOST.'
+    cmds:
+      - |
+        set -eu
+        HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
+        curl -sS -X POST "${HOST}/kill-switch/release"
+        echo ""
+
+  kill-switch:acknowledge:
+    desc: 'Acknowledge an auto-halt cooldown so it can be released. Host override via KILL_SWITCH_HOST.'
+    cmds:
+      - |
+        set -eu
+        HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
+        curl -sS -X POST "${HOST}/kill-switch/acknowledge"
+        echo ""
+
+  kill-switch:status:
+    desc: 'Report the current kill-switch state (engaged, reason, source, ack-required). Host override via KILL_SWITCH_HOST.'
+    cmds:
+      - |
+        set -eu
+        HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
+        curl -sS "${HOST}/kill-switch/status"
+        echo ""
+
   app:dev:
     cmds:
       - './run-dev.sh'

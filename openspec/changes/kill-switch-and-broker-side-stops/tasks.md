@@ -24,9 +24,9 @@
 
 ## 5. REST endpoints and Taskfile wrappers
 
-- [ ] 5.1 Add `killswitchapi` handlers and register `POST /kill-switch/engage`, `POST /kill-switch/release`, `POST /kill-switch/acknowledge`, `GET /kill-switch/status` in `src/go/backtester-api/router/handler.go` `SetupHandler`
-- [ ] 5.2 Add `kill-switch:engage`, `kill-switch:release`, `kill-switch:status` targets to `taskfile.yml` wrapping the REST endpoints
-- [ ] 5.3 Unit/handler tests: engage sets engaged+manual, status reports state/reason/source/ack-required, release clears when no ack outstanding
+- [x] 5.1 Add `killswitchapi` handlers and register `POST /kill-switch/engage`, `POST /kill-switch/release`, `POST /kill-switch/acknowledge`, `GET /kill-switch/status` in `src/go/backtester-api/router/handler.go` `SetupHandler`
+- [x] 5.2 Add `kill-switch:engage`, `kill-switch:release`, `kill-switch:status` targets to `taskfile.yml` wrapping the REST endpoints
+- [x] 5.3 Unit/handler tests: engage sets engaged+manual, status reports state/reason/source/ack-required, release clears when no ack outstanding
 
 ## 6. Broker-side stop losses
 
