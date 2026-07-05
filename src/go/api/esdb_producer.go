@@ -11,13 +11,10 @@ import (
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
-	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 type EsdbProducer struct {
@@ -89,26 +86,6 @@ func (cli *EsdbProducer) insert(ctx context.Context, event models.SavedEvent) er
 	// set the metadata
 	var metaBytes []byte
 
-	span := trace.SpanFromContext(ctx)
-
-	if span.SpanContext().IsValid() {
-		serializedSpanCtx, err := utils.SerializeTraceContext(span.SpanContext())
-		if err != nil {
-			return fmt.Errorf("failed to serialize trace context: %w", err)
-		}
-
-		meta := models.EsdbMetadata{
-			SpanContext: serializedSpanCtx,
-		}
-
-		bytes, err := json.Marshal(meta)
-		if err != nil {
-			return fmt.Errorf("failed to marshal metadata: %w", err)
-		}
-
-		metaBytes = bytes
-	}
-
 	// set the event streamID
 	eventID := models.EventStreamID(uuid.New())
 	metaData := event.GetMetaData()
@@ -138,10 +115,6 @@ func (cli *EsdbProducer) insert(ctx context.Context, event models.SavedEvent) er
 }
 
 func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context, request *models.CreateSignalRequestEventV1DTO) (bool, error) {
-	tracer := otel.Tracer("ProcessSaveCreateSignalRequestEvent")
-	ctx, span := tracer.Start(ctx, "ProcessSaveCreateSignalRequestEvent")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	logger.WithFields(log.Fields{
@@ -160,8 +133,6 @@ func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context
 			return false, fmt.Errorf("failed to save signal: %w", err)
 		}
 
-		span.AddEvent("Signal saved")
-
 		now := time.Now().UTC()
 
 		tracker, err := request.ConvertToTracker(now)
@@ -173,7 +144,6 @@ func (cli *EsdbProducer) ProcessSaveCreateSignalRequestEvent(ctx context.Context
 			return false, fmt.Errorf("failed to save tracker: %w", err)
 		}
 
-		span.AddEvent("Tracker saved")
 	} else {
 		return true, fmt.Errorf("ProcessSaveCreateSignalRequestEvent: invalid signal: %v", err)
 	}

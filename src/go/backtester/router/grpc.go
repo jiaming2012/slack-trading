@@ -7,8 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/go/api"
@@ -561,11 +559,6 @@ func (s *Server) NextTick(ctx context.Context, req *pb.NextTickRequest) (*pb.Tic
 	logger.Trace("NextTick:start")
 	defer logger.Trace("NextTick:end")
 
-	if req.TraceId != "" {
-		span := trace.SpanFromContext(ctx)
-		span.SetAttributes(attribute.String("trace_id", req.TraceId))
-	}
-
 	playgroundId, err := uuid.Parse(req.PlaygroundId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get next tick: %v", err)
@@ -809,11 +802,6 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	if err := backtester_models.CheckOrderGate(); err != nil {
 		logger.Warnf("PlaceOrder: rejected by kill switch: %v", err)
 		return nil, fmt.Errorf("PlaceOrder: %w", err)
-	}
-
-	if req.TraceId != "" {
-		span := trace.SpanFromContext(ctx)
-		span.SetAttributes(attribute.String("trace_id", req.TraceId))
 	}
 
 	if orders, err := s.checkOrderExists(ctx, req.ClientRequestId); len(orders) > 0 || err != nil {

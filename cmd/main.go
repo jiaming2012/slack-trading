@@ -17,7 +17,6 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 
@@ -192,21 +191,6 @@ func main() {
 	log.AddHook(telemetry.NewErrorCounterHook())
 	log.Info("Telemetry registry initialized")
 
-	// Initialize OpenTelemetry SDK (OTEL-01, OTEL-02)
-	otelShutdown, otelErr := utils.SetupOTelSDK(ctx, "grodt", "1.0.0")
-	if otelErr != nil {
-		log.Warnf("Failed to initialize OTel SDK: %v (continuing without telemetry)", otelErr)
-	} else {
-		defer func() {
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer shutdownCancel()
-			if err := otelShutdown(shutdownCtx); err != nil {
-				log.Errorf("OTel shutdown error: %v", err)
-			}
-		}()
-		log.Info("OTel SDK initialized successfully")
-	}
-
 	log.Infof("Log level set to %v", log.GetLevel())
 	log.Info("Main: starting...")
 
@@ -295,25 +279,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("$POSTGRES_DB not set: %v", err)
 	}
-
-	// Set up telemetry hooks
-	// otellogrus adds log entries as span events (visible in Tempo traces)
-	log.AddHook(otellogrus.NewHook(otellogrus.WithLevels(
-		log.PanicLevel,
-		log.FatalLevel,
-		log.ErrorLevel,
-		log.WarnLevel,
-		log.InfoLevel,
-	)))
-
-	// OTel Log SDK bridge exports logs via OTLP to Loki (standalone, no span required)
-	log.AddHook(utils.NewOTelLogrusHook(
-		log.PanicLevel,
-		log.FatalLevel,
-		log.ErrorLevel,
-		log.WarnLevel,
-		log.InfoLevel,
-	))
 
 	// Setup postgres
 	if db, err = dbutils.InitPostgres(postgresHost, postgresPort, postgresUser, postgresPassword, postgresDb); err != nil {

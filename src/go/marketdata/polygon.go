@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
@@ -329,9 +328,6 @@ func (fetcher *PolygonOptionsClient) FetchPolygonOptionAggregateBars(playgroundI
 }
 
 func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, projectDir string, signalName models.SignalName, bFindSpreads bool, startsAt, endsAt time.Time, ticker models.StockSymbol, goEnv string, options []models.OptionContractV3, stockInfo *models.StockTickItemDTO, now time.Time) (map[string]models.ExpectedProfitItemSpread, map[string]models.ExpectedProfitItemSpread, error) {
-	tracer := otel.Tracer("FetchEVSpreads")
-	_, span := tracer.Start(ctx, "FetchEVSpreads")
-	defer span.End()
 
 	logger := log.WithContext(ctx)
 
@@ -341,7 +337,6 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 
 	switch signalName {
 	case models.SuperTrend1hStochRsi15mUp:
-		span.AddEvent("Executing SuperTrend1hStochRsi15mUp")
 		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
 			return Run_Supertrend1hStochRsi15mUp(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
@@ -353,7 +348,6 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 		})
 
 	case models.SuperTrend1hStochRsi15mDown:
-		span.AddEvent("Executing SuperTrend1hStochRsi15mDown")
 		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
 			return Run_SuperTrend1hStochRsi15mDown(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
@@ -365,7 +359,6 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 		})
 
 	case models.SuperTrend4h1hStochRsi15mDown:
-		span.AddEvent("Executing SuperTrend4h1hStochRsi15mDown")
 		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
 			return Run_Supertrend4h1hStochRsi15mDown(models.SupertrendRunArgs{
 				StartsAt:              startsAt,
@@ -377,7 +370,6 @@ func (fetcher *PolygonOptionsClient) FetchEVSpreads(ctx context.Context, project
 		})
 
 	case models.SuperTrend4h1hStochRsi15mUp:
-		span.AddEvent("Executing SuperTrend4h1hStochRsi15mUp")
 		return ExecSignalStatisicalPipelineSpreads(ctx, projectDir, lookaheadToOptionContractsMap, stockInfo, func() (models.SignalRunOutput, error) {
 			return Run_Supertrend4h1hStochRsi15mUp(models.SupertrendRunArgs{
 				StartsAt:              startsAt,

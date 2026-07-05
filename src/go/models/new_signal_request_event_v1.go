@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 )
 
 type CreateSignalV1DTO struct {
@@ -63,9 +62,6 @@ type CreateSignalRequestEventV1DTO struct {
 }
 
 func (dto *CreateSignalRequestEventV1DTO) ValidateV2(ctx context.Context) (bool, error) {
-	tracer := otel.Tracer("CreateSignalRequestEventV1DTO.ValidateV2")
-	_, span := tracer.Start(ctx, "CreateSignalRequestEventV1DTO.ValidateV2")
-	defer span.End()
 
 	signal, err := dto.CreateSignalV1DTO.ToModel()
 	if err != nil {

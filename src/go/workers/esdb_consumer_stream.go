@@ -10,17 +10,14 @@ import (
 
 	"github.com/EventStore/EventStore-Client-Go/v4/esdb"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
-	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 type EsdbEvent[T models.SavedEvent] struct {
-	Event       T
-	IsReplay    bool
-	SpanContext trace.SpanContext
+	Event    T
+	IsReplay bool
 }
 
 type esdbConsumerStream[T models.SavedEvent] struct {
@@ -137,20 +134,9 @@ func (cli *esdbConsumerStream[T]) subscribeToStream(ctx context.Context, streamN
 
 func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.RecordedEvent, isReplay bool) error {
 	var savedEvent T
-	var spanCtx trace.SpanContext
 
-	if !isReplay {
-		var meta models.EsdbMetadata
-		if err := json.Unmarshal(event.UserMetadata, &meta); err != nil {
-			log.Warnf("esdbConsumerStream: processEvent: failed to unmarshal user metadata: %v", err)
-		} else {
-			spanCtx, err = utils.DeserializeTraceContext(meta.SpanContext)
-			if err != nil {
-				log.Warnf("esdbConsumerStream: processEvent: failed to deserialize trace context: %v", err)
-			}
-		}
-	}
-
+	// Events persisted before the OTel removal carry a span-context metadata
+	// field; it is deliberately ignored so replay is unaffected (ADR-0005).
 	if err := json.Unmarshal(event.Data, &savedEvent); err != nil {
 		return fmt.Errorf("esdbConsumerStream.processEvent: failed to unmarshal event data: %v", err)
 	}
@@ -161,7 +147,7 @@ func (cli *esdbConsumerStream[T]) processEvent(ctx context.Context, event *esdb.
 	case <-ctx.Done():
 		log.Errorf("esdbConsumerStream: processEvent: context done")
 		return fmt.Errorf("esdbConsumerStream: processEvent: context done")
-	case cli.savedEventsCh <- EsdbEvent[T]{Event: savedEvent, IsReplay: isReplay, SpanContext: spanCtx}:
+	case cli.savedEventsCh <- EsdbEvent[T]{Event: savedEvent, IsReplay: isReplay}:
 		log.Debugf("esdbConsumerStream: processEvent: successfully published event %d to savedEventsCh", event.EventNumber)
 	}
 

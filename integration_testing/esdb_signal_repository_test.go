@@ -16,11 +16,11 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
-	"github.com/jiaming2012/slack-trading/src/go/eventpubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	eventproducers "github.com/jiaming2012/slack-trading/src/go/api"
+	eventpubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
+	eventservices "github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 // startESDBContainer spins up an EventStoreDB 24.2.0 container via TestContainers

@@ -12,23 +12,15 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string, lookaheadToOptionContractsMap map[int][]models.OptionContractV3, stockInfo *models.StockTickItemDTO, createSignalStatsfunc models.CreateSignalStatsFunc) (map[string]models.ExpectedProfitItemSpread, map[string]models.ExpectedProfitItemSpread, error) {
-	tracer := otel.Tracer("ExecSignalStatisicalPipelineSpreads")
-	_, span := tracer.Start(ctx, "ExecSignalStatisicalPipelineSpreads", trace.WithAttributes(attribute.String("symbol", string(stockInfo.Symbol))))
-	defer span.End()
 
 	logger := log.WithContext(ctx)
 
-	span.AddEvent("Executing signal stats ...")
 	output, err := createSignalStatsfunc()
-	span.AddEvent("Executed signal stats")
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("FetchEV: error running supertrend_4h_1h_stoch_rsi_15m_down: %w", err)
@@ -77,9 +69,6 @@ func ExecSignalStatisicalPipelineSpreads(ctx context.Context, projectDir string,
 }
 
 func ExecFitDistribution(ctx context.Context, projectDir, percentChangeInDir string) (string, error) {
-	tracer := otel.Tracer("ExecFitDistribution")
-	_, span := tracer.Start(ctx, "ExecFitDistribution", trace.WithAttributes(attribute.String("percentChangeInDir", percentChangeInDir)))
-	defer span.End()
 
 	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
 	fitDistributionPath := fmt.Sprintf("%s/fit_distribution.py", path.Join(projectDir, "src", "cmd", "stats"))
@@ -109,16 +98,12 @@ func ExecFitDistribution(ctx context.Context, projectDir, percentChangeInDir str
 }
 
 func ExecDeriveExpectedProfitSpreads(ctx context.Context, projectDir, distributionInDir string, stockInfo *models.StockTickItemDTO, lookaheadToOptionContractsMap map[int][]models.OptionContractV3) ([]models.ExpectedProfitItemSpreadDTO, error) {
-	tracer := otel.Tracer("ExecDeriveExpectedProfitSpreads")
-	_, span := tracer.Start(ctx, "ExecDeriveExpectedProfitSpreads")
-	defer span.End()
 
 	var keys []int64
 	for k := range lookaheadToOptionContractsMap {
 		keys = append(keys, int64(k))
 	}
 
-	span.SetAttributes(attribute.String("distributionInDir", distributionInDir), attribute.Int64Slice("lookaheadToOptionContractsMapKeys", keys))
 
 	interpreter := path.Join(projectDir, "src", "cmd", "stats", "env", "bin", "python3")
 	deriveExpectedProfitPath := path.Join(projectDir, "src", "cmd", "stats", "derive_expected_profit_spreads.py")

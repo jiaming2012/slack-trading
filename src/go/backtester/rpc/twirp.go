@@ -6,7 +6,6 @@ import (
 	"runtime/debug"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
@@ -36,7 +35,7 @@ func SetupTwirpServer(optionsClient *marketdata.PolygonOptionsClient, dbService 
 	port := 5051
 
 	mux := http.NewServeMux()
-	mux.Handle(twirpHandler.PathPrefix(), otelhttp.NewHandler(panicRecoveryMiddleware(twirpHandler), "twirp"))
+	mux.Handle(twirpHandler.PathPrefix(), panicRecoveryMiddleware(twirpHandler))
 
 	log.Infof("Twirp server listening on :%d", port)
 	log.Infof("Path prefix: %v", twirpHandler.PathPrefix())

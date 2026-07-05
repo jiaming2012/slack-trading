@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
@@ -301,9 +300,6 @@ func populateTickDataToOptionChainMap(contracts []models.OptionContractV3, optio
 }
 
 func makeOptionsChain(ctx context.Context, symbol models.StockSymbol, options []models.OptionContractV3, optionChainTicksByExpirationMap map[models.ExpirationDate]map[models.OptionType]map[float64][]*models.OptionChainTickDTO, polygonTickDataReq *models.PolygonOptionTickDataRequest, now time.Time, cache *PolygonCache) ([]models.OptionContractV3, error) {
-	tracer := otel.Tracer("FetchOptionChainWithParamsV3")
-	_, span := tracer.Start(ctx, "FetchOptionChainWithParamsV3")
-	defer span.End()
 
 	if err := populateTickDataToOptionChainMap(options, optionChainTicksByExpirationMap, polygonTickDataReq, cache); err != nil {
 		return nil, fmt.Errorf("failed to add tick data to options: %v", err)

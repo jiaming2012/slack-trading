@@ -7,10 +7,6 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
-	sdk_trace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
@@ -37,9 +33,6 @@ func (t *TrackerConsumerV3) GetSignalTriggeredCh() <-chan models.SignalTriggered
 }
 
 func (t *TrackerConsumerV3) checkSupertrendH1StochRsiDown(ctx context.Context, symbol models.StockSymbol) bool {
-	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH1StochRsiDown")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	state, unlock := t.GetState()
@@ -69,9 +62,6 @@ func (t *TrackerConsumerV3) checkSupertrendH1StochRsiDown(ctx context.Context, s
 }
 
 func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiDown(ctx context.Context, symbol models.StockSymbol) bool {
-	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH4H1StochRsiDown")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	state, unlock := t.GetState()
@@ -108,9 +98,6 @@ func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiDown(ctx context.Context,
 }
 
 func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiUp(ctx context.Context, symbol models.StockSymbol) bool {
-	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH4H1StochRsiUp")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	state, unlock := t.GetState()
@@ -147,9 +134,6 @@ func (t *TrackerConsumerV3) checkSupertrendH4H1StochRsiUp(ctx context.Context, s
 }
 
 func (t *TrackerConsumerV3) checkSupertrendH1StochRsiUp(ctx context.Context, symbol models.StockSymbol) bool {
-	ctx, span := otel.Tracer("tracker_v3_consumer").Start(ctx, "checkSupertrendH1StochRsiUp")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	state, unlock := t.GetState()
@@ -179,9 +163,6 @@ func (t *TrackerConsumerV3) checkSupertrendH1StochRsiUp(ctx context.Context, sym
 }
 
 func (t *TrackerConsumerV3) updateState(ctx context.Context, event *models.TrackerV3) error {
-	ctx, span := otel.Tracer("TrackerV3Consumer").Start(ctx, "updateState")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	state, unlock := t.GetState()
@@ -210,10 +191,6 @@ func (t *TrackerConsumerV3) updateState(ctx context.Context, event *models.Track
 }
 
 func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *models.TrackerV3) []models.SignalTriggeredEvent {
-	tracer := otel.Tracer("checkIsSignalTriggered")
-	ctx, span := tracer.Start(ctx, "checkIsSignalTriggered")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	logger.Infof("TrackerV3Consumer:checkIsSignalTriggered: received terminal signal %s for %v", event.SignalTracker.Name, event.SignalTracker.Header.Symbol)
@@ -271,45 +248,10 @@ func (t *TrackerConsumerV3) checkIsSignalTriggered(ctx context.Context, event *m
 		logger.Infof("TrackerV3Consumer:checkIsSignalTriggered: received non-triggering event: %v for %v", event.SignalTracker, event.SignalTracker.Header.Symbol)
 	}
 
-	span.SetStatus(codes.Ok, "checkIsSignalTriggered completed")
 	return triggeredEvents
 }
 
-type neverSampleSampler struct{}
-
-func (ns neverSampleSampler) ShouldSample(p sdk_trace.SamplingParameters) sdk_trace.SamplingResult {
-	return sdk_trace.SamplingResult{Decision: sdk_trace.Drop}
-}
-
-func (ns neverSampleSampler) Description() string {
-	return "NeverSample"
-}
-
-func NeverSample() sdk_trace.Sampler {
-	return neverSampleSampler{}
-}
-
 func (t *TrackerConsumerV3) processEvent(ctx context.Context, event EsdbEvent[*models.TrackerV3], processReplayEvents bool) error {
-	var tracer trace.Tracer
-	if event.IsReplay {
-		tracerProvider := sdk_trace.NewTracerProvider(
-			sdk_trace.WithSampler(NeverSample()),
-		)
-		tracer = tracerProvider.Tracer("tracker_v3_consumer")
-	} else {
-		if event.SpanContext.IsValid() {
-			ctx = trace.ContextWithSpanContext(ctx, event.SpanContext)
-		}
-
-		tracer = otel.Tracer("tracker_v3_consumer")
-	}
-
-	// to make a link:
-	// ctx, span = tracer.Start(ctx, "<- t.client.GetEventCh()", trace.WithLinks(trace.LinkFromContext(trace.ContextWithSpanContext(ctx, event.SpanContext))))
-
-	ctx, span := tracer.Start(ctx, "<- t.client.GetEventCh()")
-	defer span.End()
-
 	logger := log.WithContext(ctx)
 
 	ev := event.Event

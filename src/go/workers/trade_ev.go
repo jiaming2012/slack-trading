@@ -4,16 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 func SendHighestEVTradeToMarket(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event models.SignalTriggeredEvent, tradierOrderExecuter *models.TradierOrderExecuter, riskProfileConstraint *models.RiskProfileConstraint, maxNoOfPositions int, goEnv string) error {
-	tracer := otel.GetTracerProvider().Tracer("SendHighestEVTradeToMarket")
-	ctx, span := tracer.Start(ctx, "SendHighestEVTradeToMarket")
-	defer span.End()
 
 	highestEVOrderComponents, err := marketdata.DeriveHighestEVOrders(ctx, resultCh, errCh, event, tradierOrderExecuter, riskProfileConstraint)
 	if err != nil {

@@ -11,18 +11,12 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
 func FindHighestEVPerExpiration(ctx context.Context, options []*models.OptionSpreadContractDTO, riskProfile *models.RiskProfileConstraint) (long []*models.OptionSpreadContractDTO, short []*models.OptionSpreadContractDTO, err error) {
-	tracer := otel.GetTracerProvider().Tracer("getTradeComponents")
-	ctx, span := tracer.Start(ctx, "getTradeComponents")
-	defer span.End()
 
 	logger := log.WithContext(ctx)
 
@@ -172,9 +166,6 @@ func symbolPriceAdjustment(symbol models.StockSymbol, price float64) float64 {
 }
 
 func getTradeComponents(ctx context.Context, optionType models.OptionType, options []*models.OptionSpreadContractDTO, event models.SignalTriggeredEvent, riskProfileConstraint *models.RiskProfileConstraint) ([]*models.TradeSpreadRequestComponents, error) {
-	tracer := otel.GetTracerProvider().Tracer("getTradeComponents")
-	ctx, span := tracer.Start(ctx, "getTradeComponents")
-	defer span.End()
 
 	var side string
 	if optionType == models.OptionTypeCall {
@@ -219,7 +210,6 @@ func getTradeComponents(ctx context.Context, optionType models.OptionType, optio
 
 			tag := utils.EncodeTag(event.Signal, spread.Stats.ExpectedProfitShort, requestedPrc)
 
-			span.AddEvent(fmt.Sprintf("PlaceTradeSpread:%s", side), trace.WithAttributes(attribute.String("tag", tag)))
 
 			results = append(results, &models.TradeSpreadRequestComponents{
 				Tag:            tag,
@@ -235,9 +225,6 @@ func getTradeComponents(ctx context.Context, optionType models.OptionType, optio
 }
 
 func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interface{}, errCh chan error, event models.SignalTriggeredEvent, tradierOrderExecuter *models.TradierOrderExecuter, riskProfileConstraint *models.RiskProfileConstraint) ([]*models.TradeSpreadRequestComponents, error) {
-	tracer := otel.GetTracerProvider().Tracer("DeriveHighestEVOrders")
-	ctx, span := tracer.Start(ctx, "DeriveHighestEVOrders")
-	defer span.End()
 
 	logger := log.WithContext(ctx)
 
@@ -282,18 +269,6 @@ func DeriveHighestEVOrders(ctx context.Context, resultCh chan map[string]interfa
 }
 
 func PlaceTradeSpread(ctx context.Context, tradierOrderExecuter *models.TradierOrderExecuter, tradeRequest models.PlaceTradeSpreadRequest) error {
-	tracer := otel.Tracer("PlaceTradeSpread")
-	ctx, span := tracer.Start(ctx, "PlaceTradeSpread", trace.WithAttributes(
-		attribute.String("underlying", string(tradeRequest.Underlying)),
-		attribute.String("sellToOpenSymbol", string(tradeRequest.Spread.ShortOptionSymbol)),
-		attribute.String("buyToOpenSymbol", string(tradeRequest.Spread.LongOptionSymbol)),
-		attribute.Int("quantity", tradeRequest.Quantity),
-		attribute.String("tag", tradeRequest.Tag),
-		attribute.String("tradeType", string(tradeRequest.TradeType)),
-		attribute.String("tradeDuration", string(tradeRequest.TradeDuration)),
-	))
-
-	defer span.End()
 
 	logger := log.WithContext(ctx)
 

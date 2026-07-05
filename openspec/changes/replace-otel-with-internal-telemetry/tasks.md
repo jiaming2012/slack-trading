@@ -33,10 +33,10 @@
 
 ## 6. Tracing and OTel removal (Go)
 
-- [ ] 6.1 Delete all span sites across `backtester/{router,rpc,models}`, `marketdata`, `workers`, `api`, `models`; delete `models/trace_context.go`, `utils/telemetry.go` (trace serialization), and the ESDB `SpanContext` metadata field (replay-tolerant read); update affected tests
-- [ ] 6.2 Delete `utils/otel.go`, `utils/otel_logrus_bridge.go`, `utils/otel_test.go`; remove otellogrus/OTel-log hooks and OTel setup/shutdown from `cmd/main.go`
-- [ ] 6.3 `go mod tidy`; verify no `go.opentelemetry.io/*` or uptrace module remains in `go.mod`/`go.sum`; repo grep for `opentelemetry` clean outside `deprecated/` and docs
-- [ ] 6.4 Gates: `go build ./...`, `task test`, `task lint:package-names`, `task test:no-gorm-leaks` green
+- [x] 6.1 Delete all span sites across `backtester/{router,rpc,models}`, `marketdata`, `workers`, `api`, `models`; delete `models/trace_context.go`, `utils/telemetry.go` (trace serialization), and the ESDB `SpanContext` metadata field (replay-tolerant read); update affected tests
+- [x] 6.2 Delete `utils/otel.go`, `utils/otel_logrus_bridge.go`, `utils/otel_test.go`; remove otellogrus/OTel-log hooks and OTel setup/shutdown from `cmd/main.go`
+- [x] 6.3 `go mod tidy`; verify no `go.opentelemetry.io/*` or uptrace module remains in `go.mod`/`go.sum`; repo grep for `opentelemetry` clean outside `deprecated/` and docs
+- [x] 6.4 Gates: `go build ./...`, `task test`, `task lint:package-names`, `task test:no-gorm-leaks` green
 
 ## 7. Stack decommission and operator surface
 

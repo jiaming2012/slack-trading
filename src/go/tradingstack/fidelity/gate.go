@@ -45,7 +45,7 @@ func Gate(ctx context.Context, results []Result, a Alerter) map[string]Decision 
 }
 
 // LogAlerter is the default Alerter. It raises breaches through logrus, which is
-// already bridged to OpenTelemetry via otellogrus per the project setup.
+// counted by the telemetry error hook per the project setup (ADR-0005).
 type LogAlerter struct{}
 
 // RaiseFidelityAlert logs a fidelity-breach warning carrying the strategy id and

@@ -16,7 +16,8 @@ import (
 func TestLivePlaygroundEquityTradeAndDashboard(t *testing.T) {
 	ctx := context.Background()
 
-	p, collector := setupWithOtel(t, ctx, "test")
+	projectsDir, networkName := setupDatabases(t, ctx, "test")
+	p := createPlaygroundServerAndClient(ctx, t, projectsDir, networkName)
 
 	clientId := "e2e-equity-test-" + uuid.NewString()[:8]
 
@@ -131,17 +132,5 @@ func TestLivePlaygroundEquityTradeAndDashboard(t *testing.T) {
 	require.Equal(t, 5.0, pos.Quantity)
 	t.Logf("Position verified: AAPL qty=%.0f", pos.Quantity)
 
-	// --- Step 8: Verify OTel metrics were exported to the collector ---
-	// The app's OTel runtime instrumentation exports metrics (e.g., runtime.uptime).
-	// This verifies the full metric pipeline: app -> OTLP -> collector -> file export.
-	metricData := waitForMetrics(t, ctx, collector, 30*time.Second)
-	require.NotEmpty(t, metricData, "Expected metrics to be exported to collector")
-	t.Log("Metrics verified: OTel collector received metric data from the app container")
-
-	// Also verify trace spans were captured for the Twirp RPC calls
-	spanData := waitForSpans(t, ctx, collector, 30*time.Second)
-	assertSpanExists(t, spanData, "PlaceOrder")
-	t.Log("Spans verified: OTel collector captured PlaceOrder trace from the app container")
-
-	t.Log("E2E test passed: playground created, order filled, position verified, OTel telemetry confirmed")
+	t.Log("E2E test passed: playground created, order filled, position verified")
 }

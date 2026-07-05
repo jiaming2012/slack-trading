@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: All OpenTelemetry dependencies removed
-After this change, `go.mod` SHALL contain no `go.opentelemetry.io/*` or `github.com/uptrace/opentelemetry-go-extra/*` modules (direct or indirect), and `src/clients/python/requirements.txt` and `grodt.yml` SHALL contain no `opentelemetry-*` packages. A source grep for `opentelemetry` / `go.opentelemetry.io` SHALL return no hits outside `deprecated/` and the OpenSpec/docs record.
+After this change, `go.mod` SHALL contain no direct `go.opentelemetry.io/*` or `github.com/uptrace/opentelemetry-go-extra/*` modules, no Go source file in the repository SHALL import an OpenTelemetry package, and `src/clients/python/requirements.txt` and `grodt.yml` SHALL contain no `opentelemetry-*` packages. Indirect modules pulled in solely by third-party test infrastructure (testcontainers → docker client) are out of scope — they are not our instrumentation and carry no export pipeline. A source grep for `opentelemetry` / `go.opentelemetry.io` SHALL return no hits outside `deprecated/` and the OpenSpec/docs record.
 
 #### Scenario: Go module graph is clean
-- **WHEN** `go mod tidy` runs and `go.mod`/`go.sum` are inspected
-- **THEN** no OpenTelemetry module remains
+- **WHEN** `go mod tidy` runs and `go.mod` is inspected
+- **THEN** every remaining OpenTelemetry module is marked indirect and `go mod why` attributes it to testcontainers/docker, not to our packages
 
 #### Scenario: Python dependency manifests are clean
 - **WHEN** `requirements.txt` and `grodt.yml` are inspected

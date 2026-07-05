@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
@@ -17,9 +15,7 @@ type ProcessSignalExecutor struct {
 }
 
 func (s *ProcessSignalExecutor) Serve(r *http.Request, request models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
-	tracer := otel.Tracer("ProcessSignalExecutor")
-	ctx, span := tracer.Start(r.Context(), "ProcessSignalExecutor.Serve")
-	defer span.End()
+	ctx := r.Context()
 
 	logger := log.WithContext(ctx)
 
@@ -34,8 +30,6 @@ func (s *ProcessSignalExecutor) Serve(r *http.Request, request models.ApiRequest
 			logger.WithFields(log.Fields{
 				"event": "signal",
 			}).Debugf("handleSaveCreateSignalRequestEvent: %v", err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "potential failure occurred")
 		} else {
 			errCh <- fmt.Errorf("failed to process save create signal request event: %w", err)
 			return
