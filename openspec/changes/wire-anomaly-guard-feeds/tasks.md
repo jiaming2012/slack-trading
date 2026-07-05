@@ -2,8 +2,8 @@
 
 ## 1. Crash-safe halt persistence (nit b)
 
-- [ ] 1.1 In `src/go/backtester/safety/halt_store_file.go` `Save`: `Sync()` the temp file before `Close`, and fsync the parent directory after the `Rename`; surface flush failures as save errors
-- [ ] 1.2 Unit tests: save still round-trips (Load after Save), flush-failure path returns an error (e.g. directory removed between create and sync), existing atomic-write tests stay green
+- [x] 1.1 In `src/go/backtester/safety/halt_store_file.go` `Save`: `Sync()` the temp file before `Close`, and fsync the parent directory after the `Rename`; surface flush failures as save errors
+- [x] 1.2 Unit tests: save still round-trips (Load after Save), flush-failure path returns an error (e.g. directory removed between create and sync), existing atomic-write tests stay green
 
 ## 2. Kill-switch REST authentication (nit a)
 

@@ -69,7 +69,13 @@ func (s *FileHaltStore) Exists() bool {
 	return info.Size() > 0
 }
 
-// Save writes state to the configured path atomically.
+// Save writes state to the configured path atomically and durably: the temp
+// file is fsynced before the rename into place, and the parent directory is
+// fsynced after the rename. Without those flushes a crash or power loss just
+// after Save returns could roll the persisted halt state back to its previous
+// value (or leave an empty file on some filesystems) — for an engage that
+// means a halted server silently rebooting clear. Any flush failure surfaces
+// as a save error rather than being swallowed.
 func (s *FileHaltStore) Save(state HaltState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -98,6 +104,16 @@ func (s *FileHaltStore) Save(state HaltState) error {
 		return fmt.Errorf("FileHaltStore.Save: write temp: %w", err)
 	}
 
+	// Flush the new state to stable storage BEFORE the rename: rename is
+	// atomic with respect to the namespace, but not with respect to the data
+	// blocks — an unsynced temp file renamed into place can surface as empty
+	// after a power loss.
+	if err := fsyncFile(tmp); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("FileHaltStore.Save: fsync temp: %w", err)
+	}
+
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("FileHaltStore.Save: close temp: %w", err)
@@ -108,5 +124,29 @@ func (s *FileHaltStore) Save(state HaltState) error {
 		return fmt.Errorf("FileHaltStore.Save: rename into place: %w", err)
 	}
 
+	// Flush the directory entry AFTER the rename so the rename itself is
+	// durable: without this, a crash can roll the path back to the previous
+	// state file even though Save returned success.
+	if err := syncDir(dir); err != nil {
+		return fmt.Errorf("FileHaltStore.Save: fsync directory %s: %w", dir, err)
+	}
+
 	return nil
+}
+
+// fsyncFile and fsyncDir are seams so tests can exercise the flush-failure
+// paths deterministically; production always uses the real File.Sync.
+var (
+	fsyncFile = func(f *os.File) error { return f.Sync() }
+	fsyncDir  = func(d *os.File) error { return d.Sync() }
+)
+
+// syncDir fsyncs a directory so a just-renamed entry inside it is durable.
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return fsyncDir(d)
 }
