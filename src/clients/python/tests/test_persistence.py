@@ -27,8 +27,12 @@ def _make_mock_conn(stats_row=None, inserted_id=1):
     """
     mock_cursor = MagicMock()
 
-    # fetchone is called twice: once for v_playground_stats, once for RETURNING id
-    mock_cursor.fetchone.side_effect = [stats_row, (inserted_id,)]
+    # fetchone is called three times, in order:
+    #   1. the v_playground_stats existence check (must be truthy so the view
+    #      is treated as present),
+    #   2. the v_playground_stats SELECT (the 4-column stats row, or None),
+    #   3. the INSERT ... RETURNING id.
+    mock_cursor.fetchone.side_effect = [(1,), stats_row, (inserted_id,)]
     mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
     mock_cursor.__exit__ = MagicMock(return_value=False)
 
@@ -63,8 +67,8 @@ def test_save_backtest_run_inserts_correct_row():
 
     assert result == 42
 
-    # Check the INSERT call (second execute call)
-    insert_call = mock_cursor.execute.call_args_list[1]
+    # execute calls: [0] view-existence check, [1] stats SELECT, [2] INSERT
+    insert_call = mock_cursor.execute.call_args_list[2]
     insert_sql = insert_call[0][0]
     insert_values = insert_call[0][1]
 
@@ -102,15 +106,15 @@ def test_save_backtest_run_queries_v_playground_stats():
         conn=mock_conn,
     )
 
-    # First execute call should be the SELECT from v_playground_stats
-    first_call = mock_cursor.execute.call_args_list[0]
-    first_sql = first_call[0][0]
-    assert "v_playground_stats" in first_sql
-    assert first_call[0][1] == ("test-pg-id",)
+    # execute calls: [0] view-existence check, [1] stats SELECT, [2] INSERT.
+    # The stats SELECT (with the playground_id param) must run before the INSERT.
+    stats_call = mock_cursor.execute.call_args_list[1]
+    stats_sql = stats_call[0][0]
+    assert "v_playground_stats" in stats_sql
+    assert stats_call[0][1] == ("test-pg-id",)
 
-    # Second execute call should be the INSERT
-    second_call = mock_cursor.execute.call_args_list[1]
-    assert "INSERT INTO backtest_runs" in second_call[0][0]
+    insert_call = mock_cursor.execute.call_args_list[2]
+    assert "INSERT INTO backtest_runs" in insert_call[0][0]
 
 
 def test_parameters_serialized_as_json():
@@ -130,7 +134,7 @@ def test_parameters_serialized_as_json():
         conn=mock_conn,
     )
 
-    insert_call = mock_cursor.execute.call_args_list[1]
+    insert_call = mock_cursor.execute.call_args_list[2]  # [0] view-check, [1] stats, [2] INSERT
     insert_values = insert_call[0][1]
 
     # The 4th value (index 3) is the parameters JSONB
@@ -155,7 +159,7 @@ def test_save_backtest_run_handles_no_stats():
 
     assert result == 7
 
-    insert_call = mock_cursor.execute.call_args_list[1]
+    insert_call = mock_cursor.execute.call_args_list[2]  # [0] view-check, [1] stats, [2] INSERT
     insert_values = insert_call[0][1]
 
     # When stats is None: total_trades=0, total_pnl=0.0, win_rate=None, profit_factor=None
