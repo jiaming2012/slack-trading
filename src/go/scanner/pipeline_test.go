@@ -114,7 +114,15 @@ func qualifyingInput(t *testing.T, ticker string, scannedAt time.Time) ScanInput
 	}
 }
 
-func TestRunScan_QualifyingTickerProducesExactlyOneFullyPopulatedRow(t *testing.T) {
+// TestRunScan_QualifyingTickerProducesExactlyOnePersistedSubsetRowWithFullFeatureVectorComputed
+// asserts both halves of the persistence-gap contract (see design.md
+// "Persistence gap discovered" and the amended scanner-feature-extraction
+// spec): the persisted scan_results row carries exactly the five
+// schema-backed features (rsi_14, volume_ratio, atr_pct, short_interest,
+// regime_tag) plus scanner_version and data_as_of, while price_vs_50ma,
+// compression_score, and sector_momentum are still computed -- just not
+// persisted -- on the in-memory FeatureVector for the same input.
+func TestRunScan_QualifyingTickerProducesExactlyOnePersistedSubsetRowWithFullFeatureVectorComputed(t *testing.T) {
 	db := setupScannerDB(t)
 	scannedAt := time.Date(2024, 6, 10, 15, 0, 0, 0, time.UTC)
 	input := qualifyingInput(t, "AAPL", scannedAt)
@@ -130,6 +138,7 @@ func TestRunScan_QualifyingTickerProducesExactlyOneFullyPopulatedRow(t *testing.
 	var got tradingstack.ScanResult
 	require.NoError(t, db.First(&got, "id = ?", sr.ID).Error)
 
+	// Persisted subset: the five schema-backed features plus provenance.
 	assert.Equal(t, "AAPL", got.Ticker)
 	require.NotNil(t, got.RegimeTag)
 	assert.Equal(t, "trending", *got.RegimeTag)
@@ -144,6 +153,15 @@ func TestRunScan_QualifyingTickerProducesExactlyOneFullyPopulatedRow(t *testing.
 	assert.Equal(t, "l1l2-v1", *got.ScannerVersion)
 	require.NotNil(t, got.DataAsOf)
 	assert.True(t, got.DataAsOf.Equal(scannedAt))
+
+	// Computed-but-not-persisted subset: BuildFeatureVector still computes
+	// all eight architecture-doc features for the same input, even though
+	// scan_results has no columns for these three yet.
+	fv, err := BuildFeatureVector(input)
+	require.NoError(t, err)
+	assert.NotNil(t, fv.PriceVs50MA, "price_vs_50ma must be computed on the feature vector even though it is not persisted")
+	assert.NotNil(t, fv.CompressionScore, "compression_score must be computed on the feature vector even though it is not persisted")
+	assert.NotNil(t, fv.SectorMomentum10d, "sector_momentum must be computed (passed through) on the feature vector even though it is not persisted")
 }
 
 func TestRunScan_Layer1RejectedTickerProducesNoRowAndNoFeatureComputation(t *testing.T) {
