@@ -1,6 +1,6 @@
 # Session Handoff — Overnight Autonomous Run (Morning Report)
 
-**As of:** 2026-07-05 (overnight run complete) · **Branch:** `claude/overnight-20260704` — **108 commits, LOCAL ONLY, NOT pushed** (per run rules; push is an operator decision)
+**As of:** 2026-07-05 (overnight run complete) · **Branch:** merged to `dev` and pushed to origin (2026-07-05, operator-approved); the run branch `claude/overnight-20260704` is retained locally
 
 ## Executive summary
 
@@ -39,7 +39,7 @@ All **16 signed-off OpenSpec changes were implemented, gate-verified, adversaria
 ## Operator actions needed (in priority order)
 
 1. **ROTATE the Google service-account key** — `credentials.json` is still in git history (pre-run finding, still open). `vultr_ml_id_rsa` + `my-new-sealedsecrets.pem` still sit untracked in the repo root.
-2. **Decide: push `claude/overnight-20260704`** (108 commits) and/or merge to `dev`. Everything is local; this machine only.
+2. ~~Push/merge decision~~ — DONE: merged to `dev` and pushed to origin 2026-07-05.
 3. **ADR-0004 decision** (`docs/adr/0004-eventstoredb-role.md`, drafted): recommends Pattern B (Postgres source of truth, ESDB audit trail). Evidence: no trade event is written to ESDB today anywhere.
 4. **Local dev Postgres note**: 4 stale live/reconcile playground rows were soft-deleted (`deleted_at` set, reversible) to stop startup crashes/Polygon 429s — un-delete if you own those COIN/NVDA/AAPL playgrounds.
 5. **Spend limit**: the run was interrupted once by the monthly API spend limit (two agents died mid-task, resumed cleanly after it lifted).
