@@ -18,20 +18,20 @@ import (
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 type Server struct {
 	cache            *models.RequestCache
 	dbService        *data.DatabaseService
-	optionsClient    *eventservices.PolygonOptionsClient
+	optionsClient    *marketdata.PolygonOptionsClient
 	esdbProducer     *api.EsdbProducer
 	globalSignalRepo models.ISignalRepository
 	simSignalRepo    models.ISignalRepository // set when a sim playground is active; WriteSignal fans out to it
 }
 
-func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
+func NewServer(optionsClient *marketdata.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
 	return &Server{
 		cache:            models.NewRequestCache(),
 		dbService:        dbService,
@@ -244,7 +244,7 @@ func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest
 
 func (s *Server) GetAppVersion(ctx context.Context, req *emptypb.Empty) (*pb.GetAppVersionResponse, error) {
 	return &pb.GetAppVersionResponse{
-		Version: eventservices.GetAppVersion(),
+		Version: marketdata.GetAppVersion(),
 	}, nil
 }
 

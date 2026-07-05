@@ -17,7 +17,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/services"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type TradierApiWorker struct {
@@ -28,7 +28,7 @@ type TradierApiWorker struct {
 	timeSalesURL      string
 	quotesBearerToken string
 	location          *time.Location
-	polygonClient     *eventservices.PolygonTickDataMachine
+	polygonClient     *marketdata.PolygonTickDataMachine
 	tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent]
 	calendarURL       string
 }
@@ -378,13 +378,13 @@ func (w *TradierApiWorker) IsMarketOpen() bool {
 	nowEST := now.In(w.location)
 	nowUTC := now.UTC()
 
-	calendar, err := eventservices.FetchMarketCalendar(w.calendarURL, w.quotesBearerToken, nowUTC)
+	calendar, err := marketdata.FetchMarketCalendar(w.calendarURL, w.quotesBearerToken, nowUTC)
 	if err != nil {
 		log.Errorf("Failed to fetch market calendar: %v", err)
 		return false
 	}
 
-	open, err := eventservices.IsMarketOpen(calendar, nowEST)
+	open, err := marketdata.IsMarketOpen(calendar, nowEST)
 	if err != nil {
 		log.Errorf("Failed to check if market is open: %v", err)
 		return false
@@ -483,7 +483,7 @@ func (w *TradierApiWorker) Start(ctx context.Context) {
 	}()
 }
 
-func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *eventservices.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB, dbService models.IDatabaseService) *TradierApiWorker {
+func NewTradierApiWorker(wg *sync.WaitGroup, timeSalesURL, tradierNonTradesBearerToken string, polygonClient *marketdata.PolygonTickDataMachine, tradesUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], calendarURL string, db *gorm.DB, dbService models.IDatabaseService) *TradierApiWorker {
 	worker := &TradierApiWorker{
 		wg:                wg,
 		db:                db,

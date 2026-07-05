@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type OandaFxTickWriter struct {
@@ -25,7 +25,7 @@ func (w *OandaFxTickWriter) getActiveSymbols() []models.FxSymbol {
 	trackers, done := w.trackerCli.GetSavedEvents()
 	done()
 
-	activeFxTrackers := eventservices.GetActiveFxTrackers(trackers)
+	activeFxTrackers := marketdata.GetActiveFxTrackers(trackers)
 
 	symbols := make([]models.FxSymbol, 0, len(activeFxTrackers))
 

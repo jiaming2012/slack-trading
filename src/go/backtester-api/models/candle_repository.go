@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type CandleRepository struct {
@@ -162,7 +162,7 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 		// Check if the market is open
 		if calendar != nil {
 			now := time.Now()
-			result, err := eventservices.IsMarketOpen(calendar, now)
+			result, err := marketdata.IsMarketOpen(calendar, now)
 			if err != nil {
 				return fmt.Errorf("failed to check if market is open: %v", err)
 			}
@@ -231,7 +231,7 @@ func (r *CandleRepository) AppendBars(bars []models.ICandle) (time.Time, error) 
 	var err error
 	previousIndex := len(r.candlesWithIndicators) - 1
 
-	r.candlesWithIndicators, err = eventservices.AddIndicatorsToCandles(r.baseCandles, r.indicators)
+	r.candlesWithIndicators, err = marketdata.AddIndicatorsToCandles(r.baseCandles, r.indicators)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to aggregate bars with indicators: %v", err)
 	}
@@ -393,7 +393,7 @@ func NewCandleRepository(symbol models.Instrument, period time.Duration, candles
 
 	var candlesWithIndicators []*models.AggregateBarWithIndicators
 	if len(indicators) > 0 {
-		candlesWithIndicators, err = eventservices.AddIndicatorsToCandles(candles, indicators)
+		candlesWithIndicators, err = marketdata.AddIndicatorsToCandles(candles, indicators)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add indicators to candles: %v", err)
 		}

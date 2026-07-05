@@ -16,7 +16,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -359,7 +359,7 @@ func (cli *EsdbProducer) Start(ctx context.Context, fxTicksCh <-chan *models.FxT
 	for _, param := range cli.readStreamParams {
 		mutex := param.Mutex
 
-		lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, param.StreamName)
+		lastEventNumber, err := marketdata.FindStreamLastEventNumber(ctx, cli.db, param.StreamName)
 		if err != nil {
 			log.Panicf("esdbProducer: failed to find last event number: %v", err)
 		}

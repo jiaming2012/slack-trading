@@ -12,7 +12,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type AccountWorker struct {
@@ -366,7 +366,7 @@ func (w *AccountWorker) handleCreateTradeRequest(event models.CreateTradeRequest
 	// 	return
 	// }
 
-	// todo: refactor - if another method already has the strategy, e.g. - eventservices.UpdateConditions, could
+	// todo: refactor - if another method already has the strategy, e.g. - marketdata.UpdateConditions, could
 	// it just invoke execute open trade request directly?
 	// Furthermore, is there a difference between a request originating from outside of the system - e.g. NewOpenTradeRequest
 	// and inside of the system - e.g. ExecuteOpenTradeRequest
@@ -392,7 +392,7 @@ func (w *AccountWorker) fetchTrades(event *models.FetchTradesRequest) (*models.F
 		return nil, fmt.Errorf("AccountWorker.fetchTradesRequest: meta is nil")
 	}
 
-	fetchTradesResult := eventservices.FetchTrades(event.Meta.RequestID, account)
+	fetchTradesResult := marketdata.FetchTrades(event.Meta.RequestID, account)
 
 	return fetchTradesResult, nil
 }
@@ -420,7 +420,7 @@ func (w *AccountWorker) handleGetAccountStatsRequest(event *models.GetStatsReque
 
 	currentTick := account.Datafeed.Tick()
 
-	statsResult, err := eventservices.GetStats(event.GetMetaData().RequestID, account, currentTick)
+	statsResult, err := marketdata.GetStats(event.GetMetaData().RequestID, account, currentTick)
 	if err != nil {
 		pubsub.PublishRequestError("AccountWorker.handleGetAccountStatsRequest", err, &event.Meta)
 		return
@@ -465,7 +465,7 @@ func (w *AccountWorker) handleEntryConditionsSatisfied(entryConditionsSatisfied 
 }
 
 func (w *AccountWorker) handleExitConditions(event *models.CreateSignalRequestEventV1DTO) error {
-	exitConditionsSatisfied, updateErr := eventservices.UpdateExitConditions(w.getAccounts(), event)
+	exitConditionsSatisfied, updateErr := marketdata.UpdateExitConditions(w.getAccounts(), event)
 	if updateErr != nil {
 		return fmt.Errorf("AccountWorker.handleExitConditions: failed to update exit conditions: %w", updateErr)
 	}
@@ -487,7 +487,7 @@ func (w *AccountWorker) handleExitConditions(event *models.CreateSignalRequestEv
 }
 
 func (w *AccountWorker) handleOpenConditions(event *models.CreateSignalRequestEventV1DTO) error {
-	entryConditionsSatisfied := eventservices.UpdateEntryConditions(w.getAccounts(), event)
+	entryConditionsSatisfied := marketdata.UpdateEntryConditions(w.getAccounts(), event)
 	openTradeRequests, err := w.handleEntryConditionsSatisfied(entryConditionsSatisfied)
 	if err != nil {
 		return fmt.Errorf("AccountWorker.handleOpenConditions: failed to handle entry conditions: %w", err)

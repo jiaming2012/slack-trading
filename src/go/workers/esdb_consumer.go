@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type OptionContractConsumer = esdbConsumer[*models.OptionContractV1]
@@ -181,7 +181,7 @@ func (cli *esdbConsumer[T]) Start(ctx context.Context) {
 		log.Panicf("failed to create client: %v", err)
 	}
 
-	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
+	lastEventNumber, err := marketdata.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
 	if err != nil {
 		log.Panicf("eventStoreDBClient: failed to find last event number: %v", err)
 	}

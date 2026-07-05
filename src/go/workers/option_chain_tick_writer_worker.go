@@ -11,7 +11,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 type OptionChainTickWriterWorker struct {
@@ -51,13 +51,13 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			nowEST := now.In(loc)
 			nowUTC := now.UTC()
 
-			calendar, err := eventservices.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
+			calendar, err := marketdata.FetchMarketCalendar(w.calendarURL, w.brokerBearerToken, nowUTC)
 			if err != nil {
 				log.Errorf("Failed to fetch market calendar: %v", err)
 				continue
 			}
 
-			open, err := eventservices.IsMarketOpen(calendar, nowEST)
+			open, err := marketdata.IsMarketOpen(calendar, nowEST)
 			if err != nil {
 				log.Errorf("Failed to check if market is open: %v", err)
 				continue
@@ -74,7 +74,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			allOptionContracts, allOptionContractsDone := optionContractsClient.GetSavedEvents()
 			allTrackers, allTrackersDone := trackerClient.GetSavedEvents()
 
-			stockSymbols, optionContracts, err := eventservices.GetCurrentStockAndOptionContracts(ctx, allOptionContracts, allTrackers)
+			stockSymbols, optionContracts, err := marketdata.GetCurrentStockAndOptionContracts(ctx, allOptionContracts, allTrackers)
 
 			allOptionContractsDone()
 			allTrackersDone()
@@ -86,7 +86,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 
 			// record stock ticks
 			for _, symbol := range stockSymbols {
-				stockTickDTO, err := eventservices.FetchStockTicks(symbol, w.stockQuotesURL, w.brokerBearerToken)
+				stockTickDTO, err := marketdata.FetchStockTicks(symbol, w.stockQuotesURL, w.brokerBearerToken)
 				if err == nil {
 					stockTick := stockTickDTO.ToModel(uuid.New(), nowUTC)
 					pubsub.PublishEvent("main", models.CreateNewStockTickEvent, stockTick)
@@ -101,7 +101,7 @@ func (w *OptionChainTickWriterWorker) run(ctx context.Context, optionContractsCl
 			underlyingSymbols := optionContracts.GetListOfUnderlyingSymbols()
 			for _, underlyingSymbol := range underlyingSymbols {
 				for _, expiration := range expirations {
-					ticksDTO, err := eventservices.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, underlyingSymbol, expiration)
+					ticksDTO, err := marketdata.FetchOptionContractTicks(w.optionChainURL, w.brokerBearerToken, underlyingSymbol, expiration)
 					if err != nil {
 						log.Errorf("Failed to fetch option contract ticks: %v", err)
 						continue

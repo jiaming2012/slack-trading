@@ -10,7 +10,7 @@ import (
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 // ESDBSignalRepository implements ISignalRepository with write-through
@@ -83,7 +83,7 @@ func (r *ESDBSignalRepository) fetchAllFromESDB() ([]*models.TradeSignal, error)
 	ctx := context.Background()
 	client := r.esdbProducer.GetClient()
 
-	signals, err := eventservices.FetchAll[*models.TradeSignal](ctx, client, &models.TradeSignal{})
+	signals, err := marketdata.FetchAll[*models.TradeSignal](ctx, client, &models.TradeSignal{})
 	if err != nil {
 		return nil, fmt.Errorf("fetchAllFromESDB: %w", err)
 	}

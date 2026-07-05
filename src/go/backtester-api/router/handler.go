@@ -14,11 +14,11 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 var (
-	client            = new(eventservices.PolygonTickDataMachine)
+	client            = new(marketdata.PolygonTickDataMachine)
 	projectDirectory string
 	database          models.IDatabaseService
 )
@@ -90,7 +90,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 }
 
 func SetupHandler(ctx context.Context, router *mux.Router, projectDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker, calendar *eventmodels.MarketCalendar) error {
-	client = eventservices.NewPolygonClient(apiKey)
+	client = marketdata.NewPolygonClient(apiKey)
 	projectDirectory = projectDir
 
 	if err := loadData(dbService, brokerMap, calendar); err != nil {

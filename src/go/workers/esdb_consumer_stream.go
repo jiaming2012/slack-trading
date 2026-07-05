@@ -13,7 +13,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -216,7 +216,7 @@ func (cli *esdbConsumerStream[T]) Replay(ctx context.Context, startAtEventNumber
 
 	log.Debugf("esdbConsumerStream.Replay: fetching last event number for stream %s", cli.streamName)
 
-	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
+	lastEventNumber, err := marketdata.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
 	if err != nil {
 		log.Panicf("esdbConsumerStream.Replay: eventStoreDBClient: failed to find last event number: %v", err)
 	}
@@ -243,7 +243,7 @@ func (cli *esdbConsumerStream[T]) Start(ctx context.Context) {
 
 	log.Debugf("esdbConsumerStream.Start: fetching last event number for stream %s", cli.streamName)
 
-	lastEventNumber, err := eventservices.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
+	lastEventNumber, err := marketdata.FindStreamLastEventNumber(ctx, cli.db, cli.streamName)
 	if err != nil {
 		log.Panicf("esdbConsumerStream.Start: eventStoreDBClient: failed to find last event number: %v", err)
 	}

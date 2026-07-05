@@ -36,7 +36,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
-	"github.com/jiaming2012/slack-trading/src/go/eventservices"
+	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
@@ -365,7 +365,7 @@ func main() {
 	pprofRouter.Handle("/mutex", pprof.Handler("mutex"))
 	pprofRouter.Handle("/threadcreate", pprof.Handler("threadcreate"))
 
-	optionsDataFetcher := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
+	optionsDataFetcher := marketdata.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
 	_ = &eventmodels.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
@@ -397,20 +397,20 @@ func main() {
 	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
 
 	// Setup data routes
-	polygonTickDataMachine := eventservices.NewPolygonClient(polygonApiKey)
+	polygonTickDataMachine := marketdata.NewPolygonClient(polygonApiKey)
 	d := NewRouterSetup("/data", router)
 	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
 
 	// Setup polygon options client with disk cache
 	polygonCacheDir := filepath.Join(projectDir, ".cache", "polygon")
-	polygonOptionsClient := eventservices.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey, polygonCacheDir)
+	polygonOptionsClient := marketdata.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey, polygonCacheDir)
 
 	// Setup version route
-	appVersion := &eventservices.AppVersion{}
+	appVersion := &marketdata.AppVersion{}
 	a := NewRouterSetup("/version", router)
 	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
 
-	polygonClient := eventservices.NewPolygonClient(polygonApiKey)
+	polygonClient := marketdata.NewPolygonClient(polygonApiKey)
 
 	// Setup database service
 	dbService := data.NewDatabaseService(db, polygonClient, polygonOptionsClient)
@@ -457,7 +457,7 @@ func main() {
 
 	quotesBearerToken := tradierNonTradesBearerToken
 	nowUTC := time.Now().UTC()
-	calendar, err := eventservices.FetchMarketCalendar(calendarURL, quotesBearerToken, nowUTC)
+	calendar, err := marketdata.FetchMarketCalendar(calendarURL, quotesBearerToken, nowUTC)
 	if err != nil {
 		log.Fatalf("Failed to fetch market calendar: %v", err)
 	}
