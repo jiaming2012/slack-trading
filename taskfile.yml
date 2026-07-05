@@ -85,6 +85,37 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:model-diff:
+    desc: 'MIG-03: run the fixed AAPL model-diff backtester scenario and diff its output byte-for-byte against the committed baseline reference (reconcile-models-packages G4). Requires the Go trading server to be running (task app:dev).'
+    cmds:
+      - |
+        set -euo pipefail
+        HOST="${TWIRP_HOST:-http://127.0.0.1:5051}"
+        HOST_PORT="${HOST#http://}"
+        HOST_PORT="${HOST_PORT#https://}"
+        HOST_ONLY="${HOST_PORT%%:*}"
+        PORT_ONLY="${HOST_PORT##*:}"
+        if ! nc -z "$HOST_ONLY" "$PORT_ONLY" 2>/dev/null; then
+          echo "ERROR: Go trading server is not reachable at ${HOST}. Start it first: task app:dev" >&2
+          exit 1
+        fi
+
+        SCENARIO_NAME="aapl-2025-01-06_2025-01-10"
+        REFERENCE="{{.ROOT_DIR}}/src/clients/python/tests/baselines/model-diff-reference.txt"
+        OUT="$(mktemp)"
+        trap 'rm -f "$OUT"' EXIT
+
+        OTEL_SDK_DISABLED=true {{.PYTHON}} -m tests.model_diff_scenario --twirp-host "$HOST" --output "$OUT"
+
+        if ! diff -u "$REFERENCE" "$OUT"; then
+          echo "" >&2
+          echo "test:model-diff FAILED — scenario '${SCENARIO_NAME}' output differs from the baseline reference (${REFERENCE})" >&2
+          exit 1
+        fi
+
+        echo "test:model-diff PASSED — scenario '${SCENARIO_NAME}' matches the baseline reference byte-for-byte."
+    dir: src/clients/python
+
   test:e2e:
     cmds:
       - task app:build-dev
