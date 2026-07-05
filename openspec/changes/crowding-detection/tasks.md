@@ -24,12 +24,12 @@
 
 ## 5. Fixture-based unit tests
 
-- [ ] 5.1 Write `crowding_test.go` fixture: 10 candidates, exactly 3 overlapping (>=2 distinct strategies) — assert `TotalCandidates=10`, `OverlappingCandidates=3`, `OverlapPct=30.0`.
-- [ ] 5.2 Write fixture asserting `OverlapPct=0.0` when no candidate has more than one strategy.
-- [ ] 5.3 Write fixture asserting `OverlapPct=100.0` when every candidate has >=2 strategies.
-- [ ] 5.4 Write fixture with candidates that have zero simulating strategies — assert they count toward `TotalCandidates` but never `OverlappingCandidates`.
-- [ ] 5.5 Write threshold-boundary tests: overlap above threshold flags true; overlap exactly at threshold flags false; overlap below threshold flags false.
-- [ ] 5.6 Write `FakeCrowdingStore` test asserting `Persist` records the same metric values and flagged-candidate count that were passed in.
+- [x] 5.1 Write `crowding_test.go` fixture: 10 candidates, exactly 3 overlapping (>=2 distinct strategies) — assert `TotalCandidates=10`, `OverlappingCandidates=3`, `OverlapPct=30.0`.
+- [x] 5.2 Write fixture asserting `OverlapPct=0.0` when no candidate has more than one strategy.
+- [x] 5.3 Write fixture asserting `OverlapPct=100.0` when every candidate has >=2 strategies.
+- [x] 5.4 Write fixture with candidates that have zero simulating strategies — assert they count toward `TotalCandidates` but never `OverlappingCandidates`.
+- [x] 5.5 Write threshold-boundary tests: overlap above threshold flags true; overlap exactly at threshold flags false; overlap below threshold flags false.
+- [x] 5.6 Write `FakeCrowdingStore` test asserting `Persist` records the same metric values and flagged-candidate count that were passed in.
 
 ## 6. Taskfile wiring
 
