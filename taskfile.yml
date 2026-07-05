@@ -162,6 +162,11 @@ tasks:
     desc: 'Run the evtracker EV-computation unit and testcontainers persistence suite (requires Docker)'
     cmds:
       - 'go test -count=1 ./src/go/evtracker/...'
+
+  test:feed-health:
+    desc: 'Run the feedhealth package unit tests in isolation (requires Docker for the tagging/migration test)'
+    cmds:
+      - 'go test -count=1 ./src/go/feedhealth/...'
     dir: "{{.ROOT_DIR}}"
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
