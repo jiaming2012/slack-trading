@@ -19,10 +19,10 @@
 
 ## 4. Alerting
 
-- [ ] 4.1 Implement the logrus error-counter hook and register it in `cmd/main.go`; test that Error-level entries increment the counter
-- [ ] 4.2 Implement the alert engine goroutine: 30s evaluation, stale-heartbeat rule, error-rate rule (`TELEMETRY_ERROR_WINDOW`/`TELEMETRY_ERROR_THRESHOLD`), firing→(acked)→resolved lifecycle with re-notify-until-acked (`TELEMETRY_ALERT_RENOTIFY_INTERVAL`, default 30m); unit tests for transitions, re-notify, resolution-closes-unacked, and no-self-watch
-- [ ] 4.3 Wire Slack delivery through the existing `SlackNotifierClient.SendMessage` with per-cycle delivery retry until a post succeeds (`last_notified_at` semantics); persist every transition to `telemetry_alerts` even when Slack fails; messages carry the alert id + ack instruction
-- [ ] 4.4 Implement `POST /telemetry/alerts/{id}/ack` (error on unknown/resolved id), the `ack <id>` case in the Slack slash-command handler, and the `task alert:ack ID=<id>` target; tests for ack-via-slack, ack-via-cli, ack-silences-renotify, ack-after-resolve fails
+- [x] 4.1 Implement the logrus error-counter hook and register it in `cmd/main.go`; test that Error-level entries increment the counter
+- [x] 4.2 Implement the alert engine goroutine: 30s evaluation, stale-heartbeat rule, error-rate rule (`TELEMETRY_ERROR_WINDOW`/`TELEMETRY_ERROR_THRESHOLD`), firing→(acked)→resolved lifecycle with re-notify-until-acked (`TELEMETRY_ALERT_RENOTIFY_INTERVAL`, default 30m); unit tests for transitions, re-notify, resolution-closes-unacked, and no-self-watch
+- [x] 4.3 Wire Slack delivery through the existing `SlackNotifierClient.SendMessage` with per-cycle delivery retry until a post succeeds (`last_notified_at` semantics); persist every transition to `telemetry_alerts` even when Slack fails; messages carry the alert id + ack instruction
+- [x] 4.4 Implement `POST /telemetry/alerts/{id}/ack` (error on unknown/resolved id), the `ack <id>` case in the Slack slash-command handler, and the `task alert:ack ID=<id>` target; tests for ack-via-slack, ack-via-cli, ack-silences-renotify, ack-after-resolve fails
 
 ## 5. Python client rewire
 

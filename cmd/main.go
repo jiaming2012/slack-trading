@@ -27,6 +27,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/api/datafeedapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/killswitchapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/slack"
 	"github.com/jiaming2012/slack-trading/src/go/api/telemetryapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
@@ -186,6 +187,9 @@ func main() {
 	// Initialize the in-process telemetry registry — self-contained, no SDK
 	// or network setup required (ADR-0005).
 	telemetry.Init()
+	// Error-level log entries feed the error-rate alert rule (ADR-0005:
+	// this replaces log-pipeline alerting; log storage is a v1 non-goal).
+	log.AddHook(telemetry.NewErrorCounterHook())
 	log.Info("Telemetry registry initialized")
 
 	// Initialize OpenTelemetry SDK (OTEL-01, OTEL-02)
@@ -324,6 +328,13 @@ func main() {
 	go telemetry.StartSnapshotWriter(ctx, db, telemetry.Default, telemetry.SnapshotInterval())
 	go telemetry.StartPrune(ctx, db)
 
+	// Alert engine (ADR-0005): evaluates stale-heartbeat and error-rate rules
+	// over in-memory telemetry, posts to Slack, re-notifies until acked.
+	slackNotifier := workers.NewSlackNotifierClient(&wg, slackWebhookURL)
+	alertEngine := telemetry.NewAlertEngine(db, telemetry.Heartbeats, telemetry.Default, slackNotifier)
+	go alertEngine.Start(ctx)
+	slack.SetAckFunc(alertEngine.Ack)
+
 	// Load options config
 	// OPTIONS_CONFIG_PATH, if set, overrides the default path (useful for worktrees)
 	optionsConfigInDir := os.Getenv("OPTIONS_CONFIG_PATH")
@@ -380,7 +391,7 @@ func main() {
 	}
 	backtester_models.SetOrderGate(haltController)
 	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController)
-	telemetryapi.SetupHandler(router.PathPrefix("/telemetry").Subrouter(), db, telemetry.Heartbeats)
+	telemetryapi.SetupHandler(router.PathPrefix("/telemetry").Subrouter(), db, telemetry.Heartbeats, alertEngine)
 	if killSwitchStoreWasEmpty {
 		log.Warnf("kill-switch halt-state store is EMPTY at %s — booting with NO persisted halt state (source=none). If this file was wiped, any prior halt has been LOST and the server is starting CLEAR; verify this is intended.", killSwitchStatePath)
 	}
@@ -427,7 +438,7 @@ func main() {
 	esdbProducer := api.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
 
 	// Start event consumers
-	workers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
+	slackNotifier.Start(ctx)
 	api.NewSlackClient(&wg, router).Start(ctx)
 	workers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	workers.NewAccountWorkerClient(&wg).Start(ctx)

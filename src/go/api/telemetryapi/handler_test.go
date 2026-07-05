@@ -101,6 +101,76 @@ func TestHeartbeat_UpsertFailureStillAcceptsBeat(t *testing.T) {
 	require.Len(t, tracker.Sources(), 1, "in-memory state still updated")
 }
 
+type fakeAcker struct {
+	calls []struct {
+		id  uint
+		via string
+	}
+	err error
+}
+
+func (f *fakeAcker) Ack(id uint, via string, now time.Time) error {
+	f.calls = append(f.calls, struct {
+		id  uint
+		via string
+	}{id, via})
+	return f.err
+}
+
+func postAck(h *Handler, path, body string) *httptest.ResponseRecorder {
+	router := mux.NewRouter()
+	sub := router.PathPrefix("/telemetry").Subrouter()
+	sub.HandleFunc("/alerts/{id}/ack", h.AckAlert).Methods("POST")
+
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestAckAlert_DefaultsToCLIChannel(t *testing.T) {
+	acker := &fakeAcker{}
+	h := &Handler{acker: acker}
+
+	rec := postAck(h, "/telemetry/alerts/42/ack", "")
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, acker.calls, 1)
+	assert.Equal(t, uint(42), acker.calls[0].id)
+	assert.Equal(t, "cli", acker.calls[0].via)
+}
+
+func TestAckAlert_ViaFromBody(t *testing.T) {
+	acker := &fakeAcker{}
+	h := &Handler{acker: acker}
+
+	rec := postAck(h, "/telemetry/alerts/7/ack", `{"via":"slack"}`)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, acker.calls, 1)
+	assert.Equal(t, "slack", acker.calls[0].via)
+}
+
+func TestAckAlert_UnknownAlertConflicts(t *testing.T) {
+	acker := &fakeAcker{err: errors.New("alert #9 is not firing")}
+	h := &Handler{acker: acker}
+
+	rec := postAck(h, "/telemetry/alerts/9/ack", "")
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	assert.Contains(t, rec.Body.String(), "not firing")
+}
+
+func TestAckAlert_NonNumericIDRejected(t *testing.T) {
+	acker := &fakeAcker{}
+	h := &Handler{acker: acker}
+
+	rec := postAck(h, "/telemetry/alerts/abc/ack", "")
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Empty(t, acker.calls)
+}
+
 func TestHeartbeat_RepeatedBeatsIncrementCount(t *testing.T) {
 	h, tracker, _ := newTestHandler(nil)
 

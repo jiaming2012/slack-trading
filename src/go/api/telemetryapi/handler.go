@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,18 +20,26 @@ import (
 // upsertFunc persists one heartbeat row; injected so tests run without a DB.
 type upsertFunc func(kind, name string, meta map[string]string, at time.Time) error
 
-// Handler binds the heartbeat tracker and the persistence hook.
+// Acker acknowledges a firing alert. Satisfied by *telemetry.AlertEngine.
+type Acker interface {
+	Ack(id uint, via string, now time.Time) error
+}
+
+// Handler binds the heartbeat tracker, the persistence hook, and the alert
+// engine's ack surface.
 type Handler struct {
 	tracker *telemetry.HeartbeatTracker
 	upsert  upsertFunc
+	acker   Acker
 }
 
-func NewHandler(db *gorm.DB, tracker *telemetry.HeartbeatTracker) *Handler {
+func NewHandler(db *gorm.DB, tracker *telemetry.HeartbeatTracker, acker Acker) *Handler {
 	return &Handler{
 		tracker: tracker,
 		upsert: func(kind, name string, meta map[string]string, at time.Time) error {
 			return telemetry.UpsertHeartbeat(db, kind, name, meta, at)
 		},
+		acker: acker,
 	}
 }
 
@@ -82,9 +91,38 @@ func (h *Handler) Heartbeat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+type ackRequest struct {
+	Via string `json:"via"`
+}
+
+// AckAlert handles POST /telemetry/alerts/{id}/ack. Unknown or already-
+// resolved ids return an error with no side effects.
+func (h *Handler) AckAlert(w http.ResponseWriter, r *http.Request) {
+	idRaw := mux.Vars(r)["id"]
+	id, err := strconv.ParseUint(idRaw, 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("alert id must be a positive integer"))
+		return
+	}
+
+	via := telemetry.AckViaCLI
+	var req ackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.Via != "" {
+		via = req.Via
+	}
+
+	if err := h.acker.Ack(uint(id), via, time.Now().UTC()); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{"status": "acknowledged", "id": id, "via": via})
+}
+
 // SetupHandler registers the telemetry routes on the given subrouter.
-func SetupHandler(router *mux.Router, db *gorm.DB, tracker *telemetry.HeartbeatTracker) *Handler {
-	h := NewHandler(db, tracker)
+func SetupHandler(router *mux.Router, db *gorm.DB, tracker *telemetry.HeartbeatTracker, acker Acker) *Handler {
+	h := NewHandler(db, tracker, acker)
 	router.HandleFunc("/heartbeat", h.Heartbeat).Methods("POST")
+	router.HandleFunc("/alerts/{id}/ack", h.AckAlert).Methods("POST")
 	return h
 }

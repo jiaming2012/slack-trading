@@ -428,6 +428,21 @@ tasks:
         curl -sS -X POST "${HOST}/kill-switch/acknowledge"
         echo ""
 
+  alert:ack:
+    desc: 'Acknowledge a firing telemetry alert, silencing re-notification: task alert:ack ID=<id>. Host override via TELEMETRY_HOST (default http://localhost:8080).'
+    cmds:
+      - |
+        set -eu
+        if [ -z "${ID:-}" ]; then
+          echo "usage: task alert:ack ID=<alert id>" >&2
+          exit 1
+        fi
+        HOST="${TELEMETRY_HOST:-http://localhost:8080}"
+        curl -sS -X POST "${HOST}/telemetry/alerts/${ID}/ack" \
+          -H 'Content-Type: application/json' \
+          -d '{"via": "cli"}'
+        echo ""
+
   kill-switch:status:
     desc: 'Report the current kill-switch state (engaged, reason, source, ack-required). Host override via KILL_SWITCH_HOST.'
     cmds:

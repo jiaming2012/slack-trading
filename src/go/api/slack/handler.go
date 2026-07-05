@@ -1,65 +1,77 @@
 package slack
 
 import (
+	"fmt"
 	"net/http"
-	// "github.com/jiaming2012/slack-trading/src/go/pubsub"
+	"strconv"
+	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
+// AckFunc acknowledges a firing telemetry alert. Satisfied by
+// telemetry.AlertEngine.Ack via a closure at setup time.
+type AckFunc func(id uint, via string, now time.Time) error
+
+// ackFn is the wired acknowledgement hook; nil until SetAckFunc is called.
+var ackFn AckFunc
+
+// SetAckFunc wires the alert-acknowledgement command. Called once from main.
+func SetAckFunc(fn AckFunc) {
+	ackFn = fn
+}
+
+// Handler receives Slack slash-command posts. Slack gives apps 3 seconds to
+// respond; the ack command is fast enough to answer in-band, so the response
+// body becomes the operator's feedback in Slack.
+//
+// Supported commands (from the slash command's text field):
+//
+//	ack <id>  — acknowledge telemetry alert <id>, silencing re-notification
 func Handler(w http.ResponseWriter, r *http.Request) {
-	// todo: should only be called from main slack handler
-	// it should be clear that the handler is from the trades channel in slack
+	if err := r.ParseForm(); err != nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
-	// Immediately return 200 back to the slack server. Slack gives apps 3 seconds to return a
-	// response. Otherwise, it is expected that the app will use the response_url in the request
-	// to reply asynchronously.
-	w.WriteHeader(200)
+	text := strings.TrimSpace(r.Form.Get("text"))
+	tokens := strings.Fields(text)
 
-	r.ParseForm()
+	if len(tokens) == 2 && tokens[0] == "ack" {
+		handleAck(w, tokens[1])
+		return
+	}
 
-	// cmd, responseURL, err := validateForm(r.Form)
-	// if err != nil {
-	// 	eventpubsub.PublishError("TradeApiHandler/validateForm", err)
-	// 	return
-	// }
+	// Unknown or empty command: keep the historical 200-and-ignore behavior
+	// so a misconfigured slash command never errors into the channel.
+	w.WriteHeader(http.StatusOK)
+}
 
-	// switch cmd {
-	// case "/accounts":
-	// 	request, validationErr := parseAccountRequest(r.Form)
-	// 	if validationErr != nil {
-	// 		eventpubsub.PublishError("TradeApiHandler/accounts", validationErr)
-	// 		return
-	// 	}
+func handleAck(w http.ResponseWriter, idRaw string) {
+	respond := func(msg string) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(msg)); err != nil {
+			log.Warnf("slack: failed to write ack response: %v", err)
+		}
+	}
 
-	// 	switch event := request.(type) {
-	// 	case models.AddAccountRequestEvent:
-	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.AddAccountRequestEvent, event)
-	// 	case models.GetAccountsRequestEvent:
-	// 		eventpubsub.Publish("TradeApiHandler/accounts", eventpubsub.GetAccountsRequestEvent, event)
-	// 	default:
-	// 		eventpubsub.PublishError("TradeApiHandler/accounts", fmt.Errorf("unknown request type: %T", request))
-	// 	}
+	if ackFn == nil {
+		respond("alert acknowledgement is not wired on this server")
+		return
+	}
 
-	// case "/balance":
-	// 	symbol, validationErr := parseBalanceRequest(r.Form)
-	// 	if validationErr != nil {
-	// 		eventpubsub.PublishError("TradeApiHandler/balance", validationErr)
-	// 		return
-	// 	}
+	id, err := strconv.ParseUint(idRaw, 10, 64)
+	if err != nil {
+		respond(fmt.Sprintf("ack: %q is not an alert id — usage: ack <id>", idRaw))
+		return
+	}
 
-	// 	eventpubsub.Publish("TradeApiHandler/balance", eventpubsub.BalanceRequestEvent, symbol)
+	if err := ackFn(uint(id), "slack", time.Now().UTC()); err != nil {
+		respond(fmt.Sprintf("ack failed: %v", err))
+		return
+	}
 
-	// case "/btc":
-	// 	tradeReq, validationErr := parseBTCTradeRequest(r.Form)
-	// 	if validationErr != nil {
-	// 		eventpubsub.PublishError("TradeApiHandler/btc", validationErr)
-	// 		return
-	// 	}
-
-	// 	tradeReq.ResponseURL = responseURL
-	// 	eventpubsub.Publish("TradeApiHandler/btc", eventpubsub.TradeRequestEvent, tradeReq)
-	// default:
-	// 	cmdErr := fmt.Errorf("unknown cmd: %v", cmd)
-	// 	eventpubsub.PublishError("TradeApiHandler/cmd", cmdErr)
-	// 	return
-	// }
+	respond(fmt.Sprintf("✅ alert #%d acknowledged — re-notification silenced while it stays firing", id))
 }
