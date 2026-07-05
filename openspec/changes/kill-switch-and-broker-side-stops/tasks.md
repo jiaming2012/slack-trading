@@ -37,8 +37,8 @@
 
 ## 7. Verification and closeout
 
-- [ ] 7.1 Unit tests green for every trigger (rejection-rate, fill-deviation, trades-per-hour, feed-staleness incl. absent-signal) and the full cooldown path, plus persistence and MockBroker companion-stop assertions
-- [ ] 7.2 G1: `go build ./src/go/... ./cmd/...` green
-- [ ] 7.3 G2: `task test` green
+- [x] 7.1 Unit tests green for every trigger (rejection-rate, fill-deviation, trades-per-hour, feed-staleness incl. absent-signal) and the full cooldown path, plus persistence and MockBroker companion-stop assertions
+- [x] 7.2 G1: `go build ./src/go/... ./cmd/...` green
+- [x] 7.3 G2: `task test` green
 - [ ] 7.4 G6: mandatory Fable adversarial review of the full diff (safety-critical) — explicit approval required before commit
 - [ ] 7.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time)
