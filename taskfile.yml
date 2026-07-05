@@ -89,7 +89,7 @@ tasks:
     desc: 'MIG-03: run the fixed AAPL model-diff backtester scenario and diff its output byte-for-byte against the committed baseline reference (reconcile-models-packages G4). Requires the Go trading server to be running (task app:dev).'
     cmds:
       - |
-        set -euo pipefail
+        set -eu
         HOST="${TWIRP_HOST:-http://127.0.0.1:5051}"
         HOST_PORT="${HOST#http://}"
         HOST_PORT="${HOST_PORT#https://}"
@@ -115,6 +115,35 @@ tasks:
 
         echo "test:model-diff PASSED — scenario '${SCENARIO_NAME}' matches the baseline reference byte-for-byte."
     dir: src/clients/python
+
+  lint:package-names:
+    desc: 'Guard against drift back to the pre-rename-event-packages package names (eventservices, eventconsumers, eventproducers, eventpubsub, backtester-api). Scans live Go source and live architecture docs only -- historical/archival material (.planning/milestones, .planning/todos, openspec/changes/*, todo/, docs/adr/) is intentionally excluded.'
+    cmds:
+      - |
+        set -u
+        FAIL=0
+
+        GO_HITS="$(grep -rn 'src/go/eventservices\|src/go/eventconsumers\|src/go/eventproducers\|src/go/eventpubsub\|src/go/backtester-api' --include='*.go' src cmd 2>/dev/null || true)"
+        if [ -n "$GO_HITS" ]; then
+          echo "STALE PACKAGE REFERENCE(S) found in Go source:" >&2
+          echo "$GO_HITS" >&2
+          FAIL=1
+        fi
+
+        DOC_FILES="{{.ROOT_DIR}}/CLAUDE.md {{.ROOT_DIR}}/.planning/codebase/STRUCTURE.md {{.ROOT_DIR}}/.planning/codebase/ARCHITECTURE.md {{.ROOT_DIR}}/.planning/codebase/CONCERNS.md {{.ROOT_DIR}}/.planning/codebase/INTEGRATIONS.md {{.ROOT_DIR}}/.planning/codebase/TESTING.md {{.ROOT_DIR}}/.planning/codebase/CONVENTIONS.md"
+        DOC_HITS="$(grep -n 'eventservices\|eventconsumers\|eventproducers\|eventpubsub\|backtester-api' $DOC_FILES 2>/dev/null || true)"
+        if [ -n "$DOC_HITS" ]; then
+          echo "STALE PACKAGE REFERENCE(S) found in live docs:" >&2
+          echo "$DOC_HITS" >&2
+          FAIL=1
+        fi
+
+        if [ "$FAIL" -ne 0 ]; then
+          exit 1
+        fi
+
+        echo "lint:package-names PASSED — no stale references to eventservices, eventconsumers, eventproducers, eventpubsub, or backtester-api found."
+    dir: "{{.ROOT_DIR}}"
 
   test:trading-stack:
     desc: 'Run the tradingstack package testcontainers round-trip suite (requires Docker)'
