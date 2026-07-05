@@ -24,6 +24,13 @@ type ScanResult struct {
 	ScannerScore     *float64   `gorm:"column:scanner_score;type:numeric"`
 	ScannerVersion   *string    `gorm:"column:scanner_version;type:text"`
 	DataAsOf         *time.Time `gorm:"column:data_as_of;type:timestamptz"`
+
+	// FeedHealth is an additive, nullable tag set by the feedhealth package's
+	// TagScanResult helper to the string form of the computed
+	// FeedHealthStatus ("healthy"/"degraded"/"stale") for this scan result's
+	// asset class at scan time. Owned by the feed-health-staleness change;
+	// no existing column, tag, or constraint on this model is altered.
+	FeedHealth *string `gorm:"column:feed_health;type:text"`
 }
 
 // TableName pins the table name so GORM pluralization cannot alter it.
