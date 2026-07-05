@@ -3,6 +3,7 @@ profile_output.prof
 cmd/stats-sandbox/myenv
 *.log
 *.html
+!docs/*.html
 *.pyc
 *.pem
 venv
