@@ -1,8 +1,8 @@
 ## 1. Halt controller and persistence
 
-- [ ] 1.1 Create package `src/go/backtester-api/safety/` with `HaltStateStore` interface (`Load`/`Save`) in `halt_store_interface.go` and a file-backed JSON implementation in `halt_store_file.go` (configurable path; no database dependency)
-- [ ] 1.2 Implement `HaltController` in `halt_controller.go`: state (engaged/clear, reason, source manual|auto, cooldown-ack-required), mutex-guarded `Engage`, `EngageAuto`, `Acknowledge`, `Release`, `AllowOrder`, `Status`; construct-from-store on init and `Save` on every transition
-- [ ] 1.3 Unit tests: restart-stays-halted, restart-stays-clear, missing/empty store defaults to clear (temp-dir store)
+- [x] 1.1 Create package `src/go/backtester-api/safety/` with `HaltStateStore` interface (`Load`/`Save`) in `halt_store_interface.go` and a file-backed JSON implementation in `halt_store_file.go` (configurable path; no database dependency)
+- [x] 1.2 Implement `HaltController` in `halt_controller.go`: state (engaged/clear, reason, source manual|auto, cooldown-ack-required), mutex-guarded `Engage`, `EngageAuto`, `Acknowledge`, `Release`, `AllowOrder`, `Status`; construct-from-store on init and `Save` on every transition
+- [x] 1.3 Unit tests: restart-stays-halted, restart-stays-clear, missing/empty store defaults to clear (temp-dir store)
 
 ## 2. Order-submission halt gate
 
@@ -19,8 +19,8 @@
 
 ## 4. Cooldown protocol
 
-- [ ] 4.1 Enforce cooldown in `HaltController`: auto-halt sets cooldown-ack-required; `Release` is rejected while ack outstanding; `Acknowledge` then `Release` clears
-- [ ] 4.2 Unit tests: release-blocked-until-ack, acknowledge-then-release-resumes, never-self-clears-when-anomaly-subsides, status reports ack-required after auto-halt and not-required after manual halt
+- [x] 4.1 Enforce cooldown in `HaltController`: auto-halt sets cooldown-ack-required; `Release` is rejected while ack outstanding; `Acknowledge` then `Release` clears
+- [x] 4.2 Unit tests: release-blocked-until-ack, acknowledge-then-release-resumes, never-self-clears-when-anomaly-subsides, status reports ack-required after auto-halt and not-required after manual halt
 
 ## 5. REST endpoints and Taskfile wrappers
 
