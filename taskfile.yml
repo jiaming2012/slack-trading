@@ -93,6 +93,14 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:feed-health:
+    desc: 'Run the feedhealth package unit tests in isolation (requires Docker for the tagging/migration test)'
+    cmds:
+      - 'go test -count=1 ./src/go/feedhealth/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
