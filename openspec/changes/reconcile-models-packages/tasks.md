@@ -10,10 +10,10 @@
 
 ## 2. Inventory and canonical selection
 
-- [ ] 2.1 Enumerate all type names declared in `src/go/models` and `src/go/eventmodels`; compute the colliding set (expected 47) and classify each pair as `identical` | `same-name-diverged` | `different-file`.
-- [ ] 2.2 For each colliding type, determine live-path vs legacy-only usage and designate exactly one canonical copy.
-- [ ] 2.3 For each colliding type, diff the non-canonical copy's exported methods against the canonical copy and record each missing method as `ported` or `dropped-legacy` with a reason.
-- [ ] 2.4 Commit the inventory artifact (one row per colliding type: source files, divergence class, canonical choice, per-method accounting, rationale) — this is the `model-package-inventory` deliverable.
+- [x] 2.1 Enumerate all type names declared in `src/go/models` and `src/go/eventmodels`; compute the colliding set (expected 47) and classify each pair as `identical` | `same-name-diverged` | `different-file`.
+- [x] 2.2 For each colliding type, determine live-path vs legacy-only usage and designate exactly one canonical copy.
+- [x] 2.3 For each colliding type, diff the non-canonical copy's exported methods against the canonical copy and record each missing method as `ported` or `dropped-legacy` with a reason.
+- [x] 2.4 Commit the inventory artifact (one row per colliding type: source files, divergence class, canonical choice, per-method accounting, rationale) — this is the `model-package-inventory` deliverable.
 
 ## 3. Merge and import rewrite
 
