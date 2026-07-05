@@ -2,9 +2,12 @@ package riskoverlay
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 
 	models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
@@ -15,6 +18,22 @@ func fixtureSnapshot(state PortfolioState, order ProposedOrder, scannedAt time.T
 	return func(_ *models.Playground, _ *models.OrderRecord) (PortfolioState, ProposedOrder, time.Time, error) {
 		return state, order, scannedAt, nil
 	}
+}
+
+// errSnapshot is a snapshot builder that always fails, standing in for a
+// transient DB/state error while building the portfolio snapshot.
+func errSnapshot() PortfolioSnapshotFunc {
+	return func(_ *models.Playground, _ *models.OrderRecord) (PortfolioState, ProposedOrder, time.Time, error) {
+		return PortfolioState{}, ProposedOrder{}, time.Time{}, errors.New("boom: snapshot build failed")
+	}
+}
+
+// erroringCrowdingLookup always fails ViewForScanCycle, standing in for a
+// transient crowding-DB error.
+type erroringCrowdingLookup struct{}
+
+func (erroringCrowdingLookup) ViewForScanCycle(time.Time) (CrowdingView, error) {
+	return CrowdingView{}, errors.New("boom: crowding lookup failed")
 }
 
 // A disabled gate is inert: it permits an order that would breach every limit.
@@ -74,6 +93,74 @@ func TestGate_ConsultsCrowdingLookup(t *testing.T) {
 	var rejected *RejectedError
 	require.True(t, errors.As(err, &rejected))
 	require.Equal(t, LimitCrowding, rejected.Breaches[0].Type)
+}
+
+// B1 — a risk-reducing order is allowed even when BOTH the snapshot builder and
+// the crowding lookup would error. The gate classifies the reduction side-first
+// from the raw order and short-circuits ALLOW before any snapshot build or
+// crowding lookup, so a transient DB error can never block a risk-reducing exit.
+func TestGate_ReductionAllowedDespiteSnapshotAndLookupErrors(t *testing.T) {
+	tight := RiskLimits{MaxGrossExposure: 1, MaxNetExposure: 1, MaxSectorConcentrationPct: 0, MaxDrawdownPct: 0, DeployableCapital: 0, RejectCrowdedEntries: true}
+	// Both I/O seams error: if either were consulted before the reduction
+	// short-circuit, the order would be blocked or the call would fail.
+	gate := NewSimulationRiskGate(true, tight, erroringCrowdingLookup{}, errSnapshot())
+
+	for _, side := range []models.TradierOrderSide{
+		models.TradierOrderSideSell,
+		models.TradierOrderSideSellToClose,
+		models.TradierOrderSideBuyToClose,
+		models.TradierOrderSideBuyToCover,
+	} {
+		t.Run(string(side), func(t *testing.T) {
+			order := &models.OrderRecord{Symbol: "AAPL", Side: side, AbsoluteQuantity: 1_000_000, RequestedPrice: 1_000}
+			require.NoError(t, gate.EvaluateSimulationOrder(nil, order))
+		})
+	}
+}
+
+// B1 — a NON-reducing order is permitted-with-warning when the crowding lookup
+// errors: a crowding-DB hiccup must not become a trading halt (the kill switch
+// owns halting, not this gate).
+func TestGate_NonReductionPermissiveOnLookupError(t *testing.T) {
+	limits := DefaultRiskLimits
+	limits.RejectCrowdedEntries = true
+
+	order := &models.OrderRecord{Symbol: "NVDA", Side: models.TradierOrderSideBuy, AbsoluteQuantity: 10, RequestedPrice: 100}
+	scannedAt := time.Date(2026, 7, 4, 14, 0, 0, 0, time.UTC)
+	gate := NewSimulationRiskGate(true, limits, erroringCrowdingLookup{}, fixtureSnapshot(PortfolioState{}, ProposedOrder{Ticker: "NVDA", SignedNotional: 1_000}, scannedAt))
+
+	hook := logrustest.NewGlobal()
+	defer hook.Reset()
+
+	require.NoError(t, gate.EvaluateSimulationOrder(nil, order))
+
+	var warned bool
+	for _, e := range hook.AllEntries() {
+		if e.Level == logrus.WarnLevel && strings.Contains(e.Message, "crowding view failed") {
+			warned = true
+		}
+	}
+	require.True(t, warned, "expected a loud Warn on fail-permissive crowding-lookup error")
+}
+
+// B1 — a NON-reducing order is permitted-with-warning when the snapshot builder
+// errors, for the same reason.
+func TestGate_NonReductionPermissiveOnSnapshotError(t *testing.T) {
+	order := &models.OrderRecord{Symbol: "NVDA", Side: models.TradierOrderSideBuy, AbsoluteQuantity: 10, RequestedPrice: 100}
+	gate := NewSimulationRiskGate(true, DefaultRiskLimits, erroringCrowdingLookup{}, errSnapshot())
+
+	hook := logrustest.NewGlobal()
+	defer hook.Reset()
+
+	require.NoError(t, gate.EvaluateSimulationOrder(nil, order))
+
+	var warned bool
+	for _, e := range hook.AllEntries() {
+		if e.Level == logrus.WarnLevel && strings.Contains(e.Message, "build snapshot failed") {
+			warned = true
+		}
+	}
+	require.True(t, warned, "expected a loud Warn on fail-permissive snapshot-build error")
 }
 
 // MapProposedOrder classifies sides and computes signed notional.

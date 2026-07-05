@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 )
 
@@ -71,11 +73,35 @@ func (g *SimulationRiskGate) EvaluateSimulationOrder(p *models.Playground, order
 	if !g.Enabled() || g.snapshot == nil {
 		return nil
 	}
+
+	// Classify reduction side-first from the raw order — cheaply, before any
+	// snapshot build or crowding lookup. A risk-reducing order ALWAYS passes
+	// (this mirrors the engine's IsReduction short-circuit) and must never be
+	// blocked by a transient snapshot- or crowding-lookup error. Resolving those
+	// I/O paths before short-circuiting would let a DB hiccup reject a
+	// risk-reducing exit mid-drawdown — the exact opposite of what the overlay is
+	// for.
+	if order != nil && isReductionSide(order.Side) {
+		return nil
+	}
+
 	state, proposed, scannedAt, err := g.snapshot(p, order)
 	if err != nil {
-		return fmt.Errorf("riskoverlay gate: build snapshot: %w", err)
+		// Fail PERMISSIVE: a risk gate that turns snapshot/DB hiccups into trading
+		// halts is a new failure mode. Halting is the kill switch's job, not this
+		// gate's — so we permit the (non-reducing) order and warn loudly.
+		log.Warnf("riskoverlay gate: build snapshot failed for order into %q; permitting order (fail-permissive): %v", orderSymbol(order), err)
+		return nil
 	}
 	return g.decide(state, proposed, scannedAt)
+}
+
+// orderSymbol renders the order's symbol for a log line, tolerating a nil order.
+func orderSymbol(order *models.OrderRecord) string {
+	if order == nil {
+		return "<nil>"
+	}
+	return order.Symbol
 }
 
 // decide resolves the crowding view and runs the pure engine. It is separated
@@ -86,7 +112,12 @@ func (g *SimulationRiskGate) decide(state PortfolioState, proposed ProposedOrder
 	if g.lookup != nil {
 		v, err := g.lookup.ViewForScanCycle(scannedAt)
 		if err != nil {
-			return fmt.Errorf("riskoverlay gate: resolve crowding view: %w", err)
+			// Fail PERMISSIVE: this path is only reached for NON-reducing orders
+			// (reductions short-circuit before any lookup). A crowding-DB error
+			// must not become a trading halt — the kill switch owns halting, not
+			// this gate — so we permit and warn loudly.
+			log.Warnf("riskoverlay gate: resolve crowding view failed for %q; permitting order (fail-permissive): %v", proposed.Ticker, err)
+			return nil
 		}
 		view = v
 	}
