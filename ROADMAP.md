@@ -28,11 +28,12 @@ Every OpenSpec change updates `usm/roadmap.txt` **in the same change set**:
 
 When flipping cards, also refresh the "Current state" section below and date-stamp it.
 
-## Current state (2026-07-04, expanded from codebase scan)
+## Current state (2026-07-05, post overnight autonomous run)
 
-- **Archived changes:** 0 (OpenSpec adopted today; 5 pre-OpenSpec refactor items shown green from git history)
-- **In flight:** 16 — the overnight-run batch, drafted 2026-07-04 and validated strict; awaiting batch operator sign-off before implementation (see `todo/overnight-run-plan-20260704.md`)
-- **Planned:** 14 cards (see "Card provenance" below for the 2026-07-04 expansion)
+- **Archived changes:** 16 — the entire overnight batch shipped, gate-verified, adversarially reviewed, and archived under `openspec/changes/archive/2026-07-05-*` (see `HANDOFF.md` for the full morning report and per-change ledger)
+- **In flight:** 0
+- **Planned:** 18 cards — the 14 pre-run cards plus 4 follow-ups born from the overnight adversarial reviews: `widen-scan-results-columns` (3 scanner features computed but unpersisted — schema gap inherited from the architecture doc), `wire-anomaly-guard-feeds` (guards are tested components, live observation feeds unwired), `wire-companion-stops` (broker-held stop library tested vs MockBroker, fill-pipeline invocation deferred), `wire-risk-overlay-state` (risk-gate engine complete, portfolio-state mapping + Simulation enablement deferred)
+- **Operator decisions pending:** ADR-0004 EventStoreDB role (drafted, recommends Pattern B — Postgres primary), pushing `claude/overnight-20260704` (108 local commits), `migrate-live-account-type-data` (never autonomous)
 - **Next up:** `reconcile-models-packages` — merge `src/go/models` (37 files) and `src/go/eventmodels` (268 files) into one `models` package via per-type canonical selection with diff-testing. Detailed problem statement in `.planning/todos/pending/2026-07-04-reconcile-models-and-eventmodels-into-one-package.md`; sequencing rationale in `todo/next-steps-plan.md`.
 - **Sequencing:** `reconcile-models-packages` → `rename-event-packages` (so imports rewrite once) → `migrate-crossed-enums` (the enums live in the packages being merged), with `migrate-live-account-type-data` riding alongside the enum migration (the legacy `mock`/`simulator` values are persisted in Postgres and need a data migration, not just a code change). Trading stack v4 follows the architecture doc's build order: schema → simulator adaptation → scanner L1–L2 → **safety rails gating any live trading** → fidelity checker → strategy optimizer → EV tracker → scanner optimizer → recommendation engine (see `todo/full-trading-stack-architecture.md` and `todo/trading-stack-gap-analysis.md`).
 - **Just shipped (pre-OpenSpec):** the ADR-0001..0003 refactor series — broker seam, mode-blind clients, dead Tradier feed removal, `PlaygroundConfig` constructor, `DatabaseService` split into four stores.

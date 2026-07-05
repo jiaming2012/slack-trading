@@ -6,43 +6,47 @@ Architecture refactor
         split-database-service-stores: |{"bg":"#C5E1A5"}
         playground-config-constructor: |{"bg":"#C5E1A5"}
     Package reconciliation
-        reconcile-models-packages: |{"bg":"#FFF59D"}
-        rename-event-packages: |{"bg":"#FFF59D"}
+        reconcile-models-packages: |{"bg":"#C5E1A5"}
+        rename-event-packages: |{"bg":"#C5E1A5"}
     Mode presets
-        migrate-crossed-enums: |{"bg":"#FFF59D"}
+        migrate-crossed-enums: |{"bg":"#C5E1A5"}
         migrate-live-account-type-data: |{"bg":"#FFFFFF"}
     Data layer hygiene
-        close-gorm-db-leaks: |{"bg":"#FFF59D"}
+        close-gorm-db-leaks: |{"bg":"#C5E1A5"}
     Refactor verification
-        e2e-sim-smoke-test: |{"bg":"#FFF59D"}
+        e2e-sim-smoke-test: |{"bg":"#C5E1A5"}
 Live simulation observability
     v3 closeout
         close-v3-milestone: |{"bg":"#FFFFFF"}
         verify-grafana-heartbeat-and-stale-alert: |{"bg":"#FFFFFF"}
 Trading stack v4
     Foundations
-        trading-stack-schema: |{"bg":"#FFF59D"}
+        trading-stack-schema: |{"bg":"#C5E1A5"}
         simulator-adaptation: |{"bg":"#FFFFFF"}
         temporal-scan-orchestration: |{"bg":"#FFFFFF"}
         esdb-role-decision: |{"bg":"#FFFFFF"}
-        db-partitioning-retention: |{"bg":"#FFF59D"}
+        db-partitioning-retention: |{"bg":"#C5E1A5"}
     Market scanning
-        scanner-l1-l2: |{"bg":"#FFF59D"}
+        scanner-l1-l2: |{"bg":"#C5E1A5"}
+        widen-scan-results-columns: |{"bg":"#FFFFFF"}
         scanner-ml-ranking: |{"bg":"#FFFFFF"}
         regime-robustness-layer: |{"bg":"#FFFFFF"}
-        feed-health-staleness: |{"bg":"#FFF59D"}
+        feed-health-staleness: |{"bg":"#C5E1A5"}
     Safety rails
-        kill-switch-and-broker-side-stops: |{"bg":"#FFF59D"}
-        portfolio-risk-overlay: |{"bg":"#FFF59D"}
-        crowding-detection: |{"bg":"#FFF59D"}
+        kill-switch-and-broker-side-stops: |{"bg":"#C5E1A5"}
+        portfolio-risk-overlay: |{"bg":"#C5E1A5"}
+        crowding-detection: |{"bg":"#C5E1A5"}
+        wire-anomaly-guard-feeds: |{"bg":"#FFFFFF"}
+        wire-companion-stops: |{"bg":"#FFFFFF"}
+        wire-risk-overlay-state: |{"bg":"#FFFFFF"}
     Feedback loop
-        fidelity-checker: |{"bg":"#FFF59D"}
+        fidelity-checker: |{"bg":"#C5E1A5"}
         continuous-fidelity-monitoring: |{"bg":"#FFFFFF"}
         strategy-optimizer: |{"bg":"#FFFFFF"}
-        ev-tracker: |{"bg":"#FFF59D"}
-        net-ev-cost-model: |{"bg":"#FFF59D"}
+        ev-tracker: |{"bg":"#C5E1A5"}
+        net-ev-cost-model: |{"bg":"#C5E1A5"}
         scanner-optimizer: |{"bg":"#FFFFFF"}
-        optimizer-validation-pipeline: |{"bg":"#FFF59D"}
+        optimizer-validation-pipeline: |{"bg":"#C5E1A5"}
         overfitting-countermeasures: |{"bg":"#FFFFFF"}
         shadow-config-deployment: |{"bg":"#FFFFFF"}
     Recommendations
