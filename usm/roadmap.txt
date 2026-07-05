@@ -21,6 +21,8 @@ Live simulation observability
     v3 closeout
         close-v3-milestone: |{"bg":"#FFFFFF"}
         verify-grafana-heartbeat-and-stale-alert: |{"bg":"#FFFFFF"}
+    Telemetry revamp
+        replace-otel-with-internal-telemetry: |{"bg":"#FFF59D"}
 Trading stack v4
     Foundations
         trading-stack-schema: |{"bg":"#C5E1A5"}
