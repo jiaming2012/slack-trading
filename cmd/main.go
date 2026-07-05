@@ -27,7 +27,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester-api/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
-	"github.com/jiaming2012/slack-trading/src/go/eventconsumers"
+	"github.com/jiaming2012/slack-trading/src/go/workers"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
 	"github.com/jiaming2012/slack-trading/src/go/eventproducers/accountapi"
@@ -386,10 +386,10 @@ func main() {
 	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
 
 	// Start event consumers
-	eventconsumers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
+	workers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
 	eventproducers.NewSlackClient(&wg, router).Start(ctx)
-	eventconsumers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
-	eventconsumers.NewAccountWorkerClient(&wg).Start(ctx)
+	workers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
+	workers.NewAccountWorkerClient(&wg).Start(ctx)
 
 	// Setup signal routes
 	processSignalExecutor := signalapi.NewProcessSignalExecutor(esdbProducer)
@@ -468,7 +468,7 @@ func main() {
 	}
 
 	// Start Tradier API worker (must be after backtester router setup)
-	eventconsumers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
+	workers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
 
 	// Start heartbeat goroutine (per D-04: every 30 seconds)
 	go telemetry.StartHeartbeat(ctx, dbService.GetHeartbeatStats, time.Now())

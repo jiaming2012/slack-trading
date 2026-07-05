@@ -1,4 +1,4 @@
-package eventconsumers
+package workers
 
 import (
 	"context"

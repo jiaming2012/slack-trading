@@ -1,4 +1,4 @@
-package eventconsumers
+package workers
 
 import "github.com/jiaming2012/slack-trading/src/go/models"
 

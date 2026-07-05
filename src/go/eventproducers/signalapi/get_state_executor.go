@@ -5,12 +5,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jiaming2012/slack-trading/src/go/eventconsumers"
+	"github.com/jiaming2012/slack-trading/src/go/workers"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type GetStateExecutor struct {
-	tracker *eventconsumers.TrackerConsumerV3
+	tracker *workers.TrackerConsumerV3
 }
 
 func (s *GetStateExecutor) Serve(r *http.Request, request models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
@@ -37,7 +37,7 @@ func (s *GetStateExecutor) Serve(r *http.Request, request models.ApiRequest3, re
 	resultCh <- stateCopy
 }
 
-func NewGetStateExecutor(tracker *eventconsumers.TrackerConsumerV3) *GetStateExecutor {
+func NewGetStateExecutor(tracker *workers.TrackerConsumerV3) *GetStateExecutor {
 	return &GetStateExecutor{
 		tracker: tracker,
 	}
