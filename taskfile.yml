@@ -93,6 +93,14 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:ev-tracker:
+    desc: 'Run the evtracker EV-computation unit and testcontainers persistence suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/evtracker/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
