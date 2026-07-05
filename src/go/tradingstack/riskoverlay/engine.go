@@ -118,14 +118,22 @@ func Evaluate(state PortfolioState, order ProposedOrder, limits RiskLimits, crow
 		})
 	}
 
-	// Per-strategy EV-weighted allocation cap. Skipped entirely when no
-	// EV-weight data participates (empty set or non-positive total), which
-	// avoids a divide-by-zero and treats "no EV data" as unconstrained. When
-	// data participates, a strategy absent from the set has weight zero and
-	// therefore a zero cap, so any positive deployment is rejected.
-	if sumWeights := sumWeights(state.EvWeights); sumWeights > 0 {
-		weight := state.EvWeights[order.StrategyID] // zero if absent
-		allocCap := limits.DeployableCapital * weight / sumWeights
+	// Per-strategy EV-weighted allocation cap. The family is INACTIVE only when
+	// there is no EV-weight data at all (empty map) — that is treated as
+	// unconstrained. When the map is non-empty, every listed strategy is subject
+	// to a cap and every unlisted strategy has a zero cap. Individual negative
+	// weights (decaying EV) are clamped to zero before normalizing, so a negative
+	// strategy neither inflates another strategy's cap nor gets a positive one.
+	// When the clamped weights sum to <= 0, every cap collapses to zero, so any
+	// positive deployment from any listed strategy is rejected (a zero-cap
+	// strategy has every entry rejected).
+	if len(state.EvWeights) > 0 {
+		sumWeights := sumPositiveWeights(state.EvWeights)
+		weight := clampNonNegative(state.EvWeights[order.StrategyID]) // zero if absent or negative
+		var allocCap float64
+		if sumWeights > 0 {
+			allocCap = limits.DeployableCapital * weight / sumWeights
+		}
 		resultingDeployed := state.StrategyDeployed[order.StrategyID] + orderAbs
 		if resultingDeployed > allocCap {
 			breaches = append(breaches, LimitBreach{
@@ -155,6 +163,12 @@ func drawdownPct(equity []float64) (float64, bool) {
 	if len(equity) == 0 {
 		return 0, false
 	}
+	// Defensively truncate to the most recent 5 sessions rather than trusting the
+	// supplier to have windowed it — the breaker is specified over a 5-session
+	// trailing window and a longer series would let a stale, deeper peak trip it.
+	if len(equity) > 5 {
+		equity = equity[len(equity)-5:]
+	}
 	peak := equity[0]
 	for _, e := range equity {
 		if e > peak {
@@ -168,13 +182,24 @@ func drawdownPct(equity []float64) (float64, bool) {
 	return (peak - current) / peak * 100, true
 }
 
-// sumWeights totals the EV weights. Negative individual weights are possible in
-// the schema (decaying EV), but the sum is only used as a normalizer when
-// strictly positive.
-func sumWeights(weights map[string]float64) float64 {
+// sumPositiveWeights totals the EV weights used as the normalizer, clamping each
+// negative individual weight (decaying EV) to zero first so a negative strategy
+// contributes nothing to the denominator rather than shrinking it and inflating
+// the positive strategies' caps.
+func sumPositiveWeights(weights map[string]float64) float64 {
 	total := 0.0
 	for _, w := range weights {
-		total += w
+		if w > 0 {
+			total += w
+		}
 	}
 	return total
+}
+
+// clampNonNegative returns v, or 0 when v is negative.
+func clampNonNegative(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	return v
 }

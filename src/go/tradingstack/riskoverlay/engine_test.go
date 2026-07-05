@@ -162,6 +162,23 @@ func TestEvaluate_DrawdownBreaker(t *testing.T) {
 	})
 }
 
+// N2 — drawdownPct defensively truncates to the most recent 5 sessions rather
+// than trusting the supplier. A stale, deeper peak outside the trailing window
+// must not trip the breaker.
+func TestEvaluate_DrawdownTruncatesToFiveSessions(t *testing.T) {
+	limits := permissiveLimits()
+	limits.MaxDrawdownPct = 5.0
+
+	// 6 sessions: a 200k peak sits OUTSIDE the trailing-5 window; within the last
+	// 5 the series is flat at 100k => 0% drawdown. Untruncated it would be 50%.
+	state := PortfolioState{EquitySeries: []float64{200_000, 100_000, 100_000, 100_000, 100_000, 100_000}}
+	order := ProposedOrder{Ticker: "AAPL", SignedNotional: 1_000}
+	dec, err := Evaluate(state, order, limits, emptyView())
+	require.NoError(t, err)
+	require.False(t, dec.HasBreach(LimitDrawdownBreaker), "stale peak outside the 5-session window must not trip the breaker")
+	require.True(t, dec.Allowed)
+}
+
 // 6.6 — reduction orders always pass, even while the breaker is tripped.
 func TestEvaluate_ReductionAlwaysPasses(t *testing.T) {
 	limits := permissiveLimits()
@@ -231,6 +248,49 @@ func TestEvaluate_StrategyAllocation(t *testing.T) {
 		dec, err := Evaluate(state, order, limits, emptyView())
 		require.NoError(t, err)
 		require.False(t, dec.HasBreach(LimitStrategyAllocation))
+	})
+
+	// B2 — a non-empty EV-weight set that sums to <= 0 gives every listed
+	// strategy a zero cap; a listed strategy's entry is rejected (the reviewer's
+	// $50M probe). Contrast with the empty-map case above, which stays inactive.
+	t.Run("all-zero weights reject a listed strategy entry", func(t *testing.T) {
+		state := PortfolioState{EvWeights: map[string]float64{"A": 0, "B": 0}, StrategyDeployed: map[string]float64{}}
+		order := ProposedOrder{Ticker: "AAPL", StrategyID: "A", SignedNotional: 50_000_000}
+		dec, err := Evaluate(state, order, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec.Allowed)
+		require.True(t, dec.HasBreach(LimitStrategyAllocation))
+	})
+
+	// B2 — a strategy with a negative individual weight is treated as zero cap
+	// and rejected, even alongside a positive strategy.
+	t.Run("negative-weight strategy treated as zero cap", func(t *testing.T) {
+		state := PortfolioState{EvWeights: map[string]float64{"A": -1.0, "B": 2.0}, StrategyDeployed: map[string]float64{}}
+		order := ProposedOrder{Ticker: "AAPL", StrategyID: "A", SignedNotional: 1_000}
+		dec, err := Evaluate(state, order, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec.Allowed)
+		require.True(t, dec.HasBreach(LimitStrategyAllocation))
+	})
+
+	// B2 — a mixed {2.0, -1.0} set no longer inflates the positive strategy's
+	// cap. With DeployableCapital=100k the cap for A is 100k*2/2 = 100k (clamped
+	// sum), not the old 100k*2/(2-1) = 200k. A 150k entry that the old math would
+	// have allowed is now rejected.
+	t.Run("mixed positive/negative weights do not inflate the positive cap", func(t *testing.T) {
+		state := PortfolioState{EvWeights: map[string]float64{"A": 2.0, "B": -1.0}, StrategyDeployed: map[string]float64{}}
+
+		// 150k exceeds the correct 100k cap -> rejected (old inflated 200k cap would allow).
+		over := ProposedOrder{Ticker: "AAPL", StrategyID: "A", SignedNotional: 150_000}
+		dec, err := Evaluate(state, over, limits, emptyView())
+		require.NoError(t, err)
+		require.True(t, dec.HasBreach(LimitStrategyAllocation))
+
+		// Exactly at the correct 100k cap is allowed (proves cap == 100k, not 200k or 0).
+		atCap := ProposedOrder{Ticker: "AAPL", StrategyID: "A", SignedNotional: 100_000}
+		dec2, err := Evaluate(state, atCap, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec2.HasBreach(LimitStrategyAllocation))
 	})
 }
 
