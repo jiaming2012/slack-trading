@@ -27,6 +27,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/api/datafeedapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/killswitchapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/telemetryapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
@@ -379,6 +380,7 @@ func main() {
 	}
 	backtester_models.SetOrderGate(haltController)
 	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController)
+	telemetryapi.SetupHandler(router.PathPrefix("/telemetry").Subrouter(), db, telemetry.Heartbeats)
 	if killSwitchStoreWasEmpty {
 		log.Warnf("kill-switch halt-state store is EMPTY at %s — booting with NO persisted halt state (source=none). If this file was wiped, any prior halt has been LOST and the server is starting CLEAR; verify this is intended.", killSwitchStatePath)
 	}

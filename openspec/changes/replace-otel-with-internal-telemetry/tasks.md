@@ -14,8 +14,8 @@
 
 ## 3. Heartbeat ingestion
 
-- [ ] 3.1 Implement `POST /telemetry/heartbeat` on the :8080 mux: payload validation (4xx on missing kind/name), registry last-seen update, `telemetry_heartbeats` upsert; handler tests
-- [ ] 3.2 Track per-source staleness in the registry (threshold default 90s, `TELEMETRY_HEARTBEAT_STALE_AFTER`); expose to alert rules and status query; tests for fresh→stale transition
+- [x] 3.1 Implement `POST /telemetry/heartbeat` on the :8080 mux: payload validation (4xx on missing kind/name), registry last-seen update, `telemetry_heartbeats` upsert; handler tests
+- [x] 3.2 Track per-source staleness in the registry (threshold default 90s, `TELEMETRY_HEARTBEAT_STALE_AFTER`); expose to alert rules and status query; tests for fresh→stale transition
 
 ## 4. Alerting
 

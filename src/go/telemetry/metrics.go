@@ -24,6 +24,7 @@ var (
 // once the snapshot writer starts.
 func Init() {
 	Default = NewRegistry()
+	Heartbeats = NewHeartbeatTracker()
 
 	OrdersPlaced = Default.Counter("grodt.orders.placed")
 	OrdersFilled = Default.Counter("grodt.orders.filled")
