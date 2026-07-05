@@ -39,10 +39,21 @@ func MigrateTradingStack(db *gorm.DB) error {
 				ADD CONSTRAINT chk_sim_outcomes_exit_reason
 				CHECK (exit_reason IN ('stop', 'target', 'timeout', 'signal_exit'));
 		EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
+		// The FK is skipped once scan_results has been converted to a
+		// partitioned table (db-partitioning-retention drops it deliberately:
+		// PostgreSQL cannot reference a partitioned parent without a unique
+		// constraint spanning the partition key). Re-adding it there would
+		// fail with SQLSTATE 42830, so guard on the table's partitioned-ness.
 		`DO $$ BEGIN
-			ALTER TABLE sim_outcomes
-				ADD CONSTRAINT fk_sim_outcomes_scan_result
-				FOREIGN KEY (scan_result_id) REFERENCES scan_results (id);
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_partitioned_table pt
+				JOIN pg_class c ON c.oid = pt.partrelid
+				WHERE c.relname = 'scan_results'
+			) THEN
+				ALTER TABLE sim_outcomes
+					ADD CONSTRAINT fk_sim_outcomes_scan_result
+					FOREIGN KEY (scan_result_id) REFERENCES scan_results (id);
+			END IF;
 		EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
 	}
 
