@@ -3,14 +3,21 @@
 Verifies that _network_call_with_retry_inner injects traceparent headers
 when an OTel span is active, and does not inject them when no span is active.
 """
+import os
 import re
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 from engine.client import BacktesterPlaygroundClient
+
+
+# The suite runs under OTEL_SDK_DISABLED=true, which makes TracerProvider emit
+# non-recording spans whose context does not propagate. Tests that assert
+# traceparent *injection* need a recording span, so they build their provider
+# with OTEL_SDK_DISABLED cleared.
 
 
 class TestTraceparentInjection(unittest.TestCase):
@@ -25,10 +32,6 @@ class TestTraceparentInjection(unittest.TestCase):
 
     def test_traceparent_injected_when_span_active(self):
         """When an OTel span is active, traceparent header is injected into Context."""
-        # Set up a real TracerProvider so spans produce valid trace context
-        provider = TracerProvider()
-        tracer = provider.get_tracer("test")
-
         captured_ctx = {}
 
         def mock_rpc_client(ctx, request):
@@ -38,10 +41,15 @@ class TestTraceparentInjection(unittest.TestCase):
 
         client = self._make_client_stub()
 
-        with tracer.start_as_current_span("test-span"):
-            client._network_call_with_retry_inner(
-                "test_caller", mock_rpc_client, MagicMock(), backoff=1, max_backoff=1
-            )
+        with patch.dict(os.environ):
+            os.environ.pop("OTEL_SDK_DISABLED", None)  # allow span context to record/propagate
+            # Set up a real TracerProvider so spans produce valid trace context
+            provider = TracerProvider()
+            tracer = provider.get_tracer("test")
+            with tracer.start_as_current_span("test-span"):
+                client._network_call_with_retry_inner(
+                    "test_caller", mock_rpc_client, MagicMock(), backoff=1, max_backoff=1
+                )
 
         headers = captured_ctx.get("headers", {})
         self.assertIn("traceparent", headers,
@@ -74,9 +82,6 @@ class TestTraceparentInjection(unittest.TestCase):
 
     def test_traceparent_format_valid_w3c(self):
         """The traceparent header conforms to W3C Trace Context format."""
-        provider = TracerProvider()
-        tracer = provider.get_tracer("test-format")
-
         captured_ctx = {}
 
         def mock_rpc_client(ctx, request):
@@ -85,10 +90,14 @@ class TestTraceparentInjection(unittest.TestCase):
 
         client = self._make_client_stub()
 
-        with tracer.start_as_current_span("format-test-span"):
-            client._network_call_with_retry_inner(
-                "test_caller", mock_rpc_client, MagicMock(), backoff=1, max_backoff=1
-            )
+        with patch.dict(os.environ):
+            os.environ.pop("OTEL_SDK_DISABLED", None)  # allow span context to record/propagate
+            provider = TracerProvider()
+            tracer = provider.get_tracer("test-format")
+            with tracer.start_as_current_span("format-test-span"):
+                client._network_call_with_retry_inner(
+                    "test_caller", mock_rpc_client, MagicMock(), backoff=1, max_backoff=1
+                )
 
         traceparent = captured_ctx["headers"]["traceparent"]
         parts = traceparent.split("-")

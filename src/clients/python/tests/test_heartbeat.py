@@ -12,9 +12,10 @@ class TestStrategyHeartbeatConstruction:
             mock_metrics.get_meter.return_value = mock_meter
             from engine.heartbeat import StrategyHeartbeat
             hb = StrategyHeartbeat("test-strategy")
+            # unit="1" was intentionally dropped in commit 72da6a35 ("Remove
+            # unit=\"1\" from gauge to avoid _ratio suffix in Prometheus").
             mock_meter.create_gauge.assert_called_once_with(
                 "grodt.strategy.heartbeat",
-                unit="1",
                 description="Strategy heartbeat (1=alive)",
             )
 
@@ -68,24 +69,31 @@ class TestStrategyHeartbeatState:
 
 
 class TestStrategyHeartbeatLogging:
-    def test_emits_structured_log(self, caplog):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_metrics.get_meter.return_value = MagicMock()
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            hb.set_state("active")
-            hb.record_tick()
+    def test_emits_structured_log(self):
+        # Commit 72da6a35 switched the heartbeat logger from stdlib logging to
+        # loguru, so caplog (which captures stdlib records) no longer sees it.
+        # Capture the loguru record directly and assert the emitted message
+        # carries the strategy/state/tick fields.
+        from loguru import logger as loguru_logger
 
-            # Patch the wait timeout to fire immediately
-            with caplog.at_level(logging.INFO, logger="grodt.strategy.heartbeat"):
+        captured = []
+        sink_id = loguru_logger.add(lambda m: captured.append(m.record), level="INFO")
+        try:
+            with patch("engine.heartbeat.metrics") as mock_metrics:
+                mock_metrics.get_meter.return_value = MagicMock()
+                from engine.heartbeat import StrategyHeartbeat
+                hb = StrategyHeartbeat("test-strategy")
+                hb.set_state("active")
+                hb.record_tick()
+
                 hb._emit_heartbeat()
+        finally:
+            loguru_logger.remove(sink_id)
 
-            # Check structured log fields
-            assert len(caplog.records) >= 1
-            record = caplog.records[-1]
-            assert record.event == "heartbeat"
-            assert record.strategy_name == "test-strategy"
-            assert record.state == "active"
-            assert record.tick_count == 1
-            assert hasattr(record, "last_tick_time")
-            assert hasattr(record, "uptime_seconds")
+        heartbeat_msgs = [r["message"] for r in captured if r["message"].startswith("heartbeat")]
+        assert len(heartbeat_msgs) >= 1
+        msg = heartbeat_msgs[-1]
+        assert "strategy=test-strategy" in msg
+        assert "state=active" in msg
+        assert "ticks=1" in msg
+        assert "uptime=" in msg

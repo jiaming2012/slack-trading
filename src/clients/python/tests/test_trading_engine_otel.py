@@ -3,12 +3,14 @@
 Verifies:
 - OTel setup is called on entry
 - Heartbeat lifecycle (start → active → idle → stop)
-- Live mode creates spans, simulator mode does not
+- run_strategy() creates a strategy.tick span each iteration in all modes
+  (ADR-0002 / commit dbb9195a removed the live-only span gating)
 - _flush_decisions() called after on_tick()
 - Heartbeat.record_tick() called each iteration
 - Cleanup in finally block (heartbeat stop, on_complete, otel_shutdown)
 - Exception handling preserves cleanup
 """
+import os
 import unittest
 from unittest.mock import MagicMock, patch, call
 from opentelemetry import trace
@@ -24,6 +26,7 @@ class MockStrategy:
         self._decisions = []
         self.symbol = "AAPL"
         self.on_tick_calls = 0
+        self.on_signal_calls = 0
         self.on_retrain_calls = 0
         self.on_complete_calls = 0
 
@@ -33,6 +36,11 @@ class MockStrategy:
     def on_tick(self, tick_deltas):
         self.on_tick_calls += 1
         self._ticks_remaining -= 1
+
+    def on_signal(self, signal):
+        # Required by the engine: run_strategy wires
+        # playground._signal_callback = strategy.on_signal (engine/trading_engine.py).
+        self.on_signal_calls += 1
 
     def get_next_tick_seconds(self):
         return 60
@@ -175,7 +183,18 @@ class _ListExporter:
 
 
 class TestRunStrategyLiveVsSimulator(unittest.TestCase):
-    """Test span creation differs between live and simulator modes."""
+    """run_strategy() emits a strategy.tick span each iteration in every mode.
+
+    ADR-0002 (commit dbb9195a "enforce blocking tick() and delete client-side
+    mode branches") removed the live-only span gating in the engine loop, so
+    spans are now emitted in both live and simulator modes.
+
+    The suite runs under OTEL_SDK_DISABLED=true, which makes any TracerProvider
+    return non-recording spans. These two tests specifically assert span
+    *emission*, so each locally clears OTEL_SDK_DISABLED before constructing its
+    isolated provider — otherwise no spans are recorded regardless of the code
+    under test.
+    """
 
     @patch("engine.trading_engine.setup_otel", return_value=MagicMock())
     @patch("engine.trading_engine.StrategyHeartbeat")
@@ -184,20 +203,24 @@ class TestRunStrategyLiveVsSimulator(unittest.TestCase):
 
         mock_hb_cls.return_value = MagicMock()
 
-        # Create isolated provider + exporter, patch trace.get_tracer to use it
-        exporter = _ListExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        with patch.dict(os.environ):
+            os.environ.pop("OTEL_SDK_DISABLED", None)  # allow span recording
 
-        with patch("engine.trading_engine.trace") as mock_trace:
-            mock_trace.get_tracer.return_value = provider.get_tracer("test")
+            # Create isolated provider + exporter, patch trace.get_tracer to use it
+            exporter = _ListExporter()
+            provider = TracerProvider()
+            provider.add_span_processor(SimpleSpanProcessor(exporter))
 
-            strategy = MockStrategy(ticks_before_complete=2)
-            playground = MockPlayground(environment="live")
+            with patch("engine.trading_engine.trace") as mock_trace:
+                mock_trace.get_tracer.return_value = provider.get_tracer("test")
 
-            run_strategy(strategy, playground, MagicMock())
+                strategy = MockStrategy(ticks_before_complete=2)
+                playground = MockPlayground(environment="live")
 
-        provider.force_flush()
+                run_strategy(strategy, playground, MagicMock())
+
+            provider.force_flush()
+
         tick_spans = [s for s in exporter.spans if s.name == "strategy.tick"]
         assert len(tick_spans) == 2, f"Expected 2 tick spans, got {len(tick_spans)}"
 
@@ -212,26 +235,33 @@ class TestRunStrategyLiveVsSimulator(unittest.TestCase):
 
     @patch("engine.trading_engine.setup_otel", return_value=MagicMock())
     @patch("engine.trading_engine.StrategyHeartbeat")
-    def test_simulator_mode_no_spans(self, mock_hb_cls, _):
+    def test_simulator_mode_also_creates_spans(self, mock_hb_cls, _):
+        # Pre-ADR-0002 this asserted simulator mode emitted NO spans. ADR-0002
+        # (commit dbb9195a) deleted that gating, so simulator now emits spans
+        # exactly like live mode. Assertion re-pinned from 0 -> 2 accordingly.
         from engine.trading_engine import run_strategy
 
         mock_hb_cls.return_value = MagicMock()
 
-        exporter = _ListExporter()
-        provider = TracerProvider()
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        with patch.dict(os.environ):
+            os.environ.pop("OTEL_SDK_DISABLED", None)  # allow span recording
 
-        with patch("engine.trading_engine.trace") as mock_trace:
-            mock_trace.get_tracer.return_value = provider.get_tracer("test")
+            exporter = _ListExporter()
+            provider = TracerProvider()
+            provider.add_span_processor(SimpleSpanProcessor(exporter))
 
-            strategy = MockStrategy(ticks_before_complete=2)
-            playground = MockPlayground(environment="simulator")
+            with patch("engine.trading_engine.trace") as mock_trace:
+                mock_trace.get_tracer.return_value = provider.get_tracer("test")
 
-            run_strategy(strategy, playground, MagicMock())
+                strategy = MockStrategy(ticks_before_complete=2)
+                playground = MockPlayground(environment="simulator")
 
-        provider.force_flush()
+                run_strategy(strategy, playground, MagicMock())
+
+            provider.force_flush()
+
         tick_spans = [s for s in exporter.spans if s.name == "strategy.tick"]
-        assert len(tick_spans) == 0, f"Expected 0 tick spans in simulator mode, got {len(tick_spans)}"
+        assert len(tick_spans) == 2, f"Expected 2 tick spans in simulator mode, got {len(tick_spans)}"
 
         provider.shutdown()
 
