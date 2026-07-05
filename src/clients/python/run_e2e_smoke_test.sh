@@ -130,6 +130,7 @@ echo "[smoke] Twirp ready on ${HOST_ONLY}:${PORT_ONLY} after ${i}s" >&2
 # Do not let a nonzero pytest exit trip `set -e` before we record it.
 set +e
 OTEL_SDK_DISABLED=true \
+E2E_SMOKE_HARNESS=1 \
 E2E_SMOKE_TWIRP_HOST="$TWIRP_HOST" \
     "$PYTHON" -m pytest "$SCRIPT_DIR/tests/test_e2e_smoke.py" -v -s
 TEST_RC=$?

@@ -41,6 +41,15 @@ from pathlib import Path
 import pytest
 from loguru import logger
 
+# This module needs a live Twirp server that only the run_e2e_smoke_test.sh
+# harness provides (it also tears it down). Under a bare `pytest tests/` run
+# there is no server, so skip rather than fail — the G3 parity gate compares
+# plain-suite failures against a baseline that predates this file.
+pytestmark = pytest.mark.skipif(
+    os.environ.get("E2E_SMOKE_HARNESS") != "1",
+    reason="e2e smoke test runs only under run_e2e_smoke_test.sh (task test:smoke)",
+)
+
 # conftest.py already inserts the python client root onto sys.path, but keep
 # this belt-and-suspenders insert so the module also runs standalone.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
