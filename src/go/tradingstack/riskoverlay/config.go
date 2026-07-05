@@ -20,6 +20,7 @@ var ErrInvalidRiskLimits = errors.New("riskoverlay: invalid risk limits")
 // no-op maximum (100), and crowded-entry rejection is off. Enforcement is only
 // meaningful once an operator narrows these values.
 //
+//	Enabled                   false  (gate off; installation deferred)
 //	MaxGrossExposure          1e15   (effectively unlimited)
 //	MaxNetExposure            1e15   (effectively unlimited)
 //	MaxSectorConcentrationPct 100.0  (a single sector may be the whole book)
@@ -27,6 +28,7 @@ var ErrInvalidRiskLimits = errors.New("riskoverlay: invalid risk limits")
 //	DeployableCapital         1e15   (effectively unlimited)
 //	RejectCrowdedEntries      false  (crowding consumption off)
 var DefaultRiskLimits = RiskLimits{
+	Enabled:                   false,
 	MaxGrossExposure:          1e15,
 	MaxNetExposure:            1e15,
 	MaxSectorConcentrationPct: 100.0,
@@ -40,6 +42,7 @@ var DefaultRiskLimits = RiskLimits{
 // explicit zero.
 //
 //	riskOverlay:
+//	  enabled: false
 //	  max_gross_exposure: 100000
 //	  max_net_exposure: 90000
 //	  max_sector_concentration_pct: 50
@@ -48,6 +51,7 @@ var DefaultRiskLimits = RiskLimits{
 //	  reject_crowded_entries: true
 type riskOverlayYAML struct {
 	RiskOverlay *struct {
+		Enabled                   *bool    `yaml:"enabled"`
 		MaxGrossExposure          *float64 `yaml:"max_gross_exposure"`
 		MaxNetExposure            *float64 `yaml:"max_net_exposure"`
 		MaxSectorConcentrationPct *float64 `yaml:"max_sector_concentration_pct"`
@@ -71,6 +75,9 @@ func LoadRiskLimits(raw []byte) (RiskLimits, error) {
 
 	if parsed.RiskOverlay != nil {
 		blk := parsed.RiskOverlay
+		if blk.Enabled != nil {
+			limits.Enabled = *blk.Enabled
+		}
 		if blk.MaxGrossExposure != nil {
 			limits.MaxGrossExposure = *blk.MaxGrossExposure
 		}

@@ -67,4 +67,13 @@ type RiskLimits struct {
 	MaxDrawdownPct            float64
 	DeployableCapital         float64
 	RejectCrowdedEntries      bool
+
+	// Enabled is the operator enablement flag from the `riskOverlay.enabled`
+	// config key. It defaults to false. NOTE: this flag is delivered but NOT yet
+	// wired into server startup — installing the gate (SetRiskGate) and enabling
+	// it by default for Simulation are DEFERRED to the follow-up change
+	// wire-risk-overlay-state, because enablement without real portfolio state
+	// evaluates a nil snapshot. The pure engine ignores this field; it is carried
+	// on RiskLimits so config load/validate/test exercises the flag today.
+	Enabled bool
 }

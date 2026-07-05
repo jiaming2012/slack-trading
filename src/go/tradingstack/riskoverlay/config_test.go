@@ -71,6 +71,35 @@ func TestValidateRiskLimits_DefaultsValid(t *testing.T) {
 	require.NoError(t, ValidateRiskLimits(DefaultRiskLimits))
 }
 
+// B3 — the enablement flag exists in the config, defaults to false, and is
+// loaded + validated. (Installation of the gate is deferred; this test only
+// exercises the flag round-trip through the loader.)
+func TestLoadRiskLimits_EnabledFlag(t *testing.T) {
+	t.Run("absent enabled defaults to false", func(t *testing.T) {
+		limits, err := LoadRiskLimits([]byte("riskOverlay:\n  max_gross_exposure: 100000\n"))
+		require.NoError(t, err)
+		require.False(t, limits.Enabled)
+	})
+
+	t.Run("explicit true is honored", func(t *testing.T) {
+		limits, err := LoadRiskLimits([]byte("riskOverlay:\n  enabled: true\n"))
+		require.NoError(t, err)
+		require.True(t, limits.Enabled)
+	})
+
+	t.Run("explicit false is honored", func(t *testing.T) {
+		limits, err := LoadRiskLimits([]byte("riskOverlay:\n  enabled: false\n"))
+		require.NoError(t, err)
+		require.False(t, limits.Enabled)
+	})
+
+	t.Run("missing block leaves enabled false", func(t *testing.T) {
+		limits, err := LoadRiskLimits(nil)
+		require.NoError(t, err)
+		require.False(t, limits.Enabled)
+	})
+}
+
 func TestLoadRiskLimitsFromFile_MissingFileDefaults(t *testing.T) {
 	limits, err := LoadRiskLimitsFromFile("/no/such/risk-overlay-config.yaml")
 	require.NoError(t, err)
