@@ -179,5 +179,69 @@ func TestMigrateNetEvCostModel_MissingTableReturnsError(t *testing.T) {
 	assert.ErrorIs(t, err, ErrStrategyEvWeightsTableMissing)
 }
 
+// TestMigrateNetEvCostModel_CapacitySharesRoundTripsWithGrossAndNetEV pins the
+// strategy-capacity-estimate spec scenario "capacity_shares round-trips on
+// the same row as gross_ev and net_ev": it writes non-trivial, high-precision
+// values into all three columns on the same strategy_ev_weights row in a
+// single UPDATE, reads them back, and asserts exact round-trip — not just
+// that the columns exist. Values are round-tripped through NUMERIC's text
+// representation (rather than float64) so precision loss from binary-float
+// conversion cannot mask a truncating column definition.
+func TestMigrateNetEvCostModel_CapacitySharesRoundTripsWithGrossAndNetEV(t *testing.T) {
+	db := setupCostModelDB(t)
+	require.NoError(t, MigrateNetEvCostModel(db))
+
+	// Assert the columns the spec names are declared as NUMERIC, matching
+	// the migration's ADD COLUMN statements.
+	assert.Equal(t, "numeric", columnDataType(t, db, "strategy_ev_weights", "gross_ev"))
+	assert.Equal(t, "numeric", columnDataType(t, db, "strategy_ev_weights", "net_ev"))
+	assert.Equal(t, "numeric", columnDataType(t, db, "strategy_ev_weights", "capacity_shares"))
+
+	row := &tradingstack.StrategyEvWeight{
+		StrategyID: strPtr("covered_call_v7"),
+		Regime:     strPtr("bull"),
+	}
+	require.NoError(t, db.Create(row).Error)
+
+	const (
+		wantGrossEv        = "1234.56789012345"
+		wantNetEv          = "-987.654321098765"
+		wantCapacityShares = "8412.33"
+	)
+
+	require.NoError(t, db.Exec(
+		`UPDATE strategy_ev_weights SET gross_ev = ?, net_ev = ?, capacity_shares = ? WHERE id = ?`,
+		wantGrossEv, wantNetEv, wantCapacityShares, row.ID,
+	).Error)
+
+	var (
+		gotGrossEv, gotNetEv, gotCapacityShares string
+		gotStrategyID, gotRegime                string
+	)
+	require.NoError(t, db.Raw(
+		`SELECT gross_ev::text, net_ev::text, capacity_shares::text, strategy_id, regime
+		 FROM strategy_ev_weights WHERE id = ?`, row.ID,
+	).Row().Scan(&gotGrossEv, &gotNetEv, &gotCapacityShares, &gotStrategyID, &gotRegime))
+
+	assert.Equal(t, wantGrossEv, gotGrossEv, "gross_ev must round-trip exactly, including full decimal precision")
+	assert.Equal(t, wantNetEv, gotNetEv, "net_ev must round-trip exactly, including full decimal precision and sign")
+	assert.Equal(t, wantCapacityShares, gotCapacityShares, "capacity_shares must round-trip exactly")
+	assert.Equal(t, "covered_call_v7", gotStrategyID, "capacity_shares row must remain attributable to its strategy_id")
+	assert.Equal(t, "bull", gotRegime, "capacity_shares row must remain attributable to its regime")
+}
+
+// columnDataType returns the information_schema-reported data_type for the
+// given table/column, so callers can assert a column's declared SQL type.
+func columnDataType(t *testing.T, db *gorm.DB, table, column string) string {
+	t.Helper()
+	var dataType string
+	err := db.Raw(
+		`SELECT data_type FROM information_schema.columns WHERE table_name = ? AND column_name = ?`,
+		table, column,
+	).Scan(&dataType).Error
+	require.NoError(t, err)
+	return dataType
+}
+
 func strPtr(s string) *string     { return &s }
 func floatPtr(f float64) *float64 { return &f }
