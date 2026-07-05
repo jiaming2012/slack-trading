@@ -10,6 +10,11 @@ Architecture refactor
         rename-event-packages: |{"bg":"#FFFFFF"}
     Mode presets
         migrate-crossed-enums: |{"bg":"#FFFFFF"}
+        migrate-live-account-type-data: |{"bg":"#FFFFFF"}
+    Data layer hygiene
+        close-gorm-db-leaks: |{"bg":"#FFFFFF"}
+    Refactor verification
+        e2e-sim-smoke-test: |{"bg":"#FFFFFF"}
 Live simulation observability
     v3 closeout
         close-v3-milestone: |{"bg":"#FFFFFF"}
@@ -18,11 +23,27 @@ Trading stack v4
     Foundations
         trading-stack-schema: |{"bg":"#FFFFFF"}
         simulator-adaptation: |{"bg":"#FFFFFF"}
+        temporal-scan-orchestration: |{"bg":"#FFFFFF"}
+        esdb-role-decision: |{"bg":"#FFFFFF"}
+        db-partitioning-retention: |{"bg":"#FFFFFF"}
     Market scanning
         scanner-l1-l2: |{"bg":"#FFFFFF"}
+        scanner-ml-ranking: |{"bg":"#FFFFFF"}
+        regime-robustness-layer: |{"bg":"#FFFFFF"}
+        feed-health-staleness: |{"bg":"#FFFFFF"}
     Safety rails
         kill-switch-and-broker-side-stops: |{"bg":"#FFFFFF"}
+        portfolio-risk-overlay: |{"bg":"#FFFFFF"}
+        crowding-detection: |{"bg":"#FFFFFF"}
     Feedback loop
         fidelity-checker: |{"bg":"#FFFFFF"}
+        continuous-fidelity-monitoring: |{"bg":"#FFFFFF"}
+        strategy-optimizer: |{"bg":"#FFFFFF"}
         ev-tracker: |{"bg":"#FFFFFF"}
-        optimizers: |{"bg":"#FFFFFF"}
+        net-ev-cost-model: |{"bg":"#FFFFFF"}
+        scanner-optimizer: |{"bg":"#FFFFFF"}
+        optimizer-validation-pipeline: |{"bg":"#FFFFFF"}
+        overfitting-countermeasures: |{"bg":"#FFFFFF"}
+        shadow-config-deployment: |{"bg":"#FFFFFF"}
+    Recommendations
+        recommendation-engine: |{"bg":"#FFFFFF"}
