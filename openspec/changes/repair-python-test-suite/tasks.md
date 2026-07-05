@@ -33,8 +33,8 @@
 
 ## 7. Verification and closeout
 
-- [ ] 7.1 `task test:python` green twice consecutively (zero failed; only harness-guard skips).
-- [ ] 7.2 G1 `go build ./src/go/... ./cmd/...` and G2 `task test` green (untouched).
-- [ ] 7.3 `task test:smoke` green once.
+- [x] 7.1 `task test:python` green twice consecutively (zero failed; only harness-guard skips).
+- [x] 7.2 G1 `go build ./src/go/... ./cmd/...` and G2 `task test` green (untouched).
+- [x] 7.3 `task test:smoke` green once.
 - [ ] 7.4 G6 — Fable adversarial review approves (test-honesty focus: assertions not weakened to force green).
 - [ ] 7.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).
