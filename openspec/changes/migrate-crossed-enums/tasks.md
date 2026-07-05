@@ -66,9 +66,9 @@
 
 ## 8. Verification and closeout
 
-- [ ] 8.1 G1 — `go build ./src/go/... ./cmd/...` exits 0.
-- [ ] 8.2 G2 — `task test` green (reconciliation/netting unregressed).
-- [ ] 8.3 G3 — Python `pytest` failure set is a subset of the Wave-0 baseline (no NEW failures).
-- [ ] 8.4 G4 — MIG-03 mode round-trip / diff-test passes via the new `task` target.
+- [x] 8.1 G1 — `go build ./src/go/... ./cmd/...` exits 0.
+- [x] 8.2 G2 — `task test` green (reconciliation/netting unregressed).
+- [x] 8.3 G3 — Python `pytest` failure set is a subset of the Wave-0 baseline (no NEW failures).
+- [x] 8.4 G4 — MIG-03 mode round-trip / diff-test passes via the new `task` target.
 - [ ] 8.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh
       ROADMAP.md current-state (done at archive time).
