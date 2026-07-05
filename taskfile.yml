@@ -116,6 +116,15 @@ tasks:
         echo "test:model-diff PASSED — scenario '${SCENARIO_NAME}' matches the baseline reference byte-for-byte."
     dir: src/clients/python
 
+  test:trading-stack:
+    desc: 'Run the tradingstack package testcontainers round-trip suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+>>>>>>> worktree-agent-ad96a9ebc16ca0163
+
   test:e2e:
     cmds:
       - task app:build-dev
