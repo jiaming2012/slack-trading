@@ -116,6 +116,12 @@ tasks:
         echo "test:model-diff PASSED — scenario '${SCENARIO_NAME}' matches the baseline reference byte-for-byte."
     dir: src/clients/python
 
+  test:smoke:
+    desc: 'e2e-sim-smoke-test G5 gate: boot the Go server headlessly (dev mode), create a Simulation playground over AAPL 2025 data via Twirp, run a bounded tick loop with one forced order, assert the fill, tear down. Exit 0 = pass. Fails fast if something else already holds Twirp port 5051.'
+    cmds:
+      - PYTHON="{{.PYTHON}}" ./run_e2e_smoke_test.sh
+    dir: src/clients/python
+
   lint:package-names:
     desc: 'Guard against drift back to the pre-rename-event-packages package names (eventservices, eventconsumers, eventproducers, eventpubsub, backtester-api). Scans live Go source and live architecture docs only -- historical/archival material (.planning/milestones, .planning/todos, openspec/changes/*, todo/, docs/adr/) is intentionally excluded.'
     cmds:
