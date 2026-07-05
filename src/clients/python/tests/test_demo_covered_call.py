@@ -61,6 +61,19 @@ def _parse_percent(s: str) -> float:
     return float(s.replace("%", ""))
 
 
+# This is an integration/regression test: it runs demos.demo_covered_call
+# end-to-end against a *live* Go Twirp server on :5051 (plus a Polygon API key
+# and a ~10-15 min run). Under a bare, headless `pytest tests/` with no server
+# it can only fail with connection-refused. Mirroring the e2e smoke module, it
+# self-skips unless its harness is explicitly declared present via
+# DEMO_COVERED_CALL_HARNESS=1 -- the spec permits skips for tests whose declared
+# harness is absent. Set that env var (with the server up) to run the real
+# regression and validate the pinned reference metrics.
+@unittest.skipUnless(
+    os.environ.get("DEMO_COVERED_CALL_HARNESS") == "1",
+    "demo_covered_call regression needs a live Twirp server on :5051 + Polygon; "
+    "set DEMO_COVERED_CALL_HARNESS=1 to run it",
+)
 class TestDemoCoveredCall(unittest.TestCase):
     """Integration / regression test for demo_covered_call.py."""
 

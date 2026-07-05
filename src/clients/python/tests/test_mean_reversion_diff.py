@@ -136,16 +136,20 @@ def _run_strategy(strategy_cls, tick_deltas, pdf, bar_to_dict_fn=None,
 
 
 def _normalize_order_calls(call_list):
-    """Normalize order calls by replacing non-deterministic group_id values.
+    """Normalize order calls for behavioral (trading) comparison.
 
-    Each unique group_id is mapped to a stable label (group_0, group_1, ...)
-    so that V1 and V2 calls can be compared despite different UUIDs.
+    - Each unique group_id is mapped to a stable label (group_0, group_1, ...)
+      so V1 and V2 calls compare despite different UUIDs.
+    - The V2-only ``signal_id`` kwarg is dropped: it carries the SignalDecision
+      RPC handle (telemetry), not trading behavior, and V1 never emits it. This
+      keeps the diff scoped to the order semantics both versions must share.
     """
     normalized = []
     group_map = {}
     counter = 0
     for c in call_list:
         args, kwargs = c
+        kwargs = {k: v for k, v in kwargs.items() if k != "signal_id"}
         attrs = kwargs.get("attributes", args[5] if len(args) > 5 else None)
         if attrs and "group_id" in attrs:
             gid = attrs["group_id"]
