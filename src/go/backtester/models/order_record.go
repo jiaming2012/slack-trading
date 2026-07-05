@@ -48,37 +48,37 @@ func (a Attributes) Value() (driver.Value, error) {
 
 type OrderRecord struct {
 	gorm.Model
-	PlaygroundID     uuid.UUID              `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order;index:idx_playground_client_request_id,priority:1" copier:"must,nopanic"`
-	ClientRequestID  *string                `gorm:"column:client_request_id;type:text;index:idx_playground_client_request_id,priority:2" copier:"must,nopanic"`
-	LiveAccountType  LiveAccountType        `gorm:"column:account_type;type:text;not null" copier:"must,nopanic"`
-	ExternalOrderID  *uint                  `gorm:"column:external_id;index:idx_external_order_id" copier:"must,nopanic"`
-	Class            OrderRecordClass       `gorm:"column:class;type:text;not null" copier:"must,nopanic"`
-	Symbol           string                 `gorm:"column:symbol;type:text;not null" copier:"must,nopanic"`
-	Side             TradierOrderSide       `gorm:"column:side;type:text;not null" copier:"must,nopanic"`
-	AbsoluteQuantity float64                `gorm:"column:quantity;type:numeric;not null" copier:"must,nopanic"`
-	OrderType        OrderRecordType        `gorm:"column:order_type;type:text;not null" copier:"must,nopanic"`
-	Duration         OrderRecordDuration    `gorm:"column:duration;type:text;not null" copier:"must,nopanic"`
-	Price            *float64               `gorm:"column:price;type:numeric" copier:"must,nopanic"`
-	RequestedPrice   float64                `gorm:"column:requested_price;type:numeric" copier:"must,nopanic"`
-	StopPrice        *float64               `gorm:"column:stop_price;type:numeric" copier:"must,nopanic"`
-	Status           OrderRecordStatus      `gorm:"column:status;type:text;not null" copier:"must,nopanic"`
-	RejectReason     *string                `gorm:"column:reject_reason;type:text" copier:"must,nopanic"`
-	Tag              string                 `gorm:"column:tag;type:text" copier:"must,nopanic"`
-	Timestamp        time.Time              `gorm:"column:timestamp;type:timestamptz;not null" copier:"must,nopanic"`
-	IsAdjustment     bool                   `gorm:"column:is_adjustment" copier:"must,nopanic"`
-	IsClose          bool                   `gorm:"-" copier:"must,nopanic"`
-	CloseOrderId     *uint                  `gorm:"column:close_order_id" copier:"must,nopanic"`
-	IsSystemOrder    bool                   `gorm:"column:is_system_order" copier:"must,nopanic"`
-	Closes           []*OrderRecord         `gorm:"many2many:order_closes" copier:"must,nopanic"`
-	ClosedBy         []*TradeRecord         `gorm:"many2many:trade_closed_by" copier:"must,nopanic"`
-	Reconciles       []*OrderRecord         `gorm:"many2many:order_reconciles" copier:"must,nopanic"`
-	PreviousPosition Position               `gorm:"type:json" copier:"must,nopanic"`
-	Trades           []*TradeRecord         `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
-	ReconcileTrades  []*TradeRecord         `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
-	instrument       models.Instrument `gorm:"-" copier:"must,nopanic"`
-	PreviousBalance  *float64               `gorm:"column:previous_balance;type:numeric" copier:"must,nopanic"`
-	SignalID         *uuid.UUID             `gorm:"column:signal_id;type:uuid;index:idx_signal_id" copier:"must,nopanic"`
-	Attributes       Attributes             `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
+	PlaygroundID     uuid.UUID           `gorm:"column:playground_id;type:uuid;not null;index:idx_playground_order;index:idx_playground_client_request_id,priority:1" copier:"must,nopanic"`
+	ClientRequestID  *string             `gorm:"column:client_request_id;type:text;index:idx_playground_client_request_id,priority:2" copier:"must,nopanic"`
+	AccountRole      AccountRole         `gorm:"column:account_type;type:text;not null" copier:"must,nopanic"`
+	ExternalOrderID  *uint               `gorm:"column:external_id;index:idx_external_order_id" copier:"must,nopanic"`
+	Class            OrderRecordClass    `gorm:"column:class;type:text;not null" copier:"must,nopanic"`
+	Symbol           string              `gorm:"column:symbol;type:text;not null" copier:"must,nopanic"`
+	Side             TradierOrderSide    `gorm:"column:side;type:text;not null" copier:"must,nopanic"`
+	AbsoluteQuantity float64             `gorm:"column:quantity;type:numeric;not null" copier:"must,nopanic"`
+	OrderType        OrderRecordType     `gorm:"column:order_type;type:text;not null" copier:"must,nopanic"`
+	Duration         OrderRecordDuration `gorm:"column:duration;type:text;not null" copier:"must,nopanic"`
+	Price            *float64            `gorm:"column:price;type:numeric" copier:"must,nopanic"`
+	RequestedPrice   float64             `gorm:"column:requested_price;type:numeric" copier:"must,nopanic"`
+	StopPrice        *float64            `gorm:"column:stop_price;type:numeric" copier:"must,nopanic"`
+	Status           OrderRecordStatus   `gorm:"column:status;type:text;not null" copier:"must,nopanic"`
+	RejectReason     *string             `gorm:"column:reject_reason;type:text" copier:"must,nopanic"`
+	Tag              string              `gorm:"column:tag;type:text" copier:"must,nopanic"`
+	Timestamp        time.Time           `gorm:"column:timestamp;type:timestamptz;not null" copier:"must,nopanic"`
+	IsAdjustment     bool                `gorm:"column:is_adjustment" copier:"must,nopanic"`
+	IsClose          bool                `gorm:"-" copier:"must,nopanic"`
+	CloseOrderId     *uint               `gorm:"column:close_order_id" copier:"must,nopanic"`
+	IsSystemOrder    bool                `gorm:"column:is_system_order" copier:"must,nopanic"`
+	Closes           []*OrderRecord      `gorm:"many2many:order_closes" copier:"must,nopanic"`
+	ClosedBy         []*TradeRecord      `gorm:"many2many:trade_closed_by" copier:"must,nopanic"`
+	Reconciles       []*OrderRecord      `gorm:"many2many:order_reconciles" copier:"must,nopanic"`
+	PreviousPosition Position            `gorm:"type:json" copier:"must,nopanic"`
+	Trades           []*TradeRecord      `gorm:"foreignKey:OrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
+	ReconcileTrades  []*TradeRecord      `gorm:"foreignKey:ReconcileOrderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" copier:"must,nopanic"`
+	instrument       models.Instrument   `gorm:"-" copier:"must,nopanic"`
+	PreviousBalance  *float64            `gorm:"column:previous_balance;type:numeric" copier:"must,nopanic"`
+	SignalID         *uuid.UUID          `gorm:"column:signal_id;type:uuid;index:idx_signal_id" copier:"must,nopanic"`
+	Attributes       Attributes          `gorm:"column:attributes;type:jsonb" copier:"must,nopanic"`
 }
 
 // tradeMatchesOrder checks if a ClosedBy trade belongs to the given closing order.
@@ -349,7 +349,7 @@ func (o *OrderRecord) CreateCloseOrderRequests(positionCache *PositionsCache, ti
 }
 
 func (o *OrderRecord) GetTrades() []*TradeRecord {
-	if o.LiveAccountType == LiveAccountTypeReconcilation {
+	if o.AccountRole == AccountRoleReconcilation {
 		return o.ReconcileTrades
 	}
 
@@ -404,7 +404,7 @@ func (o *OrderRecord) GetQuantity() float64 {
 }
 
 func (o *OrderRecord) Rollback(trade *TradeRecord) {
-	if o.LiveAccountType == LiveAccountTypeReconcilation {
+	if o.AccountRole == AccountRoleReconcilation {
 		for i, t := range o.ReconcileTrades {
 			if t.ID == trade.ID {
 				o.ReconcileTrades = append(o.ReconcileTrades[:i], o.ReconcileTrades[i+1:]...)
@@ -453,7 +453,7 @@ func (o *OrderRecord) Fill(trade *TradeRecord) (bool, error) {
 		}
 	}
 
-	if o.LiveAccountType == LiveAccountTypeReconcilation {
+	if o.AccountRole == AccountRoleReconcilation {
 		o.ReconcileTrades = append(o.ReconcileTrades, trade)
 	} else {
 		o.Trades = append(o.Trades, trade)
@@ -508,7 +508,7 @@ func (o *OrderRecord) ResetStatusToPending(dbService IDatabaseService) (commit f
 		}
 
 		dbCommit = func() error {
-			copy := CopyOrderRecord(o.PlaygroundID, o.ID, o, o.LiveAccountType)
+			copy := CopyOrderRecord(o.PlaygroundID, o.ID, o, o.AccountRole)
 			copy.Status = OrderRecordStatusPending
 			copy.RejectReason = nil
 
@@ -597,14 +597,14 @@ func (o *OrderRecord) FetchOrderRecordFromDB(db *gorm.DB, playgroundId uuid.UUID
 }
 
 func (o *OrderRecord) Validate() error {
-	if err := o.LiveAccountType.Validate(); err != nil {
+	if err := o.AccountRole.Validate(); err != nil {
 		return fmt.Errorf("OrderRecord: invalid live account type: %w", err)
 	}
 
 	return nil
 }
 
-func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, liveAccountType LiveAccountType) *OrderRecord {
+func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, liveAccountType AccountRole) *OrderRecord {
 	record, err := NewOrderRecord(
 		orderID,
 		from.ExternalOrderID,
@@ -636,7 +636,7 @@ func CopyOrderRecord(playgroundID uuid.UUID, orderID uint, from *OrderRecord, li
 	return record
 }
 
-func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) (*OrderRecord, error) {
+func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, class OrderRecordClass, accountType AccountRole, createDate time.Time, symbol string, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) (*OrderRecord, error) {
 	order := &OrderRecord{
 		Model: gorm.Model{ID: id},
 	}
@@ -672,7 +672,7 @@ func NewOrderRecord(id uint, external_order_id *uint, client_request_id *string,
 	return order, nil
 }
 
-func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType LiveAccountType, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) error {
+func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_request_id *string, playgroundId uuid.UUID, symbol string, class OrderRecordClass, accountType AccountRole, createDate time.Time, side TradierOrderSide, quantity float64, orderType OrderRecordType, duration OrderRecordDuration, requestedPrice float64, price, stopPrice *float64, status OrderRecordStatus, tag string, closeOrderId *uint, isSystemOrder bool, attributes map[string]string, previousBalance *float64) error {
 	instrument, err := models.NewInstrument(string(class), symbol)
 	if err != nil {
 		return fmt.Errorf("makeOrderRecord: failed to create instrument for class %s and symbol %s: %w", class, symbol, err)
@@ -682,7 +682,7 @@ func PopulateOrderRecord(order *OrderRecord, external_order_id *uint, client_req
 	order.ClientRequestID = client_request_id
 	order.PlaygroundID = playgroundId
 	order.Class = class
-	order.LiveAccountType = accountType
+	order.AccountRole = accountType
 	order.Timestamp = createDate
 	order.Symbol = symbol
 	order.instrument = instrument

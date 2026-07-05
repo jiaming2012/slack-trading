@@ -66,7 +66,7 @@ func newCacheTestEnv(t *testing.T, optionSyms []models.OptionSymbol, optionPrice
 	pg, err := NewPlayground(PlaygroundConfig{
 		Balance: 100_000,
 		Clock:   clock,
-		Env:     PlaygroundEnvironmentSimulator,
+		Mode:    ModeSimulation,
 		Now:     start,
 		Feeds:   repos,
 	})
@@ -96,7 +96,7 @@ func (e *cacheTestEnv) place(t *testing.T, symbol string, class OrderRecordClass
 	t.Helper()
 	id := e.nextOrderID
 	e.nextOrderID++
-	order, err := NewOrderRecord(id, nil, nil, uuid.Nil, class, LiveAccountTypeMock, e.pg.GetCurrentTime(), symbol, side, qty, Market, Day, price, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order, err := NewOrderRecord(id, nil, nil, uuid.Nil, class, AccountRoleMock, e.pg.GetCurrentTime(), symbol, side, qty, Market, Day, price, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 	changes, err := e.pg.PlaceOrder(order)
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestCacheInvariant(t *testing.T) {
 		// PlaceOrder should reject this immediately
 		id := env.nextOrderID
 		env.nextOrderID++
-		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideSellToClose, 1, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideSellToClose, 1, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		_, err = env.pg.PlaceOrder(order)
 		require.Error(t, err, "sell_to_close should be rejected when position is short")
@@ -354,7 +354,7 @@ func TestCacheInvariant(t *testing.T) {
 		// sell_to_open on same symbol — should be REJECTED
 		id := env.nextOrderID
 		env.nextOrderID++
-		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideSellToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideSellToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		_, err = env.pg.PlaceOrder(order)
 		require.Error(t, err)
@@ -383,7 +383,7 @@ func TestCacheInvariant(t *testing.T) {
 		// buy_to_open on same symbol — should be REJECTED
 		id := env.nextOrderID
 		env.nextOrderID++
-		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideBuyToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, env.pg.GetCurrentTime(), string(optC230), TradierOrderSideBuyToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		_, err = env.pg.PlaceOrder(order)
 		require.Error(t, err)

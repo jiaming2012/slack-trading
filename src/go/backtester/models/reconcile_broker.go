@@ -16,12 +16,12 @@ func (ReconcileBroker) PlaceOrder(p *Playground, order *OrderRecord) ([]*PlaceOr
 }
 
 func (ReconcileBroker) Tick(p *Playground, d time.Duration, isPreview bool) (*TickDelta, error) {
-	return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.Environment)
+	return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.LegacyEnv)
 }
 
 func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
-		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
+	if !p.Meta.IsReconciliation() {
+		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.LegacyEnv)
 	}
 
 	changes, err := p.placeOrder(order)

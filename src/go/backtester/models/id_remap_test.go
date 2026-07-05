@@ -45,7 +45,9 @@ func TestRemap_SimpleOrderWithTrade(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 100000,
 	}
@@ -53,7 +55,7 @@ func TestRemap_SimpleOrderWithTrade(t *testing.T) {
 	// Simulate in-memory nonce-assigned IDs
 	order := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideBuy,
@@ -111,7 +113,9 @@ func TestRemap_CloseOrderIdFixup(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 100000,
 	}
@@ -119,7 +123,7 @@ func TestRemap_CloseOrderIdFixup(t *testing.T) {
 	// Order 1: open position
 	openOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideBuy,
@@ -139,7 +143,7 @@ func TestRemap_CloseOrderIdFixup(t *testing.T) {
 	oldOpenOrderID := uint(1)
 	closeOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideSell,
@@ -188,7 +192,9 @@ func TestRemap_ClosedByM2M(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 100000,
 	}
@@ -199,7 +205,7 @@ func TestRemap_ClosedByM2M(t *testing.T) {
 
 	openOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideBuy,
@@ -219,7 +225,7 @@ func TestRemap_ClosedByM2M(t *testing.T) {
 
 	closeOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideSell,
@@ -263,7 +269,9 @@ func TestRemap_ParentTradeID(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 100000,
 	}
@@ -284,7 +292,7 @@ func TestRemap_ParentTradeID(t *testing.T) {
 
 	order := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideSell,
@@ -328,7 +336,9 @@ func TestRemap_NoOrders(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 50000,
 	}
@@ -356,7 +366,9 @@ func TestRemap_ClosesM2M(t *testing.T) {
 	playground := &Playground{
 		ID: playgroundID,
 		Meta: Meta{
-			Environment: PlaygroundEnvironmentSimulator,
+			Mode:      ModeSimulation,
+			Role:      AccountRoleSimulator,
+			LegacyEnv: LegacyEnvSimulator,
 		},
 		Balance: 100000,
 	}
@@ -364,7 +376,7 @@ func TestRemap_ClosesM2M(t *testing.T) {
 	// Open order
 	openOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideBuy,
@@ -383,7 +395,7 @@ func TestRemap_ClosesM2M(t *testing.T) {
 	// Close order that references the open order via Closes M2M
 	closeOrder := &OrderRecord{
 		PlaygroundID:     playgroundID,
-		LiveAccountType:  LiveAccountTypeSimulator,
+		AccountRole:      AccountRoleSimulator,
 		Class:            OrderRecordClassEquity,
 		Symbol:           "AAPL",
 		Side:             TradierOrderSideSell,

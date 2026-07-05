@@ -70,7 +70,7 @@ func TestCalendar(t *testing.T) {
 
 	createPlayground := func(symbol models.Instrument, clock *Clock, feed []*models.PolygonAggregateBarV2) (*Playground, error) {
 		period := time.Minute
-		env := PlaygroundEnvironmentSimulator
+		env := ModeSimulation
 		source := models.CandleRepositorySource{
 			Type: "test",
 		}
@@ -82,7 +82,7 @@ func TestCalendar(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     clock.CurrentTime,
 			Feeds:   []*CandleRepository{repo},
 		})
@@ -153,7 +153,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		// place order before market open
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)

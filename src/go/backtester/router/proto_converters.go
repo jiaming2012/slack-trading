@@ -345,9 +345,9 @@ func accountToProto(account *backtester_models.GetAccountResponse, orders []*pb.
 	}
 
 	var liveAccountType *string
-	if err := account.Meta.LiveAccountType.Validate(); err == nil {
+	if err := account.Meta.Role.Validate(); err == nil {
 		liveAccountType = new(string)
-		*liveAccountType = string(account.Meta.LiveAccountType)
+		*liveAccountType = string(account.Meta.Role)
 	}
 
 	events, err := accountEventsToProto(account.Events)
@@ -363,7 +363,7 @@ func accountToProto(account *backtester_models.GetAccountResponse, orders []*pb.
 			StartDate:             account.Meta.StartAt.Format(time.RFC3339),
 			EndDate:               endAt,
 			Symbols:               account.Meta.Symbols,
-			Environment:           string(account.Meta.Environment),
+			Environment:           account.Meta.LegacyEnv,
 			LiveAccountType:       liveAccountType,
 			Tags:                  account.Meta.Tags,
 			ClientId:              account.Meta.ClientID,
@@ -419,9 +419,9 @@ func playgroundToProto(p *backtester_models.Playground) (*pb.PlaygroundSession, 
 	}
 
 	var liveAccountType *string
-	if err := meta.LiveAccountType.Validate(); err == nil {
+	if err := meta.Role.Validate(); err == nil {
 		liveAccountType = new(string)
-		*liveAccountType = string(meta.LiveAccountType)
+		*liveAccountType = string(meta.Role)
 	}
 
 	var reconcilePlaygroundId *string
@@ -438,7 +438,7 @@ func playgroundToProto(p *backtester_models.Playground) (*pb.PlaygroundSession, 
 			PlaygroundId:          p.GetId().String(),
 			ReconcilePlaygroundId: reconcilePlaygroundId,
 			InitialBalance:        meta.InitialBalance,
-			Environment:           string(meta.Environment),
+			Environment:           meta.LegacyEnv,
 			LiveAccountType:       liveAccountType,
 			Tags:                  meta.Tags,
 			ClientId:              p.ClientID,

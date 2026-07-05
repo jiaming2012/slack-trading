@@ -58,7 +58,7 @@ func (st *liveAccountStore) fetchLiveAccount(source *backtester_models.CreateAcc
 		return nil, false, fmt.Errorf("FetchLiveAccount: account id is empty")
 	}
 
-	if source.LiveAccountType == "" {
+	if source.AccountRole == "" {
 		return nil, false, fmt.Errorf("FetchLiveAccount: account type is empty")
 	}
 
@@ -72,7 +72,7 @@ func (st *liveAccountStore) fetchLiveAccount(source *backtester_models.CreateAcc
 
 func (st *liveAccountStore) getMockBroker(broker string) (backtester_models.IBroker, error) {
 	for b, val := range st.brokerMap {
-		if b.LiveAccountType == backtester_models.LiveAccountTypeMock {
+		if b.AccountRole == backtester_models.AccountRoleMock {
 			if b.Broker == broker {
 				return val, nil
 			}

@@ -50,7 +50,7 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	playground, err := NewPlayground(PlaygroundConfig{
 		Balance: balance,
 		Clock:   clock,
-		Env:     PlaygroundEnvironmentSimulator,
+		Mode:    ModeSimulation,
 		Now:     startTime,
 		Feeds:   []*CandleRepository{repo1, repo2},
 	})
@@ -69,7 +69,7 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	require.NoError(t, err)
 
 	// Place a sell_to_open order (short call)
-	order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 5, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	changes, err := playground.PlaceOrder(order1)

@@ -12,14 +12,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
-	"github.com/jiaming2012/slack-trading/src/go/telemetry"
-	"github.com/jiaming2012/slack-trading/src/go/data"
-	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
-	"github.com/jiaming2012/slack-trading/src/go/pubsub"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
 type Server struct {
@@ -201,7 +201,7 @@ func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest
 		return nil, fmt.Errorf("MockAddCandle: playground not found: %v", err)
 	}
 
-	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentLive {
+	if !playground.Meta.Mode.IsRealtime() {
 		return nil, fmt.Errorf("MockAddCandle: only live playgrounds support mock candles")
 	}
 
@@ -259,7 +259,7 @@ func (s *Server) GetEquityReport(ctx context.Context, req *pb.GetEquityReportReq
 		return nil, fmt.Errorf("failed to get equity report: %v", err)
 	}
 
-	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
+	if !playground.Meta.IsReconciliation() {
 		return nil, fmt.Errorf("failed to get equity report: playground is not a reconciliation playground")
 	}
 
@@ -289,7 +289,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
 
-	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
+	if !playground.Meta.IsReconciliation() {
 		return nil, fmt.Errorf("failed to get reconciliation report: playground is not a reconciliation playground")
 	}
 
@@ -676,7 +676,7 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 	}
 
 	var externalIdMap map[uint]*backtester_models.OrderRecord
-	if req.FetchExternalId && account.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
+	if req.FetchExternalId && account.Meta.Mode.IsRealtime() {
 		externalIdMap, err = s.dbService.FetchExternalIdMap(account.Orders)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get external id map: %v", err)
@@ -886,23 +886,36 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		}
 	}
 
-	playgroundEnvironment := backtester_models.PlaygroundEnvironment(req.GetEnvironment())
-	if err := playgroundEnvironment.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
+	// Map the legacy request fields to a Mode at the router boundary:
+	// combinations with no valid preset are rejected, and reconcile is not
+	// an operator-selectable mode (migrate-crossed-enums).
+	mode, internalReconcile, err := backtester_models.ModeFromLegacy(req.GetEnvironment(), req.AccountType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve playground mode: %v", err)
 	}
+
+	if internalReconcile {
+		return nil, fmt.Errorf("failed to create live playground: reconcile is not an operator-selectable mode")
+	}
+
+	if !mode.IsRealtime() {
+		return nil, fmt.Errorf("failed to create live playground: mode %s does not use a live broker account", mode)
+	}
+
+	accountRole := backtester_models.AccountRole(req.AccountType)
 
 	repositoryRequests := repositoryRequestsFromProto(req.Repositories, models.RepositorySourceTradier)
 
-	vars := backtester_models.NewLiveAccountVariables(backtester_models.LiveAccountType(req.AccountType))
+	vars := backtester_models.NewLiveAccountVariables(accountRole)
 	accountId, err := vars.GetTradierTradesAccountID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
 
 	source := &backtester_models.CreateAccountRequestSource{
-		Broker:          req.Broker,
-		LiveAccountType: backtester_models.LiveAccountType(req.AccountType),
-		AccountID:       accountId,
+		Broker:      req.Broker,
+		AccountRole: accountRole,
+		AccountID:   accountId,
 	}
 
 	liveAccount, found, err := s.dbService.FetchLiveAccount(source)
@@ -915,7 +928,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 	}
 
 	createPlaygroundReq := &backtester_models.PopulatePlaygroundRequest{
-		Env:      playgroundEnvironment,
+		Mode:     mode,
 		ClientID: req.ClientId,
 		Account: backtester_models.CreateAccountRequest{
 			Balance: float64(req.Balance),
@@ -949,16 +962,24 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		}
 	}
 
-	playgroundEnvironment := backtester_models.PlaygroundEnvironment(req.GetEnvironment())
-	if err := playgroundEnvironment.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
+	// Map the legacy request environment to a Mode at the router boundary.
+	// This entry point carries no account source, so only Simulation
+	// resolves; reconcile is not operator-selectable and live playgrounds
+	// go through CreateLivePlayground.
+	mode, internalReconcile, err := backtester_models.ModeFromLegacy(req.GetEnvironment(), "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve playground mode: %v", err)
+	}
+
+	if internalReconcile {
+		return nil, fmt.Errorf("failed to create playground: reconcile is not an operator-selectable mode")
 	}
 
 	repositoryRequests := repositoryRequestsFromProto(req.Repositories, models.RepositorySourcePolygon)
 
 	playground := &backtester_models.Playground{}
-	err := s.dbService.CreatePlayground(playground, &backtester_models.PopulatePlaygroundRequest{
-		Env:      playgroundEnvironment,
+	err = s.dbService.CreatePlayground(playground, &backtester_models.PopulatePlaygroundRequest{
+		Mode:     mode,
 		ClientID: req.ClientId,
 		Account: backtester_models.CreateAccountRequest{
 			Balance: float64(req.Balance),
@@ -1014,20 +1035,19 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		playground.SetSignalRepo(replayRepo)
 		log.Infof("CreatePlayground: replay mode, loaded %d signals from ESDB stream (total in stream: %d)", loaded, len(allSignals))
 	} else {
-		switch playgroundEnvironment {
-		case backtester_models.PlaygroundEnvironmentLive, backtester_models.PlaygroundEnvironmentReconcile:
+		if mode.IsRealtime() {
 			if s.esdbProducer != nil {
 				playground.SetSignalRepo(backtester_models.NewESDBSignalRepository(s.esdbProducer))
 			}
-		default:
+		} else {
 			simRepo := backtester_models.NewInMemorySignalRepository()
 			playground.SetSignalRepo(simRepo)
 			s.simSignalRepo = simRepo
 		}
 	}
 
-	log.Infof("CreatePlayground: id=%s env=%s balance=%.2f start=%s stop=%s",
-		playground.GetId(), playgroundEnvironment, req.Balance, req.StartDate, req.StopDate)
+	log.Infof("CreatePlayground: id=%s mode=%s balance=%.2f start=%s stop=%s",
+		playground.GetId(), mode, req.Balance, req.StartDate, req.StopDate)
 
 	return &pb.CreatePlaygroundResponse{
 		Id: playground.GetId().String(),

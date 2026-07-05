@@ -16,8 +16,8 @@ import (
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
-	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type TradierApiWorker struct {
@@ -356,7 +356,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 
 	count := 0
 	for _, playground := range playgrounds {
-		if err := playground.GetLiveAccountType().Validate(); err == nil {
+		if err := playground.GetAccountRole().Validate(); err == nil {
 			repos := playground.GetRepositories()
 			for _, repo := range repos {
 				r := repo
@@ -415,7 +415,7 @@ func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {
 			continue
 		}
 
-		if account.AccountType == backtester_models.LiveAccountTypeMock {
+		if account.AccountType == backtester_models.AccountRoleMock {
 			log.Debugf("ExecuteLiveAccountPlotUpdate: skipping account %d: unsupported account type %s", account.ID, account.AccountType)
 			continue
 		}

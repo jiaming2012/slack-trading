@@ -18,11 +18,11 @@ type TradeRecord struct {
 }
 
 func (tr *TradeRecord) UpdateOrder(order *OrderRecord) {
-	if order.LiveAccountType == LiveAccountTypeSimulator {
+	if order.AccountRole == AccountRoleSimulator {
 		return // TODO: put an identifier in the trade record to indicate that this is a simulated trade
 	}
 
-	if order.LiveAccountType == LiveAccountTypeReconcilation {
+	if order.AccountRole == AccountRoleReconcilation {
 		tr.ReconcileOrderID = &order.ID
 	} else {
 		tr.OrderID = &order.ID

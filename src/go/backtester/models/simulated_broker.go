@@ -79,14 +79,14 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 			if errors.Is(err, models.ErrNoCandlesFound) {
 				order.Reject(err)
-				if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
+				if telemetry.ShouldEmitOrderTelemetry(p.Meta.LegacyEnv) {
 					log.WithFields(log.Fields{
 						"event":         "data_gap",
 						"playground_id": p.Meta.PlaygroundId,
 						"symbol":        order.GetInstrument().GetTicker(),
 						"timeframe":     d.String(),
 						"timestamp":     p.clock.CurrentTime.Format(time.RFC3339),
-						"environment":   string(p.Meta.Environment),
+						"environment":   p.Meta.LegacyEnv,
 					}).Warn("simulateTick: no candles found")
 				}
 				continue

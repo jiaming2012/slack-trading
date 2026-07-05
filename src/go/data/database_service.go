@@ -119,7 +119,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *models.MarketCalendar) error
 
 	// load reconcile playgrounds first
 	for _, p := range playgroundsSlice {
-		if p.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
+		if !p.Meta.IsReconciliation() {
 			continue
 		}
 
@@ -156,7 +156,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *models.MarketCalendar) error
 
 	// load other playgrounds
 	for _, p := range playgroundsSlice {
-		if p.Meta.Environment == backtester_models.PlaygroundEnvironmentReconcile {
+		if p.Meta.IsReconciliation() {
 			continue
 		}
 
@@ -251,14 +251,12 @@ func (s *DatabaseService) CreateRepos(repoRequests []models.CreateRepositoryRequ
 }
 
 func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playground, req *backtester_models.PopulatePlaygroundRequest) error {
-	env := req.Env
-
 	// validations
-	if err := env.Validate(); err != nil {
-		return models.NewWebError(400, "invalid playground environment", err)
-	}
+	if !req.Reconciliation {
+		if err := req.Mode.Validate(); err != nil {
+			return models.NewWebError(400, "invalid playground mode", err)
+		}
 
-	if env != backtester_models.PlaygroundEnvironmentReconcile {
 		if len(req.Repositories) == 0 {
 			return models.NewWebError(400, "missing repositories", nil)
 		}
@@ -267,7 +265,7 @@ func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playgro
 	req.OptionsBroker = s.polygonOptionsBroker
 
 	// create playground
-	if env == backtester_models.PlaygroundEnvironmentReconcile {
+	if req.Reconciliation {
 		if req.LiveAccount == nil {
 			return models.NewWebError(400, "reconcile playground is missing live account", nil)
 		}
@@ -285,7 +283,7 @@ func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playgro
 			}
 		}
 
-	} else if env == backtester_models.PlaygroundEnvironmentLive {
+	} else if req.Mode.IsRealtime() {
 		// todo: hot load live account
 		if req.LiveAccount == nil {
 			return models.NewWebError(400, "live playground is missing live account", nil)
@@ -356,7 +354,7 @@ func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playgro
 			}
 		}
 
-	} else if env == backtester_models.PlaygroundEnvironmentSimulator {
+	} else if req.Mode == backtester_models.ModeSimulation {
 		// validations
 		from, err := models.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
@@ -387,7 +385,7 @@ func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playgro
 			return models.NewWebError(500, "failed to create playground", err)
 		}
 	} else {
-		return models.NewWebError(400, "invalid playground environment", nil)
+		return models.NewWebError(400, "invalid playground mode", nil)
 	}
 
 	playground.SetEquityPlot(req.EquityPlotRecords)
@@ -449,7 +447,7 @@ func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, ca
 	var liveAccount backtester_models.ILiveAccount
 	var err error
 
-	if p.Meta.Environment == backtester_models.PlaygroundEnvironmentSimulator {
+	if p.Meta.Mode == backtester_models.ModeSimulation {
 		if p.EndAt == nil {
 			return fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
 		}
@@ -459,20 +457,20 @@ func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, ca
 			StopDate:  p.EndAt.Format(time.RFC3339),
 		}
 
-	} else if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
+	} else if p.Meta.Mode.IsRealtime() {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
 		}
 
-		liveAccountType := p.Meta.LiveAccountType
-		if err = liveAccountType.Validate(); err != nil {
-			return fmt.Errorf("loadPlaygrounds: invalid live account type for live playground: %w", err)
+		accountRole := p.Meta.Role
+		if err = accountRole.Validate(); err != nil {
+			return fmt.Errorf("loadPlaygrounds: invalid account role for live playground: %w", err)
 		}
 
 		source = &backtester_models.CreateAccountRequestSource{
-			Broker:          *p.BrokerName,
-			AccountID:       *p.AccountID,
-			LiveAccountType: liveAccountType,
+			Broker:      *p.BrokerName,
+			AccountID:   *p.AccountID,
+			AccountRole: accountRole,
 		}
 
 		clockRequest = backtester_models.CreateClockRequest{
@@ -484,20 +482,20 @@ func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, ca
 			return fmt.Errorf("loadPlaygrounds: failed to get live account for live playground: %w", err)
 		}
 
-	} else if p.Meta.Environment == backtester_models.PlaygroundEnvironmentReconcile {
+	} else if p.Meta.IsReconciliation() {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for reconcile playground")
 		}
 
-		liveAccountType := p.Meta.LiveAccountType
-		if err = liveAccountType.Validate(); err != nil {
-			return fmt.Errorf("loadPlaygrounds: invalid live account type for reconcile playground: %w", err)
+		accountRole := p.Meta.Role
+		if err = accountRole.Validate(); err != nil {
+			return fmt.Errorf("loadPlaygrounds: invalid account role for reconcile playground: %w", err)
 		}
 
 		source = &backtester_models.CreateAccountRequestSource{
-			Broker:          *p.BrokerName,
-			AccountID:       *p.AccountID,
-			LiveAccountType: liveAccountType,
+			Broker:      *p.BrokerName,
+			AccountID:   *p.AccountID,
+			AccountRole: accountRole,
 		}
 
 		liveAccount, err = s.GetLiveAccount(*source)
@@ -506,7 +504,7 @@ func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, ca
 		}
 
 	} else {
-		return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Meta.Environment)
+		return fmt.Errorf("loadPlaygrounds: unknown mode: %q (environment=%q)", p.Meta.Mode, p.Meta.LegacyEnv)
 	}
 
 	var createRepoRequests []models.CreateRepositoryRequest
@@ -528,9 +526,10 @@ func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, ca
 	}
 
 	err = s.CreatePlayground(p, &backtester_models.PopulatePlaygroundRequest{
-		ID:       &p.ID,
-		ClientID: p.ClientID,
-		Env:      p.Meta.Environment,
+		ID:             &p.ID,
+		ClientID:       p.ClientID,
+		Mode:           p.Meta.Mode,
+		Reconciliation: p.Meta.IsReconciliation(),
 		Account: backtester_models.CreateAccountRequest{
 			Balance: p.Balance,
 			Source:  source,
@@ -627,13 +626,13 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backte
 			return nil, models.NewWebError(500, "failed to place order", err)
 		}
 
-		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentSimulator {
+		if playground.Meta.Mode != backtester_models.ModeSimulation {
 			if err := s.orderStore.waitForOrderRecord(order.ID); err != nil {
 				return nil, models.NewWebError(500, "failed to wait for order record", err)
 			}
 		}
 
-		if telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
+		if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 			log.WithFields(log.Fields{
 				"event":         "order_placed",
 				"playground_id": playground.GetId().String(),
@@ -642,13 +641,13 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backte
 				"side":          string(req.Side),
 				"quantity":      req.Quantity,
 				"order_type":    string(req.OrderType),
-				"environment":   string(playground.Meta.Environment),
-				"account_type":  string(playground.Meta.LiveAccountType),
+				"environment":   playground.Meta.LegacyEnv,
+				"account_type":  string(playground.Meta.Role),
 				"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 			}).Info("order placed")
 
 			if telemetry.OrdersPlaced != nil {
-				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
+				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 			}
 		}
 
@@ -664,7 +663,7 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 		order.ID = *req.Id
 	} else {
 		// use database to generate a new ID
-		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentSimulator {
+		if playground.Meta.Mode != backtester_models.ModeSimulation {
 			order.PlaygroundID = playground.GetId()
 			if err := s.db.Create(&order).Error; err != nil {
 				return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
@@ -672,7 +671,7 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 		}
 	}
 
-	if playground.Meta.Environment == backtester_models.PlaygroundEnvironmentSimulator {
+	if playground.Meta.Mode == backtester_models.ModeSimulation {
 		externalId := playground.NextOrderID()
 		order.ID = externalId
 		req.ExternalOrderID = &externalId
@@ -685,7 +684,7 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 		playground.GetId(),
 		req.Symbol,
 		req.Class,
-		playground.Meta.LiveAccountType,
+		playground.Meta.Role,
 		createdOn,
 		req.Side,
 		req.Quantity,
@@ -705,12 +704,12 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 	order.SignalID = req.SignalID
 
 	if req.IsAdjustment {
-		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
+		if !playground.Meta.IsReconciliation() {
 			return nil, fmt.Errorf("makeOrderRecord: only reconcile playgrounds can place adjustment orders")
 		}
 
 		order.IsAdjustment = true
-		order.LiveAccountType = backtester_models.LiveAccountTypeReconcilation
+		order.AccountRole = backtester_models.AccountRoleReconcilation
 		log.Infof("placing adjustment order: %v", order)
 	}
 
@@ -765,7 +764,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	}
 
 	var orders []*backtester_models.OrderRecord
-	if internalPlayground.GetEnvironment() == backtester_models.PlaygroundEnvironmentSimulator {
+	if internalPlayground.GetMode() == backtester_models.ModeSimulation {
 		orders = internalPlayground.GetAllOrders()
 	} else {
 		playground, err := s.playgroundStore.fetchPlaygroundFromDB(playgroundID)
@@ -910,7 +909,7 @@ func (s *DatabaseService) SavePlayground(playground *backtester_models.Playgroun
 		//
 		// Note: backtester_models.RemapAndSavePlayground takes a raw *gorm.DB — a known
 		// gorm.DB leak into the models package, out of scope for this refactor.
-		if playground.GetMeta().Environment == backtester_models.PlaygroundEnvironmentSimulator {
+		if playground.GetMeta().Mode == backtester_models.ModeSimulation {
 			return backtester_models.RemapAndSavePlayground(tx, playground)
 		}
 

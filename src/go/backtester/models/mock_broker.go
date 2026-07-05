@@ -121,7 +121,7 @@ func (b *MockBroker) FetchQuotes(ctx context.Context, symbols []models.Instrumen
 	return quotes, nil
 }
 
-func (b *MockBroker) FetchOrder(orderId uint, accountType LiveAccountType) (*models.TradierOrder, error) {
+func (b *MockBroker) FetchOrder(orderId uint, accountType AccountRole) (*models.TradierOrder, error) {
 	for _, o := range b.orders {
 		if o.ID == orderId {
 			return o, nil

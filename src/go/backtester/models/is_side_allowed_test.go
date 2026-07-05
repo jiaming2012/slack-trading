@@ -45,7 +45,7 @@ func setupOptionPlayground(t *testing.T, optionSymbol models.OptionSymbol, initi
 	playground, err := NewPlayground(PlaygroundConfig{
 		Balance: balance,
 		Clock:   clock,
-		Env:     PlaygroundEnvironmentSimulator,
+		Mode:    ModeSimulation,
 		Now:     startTime,
 		Feeds:   []*CandleRepository{repo1, repo2},
 	})
@@ -65,7 +65,7 @@ func setupOptionPlayground(t *testing.T, optionSymbol models.OptionSymbol, initi
 	require.NoError(t, err)
 
 	// Place initial order
-	order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), initialSide, quantity, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), initialSide, quantity, Market, Day, 5.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	changes, err := playground.PlaceOrder(order)
@@ -93,7 +93,7 @@ func TestIsSideAllowed_SellToOpenBlockedWhenLong(t *testing.T) {
 	require.Greater(t, pos.Quantity, 0.0, "expected long position after buy_to_open")
 
 	// Attempt to sell_to_open the same contract — should be blocked
-	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	_, err = playground.PlaceOrder(order2)
@@ -113,7 +113,7 @@ func TestIsSideAllowed_BuyToOpenBlockedWhenShort(t *testing.T) {
 	require.Less(t, pos.Quantity, 0.0, "expected short position after sell_to_open")
 
 	// Attempt to buy_to_open the same contract — should be blocked
-	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	_, err = playground.PlaceOrder(order2)
@@ -133,7 +133,7 @@ func TestIsSideAllowed_SellToCloseAllowedWhenLong(t *testing.T) {
 	require.Greater(t, pos.Quantity, 0.0)
 
 	// sell_to_close should be allowed
-	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToClose, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToClose, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	changes, err := playground.PlaceOrder(order2)
@@ -163,7 +163,7 @@ func TestIsSideAllowed_BuyToCloseAllowedWhenShort(t *testing.T) {
 	require.Less(t, pos.Quantity, 0.0)
 
 	// buy_to_close should be allowed
-	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToClose, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToClose, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	changes, err := playground.PlaceOrder(order2)
@@ -225,7 +225,7 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	playground, err := NewPlayground(PlaygroundConfig{
 		Balance: balance,
 		Clock:   clock,
-		Env:     PlaygroundEnvironmentSimulator,
+		Mode:    ModeSimulation,
 		Now:     startTime,
 		Feeds:   []*CandleRepository{repo1, repo2, repo3},
 	})
@@ -246,7 +246,7 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	require.NoError(t, err)
 
 	// Buy to open symbol1
-	order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol1), TradierOrderSideBuyToOpen, 5, Market, Day, 3.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol1), TradierOrderSideBuyToOpen, 5, Market, Day, 3.0, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 	changes, err := playground.PlaceOrder(order1)
 	require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	require.Len(t, delta.NewTrades, 1)
 
 	// Sell to open on a DIFFERENT symbol should be allowed (no conflicting position)
-	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol2), TradierOrderSideSellToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+	order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol2), TradierOrderSideSellToOpen, 5, Market, Day, 5.5, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 	require.NoError(t, err)
 
 	changes, err = playground.PlaceOrder(order2)

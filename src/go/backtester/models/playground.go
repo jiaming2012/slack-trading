@@ -20,36 +20,36 @@ import (
 type Playground struct {
 	gorm.Model
 	Meta
-	ID                          uuid.UUID                                 `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	account                     *BacktesterAccount                        `gorm:"-"`
-	clock                       *Clock                                    `gorm:"-"`
-	ClientID                    *string                                   `gorm:"column:client_id;type:text;unique"`
-	Balance                     float64                                   `gorm:"column:balance;type:numeric;not null"`
-	BrokerName                  *string                                   `gorm:"column:broker;type:text"`
-	AccountID                   *string                                   `gorm:"column:account_id;type:text"`
-	Orders                      []*OrderRecord                            `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	EquityPlotRecords           []EquityPlotRecord                        `gorm:"foreignKey:PlaygroundID;references:ID"`
-	ParentID                    *uuid.UUID                                `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
-	Repositories                CandleRepositoryRecord                    `gorm:"type:json"`
-	ReconcilePlaygroundID       *uuid.UUID                                `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
-	LiveAccountID               *uint                                     `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
-	LiveAccount                 ILiveAccount                              `gorm:"-"`
-	ReconcilePlayground         IReconcilePlayground                      `gorm:"-"`
-	repos                       *CandleMasterRepository                   `gorm:"-"`
-	isBacktestComplete          bool                                      `gorm:"-"`
-	Events                      []*TickDeltaEvent                         `gorm:"-"`
-	OptionsBroker               IOptionsBroker                            `gorm:"-"`
-	positionCache               *PositionsCache                           `gorm:"-"`
-	openOrdersCache             *OpenOrdersCache                          `gorm:"-"`
+	ID                          uuid.UUID                            `gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	account                     *BacktesterAccount                   `gorm:"-"`
+	clock                       *Clock                               `gorm:"-"`
+	ClientID                    *string                              `gorm:"column:client_id;type:text;unique"`
+	Balance                     float64                              `gorm:"column:balance;type:numeric;not null"`
+	BrokerName                  *string                              `gorm:"column:broker;type:text"`
+	AccountID                   *string                              `gorm:"column:account_id;type:text"`
+	Orders                      []*OrderRecord                       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	EquityPlotRecords           []EquityPlotRecord                   `gorm:"foreignKey:PlaygroundID;references:ID"`
+	ParentID                    *uuid.UUID                           `gorm:"column:parent_id;type:uuid;index:idx_parent_id"`
+	Repositories                CandleRepositoryRecord               `gorm:"type:json"`
+	ReconcilePlaygroundID       *uuid.UUID                           `gorm:"column:reconcile_playground_id;type:uuid;index:idx_reconcile_playground_id"`
+	LiveAccountID               *uint                                `gorm:"column:live_account_id;type:bigint;index:idx_live_account_id"`
+	LiveAccount                 ILiveAccount                         `gorm:"-"`
+	ReconcilePlayground         IReconcilePlayground                 `gorm:"-"`
+	repos                       *CandleMasterRepository              `gorm:"-"`
+	isBacktestComplete          bool                                 `gorm:"-"`
+	Events                      []*TickDeltaEvent                    `gorm:"-"`
+	OptionsBroker               IOptionsBroker                       `gorm:"-"`
+	positionCache               *PositionsCache                      `gorm:"-"`
+	openOrdersCache             *OpenOrdersCache                     `gorm:"-"`
 	newCandlesQueue             *models.FIFOQueue[*BacktesterCandle] `json:"-" gorm:"-"`
 	newTradesQueue              *models.FIFOQueue[*TradeRecord]      `json:"-" gorm:"-"`
 	invalidOrdersQueue          *models.FIFOQueue[*OrderRecord]      `json:"-" gorm:"-"`
-	minimumPeriod               time.Duration                             `gorm:"-"` // This is a new field
-	placeOrderMutex             *sync.Mutex                               `json:"-" gorm:"-"`
-	newOrdersQueueMutex         *sync.Mutex                               `json:"-" gorm:"-"`
-	pendingOrdersQueueMutex     *sync.Mutex                               `json:"-" gorm:"-"`
-	exerciseOptionsRequestQueue *ExerciseOptionRequestQueue               `json:"-" gorm:"-"`
-	signalRepo                 ISignalRepository                         `json:"-" gorm:"-"`
+	minimumPeriod               time.Duration                        `gorm:"-"` // This is a new field
+	placeOrderMutex             *sync.Mutex                          `json:"-" gorm:"-"`
+	newOrdersQueueMutex         *sync.Mutex                          `json:"-" gorm:"-"`
+	pendingOrdersQueueMutex     *sync.Mutex                          `json:"-" gorm:"-"`
+	exerciseOptionsRequestQueue *ExerciseOptionRequestQueue          `json:"-" gorm:"-"`
+	signalRepo                  ISignalRepository                    `json:"-" gorm:"-"`
 }
 
 func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPrice float64) error {
@@ -179,9 +179,9 @@ func (p *Playground) GetSource() (CreateAccountRequestSource, error) {
 	}
 
 	return CreateAccountRequestSource{
-		Broker:          *p.BrokerName,
-		AccountID:       *p.AccountID,
-		LiveAccountType: p.Meta.LiveAccountType,
+		Broker:      *p.BrokerName,
+		AccountID:   *p.AccountID,
+		AccountRole: p.Meta.Role,
 	}, nil
 }
 
@@ -249,12 +249,12 @@ func (p *Playground) GetClientId() *string {
 	return p.ClientID
 }
 
-func (p *Playground) GetEnvironment() PlaygroundEnvironment {
-	return p.Meta.Environment
+func (p *Playground) GetMode() Mode {
+	return p.Meta.Mode
 }
 
-func (p *Playground) GetLiveAccountType() LiveAccountType {
-	return p.Meta.LiveAccountType
+func (p *Playground) GetAccountRole() AccountRole {
+	return p.Meta.Role
 }
 
 func (p *Playground) SetEquityPlot(equityPlot []*models.EquityPlot) {
@@ -662,7 +662,7 @@ func (p *Playground) populateRepo(symbol models.OptionSymbol, from time.Time, to
 			return nil, fmt.Errorf("populateRepo: error creating candle repository: %w", err)
 		}
 
-		repo.SetStartingPosition(p.GetCurrentTime(), p.Environment, nil)
+		repo.SetStartingPosition(p.GetCurrentTime(), p.Meta.Mode, nil)
 
 		p.repos.Add(symbol, p.minimumPeriod, repo)
 	}
@@ -673,7 +673,7 @@ func (p *Playground) populateRepo(symbol models.OptionSymbol, from time.Time, to
 func (p *Playground) getCurrentPrices(symbols []models.Instrument) (map[string]*Tick, error) {
 	result := make(map[string]*Tick)
 
-	if p.Meta.Environment == PlaygroundEnvironmentReconcile {
+	if p.Meta.IsReconciliation() {
 		if len(symbols) == 0 {
 			return map[string]*Tick{}, nil
 		}
@@ -1113,7 +1113,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 	}
 
 	// Assign trade ID for simulator playgrounds (no DB auto-increment)
-	if p.Meta.Environment == PlaygroundEnvironmentSimulator && trade.ID == 0 {
+	if p.Meta.Mode == ModeSimulation && trade.ID == 0 {
 		trade.ID = p.NextTradeID()
 	}
 
@@ -1140,7 +1140,7 @@ func (p *Playground) fillOrder(order *OrderRecord, performChecks bool, orderFill
 		if req.Quantity != trade.Quantity {
 			partialTrade := NewTradeRecord(order, orderFillEntry.Time, req.Quantity, orderFillEntry.Price)
 			partialTrade.ParentTrade = trade
-			if p.Meta.Environment == PlaygroundEnvironmentSimulator {
+			if p.Meta.Mode == ModeSimulation {
 				partialTrade.ID = p.NextTradeID()
 			}
 			req.Order.ClosedBy = append(req.Order.ClosedBy, partialTrade)
@@ -1233,7 +1233,7 @@ func (p *Playground) updateBalance(symbol models.Instrument, trade *TradeRecord,
 }
 
 func (p *Playground) GetCurrentTime() time.Time {
-	if p.Meta.Environment == PlaygroundEnvironmentLive || p.Meta.Environment == PlaygroundEnvironmentReconcile {
+	if p.Meta.Mode.IsRealtime() || p.Meta.IsReconciliation() {
 		return time.Now()
 	}
 
@@ -1314,13 +1314,13 @@ func (p *Playground) performLiquidations(symbol models.Instrument, position *Pos
 	isSystemOrder := true
 	if position.Quantity > 0 {
 		id := p.account.NextOrderID()
-		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
+		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.Role, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideSell, position.Quantity, Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
 	} else if position.Quantity < 0 {
 		id := p.account.NextOrderID()
-		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.LiveAccountType, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
+		order, err = NewOrderRecord(id, nil, nil, p.ID, OrderRecordClassEquity, p.Meta.Role, p.clock.CurrentTime, symbol.GetTicker(), TradierOrderSideBuyToCover, math.Abs(position.Quantity), Market, Day, requestedPrice, nil, nil, OrderRecordStatusPending, tag, nil, isSystemOrder, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error creating order record: %w", err)
 		}
@@ -1456,9 +1456,9 @@ func (p *Playground) CommitOrderQueue(orderExecutionRequests map[*OrderRecord]Ex
 }
 
 func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseService) (*TickDelta, error) {
-	broker, err := brokerFor(p.Meta.Environment)
+	broker, err := brokerFor(&p.Meta)
 	if err != nil {
-		return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.Environment)
+		return nil, fmt.Errorf("tick is not supported in environment: %s", p.Meta.LegacyEnv)
 	}
 
 	delta, err := broker.Tick(p, d, isPreview)
@@ -1472,7 +1472,7 @@ func (p *Playground) Tick(d time.Duration, isPreview bool, dbService IDatabaseSe
 			return nil, fmt.Errorf("error in post tick processing: %w", err)
 		}
 	} else {
-		log.Warnf("dbService is nil in %s tick", p.Meta.Environment)
+		log.Warnf("dbService is nil in %s tick", p.Meta.LegacyEnv)
 	}
 
 	return delta, nil
@@ -1633,7 +1633,7 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 	tickDelta.NewTrades = append(tickDelta.NewTrades, newTrades...)
 	tickDelta.InvalidOrders = append(tickDelta.InvalidOrders, invalidOrders...)
 
-	if p.GetMeta().Environment == PlaygroundEnvironmentLive && tickDelta.EquityPlot != nil {
+	if p.GetMeta().Mode.IsRealtime() && tickDelta.EquityPlot != nil {
 		if err := dbService.SaveEquityPlotRecord(p.ID, tickDelta.EquityPlot.Timestamp, tickDelta.EquityPlot.Value); err != nil {
 			return nil, fmt.Errorf("failed to save equity plot record: %v", err)
 		}
@@ -1644,6 +1644,19 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 func (p *Playground) GetMeta() Meta {
 	return p.Meta
+}
+
+// AfterFind hydrates the in-memory Mode from the persisted legacy
+// environment / live_account_type columns on every GORM load, so playground
+// rows written before the Mode migration (including internal reconcile
+// containers) load without mutation of stored data. An unrecognized legacy
+// combination fails the load explicitly rather than defaulting.
+func (p *Playground) AfterFind(tx *gorm.DB) error {
+	if err := p.Meta.HydrateMode(); err != nil {
+		return fmt.Errorf("Playground.AfterFind: playground %s: %w", p.ID, err)
+	}
+
+	return nil
 }
 
 func (p *Playground) GetBalance() float64 {
@@ -2092,7 +2105,7 @@ func (p *Playground) getCloseByRequests(order *OrderRecord, position *Position, 
 	var closeByRequests []*CloseByRequest
 
 	// reconciliation playgrounds do not have close orders
-	if order.LiveAccountType != LiveAccountTypeReconcilation {
+	if order.AccountRole != AccountRoleReconcilation {
 		if setCloseInfo {
 			// mutates the order to add closes info
 			if err := p.setCloseInfoToOrder(order, position); err != nil {
@@ -2193,7 +2206,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return nil, fmt.Errorf("only equity and option orders are supported")
 	}
 
-	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
+	if !p.Meta.IsReconciliation() {
 		if ok := p.repos.HasInstrument(order.GetInstrument()); !ok && order.Class == OrderRecordClassEquity {
 			return nil, fmt.Errorf("symbol %s not found in repos", order.GetInstrument())
 		}
@@ -2206,7 +2219,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 	position := positionCache.Get(order.GetInstrument().GetTicker())
 
-	if p.Meta.Environment != PlaygroundEnvironmentReconcile {
+	if !p.Meta.IsReconciliation() {
 		if err := p.isSideAllowed(order.GetInstrument(), order.Side, position.Quantity, true); err != nil {
 			return nil, fmt.Errorf("PlaceOrder: side not allowed: %w", err)
 		}
@@ -2284,9 +2297,9 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 }
 
 func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error) {
-	broker, err := brokerFor(p.Meta.Environment)
+	broker, err := brokerFor(&p.Meta)
 	if err != nil {
-		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.Environment)
+		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.LegacyEnv)
 	}
 
 	return broker.PlaceOrder(p, order)
@@ -2314,26 +2327,32 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 	initialBalance := req.InitialBalance
 	orders := req.BackfillOrders
 	tags := req.Tags
-	env := req.Env
+	mode := req.Mode
+	isReconciliation := req.Reconciliation
 
 	repos := make(map[models.Instrument]map[time.Duration]*CandleRepository)
 	var symbols []string
 	var minimumPeriod time.Duration
 	var startAt time.Time
 	var endAt *time.Time
-	var liveAccountType LiveAccountType
+	var accountRole AccountRole
 	var repositories []CandleRepositoryDTO
 
-	meta := *NewMeta(env, tags)
+	var meta Meta
+	if isReconciliation {
+		meta = *NewReconciliationMeta(tags)
+	} else {
+		if err := mode.Validate(); err != nil {
+			return fmt.Errorf("PopulatePlayground: error validating mode: %w", err)
+		}
+
+		meta = *NewMeta(mode, tags)
+	}
 
 	brokerName := "tradier"
 	var accountID *string
 
-	if err := env.Validate(); err != nil {
-		return fmt.Errorf("PopulatePlayground: error validating environment: %w", err)
-	}
-
-	if env == PlaygroundEnvironmentReconcile || env == PlaygroundEnvironmentLive {
+	if isReconciliation || mode.IsRealtime() {
 		if source == nil {
 			return fmt.Errorf("source is required")
 		}
@@ -2346,7 +2365,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 			playground.SetLiveAccount(req.LiveAccount)
 		}
 
-		if env == PlaygroundEnvironmentLive {
+		if mode.IsRealtime() {
 			playground.SetReconcilePlayground(req.ReconcilePlayground)
 
 			if newTradesQueue == nil {
@@ -2359,18 +2378,17 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 
 		accountID = &source.AccountID
 
-		liveAccountType = source.LiveAccountType
+		accountRole = source.AccountRole
 
 		meta.SourceBroker = brokerName
-		meta.LiveAccountType = liveAccountType
 		meta.SourceAccountId = source.AccountID
 	} else {
-		liveAccountType = LiveAccountTypeSimulator
+		accountRole = AccountRoleSimulator
 	}
 
-	meta.LiveAccountType = liveAccountType
+	meta.Role = accountRole
 
-	if env == PlaygroundEnvironmentReconcile {
+	if isReconciliation {
 		startAt = now
 	} else {
 		// set the clock
@@ -2385,7 +2403,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 		for _, feed := range feeds {
 			feed.Sort()
 
-			if err := feed.SetStartingPosition(startAt, env, calendar); err != nil {
+			if err := feed.SetStartingPosition(startAt, mode, calendar); err != nil {
 				return fmt.Errorf("error setting starting position for feed %v: %w", feed, err)
 			}
 
@@ -2469,8 +2487,7 @@ func PopulatePlayground(playground *Playground, req *PopulatePlaygroundRequest, 
 }
 
 // PlaygroundConfig configures NewPlayground. Zero values apply defaults:
-// InitialBalance defaults to Balance and Env defaults to the simulator
-// environment.
+// InitialBalance defaults to Balance and Mode defaults to Simulation.
 type PlaygroundConfig struct {
 	ID             *uuid.UUID
 	Source         *CreateAccountRequestSource
@@ -2479,7 +2496,7 @@ type PlaygroundConfig struct {
 	InitialBalance float64
 	Clock          *Clock
 	BackfillOrders []*OrderRecord
-	Env            PlaygroundEnvironment
+	Mode           Mode
 	Now            time.Time
 	Tags           []string
 	OptionsBroker  IOptionsBroker
@@ -2492,8 +2509,8 @@ func NewPlayground(cfg PlaygroundConfig) (*Playground, error) {
 		cfg.InitialBalance = cfg.Balance
 	}
 
-	if cfg.Env == "" {
-		cfg.Env = PlaygroundEnvironmentSimulator
+	if cfg.Mode == "" {
+		cfg.Mode = ModeSimulation
 	}
 
 	playground := new(Playground)
@@ -2507,7 +2524,7 @@ func NewPlayground(cfg PlaygroundConfig) (*Playground, error) {
 			Source:  cfg.Source,
 			Balance: cfg.Balance,
 		},
-		Env:            cfg.Env,
+		Mode:           cfg.Mode,
 		ClientID:       cfg.ClientID,
 		InitialBalance: cfg.InitialBalance,
 		BackfillOrders: cfg.BackfillOrders,

@@ -19,7 +19,7 @@ func CreateReconcilePlayground(s backtester_models.IDatabaseService, source *bac
 	}
 
 	createPlaygroundReq := &backtester_models.PopulatePlaygroundRequest{
-		Env: backtester_models.PlaygroundEnvironmentReconcile,
+		Reconciliation: true,
 		Account: backtester_models.CreateAccountRequest{
 			Source: source,
 		},

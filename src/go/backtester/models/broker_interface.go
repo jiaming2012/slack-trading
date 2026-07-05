@@ -10,7 +10,7 @@ type IBroker interface {
 	PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (map[string]interface{}, error)
 	FetchOrders(ctx context.Context) ([]*models.TradierOrder, error)
 	FetchQuotes(ctx context.Context, symbols []models.Instrument) ([]*TradierQuoteDTO, error)
-	FetchOrder(orderID uint, liveAccountType LiveAccountType) (*models.TradierOrder, error)
+	FetchOrder(orderID uint, liveAccountType AccountRole) (*models.TradierOrder, error)
 	FetchBalances(url, token string) (models.FetchTradierBalancesResponseDTO, error)
 	GetSource() ILiveAccountSource
 	FetchEquity() (*models.FetchAccountEquityResponse, error)

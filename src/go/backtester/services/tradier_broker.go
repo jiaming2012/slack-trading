@@ -136,7 +136,7 @@ func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*models.TradierOrder
 	return orders, nil
 }
 
-func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType backtester_models.LiveAccountType) (*models.TradierOrder, error) {
+func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType backtester_models.AccountRole) (*models.TradierOrder, error) {
 	dto, err := FetchOrder(orderID, liveAccountType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch order: %w", err)
@@ -211,7 +211,7 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []models.In
 	return utils.ParseTradierResponse[*backtester_models.TradierQuoteDTO](bytes)
 }
 
-func FetchOrder(orderID uint, liveAccountType backtester_models.LiveAccountType) (*models.TradierOrderDTO, error) {
+func FetchOrder(orderID uint, liveAccountType backtester_models.AccountRole) (*models.TradierOrderDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -367,7 +367,7 @@ func PlaceOrder(ctx context.Context, url, token string, req *backtester_models.P
 	q.Add("symbol", symbol)
 	q.Add("type", string(req.OrderType))
 	q.Add("duration", string(models.TradeDurationDay))
-	
+
 	if req.Tag != "" {
 		q.Add("tag", req.Tag)
 	}

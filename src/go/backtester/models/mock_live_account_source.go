@@ -20,8 +20,8 @@ func (m *MockLiveAccountSource) GetBrokerUrl() string {
 	return "mock broker url"
 }
 
-func (m *MockLiveAccountSource) GetAccountType() LiveAccountType {
-	return LiveAccountTypeMock
+func (m *MockLiveAccountSource) GetAccountType() AccountRole {
+	return AccountRoleMock
 }
 
 func (m *MockLiveAccountSource) Validate() error {

@@ -17,7 +17,7 @@ import (
 func UpdatePendingMarginOrders(dbService backtester_models.IDatabaseService) error {
 	seekFromPlayground := true
 
-	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeMargin, backtester_models.LiveAccountTypePaper, backtester_models.LiveAccountTypeMock}, seekFromPlayground)
+	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.AccountRole{backtester_models.AccountRoleMargin, backtester_models.AccountRolePaper, backtester_models.AccountRoleMock}, seekFromPlayground)
 	if err != nil {
 		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
 	}
@@ -176,13 +176,13 @@ func UpdatePendingMarginOrders(dbService backtester_models.IDatabaseService) err
 }
 
 func UpdateTradierOrderQueue(sink *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent], dbService backtester_models.IDatabaseService, sleepDuration time.Duration) error {
-	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeReconcilation}, false)
+	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.AccountRole{backtester_models.AccountRoleReconcilation}, false)
 	if err != nil {
 		return fmt.Errorf("UpdateTradierOrderQueue: failed to fetch orders: %v", err)
 	}
 
 	for _, order := range pendingOrders {
-		var liveAccountType backtester_models.LiveAccountType
+		var liveAccountType backtester_models.AccountRole
 
 		playground, err := dbService.FetchPlayground(order.PlaygroundID)
 		if err != nil {
@@ -223,7 +223,7 @@ func UpdateTradierOrderQueue(sink *models.FIFOQueue[*backtester_models.TradierOr
 			continue
 		}
 
-		liveAccountType = playground.Meta.LiveAccountType
+		liveAccountType = playground.Meta.Role
 		if err := liveAccountType.Validate(); err != nil {
 			log.Errorf("UpdateTradierOrderQueue: invalid account type: %v", err)
 			continue
@@ -426,7 +426,7 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 		return nil, fmt.Errorf("handleLiveOrders: failed to save order record: %v", err)
 	}
 
-	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
+	if newTrade != nil && telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 		fillPrice := orderFillEntry.Price
 		fillQuantity := orderFillEntry.Quantity
 		if orderFillEntry.Trade != nil {
@@ -441,13 +441,13 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 			"fill_price":    fillPrice,
 			"fill_quantity": fillQuantity,
 			"symbol":        order.Symbol,
-			"environment":   string(playground.Meta.Environment),
-			"account_type":  string(playground.Meta.LiveAccountType),
+			"environment":   playground.Meta.LegacyEnv,
+			"account_type":  string(playground.Meta.Role),
 			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 		}).Info("order filled")
 
 		if telemetry.OrdersFilled != nil {
-			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
+			telemetry.OrdersFilled.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 		}
 	}
 

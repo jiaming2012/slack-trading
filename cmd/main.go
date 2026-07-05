@@ -21,25 +21,25 @@ import (
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 
-	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
-	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
-	"github.com/jiaming2012/slack-trading/src/go/backtester/rpc"
-	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
-	"github.com/jiaming2012/slack-trading/src/go/data"
-	"github.com/jiaming2012/slack-trading/src/go/dbutils"
-	"github.com/jiaming2012/slack-trading/src/go/workers"
-	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/api/accountapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/alertapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/datafeedapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
-	"github.com/jiaming2012/slack-trading/src/go/pubsub"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/rpc"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
+	"github.com/jiaming2012/slack-trading/src/go/data"
+	"github.com/jiaming2012/slack-trading/src/go/dbutils"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
+	"github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
+	"github.com/jiaming2012/slack-trading/src/go/workers"
 )
 
 // RouterSetupItem defines a single route handler configuration.
@@ -87,7 +87,7 @@ func getTradierBrokers() (map[backtester_models.CreateAccountRequestSource]backt
 	brokers := make(map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker)
 	brokerName := "tradier"
 
-	for _, accountType := range []backtester_models.LiveAccountType{backtester_models.LiveAccountTypePaper, backtester_models.LiveAccountTypeMargin} {
+	for _, accountType := range []backtester_models.AccountRole{backtester_models.AccountRolePaper, backtester_models.AccountRoleMargin} {
 		vars := backtester_models.NewLiveAccountVariables(accountType)
 
 		tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
@@ -136,9 +136,9 @@ func getTradierBrokers() (map[backtester_models.CreateAccountRequestSource]backt
 		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierPositionsURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
 
 		brokers[backtester_models.CreateAccountRequestSource{
-			LiveAccountType: accountType,
-			Broker:          brokerName,
-			AccountID:       accountID,
+			AccountRole: accountType,
+			Broker:      brokerName,
+			AccountID:   accountID,
 		}] = broker
 	}
 
@@ -169,7 +169,7 @@ func main() {
 
 	// Configure logrus logfmt formatter (D-04, D-05)
 	log.SetFormatter(&log.TextFormatter{
-		DisableColors:  true,
+		DisableColors:   true,
 		FullTimestamp:   true,
 		TimestampFormat: time.RFC3339,
 		FieldMap: log.FieldMap{
@@ -204,11 +204,11 @@ func main() {
 	log.Info("Main: starting...")
 
 	// Determine live account type from environment
-	var liveAccountType backtester_models.LiveAccountType
+	var liveAccountType backtester_models.AccountRole
 	if goEnv == "production" {
-		liveAccountType = backtester_models.LiveAccountTypeMargin
+		liveAccountType = backtester_models.AccountRoleMargin
 	} else {
-		liveAccountType = backtester_models.LiveAccountTypePaper
+		liveAccountType = backtester_models.AccountRolePaper
 	}
 
 	vars := backtester_models.NewLiveAccountVariables(liveAccountType)
@@ -431,7 +431,7 @@ func main() {
 	}
 
 	// Add mock broker for reconciliation testing
-	pendingMockOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeReconcilation}, false)
+	pendingMockOrders, err := dbService.FetchPendingOrders([]backtester_models.AccountRole{backtester_models.AccountRoleReconcilation}, false)
 	if err != nil {
 		log.Fatalf("failed to fetch pending mock orders: %v", err)
 	}
@@ -450,9 +450,9 @@ func main() {
 	}
 
 	brokerMap[backtester_models.CreateAccountRequestSource{
-		LiveAccountType: backtester_models.LiveAccountTypeMock,
-		Broker:          "tradier",
-		AccountID:       "mock_default",
+		AccountRole: backtester_models.AccountRoleMock,
+		Broker:      "tradier",
+		AccountID:   "mock_default",
 	}] = backtester_models.NewMockBroker(mockOrderIdStartIndex, existingOrders)
 
 	quotesBearerToken := tradierNonTradesBearerToken

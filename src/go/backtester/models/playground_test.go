@@ -24,7 +24,7 @@ func TestOptions(t *testing.T) {
 
 	startTime := time.Date(2025, time.September, 3, 9, 30, 0, 0, tz)
 	endTime := time.Date(2025, time.September, 6, 14, 0, 0, 0, tz)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 
 	t1 := startTime.Add(24 * time.Hour)
 	t2 := t1.Add(24 * time.Hour)
@@ -72,7 +72,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -130,7 +130,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -158,7 +158,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// buy options
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -209,7 +209,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -237,7 +237,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// buy options
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -288,7 +288,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -316,9 +316,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// buy options
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -413,7 +413,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -441,9 +441,9 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// buy options
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -556,7 +556,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -590,7 +590,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// buy option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -639,7 +639,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, originalBalance+currentPL, equity) // balance + premium + floating P&L
 
 		// buy back option before expiration
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToClose, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideSellToClose, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
@@ -730,7 +730,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -758,7 +758,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// buy option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -858,7 +858,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -892,7 +892,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideBuyToOpen, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -1019,7 +1019,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -1053,7 +1053,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -1102,7 +1102,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, originalBalance+currentPL, equity) // balance + premium + floating P&L
 
 		// buy back option before expiration
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToClose, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, playground.GetCurrentTime(), string(optionSymbol), TradierOrderSideBuyToClose, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
@@ -1193,7 +1193,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -1221,7 +1221,7 @@ func TestOptions(t *testing.T) {
 		require.NoError(t, err)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -1342,7 +1342,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -1376,7 +1376,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// sell put option (cash secured put)
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(putOptionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(putOptionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -1507,7 +1507,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -1541,7 +1541,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// buy 200 shares of stock to cover option exercise
-		order0, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(stockSymbol), TradierOrderSideBuy, 200, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order0, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(stockSymbol), TradierOrderSideBuy, 200, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order0)
@@ -1558,7 +1558,7 @@ func TestOptions(t *testing.T) {
 		require.Equal(t, stockPriceAtOpen, stockPosition.CostBasis)
 
 		// sell option
-		order1, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order1)
@@ -1690,7 +1690,7 @@ func TestOptions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -1724,7 +1724,7 @@ func TestOptions(t *testing.T) {
 		require.True(t, ok)
 
 		// sell option
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, LiveAccountTypeMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassOption, AccountRoleMock, startTime, string(optionSymbol), TradierOrderSideSellToOpen, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2052,7 +2052,7 @@ func TestValidateCache(t *testing.T) {
 			},
 		}
 
-		env := PlaygroundEnvironmentSimulator
+		env := ModeSimulation
 		source := models.CandleRepositorySource{
 			Type: "test",
 		}
@@ -2063,13 +2063,13 @@ func TestValidateCache(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeSimulator, startTime, string(symbol), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleSimulator, startTime, string(symbol), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2107,7 +2107,7 @@ func TestValidateCache(t *testing.T) {
 		require.Equal(t, order1.ID, openOrders[0].ID)
 
 		// Place a new order
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeSimulator, startTime, string(symbol), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleSimulator, startTime, string(symbol), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -2152,7 +2152,7 @@ func TestOpenOrdersCache(t *testing.T) {
 	symbol1 := models.StockSymbol("AAPL")
 	symbol2 := models.StockSymbol("GOOG")
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	source := models.CandleRepositorySource{
 		Type: "test",
 	}
@@ -2214,7 +2214,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -2225,7 +2225,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		playground, err := createPlayground()
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol1), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2270,7 +2270,7 @@ func TestLiquidation(t *testing.T) {
 	period := time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 
 	t.Run("Buy and sell orders - multiple liquidations", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -2308,13 +2308,13 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol1), TradierOrderSideBuy, 30, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2323,7 +2323,7 @@ func TestLiquidation(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol2), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -2410,13 +2410,13 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol1), TradierOrderSideSellShort, 25, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2425,7 +2425,7 @@ func TestLiquidation(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol2), TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -2505,13 +2505,13 @@ func TestLiquidation(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol1), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol1), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2520,7 +2520,7 @@ func TestLiquidation(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, startTime, string(symbol2), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -2556,7 +2556,7 @@ func TestFeed(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
 
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 
 	t.Run("Returns previous candle until new candle is available", func(t *testing.T) {
 		clock := NewClock(startTime, endTime, nil)
@@ -2581,7 +2581,7 @@ func TestFeed(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1},
 		})
@@ -2622,7 +2622,7 @@ func TestFeed(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1},
 		})
@@ -2698,7 +2698,7 @@ func TestFeed(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1, repo2},
 		})
@@ -2777,7 +2777,7 @@ func TestFeed(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo1},
 		})
@@ -2800,7 +2800,7 @@ func TestClock(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	period := time.Minute
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 
 	t.Run("Backtester is complete", func(t *testing.T) {
 		symbol := models.StockSymbol("AAPL")
@@ -2829,7 +2829,7 @@ func TestClock(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
@@ -2891,7 +2891,7 @@ func TestBalance(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	period := time.Minute
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	source := models.CandleRepositorySource{Type: "test"}
 
 	t.Run("GetAccountBalance", func(t *testing.T) {
@@ -2901,7 +2901,7 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 		})
 		require.NoError(t, err)
@@ -2932,13 +2932,13 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -2955,7 +2955,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, 100.0, delta.NewTrades[0].Price)
 		require.Equal(t, 1000.0, playground.GetBalance())
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -2979,7 +2979,7 @@ func TestBalance(t *testing.T) {
 		now := startTime
 
 		// existing orders
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol1), TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol1), TradierOrderSideBuy, 2, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order1.Trades = append(order1.Trades, &TradeRecord{
@@ -2987,7 +2987,7 @@ func TestBalance(t *testing.T) {
 			Price:    100.0,
 		})
 
-		order2, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol2), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol2), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order2.Trades = append(order2.Trades, &TradeRecord{
@@ -2995,7 +2995,7 @@ func TestBalance(t *testing.T) {
 			Price:    300.0,
 		})
 
-		order3, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol1), TradierOrderSideBuy, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol1), TradierOrderSideBuy, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusFilled, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		order3.Trades = append(order3.Trades, &TradeRecord{
@@ -3042,7 +3042,7 @@ func TestBalance(t *testing.T) {
 			Balance:        balance,
 			Clock:          clock,
 			BackfillOrders: []*OrderRecord{order1, order2, order3},
-			Env:            env,
+			Mode:           env,
 			Now:            startTime,
 			Feeds:          []*CandleRepository{repo1, repo2},
 		})
@@ -3119,14 +3119,14 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// open 1st order
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -3142,7 +3142,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// open 2nd order
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -3158,7 +3158,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance, playground.GetBalance())
 
 		// close orders
-		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order3)
@@ -3174,7 +3174,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// open 3rd order
-		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order4)
@@ -3190,7 +3190,7 @@ func TestBalance(t *testing.T) {
 		require.Equal(t, balance-300.0, playground.GetBalance())
 
 		// close order
-		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order5)
@@ -3239,13 +3239,13 @@ func TestBalance(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -3260,7 +3260,7 @@ func TestBalance(t *testing.T) {
 
 		require.Equal(t, balance, playground.GetBalance())
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -3284,7 +3284,7 @@ func TestPlaceOrder(t *testing.T) {
 		startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 		endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 		clock := NewClock(startTime, endTime, nil)
-		env := PlaygroundEnvironmentSimulator
+		env := ModeSimulation
 
 		now := startTime
 
@@ -3292,12 +3292,12 @@ func TestPlaceOrder(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order)
@@ -3316,7 +3316,7 @@ func TestPositions(t *testing.T) {
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	source := models.CandleRepositorySource{Type: "test"}
 
 	t.Run("Order.PreviousPosition", func(t *testing.T) {
@@ -3342,14 +3342,14 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// Place a buy order
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -3371,7 +3371,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 0.0, order.PreviousPosition.Quantity)
 
 		// Place 2 buy orders
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -3380,7 +3380,7 @@ func TestPositions(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order3)
@@ -3413,7 +3413,7 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 		})
 		require.NoError(t, err)
@@ -3449,14 +3449,14 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// Place a buy order
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -3477,7 +3477,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, position1.Quantity)
 
 		// Place a sell order
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order)
@@ -3522,13 +3522,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -3546,7 +3546,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, -10.0, position1.Quantity)
 
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order)
@@ -3607,14 +3607,14 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// 1st order
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -3633,7 +3633,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// 2nd order
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -3652,7 +3652,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 150.0, position.CostBasis)
 
 		// close orders
-		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSell, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order3)
@@ -3671,7 +3671,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 0.0, position.CostBasis)
 
 		// 3rd order - original direction
-		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order4)
@@ -3744,14 +3744,14 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// 1st order
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, 15, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSellShort, 15, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -3774,7 +3774,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// close 1st partial
-		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order3)
@@ -3793,7 +3793,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 2nd partial
-		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order4)
@@ -3812,7 +3812,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 100.0, position.CostBasis)
 
 		// close 3nd partial
-		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order5)
@@ -3879,14 +3879,14 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// 1st order
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -3909,7 +3909,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order1, openOrders[0])
 
 		// 2nd order
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -3932,7 +3932,7 @@ func TestPositions(t *testing.T) {
 		require.ElementsMatch(t, openOrders, []*OrderRecord{order1, order2})
 
 		// close orders
-		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuyToCover, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuyToCover, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order3)
@@ -3969,7 +3969,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, 10.0, order2.ClosedBy[0].Quantity)
 
 		// 3rd order - reverse direction
-		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order4, err := NewOrderRecord(4, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order4)
@@ -3992,7 +3992,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, order4, openOrders[0])
 
 		// 4th order - continue in same direction
-		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order5, err := NewOrderRecord(5, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order5)
@@ -4046,13 +4046,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -4070,7 +4070,7 @@ func TestPositions(t *testing.T) {
 		costBasis := 100.0
 		require.Equal(t, costBasis, position.CostBasis)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 20, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -4111,13 +4111,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4158,13 +4158,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4177,7 +4177,7 @@ func TestPositions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, delta)
 
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
@@ -4212,13 +4212,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 100000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4238,7 +4238,7 @@ func TestPositions(t *testing.T) {
 		// require.Len(t, position.OpenTrades, 1)
 		// require.Equal(t, -10.0, position.OpenTrades[0].Quantity)
 
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order)
@@ -4277,13 +4277,13 @@ func TestPositions(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 100000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -4301,7 +4301,7 @@ func TestPositions(t *testing.T) {
 		require.Equal(t, -10.0, position.Quantity)
 		require.Equal(t, 250.0, position.CostBasis)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuyToCover, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
@@ -4333,7 +4333,7 @@ func TestFreeMargin(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	t1 := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 2, 0, 0, time.UTC)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	now := startTime
 	source := models.CandleRepositorySource{
 		Type: "test",
@@ -4364,7 +4364,7 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
@@ -4382,14 +4382,14 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// place order
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4429,14 +4429,14 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, tradeQty, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, tradeQty, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4465,14 +4465,14 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		tradeQty := 1.0
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, tradeQty, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSellShort, tradeQty, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4501,14 +4501,14 @@ func TestFreeMargin(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: balance,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		// place order equal to free margin
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 19, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 19, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4523,7 +4523,7 @@ func TestFreeMargin(t *testing.T) {
 		require.Len(t, delta.InvalidOrders, 0)
 
 		// place order above free margin
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order)
@@ -4554,7 +4554,7 @@ func TestOrders(t *testing.T) {
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
 	clock := NewClock(startTime, endTime, nil)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	source := models.CandleRepositorySource{Type: "test"}
 
 	now := startTime
@@ -4573,13 +4573,13 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4607,13 +4607,13 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 10000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order)
@@ -4626,7 +4626,7 @@ func TestOrders(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, delta.InvalidOrders, 0)
 
-		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err = NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order)
@@ -4640,13 +4640,13 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuyToCover, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order)
@@ -4660,13 +4660,13 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideSell, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order)
@@ -4674,7 +4674,7 @@ func TestOrders(t *testing.T) {
 	})
 
 	t.Run("PlaceOrder - invalid class", func(t *testing.T) {
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClass("invalid"), LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClass("invalid"), AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.Error(t, err)
 		require.Nil(t, order)
 	})
@@ -4686,14 +4686,14 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		price := float64(0)
-		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, &price, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, &price, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order)
@@ -4707,7 +4707,7 @@ func TestOrders(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
@@ -4715,7 +4715,7 @@ func TestOrders(t *testing.T) {
 
 		id := uint(1)
 
-		order1, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -4724,7 +4724,7 @@ func TestOrders(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order2)
@@ -4743,7 +4743,7 @@ func TestTrades(t *testing.T) {
 	period := 1 * time.Minute
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 1, 1, 0, 0, 0, time.UTC)
-	env := PlaygroundEnvironmentSimulator
+	env := ModeSimulation
 	source := models.CandleRepositorySource{Type: "test"}
 
 	prices := []float64{100.0, 105.0, 110.0}
@@ -4775,7 +4775,7 @@ func TestTrades(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     startTime,
 			Feeds:   []*CandleRepository{repo},
 		})
@@ -4783,7 +4783,7 @@ func TestTrades(t *testing.T) {
 
 		now := startTime
 
-		order1, err := NewOrderRecord(1, nil, nil, playground.ID, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, playground.ID, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -4792,7 +4792,7 @@ func TestTrades(t *testing.T) {
 		err = changes[0].Commit()
 		require.NoError(t, err)
 
-		order2, err := NewOrderRecord(2, nil, nil, playground.ID, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, playground.ID, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		_, err = playground.PlaceOrder(order2)
@@ -4818,14 +4818,14 @@ func TestTrades(t *testing.T) {
 		playground, err := NewPlayground(PlaygroundConfig{
 			Balance: 1000.0,
 			Clock:   clock,
-			Env:     env,
+			Mode:    env,
 			Now:     now,
 			Feeds:   []*CandleRepository{repo},
 		})
 		require.NoError(t, err)
 
 		quantity := 10.0
-		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := NewOrderRecord(1, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err := playground.PlaceOrder(order1)
@@ -4843,7 +4843,7 @@ func TestTrades(t *testing.T) {
 		require.Equal(t, quantity, delta.NewTrades[0].Quantity)
 		require.Equal(t, prices[0], delta.NewTrades[0].Price)
 
-		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, AccountRoleMock, now, string(symbol), TradierOrderSideBuy, quantity, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)

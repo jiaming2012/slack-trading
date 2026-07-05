@@ -3,7 +3,7 @@ package models
 import "fmt"
 
 // AccountRole is the INTERNAL per-order / per-account tag behind the Broker
-// seam, renamed from the legacy LiveAccountType with the same five persisted
+// seam, renamed from the legacy live-account-type enum with the same five persisted
 // string values (migrate-crossed-enums design amendment). It drives:
 //
 //   - order routing: AccountRoleReconcilation selects ReconcileTrades /

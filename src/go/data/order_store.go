@@ -230,7 +230,7 @@ func (st *orderStore) fetchNewOrders() (newOrders []*models.OrderRecord, err err
 	return nil, nil
 }
 
-func (st *orderStore) fetchPendingOrders(liveAccountTypes []models.LiveAccountType) ([]*models.OrderRecord, error) {
+func (st *orderStore) fetchPendingOrders(liveAccountTypes []models.AccountRole) ([]*models.OrderRecord, error) {
 	var orders []*models.OrderRecord
 
 	if err := st.db.Joins("JOIN playground_sessions ON playground_sessions.id = order_records.playground_id").
@@ -300,20 +300,20 @@ func (st *orderStore) rejectOrder(playground *models.Playground, order *models.O
 	order.Status = models.OrderRecordStatusRejected
 	order.RejectReason = &reason
 
-	if telemetry.ShouldEmitOrderTelemetry(string(playground.Meta.Environment)) {
+	if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 		log.WithFields(log.Fields{
 			"event":         "order_rejected",
 			"playground_id": playground.GetId().String(),
 			"order_id":      order.ID,
 			"symbol":        order.Symbol,
 			"reject_reason": reason,
-			"environment":   string(playground.Meta.Environment),
-			"account_type":  string(playground.Meta.LiveAccountType),
+			"environment":   playground.Meta.LegacyEnv,
+			"account_type":  string(playground.Meta.Role),
 			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 		}).Warn("order rejected")
 
 		if telemetry.OrdersRejected != nil {
-			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(string(playground.Meta.Environment), string(playground.Meta.LiveAccountType), telemetry.ClientIDOrEmpty(playground.GetClientId())))
+			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId())))
 		}
 	}
 
@@ -515,7 +515,7 @@ func (s *DatabaseService) FetchNewOrders() (newOrders []*models.OrderRecord, err
 	return s.orderStore.fetchNewOrders()
 }
 
-func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.LiveAccountType, seekFromPlayground bool) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) FetchPendingOrders(liveAccountTypes []models.AccountRole, seekFromPlayground bool) ([]*models.OrderRecord, error) {
 	return s.orderStore.fetchPendingOrders(liveAccountTypes)
 }
 

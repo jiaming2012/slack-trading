@@ -65,18 +65,18 @@ func TestLiveAccount(t *testing.T) {
 
 		accountRequestSource := backtester_models.NewMockLiveAccountSource()
 		s := &backtester_models.CreateAccountRequestSource{
-			Broker:          accountRequestSource.GetBroker(),
-			AccountID:       accountRequestSource.GetAccountID(),
-			LiveAccountType: accountRequestSource.GetAccountType(),
+			Broker:      accountRequestSource.GetBroker(),
+			AccountID:   accountRequestSource.GetAccountID(),
+			AccountRole: accountRequestSource.GetAccountType(),
 		}
 
 		repositories := []*backtester_models.CandleRepository{repo}
-		env := backtester_models.PlaygroundEnvironmentLive
+		env := backtester_models.ModePaper
 
 		req := &backtester_models.PopulatePlaygroundRequest{
 			ID:                  &playgroundId,
 			ClientID:            &clientId,
-			Env:                 env,
+			Mode:                env,
 			Account:             backtester_models.CreateAccountRequest{Balance: startingBalance, Source: s},
 			InitialBalance:      startingBalance,
 			BackfillOrders:      orders,
@@ -95,14 +95,14 @@ func TestLiveAccount(t *testing.T) {
 	createMockReconcilePlayground := func(playgroundID *uuid.UUID, database backtester_models.IDatabaseService, broker backtester_models.IBroker, liveAccount *backtester_models.LiveAccount) (*backtester_models.Playground, error) {
 		playground := &backtester_models.Playground{}
 		source := backtester_models.CreateAccountRequestSource{
-			Broker:          broker.GetSource().GetBroker(),
-			AccountID:       broker.GetSource().GetAccountID(),
-			LiveAccountType: broker.GetSource().GetAccountType(),
+			Broker:      broker.GetSource().GetBroker(),
+			AccountID:   broker.GetSource().GetAccountID(),
+			AccountRole: broker.GetSource().GetAccountType(),
 		}
 
 		err := database.CreatePlayground(playground, &backtester_models.PopulatePlaygroundRequest{
-			ID:  playgroundID,
-			Env: backtester_models.PlaygroundEnvironmentReconcile,
+			ID:             playgroundID,
+			Reconciliation: true,
 			Account: backtester_models.CreateAccountRequest{
 				Balance: 1000.0,
 				Source:  &source,
@@ -146,7 +146,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMock, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMock, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground.PlaceOrder(order)
@@ -204,7 +204,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
@@ -288,7 +288,7 @@ func TestLiveAccount(t *testing.T) {
 
 		livePlayground2 := createLivePlayground(t, playgroundID, reconcilePlayground, liveAccount, broker, database, newTradesQueue2)
 
-		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 20, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 20, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		// save playground
@@ -416,7 +416,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
@@ -460,7 +460,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, backtester_models.OrderRecordStatusFilled, reconcileOrders[0].Reconciles[0].Status)
 
 		// place sell order
-		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges2, err := livePlayground1.PlaceOrder(order2)
@@ -483,7 +483,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, 19.0, reconcileOrders[1].AbsoluteQuantity)
 
 		// place sell short order
-		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 5, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 5, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges3, err := livePlayground1.PlaceOrder(order3)
@@ -599,7 +599,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
@@ -643,7 +643,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, backtester_models.OrderRecordStatusFilled, liveOrders[0].Status)
 
 		// place sell order
-		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges2, err := livePlayground1.PlaceOrder(order2)
@@ -666,7 +666,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, 19.0, reconcileOrders[1].AbsoluteQuantity)
 
 		// place a second sell order
-		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges3, err := livePlayground1.PlaceOrder(order3)
@@ -766,7 +766,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
@@ -837,7 +837,7 @@ func TestLiveAccount(t *testing.T) {
 		playgroundID, err = uuid.Parse("3b208041-9c52-4221-b514-8d15385d310f")
 		require.NoError(t, err)
 
-		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 20, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSellShort, 20, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges2, err := livePlayground2.PlaceOrder(order2)
@@ -921,7 +921,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, -1.0, reconcilePos.Quantity)
 
 		// place buy to cover order
-		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuyToCover, 10, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground2.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuyToCover, 10, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges3, err := livePlayground2.PlaceOrder(order3)
@@ -1032,7 +1032,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		// place buy order
-		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order1, err := backtester_models.NewOrderRecord(1, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideBuy, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges, err := livePlayground1.PlaceOrder(order1)
@@ -1076,7 +1076,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, backtester_models.OrderRecordStatusFilled, liveOrders[0].Status)
 
 		// place sell order
-		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order2, err := backtester_models.NewOrderRecord(2, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges2, err := livePlayground1.PlaceOrder(order2)
@@ -1099,7 +1099,7 @@ func TestLiveAccount(t *testing.T) {
 		require.Equal(t, 19.0, reconcileOrders[1].AbsoluteQuantity)
 
 		// place a second sell order
-		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.LiveAccountTypeMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
+		order3, err := backtester_models.NewOrderRecord(3, nil, nil, livePlayground1.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, now, string(symbol), backtester_models.TradierOrderSideSell, 19, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, "", nil, false, nil, nil)
 		require.NoError(t, err)
 
 		placeOrderChanges3, err := livePlayground1.PlaceOrder(order3)

@@ -5,6 +5,6 @@ type ILiveAccountSource interface {
 	GetAccountID() string
 	GetApiKey() string
 	GetBrokerUrl() string
-	GetAccountType() LiveAccountType
+	GetAccountType() AccountRole
 	Validate() error
 }

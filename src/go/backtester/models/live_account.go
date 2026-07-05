@@ -14,7 +14,7 @@ type LiveAccount struct {
 	gorm.Model
 	BrokerName    string           `gorm:"column:broker;type:text"`
 	AccountId     string           `gorm:"column:account_id;type:text"`
-	AccountType   LiveAccountType  `gorm:"column:account_type;type:text"`
+	AccountType   AccountRole      `gorm:"column:account_type;type:text"`
 	PlotUpdatedAt time.Time        `gorm:"column:plot_updated_at;type:timestamptz"`
 	Broker        IBroker          `json:"-" gorm:"-"`
 	database      IDatabaseService `json:"-" gorm:"-"`
@@ -22,9 +22,9 @@ type LiveAccount struct {
 
 func (a *LiveAccount) GetSource() CreateAccountRequestSource {
 	return CreateAccountRequestSource{
-		Broker:          a.BrokerName,
-		AccountID:       a.AccountId,
-		LiveAccountType: a.AccountType,
+		Broker:      a.BrokerName,
+		AccountID:   a.AccountId,
+		AccountRole: a.AccountType,
 	}
 }
 

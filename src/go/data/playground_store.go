@@ -122,7 +122,7 @@ func (st *playgroundStore) getPlaygroundsByReconcileId(reconcileId uuid.UUID) ([
 	var playgrounds []*backtester_models.Playground
 	for _, p := range st.playgrounds {
 		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
-			if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
+			if p.Meta.Mode.IsRealtime() {
 				playgrounds = append(playgrounds, p)
 			}
 		}
@@ -184,17 +184,16 @@ func (st *playgroundStore) heartbeatStats() telemetry.HeartbeatStats {
 	var latestTick time.Time
 
 	for _, p := range st.playgrounds {
-		switch p.Meta.Environment {
-		case backtester_models.PlaygroundEnvironmentLive:
-			stats.LiveCount++
-		case backtester_models.PlaygroundEnvironmentReconcile:
+		if p.Meta.IsReconciliation() {
 			stats.ReconcileCount++
-		case backtester_models.PlaygroundEnvironmentSimulator:
+		} else if p.Meta.Mode.IsRealtime() {
+			stats.LiveCount++
+		} else if p.Meta.Mode == backtester_models.ModeSimulation {
 			stats.SimulatorCount++
 		}
 
 		// Count open orders for live/reconcile only
-		if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
+		if telemetry.ShouldEmitOrderTelemetry(p.Meta.LegacyEnv) {
 			for _, order := range p.GetAllOrders() {
 				if order.Status == backtester_models.OrderRecordStatusNew ||
 					order.Status == backtester_models.OrderRecordStatusPending ||
@@ -205,7 +204,7 @@ func (st *playgroundStore) heartbeatStats() telemetry.HeartbeatStats {
 		}
 
 		// Track latest tick time across all live playgrounds
-		if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
+		if p.Meta.Mode.IsRealtime() {
 			currentTime := p.Meta.CurrentTime
 			if currentTime.After(latestTick) {
 				latestTick = currentTime

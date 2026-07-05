@@ -117,3 +117,32 @@ The executor halted pre-code on a genuine contract/code collision: `LiveAccountT
 - Legacy reconcile rows: represented internally (AccountRole/internal flag on Meta — implementer's choice), never as a `Mode`. The compat mapping exposes a distinct internal-reconcile outcome alongside the three modes and the error outcome.
 
 Sign-off compatibility: the operator-approved outcomes (three modes, nonsense combos unrepresentable, reconcile not operator-selectable, zero stored-data mutation) are all preserved; the amendment only corrects the identifier-level claim that every `LiveAccountType` use becomes `Mode`.
+
+### Implementer's choice: internal representation of legacy reconcile rows (2026-07-05)
+
+`Meta` carries three fields at the persistence boundary:
+
+- `Mode Mode` — in-memory only (`gorm:"-"`); hydrated on every GORM load by the
+  `Playground.AfterFind` hook via `ModeFromLegacy`; empty for internal
+  reconciliation containers.
+- `Role AccountRole` — persists the `live_account_type` column byte-identically
+  (a legacy `mock` row stays `mock` on disk; reconcile containers keep the
+  UNDERLYING account role they always persisted — `paper`/`margin`/`mock`).
+- `LegacyEnv string` — persists the `environment` column byte-identically
+  (`simulator`|`live`|`reconcile`); written by `NewMeta` /
+  `NewReconciliationMeta` at construction, never branched on by business logic.
+
+The internal-reconcile flag is `Meta.IsReconciliation()` ⇔
+`LegacyEnv == "reconcile"` — chosen over an `AccountRole`-based flag because
+production reconcile rows persist the underlying account role (not
+`reconcilation`) in `live_account_type`; only reconcile-stamped ORDERS carry
+`AccountRoleReconcilation`. `ModeFromLegacy` exposes the distinct
+internal-reconcile outcome as its second return value.
+
+Note on the grep-zero requirement: `PlaygroundEnvironment` is gone entirely
+(including tests). The `LiveAccountType` identifier survives only in generated
+protobuf stubs (`*.pb.go`, `*.twirp.go`) and in the two `pb.AccountMeta`
+composite-literal field keys in `router/proto_converters.go` — the proto keeps
+its `live_account_type` wire field per this design's "Proto field redesign"
+out-of-scope clause, and protoc derives the Go field name `LiveAccountType`
+from it. No model type of that name exists anywhere.

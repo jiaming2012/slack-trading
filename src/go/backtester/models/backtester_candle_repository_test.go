@@ -60,7 +60,7 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 
-		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+		err = repo.SetStartingPosition(tstamp, ModeSimulation, nil)
 
 		require.NoError(t, err)
 
@@ -82,7 +82,7 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 1, 0, 0, time.UTC)
 
-		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+		err = repo.SetStartingPosition(tstamp, ModeSimulation, nil)
 
 		require.NoError(t, err)
 
@@ -106,7 +106,7 @@ func TestNext(t *testing.T) {
 
 		tstamp := time.Date(2021, 1, 1, 0, 3, 0, 0, time.UTC)
 
-		err = repo.SetStartingPosition(tstamp, PlaygroundEnvironmentSimulator, nil)
+		err = repo.SetStartingPosition(tstamp, ModeSimulation, nil)
 
 		require.NoError(t, err)
 

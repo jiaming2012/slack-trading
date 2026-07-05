@@ -50,7 +50,7 @@ func (m *MockDatabase) PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrd
 		req.ClientRequestID,
 		playgroundID,
 		req.Class,
-		playground.LiveAccountType,
+		playground.Meta.Role,
 		playground.GetCurrentTime(),
 		req.Symbol,
 		req.Side,
@@ -399,7 +399,7 @@ func (m *MockDatabase) FetchNewOrders() (newOrders []*OrderRecord, err error) {
 	return nil, nil
 }
 
-func (m *MockDatabase) FetchPendingOrders(liveAccountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error) {
+func (m *MockDatabase) FetchPendingOrders(liveAccountTypes []AccountRole, seekFromPlayground bool) ([]*OrderRecord, error) {
 	var orders []*OrderRecord
 
 	for pId := range m.playgrounds {
@@ -407,7 +407,7 @@ func (m *MockDatabase) FetchPendingOrders(liveAccountTypes []LiveAccountType, se
 		for _, order := range orderRecords {
 			if order.Status == OrderRecordStatusPending {
 				for _, t := range liveAccountTypes {
-					if order.LiveAccountType == t {
+					if order.AccountRole == t {
 						orders = append(orders, order)
 					}
 				}

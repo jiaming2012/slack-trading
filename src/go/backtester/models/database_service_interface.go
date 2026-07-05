@@ -24,7 +24,7 @@ type IDatabaseService interface {
 	FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error)
 	RejectOrder(order *OrderRecord, reason string) error
 	CancelOrder(order *OrderRecord) error
-	FetchPendingOrders(accountTypes []LiveAccountType, seekFromPlayground bool) ([]*OrderRecord, error)
+	FetchPendingOrders(accountTypes []AccountRole, seekFromPlayground bool) ([]*OrderRecord, error)
 	DeletePlayground(playgroundID uuid.UUID) error
 	CreatePlayground(playground *Playground, req *PopulatePlaygroundRequest) error
 	PopulatePlayground(p *Playground, calendar *models.MarketCalendar) error

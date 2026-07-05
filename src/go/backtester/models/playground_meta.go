@@ -9,26 +9,83 @@ import (
 
 // todo: refactor source into struct
 type Meta struct {
-	PlaygroundId          string                `json:"playground_id" gorm:"-"`
-	ReconcilePlaygroundId *string               `json:"reconcile_playground_id" gorm:"-"`
-	StartAt               time.Time             `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
-	ClientID              *string               `json:"client_id" gorm:"column:client_id;type:text;unique"`
-	EndAt                 *time.Time            `json:"end_at" gorm:"column:end_at;type:timestamptz"`
-	Symbols               pq.StringArray        `json:"symbols" gorm:"column:symbols;type:text[]"`
-	Tags                  pq.StringArray        `json:"tags" gorm:"column:tags;type:text[]"`
-	InitialBalance        float64               `json:"starting_balance" gorm:"column:starting_balance;type:numeric;not null"`
-	SourceBroker          string                `json:"source_broker" gorm:"column:source_broker;type:text;not null"`
-	SourceAccountId       string                `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
-	LiveAccountType       LiveAccountType       `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
-	Environment           PlaygroundEnvironment `json:"environment" gorm:"column:environment;type:text;not null"`
-	CurrentTime           time.Time             `json:"current_time" gorm:"-"`
+	PlaygroundId          string         `json:"playground_id" gorm:"-"`
+	ReconcilePlaygroundId *string        `json:"reconcile_playground_id" gorm:"-"`
+	StartAt               time.Time      `json:"start_at" gorm:"column:start_at;type:timestamptz;not null"`
+	ClientID              *string        `json:"client_id" gorm:"column:client_id;type:text;unique"`
+	EndAt                 *time.Time     `json:"end_at" gorm:"column:end_at;type:timestamptz"`
+	Symbols               pq.StringArray `json:"symbols" gorm:"column:symbols;type:text[]"`
+	Tags                  pq.StringArray `json:"tags" gorm:"column:tags;type:text[]"`
+	InitialBalance        float64        `json:"starting_balance" gorm:"column:starting_balance;type:numeric;not null"`
+	SourceBroker          string         `json:"source_broker" gorm:"column:source_broker;type:text;not null"`
+	SourceAccountId       string         `json:"source_account_id" gorm:"column:source_account_id;type:text;not null"`
+
+	// Mode is the operator-selected preset (Simulation, Paper, Margin). It is
+	// in-memory only: on load it is hydrated from the legacy columns via
+	// HydrateMode, and it is empty for internal reconciliation containers
+	// (IsReconciliation), which are not a Mode.
+	Mode Mode `json:"mode" gorm:"-"`
+
+	// Role is the internal per-account tag behind the Broker seam. It persists
+	// the legacy live_account_type column byte-identically (a legacy "mock"
+	// row stays "mock" on disk).
+	Role AccountRole `json:"live_account_type" gorm:"column:live_account_type;type:text;not null"`
+
+	// LegacyEnv persists the legacy environment column
+	// (simulator|live|reconcile) byte-identically. It is a persistence/RPC
+	// boundary artifact kept in sync with Mode by NewMeta /
+	// NewReconciliationMeta / HydrateMode; business logic must branch on
+	// Mode / Role / IsReconciliation, never on this field.
+	LegacyEnv string `json:"environment" gorm:"column:environment;type:text;not null"`
+
+	CurrentTime time.Time `json:"current_time" gorm:"-"`
 }
 
-func NewMeta(env PlaygroundEnvironment, tags []string) *Meta {
+// NewMeta builds metadata for an operator-facing playground in the given
+// mode. The internal Role is filled in by the construction path
+// (PopulatePlayground) once the account source is known.
+func NewMeta(mode Mode, tags []string) *Meta {
 	return &Meta{
-		Environment: env,
-		Tags:        tags,
+		Mode:      mode,
+		LegacyEnv: mode.LegacyEnvironment(),
+		Tags:      tags,
 	}
+}
+
+// NewReconciliationMeta builds metadata for an internal reconciliation
+// container — the netting layer behind the Broker seam. It carries no Mode;
+// the operator can neither create nor select it.
+func NewReconciliationMeta(tags []string) *Meta {
+	return &Meta{
+		LegacyEnv: LegacyEnvReconcile,
+		Tags:      tags,
+	}
+}
+
+// IsReconciliation reports whether this playground is an internal
+// reconciliation container (legacy environment="reconcile"). Such rows are
+// never a Mode.
+func (p *Meta) IsReconciliation() bool {
+	return p.LegacyEnv == LegacyEnvReconcile
+}
+
+// HydrateMode recomputes Mode from the persisted legacy columns. It is
+// invoked by the Playground AfterFind GORM hook so every row loaded from
+// Postgres carries a coherent in-memory Mode; unrecognized legacy
+// combinations surface an explicit error rather than a silent default.
+func (p *Meta) HydrateMode() error {
+	mode, internalReconcile, err := ModeFromLegacy(p.LegacyEnv, string(p.Role))
+	if err != nil {
+		return fmt.Errorf("Meta.HydrateMode: %w", err)
+	}
+
+	if internalReconcile {
+		p.Mode = ""
+		return nil
+	}
+
+	p.Mode = mode
+	return nil
 }
 
 func (p *Meta) HasTags(tags []string) bool {
@@ -50,19 +107,21 @@ func (p *Meta) HasTags(tags []string) bool {
 }
 
 func (p *Meta) Validate() error {
-	if err := p.Environment.Validate(); err != nil {
-		return fmt.Errorf("PlaygroundMeta.Validate: %w", err)
+	if !p.IsReconciliation() {
+		if err := p.Mode.Validate(); err != nil {
+			return fmt.Errorf("PlaygroundMeta.Validate: %w", err)
+		}
 	}
 
-	if err := p.LiveAccountType.Validate(); err != nil {
-		return fmt.Errorf("savePlaygroundSession: invalid live account type: %w", err)
+	if err := p.Role.Validate(); err != nil {
+		return fmt.Errorf("savePlaygroundSession: invalid account role: %w", err)
 	}
 
 	if p.PlaygroundId == "" {
 		return fmt.Errorf("PlaygroundMeta.Validate: playground id is not set")
 	}
 
-	if p.Environment == PlaygroundEnvironmentLive {
+	if p.Mode.IsRealtime() {
 		if p.ReconcilePlaygroundId == nil {
 			return fmt.Errorf("PlaygroundMeta.Validate: reconcile playground id is not set")
 		}
@@ -79,10 +138,10 @@ func (p *Meta) Validate() error {
 			return fmt.Errorf("PlaygroundMeta.Validate: source account id is not set")
 		}
 
-		if err := p.LiveAccountType.Validate(); err != nil {
-			return fmt.Errorf("PlaygroundMeta.Validate: failed to validate live account: %w", err)
+		if err := p.Role.Validate(); err != nil {
+			return fmt.Errorf("PlaygroundMeta.Validate: failed to validate account role: %w", err)
 		}
-	} else if p.Environment == PlaygroundEnvironmentSimulator {
+	} else if p.Mode == ModeSimulation {
 		if p.StartAt.IsZero() {
 			return fmt.Errorf("PlaygroundMeta.Validate: invalid start date: zero value")
 		}
@@ -106,22 +165,3 @@ func (p *Meta) Validate() error {
 
 	return nil
 }
-
-// func (p *Meta) ToDTO() *PlaygroundMetaDTO {
-// 	var liveAccountType *string
-// 	if err := p.LiveAccountType.Validate(); err == nil {
-// 		liveAccountType = new(string)
-// 		*liveAccountType = string(p.LiveAccountType)
-// 	}
-
-// 	return &PlaygroundMetaDTO{
-// 		StartDate:             p.StartAt.Format(time.RFC3339),
-// 		EndDate:               p.EndAt.Format(time.RFC3339),
-// 		Symbols:               p.Symbols,
-// 		InitialBalance:        p.InitialBalance,
-// 		Environment:           string(p.Environment),
-// 		SourceBroker:          p.SourceBroker,
-// 		SourceAccountId:       p.SourceAccountId,
-// 		SourceLiveAccountType: liveAccountType,
-// 	}
-// }

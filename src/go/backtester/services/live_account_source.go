@@ -7,14 +7,14 @@ import (
 )
 
 type LiveAccountSource struct {
-	Broker       string                 `json:"broker"`
-	AccountID    string                 `json:"account_id"`
-	AccountType  models.LiveAccountType `json:"account_type"`
-	BalancesUrl  string                 `json:"-"`
-	TradesApiKey string                 `json:"-"`
+	Broker       string             `json:"broker"`
+	AccountID    string             `json:"account_id"`
+	AccountType  models.AccountRole `json:"account_type"`
+	BalancesUrl  string             `json:"-"`
+	TradesApiKey string             `json:"-"`
 }
 
-func NewLiveAccountSource(broker, accountID, balancesUrl, tradesApiKey string, accountType models.LiveAccountType) LiveAccountSource {
+func NewLiveAccountSource(broker, accountID, balancesUrl, tradesApiKey string, accountType models.AccountRole) LiveAccountSource {
 	return LiveAccountSource{
 		Broker:       broker,
 		AccountID:    accountID,
@@ -24,7 +24,7 @@ func NewLiveAccountSource(broker, accountID, balancesUrl, tradesApiKey string, a
 	}
 }
 
-func (s LiveAccountSource) GetAccountType() models.LiveAccountType {
+func (s LiveAccountSource) GetAccountType() models.AccountRole {
 	return s.AccountType
 }
 

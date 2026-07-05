@@ -8,8 +8,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 type CandleRepository struct {
@@ -136,7 +136,7 @@ func (r *CandleRepository) GetLastCandle() *models.AggregateBarWithIndicators {
 	return r.candlesWithIndicators[len(r.candlesWithIndicators)-1]
 }
 
-func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env PlaygroundEnvironment, calendar *models.MarketCalendar) error {
+func (r *CandleRepository) SetStartingPosition(currentTime time.Time, mode Mode, calendar *models.MarketCalendar) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -153,7 +153,7 @@ func (r *CandleRepository) SetStartingPosition(currentTime time.Time, env Playgr
 		}
 	}
 
-	if env == PlaygroundEnvironmentSimulator || env == PlaygroundEnvironmentLive {
+	if mode == ModeSimulation || mode.IsRealtime() {
 		start := len(r.candlesWithIndicators) - 1
 		r.startingPosition = &start
 		r.position = start
@@ -300,7 +300,7 @@ func (r *CandleRepository) getCurrentCandle() (*models.AggregateBarWithIndicator
 		if r.position == 0 {
 			return nil, fmt.Errorf("found empty candlesWithIndicators for symbol %s", r.symbol.GetTicker())
 		}
-		
+
 		return nil, nil
 	}
 
