@@ -47,6 +47,6 @@
 
 ## 8. Verification
 
-- [ ] 8.1 End-to-end proof: boot server + a Python strategy locally, observe heartbeat rows, metric snapshots, a forced stale alert reaching Slack (or its persisted row), ack it via `task alert:ack` and confirm re-notification stops, and check `task telemetry:status` output
-- [ ] 8.2 Full gate sweep: `go build ./...`, `task test`, `task test:python`, `task test:smoke`
-- [ ] 8.3 Operator-only: deploy to droplet, run `task infra:verify` + `task telemetry:status`; decommission the otel-lgtm container on the Windows desktop and reclaim its RAM
+- [x] 8.1 End-to-end proof: boot server + a Python strategy locally, observe heartbeat rows, metric snapshots, a forced stale alert reaching Slack (or its persisted row), ack it via `task alert:ack` and confirm re-notification stops, and check `task telemetry:status` output
+- [x] 8.2 Full gate sweep: `go build ./...`, `task test`, `task test:python`, `task test:smoke`
+- [ ] 8.3 Operator-only: deploy to droplet, run `task infra:verify` + `task telemetry:status`; decommission the otel-lgtm container on the Windows desktop (and the local `slack-trading-observability-otel-lgtm-1` container) and reclaim the RAM; optionally point a Slack slash command at the server's `/` route so `ack <id>` works from Slack (the server side is live; CLI ack works regardless)

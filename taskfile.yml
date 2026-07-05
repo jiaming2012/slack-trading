@@ -421,7 +421,8 @@ tasks:
     cmds:
       - |
         set -eu
-        if [ -z "${ID:-}" ]; then
+        ID="{{.ID | default ""}}"
+        if [ -z "$ID" ]; then
           echo "usage: task alert:ack ID=<alert id>" >&2
           exit 1
         fi

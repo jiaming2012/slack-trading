@@ -2,6 +2,12 @@
 
 **As of:** 2026-07-05 (overnight run complete) · **Branch:** merged to `dev` and pushed to origin (2026-07-05, operator-approved); the run branch `claude/overnight-20260704` is retained locally
 
+## Update 2026-07-05 evening — replace-otel-with-internal-telemetry (implemented, NOT archived)
+
+The signed-off OpenSpec change `replace-otel-with-internal-telemetry` (ADR-0005) is fully implemented and verified on `dev` (7 commits, local only — not pushed). The OTel pipeline is gone: in-process registry → Postgres (`telemetry_metrics`/`telemetry_heartbeats`/`telemetry_alerts`, 30-day prune), `POST /telemetry/heartbeat` ingestion, alert engine with Slack delivery + ack (`task alert:ack ID=<id>` or `ack <id>` via the revived Slack inbound handler) + re-notify-until-acked, `task telemetry:status`, `infra:verify` telemetry-freshness gate. E2E proven locally: real Python heartbeats → rows → forced stale alerts → Slack delivery → both ack channels → resolution. Gates green: build, `task test`, `task test:python` (395 passed), `task test:smoke`; models/utils Go test failures are the pre-existing baseline set (14), byte-identical before/after.
+
+**The change is NOT archived and its roadmap card stays yellow** — task 8.3 is operator-only: deploy to droplet, `task infra:verify` + `task telemetry:status`, decommission otel-lgtm on the Windows desktop (and the local `slack-trading-observability-otel-lgtm-1` container), optionally point a Slack slash command at the server `/` route for Slack-side ack. After 8.3, run `openspec archive replace-otel-with-internal-telemetry` and flip the card green. Note: two test alerts (`e2e-proof-*`, ids 1–2, both resolved) landed in your Slack channel during verification; matching rows sit in the local dev DB.
+
 ## Executive summary
 
 All **16 signed-off OpenSpec changes were implemented, gate-verified, adversarially reviewed, remediated where blocked, and archived**. Zero changes failed or were reverted. The refactor track (ADR-0001..0003 completion) and the trading-stack v4 foundations both landed. Every archive is under `openspec/changes/archive/2026-07-05-*`; the roadmap shows 21 green / 0 yellow / 18 white.
