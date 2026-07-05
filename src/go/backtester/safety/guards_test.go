@@ -123,7 +123,7 @@ func TestTradesPerHourGuard_BeyondTwoSigmaTrips(t *testing.T) {
 	clk := NewFakeClock(time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC))
 	c := newTestController(t)
 	// mean 3, std 1 => threshold = 3 + 2*1 = 5. The 6th trade in the hour trips.
-	g := NewTradesPerHourGuard(clk, 3.0, 1.0, c)
+	g := NewTradesPerHourGuard(clk, 3.0, 1.0, 1, c)
 
 	var tripped bool
 	var reason string
@@ -139,7 +139,7 @@ func TestTradesPerHourGuard_BeyondTwoSigmaTrips(t *testing.T) {
 func TestTradesPerHourGuard_WithinTwoSigmaDoesNotTrip(t *testing.T) {
 	clk := NewFakeClock(time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC))
 	c := newTestController(t)
-	g := NewTradesPerHourGuard(clk, 3.0, 1.0, c) // threshold 5
+	g := NewTradesPerHourGuard(clk, 3.0, 1.0, 1, c) // threshold 5
 
 	// 5 trades == threshold, strict > required, so no trip.
 	var tripped bool
@@ -150,10 +150,51 @@ func TestTradesPerHourGuard_WithinTwoSigmaDoesNotTrip(t *testing.T) {
 	require.False(t, c.Status().Engaged)
 }
 
+// A degenerate historical norm (mean and σ both zero — no history supplied)
+// must leave the guard unarmed: before this fix, threshold = 0 + 2*0 = 0 and
+// the very first live trade (rate 1 > 0) tripped the kill switch as a pure
+// cold-start artifact.
+func TestTradesPerHourGuard_FirstTradeWithZeroSigmaHistoryNeverTrips(t *testing.T) {
+	clk := NewFakeClock(time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC))
+	c := newTestController(t)
+	g := NewTradesPerHourGuard(clk, 0, 0, 1, c)
+
+	require.False(t, g.Armed(), "zero mean and zero stddev must leave the guard unarmed")
+
+	// The first trade must not trip — and neither may any number that follow.
+	for i := 0; i < 100; i++ {
+		tripped, _ := g.ObserveTrade()
+		require.False(t, tripped)
+	}
+	require.False(t, c.Status().Engaged)
+}
+
+func TestTradesPerHourGuard_BelowMinSamplesDoesNotTripEvenBeyondTwoSigma(t *testing.T) {
+	clk := NewFakeClock(time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC))
+	c := newTestController(t)
+	// mean 0.5, std 0.25 => threshold = 1. Every trade past the first exceeds
+	// the threshold, but the 5-sample minimum must hold the guard back.
+	g := NewTradesPerHourGuard(clk, 0.5, 0.25, 5, c)
+	require.True(t, g.Armed())
+
+	for i := 0; i < 4; i++ {
+		tripped, _ := g.ObserveTrade()
+		require.False(t, tripped, "trade %d is below the 5-sample minimum and must not trip", i+1)
+	}
+	require.False(t, c.Status().Engaged)
+
+	// The 5th trade reaches the arming minimum; rate 5 > threshold 1 trips.
+	tripped, reason := g.ObserveTrade()
+	require.True(t, tripped, "once the minimum sample count is reached the guard must trip on an over-threshold rate")
+	require.Contains(t, reason, "trades-per-hour guard")
+	require.True(t, c.Status().Engaged)
+	require.Equal(t, SourceAuto, c.Status().Source)
+}
+
 func TestTradesPerHourGuard_OldTradesAgeOutOfWindow(t *testing.T) {
 	clk := NewFakeClock(time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC))
 	c := newTestController(t)
-	g := NewTradesPerHourGuard(clk, 3.0, 1.0, c) // threshold 5
+	g := NewTradesPerHourGuard(clk, 3.0, 1.0, 1, c) // threshold 5
 
 	// Five trades early, then advance past the hour so they age out.
 	for i := 0; i < 5; i++ {

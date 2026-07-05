@@ -19,9 +19,14 @@ type GuardConfig struct {
 	FillDeviationPct float64
 
 	// TradesPerHourMean and TradesPerHourStdDev describe the historical
-	// trades-per-hour norm for the trades-per-hour sigma guard.
+	// trades-per-hour norm for the trades-per-hour sigma guard. A degenerate
+	// norm (both zero) leaves that guard unarmed: it observes but never trips.
 	TradesPerHourMean   float64
 	TradesPerHourStdDev float64
+
+	// TradesPerHourMinSamples is the minimum number of trades in the guard's
+	// rolling one-hour window before it may trip (cold-start protection).
+	TradesPerHourMinSamples int
 
 	// FeedStalenessThreshold is the maximum tolerated age of the most recent
 	// Tick before the feed-staleness guard trips.
@@ -50,7 +55,7 @@ func NewGuardRegistry(controller *HaltController, clock Clock, cfg GuardConfig, 
 		Controller:    controller,
 		RejectionRate: NewRejectionRateGuard(clock, cfg.RejectionWindow, cfg.RejectionThreshold, cfg.RejectionMinSamples, controller),
 		FillDeviation: NewFillDeviationGuard(cfg.FillDeviationPct, controller),
-		TradesPerHour: NewTradesPerHourGuard(clock, cfg.TradesPerHourMean, cfg.TradesPerHourStdDev, controller),
+		TradesPerHour: NewTradesPerHourGuard(clock, cfg.TradesPerHourMean, cfg.TradesPerHourStdDev, cfg.TradesPerHourMinSamples, controller),
 		FeedStaleness: NewFeedStalenessGuard(cfg.FeedStalenessThreshold, stalenessSignal, controller),
 	}
 }

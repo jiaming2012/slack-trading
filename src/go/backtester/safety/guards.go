@@ -5,6 +5,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // HaltEngager is the narrow slice of the HaltController that a guard needs: the
@@ -139,10 +141,20 @@ func (g *FillDeviationGuard) ObserveFill(expected, actual float64) (bool, string
 // TradesPerHourGuard trips the halt when the current trades-per-hour rate
 // exceeds the supplied historical mean by more than two standard deviations of
 // the historical norm.
+//
+// Two cold-start protections keep the guard from tripping as an artifact
+// rather than an anomaly:
+//   - it never trips before minSamples trades sit in its rolling one-hour
+//     window, and
+//   - a degenerate historical norm (mean and σ both zero — no history was
+//     supplied) leaves the guard UNARMED: it observes but never trips, logged
+//     once at construction.
 type TradesPerHourGuard struct {
 	clock       Clock
 	histMean    float64
 	histStdDev  float64
+	minSamples  int
+	armed       bool
 	engager     HaltEngager
 	sigmaFactor float64
 
@@ -151,12 +163,21 @@ type TradesPerHourGuard struct {
 }
 
 // NewTradesPerHourGuard constructs the guard from the historical mean and
-// standard deviation of trades-per-hour.
-func NewTradesPerHourGuard(clock Clock, histMean, histStdDev float64, engager HaltEngager) *TradesPerHourGuard {
+// standard deviation of trades-per-hour. minSamples is the minimum number of
+// trades in the rolling window before the guard may trip. A degenerate norm
+// (histMean == 0 && histStdDev == 0) yields an unarmed guard that observes but
+// never trips.
+func NewTradesPerHourGuard(clock Clock, histMean, histStdDev float64, minSamples int, engager HaltEngager) *TradesPerHourGuard {
+	armed := !(histMean == 0 && histStdDev == 0)
+	if !armed {
+		log.Warnf("safety: trades-per-hour guard is UNARMED — no historical trades-per-hour norm supplied (mean=0, stddev=0). It will observe but never trip; set GUARD_TRADES_PER_HOUR_MEAN / GUARD_TRADES_PER_HOUR_STDDEV to arm it.")
+	}
 	return &TradesPerHourGuard{
 		clock:       clock,
 		histMean:    histMean,
 		histStdDev:  histStdDev,
+		minSamples:  minSamples,
+		armed:       armed,
 		engager:     engager,
 		sigmaFactor: 2.0,
 	}
@@ -164,8 +185,13 @@ func NewTradesPerHourGuard(clock Clock, histMean, histStdDev float64, engager Ha
 
 func (g *TradesPerHourGuard) Name() string { return "trades-per-hour guard" }
 
+// Armed reports whether a usable historical norm was supplied; an unarmed
+// guard observes but never trips.
+func (g *TradesPerHourGuard) Armed() bool { return g.armed }
+
 // ObserveTrade records a trade at the current time and evaluates the last-hour
-// rate against mean + 2σ. It returns (tripped, reason).
+// rate against mean + 2σ. It returns (tripped, reason). It never trips while
+// unarmed or while fewer than minSamples trades are in the window.
 func (g *TradesPerHourGuard) ObserveTrade() (bool, string) {
 	g.mu.Lock()
 	now := g.clock.Now()
@@ -179,8 +205,17 @@ func (g *TradesPerHourGuard) ObserveTrade() (bool, string) {
 	if i > 0 {
 		g.trades = g.trades[i:]
 	}
-	rate := float64(len(g.trades))
+	windowCount := len(g.trades)
+	rate := float64(windowCount)
 	g.mu.Unlock()
+
+	if !g.armed {
+		return false, ""
+	}
+
+	if windowCount < g.minSamples {
+		return false, ""
+	}
 
 	threshold := g.histMean + g.sigmaFactor*g.histStdDev
 	if rate > threshold {

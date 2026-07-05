@@ -14,9 +14,9 @@
 
 ## 3. Trades-per-hour guard arming (nit c)
 
-- [ ] 3.1 Add `MinSamples` to `TradesPerHourGuard` (constructor param + `GuardConfig.TradesPerHourMinSamples`); guard cannot trip below the minimum window sample count
-- [ ] 3.2 Add unarmed state for degenerate history (`histMean == 0 && histStdDev == 0`): observes but never trips; one `Warn` at construction
-- [ ] 3.3 Unit tests: first-trade-with-zero-σ does not trip, below-min-samples does not trip even beyond 2σ, arming threshold reached then trip works, existing trip/no-trip tests updated for the new params
+- [x] 3.1 Add `MinSamples` to `TradesPerHourGuard` (constructor param + `GuardConfig.TradesPerHourMinSamples`); guard cannot trip below the minimum window sample count
+- [x] 3.2 Add unarmed state for degenerate history (`histMean == 0 && histStdDev == 0`): observes but never trips; one `Warn` at construction
+- [x] 3.3 Unit tests: first-trade-with-zero-σ does not trip, below-min-samples does not trip even beyond 2σ, arming threshold reached then trip works, existing trip/no-trip tests updated for the new params
 
 ## 4. Guard configuration and startup construction
 
