@@ -31,7 +31,7 @@
 
 - [x] 5.1 Add `gate.go` with `SimulationRiskGate` that builds `PortfolioState` from a playground snapshot, resolves the `CrowdingView`, loads `RiskLimits`, and calls `Evaluate`.
 - [x] 5.2 Wire the gate into the Simulation branch of the order-placement path only (guarded on `PlaygroundEnvironmentSimulator`); on a rejecting `Decision`, do not commit the order to the queue and return the breach list to the caller.
-- [x] 5.3 Add the enablement flag: active for Simulation by default, inactive (and unwired) for Paper and Margin; assert no Paper/Margin path invokes the gate.
+- [x] 5.3 Add the enablement flag to the `riskOverlay` config (default **disabled**), loaded + validated + tested. INSTALLATION (`SetRiskGate` in server startup) and default-enablement for Simulation are DEFERRED to the follow-up change `wire-risk-overlay-state` — the same follow-up that supplies the real portfolio-state mapping — because enablement without real portfolio state evaluates a nil snapshot and is safety theater. _(Amended 2026-07-05, review-driven: original claimed "active for Simulation by default"; nothing installed the gate and the config had no `enabled` field.)_
 
 ## 6. Fixture-based unit tests (one per breach scenario)
 

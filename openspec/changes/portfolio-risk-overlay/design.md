@@ -57,6 +57,16 @@ No other batch change depends on this one.
 - **G2** — `task test` green (existing `backtester-api` suite unaffected).
 - **G6 — MANDATORY Fable adversarial review.** This is trade-gating safety-rail code; per the overnight plan it receives a G6 review unconditionally before commit. Reviewer must confirm the Simulation-only guard, the reduction-order bypass, and every boundary (`>` vs `>=`) comparison.
 
+## Reduction classification depends on downstream close-volume netting (N1)
+
+`MapProposedOrder` classifies an order as a reduction (`IsReduction`) **by side only** — any `sell`, `*_to_close`, or `buy_to_cover` is treated as risk-reducing and short-circuits the gate to ALLOW (both at the gate level in `EvaluateSimulationOrder` and inside `Evaluate`). This is deliberately cheap and does not look at position quantity, so a *flip* order (a close-side order whose volume exceeds the open position and therefore also opens exposure in the opposite direction) would be classified as a pure reduction and skip every limit.
+
+That is safe **only because** an oversized close cannot actually become an ungated entry downstream: `Playground.placeOrder` re-derives the closeable volume from live position state (`setCloseInfoToOrder` / `getCloseByRequests`), rejects any close whose "volume to close exceeds open volume" (`playground.go` ~2193), and re-checks `isSideAllowed` at fill. So a side-classified reduction can only ever *reduce* — the netting layer prevents the flip.
+
+**Load-bearing dependency:** if that close-volume re-derivation ever changes (e.g. a single order allowed to close-and-reopen in one fill), flip classification must move *into* the gate — `MapProposedOrder` would then need position context to split the reducing and opening legs, and the side-only short-circuit would no longer be sound.
+
 ## Deferred validation (Tier B)
 
-Per the overnight plan, only the Simulation-path wiring plus full unit-test coverage land tonight. Deferred to a later, operator-gated change: enabling the gate on Paper/Margin, integrating real portfolio state from live playgrounds end-to-end, and any live-feed or broker-sandbox validation. No prod DB, no live/paper broker orders, no new external infrastructure is touched by this change.
+Per the overnight plan, only the Simulation-path wiring seam plus full unit-test coverage land tonight. What ships now: the pure engine, the Simulation adapter, the crowding lookup seam, and the `riskOverlay.enabled` config flag (loaded, validated, tested, default **disabled**).
+
+Deferred to the later, operator-gated follow-up change **`wire-risk-overlay-state`**: installing the gate into server startup (`SetRiskGate`), mapping real portfolio state (positions, deployed capital, equity series) from live playgrounds end-to-end, and enabling the gate by default for Simulation. Enablement is intentionally NOT wired now — a gate enabled without real portfolio state evaluates a nil snapshot and is safety theater (see the amended "Enablement is operator-gated and off by default" requirement, 2026-07-05). Also deferred: enabling the gate on Paper/Margin, and any live-feed or broker-sandbox validation. No prod DB, no live/paper broker orders, no new external infrastructure is touched by this change.

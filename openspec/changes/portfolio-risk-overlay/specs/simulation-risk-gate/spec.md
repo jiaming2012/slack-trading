@@ -35,14 +35,16 @@ The system SHALL invoke the risk gate on the Simulation-mode order-placement pat
 - **WHEN** an order is proposed on the Paper or Margin order-placement path
 - **THEN** the risk gate is not invoked and the order path behaves exactly as it does today
 
-### Requirement: Live and Paper enablement is operator-gated and off by default
+### Requirement: Enablement is operator-gated and off by default
 
-The system SHALL expose an explicit enablement flag for the risk gate that defaults to enabled for Simulation and disabled for Paper and Margin. Extending the gate to Paper or Margin SHALL require the operator to opt in explicitly; no default configuration, and no path introduced by this change, SHALL cause the gate to block or alter a Paper or Margin order.
+The system SHALL expose an explicit `enabled` flag in the `riskOverlay` config block that defaults to disabled. This change delivers the pure engine, the Simulation adapter, and this config flag (loaded, validated, and tested); it does NOT install the gate into server startup, and no default configuration or path introduced by this change SHALL cause the gate to block or alter any order on any path — Simulation, Paper, or Margin. Installing the gate (`SetRiskGate` at startup) and enabling it by default for Simulation are DEFERRED to the follow-up change `wire-risk-overlay-state`, because enablement without real portfolio state evaluates a nil snapshot and would be safety theater.
 
-#### Scenario: Default configuration leaves Paper and Margin ungated
+> **Amendment (2026-07-05, review-driven).** The original text claimed the flag "defaults to enabled for Simulation" and that the gate is "active for Simulation" at startup. In fact nothing installed the gate and the config carried no `enabled` field. Corrected: the flag defaults to **disabled** and is delivered unwired; installation and Simulation default-enablement are deferred to `wire-risk-overlay-state`, the same follow-up that supplies the real portfolio-state mapping.
+
+#### Scenario: Default configuration leaves every order path ungated
 
 - **WHEN** the platform starts with default risk-overlay configuration
-- **THEN** the gate is active for Simulation and inactive for Paper and Margin, and no operator action is required for Simulation
+- **THEN** the `riskOverlay.enabled` flag is false, the gate is not installed into the order-placement path, and no order path — Simulation, Paper, or Margin — is gated
 
 ### Requirement: Crowding view supplied through a lookup seam with a test fake
 
