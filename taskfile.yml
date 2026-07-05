@@ -199,7 +199,11 @@ tasks:
       - 'go run ./cmd/tradingstack-db retention-run'
     dir: "{{.ROOT_DIR}}"
 
-
+  optimizer:validate:
+    desc: 'Run the optimizer validation pipeline self-check (synthetic fixtures, no DB required)'
+    cmds:
+      - 'go run ./cmd/optimizer-validate'
+    dir: "{{.ROOT_DIR}}"
   test:e2e:
     cmds:
       - task app:build-dev
