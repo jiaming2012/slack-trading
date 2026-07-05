@@ -6,43 +6,43 @@ Architecture refactor
         split-database-service-stores: |{"bg":"#C5E1A5"}
         playground-config-constructor: |{"bg":"#C5E1A5"}
     Package reconciliation
-        reconcile-models-packages: |{"bg":"#FFFFFF"}
-        rename-event-packages: |{"bg":"#FFFFFF"}
+        reconcile-models-packages: |{"bg":"#FFF59D"}
+        rename-event-packages: |{"bg":"#FFF59D"}
     Mode presets
-        migrate-crossed-enums: |{"bg":"#FFFFFF"}
+        migrate-crossed-enums: |{"bg":"#FFF59D"}
         migrate-live-account-type-data: |{"bg":"#FFFFFF"}
     Data layer hygiene
-        close-gorm-db-leaks: |{"bg":"#FFFFFF"}
+        close-gorm-db-leaks: |{"bg":"#FFF59D"}
     Refactor verification
-        e2e-sim-smoke-test: |{"bg":"#FFFFFF"}
+        e2e-sim-smoke-test: |{"bg":"#FFF59D"}
 Live simulation observability
     v3 closeout
         close-v3-milestone: |{"bg":"#FFFFFF"}
         verify-grafana-heartbeat-and-stale-alert: |{"bg":"#FFFFFF"}
 Trading stack v4
     Foundations
-        trading-stack-schema: |{"bg":"#FFFFFF"}
+        trading-stack-schema: |{"bg":"#FFF59D"}
         simulator-adaptation: |{"bg":"#FFFFFF"}
         temporal-scan-orchestration: |{"bg":"#FFFFFF"}
         esdb-role-decision: |{"bg":"#FFFFFF"}
-        db-partitioning-retention: |{"bg":"#FFFFFF"}
+        db-partitioning-retention: |{"bg":"#FFF59D"}
     Market scanning
-        scanner-l1-l2: |{"bg":"#FFFFFF"}
+        scanner-l1-l2: |{"bg":"#FFF59D"}
         scanner-ml-ranking: |{"bg":"#FFFFFF"}
         regime-robustness-layer: |{"bg":"#FFFFFF"}
-        feed-health-staleness: |{"bg":"#FFFFFF"}
+        feed-health-staleness: |{"bg":"#FFF59D"}
     Safety rails
-        kill-switch-and-broker-side-stops: |{"bg":"#FFFFFF"}
-        portfolio-risk-overlay: |{"bg":"#FFFFFF"}
-        crowding-detection: |{"bg":"#FFFFFF"}
+        kill-switch-and-broker-side-stops: |{"bg":"#FFF59D"}
+        portfolio-risk-overlay: |{"bg":"#FFF59D"}
+        crowding-detection: |{"bg":"#FFF59D"}
     Feedback loop
-        fidelity-checker: |{"bg":"#FFFFFF"}
+        fidelity-checker: |{"bg":"#FFF59D"}
         continuous-fidelity-monitoring: |{"bg":"#FFFFFF"}
         strategy-optimizer: |{"bg":"#FFFFFF"}
-        ev-tracker: |{"bg":"#FFFFFF"}
-        net-ev-cost-model: |{"bg":"#FFFFFF"}
+        ev-tracker: |{"bg":"#FFF59D"}
+        net-ev-cost-model: |{"bg":"#FFF59D"}
         scanner-optimizer: |{"bg":"#FFFFFF"}
-        optimizer-validation-pipeline: |{"bg":"#FFFFFF"}
+        optimizer-validation-pipeline: |{"bg":"#FFF59D"}
         overfitting-countermeasures: |{"bg":"#FFFFFF"}
         shadow-config-deployment: |{"bg":"#FFFFFF"}
     Recommendations
