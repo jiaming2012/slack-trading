@@ -355,7 +355,15 @@ func main() {
 		log.Fatalf("failed to construct kill-switch halt controller: %v", err)
 	}
 	backtester_models.SetOrderGate(haltController)
-	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController)
+
+	// Shared-secret token guarding the mutating /kill-switch endpoints.
+	// Unset: engage stays available (stopping trading is the safe direction)
+	// but release/acknowledge are refused fail-closed.
+	killSwitchToken := os.Getenv("KILL_SWITCH_TOKEN")
+	if killSwitchToken == "" {
+		log.Warnf("KILL_SWITCH_TOKEN is NOT set: /kill-switch/engage is UNAUTHENTICATED and /kill-switch/release + /kill-switch/acknowledge are LOCKED (fail-closed). Set KILL_SWITCH_TOKEN to secure engage and enable release/acknowledge.")
+	}
+	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController, killSwitchToken)
 	telemetryapi.SetupHandler(router.PathPrefix("/telemetry").Subrouter(), db, telemetry.Heartbeats, alertEngine)
 	if killSwitchStoreWasEmpty {
 		log.Warnf("kill-switch halt-state store is EMPTY at %s — booting with NO persisted halt state (source=none). If this file was wiped, any prior halt has been LOST and the server is starting CLEAR; verify this is intended.", killSwitchStatePath)

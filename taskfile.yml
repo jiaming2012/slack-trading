@@ -387,7 +387,7 @@ tasks:
       - 'git push'
       
   kill-switch:engage:
-    desc: 'Engage the hard kill switch: halt ALL order submission in every Mode. Optional reason via REASON env var. Host override via KILL_SWITCH_HOST (default http://localhost:8080).'
+    desc: 'Engage the hard kill switch: halt ALL order submission in every Mode. Optional reason via REASON env var. Passes the shared-secret token from KILL_SWITCH_TOKEN (required when the server has one configured). Host override via KILL_SWITCH_HOST (default http://localhost:8080).'
     cmds:
       - |
         set -eu
@@ -395,25 +395,28 @@ tasks:
         REASON="${REASON:-manual kill switch engaged via task}"
         curl -sS -X POST "${HOST}/kill-switch/engage" \
           -H 'Content-Type: application/json' \
+          -H "Authorization: Bearer ${KILL_SWITCH_TOKEN:-}" \
           -d "{\"reason\": \"${REASON}\"}"
         echo ""
 
   kill-switch:release:
-    desc: 'Release the kill switch and resume order submission. Rejected (409) while an auto-halt still needs acknowledgment — run task kill-switch:acknowledge first. Host override via KILL_SWITCH_HOST.'
+    desc: 'Release the kill switch and resume order submission. Requires the shared-secret token from KILL_SWITCH_TOKEN (refused fail-closed when the server has none configured). Rejected (409) while an auto-halt still needs acknowledgment — run task kill-switch:acknowledge first. Host override via KILL_SWITCH_HOST.'
     cmds:
       - |
         set -eu
         HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
-        curl -sS -X POST "${HOST}/kill-switch/release"
+        curl -sS -X POST "${HOST}/kill-switch/release" \
+          -H "Authorization: Bearer ${KILL_SWITCH_TOKEN:-}"
         echo ""
 
   kill-switch:acknowledge:
-    desc: 'Acknowledge an auto-halt cooldown so it can be released. Host override via KILL_SWITCH_HOST.'
+    desc: 'Acknowledge an auto-halt cooldown so it can be released. Requires the shared-secret token from KILL_SWITCH_TOKEN (refused fail-closed when the server has none configured). Host override via KILL_SWITCH_HOST.'
     cmds:
       - |
         set -eu
         HOST="${KILL_SWITCH_HOST:-http://localhost:8080}"
-        curl -sS -X POST "${HOST}/kill-switch/acknowledge"
+        curl -sS -X POST "${HOST}/kill-switch/acknowledge" \
+          -H "Authorization: Bearer ${KILL_SWITCH_TOKEN:-}"
         echo ""
 
   alert:ack:

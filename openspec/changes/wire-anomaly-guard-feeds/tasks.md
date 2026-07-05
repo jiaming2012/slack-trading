@@ -7,10 +7,10 @@
 
 ## 2. Kill-switch REST authentication (nit a)
 
-- [ ] 2.1 Add token middleware in `src/go/api/killswitchapi/`: read `KILL_SWITCH_TOKEN` at startup, accept `Authorization: Bearer` or `X-Kill-Switch-Token`, constant-time compare (`crypto/subtle`); release/acknowledge fail-closed when unset; engage open-with-Warn when unset; status always open
-- [ ] 2.2 Handler tests: valid token succeeds for all three mutating endpoints; missing/invalid token rejected with 401 and state unchanged; release/acknowledge refused with clear error when no token configured; engage succeeds when no token configured; status needs no token
-- [ ] 2.3 Update `taskfile.yml` `kill-switch:engage`, `kill-switch:release`, `kill-switch:acknowledge` targets to pass `$KILL_SWITCH_TOKEN`; update target `desc` strings to mention the token
-- [ ] 2.4 Log a loud startup `Warn` in `cmd/main.go` when `KILL_SWITCH_TOKEN` is unset (unauthenticated engage / locked release posture)
+- [x] 2.1 Add token middleware in `src/go/api/killswitchapi/`: read `KILL_SWITCH_TOKEN` at startup, accept `Authorization: Bearer` or `X-Kill-Switch-Token`, constant-time compare (`crypto/subtle`); release/acknowledge fail-closed when unset; engage open-with-Warn when unset; status always open
+- [x] 2.2 Handler tests: valid token succeeds for all three mutating endpoints; missing/invalid token rejected with 401 and state unchanged; release/acknowledge refused with clear error when no token configured; engage succeeds when no token configured; status needs no token
+- [x] 2.3 Update `taskfile.yml` `kill-switch:engage`, `kill-switch:release`, `kill-switch:acknowledge` targets to pass `$KILL_SWITCH_TOKEN`; update target `desc` strings to mention the token
+- [x] 2.4 Log a loud startup `Warn` in `cmd/main.go` when `KILL_SWITCH_TOKEN` is unset (unauthenticated engage / locked release posture)
 
 ## 3. Trades-per-hour guard arming (nit c)
 
