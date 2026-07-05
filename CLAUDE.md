@@ -96,27 +96,24 @@ task gen:proto                        # Regenerate protobuf stubs
 ## Deploy
 
 - **Trading app**: Docker Compose on Digital Ocean droplet (159.89.226.131) — grodt, postgres, eventstore
-- **Observability**: otel-lgtm on Windows desktop (Tailscale IP: 100.70.200.55, LAN: 192.168.8.164) — Grafana, Prometheus, Loki, Tempo, OTel Collector
-- **Networking**: Tailscale mesh VPN connects DO droplet ↔ Windows PC. grodt pushes OTel to `http://100.70.200.55:4318`
-- **Grafana**: http://100.70.200.55:3000 (admin/grodt2026)
+- **Telemetry (ADR-0005)**: in-process module of the trading server — metrics, strategy/datasource heartbeats, and alerts live in the playground Postgres DB (30-day prune). Check with `task telemetry:status`; acknowledge alerts with `task alert:ack ID=<id>` or `ack <id>` in Slack. Alerts post to Slack from the server itself; no external stack. The otel-lgtm stack is decommissioned; its Grafana dashboards are archived under `deprecated/observability/`.
 - Images built locally: `grodt-base-image:3.7.0` → `grodt-base-image-2:3.9.0` → `grodt/app:latest-dev`
 - Legacy Kubernetes manifests in `.clusters/production/` (no longer active)
-- **After every `task infra:deploy` or `task infra:deploy:force`, MUST run `task infra:verify`** to confirm services are healthy and Grafana dashboards match the provisioned files. If dashboards show STALE, run `task infra:refresh-dashboards` and re-verify.
-- **Dashboard updates**: After changing `observability/dashboards/*.json`, must also run `cd C:\Users\jcole\slack-trading-observability && git pull` on Windows PC to update the bind-mounted files.
+- **After every `task infra:deploy` or `task infra:deploy:force`, MUST run `task infra:verify`** — it checks service health and fails if telemetry snapshots aren't being written (fresh rows within 2 minutes).
 
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 **Live Simulation Observability**
 
-An observability layer for the slack-trading platform's live simulation mode. Surfaces real-time visibility into order lifecycle, strategy decisions, market data flow, and system health — built on OpenTelemetry, visualized in Grafana with Loki for logs. Solves the core problem: "is the strategy actually running?" especially during quiet periods with no trades.
+An observability layer for the slack-trading platform's live simulation mode. Surfaces real-time visibility into order lifecycle, strategy decisions, market data flow, and system health — built on the in-process Telemetry module (ADR-0005): synchronous metric recording into the playground Postgres DB, strategy/datasource heartbeats, and server-evaluated alerts pushed to Slack with ack + re-notify. Solves the core problem: "is the strategy actually running?" especially during quiet periods with no trades.
 
 **Core Value:** When a live simulation is running, the operator can always tell whether the system is alive and what it's doing — even when no trades are being placed.
 
 ### Constraints
 
-- **Tech stack**: OpenTelemetry (already partially adopted) → Loki (logs) + Grafana (dashboards/alerts)
-- **Python compatibility**: `pandas-ta-classic` requires numpy>=2.0 — OTel Python packages must be compatible
+- **Tech stack**: internal Telemetry module (registry → Postgres → `task telemetry:status`) + Slack alerting; the OTel→Grafana/Loki stack is decommissioned (ADR-0005)
+- **Python compatibility**: `pandas-ta-classic` requires numpy>=2.0
 - **Local dev first**: Docker Compose for local iteration, then Digital Ocean for production
 - **Infrastructure provisioning**: Digital Ocean MCP server for creating cloud resources
 <!-- GSD:project-end -->
@@ -153,9 +150,8 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - protoc + twirp plugin - Protobuf code generation for Go
 - protoc + twirpy plugin - Protobuf code generation for Python
 - Docker - Container builds (`Dockerfile`, `Dockerfile.base`, `Dockerfile.base2`)
-- OpenTelemetry v1.27.0 - Tracing and metrics (OTLP HTTP exporters)
+- Internal Telemetry module (`src/go/telemetry`) - metrics registry, heartbeats, alerting (ADR-0005; OTel removed)
 - Logrus v1.9.3 (`github.com/sirupsen/logrus`) - Structured logging
-- otellogrus (`github.com/uptrace/opentelemetry-go-extra/otellogrus`) - OTel-Logrus bridge
 - net/http/pprof - Go profiling endpoints (imported in `cmd/main.go`)
 ## Key Dependencies
 - `github.com/polygon-io/client-go` v1.16.6 - Polygon.io market data SDK
@@ -278,7 +274,7 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - Use level-specific methods: `log.Infof()`, `log.Debugf()`, `log.Errorf()`, `log.Warnf()`, `log.Fatalf()`
 - Include context in log messages with format strings:
 - Structured logging with `WithFields` used in the GORM logger adapter (`src/go/logger/logger.go`):
-- OpenTelemetry integration via `otellogrus` hook (configured in `cmd/main.go`)
+- Error-level entries increment the telemetry error counter via a logrus hook (configured in `cmd/main.go`), feeding the error-rate alert rule
 - `Info`: Significant state changes (order placed, playground created, loading operations)
 - `Debug`: Internal flow tracing (cache hits, mock operations, request IDs)
 - `Error`: Failed operations that don't crash the program

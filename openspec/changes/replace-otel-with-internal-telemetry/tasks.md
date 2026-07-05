@@ -40,10 +40,10 @@
 
 ## 7. Stack decommission and operator surface
 
-- [ ] 7.1 Move `observability/` to `deprecated/observability/`; delete the `TestLiveCandleMetricPipeline` integration test
-- [ ] 7.2 Taskfile: remove `observability:*`, `test:e2e:otel-candle-metrics`, `OTEL_SDK_DISABLED` prefixes, Grafana/OTel sections of `infra:verify`, and `infra:refresh-dashboards`; add telemetry freshness check to `infra:verify`
-- [ ] 7.3 Add `task telemetry:status` (heartbeats with staleness, latest snapshot, recent alerts with unacked flagged)
-- [ ] 7.4 Docs: update CLAUDE.md deploy/observability sections; add roadmap card `replace-otel-with-internal-telemetry` under "Live simulation observability" (yellow on draft — done at proposal commit; green on archive); remove the obsoleted `verify-grafana-heartbeat-and-stale-alert` card
+- [x] 7.1 Move `observability/` to `deprecated/observability/`; delete the `TestLiveCandleMetricPipeline` integration test
+- [x] 7.2 Taskfile: remove `observability:*`, `test:e2e:otel-candle-metrics`, `OTEL_SDK_DISABLED` prefixes, Grafana/OTel sections of `infra:verify`, and `infra:refresh-dashboards`; add telemetry freshness check to `infra:verify`
+- [x] 7.3 Add `task telemetry:status` (heartbeats with staleness, latest snapshot, recent alerts with unacked flagged)
+- [x] 7.4 Docs: update CLAUDE.md deploy/observability sections; add roadmap card `replace-otel-with-internal-telemetry` under "Live simulation observability" (yellow on draft — done at proposal commit; green on archive); remove the obsoleted `verify-grafana-heartbeat-and-stale-alert` card
 
 ## 8. Verification
 

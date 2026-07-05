@@ -38,10 +38,8 @@ services:
         target: /var/lib/postgresql/data
     restart: unless-stopped
 
-  # --- Observability ---
-  # otel-lgtm moved to Windows desktop (Tailscale IP: 100.70.200.55)
-  # Grafana: http://100.70.200.55:3000
-  # OTel collector: http://100.70.200.55:4318
+  # Observability: in-process Telemetry module (ADR-0005) — metrics,
+  # heartbeats, and alerts live in the postgres service; no external stack.
 
   # --- Trading App ---
   grodt:
