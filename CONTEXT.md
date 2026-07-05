@@ -67,3 +67,17 @@ _Avoid_: NextTick (implementation name), poll
 **Feed**:
 The single source of all market data — candles, quotes, and option chains — provided by Massive (formerly Polygon.io) in every mode. The broker is never a data source.
 _Avoid_: polygon (stale brand), data source (vague)
+
+### Observability
+
+**Telemetry**:
+The platform's own recording of operational signals — metrics, heartbeats, and alerts. Lives inside the trading server, not in an external stack; every recorded number is queryable directly in the platform's database. Emitted in every mode, tagged by mode.
+_Avoid_: OTel, observability stack, metrics service (it is a module, not a service)
+
+**Heartbeat**:
+A periodic liveness signal emitted by each strategy and each datasource. A heartbeat that stops arriving within its threshold is stale, which raises an Alert. The server does not heartbeat to itself — its death is visible only to the operator.
+_Avoid_: ping, health check
+
+**Alert**:
+A notification pushed to the operator (via Slack) when a rule over telemetry crosses its threshold — stale heartbeats and error-rate spikes. Alerts are pushed by the server itself; there is no external alerting system.
+_Avoid_: alarm, page
