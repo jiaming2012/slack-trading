@@ -11,14 +11,14 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 // ordersToProto converts a slice of order records to proto Orders, skipping
 // any nil conversions. (Formerly convertOrders in grpc.go.)
-func ordersToProto(orders []*models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) []*pb.Order {
+func ordersToProto(orders []*backtester_models.OrderRecord, externalIdMap map[uint]*backtester_models.OrderRecord) []*pb.Order {
 	out := make([]*pb.Order, 0)
 
 	for _, order := range orders {
@@ -34,7 +34,7 @@ func ordersToProto(orders []*models.OrderRecord, externalIdMap map[uint]*models.
 // reconciles, and previous position) to a proto Order. When externalIdMap is
 // non-nil, the external id is resolved from the map; otherwise it falls back
 // to the order's own ExternalOrderID. (Formerly convertOrder in grpc.go.)
-func orderToProto(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRecord) *pb.Order {
+func orderToProto(o *backtester_models.OrderRecord, externalIdMap map[uint]*backtester_models.OrderRecord) *pb.Order {
 	var trades []*pb.Trade
 	for _, trade := range o.GetTrades() {
 		trades = append(trades, tradeToProto(trade))
@@ -134,7 +134,7 @@ func orderToProto(o *models.OrderRecord, externalIdMap map[uint]*models.OrderRec
 
 // tradeToProto converts a trade record to a proto Trade, including its
 // optional order and reconcile-order references.
-func tradeToProto(trade *models.TradeRecord) *pb.Trade {
+func tradeToProto(trade *backtester_models.TradeRecord) *pb.Trade {
 	var orderId *uint64
 	if trade.OrderID != nil {
 		_orderId := uint64(*trade.OrderID)
@@ -158,7 +158,7 @@ func tradeToProto(trade *models.TradeRecord) *pb.Trade {
 }
 
 // positionToProto converts a single position to a proto Position.
-func positionToProto(p *models.Position) *pb.Position {
+func positionToProto(p *backtester_models.Position) *pb.Position {
 	return &pb.Position{
 		Quantity:          p.Quantity,
 		CostBasis:         p.CostBasis,
@@ -171,7 +171,7 @@ func positionToProto(p *models.Position) *pb.Position {
 
 // positionsToProto converts a symbol-keyed position map to its proto
 // equivalent. Always returns a non-nil map.
-func positionsToProto(positions map[string]*models.Position) map[string]*pb.Position {
+func positionsToProto(positions map[string]*backtester_models.Position) map[string]*pb.Position {
 	out := make(map[string]*pb.Position)
 	for symbol, pos := range positions {
 		out[symbol] = positionToProto(pos)
@@ -180,7 +180,7 @@ func positionsToProto(positions map[string]*models.Position) map[string]*pb.Posi
 }
 
 // candleToProto converts a backtester candle to a proto Candle.
-func candleToProto(c *models.BacktesterCandle) *pb.Candle {
+func candleToProto(c *backtester_models.BacktesterCandle) *pb.Candle {
 	return &pb.Candle{
 		Symbol: c.Symbol.GetTicker(),
 		Period: int32(c.Period.Seconds()),
@@ -190,7 +190,7 @@ func candleToProto(c *models.BacktesterCandle) *pb.Candle {
 
 // tradeSignalToProto converts a trade signal to a proto TradeSignalProto,
 // stringifying all attribute values.
-func tradeSignalToProto(sig *eventmodels.TradeSignal) *pb.TradeSignalProto {
+func tradeSignalToProto(sig *models.TradeSignal) *pb.TradeSignalProto {
 	attrs := make(map[string]string, len(sig.Attributes))
 	for k, v := range sig.Attributes {
 		attrs[k] = fmt.Sprintf("%v", v)
@@ -205,9 +205,9 @@ func tradeSignalToProto(sig *eventmodels.TradeSignal) *pb.TradeSignalProto {
 }
 
 // liquidationEventToProto wraps a liquidation event in a proto TickDeltaEvent.
-func liquidationEventToProto(ev *models.LiquidationEvent) *pb.TickDeltaEvent {
+func liquidationEventToProto(ev *backtester_models.LiquidationEvent) *pb.TickDeltaEvent {
 	return &pb.TickDeltaEvent{
-		Type: string(models.TickDeltaEventTypeLiquidation),
+		Type: string(backtester_models.TickDeltaEventTypeLiquidation),
 		LiquidationEvent: &pb.LiquidationEvent{
 			OrdersPlaced: ordersToProto(ev.OrdersPlaced, nil),
 		},
@@ -216,14 +216,14 @@ func liquidationEventToProto(ev *models.LiquidationEvent) *pb.TickDeltaEvent {
 
 // optionExpirationEventToProto wraps an option expiration event in a proto
 // TickDeltaEvent, decomposing the option symbol into its components.
-func optionExpirationEventToProto(ev *models.OptionExpirationEvent) (*pb.TickDeltaEvent, error) {
+func optionExpirationEventToProto(ev *backtester_models.OptionExpirationEvent) (*pb.TickDeltaEvent, error) {
 	components, err := ev.Symbol.Components()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get option components: %v", err)
 	}
 
 	return &pb.TickDeltaEvent{
-		Type: string(models.TickDeltaEventTypeOptionExpired),
+		Type: string(backtester_models.TickDeltaEventTypeOptionExpired),
 		OptionExpirationEvent: &pb.OptionExpirationEvent{
 			OptionSymbol:                string(components.Symbol.GetTicker()),
 			UnderlyingSymbol:            string(components.Underlying),
@@ -237,9 +237,9 @@ func optionExpirationEventToProto(ev *models.OptionExpirationEvent) (*pb.TickDel
 
 // optionAssignmentEventToProto wraps an option assignment event in a proto
 // TickDeltaEvent.
-func optionAssignmentEventToProto(ev *models.OptionAssignmentEvent) *pb.TickDeltaEvent {
+func optionAssignmentEventToProto(ev *backtester_models.OptionAssignmentEvent) *pb.TickDeltaEvent {
 	return &pb.TickDeltaEvent{
-		Type: string(models.TickDeltaEventTypeOptionAssigned),
+		Type: string(backtester_models.TickDeltaEventTypeOptionAssigned),
 		OptionAssignmentEvent: &pb.OptionAssignmentEvent{
 			OrderId:          uint64(ev.OrderId),
 			Symbol:           ev.Symbol.GetTicker(),
@@ -254,7 +254,7 @@ func optionAssignmentEventToProto(ev *models.OptionAssignmentEvent) *pb.TickDelt
 // NOTE: intentionally only surfaces liquidation and option-expiration events,
 // matching NextTick's original behavior (option-assignment events are only
 // surfaced by GetAccount via accountEventsToProto).
-func tickDeltaToProto(tick *models.TickDelta) (*pb.TickDelta, error) {
+func tickDeltaToProto(tick *backtester_models.TickDelta) (*pb.TickDelta, error) {
 	newTrades := make([]*pb.Trade, 0)
 	for _, trade := range tick.NewTrades {
 		newTrades = append(newTrades, tradeToProto(trade))
@@ -309,7 +309,7 @@ func tickDeltaToProto(tick *models.TickDelta) (*pb.TickDelta, error) {
 // option expiration, and option assignment) to proto TickDeltaEvents.
 // Returns a nil slice when there are no events, matching GetAccount's
 // original behavior.
-func accountEventsToProto(accountEvents []*models.TickDeltaEvent) ([]*pb.TickDeltaEvent, error) {
+func accountEventsToProto(accountEvents []*backtester_models.TickDeltaEvent) ([]*pb.TickDeltaEvent, error) {
 	var events []*pb.TickDeltaEvent
 	for _, event := range accountEvents {
 		if event.LiquidationEvent != nil {
@@ -335,7 +335,7 @@ func accountEventsToProto(accountEvents []*models.TickDeltaEvent) ([]*pb.TickDel
 // accountToProto converts an account response to its proto equivalent. Orders
 // are passed in pre-converted because the caller controls the external-id
 // resolution (see GetAccount's FetchExternalId handling).
-func accountToProto(account *models.GetAccountResponse, orders []*pb.Order) (*pb.GetAccountResponse, error) {
+func accountToProto(account *backtester_models.GetAccountResponse, orders []*pb.Order) (*pb.GetAccountResponse, error) {
 	positions := positionsToProto(account.Positions)
 
 	var endAt *string
@@ -379,7 +379,7 @@ func accountToProto(account *models.GetAccountResponse, orders []*pb.Order) (*pb
 }
 
 // repositoryToProto converts a candle repository to a proto Repository.
-func repositoryToProto(repo *models.CandleRepository) *pb.Repository {
+func repositoryToProto(repo *backtester_models.CandleRepository) *pb.Repository {
 	return &pb.Repository{
 		Symbol:             repo.GetSymbol().GetTicker(),
 		TimespanMultiplier: uint32(repo.GetPolygonTimespan().Multiplier),
@@ -391,7 +391,7 @@ func repositoryToProto(repo *models.CandleRepository) *pb.Repository {
 
 // playgroundToProto converts a playground to a proto PlaygroundSession,
 // refreshing prices/positions in the process (as GetPlaygrounds always did).
-func playgroundToProto(p *models.Playground) (*pb.PlaygroundSession, error) {
+func playgroundToProto(p *backtester_models.Playground) (*pb.PlaygroundSession, error) {
 	meta := p.GetMeta()
 	positionCache, err := p.UpdatePricesAndGetPositionCache()
 	if err != nil {
@@ -459,7 +459,7 @@ func playgroundToProto(p *models.Playground) (*pb.PlaygroundSession, error) {
 
 // optionLadderContractsToProto converts option chain contracts to proto
 // OptionLadderContracts.
-func optionLadderContractsToProto(optionContracts []eventmodels.OptionContractV3) []*pb.OptionLadderContract {
+func optionLadderContractsToProto(optionContracts []models.OptionContractV3) []*pb.OptionLadderContract {
 	var contracts []*pb.OptionLadderContract
 	for _, contract := range optionContracts {
 		contracts = append(contracts, &pb.OptionLadderContract{
@@ -478,7 +478,7 @@ func optionLadderContractsToProto(optionContracts []eventmodels.OptionContractV3
 
 // liveAccountPlotsToProto converts equity report items to proto
 // LiveAccountPlots. Returns an error when an item has a nil equity.
-func liveAccountPlotsToProto(plots []models.LiveAccountPlot) ([]*pb.LiveAccountPlot, error) {
+func liveAccountPlotsToProto(plots []backtester_models.LiveAccountPlot) ([]*pb.LiveAccountPlot, error) {
 	var items []*pb.LiveAccountPlot
 	for _, item := range plots {
 		if item.Equity == nil {
@@ -495,7 +495,7 @@ func liveAccountPlotsToProto(plots []models.LiveAccountPlot) ([]*pb.LiveAccountP
 
 // equityPlotsToProto converts equity plot points to proto EquityPlots.
 // Always returns a non-nil slice.
-func equityPlotsToProto(plots []*eventmodels.EquityPlot) []*pb.EquityPlot {
+func equityPlotsToProto(plots []*models.EquityPlot) []*pb.EquityPlot {
 	out := make([]*pb.EquityPlot, 0)
 	for _, p := range plots {
 		out = append(out, &pb.EquityPlot{
@@ -508,7 +508,7 @@ func equityPlotsToProto(plots []*eventmodels.EquityPlot) []*pb.EquityPlot {
 
 // positionReportsToProto converts a position cache to proto PositionReports,
 // stamping each report with the given playground id pointer.
-func positionReportsToProto(cache *models.PositionsCache, playgroundId *string) []*pb.PositionReport {
+func positionReportsToProto(cache *backtester_models.PositionsCache, playgroundId *string) []*pb.PositionReport {
 	var reports []*pb.PositionReport
 	for symbol, p := range cache.Iter() {
 		reports = append(reports, &pb.PositionReport{
@@ -522,7 +522,7 @@ func positionReportsToProto(cache *models.PositionsCache, playgroundId *string) 
 
 // tradierPositionReportsToProto converts broker position DTOs to proto
 // PositionReports (no playground id — these are broker-side positions).
-func tradierPositionReportsToProto(positions []eventmodels.TradierPositionDTO) []*pb.PositionReport {
+func tradierPositionReportsToProto(positions []models.TradierPositionDTO) []*pb.PositionReport {
 	var reports []*pb.PositionReport
 	for _, p := range positions {
 		reports = append(reports, &pb.PositionReport{
@@ -536,16 +536,16 @@ func tradierPositionReportsToProto(positions []eventmodels.TradierPositionDTO) [
 // repositoryRequestsFromProto converts proto Repository specs into repository
 // creation requests with the given source type. (proto -> model direction;
 // shared by CreatePlayground and CreateLivePlayground.)
-func repositoryRequestsFromProto(repos []*pb.Repository, sourceType eventmodels.RepositorySourceType) []eventmodels.CreateRepositoryRequest {
-	var requests []eventmodels.CreateRepositoryRequest
+func repositoryRequestsFromProto(repos []*pb.Repository, sourceType models.RepositorySourceType) []models.CreateRepositoryRequest {
+	var requests []models.CreateRepositoryRequest
 	for _, repo := range repos {
-		requests = append(requests, eventmodels.CreateRepositoryRequest{
+		requests = append(requests, models.CreateRepositoryRequest{
 			Symbol: repo.Symbol,
-			Timespan: eventmodels.PolygonTimespanRequest{
+			Timespan: models.PolygonTimespanRequest{
 				Multiplier: int(repo.TimespanMultiplier),
 				Unit:       repo.TimespanUnit,
 			},
-			Source: eventmodels.RepositorySource{
+			Source: models.RepositorySource{
 				Type: sourceType,
 			},
 			Indicators:    repo.Indicators,

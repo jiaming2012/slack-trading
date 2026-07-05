@@ -21,14 +21,14 @@ import (
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/rpc"
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/services"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/rpc"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
 	"github.com/jiaming2012/slack-trading/src/go/workers"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/api/accountapi"
 	"github.com/jiaming2012/slack-trading/src/go/api/alertapi"
@@ -46,8 +46,8 @@ import (
 type RouterSetupItem struct {
 	Method   string
 	URL      string
-	Executor eventmodels.RequestExecutor
-	Request  eventmodels.ApiRequest3
+	Executor models.RequestExecutor
+	Request  models.ApiRequest3
 }
 
 // RouterSetup manages a group of routes under a common prefix.
@@ -83,12 +83,12 @@ func (r *RouterSetup) Add(item RouterSetupItem) {
 	r.Router.HandleFunc(fmt.Sprintf("%s%s", r.Prefix, item.URL), r.ServeHTTP)
 }
 
-func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, error) {
-	brokers := make(map[models.CreateAccountRequestSource]models.IBroker)
+func getTradierBrokers() (map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker, error) {
+	brokers := make(map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker)
 	brokerName := "tradier"
 
-	for _, accountType := range []models.LiveAccountType{models.LiveAccountTypePaper, models.LiveAccountTypeMargin} {
-		vars := models.NewLiveAccountVariables(accountType)
+	for _, accountType := range []backtester_models.LiveAccountType{backtester_models.LiveAccountTypePaper, backtester_models.LiveAccountTypeMargin} {
+		vars := backtester_models.NewLiveAccountVariables(accountType)
 
 		tradierBalancesUrlTemplate, err := vars.GetTradierBalancesUrlTemplate()
 		if err != nil {
@@ -135,7 +135,7 @@ func getTradierBrokers() (map[models.CreateAccountRequestSource]models.IBroker, 
 
 		broker := services.NewTradierBroker(tradesUrl, stockQuotesURL, tradierPositionsURL, tradierNonTradesBearerToken, tradierTradesBearerToken, &source)
 
-		brokers[models.CreateAccountRequestSource{
+		brokers[backtester_models.CreateAccountRequestSource{
 			LiveAccountType: accountType,
 			Broker:          brokerName,
 			AccountID:       accountID,
@@ -204,14 +204,14 @@ func main() {
 	log.Info("Main: starting...")
 
 	// Determine live account type from environment
-	var liveAccountType models.LiveAccountType
+	var liveAccountType backtester_models.LiveAccountType
 	if goEnv == "production" {
-		liveAccountType = models.LiveAccountTypeMargin
+		liveAccountType = backtester_models.LiveAccountTypeMargin
 	} else {
-		liveAccountType = models.LiveAccountTypePaper
+		liveAccountType = backtester_models.LiveAccountTypePaper
 	}
 
-	vars := models.NewLiveAccountVariables(liveAccountType)
+	vars := backtester_models.NewLiveAccountVariables(liveAccountType)
 
 	// Load required environment variables
 	stockQuotesURL, err := utils.GetEnv("TRADIER_STOCK_QUOTES_URL")
@@ -324,7 +324,7 @@ func main() {
 		log.Fatalf("failed to read options config: %v", err)
 	}
 
-	var optionsConfig eventmodels.OptionsConfigYAML
+	var optionsConfig models.OptionsConfigYAML
 	if err := yaml.Unmarshal(configBytes, &optionsConfig); err != nil {
 		log.Fatalf("failed to unmarshal options config: %v", err)
 	}
@@ -342,14 +342,14 @@ func main() {
 		log.Fatalf("$PORT not set: %v", err)
 	}
 
-	dispatcher := eventmodels.InitializeGlobalDispatcher()
+	dispatcher := models.InitializeGlobalDispatcher()
 	router := mux.NewRouter()
 	tradeapi.SetupHandler(router.PathPrefix("/trades").Subrouter())
 	accountapi.SetupHandler(router.PathPrefix("/accounts").Subrouter())
 	datafeedapi.SetupHandler(router.PathPrefix("/datafeeds").Subrouter())
 	alertapi.SetupHandler(router.PathPrefix("/alerts").Subrouter())
 
-	liveOrdersUpdateQueue := eventmodels.NewFIFOQueue[*models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
+	liveOrdersUpdateQueue := models.NewFIFOQueue[*backtester_models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 
 	// Register pprof handlers
 	pprofRouter := router.PathPrefix("/debug/pprof").Subrouter()
@@ -366,7 +366,7 @@ func main() {
 	pprofRouter.Handle("/threadcreate", pprof.Handler("threadcreate"))
 
 	optionsDataFetcher := marketdata.NewPolygonOptionsClient("https://api.polygon.io", polygonApiKey)
-	_ = &eventmodels.ReadOptionChainRequestExecutor{
+	_ = &models.ReadOptionChainRequestExecutor{
 		OptionsByExpirationURL: optionsExpirationURL,
 		OptionChainURL:         optionChainURL,
 		StockURL:               stockQuotesURL,
@@ -375,11 +375,11 @@ func main() {
 		OptionsDataFetcher:     optionsDataFetcher,
 	}
 
-	streamParams := []eventmodels.StreamParameter{
-		{StreamName: eventmodels.AccountsStream, Mutex: &sync.Mutex{}},
-		{StreamName: eventmodels.OptionAlertsStream, Mutex: &sync.Mutex{}},
-		{StreamName: eventmodels.OptionChainTickStream, Mutex: &sync.Mutex{}},
-		{StreamName: eventmodels.StockTickStream, Mutex: &sync.Mutex{}},
+	streamParams := []models.StreamParameter{
+		{StreamName: models.AccountsStream, Mutex: &sync.Mutex{}},
+		{StreamName: models.OptionAlertsStream, Mutex: &sync.Mutex{}},
+		{StreamName: models.OptionChainTickStream, Mutex: &sync.Mutex{}},
+		{StreamName: models.StockTickStream, Mutex: &sync.Mutex{}},
 	}
 
 	// Setup ESDB producer
@@ -394,12 +394,12 @@ func main() {
 	// Setup signal routes
 	processSignalExecutor := signalapi.NewProcessSignalExecutor(esdbProducer)
 	s := NewRouterSetup("/signals", router)
-	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &eventmodels.CreateSignalRequestEventV1DTO{}})
+	s.Add(RouterSetupItem{Method: http.MethodPost, URL: "", Executor: processSignalExecutor, Request: &models.CreateSignalRequestEventV1DTO{}})
 
 	// Setup data routes
 	polygonTickDataMachine := marketdata.NewPolygonClient(polygonApiKey)
 	d := NewRouterSetup("/data", router)
-	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &eventmodels.PolygonDataReadRequestDTO{}})
+	d.Add(RouterSetupItem{Method: http.MethodGet, URL: "/polygon", Executor: polygonTickDataMachine, Request: &models.PolygonDataReadRequestDTO{}})
 
 	// Setup polygon options client with disk cache
 	polygonCacheDir := filepath.Join(projectDir, ".cache", "polygon")
@@ -408,7 +408,7 @@ func main() {
 	// Setup version route
 	appVersion := &marketdata.AppVersion{}
 	a := NewRouterSetup("/version", router)
-	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &eventmodels.EmptyRequest{}})
+	a.Add(RouterSetupItem{Method: http.MethodGet, URL: "/app", Executor: appVersion, Request: &models.EmptyRequest{}})
 
 	polygonClient := marketdata.NewPolygonClient(polygonApiKey)
 
@@ -431,29 +431,29 @@ func main() {
 	}
 
 	// Add mock broker for reconciliation testing
-	pendingMockOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeReconcilation}, false)
+	pendingMockOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeReconcilation}, false)
 	if err != nil {
 		log.Fatalf("failed to fetch pending mock orders: %v", err)
 	}
 
-	var existingOrders []*models.PlaceOrderRequest
+	var existingOrders []*backtester_models.PlaceOrderRequest
 	for _, order := range pendingMockOrders {
-		existingOrders = append(existingOrders, &models.PlaceOrderRequest{
+		existingOrders = append(existingOrders, &backtester_models.PlaceOrderRequest{
 			OrderID:    order.ExternalOrderID,
 			Symbol:     order.Symbol,
 			Quantities: []int{int(order.AbsoluteQuantity)},
-			Sides:      []models.TradierOrderSide{order.Side},
-			OrderType:  models.TradierOrderTypeMarket,
+			Sides:      []backtester_models.TradierOrderSide{order.Side},
+			OrderType:  backtester_models.TradierOrderTypeMarket,
 			Tag:        order.Tag,
 			DryRun:     false,
 		})
 	}
 
-	brokerMap[models.CreateAccountRequestSource{
-		LiveAccountType: models.LiveAccountTypeMock,
+	brokerMap[backtester_models.CreateAccountRequestSource{
+		LiveAccountType: backtester_models.LiveAccountTypeMock,
 		Broker:          "tradier",
 		AccountID:       "mock_default",
-	}] = models.NewMockBroker(mockOrderIdStartIndex, existingOrders)
+	}] = backtester_models.NewMockBroker(mockOrderIdStartIndex, existingOrders)
 
 	quotesBearerToken := tradierNonTradesBearerToken
 	nowUTC := time.Now().UTC()
@@ -492,11 +492,11 @@ func main() {
 	}()
 
 	// Create global signal repository: ESDB for live mode, in-memory for dev/sim
-	var globalSignalRepo models.ISignalRepository
+	var globalSignalRepo backtester_models.ISignalRepository
 	if esdbProducer != nil {
-		globalSignalRepo = models.NewESDBSignalRepository(esdbProducer)
+		globalSignalRepo = backtester_models.NewESDBSignalRepository(esdbProducer)
 	} else {
-		globalSignalRepo = models.NewInMemorySignalRepository()
+		globalSignalRepo = backtester_models.NewInMemorySignalRepository()
 	}
 
 	// Start Twirp server

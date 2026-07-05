@@ -3,7 +3,7 @@ package models
 import "fmt"
 
 // These sentinel errors were defined in the pre-merge legacy models package and
-// are consumed by the live backtester-api. The canonical (eventmodels-sourced)
+// are consumed by the live backtester service. The canonical (eventmodels-sourced)
 // error.go did not carry them, so they are retained here
 // (reconcile-models-packages).
 var ErrOptionContractIsExpired = fmt.Errorf("option contract is expired")

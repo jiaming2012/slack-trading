@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
 // liveAccountStore owns the live-account cache, the broker map, and the live
@@ -22,21 +22,21 @@ import (
 // same three methods use it.
 type liveAccountStore struct {
 	db                *gorm.DB
-	liveAccounts      map[models.CreateAccountRequestSource]models.ILiveAccount
-	liveRepositories  map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository
-	brokerMap         map[models.CreateAccountRequestSource]models.IBroker
+	liveAccounts      map[backtester_models.CreateAccountRequestSource]backtester_models.ILiveAccount
+	liveRepositories  map[models.Instrument]map[time.Duration][]*backtester_models.CandleRepository
+	brokerMap         map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker
 	liveAccountsMutex sync.Mutex
 }
 
 func newLiveAccountStore(db *gorm.DB) *liveAccountStore {
 	return &liveAccountStore{
 		db:               db,
-		liveAccounts:     make(map[models.CreateAccountRequestSource]models.ILiveAccount),
-		liveRepositories: make(map[eventmodels.Instrument]map[time.Duration][]*models.CandleRepository),
+		liveAccounts:     make(map[backtester_models.CreateAccountRequestSource]backtester_models.ILiveAccount),
+		liveRepositories: make(map[models.Instrument]map[time.Duration][]*backtester_models.CandleRepository),
 	}
 }
 
-func (st *liveAccountStore) getLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
+func (st *liveAccountStore) getLiveAccount(source backtester_models.CreateAccountRequestSource) (backtester_models.ILiveAccount, error) {
 	liveAccount, found := st.liveAccounts[source]
 	if !found {
 		return nil, fmt.Errorf("failed to find live account: %v", source)
@@ -45,7 +45,7 @@ func (st *liveAccountStore) getLiveAccount(source models.CreateAccountRequestSou
 	return liveAccount, nil
 }
 
-func (st *liveAccountStore) fetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAccount, bool, error) {
+func (st *liveAccountStore) fetchLiveAccount(source *backtester_models.CreateAccountRequestSource) (backtester_models.ILiveAccount, bool, error) {
 	if source == nil {
 		return nil, false, fmt.Errorf("FetchLiveAccount: source is nil")
 	}
@@ -70,22 +70,22 @@ func (st *liveAccountStore) fetchLiveAccount(source *models.CreateAccountRequest
 	return account, true, nil
 }
 
-func (st *liveAccountStore) getMockBroker(broker string) (models.IBroker, error) {
+func (st *liveAccountStore) getMockBroker(broker string) (backtester_models.IBroker, error) {
 	for b, val := range st.brokerMap {
-		if b.LiveAccountType == models.LiveAccountTypeMock {
+		if b.LiveAccountType == backtester_models.LiveAccountTypeMock {
 			if b.Broker == broker {
 				return val, nil
 			}
 		}
 	}
 
-	return &models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
+	return &backtester_models.MockBroker{}, fmt.Errorf("failed to find mock broker: %s", broker)
 }
 
 // populateLiveAccount wires broker and database dependencies into a live
 // account. owner is the enclosing DatabaseService (accounts hold a reference
 // back to the full IDatabaseService).
-func (st *liveAccountStore) populateLiveAccount(a *models.LiveAccount, owner models.IDatabaseService) error {
+func (st *liveAccountStore) populateLiveAccount(a *backtester_models.LiveAccount, owner backtester_models.IDatabaseService) error {
 	if a.BrokerName != "tradier" {
 		return fmt.Errorf("unsupported broker: %s", a.BrokerName)
 	}
@@ -107,8 +107,8 @@ func (st *liveAccountStore) populateLiveAccount(a *models.LiveAccount, owner mod
 	return nil
 }
 
-func (st *liveAccountStore) loadLiveAccounts(brokerMap map[models.CreateAccountRequestSource]models.IBroker, owner models.IDatabaseService) error {
-	var liveAccountsRecords []*models.LiveAccount
+func (st *liveAccountStore) loadLiveAccounts(brokerMap map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker, owner backtester_models.IDatabaseService) error {
+	var liveAccountsRecords []*backtester_models.LiveAccount
 
 	st.brokerMap = brokerMap
 
@@ -132,7 +132,7 @@ func (st *liveAccountStore) loadLiveAccounts(brokerMap map[models.CreateAccountR
 
 	for source, broker := range brokerMap {
 		if _, found := st.liveAccounts[source]; !found {
-			a, err := models.NewLiveAccount(broker, owner)
+			a, err := backtester_models.NewLiveAccount(broker, owner)
 			if err != nil {
 				return fmt.Errorf("failed to create live account: %w", err)
 			}
@@ -153,11 +153,11 @@ func (st *liveAccountStore) loadLiveAccounts(brokerMap map[models.CreateAccountR
 	return nil
 }
 
-func (st *liveAccountStore) fetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
+func (st *liveAccountStore) fetchAllLiveRepositories() (repositories []*backtester_models.CandleRepository, releaseLockFn func(), err error) {
 	st.liveAccountsMutex.Lock()
 	defer st.liveAccountsMutex.Unlock()
 
-	repositories = []*models.CandleRepository{}
+	repositories = []*backtester_models.CandleRepository{}
 	for _, symbolRepo := range st.liveRepositories {
 		for _, periodRepos := range symbolRepo {
 			repositories = append(repositories, periodRepos...)
@@ -169,7 +169,7 @@ func (st *liveAccountStore) fetchAllLiveRepositories() (repositories []*models.C
 	}, nil
 }
 
-func (st *liveAccountStore) removeLiveRepository(repo *models.CandleRepository) error {
+func (st *liveAccountStore) removeLiveRepository(repo *backtester_models.CandleRepository) error {
 	st.liveAccountsMutex.Lock()
 	defer st.liveAccountsMutex.Unlock()
 
@@ -202,18 +202,18 @@ func (st *liveAccountStore) removeLiveRepository(repo *models.CandleRepository) 
 	return nil
 }
 
-func (st *liveAccountStore) saveLiveRepository(repo *models.CandleRepository) error {
+func (st *liveAccountStore) saveLiveRepository(repo *backtester_models.CandleRepository) error {
 	st.liveAccountsMutex.Lock()
 	defer st.liveAccountsMutex.Unlock()
 
 	symbolRepo, ok := st.liveRepositories[repo.GetSymbol()]
 	if !ok {
-		symbolRepo = map[time.Duration][]*models.CandleRepository{}
+		symbolRepo = map[time.Duration][]*backtester_models.CandleRepository{}
 	}
 
 	periodRepos, ok := symbolRepo[repo.GetPeriod()]
 	if !ok {
-		periodRepos = []*models.CandleRepository{}
+		periodRepos = []*backtester_models.CandleRepository{}
 	}
 
 	// append the repo to the periodRepos
@@ -226,47 +226,47 @@ func (st *liveAccountStore) saveLiveRepository(repo *models.CandleRepository) er
 
 // --- DatabaseService public surface: thin delegations to liveAccountStore ---
 
-func (s *DatabaseService) GetLiveAccount(source models.CreateAccountRequestSource) (models.ILiveAccount, error) {
+func (s *DatabaseService) GetLiveAccount(source backtester_models.CreateAccountRequestSource) (backtester_models.ILiveAccount, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.liveAccountStore.getLiveAccount(source)
 }
 
-func (s *DatabaseService) FetchLiveAccount(source *models.CreateAccountRequestSource) (models.ILiveAccount, bool, error) {
+func (s *DatabaseService) FetchLiveAccount(source *backtester_models.CreateAccountRequestSource) (backtester_models.ILiveAccount, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.liveAccountStore.fetchLiveAccount(source)
 }
 
-func (s *DatabaseService) GetMockBroker(broker string) (models.IBroker, error) {
+func (s *DatabaseService) GetMockBroker(broker string) (backtester_models.IBroker, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.liveAccountStore.getMockBroker(broker)
 }
 
-func (s *DatabaseService) PopulateLiveAccount(a *models.LiveAccount) error {
+func (s *DatabaseService) PopulateLiveAccount(a *backtester_models.LiveAccount) error {
 	return s.liveAccountStore.populateLiveAccount(a, s)
 }
 
-func (s *DatabaseService) LoadLiveAccounts(brokerMap map[models.CreateAccountRequestSource]models.IBroker) error {
+func (s *DatabaseService) LoadLiveAccounts(brokerMap map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker) error {
 	return s.liveAccountStore.loadLiveAccounts(brokerMap, s)
 }
 
-func (s *DatabaseService) FetchAllLiveRepositories() (repositories []*models.CandleRepository, releaseLockFn func(), err error) {
+func (s *DatabaseService) FetchAllLiveRepositories() (repositories []*backtester_models.CandleRepository, releaseLockFn func(), err error) {
 	return s.liveAccountStore.fetchAllLiveRepositories()
 }
 
-func (s *DatabaseService) RemoveLiveRepository(repo *models.CandleRepository) error {
+func (s *DatabaseService) RemoveLiveRepository(repo *backtester_models.CandleRepository) error {
 	return s.liveAccountStore.removeLiveRepository(repo)
 }
 
-func (s *DatabaseService) SaveLiveRepository(repo *models.CandleRepository) error {
+func (s *DatabaseService) SaveLiveRepository(repo *backtester_models.CandleRepository) error {
 	return s.liveAccountStore.saveLiveRepository(repo)
 }
 
-func (s *DatabaseService) FetchBalances(url string, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
-	return eventmodels.FetchTradierBalancesResponseDTO{}, nil
+func (s *DatabaseService) FetchBalances(url string, token string) (models.FetchTradierBalancesResponseDTO, error) {
+	return models.FetchTradierBalancesResponseDTO{}, nil
 }

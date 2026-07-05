@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func CreateReconcilePlayground(s models.IDatabaseService, source *models.CreateAccountRequestSource, createdAt time.Time) (*models.ReconcilePlayground, error) {
+func CreateReconcilePlayground(s backtester_models.IDatabaseService, source *backtester_models.CreateAccountRequestSource, createdAt time.Time) (*backtester_models.ReconcilePlayground, error) {
 	if source == nil {
 		return nil, fmt.Errorf("source is nil")
 	}
@@ -18,9 +18,9 @@ func CreateReconcilePlayground(s models.IDatabaseService, source *models.CreateA
 		return nil, fmt.Errorf("failed to get broker: %v", err)
 	}
 
-	createPlaygroundReq := &models.PopulatePlaygroundRequest{
-		Env: models.PlaygroundEnvironmentReconcile,
-		Account: models.CreateAccountRequest{
+	createPlaygroundReq := &backtester_models.PopulatePlaygroundRequest{
+		Env: backtester_models.PlaygroundEnvironmentReconcile,
+		Account: backtester_models.CreateAccountRequest{
 			Source: source,
 		},
 		Repositories: nil,
@@ -29,14 +29,14 @@ func CreateReconcilePlayground(s models.IDatabaseService, source *models.CreateA
 		SaveToDB:     true,
 	}
 
-	playground := &models.Playground{}
+	playground := &backtester_models.Playground{}
 	if err := s.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create reconcile playground: %v", err)
 	}
 
-	reconcilePlayground, err := models.NewReconcilePlayground(playground, liveAccount)
+	reconcilePlayground, err := backtester_models.NewReconcilePlayground(playground, liveAccount)
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to create new reconcile playground", err)
+		return nil, models.NewWebError(500, "failed to create new reconcile playground", err)
 	}
 
 	if err := s.UpdatePlaygroundSession(playground); err != nil {

@@ -10,15 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
 
 func newSignalTestServer() *Server {
 	return &Server{
-		cache:            models.NewRequestCache(),
-		globalSignalRepo: models.NewInMemorySignalRepository(),
+		cache:            backtester_models.NewRequestCache(),
+		globalSignalRepo: backtester_models.NewInMemorySignalRepository(),
 	}
 }
 
@@ -43,8 +43,8 @@ func TestWriteSignal_HappyPath(t *testing.T) {
 	// Validate signal was stored
 	all := s.globalSignalRepo.GetAll()
 	require.Len(t, all, 1)
-	assert.Equal(t, eventmodels.SignalName("ma_crossover"), all[0].Name)
-	assert.Equal(t, eventmodels.StockSymbol("AAPL"), all[0].Symbol)
+	assert.Equal(t, models.SignalName("ma_crossover"), all[0].Name)
+	assert.Equal(t, models.StockSymbol("AAPL"), all[0].Symbol)
 }
 
 func TestWriteSignal_InvalidName(t *testing.T) {
@@ -94,9 +94,9 @@ func TestGetSignals_AllSignals(t *testing.T) {
 	now := time.Now()
 
 	// Write 3 signals: 2 AAPL ma_crossover, 1 MSFT start_of_week
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
 
 	resp, err := s.GetSignals(ctx, &pb.GetSignalsRequest{})
 	require.NoError(t, err)
@@ -108,9 +108,9 @@ func TestGetSignals_FilterByName(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now()
 
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
 
 	nameFilter := "ma_crossover"
 	resp, err := s.GetSignals(ctx, &pb.GetSignalsRequest{
@@ -128,9 +128,9 @@ func TestGetSignals_FilterBySymbol(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now()
 
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now, nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", now.Add(time.Minute), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("start_of_week", "MSFT", now.Add(2*time.Minute), nil)))
 
 	symbolFilter := "MSFT"
 	resp, err := s.GetSignals(ctx, &pb.GetSignalsRequest{
@@ -146,9 +146,9 @@ func TestGetSignals_FilterByTimeRange(t *testing.T) {
 	ctx := context.Background()
 	base := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", base, nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", base.Add(time.Hour), nil)))
-	require.NoError(t, s.globalSignalRepo.Write(eventmodels.NewTradeSignal("ma_crossover", "AAPL", base.Add(2*time.Hour), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", base, nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", base.Add(time.Hour), nil)))
+	require.NoError(t, s.globalSignalRepo.Write(models.NewTradeSignal("ma_crossover", "AAPL", base.Add(2*time.Hour), nil)))
 
 	startTime := timestamppb.New(base.Add(30 * time.Minute))
 	endTime := timestamppb.New(base.Add(90 * time.Minute))

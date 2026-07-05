@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
@@ -21,19 +21,19 @@ import (
 // per-store locking without auditing every call site.
 type playgroundStore struct {
 	db                   *gorm.DB
-	playgrounds          map[uuid.UUID]*models.Playground
-	reconcilePlaygrounds map[models.CreateAccountRequestSource]models.IReconcilePlayground
+	playgrounds          map[uuid.UUID]*backtester_models.Playground
+	reconcilePlaygrounds map[backtester_models.CreateAccountRequestSource]backtester_models.IReconcilePlayground
 }
 
 func newPlaygroundStore(db *gorm.DB) *playgroundStore {
 	return &playgroundStore{
 		db:                   db,
-		playgrounds:          make(map[uuid.UUID]*models.Playground),
-		reconcilePlaygrounds: make(map[models.CreateAccountRequestSource]models.IReconcilePlayground),
+		playgrounds:          make(map[uuid.UUID]*backtester_models.Playground),
+		reconcilePlaygrounds: make(map[backtester_models.CreateAccountRequestSource]backtester_models.IReconcilePlayground),
 	}
 }
 
-func (st *playgroundStore) fetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
+func (st *playgroundStore) fetchPlayground(playgroundId uuid.UUID) (*backtester_models.Playground, error) {
 	if playground, found := st.playgrounds[playgroundId]; found {
 		return playground, nil
 	}
@@ -41,8 +41,8 @@ func (st *playgroundStore) fetchPlayground(playgroundId uuid.UUID) (*models.Play
 	return nil, fmt.Errorf("DatabaseService: playground not found: %s", playgroundId.String())
 }
 
-func (st *playgroundStore) fetchPlaygroundFromDB(playgroundId uuid.UUID) (*models.Playground, error) {
-	var playground *models.Playground
+func (st *playgroundStore) fetchPlaygroundFromDB(playgroundId uuid.UUID) (*backtester_models.Playground, error) {
+	var playground *backtester_models.Playground
 
 	if err := st.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
 		return db.Order("id ASC")
@@ -73,7 +73,7 @@ func (st *playgroundStore) fetchPlaygroundFromDB(playgroundId uuid.UUID) (*model
 	return playground, nil
 }
 
-func (st *playgroundStore) getPlayground(playgroundID uuid.UUID) *models.Playground {
+func (st *playgroundStore) getPlayground(playgroundID uuid.UUID) *backtester_models.Playground {
 	playground, ok := st.playgrounds[playgroundID]
 	if !ok {
 		return nil
@@ -82,7 +82,7 @@ func (st *playgroundStore) getPlayground(playgroundID uuid.UUID) *models.Playgro
 	return playground
 }
 
-func (st *playgroundStore) getPlaygroundByClientId(clientId string) *models.Playground {
+func (st *playgroundStore) getPlaygroundByClientId(clientId string) *backtester_models.Playground {
 	for _, playground := range st.playgrounds {
 		cId := playground.GetClientId()
 		if cId != nil && *cId == clientId {
@@ -93,8 +93,8 @@ func (st *playgroundStore) getPlaygroundByClientId(clientId string) *models.Play
 	return nil
 }
 
-func (st *playgroundStore) getPlaygrounds() []*models.Playground {
-	var slice []*models.Playground
+func (st *playgroundStore) getPlaygrounds() []*backtester_models.Playground {
+	var slice []*backtester_models.Playground
 	for _, playground := range st.playgrounds {
 		slice = append(slice, playground)
 	}
@@ -105,7 +105,7 @@ func (st *playgroundStore) getPlaygrounds() []*models.Playground {
 func (st *playgroundStore) deletePlayground(playgroundID uuid.UUID) error {
 	_, ok := st.playgrounds[playgroundID]
 	if !ok {
-		return eventmodels.NewWebError(404, "playground not found", nil)
+		return models.NewWebError(404, "playground not found", nil)
 	}
 
 	delete(st.playgrounds, playgroundID)
@@ -113,16 +113,16 @@ func (st *playgroundStore) deletePlayground(playgroundID uuid.UUID) error {
 	return nil
 }
 
-func (st *playgroundStore) savePlaygroundInMemory(p *models.Playground) error {
+func (st *playgroundStore) savePlaygroundInMemory(p *backtester_models.Playground) error {
 	st.playgrounds[p.GetId()] = p
 	return nil
 }
 
-func (st *playgroundStore) getPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
-	var playgrounds []*models.Playground
+func (st *playgroundStore) getPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*backtester_models.Playground, error) {
+	var playgrounds []*backtester_models.Playground
 	for _, p := range st.playgrounds {
 		if p.ReconcilePlaygroundID != nil && *p.ReconcilePlaygroundID == reconcileId {
-			if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+			if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
 				playgrounds = append(playgrounds, p)
 			}
 		}
@@ -131,7 +131,7 @@ func (st *playgroundStore) getPlaygroundsByReconcileId(reconcileId uuid.UUID) ([
 	return playgrounds, nil
 }
 
-func (st *playgroundStore) updatePlaygroundSession(playgroundSession *models.Playground) error {
+func (st *playgroundStore) updatePlaygroundSession(playgroundSession *backtester_models.Playground) error {
 	if err := st.db.Save(playgroundSession).Error; err != nil {
 		return fmt.Errorf("DatabaseService: failed to update playground session: %w", err)
 	}
@@ -139,8 +139,8 @@ func (st *playgroundStore) updatePlaygroundSession(playgroundSession *models.Pla
 	return nil
 }
 
-func (st *playgroundStore) deletePlaygroundSession(playground *models.Playground) error {
-	session := &models.Playground{
+func (st *playgroundStore) deletePlaygroundSession(playground *backtester_models.Playground) error {
+	session := &backtester_models.Playground{
 		ID: playground.GetId(),
 	}
 
@@ -151,16 +151,16 @@ func (st *playgroundStore) deletePlaygroundSession(playground *models.Playground
 	return nil
 }
 
-func (st *playgroundStore) savePlaygroundSession(playground *models.Playground) error {
+func (st *playgroundStore) savePlaygroundSession(playground *backtester_models.Playground) error {
 	return savePlaygroundTx(st.db, playground)
 }
 
-func (st *playgroundStore) fetchReconcilePlayground(source models.CreateAccountRequestSource) (models.IReconcilePlayground, bool, error) {
+func (st *playgroundStore) fetchReconcilePlayground(source backtester_models.CreateAccountRequestSource) (backtester_models.IReconcilePlayground, bool, error) {
 	reconcilePlayground, found := st.reconcilePlaygrounds[source]
 	return reconcilePlayground, found, nil
 }
 
-func (st *playgroundStore) fetchReconcilePlaygroundByOrder(order *models.OrderRecord) (models.IReconcilePlayground, bool, error) {
+func (st *playgroundStore) fetchReconcilePlaygroundByOrder(order *backtester_models.OrderRecord) (backtester_models.IReconcilePlayground, bool, error) {
 	playground, err := st.fetchPlayground(order.PlaygroundID)
 	if err != nil {
 		return nil, false, fmt.Errorf("FetchReconcilePlaygroundByOrder: failed to fetch playground: %w", err)
@@ -185,27 +185,27 @@ func (st *playgroundStore) heartbeatStats() telemetry.HeartbeatStats {
 
 	for _, p := range st.playgrounds {
 		switch p.Meta.Environment {
-		case models.PlaygroundEnvironmentLive:
+		case backtester_models.PlaygroundEnvironmentLive:
 			stats.LiveCount++
-		case models.PlaygroundEnvironmentReconcile:
+		case backtester_models.PlaygroundEnvironmentReconcile:
 			stats.ReconcileCount++
-		case models.PlaygroundEnvironmentSimulator:
+		case backtester_models.PlaygroundEnvironmentSimulator:
 			stats.SimulatorCount++
 		}
 
 		// Count open orders for live/reconcile only
 		if telemetry.ShouldEmitOrderTelemetry(string(p.Meta.Environment)) {
 			for _, order := range p.GetAllOrders() {
-				if order.Status == models.OrderRecordStatusNew ||
-					order.Status == models.OrderRecordStatusPending ||
-					order.Status == models.OrderRecordStatusPartiallyFilled {
+				if order.Status == backtester_models.OrderRecordStatusNew ||
+					order.Status == backtester_models.OrderRecordStatusPending ||
+					order.Status == backtester_models.OrderRecordStatusPartiallyFilled {
 					stats.OpenOrderCount++
 				}
 			}
 		}
 
 		// Track latest tick time across all live playgrounds
-		if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+		if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
 			currentTime := p.Meta.CurrentTime
 			if currentTime.After(latestTick) {
 				latestTick = currentTime
@@ -226,7 +226,7 @@ func (s *DatabaseService) GetHeartbeatStats() telemetry.HeartbeatStats {
 	return s.playgroundStore.heartbeatStats()
 }
 
-func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playground, error) {
+func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*backtester_models.Playground, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -234,26 +234,26 @@ func (s *DatabaseService) FetchPlayground(playgroundId uuid.UUID) (*models.Playg
 	return s.playgroundStore.fetchPlayground(playgroundId)
 }
 
-func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (*models.Playground, error) {
+func (s *DatabaseService) GetPlayground(playgroundID uuid.UUID) (*backtester_models.Playground, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	playground := s.playgroundStore.getPlayground(playgroundID)
 	if playground == nil {
-		return nil, eventmodels.NewWebError(404, "playground not found", nil)
+		return nil, models.NewWebError(404, "playground not found", nil)
 	}
 
 	return playground, nil
 }
 
-func (s *DatabaseService) GetPlaygroundByClientId(clientId string) *models.Playground {
+func (s *DatabaseService) GetPlaygroundByClientId(clientId string) *backtester_models.Playground {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.playgroundStore.getPlaygroundByClientId(clientId)
 }
 
-func (s *DatabaseService) GetPlaygrounds() []*models.Playground {
+func (s *DatabaseService) GetPlaygrounds() []*backtester_models.Playground {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -267,40 +267,40 @@ func (s *DatabaseService) DeletePlayground(playgroundID uuid.UUID) error {
 	return s.playgroundStore.deletePlayground(playgroundID)
 }
 
-func (s *DatabaseService) SavePlaygroundInMemory(p *models.Playground) error {
+func (s *DatabaseService) SavePlaygroundInMemory(p *backtester_models.Playground) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.playgroundStore.savePlaygroundInMemory(p)
 }
 
-func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*models.Playground, error) {
+func (s *DatabaseService) GetPlaygroundsByReconcileId(reconcileId uuid.UUID) ([]*backtester_models.Playground, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.playgroundStore.getPlaygroundsByReconcileId(reconcileId)
 }
 
-func (s *DatabaseService) UpdatePlaygroundSession(playgroundSession *models.Playground) error {
+func (s *DatabaseService) UpdatePlaygroundSession(playgroundSession *backtester_models.Playground) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.playgroundStore.updatePlaygroundSession(playgroundSession)
 }
 
-func (s *DatabaseService) DeletePlaygroundSession(playground *models.Playground) error {
+func (s *DatabaseService) DeletePlaygroundSession(playground *backtester_models.Playground) error {
 	return s.playgroundStore.deletePlaygroundSession(playground)
 }
 
-func (s *DatabaseService) SavePlaygroundSession(playground *models.Playground) error {
+func (s *DatabaseService) SavePlaygroundSession(playground *backtester_models.Playground) error {
 	return s.playgroundStore.savePlaygroundSession(playground)
 }
 
-func (s *DatabaseService) FetchReconcilePlayground(source models.CreateAccountRequestSource) (models.IReconcilePlayground, bool, error) {
+func (s *DatabaseService) FetchReconcilePlayground(source backtester_models.CreateAccountRequestSource) (backtester_models.IReconcilePlayground, bool, error) {
 	return s.playgroundStore.fetchReconcilePlayground(source)
 }
 
-func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *models.OrderRecord) (models.IReconcilePlayground, bool, error) {
+func (s *DatabaseService) FetchReconcilePlaygroundByOrder(order *backtester_models.OrderRecord) (backtester_models.IReconcilePlayground, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

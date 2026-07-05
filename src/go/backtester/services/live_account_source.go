@@ -3,7 +3,7 @@ package services
 import (
 	"fmt"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/models"
 )
 
 type LiveAccountSource struct {

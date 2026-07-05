@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/models"
 )
 
 func UpdateOrder(tx *gorm.DB, order *models.OrderRecord) error {

@@ -12,10 +12,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
@@ -23,17 +23,17 @@ import (
 )
 
 type Server struct {
-	cache            *models.RequestCache
+	cache            *backtester_models.RequestCache
 	dbService        *data.DatabaseService
 	optionsClient    *marketdata.PolygonOptionsClient
 	esdbProducer     *api.EsdbProducer
-	globalSignalRepo models.ISignalRepository
-	simSignalRepo    models.ISignalRepository // set when a sim playground is active; WriteSignal fans out to it
+	globalSignalRepo backtester_models.ISignalRepository
+	simSignalRepo    backtester_models.ISignalRepository // set when a sim playground is active; WriteSignal fans out to it
 }
 
-func NewServer(optionsClient *marketdata.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
+func NewServer(optionsClient *marketdata.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo backtester_models.ISignalRepository) *Server {
 	return &Server{
-		cache:            models.NewRequestCache(),
+		cache:            backtester_models.NewRequestCache(),
 		dbService:        dbService,
 		optionsClient:    optionsClient,
 		esdbProducer:     esdbProducer,
@@ -47,21 +47,21 @@ func (s *Server) GetDailyTickerSummaryFromPolygon(ctx context.Context, req *pb.G
 	// 	return nil, fmt.Errorf("failed to parse from timestamp: %v", err)
 	// }
 
-	// from := eventmodels.NewPolygonDateFromTime(fromTimestamp)
+	// from := models.NewPolygonDateFromTime(fromTimestamp)
 
 	// toTimestamp := fromTimestamp.Add(24 * time.Hour)
 
-	// to := eventmodels.NewPolygonDateFromTime(toTimestamp)
+	// to := models.NewPolygonDateFromTime(toTimestamp)
 
-	// timespan := eventmodels.PolygonTimespan{
+	// timespan := models.PolygonTimespan{
 	// 	Multiplier: 1,
-	// 	Unit:       eventmodels.PolygonTimespanUnitHour,
+	// 	Unit:       models.PolygonTimespanUnitHour,
 	// }
 
 	// polygonClient := s.dbService.GetPolygonClient()
-	// bars, err := polygonClient.FetchAggregateBars(eventmodels.StockSymbol(req.Symbol), timespan, from, to)
+	// bars, err := polygonClient.FetchAggregateBars(models.StockSymbol(req.Symbol), timespan, from, to)
 	// if err != nil {
-	// 	return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars", err)
+	// 	return nil, models.NewWebError(500, "failed to fetch aggregate bars", err)
 	// }
 
 	// if len(bars) == 0 {
@@ -106,7 +106,7 @@ func (s *Server) GetOptionsLadder(ctx context.Context, req *pb.GetOptionsLadderR
 		return nil, fmt.Errorf("failed to get equity report: %v", err)
 	}
 
-	symbol := eventmodels.StockSymbol(req.StockSymbol)
+	symbol := models.StockSymbol(req.StockSymbol)
 
 	timestamp := playground.GetCurrentTime()
 
@@ -201,13 +201,13 @@ func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest
 		return nil, fmt.Errorf("MockAddCandle: playground not found: %v", err)
 	}
 
-	if playground.Meta.Environment != models.PlaygroundEnvironmentLive {
+	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentLive {
 		return nil, fmt.Errorf("MockAddCandle: only live playgrounds support mock candles")
 	}
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
-	var repo *models.CandleRepository
+	var repo *backtester_models.CandleRepository
 	for _, r := range playground.GetRepositories() {
 		if r.GetSymbol().GetTicker() == req.Symbol && r.GetPeriod() == period {
 			repo = r
@@ -224,7 +224,7 @@ func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest
 		return nil, fmt.Errorf("MockAddCandle: invalid timestamp: %v", err)
 	}
 
-	candle := &eventmodels.PolygonAggregateBarV2{
+	candle := &models.PolygonAggregateBarV2{
 		Timestamp: ts,
 		Open:      req.Open,
 		High:      req.High,
@@ -233,7 +233,7 @@ func (s *Server) MockAddCandle(ctx context.Context, req *pb.MockAddCandleRequest
 		Volume:    req.Volume,
 	}
 
-	if _, err := repo.AppendBars([]eventmodels.ICandle{candle}); err != nil {
+	if _, err := repo.AppendBars([]models.ICandle{candle}); err != nil {
 		return nil, fmt.Errorf("MockAddCandle: failed to append candle: %v", err)
 	}
 
@@ -259,7 +259,7 @@ func (s *Server) GetEquityReport(ctx context.Context, req *pb.GetEquityReportReq
 		return nil, fmt.Errorf("failed to get equity report: %v", err)
 	}
 
-	if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
 		return nil, fmt.Errorf("failed to get equity report: playground is not a reconciliation playground")
 	}
 
@@ -289,7 +289,7 @@ func (s *Server) GetReconciliationReport(ctx context.Context, req *pb.GetReconci
 		return nil, fmt.Errorf("failed to get reconciliation report: %v", err)
 	}
 
-	if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+	if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
 		return nil, fmt.Errorf("failed to get reconciliation report: playground is not a reconciliation playground")
 	}
 
@@ -450,12 +450,12 @@ func (s *Server) SavePlayground(ctx context.Context, req *pb.SavePlaygroundReque
 	// Sim signals go to opaque per-playground streams (not the global trade-signals stream)
 	if signalRepo := playground.GetSignalRepo(); signalRepo != nil {
 		signals := signalRepo.GetAll()
-		simStream := eventmodels.NewSimSignalStreamName(playgroundId.String())
+		simStream := models.NewSimSignalStreamName(playgroundId.String())
 		for _, signal := range signals {
 			signal.SetStreamName(simStream)
 			pubsub.PublishAndSaveEvent(
 				"grpc:SavePlayground",
-				eventmodels.TradeSignalEventName,
+				models.TradeSignalEventName,
 				signal,
 			)
 		}
@@ -473,7 +473,7 @@ func (s *Server) GetOpenOrders(ctx context.Context, req *pb.GetOpenOrdersRequest
 		return nil, fmt.Errorf("GetOpenOrders: failed to parse uuid: %v", err)
 	}
 
-	symbol := eventmodels.StockSymbol(req.Symbol)
+	symbol := models.StockSymbol(req.Symbol)
 	playground, err := s.dbService.GetPlayground(playgroundId)
 	if err != nil {
 		return nil, fmt.Errorf("GetOpenOrders: failed to get playground: %v", err)
@@ -514,14 +514,14 @@ func (s *Server) GetCandlesFromRepo(ctx context.Context, req *pb.GetCandlesReque
 
 	period := time.Duration(req.PeriodInSeconds) * time.Second
 
-	var calendar *eventmodels.CalendarRepository
+	var calendar *models.CalendarRepository
 	if req.CalculateIsExtendedHours != nil && *req.CalculateIsExtendedHours {
-		_from := eventmodels.NewPolygonDateFromTime(from)
+		_from := models.NewPolygonDateFromTime(from)
 		if to == nil {
 			return nil, fmt.Errorf("createClock: to date must be provided when calculating extended hours")
 		}
 
-		_to := eventmodels.NewPolygonDateFromTime(*to)
+		_to := models.NewPolygonDateFromTime(*to)
 		c, err := data.FetchCalendarMap(*_from, *_to)
 		if err != nil {
 			return nil, fmt.Errorf("createClock: failed to fetch calendar: %w", err)
@@ -530,14 +530,14 @@ func (s *Server) GetCandlesFromRepo(ctx context.Context, req *pb.GetCandlesReque
 		calendar = &c
 	}
 
-	var candles []*eventmodels.AggregateBarWithIndicators
+	var candles []*models.AggregateBarWithIndicators
 	if req.Symbol[:2] == "O:" {
-		candles, err = s.fetchOptionCandles(playgroundId, eventmodels.OptionSymbol(req.Symbol), period, from, to)
+		candles, err = s.fetchOptionCandles(playgroundId, models.OptionSymbol(req.Symbol), period, from, to)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get option candles: %v", err)
 		}
 	} else {
-		candles, err = s.fetchCandles(playgroundId, eventmodels.StockSymbol(req.Symbol), period, from, to)
+		candles, err = s.fetchCandles(playgroundId, models.StockSymbol(req.Symbol), period, from, to)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get candles: %v", err)
 		}
@@ -656,17 +656,17 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		to = &_to
 	}
 
-	var sides []models.TradierOrderSide
+	var sides []backtester_models.TradierOrderSide
 	if req.Sides != nil {
 		for _, side := range req.Sides {
-			sides = append(sides, models.TradierOrderSide(side))
+			sides = append(sides, backtester_models.TradierOrderSide(side))
 		}
 	}
 
-	var status []models.OrderRecordStatus
+	var status []backtester_models.OrderRecordStatus
 	if req.Status != nil {
 		for _, s := range req.Status {
-			status = append(status, models.OrderRecordStatus(s))
+			status = append(status, backtester_models.OrderRecordStatus(s))
 		}
 	}
 
@@ -675,8 +675,8 @@ func (s *Server) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb
 		return nil, fmt.Errorf("failed to get account info: %v", err)
 	}
 
-	var externalIdMap map[uint]*models.OrderRecord
-	if req.FetchExternalId && account.Meta.Environment == models.PlaygroundEnvironmentLive {
+	var externalIdMap map[uint]*backtester_models.OrderRecord
+	if req.FetchExternalId && account.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
 		externalIdMap, err = s.dbService.FetchExternalIdMap(account.Orders)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get external id map: %v", err)
@@ -731,10 +731,10 @@ func (s *Server) PlaceMultiLegOrder(ctx context.Context, req *pb.PlaceMultiLegOr
 
 // buildMultiLegRequests converts a PlaceMultiLegOrderRequest into CreateOrderRequest
 // slice, injecting a shared spread_group_key UUID and per-leg leg_role attribute.
-func buildMultiLegRequests(req *pb.PlaceMultiLegOrderRequest) []*models.CreateOrderRequest {
+func buildMultiLegRequests(req *pb.PlaceMultiLegOrderRequest) []*backtester_models.CreateOrderRequest {
 	spreadGroupKey := uuid.New().String()
 
-	var requests []*models.CreateOrderRequest
+	var requests []*backtester_models.CreateOrderRequest
 	for _, leg := range req.Legs {
 		var closeOrderId *uint
 		if leg.CloseOrderId != nil {
@@ -743,10 +743,10 @@ func buildMultiLegRequests(req *pb.PlaceMultiLegOrderRequest) []*models.CreateOr
 		}
 
 		legRole := "unknown"
-		switch models.TradierOrderSide(leg.Side) {
-		case models.TradierOrderSideSellToOpen, models.TradierOrderSideSellShort:
+		switch backtester_models.TradierOrderSide(leg.Side) {
+		case backtester_models.TradierOrderSideSellToOpen, backtester_models.TradierOrderSideSellShort:
 			legRole = "short"
-		case models.TradierOrderSideBuyToOpen, models.TradierOrderSideBuy:
+		case backtester_models.TradierOrderSideBuyToOpen, backtester_models.TradierOrderSideBuy:
 			legRole = "long"
 		}
 
@@ -755,14 +755,14 @@ func buildMultiLegRequests(req *pb.PlaceMultiLegOrderRequest) []*models.CreateOr
 			"leg_role":         legRole,
 		}
 
-		requests = append(requests, &models.CreateOrderRequest{
+		requests = append(requests, &backtester_models.CreateOrderRequest{
 			Symbol:          leg.Symbol,
 			ClientRequestID: req.ClientRequestId,
-			Class:           models.OrderRecordClass(leg.AssetClass),
+			Class:           backtester_models.OrderRecordClass(leg.AssetClass),
 			Quantity:        leg.Quantity,
-			Side:            models.TradierOrderSide(leg.Side),
-			OrderType:       models.OrderRecordType(req.Type),
-			Duration:        models.OrderRecordDuration(req.Duration),
+			Side:            backtester_models.TradierOrderSide(leg.Side),
+			OrderType:       backtester_models.OrderRecordType(req.Type),
+			Duration:        backtester_models.OrderRecordDuration(req.Duration),
 			Tag:             leg.Tag,
 			CloseOrderId:    closeOrderId,
 			IsAdjustment:    false,
@@ -843,17 +843,17 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 		signalID = &parsed
 	}
 
-	order, webErr := s.dbService.PlaceOrder(playgroundID, &models.CreateOrderRequest{
+	order, webErr := s.dbService.PlaceOrder(playgroundID, &backtester_models.CreateOrderRequest{
 		Symbol:          req.Symbol,
 		ClientRequestID: req.ClientRequestId,
-		Class:           models.OrderRecordClass(req.AssetClass),
+		Class:           backtester_models.OrderRecordClass(req.AssetClass),
 		Quantity:        req.Quantity,
-		Side:            models.TradierOrderSide(req.Side),
-		OrderType:       models.OrderRecordType(req.Type),
+		Side:            backtester_models.TradierOrderSide(req.Side),
+		OrderType:       backtester_models.OrderRecordType(req.Type),
 		RequestedPrice:  req.RequestedPrice,
 		Price:           req.Price,
 		StopPrice:       req.Sl,
-		Duration:        models.OrderRecordDuration(req.Duration),
+		Duration:        backtester_models.OrderRecordDuration(req.Duration),
 		Tag:             req.Tag,
 		CloseOrderId:    closeOrderId,
 		IsAdjustment:    req.IsAdjustment,
@@ -886,22 +886,22 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		}
 	}
 
-	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	playgroundEnvironment := backtester_models.PlaygroundEnvironment(req.GetEnvironment())
 	if err := playgroundEnvironment.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
-	repositoryRequests := repositoryRequestsFromProto(req.Repositories, eventmodels.RepositorySourceTradier)
+	repositoryRequests := repositoryRequestsFromProto(req.Repositories, models.RepositorySourceTradier)
 
-	vars := models.NewLiveAccountVariables(models.LiveAccountType(req.AccountType))
+	vars := backtester_models.NewLiveAccountVariables(backtester_models.LiveAccountType(req.AccountType))
 	accountId, err := vars.GetTradierTradesAccountID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
 
-	source := &models.CreateAccountRequestSource{
+	source := &backtester_models.CreateAccountRequestSource{
 		Broker:          req.Broker,
-		LiveAccountType: models.LiveAccountType(req.AccountType),
+		LiveAccountType: backtester_models.LiveAccountType(req.AccountType),
 		AccountID:       accountId,
 	}
 
@@ -914,10 +914,10 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 		return nil, fmt.Errorf("failed to fetch live playground: live account not found")
 	}
 
-	createPlaygroundReq := &models.PopulatePlaygroundRequest{
+	createPlaygroundReq := &backtester_models.PopulatePlaygroundRequest{
 		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
-		Account: models.CreateAccountRequest{
+		Account: backtester_models.CreateAccountRequest{
 			Balance: float64(req.Balance),
 			Source:  source,
 		},
@@ -930,7 +930,7 @@ func (s *Server) CreateLivePlayground(ctx context.Context, req *pb.CreateLivePla
 
 	createPlaygroundReq.CreatedAt = time.Now()
 
-	playground := &models.Playground{}
+	playground := &backtester_models.Playground{}
 	if err := s.dbService.CreatePlayground(playground, createPlaygroundReq); err != nil {
 		return nil, fmt.Errorf("failed to create live playground: %v", err)
 	}
@@ -949,22 +949,22 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		}
 	}
 
-	playgroundEnvironment := models.PlaygroundEnvironment(req.GetEnvironment())
+	playgroundEnvironment := backtester_models.PlaygroundEnvironment(req.GetEnvironment())
 	if err := playgroundEnvironment.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate playground environment: %v", err)
 	}
 
-	repositoryRequests := repositoryRequestsFromProto(req.Repositories, eventmodels.RepositorySourcePolygon)
+	repositoryRequests := repositoryRequestsFromProto(req.Repositories, models.RepositorySourcePolygon)
 
-	playground := &models.Playground{}
-	err := s.dbService.CreatePlayground(playground, &models.PopulatePlaygroundRequest{
+	playground := &backtester_models.Playground{}
+	err := s.dbService.CreatePlayground(playground, &backtester_models.PopulatePlaygroundRequest{
 		Env:      playgroundEnvironment,
 		ClientID: req.ClientId,
-		Account: models.CreateAccountRequest{
+		Account: backtester_models.CreateAccountRequest{
 			Balance: float64(req.Balance),
 		},
 		InitialBalance: float64(req.Balance),
-		Clock: models.CreateClockRequest{
+		Clock: backtester_models.CreateClockRequest{
 			StartDate: req.StartDate,
 			StopDate:  req.StopDate,
 		},
@@ -997,10 +997,10 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		}
 
 		// Read all signals from ESDB, filter to date range, load into in-memory repo
-		tempRepo := models.NewESDBSignalRepository(s.esdbProducer)
+		tempRepo := backtester_models.NewESDBSignalRepository(s.esdbProducer)
 		allSignals := tempRepo.GetAll()
 
-		replayRepo := models.NewInMemorySignalRepository()
+		replayRepo := backtester_models.NewInMemorySignalRepository()
 		var loaded int
 		for _, sig := range allSignals {
 			if !sig.Timestamp.Before(startDate) && sig.Timestamp.Before(stopDate.AddDate(0, 0, 1)) {
@@ -1015,12 +1015,12 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 		log.Infof("CreatePlayground: replay mode, loaded %d signals from ESDB stream (total in stream: %d)", loaded, len(allSignals))
 	} else {
 		switch playgroundEnvironment {
-		case models.PlaygroundEnvironmentLive, models.PlaygroundEnvironmentReconcile:
+		case backtester_models.PlaygroundEnvironmentLive, backtester_models.PlaygroundEnvironmentReconcile:
 			if s.esdbProducer != nil {
-				playground.SetSignalRepo(models.NewESDBSignalRepository(s.esdbProducer))
+				playground.SetSignalRepo(backtester_models.NewESDBSignalRepository(s.esdbProducer))
 			}
 		default:
-			simRepo := models.NewInMemorySignalRepository()
+			simRepo := backtester_models.NewInMemorySignalRepository()
 			playground.SetSignalRepo(simRepo)
 			s.simSignalRepo = simRepo
 		}
@@ -1034,7 +1034,7 @@ func (s *Server) CreatePlayground(ctx context.Context, req *pb.CreatePolygonPlay
 	}, nil
 }
 
-func filterSignals(signals []*eventmodels.TradeSignal, name *string, symbol *string, startTime *time.Time, endTime *time.Time) []*pb.TradeSignalProto {
+func filterSignals(signals []*models.TradeSignal, name *string, symbol *string, startTime *time.Time, endTime *time.Time) []*pb.TradeSignalProto {
 	var result []*pb.TradeSignalProto
 	for _, s := range signals {
 		if name != nil && string(s.Name) != *name {
@@ -1058,7 +1058,7 @@ func filterSignals(signals []*eventmodels.TradeSignal, name *string, symbol *str
 }
 
 func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*pb.WriteSignalResponse, error) {
-	signalName := eventmodels.SignalName(req.Name)
+	signalName := models.SignalName(req.Name)
 	if err := signalName.Validate(); err != nil {
 		return nil, fmt.Errorf("WriteSignal: invalid signal name %q: %w", req.Name, err)
 	}
@@ -1076,7 +1076,7 @@ func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*
 		attrs[k] = v
 	}
 
-	signal := eventmodels.NewTradeSignal(signalName, eventmodels.StockSymbol(req.Symbol), req.Timestamp.AsTime(), attrs)
+	signal := models.NewTradeSignal(signalName, models.StockSymbol(req.Symbol), req.Timestamp.AsTime(), attrs)
 
 	// When a sim playground is active, write to its in-memory repo first
 	// (the primary store for sim). Global repo write is best-effort since

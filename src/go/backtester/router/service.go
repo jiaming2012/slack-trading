@@ -7,20 +7,20 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func (s Server) fetchOptionCandles(playgroundID uuid.UUID, symbol eventmodels.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (s Server) fetchOptionCandles(playgroundID uuid.UUID, symbol models.OptionSymbol, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	result, err := s.optionsClient.FetchPolygonOptionAggregateBars(playgroundID, symbol, period, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("fetchOptionCandles: failed to fetch option candles: %w", err)
 	}
 
-	var candles []*eventmodels.AggregateBarWithIndicators
+	var candles []*models.AggregateBarWithIndicators
 	for _, bar := range result.Results {
 		timestamp := time.Unix(int64(bar.Time), 0)
-		candles = append(candles, &eventmodels.AggregateBarWithIndicators{
+		candles = append(candles, &models.AggregateBarWithIndicators{
 			Timestamp: timestamp,
 			Open:      bar.Open,
 			Close:     bar.Close,
@@ -34,21 +34,21 @@ func (s Server) fetchOptionCandles(playgroundID uuid.UUID, symbol eventmodels.Op
 	return candles, nil
 }
 
-func (s Server) fetchCandles(playgroundID uuid.UUID, symbol eventmodels.StockSymbol, period time.Duration, from time.Time, to *time.Time) ([]*eventmodels.AggregateBarWithIndicators, error) {
+func (s Server) fetchCandles(playgroundID uuid.UUID, symbol models.StockSymbol, period time.Duration, from time.Time, to *time.Time) ([]*models.AggregateBarWithIndicators, error) {
 	playground, err := s.dbService.GetPlayground(playgroundID)
 	if err != nil {
-		return nil, eventmodels.NewWebError(404, "handleCandles: playground not found", nil)
+		return nil, models.NewWebError(404, "handleCandles: playground not found", nil)
 	}
 
 	candles, err := playground.FetchCandles(symbol, period, from, to)
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to fetch candles", err)
+		return nil, models.NewWebError(500, "failed to fetch candles", err)
 	}
 
 	return candles, nil
 }
 
-func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*models.TickDelta, error) {
+func (s Server) nextTick(playgroundID uuid.UUID, duration time.Duration, isPreview bool) (*backtester_models.TickDelta, error) {
 	playground, err := s.dbService.GetPlayground(playgroundID)
 	if err != nil {
 		return nil, fmt.Errorf("playground not found")

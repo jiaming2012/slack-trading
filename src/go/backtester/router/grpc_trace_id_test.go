@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
 )
 

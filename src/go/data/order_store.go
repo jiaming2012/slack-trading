@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 

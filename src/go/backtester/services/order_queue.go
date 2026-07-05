@@ -10,20 +10,20 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
-func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
+func UpdatePendingMarginOrders(dbService backtester_models.IDatabaseService) error {
 	seekFromPlayground := true
 
-	pendingOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeMargin, models.LiveAccountTypePaper, models.LiveAccountTypeMock}, seekFromPlayground)
+	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeMargin, backtester_models.LiveAccountTypePaper, backtester_models.LiveAccountTypeMock}, seekFromPlayground)
 	if err != nil {
 		return fmt.Errorf("UpdatePendingMarginOrders: failed to fetch orders: %v", err)
 	}
 
-	var newTrades []*models.TradeRecord
+	var newTrades []*backtester_models.TradeRecord
 	var joinedErr error
 
 	for _, order := range pendingOrders {
@@ -54,13 +54,13 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			}
 
 			for _, o := range orders {
-				if o.Status == models.OrderRecordStatusCanceled {
+				if o.Status == backtester_models.OrderRecordStatusCanceled {
 					dbService.CancelOrder(order)
 
 					playground.GetInvalidOrdersQueue().Enqueue(order)
 
 					log.Infof("UpdatePendingMarginOrders (cancel order): order %d status is %s", order.ID, o.Status)
-				} else if o.Status == models.OrderRecordStatusRejected {
+				} else if o.Status == backtester_models.OrderRecordStatusRejected {
 					rejectReason := "unknown"
 					if o.RejectReason != nil {
 						rejectReason = *o.RejectReason
@@ -96,7 +96,7 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 			}
 
 			if !found {
-				if _, err := fillPendingOrder(playground, order, models.ExecutionFillRequest{
+				if _, err := fillPendingOrder(playground, order, backtester_models.ExecutionFillRequest{
 					ReconcilePlayground: playground.ReconcilePlayground,
 					OrderRecord:         order,
 					Trade:               trade,
@@ -186,14 +186,14 @@ func UpdatePendingMarginOrders(dbService models.IDatabaseService) error {
 	return joinedErr
 }
 
-func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService models.IDatabaseService, sleepDuration time.Duration) error {
-	pendingOrders, err := dbService.FetchPendingOrders([]models.LiveAccountType{models.LiveAccountTypeReconcilation}, false)
+func UpdateTradierOrderQueue(sink *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent], dbService backtester_models.IDatabaseService, sleepDuration time.Duration) error {
+	pendingOrders, err := dbService.FetchPendingOrders([]backtester_models.LiveAccountType{backtester_models.LiveAccountTypeReconcilation}, false)
 	if err != nil {
 		return fmt.Errorf("UpdateTradierOrderQueue: failed to fetch orders: %v", err)
 	}
 
 	for _, order := range pendingOrders {
-		var liveAccountType models.LiveAccountType
+		var liveAccountType backtester_models.LiveAccountType
 
 		playground, err := dbService.FetchPlayground(order.PlaygroundID)
 		if err != nil {
@@ -202,7 +202,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 		}
 
 		if order.IsAdjustment {
-			req := models.ExecutionFillRequest{
+			req := backtester_models.ExecutionFillRequest{
 				ReconcilePlayground: nil,
 				OrderRecord:         order,
 				Time:                order.Timestamp,
@@ -251,7 +251,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
-		var playgroundOrder *models.OrderRecord
+		var playgroundOrder *backtester_models.OrderRecord
 		for _, o := range reconcilePlayground.GetOrders() {
 			if o.ExternalOrderID != nil && *o.ExternalOrderID == *order.ExternalOrderID {
 				playgroundOrder = o
@@ -270,10 +270,10 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			continue
 		}
 
-		if tradierOrder.Status == string(models.OrderRecordStatusFilled) {
+		if tradierOrder.Status == string(backtester_models.OrderRecordStatusFilled) {
 			rec := playgroundOrder
-			sink.Enqueue(&models.TradierOrderUpdateEvent{
-				CreateOrder: &models.TradierOrderCreateEvent{
+			sink.Enqueue(&backtester_models.TradierOrderUpdateEvent{
+				CreateOrder: &backtester_models.TradierOrderCreateEvent{
 					Order:               tradierOrder,
 					OrderRecord:         rec,
 					ReconcilePlayground: reconcilePlayground,
@@ -281,7 +281,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 			})
 
 			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d is filled by broker", order.ExternalOrderID)
-		} else if tradierOrder.Status == string(models.OrderRecordStatusRejected) {
+		} else if tradierOrder.Status == string(backtester_models.OrderRecordStatusRejected) {
 			reason := "rejected by broker"
 			if tradierOrder.ReasonDescription != nil {
 				reason = *tradierOrder.ReasonDescription
@@ -292,34 +292,34 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 				continue
 			}
 
-			sink.Enqueue(&models.TradierOrderUpdateEvent{
-				ModifyOrder: &models.TradierOrderModifyEvent{
+			sink.Enqueue(&backtester_models.TradierOrderUpdateEvent{
+				ModifyOrder: &backtester_models.TradierOrderModifyEvent{
 					PlaygroundId:   playground.ID,
 					TradierOrderID: *order.ExternalOrderID,
 					Field:          "status",
-					New:            string(models.OrderRecordStatusRejected),
+					New:            string(backtester_models.OrderRecordStatusRejected),
 					Reason:         &reason,
 				},
 			})
 
 			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d, external %d, is rejected by broker", order.ID, *order.ExternalOrderID)
-		} else if tradierOrder.Status == string(models.OrderRecordStatusCanceled) {
+		} else if tradierOrder.Status == string(backtester_models.OrderRecordStatusCanceled) {
 			if order.ExternalOrderID == nil {
 				log.Errorf("TradierApiWorker.executeOrdersQueueUpdate: external order id not found: %v", order)
 				continue
 			}
 
-			sink.Enqueue(&models.TradierOrderUpdateEvent{
-				ModifyOrder: &models.TradierOrderModifyEvent{
+			sink.Enqueue(&backtester_models.TradierOrderUpdateEvent{
+				ModifyOrder: &backtester_models.TradierOrderModifyEvent{
 					PlaygroundId:   playground.ID,
 					TradierOrderID: *order.ExternalOrderID,
 					Field:          "status",
-					New:            string(models.OrderRecordStatusCanceled),
+					New:            string(backtester_models.OrderRecordStatusCanceled),
 				},
 			})
 
 			log.Infof("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is canceled by broker", order.ID, *order.ExternalOrderID)
-		} else if tradierOrder.Status == string(models.OrderRecordStatusPending) {
+		} else if tradierOrder.Status == string(backtester_models.OrderRecordStatusPending) {
 			log.Tracef("TradierApiWorker.executeOrdersQueueUpdate: order %d, external id %d, is pending", order.ID, *order.ExternalOrderID)
 			continue
 		} else {
@@ -335,7 +335,7 @@ func UpdateTradierOrderQueue(sink *eventmodels.FIFOQueue[*models.TradierOrderUpd
 	return nil
 }
 
-func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, orderFillEntry models.ExecutionFillRequest, database models.IDatabaseService) (*models.TradeRecord, error) {
+func fillPendingOrder(playground *backtester_models.Playground, order *backtester_models.OrderRecord, orderFillEntry backtester_models.ExecutionFillRequest, database backtester_models.IDatabaseService) (*backtester_models.TradeRecord, error) {
 	playground.GetPlaceOrderLock().Lock()
 	defer playground.GetPlaceOrderLock().Unlock()
 
@@ -425,7 +425,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	// Resave the order to update the status and close_id
 	balance := playground.GetBalance()
 	if err := database.SaveOrderRecord(order, &balance, false); err != nil {
-		if errors.Is(err, models.ErrDbOrderIsNotOpenOrPending) {
+		if errors.Is(err, backtester_models.ErrDbOrderIsNotOpenOrPending) {
 			log.Warnf("handleLiveOrders: order is not open or pending: %v", err)
 			return newTrade, nil
 		}
@@ -461,7 +461,7 @@ func fillPendingOrder(playground *models.Playground, order *models.OrderRecord, 
 	return newTrade, resultErr
 }
 
-func commitPendingOrders(database models.IDatabaseService, orderFillEntry models.ExecutionFillRequest) error {
+func commitPendingOrders(database backtester_models.IDatabaseService, orderFillEntry backtester_models.ExecutionFillRequest) error {
 	reconcilePlayground := orderFillEntry.ReconcilePlayground
 	order := orderFillEntry.OrderRecord
 
@@ -472,7 +472,7 @@ func commitPendingOrders(database models.IDatabaseService, orderFillEntry models
 	return nil
 }
 
-func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], database models.IDatabaseService) (hasUpdates bool, err error) {
+func DrainTradierOrderQueue(source *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent], database backtester_models.IDatabaseService) (hasUpdates bool, err error) {
 	for {
 		event, ok := source.Dequeue()
 		if !ok {
@@ -480,15 +480,15 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 		}
 
 		if event.CreateOrder != nil {
-			if event.CreateOrder.OrderRecord.Status == models.OrderRecordStatusFilled {
+			if event.CreateOrder.OrderRecord.Status == backtester_models.OrderRecordStatusFilled {
 				log.Debugf("handleLiveOrders: order already filled: %v", event.CreateOrder.OrderRecord)
 				continue
 			}
 
 			hasUpdates = true
 
-			if event.CreateOrder.Order.Status == string(models.OrderRecordStatusFilled) {
-				if err := commitPendingOrders(database, models.ExecutionFillRequest{
+			if event.CreateOrder.Order.Status == string(backtester_models.OrderRecordStatusFilled) {
+				if err := commitPendingOrders(database, backtester_models.ExecutionFillRequest{
 					ReconcilePlayground: event.CreateOrder.ReconcilePlayground,
 					OrderRecord:         event.CreateOrder.OrderRecord,
 					Time:                event.CreateOrder.Order.CreateDate,
@@ -500,7 +500,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 				}
 
 				log.Debugf("handleLiveOrders: order filled: %v", event.CreateOrder.Order)
-			} else if event.CreateOrder.Order.Status == string(models.OrderRecordStatusPending) {
+			} else if event.CreateOrder.Order.Status == string(backtester_models.OrderRecordStatusPending) {
 				log.Debugf("handleLiveOrders: order pending: %v", event.CreateOrder.Order)
 			} else {
 				log.Fatalf("handleLiveOrders: unknown order status: %v", event.CreateOrder.Order.Status)
@@ -522,7 +522,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 					reason := ""
 
 					switch newState {
-					case string(models.OrderRecordStatusCanceled):
+					case string(backtester_models.OrderRecordStatusCanceled):
 						if err := playground.CancelOrder(order, database); err != nil {
 							log.Errorf("handleLiveOrders: failed to cancel order: %v", err)
 							continue
@@ -530,7 +530,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 					case "rejected by broker": // tradier internal status
 						reason = "rejected by broker"
 						fallthrough
-					case string(models.OrderRecordStatusRejected):
+					case string(backtester_models.OrderRecordStatusRejected):
 						if reason == "" {
 							if event.ModifyOrder.Reason == nil {
 								log.Errorf("handleLiveOrders: reason is nil for order: %v", event.ModifyOrder)
@@ -544,7 +544,7 @@ func DrainTradierOrderQueue(source *eventmodels.FIFOQueue[*models.TradierOrderUp
 							log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							continue
 						}
-					case string(models.OrderRecordStatusPending):
+					case string(backtester_models.OrderRecordStatusPending):
 						break
 					default:
 						log.Warnf("handleLiveOrders: unknown state: %v", newState)

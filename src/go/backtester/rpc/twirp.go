@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"

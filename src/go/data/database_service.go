@@ -14,9 +14,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
@@ -37,8 +37,8 @@ type DatabaseService struct {
 	mu                   sync.Mutex
 	db                   *gorm.DB
 	projectsDir          string
-	polygonClient        models.IPolygonClient
-	polygonOptionsBroker models.IOptionsBroker
+	polygonClient        backtester_models.IPolygonClient
+	polygonOptionsBroker backtester_models.IOptionsBroker
 
 	playgroundStore  *playgroundStore
 	orderStore       *orderStore
@@ -46,7 +46,7 @@ type DatabaseService struct {
 	equityStore      *equityStore
 }
 
-func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient, optionsBroker models.IOptionsBroker) *DatabaseService {
+func NewDatabaseService(db *gorm.DB, polygonClient backtester_models.IPolygonClient, optionsBroker backtester_models.IOptionsBroker) *DatabaseService {
 	return &DatabaseService{
 		db:                   db,
 		playgroundStore:      newPlaygroundStore(db),
@@ -58,7 +58,7 @@ func NewDatabaseService(db *gorm.DB, polygonClient models.IPolygonClient, option
 	}
 }
 
-func (s *DatabaseService) GetPolygonClient() models.IPolygonClient {
+func (s *DatabaseService) GetPolygonClient() backtester_models.IPolygonClient {
 	return s.polygonClient
 }
 
@@ -70,8 +70,8 @@ func (s *DatabaseService) CreateTransaction(transaction func(tx *gorm.DB) error)
 	return s.db.Transaction(transaction)
 }
 
-func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) error {
-	var playgroundsSlice []*models.Playground
+func (s *DatabaseService) LoadPlaygrounds(calendar *models.MarketCalendar) error {
+	var playgroundsSlice []*backtester_models.Playground
 	if err := s.db.Preload("Orders", func(db *gorm.DB) *gorm.DB {
 		return db.Order("id ASC")
 	}).Preload("Orders.Trades", func(db *gorm.DB) *gorm.DB {
@@ -127,7 +127,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 
 	// load reconcile playgrounds first
 	for _, p := range playgroundsSlice {
-		if p.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+		if p.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
 			continue
 		}
 
@@ -154,7 +154,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 			return fmt.Errorf("loadPlaygrounds: failed to find live account for reconcile playground: %s", p.ID.String())
 		}
 
-		reconcilePlayground, err := models.NewReconcilePlayground(p, liveAccount)
+		reconcilePlayground, err := backtester_models.NewReconcilePlayground(p, liveAccount)
 		if err != nil {
 			return fmt.Errorf("loadPlaygrounds: failed to create reconcile playground: %w", err)
 		}
@@ -164,7 +164,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 
 	// load other playgrounds
 	for _, p := range playgroundsSlice {
-		if p.Meta.Environment == models.PlaygroundEnvironmentReconcile {
+		if p.Meta.Environment == backtester_models.PlaygroundEnvironmentReconcile {
 			continue
 		}
 
@@ -181,7 +181,7 @@ func (s *DatabaseService) LoadPlaygrounds(calendar *eventmodels.MarketCalendar) 
 	return nil
 }
 
-func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Playground, *models.OrderRecord, error) {
+func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*backtester_models.Playground, *backtester_models.OrderRecord, error) {
 	playground, found := s.playgroundStore.playgrounds[playgroundId]
 	if !found {
 		return nil, nil, fmt.Errorf("failed to find playground using id %s", playgroundId)
@@ -197,59 +197,59 @@ func (s *DatabaseService) FindOrder(playgroundId uuid.UUID, id uint) (*models.Pl
 	return nil, nil, fmt.Errorf("failed to find Order in playground %s", playground.GetId().String())
 }
 
-func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositoryRequest, from, to *eventmodels.PolygonDate, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle]) ([]*models.CandleRepository, *eventmodels.WebError) {
-	var feeds []*models.CandleRepository
+func (s *DatabaseService) CreateRepos(repoRequests []models.CreateRepositoryRequest, from, to *models.PolygonDate, newCandlesQueue *models.FIFOQueue[*backtester_models.BacktesterCandle]) ([]*backtester_models.CandleRepository, *models.WebError) {
+	var feeds []*backtester_models.CandleRepository
 	for _, repo := range repoRequests {
-		var bars, pastBars []*eventmodels.PolygonAggregateBarV2
+		var bars, pastBars []*models.PolygonAggregateBarV2
 		var err error
 
-		timespan := eventmodels.PolygonTimespan{
+		timespan := models.PolygonTimespan{
 			Multiplier: repo.Timespan.Multiplier,
-			Unit:       eventmodels.PolygonTimespanUnit(repo.Timespan.Unit),
+			Unit:       models.PolygonTimespanUnit(repo.Timespan.Unit),
 		}
 
-		if repo.Source.Type == eventmodels.RepositorySourceTradier {
+		if repo.Source.Type == models.RepositorySourceTradier {
 			// "tradier" marks live playground repos: candles arrive via the live feed,
 			// so there are no historical bars to backfill here. The value is persisted
 			// in playground records — do not rename or remove without a data migration.
-		} else if repo.Source.Type == eventmodels.RepositorySourcePolygon {
-			bars, err = s.polygonClient.FetchAggregateBars(eventmodels.StockSymbol(repo.Symbol), timespan, from, to)
+		} else if repo.Source.Type == models.RepositorySourcePolygon {
+			bars, err = s.polygonClient.FetchAggregateBars(models.StockSymbol(repo.Symbol), timespan, from, to)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to fetch aggregate bars", err)
+				return nil, models.NewWebError(500, "failed to fetch aggregate bars", err)
 			}
-		} else if repo.Source.Type == eventmodels.RepositorySourceCSV {
+		} else if repo.Source.Type == models.RepositorySourceCSV {
 			if repo.Source.CSVFilename == nil {
-				return nil, eventmodels.NewWebError(400, "missing CSV filename", nil)
+				return nil, models.NewWebError(400, "missing CSV filename", nil)
 			}
 
 			sourceDir := path.Join(s.projectsDir, "slack-trading", "src", "backtester-api", "data", *repo.Source.CSVFilename)
 
 			bars, err = utils.ImportCandlesFromCsv(sourceDir)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to import candles from CSV", err)
+				return nil, models.NewWebError(500, "failed to import candles from CSV", err)
 			}
 		} else {
-			return nil, eventmodels.NewWebError(400, "invalid repository source", nil)
+			return nil, models.NewWebError(400, "invalid repository source", nil)
 		}
 
 		if from != nil {
-			pastBars, err = s.polygonClient.FetchPastCandles(eventmodels.StockSymbol(repo.Symbol), timespan, int(repo.HistoryInDays), from)
+			pastBars, err = s.polygonClient.FetchPastCandles(models.StockSymbol(repo.Symbol), timespan, int(repo.HistoryInDays), from)
 			if err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to fetch past candles", err)
+				return nil, models.NewWebError(500, "failed to fetch past candles", err)
 			}
 		}
 
 		aggregateBars := append(pastBars, bars...)
 
-		source := eventmodels.CandleRepositorySource{
+		source := models.CandleRepositorySource{
 			Type: string(repo.Source.Type),
 		}
 
 		startingPosition := len(pastBars)
-		repository, err := CreateRepositoryWithPosition(eventmodels.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition, repo.HistoryInDays, source)
+		repository, err := CreateRepositoryWithPosition(models.StockSymbol(repo.Symbol), timespan, aggregateBars, repo.Indicators, newCandlesQueue, startingPosition, repo.HistoryInDays, source)
 		if err != nil {
 			log.Errorf("failed to create repository: %v", err)
-			return nil, eventmodels.NewWebError(500, "failed to create repository", err)
+			return nil, models.NewWebError(500, "failed to create repository", err)
 		}
 
 		feeds = append(feeds, repository)
@@ -258,33 +258,33 @@ func (s *DatabaseService) CreateRepos(repoRequests []eventmodels.CreateRepositor
 	return feeds, nil
 }
 
-func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *models.PopulatePlaygroundRequest) error {
+func (s *DatabaseService) CreatePlayground(playground *backtester_models.Playground, req *backtester_models.PopulatePlaygroundRequest) error {
 	env := req.Env
 
 	// validations
 	if err := env.Validate(); err != nil {
-		return eventmodels.NewWebError(400, "invalid playground environment", err)
+		return models.NewWebError(400, "invalid playground environment", err)
 	}
 
-	if env != models.PlaygroundEnvironmentReconcile {
+	if env != backtester_models.PlaygroundEnvironmentReconcile {
 		if len(req.Repositories) == 0 {
-			return eventmodels.NewWebError(400, "missing repositories", nil)
+			return models.NewWebError(400, "missing repositories", nil)
 		}
 	}
 
 	req.OptionsBroker = s.polygonOptionsBroker
 
 	// create playground
-	if env == models.PlaygroundEnvironmentReconcile {
+	if env == backtester_models.PlaygroundEnvironmentReconcile {
 		if req.LiveAccount == nil {
-			return eventmodels.NewWebError(400, "reconcile playground is missing live account", nil)
+			return models.NewWebError(400, "reconcile playground is missing live account", nil)
 		}
 
 		var err error
 		now := req.CreatedAt
-		err = models.PopulatePlayground(playground, req, nil, now, nil, nil, nil)
+		err = backtester_models.PopulatePlayground(playground, req, nil, now, nil, nil, nil)
 		if err != nil {
-			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
+			return models.NewWebError(500, "failed to create reconcile playground", err)
 		}
 
 		if req.SaveToDB {
@@ -293,22 +293,22 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			}
 		}
 
-	} else if env == models.PlaygroundEnvironmentLive {
+	} else if env == backtester_models.PlaygroundEnvironmentLive {
 		// todo: hot load live account
 		if req.LiveAccount == nil {
-			return eventmodels.NewWebError(400, "live playground is missing live account", nil)
+			return models.NewWebError(400, "live playground is missing live account", nil)
 		}
 
 		// capture all candles up to tomorrow
 		now := time.Now()
 		tomorrow := now.AddDate(0, 0, 1)
 		tomorrowStr := tomorrow.Format("2006-01-02")
-		from, err := eventmodels.NewPolygonDate(tomorrowStr)
+		from, err := models.NewPolygonDate(tomorrowStr)
 		if err != nil {
-			return eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
+			return models.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
-		newCandlesQueue := eventmodels.NewFIFOQueue[*models.BacktesterCandle]("newCandlesQueue", 999)
+		newCandlesQueue := models.NewFIFOQueue[*backtester_models.BacktesterCandle]("newCandlesQueue", 999)
 
 		// fetch or create live repositories
 		repos, webErr := s.CreateRepos(req.Repositories, from, nil, newCandlesQueue)
@@ -328,12 +328,12 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// get reconcile playground
 		if req.Account.Source == nil {
-			return eventmodels.NewWebError(400, "missing account source", nil)
+			return models.NewWebError(400, "missing account source", nil)
 		}
 
 		reconcilePlayground, found, err := s.FetchReconcilePlayground(*req.Account.Source)
 		if err != nil {
-			return eventmodels.NewWebError(500, "failed to fetch live account", err)
+			return models.NewWebError(500, "failed to fetch live account", err)
 		}
 
 		if !found {
@@ -341,7 +341,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 			reconcilePlayground, err = dbutils.CreateReconcilePlayground(s, req.Account.Source, now)
 			if err != nil {
-				return eventmodels.NewWebError(500, "failed to create new reconcile playground and live account", err)
+				return models.NewWebError(500, "failed to create new reconcile playground and live account", err)
 			}
 
 			// save reconcile playground
@@ -350,11 +350,11 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		req.ReconcilePlayground = reconcilePlayground
 
-		newTradesQueue := eventmodels.NewFIFOQueue[*models.TradeRecord]("newTradesQueue", 999)
-		invalidOrdersQueue := eventmodels.NewFIFOQueue[*models.OrderRecord]("invalidOrdersQueue", 999)
-		err = models.PopulatePlayground(playground, req, nil, now, newTradesQueue, invalidOrdersQueue, req.Calendar, repos...)
+		newTradesQueue := models.NewFIFOQueue[*backtester_models.TradeRecord]("newTradesQueue", 999)
+		invalidOrdersQueue := models.NewFIFOQueue[*backtester_models.OrderRecord]("invalidOrdersQueue", 999)
+		err = backtester_models.PopulatePlayground(playground, req, nil, now, newTradesQueue, invalidOrdersQueue, req.Calendar, repos...)
 		if err != nil {
-			return eventmodels.NewWebError(500, "failed to create reconcile playground", err)
+			return models.NewWebError(500, "failed to create reconcile playground", err)
 		}
 
 		// always save live playgrounds if flag is set
@@ -364,22 +364,22 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 			}
 		}
 
-	} else if env == models.PlaygroundEnvironmentSimulator {
+	} else if env == backtester_models.PlaygroundEnvironmentSimulator {
 		// validations
-		from, err := eventmodels.NewPolygonDate(req.Clock.StartDate)
+		from, err := models.NewPolygonDate(req.Clock.StartDate)
 		if err != nil {
-			return eventmodels.NewWebError(400, "failed to parse clock.startDate", err)
+			return models.NewWebError(400, "failed to parse clock.startDate", err)
 		}
 
-		to, err := eventmodels.NewPolygonDate(req.Clock.StopDate)
+		to, err := models.NewPolygonDate(req.Clock.StopDate)
 		if err != nil {
-			return eventmodels.NewWebError(400, "failed to parse clock.stopDate", err)
+			return models.NewWebError(400, "failed to parse clock.stopDate", err)
 		}
 
 		// create clock
 		clock, err := s.CreateClock(from, to)
 		if err != nil {
-			return eventmodels.NewWebError(500, "failed to create clock", err)
+			return models.NewWebError(500, "failed to create clock", err)
 		}
 
 		// create backtester repositories
@@ -390,12 +390,12 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 
 		// create playground
 		now := clock.CurrentTime
-		err = models.PopulatePlayground(playground, req, clock, now, nil, nil, req.Calendar, repos...)
+		err = backtester_models.PopulatePlayground(playground, req, clock, now, nil, nil, req.Calendar, repos...)
 		if err != nil {
-			return eventmodels.NewWebError(500, "failed to create playground", err)
+			return models.NewWebError(500, "failed to create playground", err)
 		}
 	} else {
-		return eventmodels.NewWebError(400, "invalid playground environment", nil)
+		return models.NewWebError(400, "invalid playground environment", nil)
 	}
 
 	playground.SetEquityPlot(req.EquityPlotRecords)
@@ -411,7 +411,7 @@ func (s *DatabaseService) CreatePlayground(playground *models.Playground, req *m
 	return nil
 }
 
-func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*models.Clock, error) {
+func (s *DatabaseService) CreateClock(start, stop *models.PolygonDate) (*backtester_models.Clock, error) {
 	// Load the location for New York (Eastern Time)
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -426,13 +426,13 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 
 	// create calendar
 	calendarStartDate := fromDate.AddDate(0, 0, -7)
-	startDate := eventmodels.PolygonDate{
+	startDate := models.PolygonDate{
 		Year:  calendarStartDate.Year(),
 		Month: int(calendarStartDate.Month()),
 		Day:   calendarStartDate.Day(),
 	}
 
-	endDate := eventmodels.PolygonDate{
+	endDate := models.PolygonDate{
 		Year:  stop.Year,
 		Month: stop.Month,
 		Day:   stop.Day,
@@ -444,30 +444,30 @@ func (s *DatabaseService) CreateClock(start, stop *eventmodels.PolygonDate) (*mo
 	}
 
 	// create clock
-	clock := models.NewClock(fromDate, toDate, calendar)
+	clock := backtester_models.NewClock(fromDate, toDate, calendar)
 
 	return clock, nil
 }
 
-func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eventmodels.MarketCalendar) error {
+func (s *DatabaseService) PopulatePlayground(p *backtester_models.Playground, calendar *models.MarketCalendar) error {
 	log.Infof("loading playground: %s", p.ID)
 
-	var source *models.CreateAccountRequestSource
-	var clockRequest models.CreateClockRequest
-	var liveAccount models.ILiveAccount
+	var source *backtester_models.CreateAccountRequestSource
+	var clockRequest backtester_models.CreateClockRequest
+	var liveAccount backtester_models.ILiveAccount
 	var err error
 
-	if p.Meta.Environment == models.PlaygroundEnvironmentSimulator {
+	if p.Meta.Environment == backtester_models.PlaygroundEnvironmentSimulator {
 		if p.EndAt == nil {
 			return fmt.Errorf("loadPlaygrounds: missing end date for simulator playground")
 		}
 
-		clockRequest = models.CreateClockRequest{
+		clockRequest = backtester_models.CreateClockRequest{
 			StartDate: p.StartAt.Format(time.RFC3339),
 			StopDate:  p.EndAt.Format(time.RFC3339),
 		}
 
-	} else if p.Meta.Environment == models.PlaygroundEnvironmentLive {
+	} else if p.Meta.Environment == backtester_models.PlaygroundEnvironmentLive {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for live playground")
 		}
@@ -477,13 +477,13 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 			return fmt.Errorf("loadPlaygrounds: invalid live account type for live playground: %w", err)
 		}
 
-		source = &models.CreateAccountRequestSource{
+		source = &backtester_models.CreateAccountRequestSource{
 			Broker:          *p.BrokerName,
 			AccountID:       *p.AccountID,
 			LiveAccountType: liveAccountType,
 		}
 
-		clockRequest = models.CreateClockRequest{
+		clockRequest = backtester_models.CreateClockRequest{
 			StartDate: p.StartAt.Format(time.RFC3339),
 		}
 
@@ -492,7 +492,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 			return fmt.Errorf("loadPlaygrounds: failed to get live account for live playground: %w", err)
 		}
 
-	} else if p.Meta.Environment == models.PlaygroundEnvironmentReconcile {
+	} else if p.Meta.Environment == backtester_models.PlaygroundEnvironmentReconcile {
 		if p.BrokerName == nil || p.AccountID == nil {
 			return fmt.Errorf("loadPlaygrounds: missing broker, account id, or api key for reconcile playground")
 		}
@@ -502,7 +502,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 			return fmt.Errorf("loadPlaygrounds: invalid live account type for reconcile playground: %w", err)
 		}
 
-		source = &models.CreateAccountRequestSource{
+		source = &backtester_models.CreateAccountRequestSource{
 			Broker:          *p.BrokerName,
 			AccountID:       *p.AccountID,
 			LiveAccountType: liveAccountType,
@@ -517,7 +517,7 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 		return fmt.Errorf("loadPlaygrounds: unknown environment: %v", p.Meta.Environment)
 	}
 
-	var createRepoRequests []eventmodels.CreateRepositoryRequest
+	var createRepoRequests []models.CreateRepositoryRequest
 	for _, r := range p.Repositories {
 		req, err := r.ToCreateRepositoryRequest()
 		if err != nil {
@@ -527,19 +527,19 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 		createRepoRequests = append(createRepoRequests, req)
 	}
 
-	var plot []*eventmodels.EquityPlot
+	var plot []*models.EquityPlot
 	for _, r := range p.EquityPlotRecords {
-		plot = append(plot, &eventmodels.EquityPlot{
+		plot = append(plot, &models.EquityPlot{
 			Timestamp: r.Timestamp,
 			Value:     r.Equity,
 		})
 	}
 
-	err = s.CreatePlayground(p, &models.PopulatePlaygroundRequest{
+	err = s.CreatePlayground(p, &backtester_models.PopulatePlaygroundRequest{
 		ID:       &p.ID,
 		ClientID: p.ClientID,
 		Env:      p.Meta.Environment,
-		Account: models.CreateAccountRequest{
+		Account: backtester_models.CreateAccountRequest{
 			Balance: p.Balance,
 			Source:  source,
 		},
@@ -562,16 +562,16 @@ func (s *DatabaseService) PopulatePlayground(p *models.Playground, calendar *eve
 	return nil
 }
 
-func (s *DatabaseService) checkPendingCloses(playground *models.Playground, closeOrderID uint) error {
+func (s *DatabaseService) checkPendingCloses(playground *backtester_models.Playground, closeOrderID uint) error {
 	orders := playground.GetAllOrders()
-	var orderToClose *models.OrderRecord
+	var orderToClose *backtester_models.OrderRecord
 	pendingCloseQuantity := 0.0
 	for _, order := range orders {
 		if order.IsFilled() {
 			if order.ID == closeOrderID {
 				orderToClose = order
 			}
-		} else if order.Status == models.OrderRecordStatusPending {
+		} else if order.Status == backtester_models.OrderRecordStatusPending {
 			if order.CloseOrderId != nil && *order.CloseOrderId == closeOrderID {
 				pendingCloseQuantity += order.AbsoluteQuantity
 			}
@@ -594,8 +594,8 @@ func (s *DatabaseService) checkPendingCloses(playground *models.Playground, clos
 	return nil
 }
 
-func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, requests *models.CreateOrderRequest) (*models.OrderRecord, error) {
-	orders, err := s.PlaceOrders(playgroundID, []*models.CreateOrderRequest{requests})
+func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, requests *backtester_models.CreateOrderRequest) (*backtester_models.OrderRecord, error) {
+	orders, err := s.PlaceOrders(playgroundID, []*backtester_models.CreateOrderRequest{requests})
 	if err != nil {
 		return nil, fmt.Errorf("PlaceOrder: %w", err)
 	}
@@ -603,13 +603,13 @@ func (s *DatabaseService) PlaceOrder(playgroundID uuid.UUID, requests *models.Cr
 	return orders[0], nil
 }
 
-func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models.CreateOrderRequest) ([]*models.OrderRecord, error) {
+func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backtester_models.CreateOrderRequest) ([]*backtester_models.OrderRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	playground, err := s.playgroundStore.fetchPlayground(playgroundID)
 	if err != nil {
-		return nil, eventmodels.NewWebError(404, "playground not found", err)
+		return nil, models.NewWebError(404, "playground not found", err)
 	}
 
 	playground.GetPlaceOrderLock().Lock()
@@ -617,27 +617,27 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 
 	for _, req := range requests {
 		if err := req.Validate(); err != nil {
-			return nil, eventmodels.NewWebError(400, "invalid request", err)
+			return nil, models.NewWebError(400, "invalid request", err)
 		}
 
 		if req.CloseOrderId != nil {
 			if err := s.checkPendingCloses(playground, *req.CloseOrderId); err != nil {
-				return nil, eventmodels.NewWebError(400, "pending closes check failed", err)
+				return nil, models.NewWebError(400, "pending closes check failed", err)
 			}
 		}
 	}
 
-	var orders []*models.OrderRecord
+	var orders []*backtester_models.OrderRecord
 	createdOn := playground.GetCurrentTime()
 	for _, req := range requests {
 		order, err := s.commitOrderRecord(playground, req, createdOn)
 		if err != nil {
-			return nil, eventmodels.NewWebError(500, "failed to place order", err)
+			return nil, models.NewWebError(500, "failed to place order", err)
 		}
 
-		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
+		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentSimulator {
 			if err := s.orderStore.waitForOrderRecord(order.ID); err != nil {
-				return nil, eventmodels.NewWebError(500, "failed to wait for order record", err)
+				return nil, models.NewWebError(500, "failed to wait for order record", err)
 			}
 		}
 
@@ -666,13 +666,13 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*models
 	return orders, nil
 }
 
-func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *models.CreateOrderRequest, createdOn time.Time) (*models.OrderRecord, error) {
-	order := &models.OrderRecord{}
+func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playground, req *backtester_models.CreateOrderRequest, createdOn time.Time) (*backtester_models.OrderRecord, error) {
+	order := &backtester_models.OrderRecord{}
 	if req.Id != nil {
 		order.ID = *req.Id
 	} else {
 		// use database to generate a new ID
-		if playground.Meta.Environment != models.PlaygroundEnvironmentSimulator {
+		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentSimulator {
 			order.PlaygroundID = playground.GetId()
 			if err := s.db.Create(&order).Error; err != nil {
 				return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
@@ -680,13 +680,13 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 		}
 	}
 
-	if playground.Meta.Environment == models.PlaygroundEnvironmentSimulator {
+	if playground.Meta.Environment == backtester_models.PlaygroundEnvironmentSimulator {
 		externalId := playground.NextOrderID()
 		order.ID = externalId
 		req.ExternalOrderID = &externalId
 	}
 
-	models.PopulateOrderRecord(
+	backtester_models.PopulateOrderRecord(
 		order,
 		req.ExternalOrderID,
 		req.ClientRequestID,
@@ -702,7 +702,7 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 		req.RequestedPrice,
 		req.Price,
 		req.StopPrice,
-		models.OrderRecordStatusPending,
+		backtester_models.OrderRecordStatusPending,
 		req.Tag,
 		req.CloseOrderId,
 		req.IsSystemOrder,
@@ -713,12 +713,12 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 	order.SignalID = req.SignalID
 
 	if req.IsAdjustment {
-		if playground.Meta.Environment != models.PlaygroundEnvironmentReconcile {
+		if playground.Meta.Environment != backtester_models.PlaygroundEnvironmentReconcile {
 			return nil, fmt.Errorf("makeOrderRecord: only reconcile playgrounds can place adjustment orders")
 		}
 
 		order.IsAdjustment = true
-		order.LiveAccountType = models.LiveAccountTypeReconcilation
+		order.LiveAccountType = backtester_models.LiveAccountTypeReconcilation
 		log.Infof("placing adjustment order: %v", order)
 	}
 
@@ -746,35 +746,35 @@ func (s *DatabaseService) commitOrderRecord(playground *models.Playground, req *
 	return order, nil
 }
 
-func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*eventmodels.EquityPlot, error) {
+func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*models.EquityPlot, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	playground, err := s.playgroundStore.fetchPlayground(playgroundID)
 	if err != nil {
-		return nil, eventmodels.NewWebError(404, "playground not found", nil)
+		return nil, models.NewWebError(404, "playground not found", nil)
 	}
 
 	plot := playground.GetEquityPlot()
 	return plot, nil
 }
 
-func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []models.OrderRecordStatus, sides []models.TradierOrderSide, symbols []string) (*models.GetAccountResponse, error) {
+func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, from, to *time.Time, status []backtester_models.OrderRecordStatus, sides []backtester_models.TradierOrderSide, symbols []string) (*backtester_models.GetAccountResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	internalPlayground := s.playgroundStore.getPlayground(playgroundID)
 	if internalPlayground == nil {
-		return nil, eventmodels.NewWebError(404, "playground not found internally", nil)
+		return nil, models.NewWebError(404, "playground not found internally", nil)
 	}
 
-	var orders []*models.OrderRecord
-	if internalPlayground.GetEnvironment() == models.PlaygroundEnvironmentSimulator {
+	var orders []*backtester_models.OrderRecord
+	if internalPlayground.GetEnvironment() == backtester_models.PlaygroundEnvironmentSimulator {
 		orders = internalPlayground.GetAllOrders()
 	} else {
 		playground, err := s.playgroundStore.fetchPlaygroundFromDB(playgroundID)
 		if err != nil {
-			return nil, eventmodels.NewWebError(404, "playground not found", nil)
+			return nil, models.NewWebError(404, "playground not found", nil)
 		}
 
 		orders = playground.Orders
@@ -786,7 +786,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 
 	positionCache, err := internalPlayground.UpdatePricesAndGetPositionCache()
 	if err != nil {
-		return nil, eventmodels.NewWebError(500, "failed to get positions", nil)
+		return nil, models.NewWebError(500, "failed to get positions", nil)
 	}
 
 	positionsKV := positionCache.Iter()
@@ -794,7 +794,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	meta := internalPlayground.GetMeta()
 	meta.CurrentTime = internalPlayground.GetCurrentTime()
 
-	response := models.GetAccountResponse{
+	response := backtester_models.GetAccountResponse{
 		Meta:       meta,
 		Balance:    internalPlayground.GetBalance(),
 		Equity:     internalPlayground.GetEquity(positionCache),
@@ -807,7 +807,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 		response.Orders = orders
 		filterOrders := from != nil || to != nil || len(status) > 0 || len(sides) > 0 || len(symbols) > 0
 		if filterOrders {
-			filteredOrders := []*models.OrderRecord{}
+			filteredOrders := []*backtester_models.OrderRecord{}
 			for _, order := range response.Orders {
 				var closeTimestampMax *time.Time
 				for _, closeOrder := range order.ClosedBy {
@@ -882,10 +882,10 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 	return &response, nil
 }
 
-// func (s *DatabaseService) getOpenOrders(playgroundID uuid.UUID, symbol eventmodels.Instrument) ([]*models.OrderRecord, error) {
+// func (s *DatabaseService) getOpenOrders(playgroundID uuid.UUID, symbol models.Instrument) ([]*backtester_models.OrderRecord, error) {
 // 	playground, err := s.FetchPlayground(playgroundID)
 // 	if err != nil {
-// 		return nil, eventmodels.NewWebError(404, "playground not found", nil)
+// 		return nil, models.NewWebError(404, "playground not found", nil)
 // 	}
 
 // 	// todo: add mutex for playground
@@ -896,7 +896,7 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 // }
 
 // func (s *DatabaseService) fetchOrderIdFromDbByExternalOrderId(playgroundId uuid.UUID, externalOrderID uint) (uint, bool) {
-// 	var orderRecord models.OrderRecord
+// 	var orderRecord backtester_models.OrderRecord
 
 // 	if result := s.db.First(&orderRecord, "playground_id = ? AND external_id = ?", playgroundId, externalOrderID); result.Error != nil {
 // 		return 0, false
@@ -907,15 +907,15 @@ func (s *DatabaseService) GetAccount(playgroundID uuid.UUID, fetchOrders bool, f
 
 // SavePlayground spans concerns (playground session + order records + equity
 // plots), so it stays here as orchestration over the shared tx helpers.
-func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
+func (s *DatabaseService) SavePlayground(playground *backtester_models.Playground) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// Simulator playgrounds use in-memory nonce IDs that would collide
 		// with existing GORM auto-increment IDs. Remap them to fresh IDs.
 		//
-		// Note: models.RemapAndSavePlayground takes a raw *gorm.DB — a known
+		// Note: backtester_models.RemapAndSavePlayground takes a raw *gorm.DB — a known
 		// gorm.DB leak into the models package, out of scope for this refactor.
-		if playground.GetMeta().Environment == models.PlaygroundEnvironmentSimulator {
-			return models.RemapAndSavePlayground(tx, playground)
+		if playground.GetMeta().Environment == backtester_models.PlaygroundEnvironmentSimulator {
+			return backtester_models.RemapAndSavePlayground(tx, playground)
 		}
 
 		// Live/reconcile path — IDs are already GORM-assigned
@@ -946,13 +946,13 @@ func (s *DatabaseService) SavePlayground(playground *models.Playground) error {
 	return nil
 }
 
-func CreateRepository(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], historyInDays uint32, source eventmodels.CandleRepositorySource) (*models.CandleRepository, error) {
+func CreateRepository(symbol models.StockSymbol, timespan models.PolygonTimespan, bars []*models.PolygonAggregateBarV2, indicators []string, newCandlesQueue *models.FIFOQueue[*backtester_models.BacktesterCandle], historyInDays uint32, source models.CandleRepositorySource) (*backtester_models.CandleRepository, error) {
 	return CreateRepositoryWithPosition(symbol, timespan, bars, indicators, newCandlesQueue, 0, historyInDays, source)
 }
 
-func CreateRepositoryWithPosition(symbol eventmodels.StockSymbol, timespan eventmodels.PolygonTimespan, bars []*eventmodels.PolygonAggregateBarV2, indicators []string, newCandlesQueue *eventmodels.FIFOQueue[*models.BacktesterCandle], startingPosition int, historyInDays uint32, source eventmodels.CandleRepositorySource) (*models.CandleRepository, error) {
+func CreateRepositoryWithPosition(symbol models.StockSymbol, timespan models.PolygonTimespan, bars []*models.PolygonAggregateBarV2, indicators []string, newCandlesQueue *models.FIFOQueue[*backtester_models.BacktesterCandle], startingPosition int, historyInDays uint32, source models.CandleRepositorySource) (*backtester_models.CandleRepository, error) {
 	period := timespan.ToDuration()
-	repo, err := models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, historyInDays, source)
+	repo, err := backtester_models.NewCandleRepository(symbol, period, bars, indicators, newCandlesQueue, historyInDays, source)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}

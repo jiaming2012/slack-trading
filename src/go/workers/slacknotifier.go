@@ -14,8 +14,8 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	pubsub "github.com/jiaming2012/slack-trading/src/go/pubsub"
 )
 
@@ -25,7 +25,7 @@ type SlackNotifierClient struct {
 }
 
 // tradeFulfilledHandler: todo: remove - deprecated
-func (c *SlackNotifierClient) tradeFulfilledHandler(ev eventmodels.TradeFulfilledEvent) {
+func (c *SlackNotifierClient) tradeFulfilledHandler(ev models.TradeFulfilledEvent) {
 	log.Debugf("SlackNotifierClient.sendTradeConfirmation <- %v", ev)
 
 	msg := fmt.Sprintf("%.2f btc @%.8f successfully placed", ev.Volume, ev.ExecutedPrice)
@@ -36,7 +36,7 @@ func (c *SlackNotifierClient) tradeFulfilledHandler(ev eventmodels.TradeFulfille
 	}
 }
 
-func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.ExecuteCloseTradesResult) {
+func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *models.ExecuteCloseTradesResult) {
 	log.Debugf("SlackNotifierClient.executeCloseTradesResultHandler <- %v", ev)
 
 	msg := fmt.Sprintf("close trade: %v", ev.Trade)
@@ -47,7 +47,7 @@ func (c *SlackNotifierClient) executeCloseTradesResultHandler(ev *eventmodels.Ex
 	}
 }
 
-func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.ExecuteOpenTradeResult) {
+func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *models.ExecuteOpenTradeResult) {
 	log.Debugf("SlackNotifierClient.executeOpenTradeResultHandler <- %v", ev)
 
 	msg := fmt.Sprintf("open trade: %v", ev.Trade)
@@ -58,7 +58,7 @@ func (c *SlackNotifierClient) executeOpenTradeResultHandler(ev *eventmodels.Exec
 	}
 }
 
-func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *eventmodels.OptionAlertUpdateEvent) {
+func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *models.OptionAlertUpdateEvent) {
 	log.Debugf("SlackNotifierClient.optionAlertUpdateEventHandler <- %v", ev)
 
 	if _, err := sendResponse(ev.AlertMessage, c.webHookURL, false); err != nil {
@@ -66,7 +66,7 @@ func (c *SlackNotifierClient) optionAlertUpdateEventHandler(ev *eventmodels.Opti
 	}
 }
 
-func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *models.TradierOrderDeleteEvent) {
+func (c *SlackNotifierClient) tradierOrderDeleteEventHandler(ev *backtester_models.TradierOrderDeleteEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderDeleteEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order deleted -> ID: (%v)", ev.OrderID)
@@ -84,7 +84,7 @@ func (c *SlackNotifierClient) SendMessage(msg string) error {
 	return nil
 }
 
-func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *models.TradierOrderModifyEvent) {
+func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *backtester_models.TradierOrderModifyEvent) {
 	log.Debugf("SlackNotifierClient.tradierOrderUpdateEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order updated -> ID (%v): [%v] %v -> %v", ev.TradierOrderID, ev.Field, ev.Old, ev.New)
@@ -94,7 +94,7 @@ func (c *SlackNotifierClient) tradierOrderUpdateEventHandler(ev *models.TradierO
 	}
 }
 
-func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *models.TradierOrderCreateEvent) {
+func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *backtester_models.TradierOrderCreateEvent) {
 	log.Debugf("SlackNotifierClient.optionOrderCreateEventHandler <- %v", ev)
 
 	msg := fmt.Sprintf("Order created -> %v", ev.Order)
@@ -104,7 +104,7 @@ func (c *SlackNotifierClient) tradierOrderCreateEventHandler(ev *models.TradierO
 	}
 }
 
-func (c *SlackNotifierClient) balanceResultHandler(balance eventmodels.Balance) {
+func (c *SlackNotifierClient) balanceResultHandler(balance models.Balance) {
 	log.Debugf("SlackNotifierClient.sendBalance <- %v", balance)
 
 	_, sendErr := sendResponse(balance.String(), c.webHookURL, false)
@@ -122,7 +122,7 @@ func (c *SlackNotifierClient) sendError(err error) {
 	}
 }
 
-func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) {
+func (c *SlackNotifierClient) sendTerminalError(err *models.TerminalError) {
 	log.Debugf("SlackNotifierClient.sendError <- %v", err)
 
 	if !err.GetMetaData().IsExternalRequest {
@@ -135,7 +135,7 @@ func (c *SlackNotifierClient) sendTerminalError(err *eventmodels.TerminalError) 
 	}
 }
 
-func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAccountsResponseEvent) {
+func (c *SlackNotifierClient) getAccountsResponseHandler(ev *models.GetAccountsResponseEvent) {
 	log.Debugf("SlackNotifierClient.getAccountsResponseHandler <- %v", ev.Accounts)
 	meta := ev.GetMetaData()
 	if meta.RequestID != uuid.Nil {
@@ -165,7 +165,7 @@ func (c *SlackNotifierClient) getAccountsResponseHandler(ev *eventmodels.GetAcco
 	}
 }
 
-func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccountResponseEvent) {
+func (c *SlackNotifierClient) addAccountResponseHandler(ev models.AddAccountResponseEvent) {
 	log.Debugf("SlackNotifierClient.addAccountResponseHandler <- %v", ev.Account)
 
 	// todo: this condition should be determined by a source field on the request
@@ -185,18 +185,18 @@ func (c *SlackNotifierClient) addAccountResponseHandler(ev eventmodels.AddAccoun
 func (c *SlackNotifierClient) Start(ctx context.Context) {
 	c.wg.Add(1)
 
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.AddAccountResponseEventEventName, c.addAccountResponseHandler)
-	// pubsub.Subscribe("SlackNotifierClient", eventmodels.GetAccountsResponseEventName, c.getAccountsResponseHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.BalanceResultEventName, c.balanceResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradeFulfilledEventName, c.tradeFulfilledHandler)
-	// pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.Error, c.sendError)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderUpdateEventName, c.tradierOrderUpdateEventHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderDeleteEventName, c.tradierOrderDeleteEventHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.TradierOrderCreateEventName, c.tradierOrderCreateEventHandler)
-	pubsub.Subscribe("SlackNotifierClient", eventmodels.TerminalErrorName, c.sendTerminalError)
+	pubsub.Subscribe("SlackNotifierClient", models.AddAccountResponseEventEventName, c.addAccountResponseHandler)
+	// pubsub.Subscribe("SlackNotifierClient", models.GetAccountsResponseEventName, c.getAccountsResponseHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.BalanceResultEventName, c.balanceResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.TradeFulfilledEventName, c.tradeFulfilledHandler)
+	// pubsub.Subscribe("SlackNotifierClient", models.ExecuteOpenTradeResultEventName, c.executeOpenTradeResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.ExecuteCloseTradesResultEventName, c.executeCloseTradesResultHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.OptionAlertUpdateEventName, c.optionAlertUpdateEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.Error, c.sendError)
+	pubsub.Subscribe("SlackNotifierClient", models.TradierOrderUpdateEventName, c.tradierOrderUpdateEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.TradierOrderDeleteEventName, c.tradierOrderDeleteEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.TradierOrderCreateEventName, c.tradierOrderCreateEventHandler)
+	pubsub.Subscribe("SlackNotifierClient", models.TerminalErrorName, c.sendTerminalError)
 
 	go func() {
 		defer c.wg.Done()
@@ -266,7 +266,7 @@ func postJSON(url string, body map[string]interface{}) ([]byte, error) {
 	}
 
 	if res.StatusCode >= 400 {
-		var errDTO eventmodels.ErrorDTO
+		var errDTO models.ErrorDTO
 		if jsonErr := json.Unmarshal(bodyBytes, &errDTO); jsonErr != nil {
 			return nil, fmt.Errorf("PostJSON (jsonErr): %w. payload: %s", jsonErr, string(bodyBytes))
 		}

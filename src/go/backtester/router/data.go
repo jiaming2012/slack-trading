@@ -3,12 +3,12 @@ package router
 import (
 	"fmt"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/data"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 )
 
-func loadData(dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker, calendar *eventmodels.MarketCalendar) error {
+func loadData(dbService *data.DatabaseService, brokerMap map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker, calendar *models.MarketCalendar) error {
 	if err := dbService.LoadLiveAccounts(brokerMap); err != nil {
 		return fmt.Errorf("loadData: failed to load live accounts: %w", err)
 	}

@@ -10,17 +10,17 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/services"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 )
 
 var (
 	client            = new(marketdata.PolygonTickDataMachine)
 	projectDirectory string
-	database          models.IDatabaseService
+	database          backtester_models.IDatabaseService
 )
 
 type errorResponse struct {
@@ -65,7 +65,7 @@ type FetchCandlesRequest struct {
 }
 
 // handles live order from broker
-func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], database models.IDatabaseService) {
+func handleLiveOrders(ctx context.Context, orderUpdateQueue *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent], database backtester_models.IDatabaseService) {
 	go func() {
 		for {
 			select {
@@ -89,7 +89,7 @@ func handleLiveOrders(ctx context.Context, orderUpdateQueue *eventmodels.FIFOQue
 	}()
 }
 
-func SetupHandler(ctx context.Context, router *mux.Router, projectDir string, apiKey string, ordersUpdateQueue *eventmodels.FIFOQueue[*models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[models.CreateAccountRequestSource]models.IBroker, calendar *eventmodels.MarketCalendar) error {
+func SetupHandler(ctx context.Context, router *mux.Router, projectDir string, apiKey string, ordersUpdateQueue *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent], dbService *data.DatabaseService, brokerMap map[backtester_models.CreateAccountRequestSource]backtester_models.IBroker, calendar *models.MarketCalendar) error {
 	client = marketdata.NewPolygonClient(apiKey)
 	projectDirectory = projectDir
 

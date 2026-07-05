@@ -13,8 +13,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
-	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
+	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 )
 
@@ -31,7 +31,7 @@ func (b *TradierBroker) FillOrder(orderId uint, price float64, status string) er
 	return fmt.Errorf("FillOrder: not implemented for live tradier broker")
 }
 
-func (b *TradierBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, error) {
+func (b *TradierBroker) FetchEquity() (*models.FetchAccountEquityResponse, error) {
 	s := b.Source
 	responseDTO, err := b.FetchBalances(s.BalancesUrl, s.TradesApiKey)
 	if err != nil {
@@ -47,25 +47,25 @@ func (b *TradierBroker) FetchEquity() (*eventmodels.FetchAccountEquityResponse, 
 		return nil, fmt.Errorf("unsupported account type: %s", responseDTO.Balances.AccountType)
 	}
 
-	return &eventmodels.FetchAccountEquityResponse{
+	return &models.FetchAccountEquityResponse{
 		Equity:  responseDTO.Balances.TotalEquity,
 		OpenPL:  responseDTO.Balances.OpenPL,
 		ClosePL: responseDTO.Balances.ClosePL,
 	}, nil
 }
 
-func (b *TradierBroker) GetSource() models.ILiveAccountSource {
+func (b *TradierBroker) GetSource() backtester_models.ILiveAccountSource {
 	return b.Source
 }
 
-func (b *TradierBroker) FetchBalances(url, token string) (eventmodels.FetchTradierBalancesResponseDTO, error) {
+func (b *TradierBroker) FetchBalances(url, token string) (models.FetchTradierBalancesResponseDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to create request: %w", err)
+		return models.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to create request: %w", err)
 	}
 
 	req.Header.Add("Accept", "application/json")
@@ -73,29 +73,29 @@ func (b *TradierBroker) FetchBalances(url, token string) (eventmodels.FetchTradi
 
 	res, err := client.Do(req)
 	if err != nil {
-		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %w", err)
+		return models.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %s", res.Status)
+		return models.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to fetch balances: %s", res.Status)
 	}
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
-		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to read response body: %w", err)
+		return models.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to read response body: %w", err)
 	}
 
-	var resp eventmodels.FetchTradierBalancesResponseDTO
+	var resp models.FetchTradierBalancesResponseDTO
 	if err := json.Unmarshal(bytes, &resp); err != nil {
-		return eventmodels.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to parse response: %w", err)
+		return models.FetchTradierBalancesResponseDTO{}, fmt.Errorf("FetchTradierBalances: failed to parse response: %w", err)
 	}
 
 	return resp, nil
 }
 
-func (b *TradierBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, error) {
+func (b *TradierBroker) FetchPositions() ([]models.TradierPositionDTO, error) {
 	dto, err := FetchTradierPositions(b.positionsUrl, b.tradesToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch positions: %w", err)
@@ -104,7 +104,7 @@ func (b *TradierBroker) FetchPositions() ([]eventmodels.TradierPositionDTO, erro
 	return dto, nil
 }
 
-func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
+func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []models.Instrument) ([]*backtester_models.TradierQuoteDTO, error) {
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("no symbols provided")
 	}
@@ -117,13 +117,13 @@ func (b *TradierBroker) FetchQuotes(ctx context.Context, symbols []eventmodels.I
 	return dto, nil
 }
 
-func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*eventmodels.TradierOrder, error) {
+func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*models.TradierOrder, error) {
 	dto, err := FetchOrders(ctx, b.ordersUrl, b.tradesToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch orders: %w", err)
 	}
 
-	orders := make([]*eventmodels.TradierOrder, 0, len(dto))
+	orders := make([]*models.TradierOrder, 0, len(dto))
 	for _, orderDTO := range dto {
 		order, err := orderDTO.ToTradierOrder()
 		if err != nil {
@@ -136,7 +136,7 @@ func (b *TradierBroker) FetchOrders(ctx context.Context) ([]*eventmodels.Tradier
 	return orders, nil
 }
 
-func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrder, error) {
+func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType backtester_models.LiveAccountType) (*models.TradierOrder, error) {
 	dto, err := FetchOrder(orderID, liveAccountType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch order: %w", err)
@@ -150,7 +150,7 @@ func (b *TradierBroker) FetchOrder(orderID uint, liveAccountType models.LiveAcco
 	return order, nil
 }
 
-func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
+func (b *TradierBroker) PlaceOrder(ctx context.Context, req *backtester_models.PlaceOrderRequest) (map[string]interface{}, error) {
 	resp, err := PlaceOrder(ctx, b.ordersUrl, b.tradesToken, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place order: %w", err)
@@ -159,7 +159,7 @@ func (b *TradierBroker) PlaceOrder(ctx context.Context, req *models.PlaceOrderRe
 	return resp, nil
 }
 
-func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmodels.Instrument) ([]*models.TradierQuoteDTO, error) {
+func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []models.Instrument) ([]*backtester_models.TradierQuoteDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -208,10 +208,10 @@ func FetchQuotes(ctx context.Context, baseUrl, token string, symbols []eventmode
 		return nil, fmt.Errorf("FetchQuotes: failed to read response body: %w", err)
 	}
 
-	return utils.ParseTradierResponse[*models.TradierQuoteDTO](bytes)
+	return utils.ParseTradierResponse[*backtester_models.TradierQuoteDTO](bytes)
 }
 
-func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmodels.TradierOrderDTO, error) {
+func FetchOrder(orderID uint, liveAccountType backtester_models.LiveAccountType) (*models.TradierOrderDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -223,7 +223,7 @@ func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmod
 		return nil, fmt.Errorf("failed to validate live account type: %w", err)
 	}
 
-	vars := models.NewLiveAccountVariables(liveAccountType)
+	vars := backtester_models.NewLiveAccountVariables(liveAccountType)
 
 	brokerURL, err := vars.GetTradierTradesOrderURL()
 	if err != nil {
@@ -261,7 +261,7 @@ func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmod
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to read response body: %w", err)
 	}
 
-	var resp eventmodels.TradierFetchOrderResponse
+	var resp models.TradierFetchOrderResponse
 
 	if err := json.Unmarshal(bytes, &resp); err != nil {
 		return nil, fmt.Errorf("TradierOrdersMonitoringWorker:fetchOrder(): failed to parse response body: %w", err)
@@ -270,7 +270,7 @@ func FetchOrder(orderID uint, liveAccountType models.LiveAccountType) (*eventmod
 	return resp.Order, nil
 }
 
-func FetchTradierPositions(url string, token string) ([]eventmodels.TradierPositionDTO, error) {
+func FetchTradierPositions(url string, token string) ([]models.TradierPositionDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -299,7 +299,7 @@ func FetchTradierPositions(url string, token string) ([]eventmodels.TradierPosit
 		return nil, fmt.Errorf("FetchTradierPositions: failed to read response body: %w", err)
 	}
 
-	positions, err := utils.ParseTradierResponse[eventmodels.TradierPositionDTO](bytes)
+	positions, err := utils.ParseTradierResponse[models.TradierPositionDTO](bytes)
 	if err != nil {
 		return nil, fmt.Errorf("FetchTradierPositions: failed to parse response: %w", err)
 	}
@@ -307,7 +307,7 @@ func FetchTradierPositions(url string, token string) ([]eventmodels.TradierPosit
 	return positions, nil
 }
 
-func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.TradierOrderDTO, error) {
+func FetchOrders(ctx context.Context, baseUrl, token string) ([]*models.TradierOrderDTO, error) {
 	client := http.Client{
 		Timeout: 45 * time.Second,
 	}
@@ -343,7 +343,7 @@ func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.Tra
 		return nil, fmt.Errorf("FetchOrders:fetchOrders(): failed to read response body: %w", err)
 	}
 
-	orders, err := utils.ParseTradierResponse[*eventmodels.TradierOrderDTO](bytes)
+	orders, err := utils.ParseTradierResponse[*models.TradierOrderDTO](bytes)
 	if err != nil {
 		return nil, fmt.Errorf("FetchOrders:fetchOrders(): failed to parse response body: %w", err)
 	}
@@ -351,7 +351,7 @@ func FetchOrders(ctx context.Context, baseUrl, token string) ([]*eventmodels.Tra
 	return orders, nil
 }
 
-func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRequest) (map[string]interface{}, error) {
+func PlaceOrder(ctx context.Context, url, token string, req *backtester_models.PlaceOrderRequest) (map[string]interface{}, error) {
 	client := http.Client{
 		Timeout: 60 * time.Second,
 	}
@@ -366,7 +366,7 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRe
 	q := httpReq.URL.Query()
 	q.Add("symbol", symbol)
 	q.Add("type", string(req.OrderType))
-	q.Add("duration", string(eventmodels.TradeDurationDay))
+	q.Add("duration", string(models.TradeDurationDay))
 	
 	if req.Tag != "" {
 		q.Add("tag", req.Tag)
@@ -377,22 +377,22 @@ func PlaceOrder(ctx context.Context, url, token string, req *models.PlaceOrderRe
 	}
 
 	switch req.Class {
-	case models.OrderRecordClassEquity:
+	case backtester_models.OrderRecordClassEquity:
 		q.Add("quantity", strconv.Itoa(req.Quantities[0]))
 		q.Add("side", string(req.Sides[0]))
 		q.Add("class", string(req.Class))
-	case models.OrderRecordClassOption:
+	case backtester_models.OrderRecordClassOption:
 		q.Add("quantity", strconv.Itoa(req.Quantities[0]))
 		q.Add("side", string(req.Sides[0]))
 		q.Add("option_symbol", req.OptionSymbols[0])
 		q.Add("class", string(req.Class))
-	case models.OrderRecordClassMultiLegOption:
+	case backtester_models.OrderRecordClassMultiLegOption:
 		for index, optionSymbol := range req.OptionSymbols {
 			q.Add(fmt.Sprintf("option_symbols[%d]", index), optionSymbol)
 			q.Add(fmt.Sprintf("quantity[%d]", index), strconv.Itoa(req.Quantities[index]))
 			q.Add(fmt.Sprintf("side[%d]", index), string(req.Sides[index]))
 		}
-		q.Add("class", string(models.OrderRecordClassOption))
+		q.Add("class", string(backtester_models.OrderRecordClassOption))
 	default:
 		return nil, fmt.Errorf("PlaceOrder: unsupported order class: %s", req.Class)
 	}
