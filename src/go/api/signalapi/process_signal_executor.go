@@ -9,11 +9,11 @@ import (
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 )
 
 type ProcessSignalExecutor struct {
-	esdbProducer *eventproducers.EsdbProducer
+	esdbProducer *api.EsdbProducer
 }
 
 func (s *ProcessSignalExecutor) Serve(r *http.Request, request models.ApiRequest3, resultCh chan interface{}, errCh chan error) {
@@ -45,7 +45,7 @@ func (s *ProcessSignalExecutor) Serve(r *http.Request, request models.ApiRequest
 	resultCh <- map[string]interface{}{}
 }
 
-func NewProcessSignalExecutor(esdbProducer *eventproducers.EsdbProducer) *ProcessSignalExecutor {
+func NewProcessSignalExecutor(esdbProducer *api.EsdbProducer) *ProcessSignalExecutor {
 	return &ProcessSignalExecutor{
 		esdbProducer: esdbProducer,
 	}

@@ -29,12 +29,12 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
 	"github.com/jiaming2012/slack-trading/src/go/workers"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/accountapi"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/alertapi"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/datafeedapi"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/signalapi"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/tradeapi"
+	"github.com/jiaming2012/slack-trading/src/go/api"
+	"github.com/jiaming2012/slack-trading/src/go/api/accountapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/alertapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/datafeedapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/signalapi"
+	"github.com/jiaming2012/slack-trading/src/go/api/tradeapi"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
@@ -66,7 +66,7 @@ func (r *RouterSetup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	eventproducers.ApiRequestHandler3(req.Context(), routerSetup.Request, routerSetup.Executor, w, req)
+	api.ApiRequestHandler3(req.Context(), routerSetup.Request, routerSetup.Executor, w, req)
 }
 
 func NewRouterSetup(prefix string, router *mux.Router) *RouterSetup {
@@ -383,11 +383,11 @@ func main() {
 	}
 
 	// Setup ESDB producer
-	esdbProducer := eventproducers.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
+	esdbProducer := api.NewESDBProducer(&wg, eventStoreDbURL, streamParams)
 
 	// Start event consumers
 	workers.NewSlackNotifierClient(&wg, slackWebhookURL).Start(ctx)
-	eventproducers.NewSlackClient(&wg, router).Start(ctx)
+	api.NewSlackClient(&wg, router).Start(ctx)
 	workers.NewGlobalDispatcherWorkerClient(&wg, dispatcher).Start(ctx)
 	workers.NewAccountWorkerClient(&wg).Start(ctx)
 

@@ -13,7 +13,7 @@ var readOptionChainRequestExector *models.ReadOptionChainRequestExecutor
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// models.ReadOptionChainEvent
-		// eventproducers.ApiRequestHandler3(r.Context(), &models.ReadOptionChainRequest{}, readOptionChainRequestExector, w, r)
+		// api.ApiRequestHandler3(r.Context(), &models.ReadOptionChainRequest{}, readOptionChainRequestExector, w, r)
 		w.WriteHeader(404)
 	} else {
 		w.WriteHeader(404)

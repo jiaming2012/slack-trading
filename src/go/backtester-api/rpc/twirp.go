@@ -11,7 +11,7 @@ import (
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester-api/models"
 	backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"
 	"github.com/jiaming2012/slack-trading/src/go/data"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	"github.com/jiaming2012/slack-trading/src/go/playground"
 )
@@ -30,7 +30,7 @@ func panicRecoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func SetupTwirpServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer, globalSignalRepo backtester_models.ISignalRepository) {
+func SetupTwirpServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo backtester_models.ISignalRepository) {
 	server := backtester_router.NewServer(optionsClient, dbService, esdbProducer, globalSignalRepo)
 	twirpHandler := playground.NewPlaygroundServiceServer(server)
 	port := 5051

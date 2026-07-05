@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 )
 
 func datafeedHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,10 +17,10 @@ func datafeedHandler(w http.ResponseWriter, r *http.Request) {
 		if feedName, found := vars["feedName"]; found {
 			switch feedName {
 			case "manual":
-				eventproducers.ApiRequestHandler2(models.ManualDatafeedUpdateRequestEventName, &models.ManualDatafeedUpdateRequest{}, &models.ManualDatafeedUpdateResult{}, w, r)
+				api.ApiRequestHandler2(models.ManualDatafeedUpdateRequestEventName, &models.ManualDatafeedUpdateRequest{}, &models.ManualDatafeedUpdateResult{}, w, r)
 			default:
 				err := fmt.Errorf("unknown feedName, found %v", feedName)
-				if respErr := eventproducers.SetErrorResponse("request", 400, err, w); respErr != nil {
+				if respErr := api.SetErrorResponse("request", 400, err, w); respErr != nil {
 					log.Errorf("datafeedHandler: invalid feed name - failed to set error response: %v", respErr)
 					w.WriteHeader(500)
 				}
@@ -30,7 +30,7 @@ func datafeedHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err := fmt.Errorf("feedName not found in url parameters")
-		if respErr := eventproducers.SetErrorResponse("request", 400, err, w); respErr != nil {
+		if respErr := api.SetErrorResponse("request", 400, err, w); respErr != nil {
 			log.Errorf("datafeedHandler: failed to set error response: %v", respErr)
 			w.WriteHeader(500)
 			return

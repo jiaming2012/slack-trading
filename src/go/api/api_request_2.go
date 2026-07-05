@@ -1,4 +1,4 @@
-package eventproducers
+package api
 
 import (
 	"net/http"

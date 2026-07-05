@@ -1,4 +1,4 @@
-package eventproducers
+package api
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers/slack"
+	"github.com/jiaming2012/slack-trading/src/go/api/slack"
 )
 
 type client struct {

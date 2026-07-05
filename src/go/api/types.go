@@ -1,4 +1,4 @@
-package eventproducers
+package api
 
 type errorResponse struct {
 	Type string `json:"type"`

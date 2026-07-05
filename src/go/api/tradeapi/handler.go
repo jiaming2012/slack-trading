@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 )
 
 func signalHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +25,7 @@ func signalHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler2(models.OpenTradeRequestEventName, &models.CreateTradeRequest{}, &models.ExecuteOpenTradeResult{}, w, r)
+		api.ApiRequestHandler2(models.OpenTradeRequestEventName, &models.CreateTradeRequest{}, &models.ExecuteOpenTradeResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -33,7 +33,7 @@ func handleOpenTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		eventproducers.ApiRequestHandler2(models.CloseTradeRequestEventName, &models.CloseTradeRequest{}, &models.ExecuteCloseTradesResult{}, w, r)
+		api.ApiRequestHandler2(models.CloseTradeRequestEventName, &models.CloseTradeRequest{}, &models.ExecuteCloseTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}
@@ -41,7 +41,7 @@ func handleCloseTrade(w http.ResponseWriter, r *http.Request) {
 
 func handleTradesByAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler2(models.FetchTradesRequestEventName, &models.FetchTradesRequest{}, &models.FetchTradesResult{}, w, r)
+		api.ApiRequestHandler2(models.FetchTradesRequestEventName, &models.FetchTradesRequest{}, &models.FetchTradesResult{}, w, r)
 	} else {
 		w.WriteHeader(404)
 	}

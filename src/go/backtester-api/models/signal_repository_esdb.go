@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 )
 
@@ -18,11 +18,11 @@ import (
 // "trade-signals" stream (per D-01). Reads fetch all events from the stream
 // and filter in Go.
 type ESDBSignalRepository struct {
-	esdbProducer *eventproducers.EsdbProducer
+	esdbProducer *api.EsdbProducer
 	mutex        sync.Mutex
 }
 
-func NewESDBSignalRepository(esdbProducer *eventproducers.EsdbProducer) *ESDBSignalRepository {
+func NewESDBSignalRepository(esdbProducer *api.EsdbProducer) *ESDBSignalRepository {
 	return &ESDBSignalRepository{
 		esdbProducer: esdbProducer,
 	}

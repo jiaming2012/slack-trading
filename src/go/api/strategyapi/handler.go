@@ -6,12 +6,12 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 )
 
 func handleStrategy(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		eventproducers.ApiRequestHandler2(models.GetStrategiesRequestEventName, &models.GetStrategiesRequestEvent{}, &models.GetStrategiesResponseEvent{}, w, r)
+		api.ApiRequestHandler2(models.GetStrategiesRequestEventName, &models.GetStrategiesRequestEvent{}, &models.GetStrategiesResponseEvent{}, w, r)
 	} else if r.Method == "POST" {
 
 	} else {

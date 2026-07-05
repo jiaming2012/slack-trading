@@ -16,7 +16,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	eventmodels "github.com/jiaming2012/slack-trading/src/go/models"
-	"github.com/jiaming2012/slack-trading/src/go/eventproducers"
+	"github.com/jiaming2012/slack-trading/src/go/api"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/eventservices"
 	pb "github.com/jiaming2012/slack-trading/src/go/playground"
@@ -26,12 +26,12 @@ type Server struct {
 	cache            *models.RequestCache
 	dbService        *data.DatabaseService
 	optionsClient    *eventservices.PolygonOptionsClient
-	esdbProducer     *eventproducers.EsdbProducer
+	esdbProducer     *api.EsdbProducer
 	globalSignalRepo models.ISignalRepository
 	simSignalRepo    models.ISignalRepository // set when a sim playground is active; WriteSignal fans out to it
 }
 
-func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *eventproducers.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
+func NewServer(optionsClient *eventservices.PolygonOptionsClient, dbService *data.DatabaseService, esdbProducer *api.EsdbProducer, globalSignalRepo models.ISignalRepository) *Server {
 	return &Server{
 		cache:            models.NewRequestCache(),
 		dbService:        dbService,
