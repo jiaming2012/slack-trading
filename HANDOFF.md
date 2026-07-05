@@ -44,6 +44,7 @@ All **16 signed-off OpenSpec changes were implemented, gate-verified, adversaria
 4. **Local dev Postgres note**: 4 stale live/reconcile playground rows were soft-deleted (`deleted_at` set, reversible) to stop startup crashes/Polygon 429s — un-delete if you own those COIN/NVDA/AAPL playgrounds.
 5. **Spend limit**: the run was interrupted once by the monthly API spend limit (two agents died mid-task, resumed cleanly after it lifted).
 6. Legacy `LiveAccountType` values in prod DB still need `migrate-live-account-type-data` (never autonomous).
+7. **Validate the covered-call regression pins**: run `task test:demo-covered-call` when the Polygon quota window allows (the demo needs ~14 months of AAPL data; two proof-runs hit 429s). The harness itself is proven; the pinned metrics ($198,916.41 equity etc.) have not been re-validated end-to-end since the refactor series. If it fails, that is a traced-cause investigation, not a re-pin.
 
 ## Queued follow-ups (white cards on the roadmap)
 

@@ -30,11 +30,12 @@ When flipping cards, also refresh the "Current state" section below and date-sta
 
 ## Current state (2026-07-05, post overnight autonomous run)
 
-- **Archived changes:** 16 — the entire overnight batch shipped, gate-verified, adversarially reviewed, and archived under `openspec/changes/archive/2026-07-05-*` (see `HANDOFF.md` for the full morning report and per-change ledger)
-- **In flight:** 1 — `repair-python-test-suite` (drafted 2026-07-05, awaiting operator sign-off)
+- **Archived changes:** 17 — the overnight batch plus `repair-python-test-suite` (2026-07-05: 179-failure baseline retired, suite green 416/0, `task test:python` + `task test:demo-covered-call` added)
+  - the entire overnight batch shipped, gate-verified, adversarially reviewed, and archived under `openspec/changes/archive/2026-07-05-*` (see `HANDOFF.md` for the full morning report and per-change ledger)
+- **In flight:** 0
 - **Planned:** 18 cards — the 14 pre-run cards plus 4 follow-ups born from the overnight adversarial reviews: `widen-scan-results-columns` (3 scanner features computed but unpersisted — schema gap inherited from the architecture doc), `wire-anomaly-guard-feeds` (guards are tested components, live observation feeds unwired), `wire-companion-stops` (broker-held stop library tested vs MockBroker, fill-pipeline invocation deferred), `wire-risk-overlay-state` (risk-gate engine complete, portfolio-state mapping + Simulation enablement deferred)
 - **Operator decisions pending:** ADR-0004 EventStoreDB role (drafted, recommends Pattern B — Postgres primary), pushing `claude/overnight-20260704` (108 local commits), `migrate-live-account-type-data` (never autonomous)
-- **Next up:** `repair-python-test-suite` (in flight, awaiting sign-off), then the `wire-*` trio connecting the tested safety components to live data — `wire-anomaly-guard-feeds`, `wire-companion-stops`, `wire-risk-overlay-state` — which gate any future Paper/Margin trading.
+- **Next up:** the `wire-*` trio connecting the tested safety components to live data — `wire-anomaly-guard-feeds`, `wire-companion-stops`, `wire-risk-overlay-state` — which gate any future Paper/Margin trading.
 - **Sequencing:** the refactor track and v4 foundations are done; remaining v4 order per the architecture doc: simulator adaptation → scanner ML ranking (needs labeled data volume) → strategy optimizer → scanner optimizer → recommendation engine, with the regime/overfitting/shadow-deploy hardening trio alongside the optimizers.
 - **Just shipped (2026-07-05):** the 16-change overnight batch — models-package reconciliation, package renames, gorm de-leak, Mode/AccountRole migration, e2e smoke gate, the six-table v4 schema + partitioning, fidelity checker, EV tracker + net-EV cost model, scanner L1–L2, optimizer validation pipeline, feed health, crowding detection, kill switch, and the portfolio risk overlay.
 

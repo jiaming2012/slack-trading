@@ -16,7 +16,7 @@ Architecture refactor
     Refactor verification
         e2e-sim-smoke-test: |{"bg":"#C5E1A5"}
     Test suite health
-        repair-python-test-suite: |{"bg":"#FFF59D"}
+        repair-python-test-suite: |{"bg":"#C5E1A5"}
 Live simulation observability
     v3 closeout
         close-v3-milestone: |{"bg":"#FFFFFF"}
