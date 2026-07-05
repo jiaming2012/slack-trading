@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review — slack-trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { border-left: 3px dashed #64748b; }
+      .modlabel { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; }
+      .deepbox { background: linear-gradient(135deg, #0f172a, #1e293b); }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <header class="space-y-2">
+        <h1 class="text-3xl font-serif font-bold">Architecture review — slack-trading</h1>
+        <p class="text-sm text-slate-500">2026-07-04 · informed by CONTEXT.md and ADR-0001…0003</p>
+        <div class="flex gap-5 text-xs text-slate-600 pt-2">
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-3 border border-slate-400 bg-white"></span> module</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 border-t-2 border-dashed border-slate-500"></span> seam</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 border-t-2 border-red-600"></span> leakage</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-3 deepbox rounded-sm"></span> deep module</span>
+        </div>
+      </header>
+
+      <section id="candidates" class="space-y-10">
+
+        <!-- ============ 1. BROKER SEAM ============ -->
+        <article id="c1" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Route every order through the Broker seam</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">ports &amp; adapters</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">playground.go:1500-1570 (simulateTick) · :2739-2749 (PlaceOrder dispatch) · reconcile_playground.go:37-142 · live_account.go:64-96 · broker_interface.go</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">Before — three divergent paths</p>
+              <pre class="mermaid">
+flowchart TD
+  PO[PlaceOrder dispatch] -->|simulator| ST[simulateTick + fillOrder<br/>inside Playground]
+  PO -->|live| RP[ReconcilePlayground]
+  RP -->|internal state| PG2[playground.placeOrder]
+  RP -->|broker| LA[LiveAccount → IBroker]
+  PO -->|reconcile| RC[pseudo-mode]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class ST,RC leak
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">After — one seam, three adapters</p>
+              <div class="flex flex-col items-center gap-0 pt-2">
+                <div class="border border-slate-400 bg-white rounded px-4 py-2 modlabel">Playground</div>
+                <div class="h-5 border-l-2 border-slate-400"></div>
+                <div class="deepbox text-white rounded-lg px-6 py-3 text-center w-64">
+                  <p class="modlabel text-emerald-300">Broker seam</p>
+                  <p class="text-xs text-slate-300 mt-1">PlaceOrder · fills · netting (Reconciliation)</p>
+                </div>
+                <div class="h-5 border-l-2 border-dashed border-slate-400"></div>
+                <div class="flex gap-2">
+                  <div class="border border-slate-300 bg-white rounded px-2 py-1.5 modlabel text-slate-500">Simulated<br/>Broker</div>
+                  <div class="border border-slate-300 bg-white rounded px-2 py-1.5 modlabel text-slate-500">Tradier<br/>Sandbox</div>
+                  <div class="border border-slate-300 bg-white rounded px-2 py-1.5 modlabel text-slate-500">Tradier<br/>Margin</div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Simulation · Paper · Margin = adapter choice</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> the fill engine is welded into Playground (simulateTick mutates <code class="text-xs bg-stone-100 px-1">p.account.PendingOrders</code> directly) and orders take three divergent paths — there is no Broker seam in Simulation at all, and Reconciliation fires down two paths at once.</p>
+          <p class="text-sm"><strong>Solution:</strong> extract the fill engine into a Simulated Broker adapter behind the existing IBroker interface; PlaceOrder delegates to the seam in every mode; Reconciliation moves behind the seam.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>One interface, all three modes</li>
+            <li>Locality: fills concentrate in one adapter</li>
+            <li>Netting exercised in Simulation (ADR-0001)</li>
+            <li>~12-15 mode branches disappear</li>
+            <li>Tests mock IBroker, not Playground</li>
+          </ul>
+          <div class="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-900">Implements ADR-0001 — this is the keystone refactor the ADR already commits to.</div>
+        </article>
+
+        <!-- ============ 2. DATABASE SERVICE ============ -->
+        <article id="c2" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Split the DatabaseService god-module</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">local-substitutable</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">data/database_service.go (1715 lines, 53 public methods) · database_service_interface.go (38-50 signatures) · leaks: models/playground.go:833,904 · order_record.go:590 · id_remap.go:34</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">Before — interface as wide as implementation</p>
+              <div class="flex gap-6 items-end justify-center pt-2">
+                <div class="text-center">
+                  <div class="w-24 h-40 bg-red-100 border-2 border-red-400 rounded flex items-center justify-center"><span class="modlabel text-red-700">interface<br/>53 methods</span></div>
+                </div>
+                <div class="text-center">
+                  <div class="w-24 h-48 bg-slate-200 border border-slate-400 rounded flex items-center justify-center"><span class="modlabel text-slate-600">implementation<br/>queries + 4 caches<br/>+ orchestration</span></div>
+                </div>
+              </div>
+              <p class="text-xs text-red-600 mt-3 text-center">shallow: callers must learn nearly everything inside</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">After — four deep stores</p>
+              <div class="flex gap-3 items-end justify-center pt-2">
+                <div class="text-center"><div class="w-16 h-8 bg-emerald-100 border border-emerald-500 rounded mb-1"></div><div class="w-16 h-32 deepbox rounded flex items-center justify-center"><span class="modlabel text-slate-200">Playground<br/>Store</span></div></div>
+                <div class="text-center"><div class="w-16 h-8 bg-emerald-100 border border-emerald-500 rounded mb-1"></div><div class="w-16 h-32 deepbox rounded flex items-center justify-center"><span class="modlabel text-slate-200">Order<br/>Store</span></div></div>
+                <div class="text-center"><div class="w-16 h-8 bg-emerald-100 border border-emerald-500 rounded mb-1"></div><div class="w-16 h-28 deepbox rounded flex items-center justify-center"><span class="modlabel text-slate-200">Equity<br/>Store</span></div></div>
+                <div class="text-center"><div class="w-16 h-8 bg-emerald-100 border border-emerald-500 rounded mb-1"></div><div class="w-16 h-24 deepbox rounded flex items-center justify-center"><span class="modlabel text-slate-200">Live<br/>Accounts</span></div></div>
+              </div>
+              <p class="text-xs text-emerald-700 mt-3 text-center">small interfaces, caching hidden inside each</p>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> one module owns GORM queries, four in-memory caches, and playground orchestration behind a 53-method interface — and callers still leak past it, handing raw <code class="text-xs bg-stone-100 px-1">gorm.DB</code> to model methods in three places.</p>
+          <p class="text-sm"><strong>Solution:</strong> decompose into focused stores (Playground, Order, Equity, LiveAccount) that each hide their own cache; convenience multi-entity methods move into the modules that need them.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>Interface shrinks 53 → ~15 per store</li>
+            <li>Caching becomes an implementation detail</li>
+            <li>Leverage: mock one store, not fifty methods</li>
+            <li>gorm.DB leaks close</li>
+          </ul>
+        </article>
+
+        <!-- ============ 3. BLOCKING TICK ============ -->
+        <article id="c3" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Make Tick fully absorb time — finish the mode-blind client</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">ports &amp; adapters</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">engine/client.py:565-571, 685-692, 295-302 · engine/trading_engine.py:35-39, 114-166 · strategies/mean_reversion_v2.py:1019, 1073-1093</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">Before — time leaks to the strategy</p>
+              <pre class="mermaid">
+sequenceDiagram
+  participant S as Strategy
+  participant C as Client
+  S->>S: is_live? poll wall-clock
+  S->>S: time.sleep(...)
+  S->>C: tick()
+  C->>C: is_live? sleep until next_tick_at
+  C-->>S: candles
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">After — Tick blocks, one contract</p>
+              <pre class="mermaid">
+sequenceDiagram
+  participant S as Strategy
+  participant P as Playground interface
+  S->>P: tick()
+  Note over P: blocks until next candle —<br/>instant in Simulation,<br/>real wait in Paper/Margin
+  P-->>S: candles + fills
+              </pre>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> the blocking contract half-exists — the client sleeps in live mode, but a strategy still polls wall-clock itself (mean_reversion_v2), the engine gates OTel spans on <code class="text-xs bg-stone-100 px-1">is_live</code>, and place_order behaves differently per mode. Nine mode branches across engine and client.</p>
+          <p class="text-sm"><strong>Solution:</strong> harden tick() to fully own waiting in every mode; move spans and log-level into platform setup; delete every is_live branch in strategy and engine code.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>Strategies never sleep or read clocks</li>
+            <li>Same trace/spans in all modes</li>
+            <li>Sim-passing strategy runs unmodified in Margin</li>
+            <li>Fake playground can drive all strategies</li>
+          </ul>
+          <div class="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-900">Implements ADR-0002 — these nine branches are exactly the debt the ADR declares.</div>
+        </article>
+
+        <!-- ============ 4. HANDLER DTO CROSS-SECTION ============ -->
+        <article id="c4" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Pull DTO building out of the Twirp handlers</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">in-process</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">router/grpc.go — NextTick (183 lines) · GetAccount (159) · CreatePlayground (142) · GetPlaygrounds (123) · convertOrder repeated 5+ times</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">Before — NextTick cross-section (183 lines)</p>
+              <div class="space-y-1">
+                <div class="h-8 bg-white border-l-4 border-slate-300 pl-3 flex items-center text-xs text-slate-500">validation — 20 lines</div>
+                <div class="h-10 bg-white border-l-4 border-slate-300 pl-3 flex items-center text-xs text-slate-500">orchestration — 40 lines</div>
+                <div class="h-20 bg-red-50 border-l-4 border-red-400 pl-3 flex items-center text-xs text-red-600">DTO conversion — 80 lines, duplicated across 5 handlers</div>
+                <div class="h-12 bg-white border-l-4 border-slate-300 pl-3 flex items-center text-xs text-slate-500">caching — 43 lines</div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">After — thin handler, deep converter</p>
+              <div class="space-y-1 pt-4">
+                <div class="h-10 bg-white border-l-4 border-slate-300 pl-3 flex items-center text-xs text-slate-500">handler: validate + delegate — ~40 lines</div>
+                <div class="h-24 deepbox rounded pl-3 flex items-center text-xs text-slate-200">proto converter module — orders, positions, candles, account state; tested once</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> handlers are shallow — most of their bulk is repeated model→proto conversion, so conversion bugs scatter across 26 handlers with no locality.</p>
+          <p class="text-sm"><strong>Solution:</strong> one converter module owns every model→proto mapping; handlers validate, delegate, convert via one call.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>Handlers drop to 40-60 lines</li>
+            <li>Conversion tested at one interface</li>
+            <li>Locality: mapping bugs in one module</li>
+          </ul>
+        </article>
+
+        <!-- ============ 5. PLAYGROUND CONSTRUCTION ============ -->
+        <article id="c5" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Shrink the Playground construction interface</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">Worth exploring</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">in-process</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">models/playground.go (NewPlayground, 13 positional params; PopulatePlayground 35+) · playground_test.go:72,124,197,270…</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">Before — every caller learns 13 slots</p>
+              <code class="block text-xs bg-white border border-red-200 rounded p-3 text-red-700 leading-relaxed">NewPlayground(nil, nil, nil,<br/>&nbsp;balance, balance, clock, nil,<br/>&nbsp;env, startTime, []string{},<br/>&nbsp;nil, repo1, repo2)</code>
+              <p class="text-xs text-red-600 mt-2">18 test sites copy-paste this; nil-padding is the interface</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-3">After — construction absorbs defaults</p>
+              <code class="block text-xs deepbox text-slate-200 rounded p-3 leading-relaxed">NewPlayground(Config{<br/>&nbsp;Balance: 10_000,<br/>&nbsp;Mode: Simulation,<br/>&nbsp;Feeds: []Repo{repo1, repo2},<br/>})</code>
+              <p class="text-xs text-emerald-700 mt-2">say what varies; everything else defaulted inside</p>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> the construction interface is as wide as the struct — tests and the server both pay 13+ positional params, mostly nil.</p>
+          <p class="text-sm"><strong>Solution:</strong> a config-struct constructor with defaults; positional complexity moves inside the module.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>Interface shrinks to what varies</li>
+            <li>18 test sites simplify</li>
+            <li>Prereq for testing the Broker seam cheaply</li>
+          </ul>
+        </article>
+
+        <!-- ============ 6. TRADIER DEAD CODE ============ -->
+        <article id="c6" class="rounded-xl border border-slate-200 bg-white p-8 space-y-5 shadow-sm">
+          <div class="flex items-start justify-between">
+            <h2 class="text-xl font-serif font-bold">Delete the dead Tradier Feed paths</h2>
+            <div class="flex gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">Strong</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">in-process</span>
+            </div>
+          </div>
+          <p class="font-mono text-sm text-slate-600">eventservices/fetch_tradier_quotes.go (unused) · fetch_option_chain_with_params.go:19-35 (FetchTradierMarketData, never called) · data/database_service.go:773 (empty RepositorySourceTradier branch)</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">Before</p>
+              <pre class="mermaid">
+flowchart LR
+  F[Feed callers] --> P[Massive / Polygon adapter]
+  F -.dead.-> T[Tradier quotes]
+  F -.dead.-> C[CSV source]
+  classDef dead stroke:#dc2626,stroke-dasharray: 4 4,color:#dc2626;
+  class T,C dead
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-stone-50 p-4">
+              <p class="modlabel text-slate-400 mb-2">After</p>
+              <pre class="mermaid">
+flowchart LR
+  F[Feed callers] --> P[Massive adapter — the only Feed]
+              </pre>
+            </div>
+          </div>
+
+          <p class="text-sm"><strong>Problem:</strong> the Tradier market-data paths are already dead (~110 LOC unused), but their presence implies the broker is a data source, contradicting the Feed definition.</p>
+          <p class="text-sm"><strong>Solution:</strong> delete the files, make CreateRepos reject RepositorySourceTradier explicitly.</p>
+          <ul class="text-sm space-y-1 list-disc pl-5">
+            <li>ADR-0003 enforced by construction</li>
+            <li>110 LOC gone, zero risk</li>
+            <li>One adapter, honestly labelled</li>
+          </ul>
+          <div class="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-900">Implements ADR-0003 — cheapest win in this report; the debt turned out to be already-dead code.</div>
+        </article>
+
+      </section>
+
+      <!-- ============ TOP RECOMMENDATION ============ -->
+      <section id="top-recommendation" class="rounded-xl deepbox text-white p-8 space-y-3">
+        <p class="modlabel text-emerald-300">Top recommendation</p>
+        <h2 class="text-2xl font-serif font-bold"><a href="#c1" class="underline decoration-emerald-400 underline-offset-4">Route every order through the Broker seam</a></h2>
+        <p class="text-sm text-slate-300 max-w-3xl">It is the keystone: the Simulated Broker adapter it extracts is what makes the mode-blind client (candidate 3) fully honest, collapses most environment branching, moves Reconciliation behind the seam where ADR-0001 already says it lives, and turns fill-engine testing from "construct a 13-param Playground" into "mock one interface." Candidates 5 and 6 are cheap on-ramps to it; candidate 2 can proceed independently.</p>
+      </section>
+
+    </main>
+  </body>
+</html>

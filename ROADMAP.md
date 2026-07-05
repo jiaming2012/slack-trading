@@ -42,5 +42,6 @@ When flipping cards, also refresh the "Current state" section below and date-sta
 - `HANDOFF.md` — session-resume notes (read by `/spec-next`)
 - `CONTEXT.md` — domain glossary (canonical vocabulary)
 - `docs/adr/` — architecture decision records 0001–0003
+- `docs/architecture-review-20260704.html` — the 2026-07-04 architecture review that motivated the ADR series and the "Architecture refactor" cards (broker seam, DatabaseService split, mode-blind clients, dead Tradier feeds, Playground construction, DTO extraction)
 - `openspec/` — spec-driven change workflow (see CLAUDE.md "Spec-first discipline")
 - `.planning/` — archived GSD-era planning state (v1.0–v3.0 milestones; historical reference only)
