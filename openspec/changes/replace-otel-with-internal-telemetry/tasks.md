@@ -1,9 +1,9 @@
 ## 1. Telemetry registry (Go)
 
-- [ ] 1.1 Implement the in-memory registry in `src/go/telemetry`: `Counter` and `Gauge` instrument types with labels, mutex-guarded synchronous recording, `Snapshot()` read-out; unit tests for increment, last-value-per-label-set, and snapshot contents
-- [ ] 1.2 Re-declare the existing exported instruments (OrdersPlaced, OrdersFilled, OrdersRejected, CandlesProcessed, SignalsGenerated, SignalsConsumed, ActivePlaygrounds, OpenOrders, UptimeSeconds) on registry types; make `telemetry.Init()` self-contained (no OTel provider precondition)
-- [ ] 1.3 Rewire all Go call sites of the instruments (backtester router/models, marketdata, workers, api) to the registry API, carrying the mode label; `go build ./...` green
-- [ ] 1.4 Rewire `telemetry.StartHeartbeat` server-stats gauges to the registry (structured log line unchanged)
+- [x] 1.1 Implement the in-memory registry in `src/go/telemetry`: `Counter` and `Gauge` instrument types with labels, mutex-guarded synchronous recording, `Snapshot()` read-out; unit tests for increment, last-value-per-label-set, and snapshot contents
+- [x] 1.2 Re-declare the existing exported instruments (OrdersPlaced, OrdersFilled, OrdersRejected, CandlesProcessed, SignalsGenerated, SignalsConsumed, ActivePlaygrounds, OpenOrders, UptimeSeconds) on registry types; make `telemetry.Init()` self-contained (no OTel provider precondition)
+- [x] 1.3 Rewire all Go call sites of the instruments (backtester router/models, marketdata, workers, api) to the registry API, carrying the mode label; `go build ./...` green
+- [x] 1.4 Rewire `telemetry.StartHeartbeat` server-stats gauges to the registry (structured log line unchanged)
 
 ## 2. Persistence (Postgres)
 

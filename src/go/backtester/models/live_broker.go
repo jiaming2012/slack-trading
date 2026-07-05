@@ -1,13 +1,10 @@
 package models
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
@@ -43,13 +40,10 @@ func (p *Playground) liveTick(duration time.Duration, isPreview bool) (*TickDelt
 		if ok {
 			newCandles = append(newCandles, candle)
 
-			if telemetry.CandlesProcessed != nil {
-				telemetry.CandlesProcessed.Add(context.Background(), 1,
-					telemetry.PlaygroundAttrs(p.Meta.LegacyEnv, string(p.Meta.Role), telemetry.ClientIDOrEmpty(p.GetClientId())),
-					metric.WithAttributes(
-						attribute.String("symbol", candle.Symbol.GetTicker()),
-					))
-			}
+			telemetry.CandlesProcessed.Add(1, append(
+				telemetry.PlaygroundAttrs(p.Meta.LegacyEnv, string(p.Meta.Role), telemetry.ClientIDOrEmpty(p.GetClientId())),
+				telemetry.Label{Key: "symbol", Value: candle.Symbol.GetTicker()},
+			)...)
 
 			continue
 		}

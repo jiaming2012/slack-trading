@@ -7,8 +7,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
@@ -170,13 +168,10 @@ func (p *Playground) simulateTick(d time.Duration, isPreview bool) (*TickDelta, 
 
 	// Emit signal consumption telemetry
 	for _, sig := range newSignals {
-		if telemetry.SignalsConsumed != nil {
-			telemetry.SignalsConsumed.Add(context.Background(), 1,
-				metric.WithAttributes(
-					attribute.String("signal_name", string(sig.Name)),
-					attribute.String("symbol", string(sig.Symbol)),
-				))
-		}
+		telemetry.SignalsConsumed.Add(1,
+			telemetry.Label{Key: "signal_name", Value: string(sig.Name)},
+			telemetry.Label{Key: "symbol", Value: string(sig.Symbol)},
+		)
 	}
 
 	// update option contracts

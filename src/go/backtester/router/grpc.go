@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -165,16 +164,13 @@ func (s *Server) RecordSignal(ctx context.Context, req *pb.RecordSignalRequest) 
 		}
 	}
 
-	if telemetry.SignalsGenerated != nil {
-		telemetry.SignalsGenerated.Add(ctx, 1,
-			metric.WithAttributes(
-				attribute.String("signal_type", req.SignalType),
-				attribute.String("decision", req.Decision),
-				attribute.String("symbol", req.Symbol),
-				attribute.String("playground_id", req.PlaygroundId),
-				attribute.String("client_id", clientID),
-			))
-	}
+	telemetry.SignalsGenerated.Add(1,
+		telemetry.Label{Key: "signal_type", Value: req.SignalType},
+		telemetry.Label{Key: "decision", Value: req.Decision},
+		telemetry.Label{Key: "symbol", Value: req.Symbol},
+		telemetry.Label{Key: "playground_id", Value: req.PlaygroundId},
+		telemetry.Label{Key: "client_id", Value: clientID},
+	)
 
 	log.WithFields(log.Fields{
 		"event":         "signal_generated",
@@ -1125,13 +1121,10 @@ func (s *Server) WriteSignal(ctx context.Context, req *pb.WriteSignalRequest) (*
 		}
 	}
 
-	if telemetry.SignalsGenerated != nil {
-		telemetry.SignalsGenerated.Add(ctx, 1,
-			metric.WithAttributes(
-				attribute.String("signal_type", req.Name),
-				attribute.String("symbol", req.Symbol),
-			))
-	}
+	telemetry.SignalsGenerated.Add(1,
+		telemetry.Label{Key: "signal_type", Value: req.Name},
+		telemetry.Label{Key: "symbol", Value: req.Symbol},
+	)
 
 	log.Infof("WriteSignal: stored signal %s (name=%s, symbol=%s)", signal.ID, req.Name, req.Symbol)
 

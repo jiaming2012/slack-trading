@@ -21,9 +21,7 @@ func ProcessSignalTriggeredEvent(event models.SignalTriggeredEvent, tradierOrder
 
 	logger.WithField("event", "signal").Infof("tradier executer: %v triggered for %v", event.Signal, event.Symbol)
 
-	if telemetry.SignalsGenerated != nil {
-		telemetry.SignalsGenerated.Add(event.Ctx, 1)
-	}
+	telemetry.SignalsGenerated.Add(1)
 
 	startsAt, err := time.ParseInLocation("2006-01-02T15:04:05", config.StartsAt, loc)
 	if err != nil {

@@ -1,102 +1,46 @@
 package telemetry
 
-import (
-	"fmt"
+// Default is the process-wide registry, non-nil after Init().
+var Default *Registry
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-)
-
-// Metric instruments -- nil until Init() is called.
+// Metric instruments -- nil until Init() is called. Recording through a nil
+// instrument is a safe no-op, so call sites need no guards.
 var (
-	OrdersPlaced      metric.Int64Counter
-	OrdersFilled      metric.Int64Counter
-	OrdersRejected    metric.Int64Counter
-	CandlesProcessed  metric.Int64Counter
-	SignalsGenerated  metric.Int64Counter
-	SignalsConsumed   metric.Int64Counter
-	ActivePlaygrounds metric.Int64Gauge
-	OpenOrders        metric.Int64Gauge
-	UptimeSeconds     metric.Float64Gauge
+	OrdersPlaced      *Counter
+	OrdersFilled      *Counter
+	OrdersRejected    *Counter
+	CandlesProcessed  *Counter
+	SignalsGenerated  *Counter
+	SignalsConsumed   *Counter
+	ErrorsTotal       *Counter
+	ActivePlaygrounds *Gauge
+	OpenOrders        *Gauge
+	UptimeSeconds     *Gauge
 )
 
-// Init creates all metric instruments using the global MeterProvider.
-// MUST be called after utils.SetupOTelSDK() so the real provider is available.
-func Init() error {
-	meter := otel.GetMeterProvider().Meter("grodt")
+// Init constructs the registry and all instruments. It is self-contained:
+// no SDK, provider, or network setup is required beforehand, and recording
+// is safe immediately — persistence picks up whatever is in the registry
+// once the snapshot writer starts.
+func Init() {
+	Default = NewRegistry()
 
-	var err error
-
-	OrdersPlaced, err = meter.Int64Counter("grodt.orders.placed",
-		metric.WithUnit("{order}"),
-		metric.WithDescription("Number of orders placed"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create OrdersPlaced counter: %w", err)
-	}
-
-	OrdersFilled, err = meter.Int64Counter("grodt.orders.filled",
-		metric.WithUnit("{order}"),
-		metric.WithDescription("Number of orders filled"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create OrdersFilled counter: %w", err)
-	}
-
-	OrdersRejected, err = meter.Int64Counter("grodt.orders.rejected",
-		metric.WithUnit("{order}"),
-		metric.WithDescription("Number of orders rejected"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create OrdersRejected counter: %w", err)
-	}
-
-	CandlesProcessed, err = meter.Int64Counter("grodt.candles.processed",
-		metric.WithUnit("{candle}"),
-		metric.WithDescription("Number of candles processed"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create CandlesProcessed counter: %w", err)
-	}
-
-	SignalsGenerated, err = meter.Int64Counter("grodt.signals.generated",
-		metric.WithUnit("{signal}"),
-		metric.WithDescription("Number of signals generated"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create SignalsGenerated counter: %w", err)
-	}
-
-	SignalsConsumed, err = meter.Int64Counter("grodt.signals.consumed",
-		metric.WithUnit("{signal}"),
-		metric.WithDescription("Number of signals consumed by strategies"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create SignalsConsumed counter: %w", err)
-	}
-
-	ActivePlaygrounds, err = meter.Int64Gauge("grodt.heartbeat.active_playgrounds",
-		metric.WithUnit("{playground}"),
-		metric.WithDescription("Number of active playgrounds"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create ActivePlaygrounds gauge: %w", err)
-	}
-
-	OpenOrders, err = meter.Int64Gauge("grodt.heartbeat.open_orders",
-		metric.WithUnit("{order}"),
-		metric.WithDescription("Number of open orders"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create OpenOrders gauge: %w", err)
-	}
-
-	UptimeSeconds, err = meter.Float64Gauge("grodt.heartbeat.uptime",
-		metric.WithUnit("s"),
-		metric.WithDescription("Server uptime in seconds"))
-	if err != nil {
-		return fmt.Errorf("telemetry.Init: failed to create UptimeSeconds gauge: %w", err)
-	}
-
-	return nil
+	OrdersPlaced = Default.Counter("grodt.orders.placed")
+	OrdersFilled = Default.Counter("grodt.orders.filled")
+	OrdersRejected = Default.Counter("grodt.orders.rejected")
+	CandlesProcessed = Default.Counter("grodt.candles.processed")
+	SignalsGenerated = Default.Counter("grodt.signals.generated")
+	SignalsConsumed = Default.Counter("grodt.signals.consumed")
+	ErrorsTotal = Default.Counter("grodt.errors.total")
+	ActivePlaygrounds = Default.Gauge("grodt.heartbeat.active_playgrounds")
+	OpenOrders = Default.Gauge("grodt.heartbeat.open_orders")
+	UptimeSeconds = Default.Gauge("grodt.heartbeat.uptime")
 }
 
-// ShouldEmitOrderTelemetry returns true if order telemetry should be emitted
-// for the given playground environment. Only live and reconcile playgrounds
-// produce telemetry; simulator playgrounds are excluded.
+// ShouldEmitOrderTelemetry returns true if the verbose per-order log lines
+// should be emitted for the given playground environment. Metrics are
+// recorded in every mode (tagged by mode); only the log noise is gated to
+// live and reconcile playgrounds.
 func ShouldEmitOrderTelemetry(env string) bool {
 	return env == "live" || env == "reconcile"
 }
@@ -110,12 +54,12 @@ func ClientIDOrEmpty(clientID *string) string {
 	return ""
 }
 
-// PlaygroundAttrs returns OTel metric attributes for a playground,
-// including environment, account_type, and client_id dimensions.
-func PlaygroundAttrs(env string, accountType string, clientID string) metric.MeasurementOption {
-	return metric.WithAttributes(
-		attribute.String("environment", env),
-		attribute.String("account_type", accountType),
-		attribute.String("client_id", clientID),
-	)
+// PlaygroundAttrs returns the standard label set for a playground-scoped
+// series: mode, account_type, and client_id dimensions.
+func PlaygroundAttrs(env string, accountType string, clientID string) []Label {
+	return []Label{
+		{Key: "mode", Value: env},
+		{Key: "account_type", Value: accountType},
+		{Key: "client_id", Value: clientID},
+	}
 }

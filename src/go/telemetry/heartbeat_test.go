@@ -84,6 +84,24 @@ func TestHeartbeatStructuredLog(t *testing.T) {
 	})
 }
 
+func TestHeartbeatMetricsRecordIntoRegistry(t *testing.T) {
+	Init()
+
+	stats := HeartbeatStats{
+		LiveCount:      2,
+		ReconcileCount: 1,
+		SimulatorCount: 4,
+		OpenOrderCount: 3,
+	}
+	emitHeartbeatMetrics(stats, time.Now().Add(-60*time.Second))
+
+	points := Default.Snapshot()
+	assert.Equal(t, float64(2), snapshotValue(t, points, "grodt.heartbeat.active_playgrounds", map[string]string{"mode": "live"}))
+	assert.Equal(t, float64(1), snapshotValue(t, points, "grodt.heartbeat.active_playgrounds", map[string]string{"mode": "reconcile"}))
+	assert.Equal(t, float64(4), snapshotValue(t, points, "grodt.heartbeat.active_playgrounds", map[string]string{"mode": "simulator"}))
+	assert.Equal(t, float64(3), snapshotValue(t, points, "grodt.heartbeat.open_orders", nil))
+}
+
 func TestHeartbeatGoroutineStopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 

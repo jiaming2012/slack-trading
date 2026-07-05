@@ -182,6 +182,11 @@ func main() {
 	})
 	log.SetOutput(os.Stdout)
 
+	// Initialize the in-process telemetry registry — self-contained, no SDK
+	// or network setup required (ADR-0005).
+	telemetry.Init()
+	log.Info("Telemetry registry initialized")
+
 	// Initialize OpenTelemetry SDK (OTEL-01, OTEL-02)
 	otelShutdown, otelErr := utils.SetupOTelSDK(ctx, "grodt", "1.0.0")
 	if otelErr != nil {
@@ -195,11 +200,6 @@ func main() {
 			}
 		}()
 		log.Info("OTel SDK initialized successfully")
-
-		if err := telemetry.Init(); err != nil {
-			log.Fatalf("Failed to initialize telemetry metrics: %v", err)
-		}
-		log.Info("Telemetry metrics initialized successfully")
 	}
 
 	log.Infof("Log level set to %v", log.GetLevel())

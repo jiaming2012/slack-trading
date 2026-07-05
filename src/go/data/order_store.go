@@ -1,7 +1,6 @@
 package data
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -300,6 +299,8 @@ func (st *orderStore) rejectOrder(playground *models.Playground, order *models.O
 	order.Status = models.OrderRecordStatusRejected
 	order.RejectReason = &reason
 
+	telemetry.OrdersRejected.Add(1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId()))...)
+
 	if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 		log.WithFields(log.Fields{
 			"event":         "order_rejected",
@@ -311,10 +312,6 @@ func (st *orderStore) rejectOrder(playground *models.Playground, order *models.O
 			"account_type":  string(playground.Meta.Role),
 			"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 		}).Warn("order rejected")
-
-		if telemetry.OrdersRejected != nil {
-			telemetry.OrdersRejected.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId())))
-		}
 	}
 
 	if err := playground.AddToOrderQueue(order); err != nil {

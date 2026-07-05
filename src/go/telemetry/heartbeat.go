@@ -6,8 +6,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 // HeartbeatStats contains aggregated playground statistics for the heartbeat.
@@ -28,12 +26,12 @@ func EmitHeartbeatLog(stats HeartbeatStats, startTime time.Time) {
 	uptime := time.Since(startTime).Seconds()
 
 	logFields := log.Fields{
-		"event":                   "heartbeat",
-		"live_playgrounds":       stats.LiveCount,
+		"event":                 "heartbeat",
+		"live_playgrounds":      stats.LiveCount,
 		"reconcile_playgrounds": stats.ReconcileCount,
 		"simulator_playgrounds": stats.SimulatorCount,
-		"open_orders":            stats.OpenOrderCount,
-		"uptime_seconds":         int64(uptime),
+		"open_orders":           stats.OpenOrderCount,
+		"uptime_seconds":        int64(uptime),
 	}
 
 	if !stats.LastTickTime.IsZero() {
@@ -43,41 +41,24 @@ func EmitHeartbeatLog(stats HeartbeatStats, startTime time.Time) {
 	log.WithFields(logFields).Info("server heartbeat")
 }
 
-// emitHeartbeatMetrics records OTel gauge metrics for the heartbeat.
-func emitHeartbeatMetrics(ctx context.Context, stats HeartbeatStats, startTime time.Time) {
+// emitHeartbeatMetrics records the server-stats gauges into the registry.
+func emitHeartbeatMetrics(stats HeartbeatStats, startTime time.Time) {
 	uptime := time.Since(startTime).Seconds()
 
-	if ActivePlaygrounds != nil {
-		ActivePlaygrounds.Record(ctx, int64(stats.LiveCount),
-			metric.WithAttributes(
-				attribute.String("environment", "live"),
-			))
-		ActivePlaygrounds.Record(ctx, int64(stats.ReconcileCount),
-			metric.WithAttributes(
-				attribute.String("environment", "reconcile"),
-			))
-		ActivePlaygrounds.Record(ctx, int64(stats.SimulatorCount),
-			metric.WithAttributes(
-				attribute.String("environment", "simulator"),
-			))
-	}
+	ActivePlaygrounds.Set(float64(stats.LiveCount), Label{Key: "mode", Value: "live"})
+	ActivePlaygrounds.Set(float64(stats.ReconcileCount), Label{Key: "mode", Value: "reconcile"})
+	ActivePlaygrounds.Set(float64(stats.SimulatorCount), Label{Key: "mode", Value: "simulator"})
 
-	if OpenOrders != nil {
-		OpenOrders.Record(ctx, int64(stats.OpenOrderCount))
-	}
+	OpenOrders.Set(float64(stats.OpenOrderCount))
 
-	if UptimeSeconds != nil {
-		hostname, _ := os.Hostname()
-		UptimeSeconds.Record(ctx, uptime,
-			metric.WithAttributes(
-				attribute.String("host", hostname),
-			))
-	}
+	hostname, _ := os.Hostname()
+	UptimeSeconds.Set(uptime, Label{Key: "host", Value: hostname})
 }
 
-// StartHeartbeat runs a background loop that emits OTel gauge metrics and
-// structured logs every 30 seconds with live playground stats.
-// It stops cleanly when the context is cancelled.
+// StartHeartbeat runs a background loop that records server-stats gauges and
+// emits a structured log line every 30 seconds. It stops cleanly when the
+// context is cancelled. This is server *stats* reporting, not a liveness
+// heartbeat: per ADR-0005 the server does not heartbeat to itself.
 func StartHeartbeat(ctx context.Context, getStats StatsProvider, startTime time.Time) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -89,7 +70,7 @@ func StartHeartbeat(ctx context.Context, getStats StatsProvider, startTime time.
 			return
 		case <-ticker.C:
 			stats := getStats()
-			emitHeartbeatMetrics(ctx, stats, startTime)
+			emitHeartbeatMetrics(stats, startTime)
 			EmitHeartbeatLog(stats, startTime)
 		}
 	}

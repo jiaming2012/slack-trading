@@ -1,7 +1,6 @@
 package data
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"path"
@@ -632,6 +631,8 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backte
 			}
 		}
 
+		telemetry.OrdersPlaced.Add(1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId()))...)
+
 		if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 			log.WithFields(log.Fields{
 				"event":         "order_placed",
@@ -645,10 +646,6 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backte
 				"account_type":  string(playground.Meta.Role),
 				"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 			}).Info("order placed")
-
-			if telemetry.OrdersPlaced != nil {
-				telemetry.OrdersPlaced.Add(context.Background(), 1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId())))
-			}
 		}
 
 		orders = append(orders, order)
