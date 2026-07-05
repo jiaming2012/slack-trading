@@ -101,6 +101,14 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  test:net-ev-cost-model:
+    desc: 'Run the costmodel package unit and testcontainers migration suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/costmodel/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
