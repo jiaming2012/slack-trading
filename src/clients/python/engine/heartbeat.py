@@ -1,20 +1,47 @@
 """Strategy heartbeat daemon thread.
 
-Emits a metric gauge and structured log every 30 seconds to indicate
-the strategy is alive. Mirrors the Go server heartbeat pattern.
+Reports a liveness signal to the trading server every 30 seconds via
+POST /telemetry/heartbeat (ADR-0005: the in-process Telemetry module
+replaces the OTel pipeline). A delivery failure logs a warning and never
+disturbs the strategy -- the thread keeps trying on subsequent beats.
 """
+import os
 import threading
 import time
 from datetime import datetime, timezone
 
+import requests
 from loguru import logger
-from opentelemetry import metrics
 
 HEARTBEAT_INTERVAL_SECONDS = 30
+HEARTBEAT_TIMEOUT_SECONDS = 5
+
+
+def telemetry_host() -> str:
+    """Base URL of the trading server's REST surface."""
+    return os.getenv("TELEMETRY_HOST", "http://localhost:8080")
+
+
+def post_heartbeat(kind: str, name: str, meta: dict) -> bool:
+    """POST one heartbeat; returns True on success, warns and returns False otherwise."""
+    url = f"{telemetry_host()}/telemetry/heartbeat"
+    try:
+        resp = requests.post(
+            url,
+            json={"kind": kind, "name": name, "meta": meta},
+            timeout=HEARTBEAT_TIMEOUT_SECONDS,
+        )
+        if resp.status_code >= 300:
+            logger.warning("heartbeat post to {} returned {}: {}", url, resp.status_code, resp.text)
+            return False
+        return True
+    except requests.RequestException as e:
+        logger.warning("heartbeat post to {} failed (will retry next beat): {}", url, e)
+        return False
 
 
 class StrategyHeartbeat:
-    """Background daemon thread that emits heartbeat gauge + structured log.
+    """Background daemon thread that reports strategy liveness to the server.
 
     Usage:
         hb = StrategyHeartbeat("covered-call")
@@ -36,12 +63,6 @@ class StrategyHeartbeat:
         self._stop_event = threading.Event()
         self._start_time = time.time()
         self._thread = None
-
-        meter = metrics.get_meter("grodt-strategy")
-        self._heartbeat_gauge = meter.create_gauge(
-            "grodt.strategy.heartbeat",
-            description="Strategy heartbeat (1=alive)",
-        )
 
     def start(self):
         """Start the heartbeat daemon thread."""
@@ -73,21 +94,20 @@ class StrategyHeartbeat:
             self._emit_heartbeat()
 
     def _emit_heartbeat(self):
-        """Emit gauge metric and structured log."""
+        """Report liveness to the server and emit a structured log."""
         uptime_seconds = round(time.time() - self._start_time, 1)
 
-        # Set gauge metric
-        self._heartbeat_gauge.set(
-            1,
-            attributes={
-                "strategy_name": self.strategy_name,
+        post_heartbeat(
+            "strategy",
+            self.strategy_name,
+            {
                 "state": self.state,
+                "tick_count": str(self.tick_count),
                 "playground_id": self.playground_id,
                 "client_id": self.client_id,
             },
         )
 
-        # Emit structured log
         logger.info(
             "heartbeat | strategy={} state={} ticks={} uptime={}s playground_id={} client_id={}",
             self.strategy_name, self.state, self.tick_count, uptime_seconds,

@@ -125,14 +125,8 @@ class TestRecordDecision:
         strategy.record_decision(decision)
         assert strategy._decisions[0].symbol == "AAPL"
 
-    @patch("strategies.base_strategy.trace")
-    def test_record_decision_auto_fills_trace_id_from_otel(self, mock_trace, strategy):
-        mock_span = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.trace_id = 0x0123456789ABCDEF0123456789ABCDEF
-        mock_span.get_span_context.return_value = mock_ctx
-        mock_trace.get_current_span.return_value = mock_span
-
+    def test_record_decision_trace_id_defaults_empty(self, strategy):
+        """Tracing was deleted, not ported (ADR-0005): trace_id stays as given."""
         decision = SignalDecision(
             signal_type="covered_call",
             direction="long",
@@ -142,27 +136,7 @@ class TestRecordDecision:
             playground_id="pg-123",
         )
         strategy.record_decision(decision)
-        assert strategy._decisions[0].trace_id == "0123456789abcdef0123456789abcdef"
-
-    @patch("strategies.base_strategy.trace")
-    def test_record_decision_empty_trace_id_when_no_span(self, mock_trace, strategy):
-        mock_span = MagicMock()
-        mock_ctx = MagicMock()
-        mock_ctx.trace_id = 0  # no active trace
-        mock_span.get_span_context.return_value = mock_ctx
-        mock_trace.get_current_span.return_value = mock_span
-
-        decision = SignalDecision(
-            signal_type="covered_call",
-            direction="long",
-            decision="skip",
-            reason="no signal",
-            symbol="AAPL",
-            playground_id="pg-123",
-        )
-        strategy.record_decision(decision)
         assert strategy._decisions[0].trace_id == ""
-
 
 class TestLogDecision:
     """Test BaseStrategy._log_decision() structured logging behavior."""

@@ -1,99 +1,127 @@
-"""Tests for engine/heartbeat.py StrategyHeartbeat daemon thread."""
-import logging
-import time
-import pytest
+"""Tests for the server-reporting heartbeat daemons.
+
+StrategyHeartbeat and DatasourceHeartbeat now POST to the trading server's
+/telemetry/heartbeat endpoint (ADR-0005) instead of recording OTel gauges.
+Delivery failures must warn and never disturb the strategy.
+"""
 from unittest.mock import MagicMock, patch
 
+import requests
 
-class TestStrategyHeartbeatConstruction:
-    def test_creates_gauge_metric(self):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_meter = MagicMock()
-            mock_metrics.get_meter.return_value = mock_meter
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            # unit="1" was intentionally dropped in commit 72da6a35 ("Remove
-            # unit=\"1\" from gauge to avoid _ratio suffix in Prometheus").
-            mock_meter.create_gauge.assert_called_once_with(
-                "grodt.strategy.heartbeat",
-                description="Strategy heartbeat (1=alive)",
-            )
+from engine.heartbeat import StrategyHeartbeat, post_heartbeat, telemetry_host
+from engine.datasource_heartbeat import DatasourceHeartbeat
+
+
+class TestTelemetryHost:
+    def test_default_host(self, monkeypatch):
+        monkeypatch.delenv("TELEMETRY_HOST", raising=False)
+        assert telemetry_host() == "http://localhost:8080"
+
+    def test_env_override(self, monkeypatch):
+        monkeypatch.setenv("TELEMETRY_HOST", "http://grodt.example:8080")
+        assert telemetry_host() == "http://grodt.example:8080"
+
+
+class TestPostHeartbeat:
+    def test_posts_kind_name_meta(self):
+        with patch("engine.heartbeat.requests.post") as mock_post:
+            mock_post.return_value = MagicMock(status_code=200)
+            ok = post_heartbeat("strategy", "covered-call", {"state": "active"})
+
+        assert ok is True
+        args, kwargs = mock_post.call_args
+        assert args[0].endswith("/telemetry/heartbeat")
+        assert kwargs["json"] == {
+            "kind": "strategy",
+            "name": "covered-call",
+            "meta": {"state": "active"},
+        }
+
+    def test_connection_failure_warns_and_returns_false(self):
+        with patch("engine.heartbeat.requests.post", side_effect=requests.ConnectionError("refused")):
+            ok = post_heartbeat("strategy", "covered-call", {})
+        assert ok is False
+
+    def test_non_2xx_returns_false(self):
+        with patch("engine.heartbeat.requests.post") as mock_post:
+            mock_post.return_value = MagicMock(status_code=400, text="bad kind")
+            ok = post_heartbeat("bogus", "covered-call", {})
+        assert ok is False
 
 
 class TestStrategyHeartbeatLifecycle:
     def test_start_creates_daemon_thread(self):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_metrics.get_meter.return_value = MagicMock()
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            hb.start()
+        hb = StrategyHeartbeat("test-strategy")
+        hb.start()
+        try:
             assert hb._thread is not None
             assert hb._thread.is_alive()
             assert hb._thread.daemon is True
+        finally:
             hb.stop()
 
     def test_stop_terminates_thread(self):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_metrics.get_meter.return_value = MagicMock()
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            hb.start()
-            assert hb._thread.is_alive()
-            hb.stop()
-            time.sleep(0.2)
-            assert not hb._thread.is_alive()
+        hb = StrategyHeartbeat("test-strategy")
+        hb.start()
+        hb.stop()
+        assert not hb._thread.is_alive()
+
+    def test_record_tick_and_state(self):
+        hb = StrategyHeartbeat("test-strategy")
+        hb.record_tick()
+        hb.record_tick()
+        hb.set_state("active")
+        assert hb.tick_count == 2
+        assert hb.state == "active"
+        assert hb.last_tick_time is not None
 
 
-class TestStrategyHeartbeatState:
-    def test_record_tick_increments_count(self):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_metrics.get_meter.return_value = MagicMock()
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            assert hb.tick_count == 0
-            assert hb.last_tick_time is None
-            hb.record_tick()
-            assert hb.tick_count == 1
-            assert hb.last_tick_time is not None
-            hb.record_tick()
-            assert hb.tick_count == 2
+class TestStrategyHeartbeatEmission:
+    def test_emit_posts_strategy_beat(self):
+        hb = StrategyHeartbeat("covered-call", playground_id="pg-1", client_id="cc-v7")
+        hb.set_state("active")
+        hb.record_tick()
 
-    def test_set_state_updates_state(self):
-        with patch("engine.heartbeat.metrics") as mock_metrics:
-            mock_metrics.get_meter.return_value = MagicMock()
-            from engine.heartbeat import StrategyHeartbeat
-            hb = StrategyHeartbeat("test-strategy")
-            assert hb.state == "idle"
-            hb.set_state("active")
-            assert hb.state == "active"
+        with patch("engine.heartbeat.post_heartbeat") as mock_beat:
+            hb._emit_heartbeat()
+
+        mock_beat.assert_called_once_with(
+            "strategy",
+            "covered-call",
+            {
+                "state": "active",
+                "tick_count": "1",
+                "playground_id": "pg-1",
+                "client_id": "cc-v7",
+            },
+        )
+
+    def test_delivery_failure_does_not_raise(self):
+        hb = StrategyHeartbeat("covered-call")
+        with patch("engine.heartbeat.requests.post", side_effect=requests.ConnectionError("down")):
+            hb._emit_heartbeat()  # must not raise -- strategy is undisturbed
 
 
-class TestStrategyHeartbeatLogging:
-    def test_emits_structured_log(self):
-        # Commit 72da6a35 switched the heartbeat logger from stdlib logging to
-        # loguru, so caplog (which captures stdlib records) no longer sees it.
-        # Capture the loguru record directly and assert the emitted message
-        # carries the strategy/state/tick fields.
-        from loguru import logger as loguru_logger
+class TestDatasourceHeartbeat:
+    def test_emit_posts_datasource_beat(self):
+        hb = DatasourceHeartbeat("polygon-options", symbol="AAPL")
+        hb.record_check()
 
-        captured = []
-        sink_id = loguru_logger.add(lambda m: captured.append(m.record), level="INFO")
+        with patch("engine.datasource_heartbeat.post_heartbeat") as mock_beat:
+            hb._emit_heartbeat()
+
+        mock_beat.assert_called_once_with(
+            "datasource",
+            "polygon-options",
+            {"symbol": "AAPL", "check_count": "1"},
+        )
+
+    def test_thread_lifecycle(self):
+        hb = DatasourceHeartbeat("polygon-options")
+        hb.start()
         try:
-            with patch("engine.heartbeat.metrics") as mock_metrics:
-                mock_metrics.get_meter.return_value = MagicMock()
-                from engine.heartbeat import StrategyHeartbeat
-                hb = StrategyHeartbeat("test-strategy")
-                hb.set_state("active")
-                hb.record_tick()
-
-                hb._emit_heartbeat()
+            assert hb._thread.is_alive()
+            assert hb._thread.daemon is True
         finally:
-            loguru_logger.remove(sink_id)
-
-        heartbeat_msgs = [r["message"] for r in captured if r["message"].startswith("heartbeat")]
-        assert len(heartbeat_msgs) >= 1
-        msg = heartbeat_msgs[-1]
-        assert "strategy=test-strategy" in msg
-        assert "state=active" in msg
-        assert "ticks=1" in msg
-        assert "uptime=" in msg
+            hb.stop()
+        assert not hb._thread.is_alive()

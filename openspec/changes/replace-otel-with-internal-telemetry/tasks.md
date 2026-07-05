@@ -26,10 +26,10 @@
 
 ## 5. Python client rewire
 
-- [ ] 5.1 Rewrite `engine/heartbeat.py` and `engine/datasource_heartbeat.py` to POST to `/telemetry/heartbeat` via `requests` (same public API; warn-and-continue on failure); delete `engine/otel.py`
-- [ ] 5.2 Remove `opentelemetry` imports/usage from `engine/client.py`, `engine/trading_engine.py`, `strategies/base_strategy.py`
-- [ ] 5.3 Replace OTel test modules (`test_otel.py`, `test_trace_propagation.py`, `test_client_trace_id.py`, `test_trading_engine_otel.py`) with tests of the new reporting path (mocked HTTP); `task test:python` zero failures
-- [ ] 5.4 Remove `opentelemetry-*` from `src/clients/python/requirements.txt` and `grodt.yml`
+- [x] 5.1 Rewrite `engine/heartbeat.py` and `engine/datasource_heartbeat.py` to POST to `/telemetry/heartbeat` via `requests` (same public API; warn-and-continue on failure); delete `engine/otel.py`
+- [x] 5.2 Remove `opentelemetry` imports/usage from `engine/client.py`, `engine/trading_engine.py`, `strategies/base_strategy.py`
+- [x] 5.3 Replace OTel test modules (`test_otel.py`, `test_trace_propagation.py`, `test_client_trace_id.py`, `test_trading_engine_otel.py`) with tests of the new reporting path (mocked HTTP); `task test:python` zero failures
+- [x] 5.4 Remove `opentelemetry-*` from `src/clients/python/requirements.txt` and `grodt.yml`
 
 ## 6. Tracing and OTel removal (Go)
 

@@ -26,7 +26,6 @@ import pytest
 import requests
 from loguru import logger
 
-from engine.otel import setup_otel
 from engine.heartbeat import StrategyHeartbeat
 from engine.types import SignalDecision, OrderSide
 from strategies.base_strategy import BaseStrategy
@@ -184,8 +183,7 @@ class TestStrategyE2E:
         strategy = SimpleBuyStrategy(proxy, "AAPL", max_ticks=3)
         strategy._rpc_client = client  # Enable RecordSignal RPC
 
-        # --- Init OTel + heartbeat ---
-        otel_shutdown = setup_otel(service_name="grodt-strategy-e2e")
+        # --- Init heartbeat ---
         heartbeat = StrategyHeartbeat("SimpleBuyStrategy")
         heartbeat.start()
         heartbeat.set_state("active")
@@ -199,8 +197,6 @@ class TestStrategyE2E:
         finally:
             heartbeat.set_state("idle")
             heartbeat.stop()
-            if otel_shutdown:
-                otel_shutdown()
 
         # --- Verify strategy state ---
         assert strategy.tick_count == 3

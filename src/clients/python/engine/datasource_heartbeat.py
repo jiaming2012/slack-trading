@@ -1,21 +1,21 @@
 """Datasource heartbeat daemon thread.
 
-Emits a metric gauge and structured log every 30 seconds to indicate
-a datasource script is alive. Follows the same pattern as StrategyHeartbeat
-but with datasource-specific fields.
+Reports a liveness signal to the trading server every 30 seconds via
+POST /telemetry/heartbeat, following the same pattern as StrategyHeartbeat
+but with datasource-specific fields. Delivery failures warn and never
+disturb the datasource loop.
 """
 import threading
 import time
 from datetime import datetime, timezone
 
 from loguru import logger
-from opentelemetry import metrics
 
-HEARTBEAT_INTERVAL_SECONDS = 30
+from engine.heartbeat import HEARTBEAT_INTERVAL_SECONDS, post_heartbeat
 
 
 class DatasourceHeartbeat:
-    """Background daemon thread that emits heartbeat gauge + structured log.
+    """Background daemon thread that reports datasource liveness to the server.
 
     Usage:
         hb = DatasourceHeartbeat("polygon-options", symbol="AAPL")
@@ -34,12 +34,6 @@ class DatasourceHeartbeat:
         self._stop_event = threading.Event()
         self._start_time = time.time()
         self._thread = None
-
-        meter = metrics.get_meter("grodt-datasource")
-        self._heartbeat_gauge = meter.create_gauge(
-            "grodt.datasource.heartbeat",
-            description="Datasource heartbeat (1=alive)",
-        )
 
     def start(self):
         """Start the heartbeat daemon thread."""
@@ -67,19 +61,18 @@ class DatasourceHeartbeat:
             self._emit_heartbeat()
 
     def _emit_heartbeat(self):
-        """Emit gauge metric and structured log."""
+        """Report liveness to the server and emit a structured log."""
         uptime_seconds = round(time.time() - self._start_time, 1)
 
-        # Set gauge metric
-        self._heartbeat_gauge.set(
-            1,
-            attributes={
-                "datasource_name": self.datasource_name,
+        post_heartbeat(
+            "datasource",
+            self.datasource_name,
+            {
                 "symbol": self.symbol,
+                "check_count": str(self.check_count),
             },
         )
 
-        # Emit structured log
         logger.info(
             "heartbeat | datasource={} checks={} uptime={}s symbol={}",
             self.datasource_name, self.check_count, uptime_seconds,

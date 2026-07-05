@@ -18,8 +18,6 @@ import argparse
 import os
 import sys
 
-from opentelemetry import trace
-from engine.otel import setup_otel
 from engine.heartbeat import StrategyHeartbeat
 
 # todo:
@@ -93,9 +91,6 @@ def run_strategy(
     BaseStrategy
         The strategy instance after completion.
     """
-    # Initialize OTel (idempotent -- safe for optimizer multi-call)
-    otel_shutdown = setup_otel()
-
     # Start heartbeat daemon thread (D-11)
     # Use strategy.label if defined, otherwise derive from class name
     strategy_name = getattr(strategy, 'label', None) or type(strategy).__name__
@@ -106,9 +101,6 @@ def run_strategy(
     )
     heartbeat.start()
     heartbeat.set_state("active")
-
-    # Get tracer for span creation
-    tracer = trace.get_tracer("grodt-strategy")
 
     # Wire signal callback so tick() dispatches new_signals to strategy (D-03)
     playground._signal_callback = strategy.on_signal
@@ -121,37 +113,26 @@ def run_strategy(
                 logger.warning(f"Max iterations ({max_iterations}) reached")
                 break
 
-            with tracer.start_as_current_span(
-                "strategy.tick",
-                attributes={
-                    "playground_id": playground.id,
-                    "tick_number": iteration,
-                    "symbol": strategy.symbol,
-                    "strategy_name": strategy_name,
-                }
-            ) as span:
-                tick_deltas = playground.flush_new_state_buffer()
-                strategy.on_tick(tick_deltas)
-                if hasattr(strategy, '_flush_decisions'):
-                    strategy._flush_decisions()
+            tick_deltas = playground.flush_new_state_buffer()
+            strategy.on_tick(tick_deltas)
+            if hasattr(strategy, '_flush_decisions'):
+                strategy._flush_decisions()
 
-                if on_tick is not None:
-                    on_tick(strategy, tick_deltas)
+            if on_tick is not None:
+                on_tick(strategy, tick_deltas)
 
-                if enable_retraining:
-                    strategy.on_retrain()
+            if enable_retraining:
+                strategy.on_retrain()
 
-                tick_seconds = strategy.get_next_tick_seconds()
-                fetch_account = strategy.should_fetch_account()
-                playground.tick(tick_seconds, fetch_account=fetch_account)
+            tick_seconds = strategy.get_next_tick_seconds()
+            fetch_account = strategy.should_fetch_account()
+            playground.tick(tick_seconds, fetch_account=fetch_account)
 
             heartbeat.record_tick()
     finally:
         heartbeat.set_state("idle")
         heartbeat.stop()
         strategy.on_complete()
-        if otel_shutdown:
-            otel_shutdown()
 
     return strategy
 

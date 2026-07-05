@@ -20,8 +20,6 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 
-from opentelemetry import trace
-
 from engine.types import SignalDecision
 
 
@@ -100,19 +98,11 @@ class BaseStrategy(ABC):
     def record_decision(self, decision: SignalDecision) -> None:
         """Record a signal decision for later logging.
 
-        Auto-fills trace_id from the current OTel span context,
-        playground_id from self.playground.id, and symbol from self.symbol
-        if they are not already set.
+        Auto-fills playground_id from self.playground.id and symbol from
+        self.symbol if they are not already set.
 
         Strategies call this inside on_tick() to record decisions.
         """
-        # Auto-fill trace_id from active OTel span
-        if not decision.trace_id:
-            span = trace.get_current_span()
-            ctx = span.get_span_context()
-            if ctx.trace_id > 0:
-                decision.trace_id = format(ctx.trace_id, '032x')
-
         # Auto-fill playground_id
         if not decision.playground_id:
             decision.playground_id = str(self.playground.id)

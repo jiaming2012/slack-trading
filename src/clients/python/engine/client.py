@@ -14,8 +14,6 @@ import time
 from time import perf_counter
 import uuid
 
-from opentelemetry import trace
-from opentelemetry.propagate import inject
 
 from rpc.playground_twirp import PlaygroundServiceClient
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -25,15 +23,6 @@ from twirp.context import Context
 from twirp.exceptions import TwirpServerException
 
 MAX_RETRIES = 6
-
-
-def _get_trace_id() -> str:
-    """Extract trace_id from current active span as 32-char hex string."""
-    span = trace.get_current_span()
-    ctx = span.get_span_context()
-    if ctx.trace_id == 0:
-        return ""
-    return format(ctx.trace_id, '032x')
 
 class PlaygroundEnvironment(Enum):
     SIMULATOR = 'simulator'
@@ -155,7 +144,6 @@ class BacktesterPlaygroundClient:
     def _network_call_with_retry_inner(self, caller, client, request, backoff, max_backoff):
         retries = 0
         headers = {}
-        inject(headers)
         while True:
             try:
                 response = client(
@@ -600,7 +588,6 @@ class BacktesterPlaygroundClient:
             seconds=seconds,
             is_preview=False,
             request_id=str(uuid.uuid4()),
-            trace_id=_get_trace_id(),
         )
 
         try:
@@ -686,7 +673,6 @@ class BacktesterPlaygroundClient:
             tag=tag,
             requested_price=price,
             client_request_id=client_request_id,
-            trace_id=_get_trace_id(),
         )
         
         if sl is not None:
@@ -790,7 +776,6 @@ class BacktesterPlaygroundClient:
                     seconds=seconds,
                     is_preview=True,
                     request_id=str(uuid.uuid4()),
-                    trace_id=_get_trace_id(),
                 )
             
             response = self.network_call_with_retry('preview_tick', self.client.NextTick, req)
