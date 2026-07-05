@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SQL_FILES = [
     REPO_ROOT / "src" / "go" / "backtester-api" / "db" / "init.sql",
     REPO_ROOT / "infra" / "analytics-schema.sql",
+    REPO_ROOT / "src" / "go" / "tradingstack" / "db" / "partitioning.sql",
 ]
 
 
