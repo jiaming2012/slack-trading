@@ -11,6 +11,92 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/tradingstack"
 )
 
+// --- Row construction: NewTrainingRow ---------------------------------------
+
+// TestNewTrainingRow_MapsEveryFieldFromDistinctSource gives every relevant
+// ScanResult/SimOutcome field a distinct sentinel value and asserts each
+// TrainingRow field maps from the correct source field. Any swap between two
+// same-typed source fields (e.g. Price <-> RegimeConfidence, or Ticker <->
+// RegimeTag <-> StrategyID) would make one of these assertions fail.
+func TestNewTrainingRow_MapsEveryFieldFromDistinctSource(t *testing.T) {
+	scanResultID := uuid.New()
+	simOutcomeID := uuid.New()
+
+	scannedAt := time.Date(2024, 1, 10, 12, 0, 0, 0, time.UTC)
+	dataAsOf := time.Date(2024, 1, 9, 8, 0, 0, 0, time.UTC)
+
+	ticker := "TICK-SENTINEL"
+	regimeTag := "regime-sentinel"
+	strategyID := "strategy-sentinel"
+
+	regimeConfidence := 0.11
+	price := 0.22
+	volumeRatio := 0.33
+	rsi14 := 0.44
+	atrPct := 0.55
+	scannerScore := 0.66
+
+	sr := tradingstack.ScanResult{
+		BaseModel:        tradingstack.BaseModel{ID: scanResultID},
+		ScannedAt:        scannedAt,
+		Ticker:           ticker,
+		RegimeTag:        &regimeTag,
+		RegimeConfidence: &regimeConfidence,
+		Price:            &price,
+		VolumeRatio:      &volumeRatio,
+		Rsi14:            &rsi14,
+		AtrPct:           &atrPct,
+		ScannerScore:     &scannerScore,
+		DataAsOf:         &dataAsOf,
+	}
+	so := tradingstack.SimOutcome{
+		BaseModel:    tradingstack.BaseModel{ID: simOutcomeID},
+		ScanResultID: scanResultID,
+		StrategyID:   &strategyID,
+	}
+
+	row := NewTrainingRow(sr, so)
+
+	assert.Equal(t, scanResultID, row.ScanResultID)
+	assert.Equal(t, simOutcomeID, row.SimOutcomeID)
+	assert.Equal(t, strategyID, row.StrategyID)
+	assert.Equal(t, ticker, row.Ticker)
+	assert.Equal(t, scannedAt, row.ScannedAt)
+	assert.Equal(t, dataAsOf, row.DataAsOf)
+	assert.Equal(t, regimeTag, row.RegimeTag)
+	assert.Equal(t, regimeConfidence, row.RegimeConfidence)
+	assert.Equal(t, price, row.Price)
+	assert.Equal(t, volumeRatio, row.VolumeRatio)
+	assert.Equal(t, rsi14, row.RSI14)
+	assert.Equal(t, atrPct, row.ATRPct)
+	assert.Equal(t, scannerScore, row.ScannerScore)
+}
+
+// TestNewTrainingRow_NilPointerFieldsDerefToZeroValue asserts the documented
+// deref behavior: a nil DataAsOf, RegimeConfidence, or StrategyID becomes the
+// Go zero value for its field rather than panicking.
+func TestNewTrainingRow_NilPointerFieldsDerefToZeroValue(t *testing.T) {
+	scanResultID := uuid.New()
+
+	sr := tradingstack.ScanResult{
+		BaseModel:        tradingstack.BaseModel{ID: scanResultID},
+		ScannedAt:        time.Date(2024, 1, 10, 12, 0, 0, 0, time.UTC),
+		Ticker:           "AAA",
+		RegimeConfidence: nil,
+		DataAsOf:         nil,
+	}
+	so := tradingstack.SimOutcome{
+		ScanResultID: scanResultID,
+		StrategyID:   nil,
+	}
+
+	row := NewTrainingRow(sr, so)
+
+	assert.Equal(t, time.Time{}, row.DataAsOf)
+	assert.Equal(t, 0.0, row.RegimeConfidence)
+	assert.Equal(t, "", row.StrategyID)
+}
+
 // --- Stage 1: timestamp audit ---------------------------------------------
 
 func TestTimestampAudit_ViolationExcludedAndReported(t *testing.T) {

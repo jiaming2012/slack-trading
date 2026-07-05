@@ -22,34 +22,37 @@ import (
 func SyntheticInput() Input {
 	scannedAt := time.Date(2024, 1, 10, 15, 0, 0, 0, time.UTC)
 	regimeTrend := "trend"
+	price := 115.0
+
+	// Each row is built from a ScanResult/SimOutcome pair joined through
+	// NewTrainingRow, the same constructor a real ingestion path would use,
+	// rather than hand-built TrainingRow literals.
+	newRow := func(strategyID, ticker string, dataAsOf time.Time, regimeConfidence float64) TrainingRow {
+		sr := tradingstack.ScanResult{
+			BaseModel:        tradingstack.BaseModel{ID: uuid.New()},
+			ScannedAt:        scannedAt,
+			Ticker:           ticker,
+			RegimeTag:        &regimeTrend,
+			RegimeConfidence: &regimeConfidence,
+			Price:            &price,
+			DataAsOf:         &dataAsOf,
+		}
+		so := tradingstack.SimOutcome{
+			ScanResultID: sr.ID,
+			StrategyID:   &strategyID,
+		}
+		return NewTrainingRow(sr, so)
+	}
 
 	// Row 1: excluded by the timestamp-audit stage -- data_as_of is after
 	// scanned_at (lookahead bias). Excluded before the distribution check
 	// runs, so it never contributes to the batch's feature means.
-	lookaheadRow := TrainingRow{
-		ScanResultID:     uuid.New(),
-		StrategyID:       "strategy-lookahead",
-		Ticker:           "AAA",
-		ScannedAt:        scannedAt,
-		DataAsOf:         scannedAt.Add(24 * time.Hour),
-		RegimeTag:        regimeTrend,
-		RegimeConfidence: 0.9,
-		Price:            115,
-	}
+	lookaheadRow := newRow("strategy-lookahead", "AAA", scannedAt.Add(24*time.Hour), 0.9)
 
 	// Row 2: survives the timestamp audit but is dropped by the regime
 	// confidence filter (0.5 is strictly less than the default threshold
 	// 0.7).
-	lowConfidenceRow := TrainingRow{
-		ScanResultID:     uuid.New(),
-		StrategyID:       "strategy-low-confidence",
-		Ticker:           "BBB",
-		ScannedAt:        scannedAt,
-		DataAsOf:         scannedAt.Add(-1 * time.Hour),
-		RegimeTag:        regimeTrend,
-		RegimeConfidence: 0.5,
-		Price:            115,
-	}
+	lowConfidenceRow := newRow("strategy-low-confidence", "BBB", scannedAt.Add(-1*time.Hour), 0.5)
 
 	// Row 3: survives the timestamp audit and regime filter but is dropped
 	// by the fidelity gate -- its data_as_of falls inside a recorded
@@ -57,31 +60,13 @@ func SyntheticInput() Input {
 	strategyHighDrift := "strategy-high-drift"
 	driftPeriodStart := scannedAt.Add(-48 * time.Hour)
 	driftPeriodEnd := scannedAt.Add(-2 * time.Hour)
-	highDriftRow := TrainingRow{
-		ScanResultID:     uuid.New(),
-		StrategyID:       strategyHighDrift,
-		Ticker:           "CCC",
-		ScannedAt:        scannedAt,
-		DataAsOf:         scannedAt.Add(-24 * time.Hour),
-		RegimeTag:        regimeTrend,
-		RegimeConfidence: 0.9,
-		Price:            115,
-	}
+	highDriftRow := newRow(strategyHighDrift, "CCC", scannedAt.Add(-24*time.Hour), 0.9)
 
 	// Row 4: fully clean -- survives every filter stage. No
 	// StrategyEvWeight record matches its (strategy, regime), so it
 	// receives the neutral default ev_weight of 1.0 rather than being
 	// dropped or zero-weighted.
-	cleanRow := TrainingRow{
-		ScanResultID:     uuid.New(),
-		StrategyID:       "strategy-clean",
-		Ticker:           "DDD",
-		ScannedAt:        scannedAt,
-		DataAsOf:         scannedAt.Add(-1 * time.Hour),
-		RegimeTag:        regimeTrend,
-		RegimeConfidence: 0.9,
-		Price:            115,
-	}
+	cleanRow := newRow("strategy-clean", "DDD", scannedAt.Add(-1*time.Hour), 0.9)
 
 	rows := []TrainingRow{lookaheadRow, lowConfidenceRow, highDriftRow, cleanRow}
 

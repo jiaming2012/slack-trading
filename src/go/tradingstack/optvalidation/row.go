@@ -40,7 +40,13 @@ type WeightedTrainingRow struct {
 // TrainingRow. Nullable source fields default to their Go zero value when
 // nil -- in particular a nil DataAsOf becomes the zero time.Time, which is
 // always <= ScannedAt and so never trips the timestamp-audit stage, mirroring
-// tradingstack.ScanResult's own "NULL data_as_of is allowed" semantics.
+// tradingstack.ScanResult's own "NULL data_as_of is allowed" semantics. A nil
+// RegimeConfidence becomes 0.0, which is strictly less than the regime-
+// confidence-filter stage's default threshold (0.7) and so the row is
+// dropped by that stage rather than by this constructor -- a scan result
+// with no recorded regime confidence is treated as untrusted, not as
+// confidently in-regime.
+
 func NewTrainingRow(sr tradingstack.ScanResult, so tradingstack.SimOutcome) TrainingRow {
 	return TrainingRow{
 		ScanResultID: sr.ID,
