@@ -93,6 +93,24 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  db:partition:ensure:
+    desc: 'Provision monthly partitions (current month + horizon) for scan_results and sim_outcomes'
+    cmds:
+      - 'go run ./cmd/tradingstack-db partition-ensure'
+    dir: "{{.ROOT_DIR}}"
+
+  db:retention:dry-run:
+    desc: 'Report which scan_results/sim_outcomes partitions are eligible for archival, without acting'
+    cmds:
+      - 'go run ./cmd/tradingstack-db retention-dry-run'
+    dir: "{{.ROOT_DIR}}"
+
+  db:retention:run:
+    desc: 'Detach eligible scan_results/sim_outcomes partitions and hand each to the (stub) cold-storage archiver'
+    cmds:
+      - 'go run ./cmd/tradingstack-db retention-run'
+    dir: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
