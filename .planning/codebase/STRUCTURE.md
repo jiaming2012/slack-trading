@@ -11,14 +11,14 @@ slack-trading/
 │   └── run-dev.sh              # Dev startup script
 ├── src/
 │   ├── go/                     # All Go source packages
-│   │   ├── backtester-api/     # Core backtester domain (models, router, services, rpc)
+│   │   ├── backtester/         # Core backtester domain (models, router, services, rpc)
 │   │   ├── data/               # DatabaseService (persistence + caching layer)
 │   │   ├── dbutils/            # PostgreSQL connection and migration
-│   │   ├── eventconsumers/     # Background workers (Slack, Tradier, ESDB, etc.)
+│   │   ├── workers/            # Background workers (Slack, Tradier, ESDB, etc.)
 │   │   ├── eventmodels/        # Shared domain types and event definitions
-│   │   ├── eventproducers/     # REST API route handlers and event sources
-│   │   ├── eventpubsub/        # In-process pub/sub event bus
-│   │   ├── eventservices/      # External API clients (Polygon, Tradier, ORATS)
+│   │   ├── api/                # REST API route handlers and event sources
+│   │   ├── pubsub/             # In-process pub/sub event bus
+│   │   ├── marketdata/         # External API clients (Polygon, Tradier, ORATS)
 │   │   ├── eventstore/         # EventStoreDB integration
 │   │   ├── playground/         # Generated protobuf/Twirp stubs
 │   │   ├── playground.proto    # Protobuf service definition
@@ -73,7 +73,7 @@ slack-trading/
 - Contains: `main.go` (465 lines) — bootstraps entire application; `run-dev.sh` — sets env vars for development
 - Key files: `cmd/main.go`
 
-**`src/go/backtester-api/`:**
+**`src/go/backtester/`:**
 - Purpose: Core backtester domain — the heart of the system
 - Contains: Domain models, RPC handlers, business services, database layer
 - Key subdirectories:
@@ -94,7 +94,7 @@ slack-trading/
 - Contains: `InitPostgres()`, `InitPostgresWithUrl()`, `UpdateOrder()`
 - Key files: `src/go/dbutils/postgres.go`
 
-**`src/go/eventconsumers/`:**
+**`src/go/workers/`:**
 - Purpose: Background worker goroutines that subscribe to the event bus
 - Contains: 21 files — Slack notifier, Tradier API worker, ESDB consumer, account worker, signal processor, trading bot, option alerts
 - Key files: `tradier_api_worker.go` (polls Tradier for order updates), `slacknotifier.go`, `global_request_dispatcher.go`
@@ -104,17 +104,17 @@ slack-trading/
 - Contains: 100+ files — `StockSymbol`, `OptionSymbol`, `OptionContractV3`, `Candle`, `FIFOQueue`, `GlobalResponseDispatcher`, all event name constants, request/response DTOs
 - Key files: `event_names.go`, `globaldispatcher.go`, `fifo_queue.go`, `instrument.go`, `candle.go`
 
-**`src/go/eventproducers/`:**
+**`src/go/api/`:**
 - Purpose: REST API route handlers organized by domain area
 - Contains: Subdirectories for each API domain: `accountapi/`, `alertapi/`, `datafeedapi/`, `optionsapi/`, `signalapi/`, `strategyapi/`, `tradeapi/`, `slack/`
-- Key files: `src/go/eventproducers/esdb_producer.go`, `src/go/eventproducers/api_request_2.go`
+- Key files: `src/go/api/esdb_producer.go`, `src/go/api/api_request_2.go`
 
-**`src/go/eventpubsub/`:**
+**`src/go/pubsub/`:**
 - Purpose: In-process publish/subscribe event bus
 - Contains: 4 files — global `EventBus` singleton, publish/subscribe helpers
 - Key files: `services.go` (Publish/Subscribe/Unsubscribe), `models.go`, `sync.go`
 
-**`src/go/eventservices/`:**
+**`src/go/marketdata/`:**
 - Purpose: External API clients and data fetching
 - Contains: 35 files — Polygon (options, stocks, cache), Tradier (orders, quotes), ORATS, Financial Modeling Prep, market calendar, strategy signals
 - Key files: `polygon_cache.go` (3-bucket thread-safe cache), `fetch_option_chain_with_params.go` (parallel fetches), `polygon.go`, `tradier.go`
@@ -167,15 +167,15 @@ slack-trading/
 - `src/go/playground.proto`: Protobuf service definition (PlaygroundService with 20 RPC methods)
 
 **Core Logic:**
-- `src/go/backtester-api/models/playground.go`: Playground domain model (2909 lines)
-- `src/go/backtester-api/router/grpc.go`: Twirp RPC handler implementations (1266 lines)
+- `src/go/backtester/models/playground.go`: Playground domain model (2909 lines)
+- `src/go/backtester/router/grpc.go`: Twirp RPC handler implementations (1266 lines)
 - `src/go/data/database_service.go`: Database service layer (1634 lines)
-- `src/go/eventservices/polygon_cache.go`: Polygon API cache with disk persistence
+- `src/go/marketdata/polygon_cache.go`: Polygon API cache with disk persistence
 
 **Testing:**
 - `integration_testing/`: E2E tests (TestContainers)
-- `src/go/backtester-api/models/*_test.go`: Unit tests for domain models
-- `src/go/eventservices/integration_tests/`: Integration tests for external services
+- `src/go/backtester/models/*_test.go`: Unit tests for domain models
+- `src/go/marketdata/integration_tests/`: Integration tests for external services
 - `src/clients/python/test_*.py`: Python strategy tests
 
 ## Naming Conventions
@@ -187,23 +187,23 @@ slack-trading/
 - Python tests: `test_*.py` co-located with source
 
 **Directories:**
-- Go packages: `lowercase` or `snake_case` — e.g., `eventmodels`, `eventconsumers`, `backtester-api`
+- Go packages: `lowercase` or `snake_case` — e.g., `models`, `workers`, `backtester`
 - API subdirectories: `{domain}api` — e.g., `accountapi`, `tradeapi`, `alertapi`
 
 **Go Packages:**
 - Import path: `github.com/jiaming2012/slack-trading/src/go/<package>`
-- Backtester models: `github.com/jiaming2012/slack-trading/src/go/backtester-api/models`
+- Backtester models: `github.com/jiaming2012/slack-trading/src/go/backtester/models`
 
 ## Where to Add New Code
 
 **New RPC Method:**
 1. Add method to `src/go/playground.proto`
 2. Run `task gen:proto` to regenerate stubs
-3. Implement handler in `src/go/backtester-api/router/grpc.go` on the `Server` struct
+3. Implement handler in `src/go/backtester/router/grpc.go` on the `Server` struct
 4. Add Python client wrapper in `src/clients/python/backtester_playground_client_grpc.py`
 
 **New Domain Model:**
-- GORM model: `src/go/backtester-api/models/` — create new file with `snake_case.go` naming
+- GORM model: `src/go/backtester/models/` — create new file with `snake_case.go` naming
 - Add auto-migration in `src/go/dbutils/postgres.go`
 - Shared type (non-GORM): `src/go/eventmodels/`
 
@@ -213,19 +213,19 @@ slack-trading/
 - Follow pattern of existing strategies (e.g., `credit_spread_strategy.py`, `mean_reversion_strategy.py`)
 
 **New Event Consumer (Go):**
-- Create file in `src/go/eventconsumers/` following the worker pattern:
+- Create file in `src/go/workers/` following the worker pattern:
   - Struct with `wg *sync.WaitGroup` field
   - `Start(ctx context.Context)` method that calls `pubsub.Subscribe()` and runs goroutine
   - Constructor function `NewXxxClient(wg, ...)`
 - Register in `cmd/main.go`
 
 **New REST API Route:**
-- Create handler subdirectory in `src/go/eventproducers/<domain>api/`
+- Create handler subdirectory in `src/go/api/<domain>api/`
 - Add `handler.go` with `SetupHandler(router *mux.Subrouter)` function
 - Register in `cmd/main.go` via `router.PathPrefix("/<path>").Subrouter()`
 
 **New External Service Client:**
-- Add to `src/go/eventservices/`
+- Add to `src/go/marketdata/`
 - Follow pattern of existing clients (e.g., `polygon.go`, `tradier.go`)
 
 **New Integration Test:**

@@ -81,7 +81,7 @@ tasks:
   test:
     cmds:
       - 'go test -count=1 ./...'
-    dir: src/go/backtester-api
+    dir: src/go/backtester
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
@@ -238,7 +238,7 @@ tasks:
     cmds:
       # - 'go run main.go'
       - 'go test ./...'
-    dir: "{{.ROOT_DIR}}/src/go/eventservices/integration_tests"
+    dir: "{{.ROOT_DIR}}/src/go/marketdata/integration_tests"
 
   commit:
     cmds:

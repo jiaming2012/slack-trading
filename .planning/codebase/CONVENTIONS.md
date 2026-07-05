@@ -17,8 +17,7 @@
 
 **Packages (Go):**
 - Lowercase, single-word where possible: `models`, `data`, `utils`, `router`
-- Multi-word with hyphens in directory names: `backtester-api` (imported as `backtester_router` when aliased)
-- Event-prefixed packages: `eventmodels`, `eventservices`, `eventconsumers`, `eventproducers`, `eventpubsub`
+- No hyphenated directory names remain under `src/go/`; the `backtester` container directory's `router` subpackage is still imported as `backtester_router` when aliased
 
 **Functions (Go):**
 - PascalCase for exported: `NewPlayground()`, `PlaceOrder()`, `GetOrder()`
@@ -89,7 +88,7 @@ import (
 **Import aliases used:**
 - `log "github.com/sirupsen/logrus"` -- universal across the codebase
 - `pb "github.com/jiaming2012/slack-trading/src/go/playground"` -- protobuf stubs
-- `backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"` -- disambiguating
+- `backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"` -- disambiguating
 
 **Module path:** `github.com/jiaming2012/slack-trading`
 - All internal imports: `github.com/jiaming2012/slack-trading/src/go/<package>`
@@ -206,7 +205,7 @@ type ErrorDTO struct {
 - Example: `NewOrderRecord(id, externalOrderID, clientRequestID, playgroundID, class, accountType, timestamp, symbol, side, quantity, orderType, duration, requestedPrice, ...)`
 
 **Interfaces:**
-- Defined in separate `*_interface.go` files in `src/go/backtester-api/models/`
+- Defined in separate `*_interface.go` files in `src/go/backtester/models/`
 - Used for dependency injection: `IDatabaseService`, `IBroker`, `IOptionsBroker`
 - Mock implementations live alongside production code in the same package
 
@@ -217,11 +216,11 @@ type ErrorDTO struct {
 **Barrel files:** Not used. Each package exposes types directly.
 
 **Package organization:**
-- Domain types in `eventmodels/` (shared across packages)
-- Service logic in `eventservices/`
-- Consumer workers in `eventconsumers/`
-- HTTP handler producers in `eventproducers/` with sub-packages per API domain
-- Backtester core in `backtester-api/models/`, `backtester-api/services/`, `backtester-api/router/`
+- Domain types in `models/` (shared across packages)
+- Service logic in `marketdata/`
+- Consumer workers in `workers/`
+- HTTP handler producers in `api/` with sub-packages per API domain
+- Backtester core in `backtester/models/`, `backtester/services/`, `backtester/router/`
 
 ## Git Workflow
 

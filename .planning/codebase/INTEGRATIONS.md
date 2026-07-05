@@ -7,17 +7,17 @@
 **Market Data:**
 - Polygon.io - Stock and options market data (candles, aggregate bars, option chains, daily ticker summaries)
   - SDK/Client: `github.com/polygon-io/client-go` v1.16.6 (Go), `polygon-api-client` 0.2.11 (Python)
-  - Custom HTTP client forces HTTP/1.1 to avoid GOAWAY errors (`src/go/eventservices/polygon.go`)
+  - Custom HTTP client forces HTTP/1.1 to avoid GOAWAY errors (`src/go/marketdata/polygon.go`)
   - Auth: `POLYGON_API_KEY` env var
-  - Cache: `PolygonCache` in `src/go/eventservices/polygon_cache.go` - 3-bucket thread-safe in-memory cache (contracts, stock ticks, aggregate bars) with optional disk persistence
-  - Tick data machine: `src/go/eventservices/polygon_tick_data_machine.go`
+  - Cache: `PolygonCache` in `src/go/marketdata/polygon_cache.go` - 3-bucket thread-safe in-memory cache (contracts, stock ticks, aggregate bars) with optional disk persistence
+  - Tick data machine: `src/go/marketdata/polygon_tick_data_machine.go`
   - API base: `https://api.polygon.io/v2/aggs/ticker/...`
   - Known issue: Some symbol/date combos return 403 (e.g., MSFT 2024)
 
 - Tradier - Broker API for live trading and market data
   - Custom HTTP client (no SDK, direct REST calls)
-  - Implementation: `src/go/backtester-api/services/tradier_broker.go` (broker interface)
-  - Worker: `src/go/eventconsumers/tradier_api_worker.go` (polling, order sync)
+  - Implementation: `src/go/backtester/services/tradier_broker.go` (broker interface)
+  - Worker: `src/go/workers/tradier_api_worker.go` (polling, order sync)
   - Auth: Multiple bearer tokens for sandbox vs. live:
     - `TRADIER_SANDBOX_TRADES_BEARER_TOKEN` / `TRADIER_LIVE_TRADES_BEARER_TOKEN`
     - `TRADIER_SANDBOX_NON_TRADES_BEARER_TOKEN` / `TRADIER_LIVE_NON_TRADES_BEARER_TOKEN`
@@ -33,10 +33,10 @@
     - `TRADIER_SANDBOX_ACCOUNT_ID` / `TRADIER_LIVE_ACCOUNT_ID` - Account identifiers
     - `TRADIER_SANDBOX_TRADES_ACCOUNT_ID` / `TRADIER_LIVE_TRADES_ACCOUNT_ID`
   - Account types: paper (sandbox), margin (live), pdt
-  - Env var resolution: `src/go/backtester-api/models/live_account_variables.go`
+  - Env var resolution: `src/go/backtester/models/live_account_variables.go`
 
 - ORATS - Options analytics and historical data
-  - Implementation: `src/go/eventservices/orats.go`
+  - Implementation: `src/go/marketdata/orats.go`
   - Data format: CSV (parsed with `gocsv`)
   - Models: `src/go/eventmodels/orats_option_data.go`
 
@@ -46,12 +46,12 @@
 
 **Broker Operations:**
 - Tradier Order Execution
-  - Order placement: `TradierBroker.PlaceOrder()` in `src/go/backtester-api/services/tradier_broker.go`
-  - Order monitoring: `TradierApiWorker` in `src/go/eventconsumers/tradier_api_worker.go`
+  - Order placement: `TradierBroker.PlaceOrder()` in `src/go/backtester/services/tradier_broker.go`
+  - Order monitoring: `TradierApiWorker` in `src/go/workers/tradier_api_worker.go`
   - Spread orders: `src/go/eventmodels/tradier_order_spread_dto.go`
   - Position tracking: `src/go/eventmodels/tradier_position.go`
   - Balance fetching: `TradierBroker.FetchBalances()` / `FetchEquity()`
-  - Mock broker for testing: `src/go/backtester-api/models/mock_broker.go`
+  - Mock broker for testing: `src/go/backtester/models/mock_broker.go`
 
 ## Data Storage
 
@@ -64,7 +64,7 @@
 - Connection env vars: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - Auto-migration on startup for all GORM models
 - Core tables: playgrounds, order_records, trade_records, live_accounts, equity_plot_records
-- Database service interface: `src/go/backtester-api/models/database_service_interface.go`
+- Database service interface: `src/go/backtester/models/database_service_interface.go`
 - Database service impl: `src/go/data/database_service.go`
 - Docker Compose: `eventstoredb/docker-compose.yaml` (port 5432)
 - K8s: `kubectl port-forward svc/postgres 5432:5432 -n database`
@@ -74,22 +74,22 @@
 - Client: `github.com/EventStore/EventStore-Client-Go/v4` v4.1.0
 - Connection: `EVENTSTOREDB_URL` env var
 - Implementation: `src/go/eventstore/db.go` (event insertion)
-- Consumer: `src/go/eventconsumers/esdb_consumer.go`, `esdb_consumer_stream.go`
-- Producer: `src/go/eventproducers/esdb_producer.go`
+- Consumer: `src/go/workers/esdb_consumer.go`, `esdb_consumer_stream.go`
+- Producer: `src/go/api/esdb_producer.go`
 - Docker Compose: `eventstoredb/docker-compose.yaml` (ports 1113 TCP, 2113 HTTP)
 - Runs with projections enabled, insecure mode, Atom PUB over HTTP
 - K8s: `kubectl port-forward svc/eventstoredb 2113:2113 -n eventstoredb`
 
 **In-Memory:**
-- `PolygonCache` - Thread-safe 3-bucket cache with optional disk persistence (`src/go/eventservices/polygon_cache.go`)
+- `PolygonCache` - Thread-safe 3-bucket cache with optional disk persistence (`src/go/marketdata/polygon_cache.go`)
 - `go-cache` - General purpose in-memory cache (`github.com/patrickmn/go-cache`)
-- Request cache: `src/go/backtester-api/models/request_cache.go`
-- Order cache: `src/go/backtester-api/models/order_cache.go`
-- Positions cache: `src/go/backtester-api/models/positions_cache.go`
+- Request cache: `src/go/backtester/models/request_cache.go`
+- Order cache: `src/go/backtester/models/order_cache.go`
+- Positions cache: `src/go/backtester/models/positions_cache.go`
 
 **File Storage:**
 - Local filesystem only (cache persistence to disk for aggregate bars)
-- CSV export: `src/go/eventservices/export_data.go`
+- CSV export: `src/go/marketdata/export_data.go`
 
 ## Authentication & Identity
 
@@ -112,7 +112,7 @@
 - OpenTelemetry with OTLP HTTP trace exporter
   - `go.opentelemetry.io/otel` v1.27.0
   - `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp`
-  - Tracer used in: `src/go/eventservices/fetch_option_chain_with_params.go` and other service files
+  - Tracer used in: `src/go/marketdata/fetch_option_chain_with_params.go` and other service files
 
 **Metrics:**
 - OpenTelemetry metrics with OTLP HTTP metric exporter
@@ -131,7 +131,7 @@
 
 **Error Tracking:**
 - No external error tracking service (Sentry, etc.)
-- Errors flow through event pub/sub: `eventpubsub.PublishError()`, `PublishRequestError()`
+- Errors flow through event pub/sub: `pubsub.PublishError()`, `PublishRequestError()`
 
 ## CI/CD & Deployment
 
@@ -173,13 +173,13 @@
 
 **In-Process Pub/Sub:**
 - Library: `github.com/asaskevich/EventBus`
-- Setup: `src/go/eventpubsub/services.go` - global bus instance
+- Setup: `src/go/pubsub/services.go` - global bus instance
 - Pattern: Publish/Subscribe with event name topics
 - Consumers subscribe at startup, producers publish events
 - Event names defined in: `src/go/eventmodels/event_names.go`
 - Request/response pattern via `PublishCompletedResponse()` with metadata correlation
 
-**Event Consumers (`src/go/eventconsumers/`):**
+**Event Consumers (`src/go/workers/`):**
 - `tradier_api_worker.go` - Tradier order sync and candle fetching
 - `slacknotifier.go` - Slack webhook notifications
 - `googlesheets.go` - Google Sheets trade logging
@@ -192,7 +192,7 @@
 - `rsibot.go` - RSI-based bot
 - `tradingbot.go` - General trading bot
 
-**Event Producers (`src/go/eventproducers/`):**
+**Event Producers (`src/go/api/`):**
 - `tradeapi/handler.go` - Trade API endpoints
 - `signalapi/handler.go` - Signal API endpoints
 - `optionsapi/handler.go` - Options API endpoints
@@ -209,9 +209,9 @@
 **Slack:**
 - Webhook-based notifications
 - Env var: `SLACK_OPTION_ALERTS_WEBHOOK_URL`
-- Notifier: `src/go/eventconsumers/slacknotifier.go` (`SlackNotifierClient`)
+- Notifier: `src/go/workers/slacknotifier.go` (`SlackNotifierClient`)
 - Sends: trade confirmations, open/close trade results, option alert signals
-- Slack command handling: `src/go/eventproducers/slack/handler.go`
+- Slack command handling: `src/go/api/slack/handler.go`
 - Slack outgoing: `src/go/slack/outgoing.go`
 
 **Google Sheets:**
@@ -219,13 +219,13 @@
 - Auth: Google Service Account (`GOOGLE_SECURITY_KEY_JSON_BASE64`)
 - Client setup: `src/go/sheets/setup.go` (Sheets API v4 + Drive API v3)
 - Operations: `src/go/sheets/trades.go` (append trades), `src/go/sheets/candles.go` (append candles)
-- Consumer: `src/go/eventconsumers/googlesheets.go` (`GoogleSheetsClient`)
+- Consumer: `src/go/workers/googlesheets.go` (`GoogleSheetsClient`)
 
 ## Twirp RPC Interface
 
 **Service:** `PlaygroundService` defined in `src/go/playground.proto`
-- Server: `src/go/backtester-api/rpc/twirp.go` (port 5051)
-- Handler: `src/go/backtester-api/router/grpc.go` (1248+ lines)
+- Server: `src/go/backtester/rpc/twirp.go` (port 5051)
+- Handler: `src/go/backtester/router/grpc.go` (1248+ lines)
 - Python client: `src/clients/python/backtester_playground_client_grpc.py`
 
 **Key RPCs:**

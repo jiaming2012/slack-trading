@@ -8,11 +8,11 @@
 - Issue: Core domain types are duplicated across `src/go/models/` and `src/go/eventmodels/`. Files with identical or near-identical names exist in both: `price_level.go`, `strategy.go`, `trade.go`, `account.go`, `error.go`. The error files are nearly line-for-line copies with minor naming differences (e.g., `DuplicateCloseTradeErr` vs `ErrDuplicateCloseTrade`).
 - Files: `src/go/models/error.go`, `src/go/eventmodels/error.go`, `src/go/models/price_level.go`, `src/go/eventmodels/price_level.go`, `src/go/models/strategy.go`, `src/go/eventmodels/strategy.go`, `src/go/models/trade.go`, `src/go/eventmodels/trade.go`, `src/go/models/account.go`, `src/go/eventmodels/account.go`
 - Impact: Confusion about which package to import; risk of divergent behavior between copies; TODO comments in code acknowledge this (e.g., `src/go/eventmodels/instrument.go:9` "todo: refactor eventmodels and models to make class OrderRecordClass").
-- Fix approach: Consolidate into a single domain model package. Remove the legacy `src/go/models/` package and migrate all references to `src/go/eventmodels/` or `src/go/backtester-api/models/`.
+- Fix approach: Consolidate into a single domain model package. Remove the legacy `src/go/models/` package and migrate all references to `src/go/eventmodels/` or `src/go/backtester/models/`.
 
 **Duplicated Generated Proto Stubs:**
 - Issue: Identical generated protobuf/Twirp files exist in two locations.
-- Files: `src/go/playground/playground.twirp.go` (6657 lines) and `src/go/backtester-api/playground/playground.twirp.go` (6657 lines). These are byte-identical.
+- Files: `src/go/playground/playground.twirp.go` (6657 lines) and `src/go/backtester/playground/playground.twirp.go` (6657 lines). These are byte-identical.
 - Impact: Double the generated code to maintain; risk of one copy going stale if `task gen:proto` only regenerates one.
 - Fix approach: Remove one copy and update imports to use a single location.
 
@@ -23,18 +23,18 @@
 - Fix approach: Archive or delete. The `deprecated/README.md` should document why code was deprecated.
 
 **Deprecated Functions Still Called:**
-- Issue: `readStreamDeprecated` in `src/go/eventproducers/esdb_producer.go:233` is still actively called at line 385, despite being marked deprecated.
-- Files: `src/go/eventproducers/esdb_producer.go`
+- Issue: `readStreamDeprecated` in `src/go/api/esdb_producer.go:233` is still actively called at line 385, despite being marked deprecated.
+- Files: `src/go/api/esdb_producer.go`
 - Impact: The deprecated path is the active code path, meaning the "replacement" was never completed.
 - Fix approach: Complete the migration to the replacement implementation (referenced as `esdbConsumer` at line 232).
 
 **Massive TODO Backlog (70+ items):**
 - Issue: Over 70 TODO/FIXME comments scattered across Go and Python code, many referencing fundamental design issues.
-- Files: Concentrated in `src/go/backtester-api/models/playground.go` (15+ TODOs), `src/go/eventproducers/esdb_producer.go` (6 TODOs), `src/go/eventmodels/` (10+ TODOs)
+- Files: Concentrated in `src/go/backtester/models/playground.go` (15+ TODOs), `src/go/api/esdb_producer.go` (6 TODOs), `src/go/eventmodels/` (10+ TODOs)
 - Impact: Indicates accumulated shortcuts. Key examples:
-  - `src/go/backtester-api/models/playground.go:2267`: "todo: fix - free margin should be calculated on each open order, not the total position" -- financial calculation bug
-  - `src/go/backtester-api/models/playground.go:844`: "TODO: this should use the saga pattern" -- data consistency risk in reconciliation
-  - `src/go/backtester-api/models/playground.go:1681`: "todo: make dbService non-nilable" -- nil checks scattered as workaround
+  - `src/go/backtester/models/playground.go:2267`: "todo: fix - free margin should be calculated on each open order, not the total position" -- financial calculation bug
+  - `src/go/backtester/models/playground.go:844`: "TODO: this should use the saga pattern" -- data consistency risk in reconciliation
+  - `src/go/backtester/models/playground.go:1681`: "todo: make dbService non-nilable" -- nil checks scattered as workaround
 - Fix approach: Triage TODOs by severity. The free margin calculation bug (line 2267) and saga pattern needs (lines 844, 917) should be prioritized.
 
 **Vendored Python Environment Committed:**
@@ -47,19 +47,19 @@
 
 **Free Margin Calculation Error:**
 - Symptoms: Free margin is calculated on total position rather than per open order, leading to incorrect margin availability.
-- Files: `src/go/backtester-api/models/playground.go:2267`
+- Files: `src/go/backtester/models/playground.go:2267`
 - Trigger: When multiple open orders exist simultaneously.
 - Workaround: None documented.
 
 **Intentionally Failing Test:**
 - Symptoms: `require.Fail(t, "finish the test")` causes test failures.
-- Files: `src/go/eventservices/integration_tests/polygon_client_test.go:46`
+- Files: `src/go/marketdata/integration_tests/polygon_client_test.go:46`
 - Trigger: Running integration tests.
 - Workaround: Documented in CLAUDE.md as intentional stub.
 
 **OrderRecord Status Mismatch:**
 - Symptoms: Order status returns `OrderRecordStatusNew` when it should return `pending`.
-- Files: `src/go/backtester-api/models/order_record.go:536`, `src/go/backtester-api/models/playground_test.go:4313`
+- Files: `src/go/backtester/models/order_record.go:536`, `src/go/backtester/models/playground_test.go:4313`
 - Trigger: New orders created before being processed.
 - Workaround: Tests assert current (incorrect) behavior.
 
@@ -73,7 +73,7 @@
 
 **Excessive Use of `log.Fatalf` and `panic`:**
 - Risk: 38 occurrences of `log.Fatal`/`os.Exit` and multiple `panic()` calls across 24 files. In a production server, these cause unclean shutdowns, potentially leaving database transactions uncommitted or broker orders in inconsistent states.
-- Files: `src/go/eventproducers/esdb_producer.go` (5 occurrences), `src/go/eventproducers/interactive_brokers.go` (3 occurrences), `src/go/backtester-api/services/order_queue.go` (2 occurrences), `src/go/data/database_service.go:842`, `src/go/eventservices/polygon.go:601`, `src/go/eventconsumers/tradier_api_worker.go:499`
+- Files: `src/go/api/esdb_producer.go` (5 occurrences), `src/go/api/interactive_brokers.go` (3 occurrences), `src/go/backtester/services/order_queue.go` (2 occurrences), `src/go/data/database_service.go:842`, `src/go/marketdata/polygon.go:601`, `src/go/workers/tradier_api_worker.go:499`
 - Current mitigation: None.
 - Recommendations: Replace `log.Fatalf` with proper error returns. Use graceful shutdown patterns. Reserve `panic` only for truly unrecoverable startup errors, never in request handlers or event loops.
 
@@ -87,7 +87,7 @@
 
 **Excessive Mutex Usage Without Clear Hierarchy:**
 - Problem: 20+ mutex instances across the codebase with no documented locking order.
-- Files: `src/go/data/database_service.go:59,70` (2 mutexes), `src/go/models/strategy.go:22-23` (2 mutexes per strategy), `src/go/models/account.go:20`, `src/go/models/price_level.go:45`, `src/go/eventservices/polygon_cache.go:29,35,41` (3 RWMutexes), `src/go/eventconsumers/tracker_consumer_v3.go:22`
+- Files: `src/go/data/database_service.go:59,70` (2 mutexes), `src/go/models/strategy.go:22-23` (2 mutexes per strategy), `src/go/models/account.go:20`, `src/go/models/price_level.go:45`, `src/go/marketdata/polygon_cache.go:29,35,41` (3 RWMutexes), `src/go/workers/tracker_consumer_v3.go:22`
 - Cause: Organic growth without a concurrency design. Some structs have multiple mutexes protecting different fields.
 - Improvement path: Document lock ordering to prevent deadlocks. Consider reducing granularity or using channels where appropriate.
 
@@ -99,26 +99,26 @@
 
 **Missing Candle Cache:**
 - Problem: Two TODO comments indicate candle data is not cached.
-- Files: `src/go/eventservices/utils.go:31`, `src/go/backtester-api/router/service.go:32`
+- Files: `src/go/marketdata/utils.go:31`, `src/go/backtester/router/service.go:32`
 - Cause: Candle data is re-fetched on each request.
 - Improvement path: Implement caching similar to the existing `polygon_cache.go` pattern.
 
 **Backtester Performance TODOs (Phases 3-5):**
 - Problem: Three documented performance improvements are unimplemented.
-- Files: `src/go/eventservices/polygon_cache.go:24-26`, `src/go/backtester-api/router/grpc.go:213`, `src/clients/python/backtester_playground_client_grpc.py:544`
+- Files: `src/go/marketdata/polygon_cache.go:24-26`, `src/go/backtester/router/grpc.go:213`, `src/clients/python/backtester_playground_client_grpc.py:544`
 - Cause: Each Python tick requires a separate RPC round-trip; account state is fetched per-tick; option chain data is fetched lazily.
 - Improvement path: Phase 3 (embed account state in TickDelta), Phase 4 (BatchTick RPC), Phase 5 (pre-fetch option chains).
 
 ## Fragile Areas
 
-**`src/go/backtester-api/models/playground.go` (2909 lines):**
-- Files: `src/go/backtester-api/models/playground.go`
+**`src/go/backtester/models/playground.go` (2909 lines):**
+- Files: `src/go/backtester/models/playground.go`
 - Why fragile: God object combining order management, tick simulation, reconciliation, account management, and database persistence. Contains 15+ TODOs acknowledging design issues. Two separate reconciliation blocks (lines 844, 917) both need saga pattern but use direct mutation.
 - Safe modification: Changes to this file should be accompanied by tests in `playground_test.go` (4544 lines). Be aware of the nil dbService workaround (lines 1681, 1698).
 - Test coverage: Extensive test file exists but tests assert some known-incorrect behaviors (e.g., status should be "pending" not "new").
 
-**`src/go/backtester-api/router/grpc.go` (1266 lines):**
-- Files: `src/go/backtester-api/router/grpc.go`
+**`src/go/backtester/router/grpc.go` (1266 lines):**
+- Files: `src/go/backtester/router/grpc.go`
 - Why fragile: Main RPC handler with two `panic("not implemented")` calls (lines 201, 622) that would crash the server if hit. Mixes request parsing, business logic, and response formatting.
 - Safe modification: Test through the Twirp client. Avoid triggering the unimplemented code paths.
 - Test coverage: No dedicated test file for grpc.go handlers.
@@ -136,7 +136,7 @@
 - Test coverage: `test_demo_covered_call.py` covers options_strategy_basic_v7 via integration test, but no unit tests for internal functions.
 
 **Order Reconciliation Without Saga Pattern:**
-- Files: `src/go/backtester-api/models/playground.go:844`, `src/go/backtester-api/models/playground.go:917`
+- Files: `src/go/backtester/models/playground.go:844`, `src/go/backtester/models/playground.go:917`
 - Why fragile: Two blocks of reconciliation logic mutate multiple orders without transactional guarantees. TODO comments explicitly call for saga pattern (e.g., Temporal).
 - Safe modification: Wrap in database transactions at minimum. Test reconciliation scenarios end-to-end.
 - Test coverage: Gap in testing partial failure scenarios during reconciliation.
@@ -144,7 +144,7 @@
 ## Scaling Limits
 
 **Single-Process Event Bus:**
-- Current capacity: In-process pub/sub via `src/go/eventpubsub/`.
+- Current capacity: In-process pub/sub via `src/go/pubsub/`.
 - Limit: Cannot scale horizontally; all event processing happens in a single Go process.
 - Scaling path: Migrate to external message broker (NATS, Kafka) or use EventStoreDB subscriptions more extensively.
 
@@ -178,18 +178,18 @@
 
 **No Retry Logic for External API Calls:**
 - Problem: Polygon, Tradier, and other external API calls lack retry/backoff logic.
-- Files: `src/go/eventservices/polygon.go`, `src/go/backtester-api/services/tradier_broker.go`
+- Files: `src/go/marketdata/polygon.go`, `src/go/backtester/services/tradier_broker.go`
 - Blocks: Reliability under network instability. Polygon 403 errors (documented in CLAUDE.md) are handled as hard failures.
 
 **Missing Database Transaction Boundaries:**
-- Problem: Multiple TODO comments reference the need for transactions (e.g., `src/go/backtester-api/models/playground.go:2417,2423` "todo: place all changes inside of a single transaction").
+- Problem: Multiple TODO comments reference the need for transactions (e.g., `src/go/backtester/models/playground.go:2417,2423` "todo: place all changes inside of a single transaction").
 - Blocks: Data consistency during multi-step operations like order reconciliation.
 
 ## Test Coverage Gaps
 
 **No Unit Tests for RPC Handlers:**
-- What's not tested: The main API surface in `src/go/backtester-api/router/grpc.go` (1266 lines) has no dedicated test file.
-- Files: `src/go/backtester-api/router/grpc.go`
+- What's not tested: The main API surface in `src/go/backtester/router/grpc.go` (1266 lines) has no dedicated test file.
+- Files: `src/go/backtester/router/grpc.go`
 - Risk: RPC handler logic changes can break the Python client contract without detection.
 - Priority: High
 
@@ -200,8 +200,8 @@
 - Priority: High
 
 **Incomplete Integration Tests:**
-- What's not tested: `src/go/eventservices/integration_tests/polygon_client_test.go` contains `require.Fail` stub.
-- Files: `src/go/eventservices/integration_tests/polygon_client_test.go:46`
+- What's not tested: `src/go/marketdata/integration_tests/polygon_client_test.go` contains `require.Fail` stub.
+- Files: `src/go/marketdata/integration_tests/polygon_client_test.go:46`
 - Risk: Polygon API integration is not validated by CI.
 - Priority: Medium
 

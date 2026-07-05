@@ -19,21 +19,21 @@
 
 **Run Commands:**
 ```bash
-task test                    # Unit tests (backtester-api only)
+task test                    # Unit tests (backtester only)
 task test:e2e                # All E2E tests (Docker-based, testcontainers)
-task test:integration        # Integration tests (eventservices)
+task test:integration        # Integration tests (marketdata)
 ```
 
 **Underlying commands:**
 ```bash
 # Unit tests
-PROJECT_DIR={{.ROOT_DIR}} go test -count=1 ./...    # in src/go/backtester-api
+PROJECT_DIR={{.ROOT_DIR}} go test -count=1 ./...    # in src/go/backtester
 
 # E2E (each test individually)
 go test -timeout 60s -count=1 -run ^TestName$ github.com/jiaming2012/slack-trading/integration_testing
 
 # Integration
-go test ./...    # in src/go/eventservices/integration_tests
+go test ./...    # in src/go/marketdata/integration_tests
 
 # Python unit tests
 /Users/jamal/miniconda3/envs/grodt/bin/python -m pytest test_kelly_sizing.py -v
@@ -52,7 +52,7 @@ go test ./...    # in src/go/eventservices/integration_tests
 
 **Structure:**
 ```
-src/go/backtester-api/
+src/go/backtester/
   models/
     playground.go
     playground_test.go          # Unit tests for playground
@@ -74,7 +74,7 @@ src/go/eventmodels/
   utils_test.go
   error.go                      # Shared sentinel errors
 
-src/go/eventservices/
+src/go/marketdata/
   polygon_cache_test.go
   account_test.go
   tradier_test.go               # Empty/stub
@@ -162,13 +162,13 @@ class TestDemoCoveredCall(unittest.TestCase):
 **Framework:** Hand-rolled mocks (no mockgen, gomock, or code generation)
 
 **Mock implementations live in production source directories:**
-- `src/go/backtester-api/models/mock_database.go` -- implements `IDatabaseService`
-- `src/go/backtester-api/models/mock_broker.go` -- implements `IBroker`
-- `src/go/backtester-api/models/mock_options_broker.go` -- implements `IOptionsBroker`
-- `src/go/backtester-api/models/mock_live_account.go` -- implements `ILiveAccount`
-- `src/go/backtester-api/models/mock_reconcile_playground.go` -- implements `IReconcilePlayground`
-- `src/go/backtester-api/models/mock_live_account_source.go` -- implements `ILiveAccountSource`
-- `src/go/backtester-api/mock/mock_backtester_data_feed.go` -- implements data feed interface
+- `src/go/backtester/models/mock_database.go` -- implements `IDatabaseService`
+- `src/go/backtester/models/mock_broker.go` -- implements `IBroker`
+- `src/go/backtester/models/mock_options_broker.go` -- implements `IOptionsBroker`
+- `src/go/backtester/models/mock_live_account.go` -- implements `ILiveAccount`
+- `src/go/backtester/models/mock_reconcile_playground.go` -- implements `IReconcilePlayground`
+- `src/go/backtester/models/mock_live_account_source.go` -- implements `ILiveAccountSource`
+- `src/go/backtester/mock/mock_backtester_data_feed.go` -- implements data feed interface
 
 **Mock pattern (Go):**
 ```go
@@ -236,7 +236,7 @@ TOLERANCE_DOLLARS = 0.02
 ```
 
 **Calendar mock helper:**
-- `MockFetchCalendarMap()` in `src/go/backtester-api/models/clock_test.go` -- returns hardcoded JSON calendar data
+- `MockFetchCalendarMap()` in `src/go/backtester/models/clock_test.go` -- returns hardcoded JSON calendar data
 
 **Location:**
 - No separate fixtures directory; all test data constructed inline
@@ -248,21 +248,21 @@ TOLERANCE_DOLLARS = 0.02
 
 **View Coverage:**
 ```bash
-cd src/go/backtester-api && go test -cover ./...
+cd src/go/backtester && go test -cover ./...
 ```
 
 ## Test Types
 
 **Unit Tests:**
 - Scope: Individual model/service methods (order filling, position tracking, cache operations, clock advancement)
-- Location: `src/go/backtester-api/models/*_test.go`, `src/go/backtester-api/services/*_test.go`
-- Total: ~7,846 lines across backtester-api unit tests
+- Location: `src/go/backtester/models/*_test.go`, `src/go/backtester/services/*_test.go`
+- Total: ~7,846 lines across backtester unit tests
 - Run: `task test`
 - Dependencies: Only in-memory mocks, no external services
 
-**Integration Tests (Go - eventservices):**
+**Integration Tests (Go - marketdata):**
 - Scope: External API calls (Polygon.io)
-- Location: `src/go/eventservices/integration_tests/polygon_client_test.go`
+- Location: `src/go/marketdata/integration_tests/polygon_client_test.go`
 - Run: `task test:integration`
 - Note: Contains intentionally-failing stub test (`require.Fail(t, "finish the test")`)
 - Requires: `PROJECT_DIR` and `.env` with API keys
@@ -359,15 +359,15 @@ require.NoError(t, err)
 - Live account scenarios (13 E2E tests)
 
 **Areas with minimal/no test coverage:**
-- `src/go/eventservices/tradier_test.go` -- empty file (1 line: package declaration)
-- `src/go/eventconsumers/` -- only 2 test files
-- `src/go/eventproducers/` -- no test files detected
+- `src/go/marketdata/tradier_test.go` -- empty file (1 line: package declaration)
+- `src/go/workers/` -- only 2 test files
+- `src/go/api/` -- no test files detected
 - `src/go/data/database_service.go` -- no unit tests (tested indirectly via E2E)
-- `src/go/backtester-api/router/grpc.go` -- no unit tests (1248 lines, tested via E2E)
-- REST API handlers in `eventproducers/` sub-packages -- no tests
+- `src/go/backtester/router/grpc.go` -- no unit tests (1248 lines, tested via E2E)
+- REST API handlers in `api/` sub-packages -- no tests
 
 **Intentionally-failing test:**
-- `src/go/eventservices/integration_tests/polygon_client_test.go` ends with `require.Fail(t, "finish the test")` -- stub for future completion
+- `src/go/marketdata/integration_tests/polygon_client_test.go` ends with `require.Fail(t, "finish the test")` -- stub for future completion
 
 ---
 

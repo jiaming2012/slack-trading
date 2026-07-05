@@ -18,14 +18,14 @@
 
 **RPC/API Layer (Twirp + REST):**
 - Purpose: Accept external requests from Python clients and HTTP consumers
-- Location: `src/go/backtester-api/router/grpc.go` (Twirp handlers, 1266 lines), `src/go/backtester-api/rpc/twirp.go` (server setup), `src/go/backtester-api/router/handler.go` (REST handlers for `/playground`)
+- Location: `src/go/backtester/router/grpc.go` (Twirp handlers, 1266 lines), `src/go/backtester/rpc/twirp.go` (server setup), `src/go/backtester/router/handler.go` (REST handlers for `/playground`)
 - Contains: `Server` struct implementing all `PlaygroundService` RPC methods; REST route setup
-- Depends on: `data.DatabaseService`, `eventservices.PolygonOptionsClient`, `models.*`
+- Depends on: `data.DatabaseService`, `marketdata.PolygonOptionsClient`, `models.*`
 - Used by: Python clients via Twirp, HTTP clients via REST
 
 **Domain Model Layer:**
 - Purpose: Core business entities and trading logic
-- Location: `src/go/backtester-api/models/` (80+ files)
+- Location: `src/go/backtester/models/` (80+ files)
 - Contains: `Playground` (2909 lines), `OrderRecord`, `TradeRecord`, `CandleRepository`, `BacktesterAccount`, `Clock`, `LiveAccount`, broker interfaces
 - Depends on: `eventmodels` (shared types), `models` (legacy shared models)
 - Used by: Router, DatabaseService, Services
@@ -39,7 +39,7 @@
 
 **Services Layer:**
 - Purpose: Broker integration, order queue processing, live account management
-- Location: `src/go/backtester-api/services/`
+- Location: `src/go/backtester/services/`
 - Contains: `TradierBroker` (live broker), `MockBroker`, order queue draining, live repository management
 - Key files: `services/tradier_broker.go`, `services/order_queue.go`, `services/playground.go`, `services/accounts.go`
 - Depends on: `models.*`, external Tradier API
@@ -47,7 +47,7 @@
 
 **Event Pub/Sub Layer:**
 - Purpose: In-process decoupled communication between Go components
-- Location: `src/go/eventpubsub/` (4 files)
+- Location: `src/go/pubsub/` (4 files)
 - Contains: Thin wrapper around `EventBus` library; `Publish`, `Subscribe`, `Unsubscribe` functions
 - Pattern: Global singleton `bus` initialized via `Init()`; async subscriptions
 - Depends on: `github.com/asaskevich/EventBus`
@@ -55,20 +55,20 @@
 
 **Event Consumers:**
 - Purpose: Background workers that subscribe to pub/sub events and perform side effects
-- Location: `src/go/eventconsumers/` (21 files)
+- Location: `src/go/workers/` (21 files)
 - Contains: `SlackNotifierClient`, `TradierApiWorker`, `GlobalDispatchWorker`, `AccountWorkerClient`, ESDB consumers
 - Pattern: Each consumer has a `Start(ctx)` method that subscribes to topics and runs a goroutine
-- Depends on: `eventpubsub`, `eventmodels`, external services (Slack, Tradier, ESDB)
+- Depends on: `pubsub`, `models`, external services (Slack, Tradier, ESDB)
 
 **Event Producers:**
 - Purpose: REST API handlers and external event sources that publish to the event bus
-- Location: `src/go/eventproducers/` (22 files across subdirectories)
+- Location: `src/go/api/` (22 files across subdirectories)
 - Contains: API route handlers (`tradeapi`, `accountapi`, `datafeedapi`, `alertapi`, `signalapi`, `optionsapi`, `strategyapi`), Slack command handler, ESDB producer
-- Depends on: `eventpubsub`, `eventmodels`
+- Depends on: `pubsub`, `models`
 
 **External Services:**
 - Purpose: Clients for external APIs (Polygon, Tradier, ORATS, etc.)
-- Location: `src/go/eventservices/` (35 files)
+- Location: `src/go/marketdata/` (35 files)
 - Contains: `PolygonOptionsClient` (options data), `PolygonTickDataMachine` (stock ticks), `PolygonCache` (3-bucket thread-safe cache), Tradier order/quote fetching, market calendar
 - Depends on: External HTTP APIs, `eventmodels`
 
@@ -127,25 +127,25 @@
 
 **Playground:**
 - Purpose: A trading session (backtesting, live, or reconciliation)
-- Examples: `src/go/backtester-api/models/playground.go`
+- Examples: `src/go/backtester/models/playground.go`
 - Pattern: UUID primary key, GORM model with embedded `Meta`, contains `BacktesterAccount`, `Clock`, `CandleMasterRepository`, order queues
 - Environments: `simulator` (backtesting), `live` (real broker), `reconcile` (cross-checking)
 
 **OrderRecord / TradeRecord:**
 - Purpose: Represent orders and their fills
-- Examples: `src/go/backtester-api/models/order_record.go`, `src/go/backtester-api/models/trade_record.go`
+- Examples: `src/go/backtester/models/order_record.go`, `src/go/backtester/models/trade_record.go`
 - Pattern: GORM models with M2M relationships (Closes, ClosedBy, Reconciles); status lifecycle (pending -> filled/rejected/canceled)
 
 **CandleRepository:**
 - Purpose: Time-series container for OHLCV candle data per symbol and timeframe
-- Examples: `src/go/backtester-api/models/candle_repository.go`, `src/go/backtester-api/models/candle_master_repository.go`
+- Examples: `src/go/backtester/models/candle_repository.go`, `src/go/backtester/models/candle_master_repository.go`
 - Pattern: Holds candle data fetched from Polygon; supports indicator computation; master repo manages multiple symbol/period repos
 
 **IBroker Interface:**
 - Purpose: Abstract broker operations for live and mock trading
-- Examples: `src/go/backtester-api/models/broker_interface.go`
+- Examples: `src/go/backtester/models/broker_interface.go`
 - Pattern: Interface with implementations `TradierBroker` (live), `MockBroker` (testing/simulation)
-- Implementations: `src/go/backtester-api/services/tradier_broker.go`, `src/go/backtester-api/models/mock_broker.go`
+- Implementations: `src/go/backtester/services/tradier_broker.go`, `src/go/backtester/models/mock_broker.go`
 
 **FIFOQueue:**
 - Purpose: Generic thread-safe queue for async event processing
@@ -159,7 +159,7 @@
 - Triggers: `task app:dev` or `go run ./cmd/main.go`
 - Responsibilities:
   1. Load environment variables via `utils.InitEnvironmentVariables()`
-  2. Initialize pub/sub bus via `eventpubsub.Init()`
+  2. Initialize pub/sub bus via `pubsub.Init()`
   3. Connect to PostgreSQL via `dbutils.InitPostgres()` (auto-migrates schema)
   4. Set up Google Sheets client
   5. Configure Gorilla mux router with REST API routes (`/trades`, `/accounts`, `/datafeeds`, `/alerts`, `/signals`, `/data`, `/version`, `/playground`, `/debug/pprof`)
@@ -186,8 +186,8 @@
 
 **Patterns:**
 - Twirp RPC: Errors returned from `Server` methods are automatically serialized as Twirp error responses
-- Panic recovery middleware wraps the Twirp handler (`src/go/backtester-api/rpc/twirp.go`)
-- REST API: `eventpubsub.PublishRequestError()` sends errors through the event bus to the `GlobalDispatchWorker`, which routes to the waiting HTTP handler
+- Panic recovery middleware wraps the Twirp handler (`src/go/backtester/rpc/twirp.go`)
+- REST API: `pubsub.PublishRequestError()` sends errors through the event bus to the `GlobalDispatchWorker`, which routes to the waiting HTTP handler
 - `eventmodels.WebError` wraps errors with HTTP status codes for REST responses
 - Database operations use GORM error handling with `fmt.Errorf` wrapping
 
@@ -195,11 +195,11 @@
 
 **Logging:** `github.com/sirupsen/logrus` (Go), `loguru` (Python). OpenTelemetry hooks added via `otellogrus`. Log level configurable via `LOG_LEVEL` env var.
 
-**Validation:** Request validation happens in RPC handler methods (`src/go/backtester-api/router/grpc.go`). Playground environment validated via `playgroundEnvironment.Validate()`. Order validation in `Playground.PlaceOrder()`.
+**Validation:** Request validation happens in RPC handler methods (`src/go/backtester/router/grpc.go`). Playground environment validated via `playgroundEnvironment.Validate()`. Order validation in `Playground.PlaceOrder()`.
 
 **Authentication:** No authentication layer on the server. Tradier API uses bearer tokens stored in environment variables. Google Sheets uses base64-encoded service account key.
 
-**Caching:** `PolygonCache` (`src/go/eventservices/polygon_cache.go`) provides 3-bucket thread-safe in-memory cache with optional disk persistence for aggregate bars. `DatabaseService` maintains in-memory caches for playgrounds, orders, and trades. `RequestCache` in `Server` deduplicates concurrent `NextTick` calls.
+**Caching:** `PolygonCache` (`src/go/marketdata/polygon_cache.go`) provides 3-bucket thread-safe in-memory cache with optional disk persistence for aggregate bars. `DatabaseService` maintains in-memory caches for playgrounds, orders, and trades. `RequestCache` in `Server` deduplicates concurrent `NextTick` calls.
 
 **Profiling:** pprof endpoints registered at `/debug/pprof/*` for runtime profiling.
 

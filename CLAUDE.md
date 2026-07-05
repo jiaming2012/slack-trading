@@ -16,17 +16,17 @@ Event-driven trading platform: Go backend server + Python strategy clients, comm
 cmd/main.go                     # Server entrypoint
 cmd/run-dev.sh                  # Dev runner (sets GO_ENV, OPTIONS_CONFIG_PATH for worktrees)
 src/go/
-  backtester-api/               # Core backtester service
+  backtester/                   # Core backtester service
     models/                     #   Domain: Playground, OrderRecord, CandleRepository, Account
     router/grpc.go              #   Twirp RPC handlers (1248 lines — the main API surface)
     services/                   #   Order queue, Tradier broker, live accounts
     rpc/twirp.go                #   Twirp server setup
-  eventservices/                # Polygon client, Tradier, polygon_cache.go
-  eventmodels/                  # Shared domain types (StockSymbol, OptionSymbol, etc.)
+  marketdata/                   # Polygon client, Tradier, polygon_cache.go
+  models/                       # Shared domain types (StockSymbol, OptionSymbol, etc.)
   data/                         # Database service layer (Postgres)
-  eventconsumers/               # Slack, Tradier, ESDB workers
-  eventproducers/               # API handlers, Slack commands
-  eventpubsub/                  # In-process pub/sub
+  workers/                      # Slack, Tradier, ESDB workers
+  api/                          # API handlers, Slack commands
+  pubsub/                       # In-process pub/sub
   playground.proto              # Protobuf definition
   options-config.yaml           # Options trading config (dev)
 src/clients/python/
@@ -45,9 +45,9 @@ deprecated/                     # Archived code
 ```bash
 go build ./cmd/main.go               # Build server
 go build ./src/go/...                 # Build all packages
-task test                             # Unit tests (backtester-api)
+task test                             # Unit tests (backtester)
 task test:e2e                         # E2E tests
-task test:integration                 # Integration tests (eventservices)
+task test:integration                 # Integration tests (marketdata)
 task app:dev                          # Run dev server (GO_ENV=development)
 task gen:proto                        # Regenerate protobuf stubs
 ```
@@ -60,13 +60,13 @@ task gen:proto                        # Regenerate protobuf stubs
 3. Python strategy evaluates signals from candle indicators, calls `PlaceOrder` RPC
 4. Go fills orders via simulated tick matching in `simulateTick` (playground.go)
 
-### Polygon API Cache (`eventservices/polygon_cache.go`)
+### Polygon API Cache (`marketdata/polygon_cache.go`)
 - 3 buckets: option contracts, stock ticks, aggregate bars
 - Thread-safe (`sync.RWMutex` per bucket), composite keys
 - Integrated in `FetchOptionChainV1` and `populateTickDataToOptionChainMap`
 - `DeepCopy()` on cached values to prevent mutation
 
-### Parallel Option Fetches (`eventservices/fetch_option_chain_with_params.go`)
+### Parallel Option Fetches (`marketdata/fetch_option_chain_with_params.go`)
 - `errgroup` worker pool (concurrency limit 5) replaces sequential loop with 50ms sleeps
 
 ## Environment & Config
@@ -90,7 +90,7 @@ task gen:proto                        # Regenerate protobuf stubs
 - **Port 8080 conflict**: REST server logs error but doesn't crash (Twirp on 5051 still works)
 - **`gh` alias**: User's shell aliases `gh` to `git checkout`. Use `/usr/local/bin/gh` or `command gh`.
 - **numpy version**: Must be >=2.0 — `pandas-ta-classic` requires numpy>=2.0
-- **`eventservices/integration_tests`**: Contains an intentionally-failing stub test (`require.Fail(t, "finish the test")`)
+- **`marketdata/integration_tests`**: Contains an intentionally-failing stub test (`require.Fail(t, "finish the test")`)
 - **Server startup**: Loads all persisted playgrounds from Postgres — emits "no candles found" warnings for live playgrounds (normal when market data hasn't caught up)
 
 ## Deploy
@@ -238,9 +238,8 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - Error files: `error.go` or `errors.go` per package
 - Use `snake_case.py` for source: `trading_engine.py`, `risk_management.py`
 - Test files: `test_*.py` prefix: `test_kelly_sizing.py`, `test_partial_exit_manager.py`
-- Lowercase, single-word where possible: `models`, `data`, `utils`, `router`
-- Multi-word with hyphens in directory names: `backtester-api` (imported as `backtester_router` when aliased)
-- Event-prefixed packages: `eventmodels`, `eventservices`, `eventconsumers`, `eventproducers`, `eventpubsub`
+- Lowercase, single-word where possible: `models`, `data`, `utils`, `router`, `backtester`, `marketdata`, `workers`, `api`, `pubsub`
+- No hyphenated directory names remain under `src/go/`; the `backtester` container directory's `router` subpackage is still imported as `backtester_router` when aliased, to disambiguate from other `router` packages
 - PascalCase for exported: `NewPlayground()`, `PlaceOrder()`, `GetOrder()`
 - camelCase for unexported: `commitTradableOrderToOrderQueue()`, `updateOpenOrdersCache()`
 - Constructor pattern: `New<Type>()` returns `*Type` and `error`: `NewPlayground(...)`, `NewOrderRecord(...)`, `NewCandleRepository(...)`
@@ -265,7 +264,7 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 ## Import Organization
 - `log "github.com/sirupsen/logrus"` -- universal across the codebase
 - `pb "github.com/jiaming2012/slack-trading/src/go/playground"` -- protobuf stubs
-- `backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester-api/router"` -- disambiguating
+- `backtester_router "github.com/jiaming2012/slack-trading/src/go/backtester/router"` -- disambiguating
 - All internal imports: `github.com/jiaming2012/slack-trading/src/go/<package>`
 - None (no `tsconfig.json` or Go module path aliasing beyond the module path)
 ## Error Handling
@@ -308,15 +307,15 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - Validate all inputs in the constructor
 - Many parameters (sometimes 15+) passed positionally -- no options pattern used
 - Example: `NewOrderRecord(id, externalOrderID, clientRequestID, playgroundID, class, accountType, timestamp, symbol, side, quantity, orderType, duration, requestedPrice, ...)`
-- Defined in separate `*_interface.go` files in `src/go/backtester-api/models/`
+- Defined in separate `*_interface.go` files in `src/go/backtester/models/`
 - Used for dependency injection: `IDatabaseService`, `IBroker`, `IOptionsBroker`
 - Mock implementations live alongside production code in the same package
 ## Module Design
-- Domain types in `eventmodels/` (shared across packages)
-- Service logic in `eventservices/`
-- Consumer workers in `eventconsumers/`
-- HTTP handler producers in `eventproducers/` with sub-packages per API domain
-- Backtester core in `backtester-api/models/`, `backtester-api/services/`, `backtester-api/router/`
+- Domain types in `models/` (shared across packages)
+- Service logic in `marketdata/`
+- Consumer workers in `workers/`
+- HTTP handler producers in `api/` with sub-packages per API domain
+- Backtester core in `backtester/models/`, `backtester/services/`, `backtester/router/`
 ## Git Workflow
 - Feature branches: `claude/<descriptive-name>` (e.g., `claude/nifty-diffie`)
 - Main branches: `main`, `dev`
@@ -335,47 +334,47 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - EventStoreDB for event sourcing of signals and account state
 ## Layers
 - Purpose: Accept external requests from Python clients and HTTP consumers
-- Location: `src/go/backtester-api/router/grpc.go` (Twirp handlers, 1266 lines), `src/go/backtester-api/rpc/twirp.go` (server setup), `src/go/backtester-api/router/handler.go` (REST handlers for `/playground`)
+- Location: `src/go/backtester/router/grpc.go` (Twirp handlers, 1266 lines), `src/go/backtester/rpc/twirp.go` (server setup), `src/go/backtester/router/handler.go` (REST handlers for `/playground`)
 - Contains: `Server` struct implementing all `PlaygroundService` RPC methods; REST route setup
-- Depends on: `data.DatabaseService`, `eventservices.PolygonOptionsClient`, `models.*`
+- Depends on: `data.DatabaseService`, `marketdata.PolygonOptionsClient`, `models.*`
 - Used by: Python clients via Twirp, HTTP clients via REST
 - Purpose: Core business entities and trading logic
-- Location: `src/go/backtester-api/models/` (80+ files)
+- Location: `src/go/backtester/models/` (80+ files)
 - Contains: `Playground` (2909 lines), `OrderRecord`, `TradeRecord`, `CandleRepository`, `BacktesterAccount`, `Clock`, `LiveAccount`, broker interfaces
-- Depends on: `eventmodels` (shared types), `models` (legacy shared models)
+- Depends on: `models` (shared domain types)
 - Used by: Router, DatabaseService, Services
 - Purpose: Persistence, caching, and orchestration of playgrounds and orders
 - Location: `src/go/data/database_service.go` (1634 lines)
 - Contains: `DatabaseService` struct with in-memory caches for playgrounds, orders, trades, live accounts; GORM queries
-- Depends on: `gorm.DB`, `models.*`, `eventmodels.*`, `dbutils`
+- Depends on: `gorm.DB`, `models.*`, `dbutils`
 - Used by: RPC handlers, backtester router
 - Purpose: Broker integration, order queue processing, live account management
-- Location: `src/go/backtester-api/services/`
+- Location: `src/go/backtester/services/`
 - Contains: `TradierBroker` (live broker), `MockBroker`, order queue draining, live repository management
 - Key files: `services/tradier_broker.go`, `services/order_queue.go`, `services/playground.go`, `services/accounts.go`
 - Depends on: `models.*`, external Tradier API
 - Used by: DatabaseService, Router
 - Purpose: In-process decoupled communication between Go components
-- Location: `src/go/eventpubsub/` (4 files)
+- Location: `src/go/pubsub/` (4 files)
 - Contains: Thin wrapper around `EventBus` library; `Publish`, `Subscribe`, `Unsubscribe` functions
 - Pattern: Global singleton `bus` initialized via `Init()`; async subscriptions
 - Depends on: `github.com/asaskevich/EventBus`
 - Used by: Event consumers, event producers, global dispatcher
 - Purpose: Background workers that subscribe to pub/sub events and perform side effects
-- Location: `src/go/eventconsumers/` (21 files)
+- Location: `src/go/workers/` (21 files)
 - Contains: `SlackNotifierClient`, `TradierApiWorker`, `GlobalDispatchWorker`, `AccountWorkerClient`, ESDB consumers
 - Pattern: Each consumer has a `Start(ctx)` method that subscribes to topics and runs a goroutine
-- Depends on: `eventpubsub`, `eventmodels`, external services (Slack, Tradier, ESDB)
+- Depends on: `pubsub`, `models`, external services (Slack, Tradier, ESDB)
 - Purpose: REST API handlers and external event sources that publish to the event bus
-- Location: `src/go/eventproducers/` (22 files across subdirectories)
+- Location: `src/go/api/` (22 files across subdirectories)
 - Contains: API route handlers (`tradeapi`, `accountapi`, `datafeedapi`, `alertapi`, `signalapi`, `optionsapi`, `strategyapi`), Slack command handler, ESDB producer
-- Depends on: `eventpubsub`, `eventmodels`
+- Depends on: `pubsub`, `models`
 - Purpose: Clients for external APIs (Polygon, Tradier, ORATS, etc.)
-- Location: `src/go/eventservices/` (35 files)
+- Location: `src/go/marketdata/` (35 files)
 - Contains: `PolygonOptionsClient` (options data), `PolygonTickDataMachine` (stock ticks), `PolygonCache` (3-bucket thread-safe cache), Tradier order/quote fetching, market calendar
-- Depends on: External HTTP APIs, `eventmodels`
+- Depends on: External HTTP APIs, `models`
 - Purpose: Domain types shared across all Go packages
-- Location: `src/go/eventmodels/` (100+ files)
+- Location: `src/go/models/` (100+ files)
 - Contains: `StockSymbol`, `OptionSymbol`, `OptionContractV3`, `Candle`, `FIFOQueue`, `GlobalResponseDispatcher`, event name constants, request/response DTOs
 - Used by: All Go packages
 - Purpose: Implement trading strategies that drive the backtester loop
@@ -389,21 +388,21 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - Thread safety via `sync.Mutex` on `DatabaseService`, individual playground mutexes, and per-bucket mutexes on `PolygonCache`
 ## Key Abstractions
 - Purpose: A trading session (backtesting, live, or reconciliation)
-- Examples: `src/go/backtester-api/models/playground.go`
+- Examples: `src/go/backtester/models/playground.go`
 - Pattern: UUID primary key, GORM model with embedded `Meta`, contains `BacktesterAccount`, `Clock`, `CandleMasterRepository`, order queues
 - Environments: `simulator` (backtesting), `live` (real broker), `reconcile` (cross-checking)
 - Purpose: Represent orders and their fills
-- Examples: `src/go/backtester-api/models/order_record.go`, `src/go/backtester-api/models/trade_record.go`
+- Examples: `src/go/backtester/models/order_record.go`, `src/go/backtester/models/trade_record.go`
 - Pattern: GORM models with M2M relationships (Closes, ClosedBy, Reconciles); status lifecycle (pending -> filled/rejected/canceled)
 - Purpose: Time-series container for OHLCV candle data per symbol and timeframe
-- Examples: `src/go/backtester-api/models/candle_repository.go`, `src/go/backtester-api/models/candle_master_repository.go`
+- Examples: `src/go/backtester/models/candle_repository.go`, `src/go/backtester/models/candle_master_repository.go`
 - Pattern: Holds candle data fetched from Polygon; supports indicator computation; master repo manages multiple symbol/period repos
 - Purpose: Abstract broker operations for live and mock trading
-- Examples: `src/go/backtester-api/models/broker_interface.go`
+- Examples: `src/go/backtester/models/broker_interface.go`
 - Pattern: Interface with implementations `TradierBroker` (live), `MockBroker` (testing/simulation)
-- Implementations: `src/go/backtester-api/services/tradier_broker.go`, `src/go/backtester-api/models/mock_broker.go`
+- Implementations: `src/go/backtester/services/tradier_broker.go`, `src/go/backtester/models/mock_broker.go`
 - Purpose: Generic thread-safe queue for async event processing
-- Examples: `src/go/eventmodels/fifo_queue.go`
+- Examples: `src/go/models/fifo_queue.go`
 - Pattern: Used for order updates, new candles, new trades between goroutines
 ## Entry Points
 - Location: `cmd/main.go` (465 lines)
@@ -417,9 +416,9 @@ An observability layer for the slack-trading platform's live simulation mode. Su
 - Responsibilities: Creates playground, runs tick loop with configurable strategies, collects metrics
 ## Error Handling
 - Twirp RPC: Errors returned from `Server` methods are automatically serialized as Twirp error responses
-- Panic recovery middleware wraps the Twirp handler (`src/go/backtester-api/rpc/twirp.go`)
-- REST API: `eventpubsub.PublishRequestError()` sends errors through the event bus to the `GlobalDispatchWorker`, which routes to the waiting HTTP handler
-- `eventmodels.WebError` wraps errors with HTTP status codes for REST responses
+- Panic recovery middleware wraps the Twirp handler (`src/go/backtester/rpc/twirp.go`)
+- REST API: `pubsub.PublishRequestError()` sends errors through the event bus to the `GlobalDispatchWorker`, which routes to the waiting HTTP handler
+- `models.WebError` wraps errors with HTTP status codes for REST responses
 - Database operations use GORM error handling with `fmt.Errorf` wrapping
 ## Cross-Cutting Concerns
 <!-- GSD:architecture-end -->
