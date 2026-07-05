@@ -157,6 +157,11 @@ tasks:
     desc: 'Run the simulator-vs-live fidelity checker (defaults to the built-in synthetic dataset). Exits non-zero only on execution error; a tolerance breach is a normal, reportable outcome.'
     cmds:
       - 'go run ./cmd/fidelity-check {{.CLI_ARGS | default "--synthetic"}}'
+
+  test:ev-tracker:
+    desc: 'Run the evtracker EV-computation unit and testcontainers persistence suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/evtracker/...'
     dir: "{{.ROOT_DIR}}"
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
