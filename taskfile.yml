@@ -159,6 +159,12 @@ tasks:
       - PYTHON="{{.PYTHON}}" ./run_e2e_smoke_test.sh
     dir: src/clients/python
 
+  test:python:
+    desc: 'Run the Python client unit suite headlessly (no server required). Excludes the e2e strategy test; the e2e smoke and demo-covered-call integration modules self-skip when their live-server harness is absent. Propagates pytest''s exit code (0 = green).'
+    cmds:
+      - OTEL_SDK_DISABLED=true {{.PYTHON}} -m pytest tests/ --ignore=tests/test_strategy_e2e.py -q
+    dir: src/clients/python
+
   lint:package-names:
     desc: 'Guard against drift back to the pre-rename-event-packages package names (eventservices, eventconsumers, eventproducers, eventpubsub, backtester-api). Scans live Go source and live architecture docs only -- historical/archival material (.planning/milestones, .planning/todos, openspec/changes/*, todo/, docs/adr/) is intentionally excluded.'
     cmds:

@@ -60,6 +60,6 @@ Kill switch: `/kill-switch/*` endpoints unauthenticated; no fsync before halt-fi
 - GSD is retired here — OpenSpec spec-first only; operator sign-off before code (tonight's batch sign-off was explicit and one-time).
 - `gh` is aliased to `git checkout` — use `command gh`.
 - `task test` = Go tests in `src/go/backtester` only. Broader: `lint:package-names`, `test:no-gorm-leaks`, `test:trading-stack`, `test:model-diff` (needs server), `test:smoke`, plus per-package targets.
-- G3 discipline: compare pytest failures against `src/clients/python/tests/baselines/pytest-failures-20260704.txt` (179 IDs) — the smoke module skips outside its harness (`E2E_SMOKE_HARNESS=1`).
+- Python suite discipline: **zero pytest failures** — run `task test:python` (headless, no server). The 179-ID parity baseline was retired once the suite went green (change `repair-python-test-suite`); gate on zero failures, not baseline-diffing. Harness-gated integration modules self-skip when their live-server harness is absent: the e2e smoke module (`E2E_SMOKE_HARNESS=1`) and the demo-covered-call regression (`DEMO_COVERED_CALL_HARNESS=1`).
 - Halt state lives at `.safety/halt-state.json` — NOT `.cache/` — and an empty store logs a loud Warn at boot.
 - `miniconda3` at repo root is a deliberate symlink; `todo/` holds tracked docs; worktrees under `.claude/worktrees/` (tonight's agent worktrees can be pruned: `git worktree prune` after deleting dirs).
