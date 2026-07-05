@@ -104,3 +104,16 @@ connectivity, which overnight constraints prohibit (no live/paper broker orders,
 external infra). This change lands compile-clean and unit-tested; the Paper-mode
 end-to-end confirmation is an operator follow-up. Per the overnight plan the persisted
 data migration (`migrate-live-account-type-data`) is also explicitly not attempted.
+
+---
+
+## Design amendment (2026-07-05, Fable, mid-implementation)
+
+The executor halted pre-code on a genuine contract/code collision: `LiveAccountType` is not only the operator-facing Meta pairing axis this design modeled. In the current tree it is a 5-valued tag used at three levels: (1) the Meta pairing (covered by this design), (2) `LiveAccount.AccountType` + `CreateAccountRequestSource.LiveAccountType` store map keys + broker env-var selection (`mock` is a live broker discriminator), and (3) `OrderRecord.LiveAccountType` (`order_records.account_type`, not null), where `reconcilation` routes ReconcileTrades/ReconcileOrderID and `simulator` short-circuits trade linking. Collapsing (2)/(3) into 3-value `Mode` would erase behavior (G2) and change persisted bytes (byte-identity constraint).
+
+**Ruling — concept split:**
+- `Mode` (Simulation | Paper | Margin): the ONLY operator-facing selector. Replaces the Meta pairing, the RPC boundary fields, and every operator-facing `LiveAccountType` use. `PlaygroundEnvironment` dies entirely.
+- `AccountRole` (mock | simulator | paper | margin | reconcilation): the internal per-order/per-account tag, renamed from `LiveAccountType` with identical persisted string values. Lives behind the Broker seam; documented internal; never appears in RPC or playground-creation surfaces. `order_records.account_type` and `live_accounts.account_type` stay byte-identical.
+- Legacy reconcile rows: represented internally (AccountRole/internal flag on Meta — implementer's choice), never as a `Mode`. The compat mapping exposes a distinct internal-reconcile outcome alongside the three modes and the error outcome.
+
+Sign-off compatibility: the operator-approved outcomes (three modes, nonsense combos unrepresentable, reconcile not operator-selectable, zero stored-data mutation) are all preserved; the amendment only corrects the identifier-level claim that every `LiveAccountType` use becomes `Mode`.

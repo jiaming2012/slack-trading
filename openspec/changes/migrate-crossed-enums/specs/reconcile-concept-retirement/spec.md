@@ -25,6 +25,11 @@ Legacy playground rows persisted with `environment="reconcile"` (and `live_accou
 - **WHEN** the server loads a persisted row with `environment="reconcile"`
 - **THEN** the load completes without panicking or aborting startup, and the row is treated as internal reconciliation state, not surfaced as a selectable operator mode
 
+#### Scenario: Reconcile rows carry an internal representation, not a Mode
+
+- **WHEN** a legacy reconcile row is loaded into playground metadata
+- **THEN** it is represented by the internal reconciliation designation (via `AccountRole`/an internal flag on `Meta` — implementer's choice, documented in design.md) and NOT by any of the three operator `Mode` values, and the compat mapping (`ModeFromLegacy` or equivalent) SHALL expose a distinct "internal reconcile" outcome alongside the three modes and the error outcome
+
 ### Requirement: Reconciliation stays behind the Broker seam
 
 The netting translation between logical playground positions and the shared broker account SHALL remain internal to the Broker seam and apply across the three modes, so that removing the operator-facing concept does not remove the internal reconciliation behavior.
