@@ -11,11 +11,11 @@
 
 ## 3. Anomaly guards
 
-- [ ] 3.1 Implement `RejectionRateGuard` over a rolling window in `guards.go`; unit tests for trip (over threshold) and no-trip (at/under threshold)
-- [ ] 3.2 Implement `FillDeviationGuard` (absolute deviation vs. expected price, percent threshold); unit tests for trip and no-trip
-- [ ] 3.3 Implement `TradesPerHourGuard` (current rate vs. supplied historical mean + 2σ); unit tests for trip (>2σ) and no-trip (≤2σ)
-- [ ] 3.4 Implement `FeedStalenessGuard` consuming the `feed-health-staleness` last-Tick-age signal; unit tests for stale-trips, fresh-no-trip, and absent-signal-degrades-to-inactive
-- [ ] 3.5 Wire all guards to the shared `HaltController` via `guards_registry.go` (staleness signal source optional/nilable); unit test that any guard trip engages the same controller and blocks subsequent orders with source=auto
+- [x] 3.1 Implement `RejectionRateGuard` over a rolling window in `guards.go`; unit tests for trip (over threshold) and no-trip (at/under threshold)
+- [x] 3.2 Implement `FillDeviationGuard` (absolute deviation vs. expected price, percent threshold); unit tests for trip and no-trip
+- [x] 3.3 Implement `TradesPerHourGuard` (current rate vs. supplied historical mean + 2σ); unit tests for trip (>2σ) and no-trip (≤2σ)
+- [x] 3.4 Implement `FeedStalenessGuard` consuming the `feed-health-staleness` last-Tick-age signal; unit tests for stale-trips, fresh-no-trip, and absent-signal-degrades-to-inactive
+- [x] 3.5 Wire all guards to the shared `HaltController` via `guards_registry.go` (staleness signal source optional/nilable); unit test that any guard trip engages the same controller and blocks subsequent orders with source=auto
 
 ## 4. Cooldown protocol
 
