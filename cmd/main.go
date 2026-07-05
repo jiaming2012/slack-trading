@@ -356,6 +356,16 @@ func main() {
 	}
 	backtester_models.SetOrderGate(haltController)
 
+	// Guard/halt observability (ADR-0005, internal telemetry only): the
+	// safety_halt_engaged gauge tracks every controller transition (and the
+	// startup restore), and the alert engine's auto_halt rule pushes a Slack
+	// Alert while an automatic halt is engaged, naming the tripping guard.
+	safety.InstallHaltTelemetry(haltController)
+	alertEngine.SetHaltStatus(func() (bool, string, string) {
+		st := haltController.Status()
+		return st.Engaged, string(st.Source), st.Reason
+	})
+
 	// Shared-secret token guarding the mutating /kill-switch endpoints.
 	// Unset: engage stays available (stopping trading is the safe direction)
 	// but release/acknowledge are refused fail-closed.

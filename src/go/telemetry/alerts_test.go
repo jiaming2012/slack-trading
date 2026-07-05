@@ -207,6 +207,61 @@ func TestAlertEngine(t *testing.T) {
 		}
 		assert.Empty(t, notifier.messages(), "the server does not alert on its own liveness")
 	})
+
+	t.Run("auto-halt fires on automatic engage, names the guard, resolves on release", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, _ := newTestEngine(db, notifier)
+
+		// Fake halt state stands in for safety.HaltController.Status().
+		var mu sync.Mutex
+		engaged, source, reason := false, "", ""
+		e.SetHaltStatus(func() (bool, string, string) {
+			mu.Lock()
+			defer mu.Unlock()
+			return engaged, source, reason
+		})
+
+		start := time.Now().UTC()
+
+		// Clear: silent.
+		e.Evaluate(start)
+		assert.Empty(t, notifier.messages())
+
+		// A guard trips: automatic halt engages, alert fires naming the guard.
+		mu.Lock()
+		engaged, source, reason = true, "auto", "rejection-rate guard: rejection rate 75% over 4 orders exceeds threshold 50%"
+		mu.Unlock()
+
+		e.Evaluate(start.Add(30 * time.Second))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleAutoHalt)
+		assert.Contains(t, msgs[0], "rejection-rate guard")
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ?", RuleAutoHalt).Order("id desc").First(&row).Error)
+		assert.Equal(t, "kill-switch", row.Subject)
+		assert.Nil(t, row.ResolvedAt)
+
+		// A manual halt does not fire the auto rule; the auto alert resolves.
+		mu.Lock()
+		engaged, source, reason = true, "manual", "operator halt"
+		mu.Unlock()
+
+		e.Evaluate(start.Add(time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2)
+		assert.Contains(t, msgs[1], "RESOLVED")
+
+		// Released entirely: still silent.
+		mu.Lock()
+		engaged, source, reason = false, "", ""
+		mu.Unlock()
+
+		e.Evaluate(start.Add(2 * time.Minute))
+		assert.Len(t, notifier.messages(), 2)
+	})
 }
 
 func TestErrorCounterHook(t *testing.T) {

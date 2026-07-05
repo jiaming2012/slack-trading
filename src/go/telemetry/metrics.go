@@ -16,6 +16,14 @@ var (
 	ActivePlaygrounds *Gauge
 	OpenOrders        *Gauge
 	UptimeSeconds     *Gauge
+
+	// Anomaly-guard / kill-switch instruments (wire-anomaly-guard-feeds).
+	// GuardObservations and GuardTrips carry a {guard} label naming the guard;
+	// HaltEngaged is 0/1, set on every halt-controller transition and on
+	// startup state restore.
+	GuardObservations *Counter
+	GuardTrips        *Counter
+	HaltEngaged       *Gauge
 )
 
 // Init constructs the registry and all instruments. It is self-contained:
@@ -36,6 +44,14 @@ func Init() {
 	ActivePlaygrounds = Default.Gauge("grodt.heartbeat.active_playgrounds")
 	OpenOrders = Default.Gauge("grodt.heartbeat.open_orders")
 	UptimeSeconds = Default.Gauge("grodt.heartbeat.uptime")
+	GuardObservations = Default.Counter("safety_guard_observations_total")
+	GuardTrips = Default.Counter("safety_guard_trips_total")
+	HaltEngaged = Default.Gauge("safety_halt_engaged")
+}
+
+// GuardLabel is the standard {guard} dimension for the guard counters.
+func GuardLabel(guardName string) Label {
+	return Label{Key: "guard", Value: guardName}
 }
 
 // ShouldEmitOrderTelemetry returns true if the verbose per-order log lines

@@ -43,6 +43,29 @@ type HaltController struct {
 	mu    sync.Mutex
 	state HaltState
 	store HaltStateStore
+
+	// listener, when set, is invoked with a copy of the new state after every
+	// transition (engage, auto-engage, acknowledge, release) — the hook the
+	// halt-engaged telemetry gauge hangs off. It is called while the
+	// controller mutex is held, so it MUST NOT call back into the controller.
+	listener func(HaltState)
+}
+
+// SetTransitionListener installs the transition listener. The listener is
+// invoked under the controller mutex and must not call controller methods.
+// Passing nil removes it.
+func (c *HaltController) SetTransitionListener(fn func(HaltState)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.listener = fn
+}
+
+// notifyLocked invokes the transition listener with the current state.
+// Callers hold c.mu.
+func (c *HaltController) notifyLocked() {
+	if c.listener != nil {
+		c.listener(c.state)
+	}
 }
 
 // NewHaltController constructs a controller whose initial state is loaded from
@@ -87,6 +110,7 @@ func (c *HaltController) Engage(reason string) error {
 		// Preserve the auto-halt's ack requirement and source; retain the auto
 		// reason and append the manual engage so no context is destroyed.
 		c.state.Reason = fmt.Sprintf("%s; manual engage: %s", c.state.Reason, reason)
+		c.notifyLocked()
 		return c.persist()
 	}
 	c.state = HaltState{
@@ -95,6 +119,7 @@ func (c *HaltController) Engage(reason string) error {
 		Source:      SourceManual,
 		AckRequired: false,
 	}
+	c.notifyLocked()
 	return c.persist()
 }
 
@@ -115,6 +140,7 @@ func (c *HaltController) EngageAuto(reason string) error {
 		Source:      SourceAuto,
 		AckRequired: true,
 	}
+	c.notifyLocked()
 	return c.persist()
 }
 
@@ -131,6 +157,7 @@ func (c *HaltController) Acknowledge() error {
 		return nil
 	}
 	c.state.AckRequired = false
+	c.notifyLocked()
 	return c.persist()
 }
 
@@ -148,6 +175,7 @@ func (c *HaltController) Release() error {
 		return ErrAckRequired
 	}
 	c.state = HaltState{}
+	c.notifyLocked()
 	return c.persist()
 }
 

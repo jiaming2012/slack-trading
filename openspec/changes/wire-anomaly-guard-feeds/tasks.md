@@ -35,8 +35,8 @@
 
 ## 6. Telemetry and Alerts (internal registry, per ADR-0005)
 
-- [ ] 6.1 Add `safety_guard_observations_total{guard}` and `safety_guard_trips_total{guard}` counters and `safety_halt_engaged` gauge on `telemetry.Default`; set the gauge on every controller transition and on startup restore
-- [ ] 6.2 Push an Alert (AlertEngine → Slack) when a guard trips / the halt engages automatically, naming the guard and reason
+- [x] 6.1 Add `safety_guard_observations_total{guard}` and `safety_guard_trips_total{guard}` counters and `safety_halt_engaged` gauge on `telemetry.Default`; set the gauge on every controller transition and on startup restore
+- [x] 6.2 Push an Alert (AlertEngine → Slack) when a guard trips / the halt engages automatically, naming the guard and reason
 - [ ] 6.3 Unit tests: trip increments counters and sets gauge; release clears gauge; alert emitted on auto-engage
 
 ## 7. Verification gates (autonomous — no live/Paper orders, no prod DB, no push, no new infra)

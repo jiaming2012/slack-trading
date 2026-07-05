@@ -14,6 +14,7 @@ import (
 const (
 	RuleStaleHeartbeat = "stale_heartbeat"
 	RuleErrorRate      = "error_rate"
+	RuleAutoHalt       = "auto_halt"
 )
 
 // Ack channels.
@@ -61,6 +62,23 @@ type AlertEngine struct {
 	mu         sync.Mutex
 	active     map[string]*activeAlert
 	errSamples []errSample
+
+	// haltStatus, when set, feeds the auto_halt rule: it reports whether the
+	// kill switch is engaged, its source ("auto"/"manual"), and the recorded
+	// reason (which names the tripping guard). Nil = rule inactive.
+	haltStatus HaltStatusFunc
+}
+
+// HaltStatusFunc reports the kill-switch halt state for the auto_halt alert
+// rule. Wired at startup from the shared safety.HaltController's Status.
+type HaltStatusFunc func() (engaged bool, source string, reason string)
+
+// SetHaltStatus installs the halt-state provider consulted by the auto_halt
+// rule. Safe to call while the engine is running.
+func (e *AlertEngine) SetHaltStatus(fn HaltStatusFunc) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.haltStatus = fn
 }
 
 // NewAlertEngine wires the engine with the operator-tunable thresholds from
@@ -154,6 +172,19 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 			rule:    RuleErrorRate,
 			subject: "server",
 			message: fmt.Sprintf("error rate spike: %d errors logged in the last %s (threshold %d)", count, e.errorWindow, e.errorThreshold),
+		}
+	}
+
+	// Auto-halt rule: an engaged automatic halt (a guard tripped the kill
+	// switch) fires until acknowledged and resolves when the halt clears, so
+	// the operator hears about an auto-halt without polling status.
+	if e.haltStatus != nil {
+		if engaged, source, reason := e.haltStatus(); engaged && source == "auto" {
+			want[RuleAutoHalt+"|kill-switch"] = desired{
+				rule:    RuleAutoHalt,
+				subject: "kill-switch",
+				message: fmt.Sprintf("kill switch AUTO-HALT engaged: %s — order submission is blocked until acknowledge + release (task kill-switch:acknowledge / kill-switch:release)", reason),
+			}
 		}
 	}
 
