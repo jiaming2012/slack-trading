@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
@@ -121,7 +120,7 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 		log.Infof("placeLiveOrder: pending (order %d, cliReqID=%s) already exists, placing order %d into new orders queue", o.ID, cliReqID, order.ID)
 
 		changes = append(changes, &PlaceOrderChanges{
-			Commit: func(tx *gorm.DB) error {
+			Commit: func() error {
 				p.AddToNewOrdersQueue(order)
 				return nil
 			},
@@ -158,39 +157,27 @@ func (p *Playground) placeLiveOrder(order *OrderRecord) ([]*PlaceOrderChanges, e
 		changes = append(changes, playgroundChanges...)
 
 		for i, o := range reconciliationOrders {
+			_order := o
+			forceNew := true
+			if _order.ID > 0 {
+				forceNew = false
+			}
+
 			changes = append(changes, &PlaceOrderChanges{
-				Commit: func(tx *gorm.DB) error {
-					_order := o
-					forceNew := true
-					if _order.ID > 0 {
-						forceNew = false
-					}
-
-					if err := p.ReconcilePlayground.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, _order, forceNew); err != nil {
-						return fmt.Errorf("failed to save reconciliation order record: %w", err)
-					}
-
-					return nil
-				},
-				Info: fmt.Sprintf("iteration %d - save reconciliation order record %d", i+1, order.ID),
+				SaveIntents: []OrderSaveIntent{{Order: _order, ForceNew: forceNew}},
+				Info:        fmt.Sprintf("iteration %d - save reconciliation order record %d", i+1, order.ID),
 			})
 		}
 	}
 
+	forceNew := true
+	if order.ID > 0 {
+		forceNew = false
+	}
+
 	changes = append(changes, &PlaceOrderChanges{
-		Commit: func(tx *gorm.DB) error {
-			forceNew := true
-			if order.ID > 0 {
-				forceNew = false
-			}
-
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, forceNew); err != nil {
-				return fmt.Errorf("failed to update live order record: %w", err)
-			}
-
-			return nil
-		},
-		Info: "update live order record",
+		SaveIntents: []OrderSaveIntent{{Order: order, ForceNew: forceNew}},
+		Info:        "update live order record",
 	})
 
 	return changes, nil

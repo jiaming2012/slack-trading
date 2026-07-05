@@ -727,19 +727,23 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
 
-	err = s.CreateTransaction(func(tx *gorm.DB) error {
-		for _, change := range changes {
-			if e := change.Commit(tx); e != nil {
-				return fmt.Errorf("placeOrder: failed to commit order change: %w", e)
+	// Apply the in-memory commits in order while staging the order-save
+	// intents, then persist the whole batch inside one privately-owned
+	// transaction (all-or-nothing, same as the former CreateTransaction).
+	var saveIntents []backtester_models.OrderSaveIntent
+	for _, change := range changes {
+		if change.Commit != nil {
+			if e := change.Commit(); e != nil {
+				return nil, fmt.Errorf("placeOrder: failed to commit order change: %w", e)
 			}
-
-			log.Infof("done committing order change: %s", change.Info)
 		}
 
-		return nil
-	})
+		saveIntents = append(saveIntents, change.SaveIntents...)
 
-	if err != nil {
+		log.Infof("done committing order change: %s", change.Info)
+	}
+
+	if err := s.orderStore.saveOrderRecordIntents(saveIntents); err != nil {
 		return nil, fmt.Errorf("placeOrder: failed to commit order changes: %w", err)
 	}
 

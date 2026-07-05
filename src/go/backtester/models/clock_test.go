@@ -160,7 +160,7 @@ func TestCalendar(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		require.Equal(t, startTime, order1.Timestamp)

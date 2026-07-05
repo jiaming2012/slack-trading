@@ -3,8 +3,6 @@ package models
 import (
 	"fmt"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ReconcileBroker is the Broker adapter for reconcile playgrounds — the
@@ -32,14 +30,8 @@ func (p *Playground) placeReconcileAdjustmentOrder(order *OrderRecord) ([]*Place
 	}
 
 	changes = append(changes, &PlaceOrderChanges{
-		Commit: func(tx *gorm.DB) error {
-			if err := p.GetLiveAccount().GetDatabase().SaveOrderRecordTx(tx, order, false); err != nil {
-				return fmt.Errorf("failed to update live order record: %w", err)
-			}
-
-			return nil
-		},
-		Info: "update live order record",
+		SaveIntents: []OrderSaveIntent{{Order: order, ForceNew: false}},
+		Info:        "update live order record",
 	})
 
 	return changes, nil

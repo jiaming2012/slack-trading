@@ -71,7 +71,7 @@ func setupOptionPlayground(t *testing.T, optionSymbol models.OptionSymbol, initi
 	changes, err := playground.PlaceOrder(order)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 
 	// Tick to fill the order
@@ -139,7 +139,7 @@ func TestIsSideAllowed_SellToCloseAllowedWhenLong(t *testing.T) {
 	changes, err := playground.PlaceOrder(order2)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 
 	// Tick to fill the close order
@@ -169,7 +169,7 @@ func TestIsSideAllowed_BuyToCloseAllowedWhenShort(t *testing.T) {
 	changes, err := playground.PlaceOrder(order2)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 
 	// Tick to fill the close order
@@ -251,7 +251,7 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	changes, err := playground.PlaceOrder(order1)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 
 	delta, err := playground.Tick(0, false, mockDB)
@@ -265,6 +265,6 @@ func TestIsSideAllowed_DifferentSymbolsAllowed(t *testing.T) {
 	changes, err = playground.PlaceOrder(order2)
 	require.NoError(t, err, "sell_to_open on different symbol should be allowed")
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 }

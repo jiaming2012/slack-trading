@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type ReconcilePlayground struct {
@@ -128,7 +127,7 @@ func (r *ReconcilePlayground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChang
 	}
 
 	changes = append(changes, &PlaceOrderChanges{
-		Commit: func(tx *gorm.DB) error {
+		Commit: func() error {
 			for _, o := range orders {
 				o.Reconciles = append(o.Reconciles, order)
 			}

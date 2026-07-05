@@ -75,7 +75,7 @@ func TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration(t *testing.T)
 	changes, err := playground.PlaceOrder(order1)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 
 	// Tick to fill the order

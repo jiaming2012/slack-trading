@@ -826,21 +826,15 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 		return fmt.Errorf("order is not pending")
 	}
 
-	err := database.CreateTransaction(func(tx *gorm.DB) error {
+	// The DB writes (order row + reconciled order rows) live behind a narrow
+	// store method that owns its transaction; the in-memory queue mutations
+	// below run after the store commit, outside any DB handle.
+	if err := database.SaveCanceledOrderWithReconciles(order); err != nil {
+		return fmt.Errorf("CancelOrder: failed to cancel order: %w", err)
+	}
+
+	err := func() error {
 		for _, o := range order.Reconciles {
-			if o.ID == 0 {
-				return fmt.Errorf("CancelOrder: order.Reconciles order ID is 0")
-			}
-
-			var existing OrderRecord
-			if err := tx.First(&existing, o.ID).Error; err != nil {
-				return fmt.Errorf("CancelOrder order.Reconciles: failed to find existing order: %w", err)
-			}
-
-			if err := tx.Save(o).Error; err != nil {
-				return fmt.Errorf("CancelOrder: failed to save reconciled order: %w", err)
-			}
-
 			// TODO: this should use the saga pattern - maybe temporal - so that all orders that were reconciled
 			// are rolled back if any of them fail
 			pg, e := database.GetPlayground(o.PlaygroundID)
@@ -855,19 +849,6 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 			}
 		}
 
-		if order.ID == 0 {
-			return fmt.Errorf("CancelOrder: order ID is 0")
-		}
-
-		var existing OrderRecord
-		if err := tx.First(&existing, order.ID).Error; err != nil {
-			return fmt.Errorf("CancelOrder: failed to find existing order: %w", err)
-		}
-
-		if err := tx.Save(order).Error; err != nil {
-			return fmt.Errorf("CancelOrder: failed to save order: %w", err)
-		}
-
 		order.Cancel()
 
 		if err := p.AddToOrderQueue(order); err != nil {
@@ -875,7 +856,7 @@ func (p *Playground) CancelOrder(order *OrderRecord, database IDatabaseService) 
 		}
 
 		return nil
-	})
+	}()
 
 	if err != nil {
 		return fmt.Errorf("CancelOrder: failed to cancel order: %w", err)
@@ -897,23 +878,17 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 		return fmt.Errorf("order is not pending")
 	}
 
-	err := database.CreateTransaction(func(tx *gorm.DB) error {
+	// The DB writes (order row + reconciled order rows) live behind a narrow
+	// store method that owns its transaction; the in-memory queue mutations
+	// below run after the store commit, outside any DB handle.
+	if err := database.SaveRejectedOrderWithReconciles(order); err != nil {
+		return fmt.Errorf("RejectOrder: failed to reject order: %w", err)
+	}
+
+	err := func() error {
 		cause := fmt.Errorf(reason)
 
 		for _, o := range order.Reconciles {
-			if o.ID == 0 {
-				return fmt.Errorf("RejectOrder order.Reconciles: order ID is 0")
-			}
-
-			var existing OrderRecord
-			if err := tx.First(&existing, o.ID).Error; err != nil {
-				return fmt.Errorf("RejectOrder order.Reconciles: failed to find existing order: %w", err)
-			}
-
-			if err := tx.Save(o).Error; err != nil {
-				return fmt.Errorf("RejectOrder order.Reconciles: failed to save reconciled order: %w", err)
-			}
-
 			// TODO: this should use the saga pattern - maybe temporal - so that all orders that were reconciled
 			// are rolled back if any of them fail
 			pg, e := database.GetPlayground(o.PlaygroundID)
@@ -928,19 +903,6 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 			}
 		}
 
-		if order.ID == 0 {
-			return fmt.Errorf("RejectOrder: order ID is 0")
-		}
-
-		var existing OrderRecord
-		if err := tx.First(&existing, order.ID).Error; err != nil {
-			return fmt.Errorf("RejectOrder: failed to find existing order: %w", err)
-		}
-
-		if err := tx.Save(order).Error; err != nil {
-			return fmt.Errorf("RejectOrder: failed to save order: %w", err)
-		}
-
 		order.Reject(cause)
 
 		if err := p.AddToOrderQueue(order); err != nil {
@@ -948,7 +910,7 @@ func (p *Playground) RejectOrder(order *OrderRecord, reason string, database IDa
 		}
 
 		return nil
-	})
+	}()
 
 	if err != nil {
 		return fmt.Errorf("RejectOrder: failed to reject order: %w", err)
@@ -2308,7 +2270,7 @@ func (p *Playground) placeOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 
 	return []*PlaceOrderChanges{
 		{
-			Commit: func(tx *gorm.DB) error {
+			Commit: func() error {
 				p.account.mutex.Lock()
 				defer p.account.mutex.Unlock()
 

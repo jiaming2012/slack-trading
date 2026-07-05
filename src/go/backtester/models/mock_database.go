@@ -78,10 +78,8 @@ func (m *MockDatabase) PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrd
 		return nil, fmt.Errorf("MockDatabase: failed to place order: %w", err)
 	}
 
-	for _, change := range changes {
-		if err := change.Commit(nil); err != nil {
-			return nil, fmt.Errorf("MockDatabase: failed to commit order change: %w", err)
-		}
+	if err := CommitPlaceOrderChanges(m, changes); err != nil {
+		return nil, fmt.Errorf("MockDatabase: failed to commit order change: %w", err)
 	}
 
 	return []*OrderRecord{oRecord}, nil

@@ -10,14 +10,14 @@
 
 - [x] 2.1 Add the transaction-free order-save-intent value in `models` (order record + force-new flag) and a narrow batch method on `*DatabaseService`/`orderStore` that persists a slice of intents inside one internally-owned transaction, preserving all-or-nothing semantics.
 - [x] 2.2 Add narrow cancel-with-reconciles and reject-with-reconciles store methods that own their transaction, doing the DB writes currently in `Playground.CancelOrder`/`RejectOrder`.
-- [ ] 2.3 Switch the internal self-call at `database_service.go:730` from `CreateTransaction` to a private `s.db.Transaction(...)`.
+- [x] 2.3 Switch the internal self-call at `database_service.go:730` from `CreateTransaction` to a private `s.db.Transaction(...)`.
 
 ## 3. De-leak the carrier and consumers (models / services)
 
-- [ ] 3.1 Remove the `*gorm.DB` parameter from `PlaceOrderChanges.Commit` in `place_order_changes.go`.
-- [ ] 3.2 Rewrite `live_broker.go` and `reconcile_broker.go` to stage transaction-free order-save intents instead of `SaveOrderRecordTx(tx, ...)` closures.
-- [ ] 3.3 Rewrite `services/order_queue.go` (`:162` and `:364` paths) to persist staged changes through the narrow batch method instead of `CreateTransaction`.
-- [ ] 3.4 Rewrite `Playground.CancelOrder`/`RejectOrder` to call the narrow store methods; keep the in-memory queue mutations in `models` but outside any handed-out handle.
+- [x] 3.1 Remove the `*gorm.DB` parameter from `PlaceOrderChanges.Commit` in `place_order_changes.go`.
+- [x] 3.2 Rewrite `live_broker.go` and `reconcile_broker.go` to stage transaction-free order-save intents instead of `SaveOrderRecordTx(tx, ...)` closures.
+- [x] 3.3 Rewrite `services/order_queue.go` (`:162` and `:364` paths) to persist staged changes through the narrow batch method instead of `CreateTransaction`.
+- [x] 3.4 Rewrite `Playground.CancelOrder`/`RejectOrder` to call the narrow store methods; keep the in-memory queue mutations in `models` but outside any handed-out handle.
 
 ## 4. Remove the raw-handle public surface
 

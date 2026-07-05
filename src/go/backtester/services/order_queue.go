@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/models"
@@ -159,19 +158,9 @@ func UpdatePendingMarginOrders(dbService backtester_models.IDatabaseService) err
 			return joinedErr
 		}
 
-		err = dbService.CreateTransaction(func(tx *gorm.DB) error {
-			for _, change := range playgroundChanges {
-				if change != nil {
-					if e := change.Commit(tx); e != nil {
-						return fmt.Errorf("handleLiveOrders: failed to commit change: %w", e)
-					}
-				}
-			}
-
-			return nil
-		})
-
-		if err != nil {
+		// In-memory commits run first; all staged order-save intents are then
+		// persisted through one narrow store method that owns the transaction.
+		if err := backtester_models.CommitPlaceOrderChanges(dbService, playgroundChanges); err != nil {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("handleLiveOrders: failed to commit changes: %w", err))
 			return joinedErr
 		}
@@ -360,8 +349,12 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 	if !order.IsPending() {
 		log.Warnf("handleLiveOrders: order is not pending: %v", order)
 
+		// NOTE: this block previously ran inside database.CreateTransaction, but
+		// the raw transaction handle was never used — every dbCommit persists
+		// through database.SaveOrderRecord, which owns its own transaction. The
+		// no-op outer transaction was dropped when the gorm.DB leak was closed.
 		var commits []func() error
-		if err := database.CreateTransaction(func(tx *gorm.DB) error {
+		if err := func() error {
 			var dbCommits []func() error
 			var messages []string
 
@@ -397,8 +390,8 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 			}
 
 			return nil
-		}); err != nil {
-			return nil, fmt.Errorf("handleLiveOrders: failed to create transaction: %v", err)
+		}(); err != nil {
+			return nil, fmt.Errorf("handleLiveOrders: failed to reset orders to pending: %v", err)
 		}
 
 		for _, commit := range commits {

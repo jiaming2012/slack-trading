@@ -101,7 +101,7 @@ func (e *cacheTestEnv) place(t *testing.T, symbol string, class OrderRecordClass
 	changes, err := e.pg.PlaceOrder(order)
 	require.NoError(t, err)
 	for _, c := range changes {
-		require.NoError(t, c.Commit(nil))
+		require.NoError(t, c.Commit())
 	}
 }
 

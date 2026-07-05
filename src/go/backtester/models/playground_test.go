@@ -164,7 +164,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -243,7 +243,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -324,13 +324,13 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -449,13 +449,13 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -596,7 +596,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -644,7 +644,7 @@ func TestOptions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(0*time.Second, false, mockDBService)
@@ -764,7 +764,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -898,7 +898,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -1059,7 +1059,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -1107,7 +1107,7 @@ func TestOptions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(0*time.Second, false, mockDBService)
@@ -1227,7 +1227,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -1382,7 +1382,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -1547,7 +1547,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order0)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		_, err = playground.Tick(0*time.Minute, false, mockDBService)
@@ -1564,7 +1564,7 @@ func TestOptions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -1730,7 +1730,7 @@ func TestOptions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		originalBalance := playground.GetBalance()
@@ -2076,7 +2076,7 @@ func TestValidateCache(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range changes {
-			err = change.Commit(nil)
+			err = change.Commit()
 			require.NoError(t, err)
 		}
 
@@ -2114,7 +2114,7 @@ func TestValidateCache(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range changes {
-			err = change.Commit(nil)
+			err = change.Commit()
 			require.NoError(t, err)
 		}
 
@@ -2231,7 +2231,7 @@ func TestOpenOrdersCache(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -2320,7 +2320,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellShort, 5, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2329,7 +2329,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(5*time.Minute, false, nil)
@@ -2422,7 +2422,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideSellShort, 4, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2431,7 +2431,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(5*time.Minute, false, nil)
@@ -2517,7 +2517,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order2, err := NewOrderRecord(2, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, startTime, string(symbol2), TradierOrderSideBuy, 1, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -2526,7 +2526,7 @@ func TestLiquidation(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(5*time.Minute, false, nil)
@@ -2944,7 +2944,7 @@ func TestBalance(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(2*time.Minute, false, nil)
@@ -2961,7 +2961,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(0, false, nil)
@@ -3132,7 +3132,7 @@ func TestBalance(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3148,7 +3148,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3164,7 +3164,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3180,7 +3180,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3196,7 +3196,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3251,7 +3251,7 @@ func TestBalance(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3266,7 +3266,7 @@ func TestBalance(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3355,7 +3355,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		// Tick the playground
@@ -3377,7 +3377,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order3, err := NewOrderRecord(3, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -3386,7 +3386,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		// Tick the playground
@@ -3462,7 +3462,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		// Tick the playground
@@ -3483,7 +3483,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3534,7 +3534,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3552,7 +3552,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3620,7 +3620,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3639,7 +3639,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3658,7 +3658,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3677,7 +3677,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3757,7 +3757,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3780,7 +3780,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3799,7 +3799,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3818,7 +3818,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3892,7 +3892,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -3915,7 +3915,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3938,7 +3938,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order3)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3975,7 +3975,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order4)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -3998,7 +3998,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order5)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4058,7 +4058,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4076,7 +4076,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4123,7 +4123,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4170,7 +4170,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4182,7 +4182,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4224,7 +4224,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4244,7 +4244,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4289,7 +4289,7 @@ func TestPositions(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4307,7 +4307,7 @@ func TestPositions(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4395,7 +4395,7 @@ func TestFreeMargin(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		_, err = playground.Tick(time.Minute, false, nil)
@@ -4442,7 +4442,7 @@ func TestFreeMargin(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4478,7 +4478,7 @@ func TestFreeMargin(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4514,7 +4514,7 @@ func TestFreeMargin(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4529,7 +4529,7 @@ func TestFreeMargin(t *testing.T) {
 		changes, err = playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)
@@ -4585,7 +4585,7 @@ func TestOrders(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		orders := playground.GetAllOrders()
@@ -4619,7 +4619,7 @@ func TestOrders(t *testing.T) {
 		changes, err := playground.PlaceOrder(order)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4721,7 +4721,7 @@ func TestOrders(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order2, err := NewOrderRecord(id, nil, nil, uuid.Nil, OrderRecordClassEquity, LiveAccountTypeMock, now, "AAPL", TradierOrderSideBuy, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4789,7 +4789,7 @@ func TestTrades(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		order2, err := NewOrderRecord(2, nil, nil, playground.ID, OrderRecordClassEquity, LiveAccountTypeMock, now, string(symbol), TradierOrderSideSellShort, 10, Market, Day, 0.01, nil, nil, OrderRecordStatusPending, "", nil, false, nil, nil)
@@ -4831,7 +4831,7 @@ func TestTrades(t *testing.T) {
 		changes, err := playground.PlaceOrder(order1)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err := playground.Tick(time.Minute, false, nil)
@@ -4849,7 +4849,7 @@ func TestTrades(t *testing.T) {
 		changes, err = playground.PlaceOrder(order2)
 		require.NoError(t, err)
 		require.Len(t, changes, 1)
-		err = changes[0].Commit(nil)
+		err = changes[0].Commit()
 		require.NoError(t, err)
 
 		delta, err = playground.Tick(time.Minute, false, nil)

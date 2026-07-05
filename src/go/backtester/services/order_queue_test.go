@@ -153,7 +153,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -211,7 +211,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -299,7 +299,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -423,7 +423,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -467,7 +467,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -490,7 +490,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -606,7 +606,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -650,7 +650,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -673,7 +673,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -773,7 +773,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -844,7 +844,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -928,7 +928,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -1039,7 +1039,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -1083,7 +1083,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges2 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
@@ -1106,7 +1106,7 @@ func TestLiveAccount(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, change := range placeOrderChanges3 {
-			err := change.Commit(nil)
+			err := backtester_models.CommitPlaceOrderChanges(database, []*backtester_models.PlaceOrderChanges{change})
 			require.NoError(t, err)
 		}
 
