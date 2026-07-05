@@ -17,16 +17,16 @@
 
 ## 3. Merge and import rewrite
 
-- [ ] 3.1 In a worktree, move every `eventmodels` type into `package models` at `src/go/models/`, applying the canonical selection and porting methods per the inventory; use non-colliding `snake_case.go` filenames.
-- [ ] 3.2 Delete the `src/go/eventmodels` directory so no `eventmodels` Go package remains.
-- [ ] 3.3 Collapse the internal `eventmodels`→`models` edge in the 6 affected files (incl. `bottraderequest.go`) by co-location — remove the now-self import.
-- [ ] 3.4 Rewrite imports in all 29 external importers of `src/go/models` and every former importer of `eventmodels` to the single consolidated `models` path.
-- [ ] 3.5 Grep the tree to confirm no `.go` source file contains `src/go/eventmodels`; resolve any stragglers.
+- [x] 3.1 In a worktree, move every `eventmodels` type into `package models` at `src/go/models/`, applying the canonical selection and porting methods per the inventory; use non-colliding `snake_case.go` filenames.
+- [x] 3.2 Delete the `src/go/eventmodels` directory so no `eventmodels` Go package remains.
+- [x] 3.3 Collapse the internal `eventmodels`→`models` edge in the 6 affected files (incl. `bottraderequest.go`) by co-location — remove the now-self import.
+- [x] 3.4 Rewrite imports in all 29 external importers of `src/go/models` and every former importer of `eventmodels` to the single consolidated `models` path.
+- [x] 3.5 Grep the tree to confirm no `.go` source file contains `src/go/eventmodels`; resolve any stragglers.
 
 ## 4. Verification and closeout
 
-- [ ] 4.1 **G1** — `go build ./src/go/... ./cmd/...` exits 0.
-- [ ] 4.2 **G2** — `task test` (Go unit tests) green.
-- [ ] 4.3 **G3** — pytest failing-test-ID set is a subset of the committed Wave-0 baseline (no NEW failures).
-- [ ] 4.4 **G4** — `task test:model-diff` reports a byte-for-byte match against the baseline reference.
+- [x] 4.1 **G1** — `go build ./src/go/... ./cmd/...` exits 0.
+- [x] 4.2 **G2** — `task test` (Go unit tests) green.
+- [x] 4.3 **G3** — pytest failing-test-ID set is a subset of the committed Wave-0 baseline (no NEW failures).
+- [x] 4.4 **G4** — `task test:model-diff` reports a byte-for-byte match against the baseline reference.
 - [ ] 4.5 Flip this change's card(s) in usm/roadmap.txt to green #C5E1A5 and refresh ROADMAP.md current-state (done at archive time).
