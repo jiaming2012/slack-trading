@@ -1,0 +1,27 @@
+# Cost and market-impact assumptions for the net-ev-cost-model / capacity
+# estimate (src/go/tradingstack/costmodel). Loaded by costmodel.LoadCostParams;
+# any field omitted here keeps its built-in default (see
+# costmodel.DefaultCostParams). Resolved via NET_EV_COST_CONFIG_PATH, else
+# ${TRADING_PROJECT_DIR}/src/go/net-ev-cost-config.yaml, else built-in defaults.
+
+# Flat commission charged per closed trade, in dollars.
+commission_per_trade: 1.00
+
+# Additional commission charged per share traded, in dollars.
+commission_per_share: 0.005
+
+# Assumed average bid/ask spread, in basis points of entry price, charged
+# once per trade as an estimated spread cost.
+avg_spread_bps: 5
+
+# Assumed annualized short-borrow rate, in basis points. Applied only to
+# short trades, accrued over hold_days / 360 (Actual-360 convention).
+borrow_rate_bps_annual: 300
+
+# Dimensionless square-root market-impact constant used by the capacity
+# estimate: impact_coefficient * price * sqrt(shares / avg_daily_volume).
+impact_coefficient: 0.1
+
+# Fraction (0-1) of expected per-share edge that estimated market impact is
+# allowed to consume before capacity is considered exhausted.
+max_impact_fraction_of_edge: 0.2
