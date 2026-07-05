@@ -16,6 +16,12 @@ type PlaceOrderRequest struct {
 	Class         OrderRecordClass
 	Tag           string
 	DryRun        bool
+
+	// StopPrice is the trigger price for a stop order (OrderType ==
+	// TradierOrderTypeStop). It is nil for every other order type, so this field
+	// is inert for existing market/option flows. It carries the broker-side
+	// companion stop's trigger to the Broker seam.
+	StopPrice *float64
 }
 
 func (r *PlaceOrderRequest) validate() error {

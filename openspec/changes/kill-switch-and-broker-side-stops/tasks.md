@@ -30,10 +30,10 @@
 
 ## 6. Broker-side stop losses
 
-- [ ] 6.1 Extend `src/go/backtester-api/models/mock_broker.go` to record received stop orders (side, quantity, stop price)
-- [ ] 6.2 Implement companion-stop placement on live (Paper/Margin) entry fill: construct a `Stop` order at the configured distance on the protective side, sized to the filled quantity, placed via the Broker seam; skip in Simulation Mode
-- [ ] 6.3 Add and validate positive stop-distance configuration; non-positive value errors instead of placing a stop at/through the fill price
-- [ ] 6.4 Unit tests against MockBroker: long-entry stop below fill, short-entry stop above fill, Simulation places no stop, non-positive distance errors
+- [x] 6.1 Extend `src/go/backtester-api/models/mock_broker.go` to record received stop orders (side, quantity, stop price)
+- [x] 6.2 Implement companion-stop placement on live (Paper/Margin) entry fill: construct a `Stop` order at the configured distance on the protective side, sized to the filled quantity, placed via the Broker seam; skip in Simulation Mode
+- [x] 6.3 Add and validate positive stop-distance configuration; non-positive value errors instead of placing a stop at/through the fill price
+- [x] 6.4 Unit tests against MockBroker: long-entry stop below fill, short-entry stop above fill, Simulation places no stop, non-positive distance errors
 
 ## 7. Verification and closeout
 

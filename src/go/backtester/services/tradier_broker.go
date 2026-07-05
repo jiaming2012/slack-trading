@@ -376,6 +376,15 @@ func PlaceOrder(ctx context.Context, url, token string, req *backtester_models.P
 		q.Add("preview", "true")
 	}
 
+	// A stop order carries its trigger price as Tradier's `stop` parameter. This
+	// is inert for market/option flows (StopPrice is nil there). Placing a live
+	// stop against Tradier is deferred (sandbox verification out of scope); this
+	// serialization exists so the companion stop is correct end-to-end rather
+	// than silently dropping its trigger price.
+	if req.StopPrice != nil {
+		q.Add("stop", strconv.FormatFloat(*req.StopPrice, 'f', -1, 64))
+	}
+
 	switch req.Class {
 	case backtester_models.OrderRecordClassEquity:
 		q.Add("quantity", strconv.Itoa(req.Quantities[0]))

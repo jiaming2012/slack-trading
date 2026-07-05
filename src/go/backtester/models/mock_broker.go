@@ -104,6 +104,25 @@ func (b *MockBroker) FetchOrders(ctx context.Context) ([]*models.TradierOrder, e
 	return b.orders, nil
 }
 
+// Requests returns every PlaceOrderRequest the mock has received, in order, so
+// tests can assert what reached the Broker seam.
+func (b *MockBroker) Requests() []*PlaceOrderRequest {
+	return b.requests
+}
+
+// StopOrders returns the recorded requests that are stop orders (the broker-held
+// companion stops), so tests can assert their side, quantity, and stop price
+// without contacting any real broker.
+func (b *MockBroker) StopOrders() []*PlaceOrderRequest {
+	var out []*PlaceOrderRequest
+	for _, r := range b.requests {
+		if r.OrderType == TradierOrderTypeStop {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 func (b *MockBroker) FetchBalances(url string, token string) (models.FetchTradierBalancesResponseDTO, error) {
 	return models.FetchTradierBalancesResponseDTO{}, nil
 }
