@@ -31,7 +31,7 @@ Trading stack v4
         db-partitioning-retention: |{"bg":"#C5E1A5"}
     Market scanning
         scanner-l1-l2: |{"bg":"#C5E1A5"}
-        widen-scan-results-columns: |{"bg":"#FFFFFF"}
+        widen-scan-results-columns: |{"bg":"#FFF59D"}
         scanner-ml-ranking: |{"bg":"#FFFFFF"}
         regime-robustness-layer: |{"bg":"#FFFFFF"}
         feed-health-staleness: |{"bg":"#C5E1A5"}
@@ -39,18 +39,18 @@ Trading stack v4
         kill-switch-and-broker-side-stops: |{"bg":"#C5E1A5"}
         portfolio-risk-overlay: |{"bg":"#C5E1A5"}
         crowding-detection: |{"bg":"#C5E1A5"}
-        wire-anomaly-guard-feeds: |{"bg":"#FFFFFF"}
-        wire-companion-stops: |{"bg":"#FFFFFF"}
-        wire-risk-overlay-state: |{"bg":"#FFFFFF"}
+        wire-anomaly-guard-feeds: |{"bg":"#FFF59D"}
+        wire-companion-stops: |{"bg":"#FFF59D"}
+        wire-risk-overlay-state: |{"bg":"#FFF59D"}
     Feedback loop
         fidelity-checker: |{"bg":"#C5E1A5"}
-        continuous-fidelity-monitoring: |{"bg":"#FFFFFF"}
-        strategy-optimizer: |{"bg":"#FFFFFF"}
+        continuous-fidelity-monitoring: |{"bg":"#FFF59D"}
+        strategy-optimizer: |{"bg":"#FFF59D"}
         ev-tracker: |{"bg":"#C5E1A5"}
         net-ev-cost-model: |{"bg":"#C5E1A5"}
-        scanner-optimizer: |{"bg":"#FFFFFF"}
+        scanner-optimizer: |{"bg":"#FFF59D"}
         optimizer-validation-pipeline: |{"bg":"#C5E1A5"}
-        overfitting-countermeasures: |{"bg":"#FFFFFF"}
-        shadow-config-deployment: |{"bg":"#FFFFFF"}
+        overfitting-countermeasures: |{"bg":"#FFF59D"}
+        shadow-config-deployment: |{"bg":"#FFF59D"}
     Recommendations
         recommendation-engine: |{"bg":"#FFFFFF"}
