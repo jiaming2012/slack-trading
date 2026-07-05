@@ -123,7 +123,6 @@ tasks:
     dir: "{{.ROOT_DIR}}"
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
->>>>>>> worktree-agent-ad96a9ebc16ca0163
 
   test:e2e:
     cmds:
