@@ -110,6 +110,35 @@ func TestCooldown_AutoOverManualEscalatesToAckRequired(t *testing.T) {
 	require.ErrorIs(t, c.Release(), ErrAckRequired)
 }
 
+func TestCooldown_ManualEngageOverAutoPreservesAck(t *testing.T) {
+	c, err := NewHaltController(NewMemoryHaltStore())
+	require.NoError(t, err)
+
+	require.NoError(t, c.EngageAuto("rejection-rate guard tripped"))
+
+	// A manual engage over an active auto-halt must not launder it into a
+	// freely-releasable manual halt: the ack requirement, the automatic source,
+	// and the auto reason are all preserved.
+	require.NoError(t, c.Engage("operator also pulled the switch"))
+
+	st := c.Status()
+	require.True(t, st.Engaged)
+	require.Equal(t, SourceAuto, st.Source, "manual engage must not downgrade the source of an auto-halt")
+	require.True(t, st.AckRequired, "manual engage must preserve the cooldown ack requirement of an auto-halt")
+	require.Contains(t, st.Reason, "rejection-rate guard tripped", "the auto reason must be retained")
+	require.Contains(t, st.Reason, "operator also pulled the switch", "the manual reason should be appended, not destroy the auto reason")
+
+	// Release is still blocked until an explicit acknowledgment.
+	require.ErrorIs(t, c.Release(), ErrAckRequired)
+	require.True(t, c.Status().Engaged, "controller must remain engaged after a rejected release")
+
+	// Only acknowledge + release clears it.
+	require.NoError(t, c.Acknowledge())
+	require.NoError(t, c.Release())
+	require.False(t, c.Status().Engaged)
+	require.NoError(t, c.AllowOrder())
+}
+
 func TestStatus_ReportsAckRequirementBySource(t *testing.T) {
 	// Manual halt: no ack required.
 	m, err := NewHaltController(NewMemoryHaltStore())
@@ -205,4 +234,26 @@ func TestFileHaltStore_EmptyFileDefaultsToClear(t *testing.T) {
 	c, err := NewHaltController(NewFileHaltStore(path))
 	require.NoError(t, err)
 	require.False(t, c.Status().Engaged)
+}
+
+// TestFileHaltStore_Exists backs the startup "store is empty" warning: a wiped
+// or first-run state file must be detectable so the operator is loudly told the
+// server is booting with no persisted halt state.
+func TestFileHaltStore_Exists(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "halt-state.json")
+	store := NewFileHaltStore(path)
+
+	// Missing file: not present.
+	require.False(t, store.Exists(), "a missing state file must report not-exists")
+
+	// Empty file (e.g. truncated by a wipe): treated as not present.
+	require.NoError(t, os.WriteFile(path, []byte(""), 0o644))
+	require.False(t, store.Exists(), "an empty state file must report not-exists")
+
+	// After a real save the file exists and is non-empty.
+	c, err := NewHaltController(store)
+	require.NoError(t, err)
+	require.NoError(t, c.Engage("persist something"))
+	require.True(t, store.Exists(), "a non-empty state file must report exists")
 }

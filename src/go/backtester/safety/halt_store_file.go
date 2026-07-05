@@ -52,6 +52,23 @@ func (s *FileHaltStore) Load() (HaltState, error) {
 	return state, nil
 }
 
+// Exists reports whether a non-empty persisted state file is present at the
+// store's path. A false result at startup means the halt state is being
+// bootstrapped from nothing — first run, or the state file was wiped. Because a
+// wiped halt file silently boots a halted server back to clear, callers SHOULD
+// log loudly when this returns false. The default path deliberately lives
+// outside .cache/ (a wipe-by-convention directory) for exactly this reason.
+func (s *FileHaltStore) Exists() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	info, err := os.Stat(s.path)
+	if err != nil {
+		return false
+	}
+	return info.Size() > 0
+}
+
 // Save writes state to the configured path atomically.
 func (s *FileHaltStore) Save(state HaltState) error {
 	s.mu.Lock()

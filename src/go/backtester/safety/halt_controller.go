@@ -70,11 +70,25 @@ func (c *HaltController) AllowOrder() error {
 }
 
 // Engage moves the controller to the engaged state as a manual halt. A manual
-// halt carries no cooldown requirement and may be released directly. Engaging
-// while already engaged overwrites the reason and marks the halt manual.
+// halt carries no cooldown requirement and may be released directly.
+//
+// A manual engage MUST NOT weaken an active auto-halt. If an auto-halt is still
+// awaiting acknowledgment, Engage retains the cooldown-ack requirement, keeps
+// the source automatic, and preserves the auto reason (appending the manual
+// reason) rather than laundering the anomaly into a freely-releasable manual
+// halt. This is the mirror of EngageAuto escalating over a manual halt: neither
+// direction ever transitions an auto-halt back toward clear without an explicit
+// acknowledgment, per the halt-cooldown-protocol spec. Engaging over a manual
+// halt (or while clear) overwrites the reason and marks the halt manual.
 func (c *HaltController) Engage(reason string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.state.Engaged && c.state.Source == SourceAuto && c.state.AckRequired {
+		// Preserve the auto-halt's ack requirement and source; retain the auto
+		// reason and append the manual engage so no context is destroyed.
+		c.state.Reason = fmt.Sprintf("%s; manual engage: %s", c.state.Reason, reason)
+		return c.persist()
+	}
 	c.state = HaltState{
 		Engaged:     true,
 		Reason:      reason,

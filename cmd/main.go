@@ -353,20 +353,27 @@ func main() {
 
 	// Hard kill switch: construct the persisted halt controller, install it as
 	// the process-wide order gate consulted at the Broker seam, and expose the
-	// operator REST surface. The state file defaults to <projectDir>/.cache/
-	// safety/halt-state.json (override with KILL_SWITCH_STATE_PATH). If the
+	// operator REST surface. The state file defaults to
+	// <projectDir>/.safety/halt-state.json (override with KILL_SWITCH_STATE_PATH).
+	// It deliberately lives OUTSIDE .cache/ — a wipe-by-convention directory — so
+	// clearing caches cannot silently boot a halted server back to clear. If the
 	// server was halted before a restart, NewHaltController restores that state
 	// so it comes back up halted.
 	killSwitchStatePath := os.Getenv("KILL_SWITCH_STATE_PATH")
 	if killSwitchStatePath == "" {
-		killSwitchStatePath = filepath.Join(projectDir, ".cache", "safety", "halt-state.json")
+		killSwitchStatePath = filepath.Join(projectDir, ".safety", "halt-state.json")
 	}
-	haltController, err := safety.NewHaltController(safety.NewFileHaltStore(killSwitchStatePath))
+	killSwitchStore := safety.NewFileHaltStore(killSwitchStatePath)
+	killSwitchStoreWasEmpty := !killSwitchStore.Exists()
+	haltController, err := safety.NewHaltController(killSwitchStore)
 	if err != nil {
 		log.Fatalf("failed to construct kill-switch halt controller: %v", err)
 	}
 	backtester_models.SetOrderGate(haltController)
 	killswitchapi.SetupHandler(router.PathPrefix("/kill-switch").Subrouter(), haltController)
+	if killSwitchStoreWasEmpty {
+		log.Warnf("kill-switch halt-state store is EMPTY at %s — booting with NO persisted halt state (source=none). If this file was wiped, any prior halt has been LOST and the server is starting CLEAR; verify this is intended.", killSwitchStatePath)
+	}
 	if st := haltController.Status(); st.Engaged {
 		log.Warnf("kill switch is ENGAGED on startup (source=%s, reason=%q) — order submission is halted until released", st.Source, st.Reason)
 	} else {
