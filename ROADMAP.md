@@ -31,7 +31,7 @@ When flipping cards, also refresh the "Current state" section below and date-sta
 ## Current state (2026-07-05, post overnight autonomous run)
 
 - **Archived changes:** 16 — the entire overnight batch shipped, gate-verified, adversarially reviewed, and archived under `openspec/changes/archive/2026-07-05-*` (see `HANDOFF.md` for the full morning report and per-change ledger)
-- **In flight:** 0
+- **In flight:** 1 — `repair-python-test-suite` (drafted 2026-07-05, awaiting operator sign-off)
 - **Planned:** 18 cards — the 14 pre-run cards plus 4 follow-ups born from the overnight adversarial reviews: `widen-scan-results-columns` (3 scanner features computed but unpersisted — schema gap inherited from the architecture doc), `wire-anomaly-guard-feeds` (guards are tested components, live observation feeds unwired), `wire-companion-stops` (broker-held stop library tested vs MockBroker, fill-pipeline invocation deferred), `wire-risk-overlay-state` (risk-gate engine complete, portfolio-state mapping + Simulation enablement deferred)
 - **Operator decisions pending:** ADR-0004 EventStoreDB role (drafted, recommends Pattern B — Postgres primary), pushing `claude/overnight-20260704` (108 local commits), `migrate-live-account-type-data` (never autonomous)
 - **Next up:** `reconcile-models-packages` — merge `src/go/models` (37 files) and `src/go/eventmodels` (268 files) into one `models` package via per-type canonical selection with diff-testing. Detailed problem statement in `.planning/todos/pending/2026-07-04-reconcile-models-and-eventmodels-into-one-package.md`; sequencing rationale in `todo/next-steps-plan.md`.
