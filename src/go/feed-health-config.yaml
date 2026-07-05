@@ -1,0 +1,7 @@
+asset_classes:
+  equity:
+    expected_interval: 15s
+    staleness_threshold: 60s
+  option:
+    expected_interval: 30s
+    staleness_threshold: 120s
