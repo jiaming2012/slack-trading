@@ -2306,6 +2306,16 @@ func (p *Playground) PlaceOrder(order *OrderRecord) ([]*PlaceOrderChanges, error
 		return nil, err
 	}
 
+	// Portfolio risk overlay: a SEPARATE gate from the kill switch above, and
+	// composed after it so it can never disable the kill switch. It is consulted
+	// ONLY on the Simulation path — Paper and Margin are left byte-for-byte
+	// unchanged — and is inert (permits every order) unless a gate is wired.
+	if p.Meta.Mode == ModeSimulation {
+		if err := CheckRiskGate(p, order); err != nil {
+			return nil, err
+		}
+	}
+
 	broker, err := brokerFor(&p.Meta)
 	if err != nil {
 		return nil, fmt.Errorf("place order is not supported in %s environment", p.Meta.LegacyEnv)
