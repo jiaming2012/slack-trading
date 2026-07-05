@@ -67,12 +67,13 @@ def _parse_percent(s: str) -> float:
 # it can only fail with connection-refused. Mirroring the e2e smoke module, it
 # self-skips unless its harness is explicitly declared present via
 # DEMO_COVERED_CALL_HARNESS=1 -- the spec permits skips for tests whose declared
-# harness is absent. Set that env var (with the server up) to run the real
-# regression and validate the pinned reference metrics.
+# harness is absent. The harness is `task test:demo-covered-call`
+# (run_demo_covered_call_test.sh): it boots the server, sets the env var,
+# runs this module, and tears the server down on every exit path.
 @unittest.skipUnless(
     os.environ.get("DEMO_COVERED_CALL_HARNESS") == "1",
-    "demo_covered_call regression needs a live Twirp server on :5051 + Polygon; "
-    "set DEMO_COVERED_CALL_HARNESS=1 to run it",
+    "demo_covered_call regression runs under task test:demo-covered-call "
+    "(live Twirp server on :5051 + Polygon)",
 )
 class TestDemoCoveredCall(unittest.TestCase):
     """Integration / regression test for demo_covered_call.py."""

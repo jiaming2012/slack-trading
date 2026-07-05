@@ -165,6 +165,12 @@ tasks:
       - OTEL_SDK_DISABLED=true {{.PYTHON}} -m pytest tests/ --ignore=tests/test_strategy_e2e.py -q
     dir: src/clients/python
 
+  test:demo-covered-call:
+    desc: 'Covered-call demo regression: boot the Go server headlessly (dev mode), run demos.demo_covered_call end-to-end (AAPL 2025-01-01..2025-03-01, ~10-15 min via Polygon), and validate the pinned reference metrics in tests/test_demo_covered_call.py. Waits (never kills) if something else holds Twirp port 5051; tears down only its own server. Exit 0 = metrics match.'
+    cmds:
+      - PYTHON="{{.PYTHON}}" ./run_demo_covered_call_test.sh
+    dir: src/clients/python
+
   lint:package-names:
     desc: 'Guard against drift back to the pre-rename-event-packages package names (eventservices, eventconsumers, eventproducers, eventpubsub, backtester-api). Scans live Go source and live architecture docs only -- historical/archival material (.planning/milestones, .planning/todos, openspec/changes/*, todo/, docs/adr/) is intentionally excluded.'
     cmds:
