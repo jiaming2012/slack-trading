@@ -7,10 +7,10 @@
 
 ## 2. Persistence (Postgres)
 
-- [ ] 2.1 Add `telemetry_metrics`, `telemetry_heartbeats`, `telemetry_alerts` GORM models and hook them into startup auto-migration
-- [ ] 2.2 Implement the snapshot writer goroutine (default 60s, `TELEMETRY_SNAPSHOT_INTERVAL`) flushing registry series to `telemetry_metrics`; failures log-and-continue; tests with sqlite/testcontainer
-- [ ] 2.3 Implement the daily 30-day prune goroutine for `telemetry_metrics`; test that old rows go and young rows stay
-- [ ] 2.4 Wire writer + prune startup into `cmd/main.go`
+- [x] 2.1 Add `telemetry_metrics`, `telemetry_heartbeats`, `telemetry_alerts` GORM models and hook them into startup auto-migration
+- [x] 2.2 Implement the snapshot writer goroutine (default 60s, `TELEMETRY_SNAPSHOT_INTERVAL`) flushing registry series to `telemetry_metrics`; failures log-and-continue; tests with sqlite/testcontainer
+- [x] 2.3 Implement the daily 30-day prune goroutine for `telemetry_metrics`; test that old rows go and young rows stay
+- [x] 2.4 Wire writer + prune startup into `cmd/main.go`
 
 ## 3. Heartbeat ingestion
 

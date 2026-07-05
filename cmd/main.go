@@ -315,6 +315,14 @@ func main() {
 		log.Fatalf("failed to init db: %v", err)
 	}
 
+	// Telemetry tables + persistence loops (ADR-0005): snapshot writer
+	// flushes the registry, prune bounds retention to 30 days.
+	if err := telemetry.Migrate(db); err != nil {
+		log.Fatalf("failed to migrate telemetry tables: %v", err)
+	}
+	go telemetry.StartSnapshotWriter(ctx, db, telemetry.Default, telemetry.SnapshotInterval())
+	go telemetry.StartPrune(ctx, db)
+
 	// Load options config
 	// OPTIONS_CONFIG_PATH, if set, overrides the default path (useful for worktrees)
 	optionsConfigInDir := os.Getenv("OPTIONS_CONFIG_PATH")
