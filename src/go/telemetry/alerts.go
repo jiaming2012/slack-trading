@@ -25,7 +25,22 @@ const (
 	// inactive (an entire limit family silently missing).
 	RuleRiskOverlayDegraded = "riskoverlay_degraded"
 	RuleRiskOverlayEvPinned = "riskoverlay_ev_pinned"
+
+	// continuous-fidelity-monitoring: a strategy whose last-known scheduled
+	// fidelity result breached tolerance — the simulator has drifted from
+	// reality and optimizers must not consume that strategy's simulator data.
+	RuleFidelityDrift = "fidelity_drift"
 )
+
+// FidelityStrategyStatus is one strategy's last-known fidelity verdict, as
+// reported by the fidelity monitor after a result-producing run. It is a
+// telemetry-owned struct (the monitor maps fidelity.Result into it) so this
+// package never imports the fidelity package.
+type FidelityStrategyStatus struct {
+	StrategyID      string
+	DriftScore      float64
+	WithinTolerance bool
+}
 
 // UnprotectedPosition describes a live position whose broker-held companion
 // stop failed to place (wire-companion-stops): the position has NO protective
@@ -109,6 +124,12 @@ type AlertEngine struct {
 	// into playground memory at load). When nil the rule falls back to the
 	// internal-registry gauge.
 	deferredCount DeferredAutoCloseCountFunc
+
+	// fidelity is the last-known per-strategy fidelity snapshot, replaced
+	// wholesale by ReportFidelity on every result-producing monitor run and
+	// deliberately left standing across no_data/error runs (design D3: a
+	// strategy known to be drifting stays alerted until contradicted by data).
+	fidelity []FidelityStrategyStatus
 }
 
 // DeferredAutoCloseCountFunc reports how many option auto-closes are currently
@@ -142,6 +163,20 @@ func (e *AlertEngine) SetDeferredAutoCloses(fn DeferredAutoCloseCountFunc) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.deferredCount = fn
+}
+
+// ReportFidelity replaces the engine's per-strategy fidelity snapshot with
+// the given result-producing run's statuses. The fidelity monitor calls it
+// after every run that produced results — and does NOT call it on no_data or
+// error runs, so the last-known state stands until contradicted by data. Safe
+// to call while the engine is running.
+func (e *AlertEngine) ReportFidelity(statuses []FidelityStrategyStatus) {
+	snapshot := make([]FidelityStrategyStatus, len(statuses))
+	copy(snapshot, statuses)
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.fidelity = snapshot
 }
 
 // NewAlertEngine wires the engine with the operator-tunable thresholds from
@@ -327,6 +362,25 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 				subject: subject,
 				message: fmt.Sprintf("position UNPROTECTED: companion stop failed for %s qty %d (entry order %d): %s — the position has NO broker-held exit; place a protective stop manually", u.Symbol, u.Quantity, u.EntryOrderID, u.Reason),
 			}
+		}
+	}
+
+	// Fidelity-drift rule (continuous-fidelity-monitoring): one alert per
+	// strategy whose last-known scheduled fidelity result breached tolerance.
+	// The condition comes from the explicit ReportFidelity snapshot, never
+	// from the fidelity gauges (design D3) — the snapshot is replaced
+	// wholesale per result-producing run and stands across no_data runs, so
+	// the alert resolves only when a later run shows the strategy within
+	// tolerance, not on mere absence of data.
+	for _, s := range e.fidelity {
+		if s.WithinTolerance {
+			continue
+		}
+		subject := "strategy/" + s.StrategyID
+		want[RuleFidelityDrift+"|"+subject] = desired{
+			rule:    RuleFidelityDrift,
+			subject: subject,
+			message: fmt.Sprintf("simulator fidelity DRIFT for strategy %s: drift_score %.4f breached tolerance — the simulator has drifted from live behavior; optimizers must not consume this strategy's simulator data until fidelity recovers (task fidelity:status)", s.StrategyID, s.DriftScore),
 		}
 	}
 

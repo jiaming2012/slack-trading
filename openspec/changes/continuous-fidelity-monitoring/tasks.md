@@ -24,8 +24,8 @@
 
 - [ ] 4.1 `src/go/telemetry/heartbeat_tracker.go` — add `SourceKindJob = "job"` to the valid source kinds; monitor beats `job/fidelity-monitor` on run completion (meta carries last outcome) plus a 60s idle keepalive.
 - [ ] 4.2 Monitor metrics via the internal registry: `grodt.fidelity.runs.total{status}` counter; `grodt.fidelity.drift_score{strategy_id}` and `grodt.fidelity.within_tolerance{strategy_id}` gauges updated on result-producing runs.
-- [ ] 4.3 `src/go/telemetry/alerts.go` — `RuleFidelityDrift = "fidelity_drift"`; `AlertEngine.ReportFidelity(...)` storing the latest per-strategy fidelity snapshot (replaced wholesale per result-producing run); `Evaluate` desires one `fidelity_drift|strategy/<id>` alert per breaching strategy, message carrying strategy id and drift score. Define the report payload as a small telemetry-owned struct so `telemetry` does not import `fidelity` (no import cycle; the monitor maps results into it).
-- [ ] 4.4 `alerts_test.go` — breach fires exactly one persisted+notified alert; recovery resolves it; ack silences re-notify while breach persists; `no_data` (no report) preserves last state; existing stale-heartbeat rule picks up a silent `job/fidelity-monitor` source.
+- [x] 4.3 `src/go/telemetry/alerts.go` — `RuleFidelityDrift = "fidelity_drift"`; `AlertEngine.ReportFidelity(...)` storing the latest per-strategy fidelity snapshot (replaced wholesale per result-producing run); `Evaluate` desires one `fidelity_drift|strategy/<id>` alert per breaching strategy, message carrying strategy id and drift score. Define the report payload as a small telemetry-owned struct so `telemetry` does not import `fidelity` (no import cycle; the monitor maps results into it).
+- [x] 4.4 `alerts_test.go` — breach fires exactly one persisted+notified alert; recovery resolves it; ack silences re-notify while breach persists; `no_data` (no report) preserves last state; existing stale-heartbeat rule picks up a silent `job/fidelity-monitor` source.
 
 ## 5. Server wiring
 

@@ -48,6 +48,20 @@ var (
 	RiskOverlayRejections     *Counter
 	RiskOverlayEnabled        *Gauge
 	RiskOverlayEvFamilyActive *Gauge
+
+	// Fidelity-monitor instruments (continuous-fidelity-monitoring).
+	// FidelityRuns counts scheduled fidelity runs labeled {status}
+	// (ok|breach|no_data|error). FidelityDriftScore and
+	// FidelityWithinTolerance (1.0 within / 0.0 breaching) carry a
+	// {strategy_id} label and are updated on every result-producing run. They
+	// are observability for task fidelity:status and snapshot history — the
+	// fidelity_drift alert rule is fed by the AlertEngine's explicit snapshot
+	// (ReportFidelity), never by these gauges (design D3: the registry has no
+	// series deletion, so a stale gauge cannot distinguish "still breaching"
+	// from "no longer evaluated").
+	FidelityRuns            *Counter
+	FidelityDriftScore      *Gauge
+	FidelityWithinTolerance *Gauge
 )
 
 // Init constructs the registry and all instruments. It is self-contained:
@@ -78,6 +92,9 @@ func Init() {
 	RiskOverlayRejections = Default.Counter(MetricRiskOverlayRejections)
 	RiskOverlayEnabled = Default.Gauge(MetricRiskOverlayEnabled)
 	RiskOverlayEvFamilyActive = Default.Gauge(MetricRiskOverlayEvFamilyActive)
+	FidelityRuns = Default.Counter("grodt.fidelity.runs.total")
+	FidelityDriftScore = Default.Gauge("grodt.fidelity.drift_score")
+	FidelityWithinTolerance = Default.Gauge("grodt.fidelity.within_tolerance")
 }
 
 // Risk-overlay metric names, exported because the alert engine reads these

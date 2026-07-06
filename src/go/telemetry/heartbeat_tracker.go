@@ -7,15 +7,18 @@ import (
 )
 
 // Heartbeat source kinds, per the CONTEXT.md glossary: each strategy and each
-// datasource heartbeats. The server does not heartbeat to itself (ADR-0005).
+// datasource heartbeats, and each in-server scheduled job (e.g. the fidelity
+// monitor) heartbeats so a silently dead loop trips the existing
+// stale-heartbeat rule. The server does not heartbeat to itself (ADR-0005).
 const (
 	SourceKindStrategy   = "strategy"
 	SourceKindDatasource = "datasource"
+	SourceKindJob        = "job"
 )
 
 // ValidSourceKind reports whether kind names a heartbeat source we accept.
 func ValidSourceKind(kind string) bool {
-	return kind == SourceKindStrategy || kind == SourceKindDatasource
+	return kind == SourceKindStrategy || kind == SourceKindDatasource || kind == SourceKindJob
 }
 
 // HeartbeatSource is the tracked liveness state of one strategy or datasource.

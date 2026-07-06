@@ -53,6 +53,7 @@ func TestHeartbeatTracker_SourcesAreCopies(t *testing.T) {
 func TestValidSourceKind(t *testing.T) {
 	assert.True(t, ValidSourceKind("strategy"))
 	assert.True(t, ValidSourceKind("datasource"))
+	assert.True(t, ValidSourceKind("job"), "in-server scheduled jobs (fidelity monitor) heartbeat")
 	assert.False(t, ValidSourceKind("server"), "the server does not heartbeat to itself")
 	assert.False(t, ValidSourceKind(""))
 }

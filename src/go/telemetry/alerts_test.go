@@ -397,6 +397,130 @@ func TestAlertEngine(t *testing.T) {
 	})
 }
 
+// continuous-fidelity-monitoring — the fidelity_drift rule rides the existing
+// lifecycle: fed by the explicit ReportFidelity snapshot (never gauges),
+// firing per breaching strategy, resolving on a within-tolerance report, and
+// preserving last-known state across no_data runs (no report call).
+func TestAlertEngine_FidelityDrift(t *testing.T) {
+	db := newTestDB(t)
+
+	t.Run("breach fires exactly one persisted, notified alert carrying id and score", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, _ := newTestEngine(db, notifier)
+
+		start := time.Now().UTC()
+
+		// No snapshot reported yet: silent.
+		e.Evaluate(start)
+		assert.Empty(t, notifier.messages())
+
+		e.ReportFidelity([]FidelityStrategyStatus{
+			{StrategyID: "cc-v7", DriftScore: 0.35, WithinTolerance: false},
+			{StrategyID: "steady", DriftScore: 0.05, WithinTolerance: true},
+		})
+		e.Evaluate(start.Add(30 * time.Second))
+
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1, "exactly one alert for the one breaching strategy")
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleFidelityDrift)
+		assert.Contains(t, msgs[0], "strategy cc-v7")
+		assert.Contains(t, msgs[0], "0.3500")
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ? AND subject = ?", RuleFidelityDrift, "strategy/cc-v7").
+			Order("id desc").First(&row).Error)
+		assert.Nil(t, row.ResolvedAt)
+		require.NotNil(t, row.LastNotifiedAt)
+
+		// Recovery: a later run reports cc-v7 within tolerance — resolves.
+		e.ReportFidelity([]FidelityStrategyStatus{
+			{StrategyID: "cc-v7", DriftScore: 0.10, WithinTolerance: true},
+		})
+		e.Evaluate(start.Add(time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2)
+		assert.Contains(t, msgs[1], "RESOLVED")
+
+		var resolved AlertRow
+		require.NoError(t, db.First(&resolved, row.ID).Error)
+		assert.NotNil(t, resolved.ResolvedAt)
+	})
+
+	t.Run("ack silences re-notification while the breach persists", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, _ := newTestEngine(db, notifier)
+
+		start := time.Now().UTC()
+		e.ReportFidelity([]FidelityStrategyStatus{
+			{StrategyID: "acked", DriftScore: 0.50, WithinTolerance: false},
+		})
+		e.Evaluate(start)
+		require.Len(t, notifier.messages(), 1)
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ? AND subject = ?", RuleFidelityDrift, "strategy/acked").
+			Order("id desc").First(&row).Error)
+		require.NoError(t, e.Ack(row.ID, AckViaSlack, start.Add(time.Minute)))
+
+		// Later runs keep reporting the same breach: still firing, but silent.
+		e.ReportFidelity([]FidelityStrategyStatus{
+			{StrategyID: "acked", DriftScore: 0.50, WithinTolerance: false},
+		})
+		e.Evaluate(start.Add(40 * time.Minute)) // past the renotify interval
+		assert.Len(t, notifier.messages(), 1, "acked alert stops re-notifying")
+
+		var got AlertRow
+		require.NoError(t, db.First(&got, row.ID).Error)
+		assert.Nil(t, got.ResolvedAt, "the breach persists; ack does not resolve")
+	})
+
+	t.Run("no-data runs preserve the last known breach state", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, _ := newTestEngine(db, notifier)
+
+		start := time.Now().UTC()
+		e.ReportFidelity([]FidelityStrategyStatus{
+			{StrategyID: "quiet", DriftScore: 0.40, WithinTolerance: false},
+		})
+		e.Evaluate(start)
+		require.Len(t, notifier.messages(), 1)
+
+		// Subsequent monitor runs are no_data: ReportFidelity is NOT called.
+		// The snapshot — and the firing alert — must stand, not resolve.
+		e.Evaluate(start.Add(5 * time.Minute))
+		e.Evaluate(start.Add(10 * time.Minute))
+
+		for _, msg := range notifier.messages() {
+			assert.NotContains(t, msg, "RESOLVED", "absence of data must not resolve a fidelity breach")
+		}
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ? AND subject = ?", RuleFidelityDrift, "strategy/quiet").
+			Order("id desc").First(&row).Error)
+		assert.Nil(t, row.ResolvedAt)
+	})
+
+	t.Run("a silent job/fidelity-monitor heartbeat trips the existing stale-heartbeat rule", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, tracker, _ := newTestEngine(db, notifier)
+
+		start := time.Now().UTC()
+		tracker.Beat(SourceKindJob, "fidelity-monitor", map[string]string{"last_run_outcome": "no_data"}, start)
+
+		// Fresh: no alert.
+		e.Evaluate(start.Add(30 * time.Second))
+		assert.Empty(t, notifier.messages())
+
+		// The monitor dies (no keepalive past the 90s threshold): stale fires.
+		e.Evaluate(start.Add(2 * time.Minute))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], RuleStaleHeartbeat)
+		assert.Contains(t, msgs[0], "job/fidelity-monitor")
+	})
+}
+
 func TestErrorCounterHook(t *testing.T) {
 	Init()
 	hook := NewErrorCounterHook()
