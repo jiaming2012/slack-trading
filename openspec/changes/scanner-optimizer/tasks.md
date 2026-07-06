@@ -4,8 +4,8 @@
 
 ## 1. Payload package (`scannercfg`)
 
-- [ ] 1.1 Create `src/go/tradingstack/scannercfg/` — `Payload`, `RegimeModel`, `HardFilterOverrides`, `GlobalConfig` types mirroring the architecture-doc JSON; `Parse`, `Marshal` (semantic round-trip), `Validate` (non-negative finite weights, `score_threshold` in [0,1]); `DefaultPayload()` built-in baseline used when `scanner_configs` is empty.
-- [ ] 1.2 Payload tests: architecture-doc example round-trips key-for-key; invalid weight and out-of-range threshold rejected; default payload validates.
+- [x] 1.1 Create `src/go/tradingstack/scannercfg/` — `Payload`, `RegimeModel`, `HardFilterOverrides`, `GlobalConfig` types mirroring the architecture-doc JSON; `Parse`, `Marshal` (semantic round-trip), `Validate` (non-negative finite weights, `score_threshold` in [0,1]); `DefaultPayload()` built-in baseline used when `scanner_configs` is empty.
+- [x] 1.2 Payload tests: architecture-doc example round-trips key-for-key; invalid weight and out-of-range threshold rejected; default payload validates.
 
 ## 2. TrainingRow outcome fields (modified `optimizer-validation-pipeline`)
 
