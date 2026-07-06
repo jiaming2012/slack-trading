@@ -26,10 +26,10 @@
 
 ## 5. Proposal persistence and promotion
 
-- [ ] 5.1 `proposal.go` — GORM model `ScannerConfigProposal` (table `scanner_config_proposals`; status CHECK + Go validation over `{pending_review, rejected_by_gate, promoted}`; `verdict_id` FK → `overfitting_verdicts.id`); `MigrateScannerOptimizer(db)` additive/idempotent, erroring clearly if the verdict table is missing.
-- [ ] 5.2 `store.go` — `ProposalStore` interface (`Persist`, `List`, `FetchByID`, `Promote`), GORM implementation (Promote: refuse non-`pending_review`; transactionally insert `scanner_configs` row verbatim + flip status), in-memory fake.
-- [ ] 5.3 `synthetic.go` — synthetic weighted-row fixtures (one healthy regime, one thin regime) shared by tests and the CLI `--synthetic` mode.
-- [ ] 5.4 Testcontainers tests: passing run → `pending_review` row and `scanner_configs` row count unchanged; failing run → `rejected_by_gate`; promote pending → new `scanner_configs` row verbatim + status `promoted`; promote rejected/promoted → error, no writes; migration creates exactly `scanner_config_proposals` and is idempotent.
+- [x] 5.1 `proposal.go` — GORM model `ScannerConfigProposal` (table `scanner_config_proposals`; status CHECK + Go validation over `{pending_review, rejected_by_gate, promoted}`; `verdict_id` FK → `overfitting_verdicts.id`); `MigrateScannerOptimizer(db)` additive/idempotent, erroring clearly if the verdict table is missing.
+- [x] 5.2 `store.go` — `ProposalStore` interface (`Persist`, `List`, `FetchByID`, `Promote`), GORM implementation (Promote: refuse non-`pending_review`; transactionally insert `scanner_configs` row verbatim + flip status), in-memory fake.
+- [x] 5.3 `synthetic.go` — synthetic weighted-row fixtures (one healthy regime, one thin regime) shared by tests and the CLI `--synthetic` mode.
+- [x] 5.4 Testcontainers tests: passing run → `pending_review` row and `scanner_configs` row count unchanged; failing run → `rejected_by_gate`; promote pending → new `scanner_configs` row verbatim + status `promoted`; promote rejected/promoted → error, no writes; migration creates exactly `scanner_config_proposals` and is idempotent.
 
 ## 6. Loader (first real consumer of the validation pipeline)
 
