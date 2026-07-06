@@ -19,9 +19,9 @@
 
 ## 4. Portfolio snapshot builder
 
-- [ ] 4.1 `snapshot.go` — `BuildPortfolioSnapshot` (a `PortfolioSnapshotFunc` factory taking the lookups): positions from the playground position cache with signed notional (quantity × current price, cost-basis fallback, ×100 for option instruments) and sector via `SectorLookup`; per-strategy deployed capital attributed by opening-order tag (client-ID fallback); trailing 5-session equity series from the in-memory equity plot (one closing value per session date, ending with current equity — no DB read); EV weights via `EvWeightLookup`; `ProposedOrder` completed with sector + strategy ID.
-- [ ] 4.2 `snapshot_test.go` — seeded playground fixture yields expected `PortfolioState` (signed notionals, sectors, deployed capital, EV map, exactly the last 5 sessions ending at current equity); unknown-sector order evaluated with empty sector; end-to-end gate decision with fakes and no database.
-- [ ] 4.3 Re-assert the reduction-bypass-before-I/O invariant: with every lookup and the snapshot builder erroring, a sell-to-close order is permitted with no lookup consulted and no degradation recorded (design D2 / N1 dependency).
+- [x] 4.1 `snapshot.go` — `BuildPortfolioSnapshot` (a `PortfolioSnapshotFunc` factory taking the lookups): positions from the playground position cache with signed notional (quantity × current price, cost-basis fallback, ×100 for option instruments) and sector via `SectorLookup`; per-strategy deployed capital attributed by opening-order tag (client-ID fallback); trailing 5-session equity series from the in-memory equity plot (one closing value per session date, ending with current equity — no DB read); EV weights via `EvWeightLookup`; `ProposedOrder` completed with sector + strategy ID.
+- [x] 4.2 `snapshot_test.go` — seeded playground fixture yields expected `PortfolioState` (signed notionals, sectors, deployed capital, EV map, exactly the last 5 sessions ending at current equity); unknown-sector order evaluated with empty sector; end-to-end gate decision with fakes and no database.
+- [x] 4.3 Re-assert the reduction-bypass-before-I/O invariant: with every lookup and the snapshot builder erroring, a sell-to-close order is permitted with no lookup consulted and no degradation recorded (design D2 / N1 dependency).
 
 ## 5. Telemetry and alerting (internal registry ONLY — no OTel, per ADR-0005)
 
