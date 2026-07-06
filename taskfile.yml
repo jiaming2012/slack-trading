@@ -316,6 +316,50 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  optimizer:propose:
+    desc: 'Generate strategy parameter proposals from gated sim outcomes. Default: synthetic dry-run (built-in fixtures, no DB, nothing persisted). DB mode: task optimizer:propose -- --db [--dry-run] [--from RFC3339 --to RFC3339]. Recommendations only -- never applied to any trading config.'
+    cmds:
+      - 'go run ./cmd/strategy-optimizer generate {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  optimizer:proposals:
+    desc: 'List strategy proposals -- defaults to the pending_review review queue; gate-rejected rows only via task optimizer:proposals -- --status rejected_by_gate. Requires the database.'
+    cmds:
+      - 'go run ./cmd/strategy-optimizer list {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  optimizer:proposal:
+    desc: 'Inspect one strategy proposal: rationale, evidence, and per-check overfitting-gate verdict. Usage: task optimizer:proposal ID=<uuid>. Requires the database.'
+    cmds:
+      - |
+        set -eu
+        if [ -z "{{.ID}}" ]; then
+          echo "usage: task optimizer:proposal ID=<uuid>" >&2
+          exit 1
+        fi
+        go run ./cmd/strategy-optimizer show --id "{{.ID}}"
+    dir: "{{.ROOT_DIR}}"
+
+  optimizer:proposal:decide:
+    desc: 'Record a one-way operator decision on a pending_review strategy proposal. Usage: task optimizer:proposal:decide ID=<uuid> DECISION=accepted|dismissed. Changes only the proposal row -- nothing is ever auto-applied.'
+    cmds:
+      - |
+        set -eu
+        if [ -z "{{.ID}}" ] || [ -z "{{.DECISION}}" ]; then
+          echo "usage: task optimizer:proposal:decide ID=<uuid> DECISION=accepted|dismissed" >&2
+          exit 1
+        fi
+        go run ./cmd/strategy-optimizer decide --id "{{.ID}}" --decision "{{.DECISION}}"
+    dir: "{{.ROOT_DIR}}"
+
+  test:strategy-optimizer:
+    desc: 'Run the stratopt package suite (requires Docker for the persistence tests)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/stratopt/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
