@@ -13,9 +13,9 @@
 
 ## 3. Lookup seams (EV weights, sector)
 
-- [ ] 3.1 `evweights.go` — `EvWeightLookup` interface (`Latest() (map[string]float64, error)`), `GormEvWeightLookup` reading the most recent `strategy_ev_weights` row per `strategy_id`, `FakeEvWeightLookup` (seedable), plus a short scan-cycle-scale cache.
-- [ ] 3.2 `sector.go` — `SectorLookup` interface (`SectorOf(ticker) (string, error)`), `GormSectorLookup` reading the latest non-null `scan_results.sector` per ticker, `FakeSectorLookup`, same cache treatment. Unknown ticker → empty sector (recorded as degradation in task 5.2).
-- [ ] 3.3 Seam unit tests with the fakes; GORM implementations covered by a testcontainers round-trip (mirroring the crowding lookup's pattern).
+- [x] 3.1 `evweights.go` — `EvWeightLookup` interface (`Latest() (map[string]float64, error)`), `GormEvWeightLookup` reading the most recent `strategy_ev_weights` row per `strategy_id`, `FakeEvWeightLookup` (seedable), plus a short scan-cycle-scale cache.
+- [x] 3.2 `sector.go` — `SectorLookup` interface (`SectorOf(ticker) (string, error)`), `GormSectorLookup` reading the latest non-null `scan_results.sector` per ticker, `FakeSectorLookup`, same cache treatment. Unknown ticker → empty sector (recorded as degradation in task 5.2).
+- [x] 3.3 Seam unit tests with the fakes; GORM implementations covered by a testcontainers round-trip (mirroring the crowding lookup's pattern).
 
 ## 4. Portfolio snapshot builder
 

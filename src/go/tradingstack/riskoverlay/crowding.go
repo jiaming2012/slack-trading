@@ -2,6 +2,7 @@ package riskoverlay
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -48,9 +49,9 @@ func (v CrowdingView) Tickers() []string {
 // CrowdingLookup resolves the CrowdingView for a scan cycle. The production
 // implementation reads the crowding tables; the test fake is in-memory.
 type CrowdingLookup interface {
-	// ViewForScanCycle returns the crowding view for the cycle scanned at the
-	// given time. When no crowding metric exists for that cycle, it returns an
-	// unflagged view with an empty ticker set and no error.
+	// ViewForScanCycle returns the crowding view for the cycle in effect at
+	// the given time. When no crowding metric exists at or before that time,
+	// it returns an unflagged view with an empty ticker set and no error.
 	ViewForScanCycle(scannedAt time.Time) (CrowdingView, error)
 }
 
@@ -66,14 +67,22 @@ func NewGormCrowdingLookup(db *gorm.DB) *GormCrowdingLookup {
 	return &GormCrowdingLookup{db: db}
 }
 
-// ViewForScanCycle loads the most recent crowding metric for the given
-// scanned_at and, when that metric is flagged, the tickers of its flagged
+// ViewForScanCycle loads the crowding metric for the cycle in effect at
+// scannedAt — the most recent metric whose scanned_at is at or before the
+// given time — and, when that metric is flagged, the tickers of its flagged
 // candidates.
+//
+// wire-risk-overlay-state: the original exact-match (`scanned_at = ?`) query
+// required the caller to already know a cycle's precise scanned_at, which the
+// production snapshot builder cannot know — wired that way, every real call
+// would silently resolve to an unflagged view and the crowding family would be
+// structurally dead. Latest-at-or-before is a strict generalization: an exact
+// scanned_at still resolves to its own cycle.
 func (g *GormCrowdingLookup) ViewForScanCycle(scannedAt time.Time) (CrowdingView, error) {
 	var metric crowding.CrowdingMetric
 	err := g.db.
-		Where("scanned_at = ?", scannedAt).
-		Order("computed_at DESC").
+		Where("scanned_at <= ?", scannedAt).
+		Order("scanned_at DESC, computed_at DESC").
 		First(&metric).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -96,6 +105,52 @@ func (g *GormCrowdingLookup) ViewForScanCycle(scannedAt time.Time) (CrowdingView
 		tickers = append(tickers, c.Ticker)
 	}
 	return NewCrowdingView(true, tickers), nil
+}
+
+// CachedCrowdingLookup memoizes the inner lookup's view for a TTL so the
+// per-order evaluation path stays flat. The production snapshot builder
+// resolves the cycle "in effect now", so consecutive calls within one scan
+// cycle return the same view; caching by TTL (not by the ever-changing
+// scannedAt argument) is the correct granularity. Errors are never cached.
+// Safe for concurrent use.
+type CachedCrowdingLookup struct {
+	inner CrowdingLookup
+	ttl   time.Duration
+	now   func() time.Time
+
+	mu       sync.Mutex
+	cached   CrowdingView
+	cachedAt time.Time
+	valid    bool
+}
+
+// NewCachedCrowdingLookup wraps inner with a TTL cache. A non-positive ttl
+// falls back to DefaultLookupCacheTTL.
+func NewCachedCrowdingLookup(inner CrowdingLookup, ttl time.Duration) *CachedCrowdingLookup {
+	if ttl <= 0 {
+		ttl = DefaultLookupCacheTTL
+	}
+	return &CachedCrowdingLookup{inner: inner, ttl: ttl, now: time.Now}
+}
+
+// ViewForScanCycle returns the cached view when fresh, otherwise consults the
+// inner lookup with the given scannedAt.
+func (c *CachedCrowdingLookup) ViewForScanCycle(scannedAt time.Time) (CrowdingView, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.valid && c.now().Sub(c.cachedAt) < c.ttl {
+		return c.cached, nil
+	}
+
+	view, err := c.inner.ViewForScanCycle(scannedAt)
+	if err != nil {
+		return CrowdingView{}, err
+	}
+	c.cached = view
+	c.cachedAt = c.now()
+	c.valid = true
+	return view, nil
 }
 
 // FakeCrowdingLookup is an in-memory CrowdingLookup for unit tests. Seed it by

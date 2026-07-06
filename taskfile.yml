@@ -229,7 +229,7 @@ tasks:
       - 'go test -count=1 ./src/go/tradingstack/crowding/...'
 
   test:portfolio-risk-overlay:
-    desc: 'Run the portfolio risk overlay package unit test suite (fixtures only, no Docker required)'
+    desc: 'Run the portfolio risk overlay package test suite (fixture-driven unit tests plus the GORM lookup testcontainers round-trips — requires Docker)'
     cmds:
       - 'go test -count=1 ./src/go/tradingstack/riskoverlay/...'
     dir: "{{.ROOT_DIR}}"
