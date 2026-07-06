@@ -51,12 +51,26 @@ func maybePlaceCompanionStop(playground *backtester_models.Playground, order *ba
 		return
 	}
 
+	// One strategy order can net into MULTIPLE broker trades (buy 10 →
+	// buy_to_cover 4 + buy 6), each committing through fillPendingOrder
+	// separately. The stopper sizes each placement to the still-unprotected
+	// delta against the entry's CUMULATIVE filled quantity, so every trade
+	// tops up coverage and the total protective size tracks the total filled
+	// size (never the requested total — an over-sized stop reverses instead
+	// of flattening).
+	totalFilled := math.Abs(order.GetFilledVolume())
+	if totalFilled <= 0 {
+		// Defensive: the trade link should already be committed by now; fall
+		// back to this trade's own quantity rather than skipping protection.
+		totalFilled = math.Abs(fillQuantity)
+	}
+
 	fill := safety.EntryFill{
-		Symbol:       order.Symbol,
-		EntrySide:    order.Side,
-		Quantity:     int(math.Round(math.Abs(fillQuantity))),
-		FillPrice:    fillPrice,
-		EntryOrderID: order.ID,
+		Symbol:              order.Symbol,
+		EntrySide:           order.Side,
+		FillPrice:           fillPrice,
+		EntryOrderID:        order.ID,
+		TotalFilledQuantity: totalFilled,
 	}
 
 	// Errors are fully handled (and made loud) inside PlaceForFill; the fill's

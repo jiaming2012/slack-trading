@@ -36,6 +36,16 @@ type EntryFill struct {
 	// durable association that makes placement idempotent per entry order
 	// across event redelivery and process restarts.
 	EntryOrderID uint
+
+	// TotalFilledQuantity is the entry order's CUMULATIVE absolute filled
+	// quantity across all of its trades so far. One strategy order routinely
+	// nets into multiple broker trades (e.g. buy 10 → buy_to_cover 4 + buy 6),
+	// each committing through the fill pipeline separately; the stopper sizes
+	// each placement to the still-unprotected delta so the total protective
+	// size tracks the total FILLED size — never the requested total, which
+	// would over-size the stop and reverse instead of flatten. Consumed by
+	// CompanionStopper.PlaceForFill; PlaceCompanionStop itself uses Quantity.
+	TotalFilledQuantity float64
 }
 
 // PlaceCompanionStop places a broker-held stop order that protects a just-filled

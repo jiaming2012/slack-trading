@@ -13,11 +13,14 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/backtester/safety"
+	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
@@ -30,19 +33,68 @@ func installCompanionStopper(t *testing.T, distance float64) *safety.CompanionSt
 	return stopper
 }
 
-// placeSidedOrder mirrors the fixture's placeOrder with a configurable side
-// and tag.
-func placeSidedOrder(t *testing.T, f *guardPipelineFixture, id uint, quantity float64, side backtester_models.TradierOrderSide, tag string) *backtester_models.OrderRecord {
+// placeSidedOrderOn mirrors the fixture's placeOrder with a configurable
+// playground, side, and tag.
+func placeSidedOrderOn(t *testing.T, f *guardPipelineFixture, playground *backtester_models.Playground, id uint, quantity float64, side backtester_models.TradierOrderSide, tag string) *backtester_models.OrderRecord {
 	t.Helper()
-	order, err := backtester_models.NewOrderRecord(id, nil, nil, f.livePlayground.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, f.now, string(f.symbol), side, quantity, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, tag, nil, false, nil, nil)
+	order, err := backtester_models.NewOrderRecord(id, nil, nil, playground.GetId(), backtester_models.OrderRecordClassEquity, backtester_models.AccountRoleMargin, f.now, string(f.symbol), side, quantity, backtester_models.Market, backtester_models.Day, 0.01, nil, nil, backtester_models.OrderRecordStatusPending, tag, nil, false, nil, nil)
 	require.NoError(t, err)
 
-	changes, err := f.livePlayground.PlaceOrder(order)
+	changes, err := playground.PlaceOrder(order)
 	require.NoError(t, err)
 	for _, change := range changes {
 		require.NoError(t, backtester_models.CommitPlaceOrderChanges(f.database, []*backtester_models.PlaceOrderChanges{change}))
 	}
 	return order
+}
+
+// placeSidedOrder places on the fixture's default live playground.
+func placeSidedOrder(t *testing.T, f *guardPipelineFixture, id uint, quantity float64, side backtester_models.TradierOrderSide, tag string) *backtester_models.OrderRecord {
+	t.Helper()
+	return placeSidedOrderOn(t, f, f.livePlayground, id, quantity, side, tag)
+}
+
+// addSecondLivePlayground builds a second Paper-Mode playground bound to the
+// SAME live account and reconcile container as the fixture's — the real
+// multi-strategy topology in which one strategy's order nets against another
+// strategy's broker position and splits into multiple reconciliation trades.
+func addSecondLivePlayground(t *testing.T, f *guardPipelineFixture) *backtester_models.Playground {
+	t.Helper()
+
+	feed := []*models.PolygonAggregateBarV2{
+		{Timestamp: f.now.Add(-time.Minute), Close: 5.0},
+		{Timestamp: f.now, Close: 10.0},
+		{Timestamp: f.now.Add(time.Minute), Close: 20.0},
+	}
+	repo, err := backtester_models.NewCandleRepository(f.symbol, time.Minute, feed, []string{}, nil, 0, models.CandleRepositorySource{})
+	require.NoError(t, err)
+
+	id := uuid.New()
+	clientID := "companion-stop-second-strategy"
+	accountRequestSource := backtester_models.NewMockLiveAccountSource()
+	source := &backtester_models.CreateAccountRequestSource{
+		Broker:      accountRequestSource.GetBroker(),
+		AccountID:   accountRequestSource.GetAccountID(),
+		AccountRole: accountRequestSource.GetAccountType(),
+	}
+
+	newTradesQueue := models.NewFIFOQueue[*backtester_models.TradeRecord]("newTradesFilledQueue-second", 4)
+
+	p := &backtester_models.Playground{}
+	require.NoError(t, backtester_models.PopulatePlayground(p, &backtester_models.PopulatePlaygroundRequest{
+		ID:                  &id,
+		ClientID:            &clientID,
+		Mode:                backtester_models.ModePaper,
+		Account:             backtester_models.CreateAccountRequest{Balance: 1000.0, Source: source},
+		InitialBalance:      1000.0,
+		BackfillOrders:      []*backtester_models.OrderRecord{},
+		Tags:                []string{},
+		LiveAccount:         f.livePlayground.GetLiveAccount(),
+		ReconcilePlayground: f.livePlayground.GetReconcilePlayground(),
+	}, nil, f.now, newTradesQueue, nil, nil, repo))
+
+	require.NoError(t, f.database.SavePlaygroundSession(p))
+	return p
 }
 
 func companionCounter(t *testing.T, name string) float64 {
@@ -171,6 +223,73 @@ func TestCompanionStop_NoStopForCompanionStopFillAndNoDuplicateOnRedelivery(t *t
 	require.Len(t, f.broker.StopOrders(), 1, "a redelivered fill event must not double the protective size")
 
 	require.Equal(t, 1.0, companionCounter(t, "safety_companion_stops_placed_total"))
+}
+
+// BLOCKER regression (adversarial-review finding 1): one strategy order that
+// nets into MULTIPLE broker trades must end up FULLY protected. A buy 10
+// against an existing short 4 splits into buy_to_cover 4 + buy 6 at the
+// reconcile layer; each trade commits through fillPendingOrder separately, and
+// the second trade must top up the stop coverage — total stop quantity must
+// equal total filled quantity, with nothing skipped as a "redelivery".
+func TestCompanionStop_MultiTradeNettedFillFullyProtected(t *testing.T) {
+	telemetry.Init()
+	f := newGuardPipelineFixture(t)
+	installCompanionStopper(t, 5.0)
+
+	// Step 1: establish a short 4 position (entry order 1).
+	placeSidedOrder(t, f, 1, 4, backtester_models.TradierOrderSideSellShort, "")
+	r1 := f.lastReconcileOrder(t)
+	require.NoError(t, f.broker.FillOrder(*r1.ExternalOrderID, 100.0, string(backtester_models.OrderRecordStatusFilled)))
+	f.pumpPipeline(t)
+
+	// Step 2: a SECOND strategy (own playground, same broker account) buys 10
+	// (entry order 2) — the reconcile layer nets it against the account's
+	// short 4 into buy_to_cover 4 + buy 6: TWO reconciliation orders, TWO
+	// broker fills, TWO trades committing separately for the same live entry.
+	second := addSecondLivePlayground(t, f)
+	placeSidedOrderOn(t, f, second, 2, 10, backtester_models.TradierOrderSideBuy, "")
+
+	reconciles := f.livePlayground.GetReconcilePlayground().GetOrders()
+	require.GreaterOrEqual(t, len(reconciles), 3, "the netted buy must produce two reconciliation orders")
+	nettedOrders := reconciles[len(reconciles)-2:]
+	require.Equal(t, backtester_models.TradierOrderSideBuyToCover, nettedOrders[0].Side)
+	require.Equal(t, 4.0, nettedOrders[0].AbsoluteQuantity)
+	require.Equal(t, backtester_models.TradierOrderSideBuy, nettedOrders[1].Side)
+	require.Equal(t, 6.0, nettedOrders[1].AbsoluteQuantity)
+
+	for _, ro := range nettedOrders {
+		require.NotNil(t, ro.ExternalOrderID)
+		require.NoError(t, f.broker.FillOrder(*ro.ExternalOrderID, 100.0, string(backtester_models.OrderRecordStatusFilled)))
+	}
+	f.pumpPipeline(t)
+
+	// The live entry committed both trades.
+	var liveOrder2 *backtester_models.OrderRecord
+	for _, o := range second.GetAllOrders() {
+		if o.ID == 2 {
+			liveOrder2 = o
+		}
+	}
+	require.NotNil(t, liveOrder2)
+	require.Len(t, liveOrder2.Trades, 2, "the netted entry must carry both trades")
+
+	// EVERY filled share is protected: the stops tagged to entry 2 must sum
+	// to the full 10 — trade 2 must NOT have been skipped as a redelivery.
+	tag2 := safety.CompanionStopTagForEntry(2)
+	var stops2Total int
+	var stops2 int
+	for _, s := range f.broker.StopOrders() {
+		if s.Tag != tag2 {
+			continue
+		}
+		stops2++
+		require.Equal(t, backtester_models.TradierOrderSideSell, s.Sides[0], "a long entry is protected by sell stops")
+		require.InDelta(t, 95.0, *s.StopPrice, 1e-9)
+		stops2Total += s.Quantities[0]
+	}
+	require.Equal(t, 10, stops2Total, "total stop quantity must equal total filled quantity — no unprotected remainder")
+	require.Equal(t, 2, stops2, "each netting trade tops up coverage for its delta")
+	require.Empty(t, safety.UnprotectedPositions())
 }
 
 // stopRejectingBroker delegates everything to MockBroker but rejects stop

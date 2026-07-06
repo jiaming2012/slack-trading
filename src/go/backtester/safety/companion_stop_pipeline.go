@@ -3,6 +3,7 @@ package safety
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -83,11 +84,14 @@ type CompanionStopper struct {
 	cfg CompanionStopConfig
 
 	mu sync.Mutex
-	// placed is the in-memory idempotency set keyed by entry order ID: the
-	// Tradier order-update stream can redeliver fill events (reconnects,
-	// restarts, poller laps), and a redelivered fill must not double the
-	// protective size into an actual short.
-	placed map[uint]struct{}
+	// protectedQty tracks, per entry order ID, the CUMULATIVE quantity covered
+	// by successfully placed companion stops. One strategy order routinely
+	// nets into multiple broker trades (buy 10 → buy_to_cover 4 + buy 6), each
+	// committing through the fill pipeline separately; every placement covers
+	// only the still-unprotected delta, so the total protective size tracks
+	// the total FILLED size. A redelivered fill event carries no new filled
+	// quantity (delta 0) and places nothing.
+	protectedQty map[uint]float64
 	// unprotected records placement failures — live positions with no
 	// broker-held exit — keyed by entry order ID for the alert engine.
 	unprotected map[uint]telemetry.UnprotectedPosition
@@ -97,9 +101,9 @@ type CompanionStopper struct {
 // configuration.
 func NewCompanionStopper(cfg CompanionStopConfig) *CompanionStopper {
 	return &CompanionStopper{
-		cfg:         cfg,
-		placed:      make(map[uint]struct{}),
-		unprotected: make(map[uint]telemetry.UnprotectedPosition),
+		cfg:          cfg,
+		protectedQty: make(map[uint]float64),
+		unprotected:  make(map[uint]telemetry.UnprotectedPosition),
 	}
 }
 
@@ -108,47 +112,73 @@ func (s *CompanionStopper) Config() CompanionStopConfig {
 	return s.cfg
 }
 
-// alreadyPlaced consults the in-memory placed-set first, then — the restart
-// window, where the set died with the previous process — the durable
-// association: broker orders tagged with this entry's companion-stop tag. A
-// broker lookup failure is treated as NOT placed: the residual risk of a
-// duplicate stop is protective-side (it flattens, never reverses past the tag
-// guard), while skipping placement on a failed lookup could leave the position
-// with no stop at all.
-func (s *CompanionStopper) alreadyPlaced(ctx context.Context, broker models.IBroker, entryOrderID uint) bool {
+// ProtectedQuantity reports the quantity currently covered by placed
+// companion stops for the given entry order (in-memory view; used by tests to
+// pin the cumulative tracking).
+func (s *CompanionStopper) ProtectedQuantity(entryOrderID uint) float64 {
 	s.mu.Lock()
-	_, ok := s.placed[entryOrderID]
+	defer s.mu.Unlock()
+	return s.protectedQty[entryOrderID]
+}
+
+// protectedQuantityFor consults the in-memory tracker first, then — the
+// restart window, where the tracker died with the previous process — the
+// durable association: broker orders whose tag is this entry's companion-stop
+// tag AND whose order type is stop AND whose symbol matches the entry (the
+// full match Decision 3 promises; a tag-only scan would let an unrelated or
+// mis-tagged order suppress a protective stop). Matching quantities are
+// summed and cached so subsequent fills top up from the correct baseline. A
+// broker lookup failure is treated as nothing-protected: the residual risk of
+// a duplicate stop is protective-side (it flattens, never reverses past the
+// tag guard), while skipping placement on a failed lookup could leave the
+// position with no stop at all.
+func (s *CompanionStopper) protectedQuantityFor(ctx context.Context, broker models.IBroker, fill EntryFill) float64 {
+	s.mu.Lock()
+	qty, tracked := s.protectedQty[fill.EntryOrderID]
 	s.mu.Unlock()
-	if ok {
-		return true
+	if tracked {
+		return qty
 	}
 
 	if broker == nil {
-		return false
+		return 0
 	}
 
 	orders, err := broker.FetchOrders(ctx)
 	if err != nil {
-		log.Warnf("companion stop: could not check broker orders for an existing stop for entry order %d (placing anyway — a duplicate stop fails protective-side): %v", entryOrderID, err)
-		return false
+		log.Warnf("companion stop: could not check broker orders for existing stops for entry order %d (placing anyway — a duplicate stop fails protective-side): %v", fill.EntryOrderID, err)
+		return 0
 	}
 
-	tag := CompanionStopTagForEntry(entryOrderID)
+	tag := CompanionStopTagForEntry(fill.EntryOrderID)
+	var durable float64
 	for _, o := range orders {
-		if o != nil && o.Tag == tag {
-			s.markPlaced(entryOrderID)
-			log.Infof("companion stop: entry order %d already has companion stop at the broker (tag %q, broker order %d) — skipping duplicate placement", entryOrderID, tag, o.ID)
-			return true
+		if o == nil {
+			continue
 		}
+		if o.Tag != tag || o.Type != string(models.TradierOrderTypeStop) || o.Symbol != fill.Symbol {
+			continue
+		}
+		durable += o.AbsoluteQuantity
 	}
 
-	return false
+	s.mu.Lock()
+	s.protectedQty[fill.EntryOrderID] = durable
+	s.mu.Unlock()
+
+	if durable > 0 {
+		log.Infof("companion stop: entry order %d already has %.2f share(s) protected at the broker (tag %q) — topping up from that baseline", fill.EntryOrderID, durable, tag)
+	}
+
+	return durable
 }
 
-func (s *CompanionStopper) markPlaced(entryOrderID uint) {
+// addProtected records quantity covered by a successful placement and clears
+// any standing unprotected-position record for the entry.
+func (s *CompanionStopper) addProtected(entryOrderID uint, quantity float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.placed[entryOrderID] = struct{}{}
+	s.protectedQty[entryOrderID] += quantity
 	delete(s.unprotected, entryOrderID)
 }
 
@@ -184,11 +214,19 @@ func (s *CompanionStopper) UnprotectedPositions() []telemetry.UnprotectedPositio
 	return out
 }
 
-// PlaceForFill places the companion stop for one committed, eligible live
-// entry fill, idempotently per entry order. It NEVER returns an error to the
-// caller's control flow decision — the fill already happened at the broker and
-// must stay committed — but reports (placed, err) so tests and logs can see
-// the outcome. All failures run through the loud recordFailure path.
+// PlaceForFill places protective coverage for one committed, eligible live
+// entry fill, cumulatively per entry order: the stop is sized to the
+// still-unprotected delta between the entry's total filled quantity
+// (fill.TotalFilledQuantity) and the quantity already covered by placed
+// stops. A first trade places the initial stop; each further netting trade
+// for the same entry places a TOP-UP stop for its delta (never sized from the
+// order's requested total — an over-sized stop reverses instead of
+// flattening); a redelivered fill event has delta 0 and places nothing.
+//
+// It NEVER returns an error to the caller's control flow decision — the fill
+// already happened at the broker and must stay committed — but reports
+// (placed, err) so tests and logs can see the outcome. All failures run
+// through the loud recordFailure path, sized to the unprotected delta.
 //
 // The placement goes through the IBroker seam DIRECTLY (PlaceCompanionStop),
 // below the halt-gated Playground.PlaceOrder path, so an engaged kill switch
@@ -201,13 +239,37 @@ func (s *CompanionStopper) PlaceForFill(ctx context.Context, broker models.IBrok
 		return false, err
 	}
 
-	if s.alreadyPlaced(ctx, broker, fill.EntryOrderID) {
+	if fill.TotalFilledQuantity <= 0 {
+		err := fmt.Errorf("total filled quantity must be positive for companion-stop sizing, got %v", fill.TotalFilledQuantity)
+		s.recordFailure(fill, err)
+		return false, err
+	}
+
+	protected := s.protectedQuantityFor(ctx, broker, fill)
+	outstanding := fill.TotalFilledQuantity - protected
+	if outstanding <= 0 {
+		// Fully protected already: a redelivered fill event, or the durable
+		// broker lookup found the coverage placed before a restart.
 		return false, nil
 	}
 
-	req, err := PlaceCompanionStop(ctx, broker, mode, fill, s.cfg)
+	deltaQty := int(math.Floor(outstanding))
+	if deltaQty < 1 {
+		// Fractional remainder below one share (finding 4): stops are placed
+		// in whole shares, so skip with a Warn — NOT the failure/alert loop.
+		// The fraction stays outstanding in the tracker (protectedQty is only
+		// advanced on placement), so once further fills accumulate a whole
+		// share the next placement covers it.
+		log.Warnf("companion stop: entry order %d has a fractional unprotected remainder of %.4f share(s) (< 1) — skipping placement; the fraction stays tracked and will be covered once accumulation reaches a whole share", fill.EntryOrderID, outstanding)
+		return false, nil
+	}
+
+	deltaFill := fill
+	deltaFill.Quantity = deltaQty
+
+	req, err := PlaceCompanionStop(ctx, broker, mode, deltaFill, s.cfg)
 	if err != nil {
-		s.recordFailure(fill, err)
+		s.recordFailure(deltaFill, err)
 		return false, err
 	}
 
@@ -216,9 +278,9 @@ func (s *CompanionStopper) PlaceForFill(ctx context.Context, broker models.IBrok
 		return false, nil
 	}
 
-	s.markPlaced(fill.EntryOrderID)
+	s.addProtected(fill.EntryOrderID, float64(deltaQty))
 	telemetry.CompanionStopsPlaced.Add(1)
-	log.Infof("companion stop placed for entry order %d: %s %s qty %d @ stop %v (tag %q)", fill.EntryOrderID, fill.Symbol, req.Sides[0], fill.Quantity, *req.StopPrice, req.Tag)
+	log.Infof("companion stop placed for entry order %d: %s %s qty %d @ stop %v (tag %q; %.2f of %.2f filled share(s) now protected)", fill.EntryOrderID, fill.Symbol, req.Sides[0], deltaQty, *req.StopPrice, req.Tag, s.ProtectedQuantity(fill.EntryOrderID), fill.TotalFilledQuantity)
 
 	return true, nil
 }

@@ -79,41 +79,195 @@ func TestPlaceForFill_DuplicateEventPlacesSingleStop(t *testing.T) {
 	broker := models.NewMockBroker(1, nil)
 	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
 
-	fill := EntryFill{Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, Quantity: 10, FillPrice: 100.0, EntryOrderID: 11}
+	fill := EntryFill{Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 11, TotalFilledQuantity: 10}
 
 	placed, err := stopper.PlaceForFill(context.Background(), broker, models.ModePaper, fill)
 	require.NoError(t, err)
 	require.True(t, placed)
 
-	// The redelivered fill event must not place a second stop.
+	// The redelivered fill event carries no NEW filled quantity: delta 0, so
+	// no second stop.
 	placed, err = stopper.PlaceForFill(context.Background(), broker, models.ModePaper, fill)
 	require.NoError(t, err)
 	require.False(t, placed)
 
 	stops := broker.StopOrders()
 	require.Len(t, stops, 1)
+	require.Equal(t, 10, stops[0].Quantities[0])
 	require.Equal(t, CompanionStopTagForEntry(11), stops[0].Tag, "the stop carries the durable entry-order association in its tag")
+}
+
+// One strategy order netting into multiple trades: every further trade for an
+// already-protected entry places a TOP-UP stop for its delta, so total stop
+// quantity equals total filled quantity — never the requested total, and
+// never a silently skipped remainder.
+func TestPlaceForFill_MultiTradeFillToppedUpToTotalFilled(t *testing.T) {
+	broker := models.NewMockBroker(1, nil)
+	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
+
+	// Trade 1: 4 of 10 filled.
+	placed, err := stopper.PlaceForFill(context.Background(), broker, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 11, TotalFilledQuantity: 4,
+	})
+	require.NoError(t, err)
+	require.True(t, placed)
+
+	// Trade 2: cumulative 10 filled — a top-up stop for the delta of 6.
+	placed, err = stopper.PlaceForFill(context.Background(), broker, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 101.0, EntryOrderID: 11, TotalFilledQuantity: 10,
+	})
+	require.NoError(t, err)
+	require.True(t, placed)
+
+	stops := broker.StopOrders()
+	require.Len(t, stops, 2)
+	total := 0
+	for _, s := range stops {
+		require.Equal(t, CompanionStopTagForEntry(11), s.Tag)
+		total += s.Quantities[0]
+	}
+	require.Equal(t, 10, total, "total stop quantity must equal total filled quantity")
+	require.Equal(t, 10.0, stopper.ProtectedQuantity(11))
+}
+
+// A top-up placement failure must be loud for the DELTA left unprotected, and
+// the already-placed coverage must remain tracked so a retry sizes only the
+// missing remainder.
+func TestPlaceForFill_TopUpFailureAlertsForTheDelta(t *testing.T) {
+	telemetry.Init()
+	mock := models.NewMockBroker(1, nil)
+	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
+
+	placed, err := stopper.PlaceForFill(context.Background(), mock, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 11, TotalFilledQuantity: 4,
+	})
+	require.NoError(t, err)
+	require.True(t, placed)
+
+	// The broker rejects the top-up for the second trade's delta.
+	failing := &failingStopBroker{MockBroker: mock}
+	placed, err = stopper.PlaceForFill(context.Background(), failing, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 101.0, EntryOrderID: 11, TotalFilledQuantity: 10,
+	})
+	require.Error(t, err)
+	require.False(t, placed)
+
+	unprotected := stopper.UnprotectedPositions()
+	require.Len(t, unprotected, 1)
+	require.Equal(t, 6, unprotected[0].Quantity, "the alert must name the unprotected DELTA, not the whole order")
+	require.Equal(t, 4.0, stopper.ProtectedQuantity(11), "existing coverage stays tracked")
+
+	// A retry through a healthy broker covers exactly the missing 6.
+	placed, err = stopper.PlaceForFill(context.Background(), mock, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 101.0, EntryOrderID: 11, TotalFilledQuantity: 10,
+	})
+	require.NoError(t, err)
+	require.True(t, placed)
+	stops := mock.StopOrders()
+	require.Len(t, stops, 2)
+	require.Equal(t, 6, stops[1].Quantities[0])
+	require.Empty(t, stopper.UnprotectedPositions())
+}
+
+// Fractional remainders below one share skip with a Warn (not the
+// failure/alert loop) and stay tracked, so accumulation across fills still
+// protects once a whole share is outstanding.
+func TestPlaceForFill_FractionalRemainderSkippedAndAccumulated(t *testing.T) {
+	telemetry.Init()
+	broker := models.NewMockBroker(1, nil)
+	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
+
+	// 0.6 shares filled: below one whole share — no stop, no failure record.
+	placed, err := stopper.PlaceForFill(context.Background(), broker, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 11, TotalFilledQuantity: 0.6,
+	})
+	require.NoError(t, err)
+	require.False(t, placed)
+	require.Empty(t, broker.StopOrders())
+	require.Empty(t, stopper.UnprotectedPositions(), "a fractional skip must not enter the failure/alert loop")
+
+	// Accumulation reaches 1.2 shares: one whole share gets protected; the
+	// residual 0.2 stays outstanding in the tracker.
+	placed, err = stopper.PlaceForFill(context.Background(), broker, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 11, TotalFilledQuantity: 1.2,
+	})
+	require.NoError(t, err)
+	require.True(t, placed)
+	stops := broker.StopOrders()
+	require.Len(t, stops, 1)
+	require.Equal(t, 1, stops[0].Quantities[0])
+	require.Equal(t, 1.0, stopper.ProtectedQuantity(11))
 }
 
 func TestPlaceForFill_RestartWindowFindsDurableAssociation(t *testing.T) {
 	broker := models.NewMockBroker(1, nil)
 
 	first := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
-	fill := EntryFill{Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, Quantity: 10, FillPrice: 100.0, EntryOrderID: 21}
+	fill := EntryFill{Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 21, TotalFilledQuantity: 10}
 
 	placed, err := first.PlaceForFill(context.Background(), broker, models.ModePaper, fill)
 	require.NoError(t, err)
 	require.True(t, placed)
 
-	// Process restart: a FRESH stopper (empty in-memory set) replays the same
-	// fill. The durable association — the tagged order at the broker — must
-	// prevent a duplicate.
+	// Process restart: a FRESH stopper (empty in-memory tracker) replays the
+	// same fill. The durable association — the tagged stop order at the
+	// broker — must prevent a duplicate.
 	restarted := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
 	placed, err = restarted.PlaceForFill(context.Background(), broker, models.ModePaper, fill)
 	require.NoError(t, err)
 	require.False(t, placed)
 
 	require.Len(t, broker.StopOrders(), 1, "restart replay must not double the protective size")
+	require.Equal(t, 10.0, restarted.ProtectedQuantity(21), "the durable scan seeds the cumulative baseline")
+}
+
+// The durable scan requires the FULL match — tag AND stop order type AND
+// symbol. A same-tag order of the wrong type or symbol must not count as
+// protection (a poisoned or unrelated order suppressing a real stop is worse
+// than a duplicate protective stop).
+func TestPlaceForFill_DurableScanRequiresTagTypeAndSymbol(t *testing.T) {
+	broker := models.NewMockBroker(1, nil)
+
+	// Seed the broker with two decoys carrying the entry's tag: a MARKET
+	// order (wrong type) and a stop for a DIFFERENT symbol.
+	stopAt := 95.0
+	_, err := broker.PlaceOrder(context.Background(), &models.PlaceOrderRequest{
+		Symbol:     "AAPL",
+		Quantities: []int{10},
+		Sides:      []models.TradierOrderSide{models.TradierOrderSideSell},
+		OrderType:  models.TradierOrderTypeMarket,
+		Class:      models.OrderRecordClassEquity,
+		Tag:        CompanionStopTagForEntry(21),
+	})
+	require.NoError(t, err)
+	_, err = broker.PlaceOrder(context.Background(), &models.PlaceOrderRequest{
+		Symbol:     "TSLA",
+		Quantities: []int{10},
+		Sides:      []models.TradierOrderSide{models.TradierOrderSideSell},
+		OrderType:  models.TradierOrderTypeStop,
+		Class:      models.OrderRecordClassEquity,
+		Tag:        CompanionStopTagForEntry(21),
+		StopPrice:  &stopAt,
+	})
+	require.NoError(t, err)
+
+	// A fresh stopper must NOT treat the decoys as protection: the real stop
+	// for AAPL entry 21 still gets placed.
+	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
+	placed, err := stopper.PlaceForFill(context.Background(), broker, models.ModePaper, EntryFill{
+		Symbol: "AAPL", EntrySide: models.TradierOrderSideBuy, FillPrice: 100.0, EntryOrderID: 21, TotalFilledQuantity: 10,
+	})
+	require.NoError(t, err)
+	require.True(t, placed, "decoy orders matching only the tag must not suppress the protective stop")
+
+	var aaplStops int
+	for _, s := range broker.StopOrders() {
+		if s.Symbol == "AAPL" {
+			aaplStops++
+			require.Equal(t, 10, s.Quantities[0])
+		}
+	}
+	require.Equal(t, 1, aaplStops)
 }
 
 // failingStopBroker wraps MockBroker and fails every stop-order placement,
@@ -134,7 +288,7 @@ func TestPlaceForFill_FailureIsLoudAndRecorded(t *testing.T) {
 	broker := &failingStopBroker{MockBroker: models.NewMockBroker(1, nil)}
 	stopper := NewCompanionStopper(CompanionStopConfig{StopDistance: 5.0})
 
-	fill := EntryFill{Symbol: "TSLA", EntrySide: models.TradierOrderSideSellShort, Quantity: 3, FillPrice: 200.0, EntryOrderID: 31}
+	fill := EntryFill{Symbol: "TSLA", EntrySide: models.TradierOrderSideSellShort, FillPrice: 200.0, EntryOrderID: 31, TotalFilledQuantity: 3}
 
 	placed, err := stopper.PlaceForFill(context.Background(), broker, models.ModeMargin, fill)
 	require.Error(t, err)
