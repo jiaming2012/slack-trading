@@ -4,9 +4,11 @@ import "time"
 
 // FeatureVector mirrors the eight architecture-doc features computed by
 // Layer 2, plus the identifying/provenance fields every persisted row needs.
-// Individual computed features are nil when there was insufficient history
-// to compute them faithfully (see features.go) -- this alone does not block
-// persistence; only the data_as_of <= scanned_at invariant does.
+// All eight features have dedicated scan_results columns and are persisted by
+// RunScan. Individual computed features are nil when there was insufficient
+// history to compute them faithfully (see features.go) -- this alone does not
+// block persistence (the nil feature persists as NULL, never fabricated);
+// only the data_as_of <= scanned_at invariant does.
 type FeatureVector struct {
 	Ticker    string
 	ScannedAt time.Time

@@ -114,15 +114,13 @@ func qualifyingInput(t *testing.T, ticker string, scannedAt time.Time) ScanInput
 	}
 }
 
-// TestRunScan_QualifyingTickerProducesExactlyOnePersistedSubsetRowWithFullFeatureVectorComputed
-// asserts both halves of the persistence-gap contract (see design.md
-// "Persistence gap discovered" and the amended scanner-feature-extraction
-// spec): the persisted scan_results row carries exactly the five
-// schema-backed features (rsi_14, volume_ratio, atr_pct, short_interest,
-// regime_tag) plus scanner_version and data_as_of, while price_vs_50ma,
-// compression_score, and sector_momentum are still computed -- just not
-// persisted -- on the in-memory FeatureVector for the same input.
-func TestRunScan_QualifyingTickerProducesExactlyOnePersistedSubsetRowWithFullFeatureVectorComputed(t *testing.T) {
+// TestRunScan_QualifyingTickerPersistsAllEightFeatures asserts the widened
+// persistence contract (widen-scan-results-columns): a qualifying ticker
+// produces exactly one scan_results row persisting all eight architecture-doc
+// features plus scanner_version and data_as_of, each persisted feature value
+// equal to the corresponding value on the in-memory FeatureVector built for
+// the same input.
+func TestRunScan_QualifyingTickerPersistsAllEightFeatures(t *testing.T) {
 	db := setupScannerDB(t)
 	scannedAt := time.Date(2024, 6, 10, 15, 0, 0, 0, time.UTC)
 	input := qualifyingInput(t, "AAPL", scannedAt)
@@ -138,30 +136,76 @@ func TestRunScan_QualifyingTickerProducesExactlyOnePersistedSubsetRowWithFullFea
 	var got tradingstack.ScanResult
 	require.NoError(t, db.First(&got, "id = ?", sr.ID).Error)
 
-	// Persisted subset: the five schema-backed features plus provenance.
+	// The reference vector for the same input: every persisted feature must
+	// match it value-for-value.
+	fv, err := BuildFeatureVector(input)
+	require.NoError(t, err)
+
 	assert.Equal(t, "AAPL", got.Ticker)
 	require.NotNil(t, got.RegimeTag)
 	assert.Equal(t, "trending", *got.RegimeTag)
 	require.NotNil(t, got.Price)
 	assert.InDelta(t, input.Price, *got.Price, 1e-9)
-	require.NotNil(t, got.VolumeRatio)
+
+	require.NotNil(t, fv.Rsi14)
 	require.NotNil(t, got.Rsi14)
+	assert.InDelta(t, *fv.Rsi14, *got.Rsi14, 1e-9)
+
+	require.NotNil(t, fv.VolumeRatio)
+	require.NotNil(t, got.VolumeRatio)
+	assert.InDelta(t, *fv.VolumeRatio, *got.VolumeRatio, 1e-9)
+
+	require.NotNil(t, fv.AtrPct)
 	require.NotNil(t, got.AtrPct)
+	assert.InDelta(t, *fv.AtrPct, *got.AtrPct, 1e-9)
+
+	require.NotNil(t, fv.PriceVs50MA)
+	require.NotNil(t, got.PriceVs50MA, "price_vs_50ma must be persisted")
+	assert.InDelta(t, *fv.PriceVs50MA, *got.PriceVs50MA, 1e-9)
+
+	require.NotNil(t, fv.CompressionScore)
+	require.NotNil(t, got.CompressionScore, "compression_score must be persisted")
+	assert.InDelta(t, *fv.CompressionScore, *got.CompressionScore, 1e-9)
+
 	require.NotNil(t, got.ShortInterest)
 	assert.InDelta(t, 0.12, *got.ShortInterest, 1e-9)
+
+	require.NotNil(t, fv.SectorMomentum10d)
+	require.NotNil(t, got.SectorMomentum, "sector_momentum must be persisted")
+	assert.InDelta(t, *fv.SectorMomentum10d, *got.SectorMomentum, 1e-9)
+
 	require.NotNil(t, got.ScannerVersion)
 	assert.Equal(t, "l1l2-v1", *got.ScannerVersion)
 	require.NotNil(t, got.DataAsOf)
 	assert.True(t, got.DataAsOf.Equal(scannedAt))
+}
 
-	// Computed-but-not-persisted subset: BuildFeatureVector still computes
-	// all eight architecture-doc features for the same input, even though
-	// scan_results has no columns for these three yet.
-	fv, err := BuildFeatureVector(input)
+// TestRunScan_InsufficientHistoryPersistsNullPriceVs50MA asserts the
+// never-fabricate rule survives persistence: an input passing Layer 1 with
+// fewer than 50 closes persists NULL price_vs_50ma while the other computed
+// features persist normally.
+func TestRunScan_InsufficientHistoryPersistsNullPriceVs50MA(t *testing.T) {
+	db := setupScannerDB(t)
+	scannedAt := time.Date(2024, 6, 10, 15, 0, 0, 0, time.UTC)
+	input := qualifyingInput(t, "AAPL", scannedAt)
+	// Keep only the most recent 30 candles: enough for RSI-14, ATR-14, and
+	// the compression score, but below the 50 closes price_vs_50ma needs.
+	input.Candles = input.Candles[len(input.Candles)-30:]
+
+	sr, err := RunScan(db, input)
 	require.NoError(t, err)
-	assert.NotNil(t, fv.PriceVs50MA, "price_vs_50ma must be computed on the feature vector even though it is not persisted")
-	assert.NotNil(t, fv.CompressionScore, "compression_score must be computed on the feature vector even though it is not persisted")
-	assert.NotNil(t, fv.SectorMomentum10d, "sector_momentum must be computed (passed through) on the feature vector even though it is not persisted")
+	require.NotNil(t, sr)
+
+	var got tradingstack.ScanResult
+	require.NoError(t, db.First(&got, "id = ?", sr.ID).Error)
+
+	assert.Nil(t, got.PriceVs50MA, "price_vs_50ma must persist as NULL, never a fabricated value")
+	require.NotNil(t, got.Rsi14)
+	require.NotNil(t, got.VolumeRatio)
+	require.NotNil(t, got.AtrPct)
+	require.NotNil(t, got.CompressionScore)
+	require.NotNil(t, got.ShortInterest)
+	require.NotNil(t, got.SectorMomentum)
 }
 
 func TestRunScan_Layer1RejectedTickerProducesNoRowAndNoFeatureComputation(t *testing.T) {

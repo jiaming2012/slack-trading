@@ -10,22 +10,14 @@ import (
 
 // RunScan runs Layer 1 hard filters against input; on failure it returns
 // (nil, ErrFilteredOut{reasons}) and performs no feature computation or
-// write. On pass, it builds the Layer 2 feature vector, maps it onto a
-// tradingstack.ScanResult, stamps scanner_version, and persists it via
-// db.Create(). RunScan only ever inserts -- there is no update/mutate path
-// for an existing row's feature values, which is how immutability-of-raw-
-// values is enforced structurally rather than by convention.
-//
-// NOTE: the v4 trading-stack scan_results schema (owned by the
-// trading-stack-schema change, not modified here) does not carry dedicated
-// columns for price_vs_50ma, compression_score, or sector_momentum -- only
-// regime_tag, regime_confidence, price, volume_ratio, rsi_14, atr_pct,
-// short_interest, sector, scanner_score, scanner_version, and data_as_of are
-// columns on scan_results. BuildFeatureVector still computes all eight
-// architecture-doc features (available on the in-memory FeatureVector for
-// any caller that wants them), but only the fields with a corresponding
-// scan_results column are persisted here. Widening the schema to carry the
-// remaining three is left to a future change.
+// write. On pass, it builds the Layer 2 feature vector, maps all eight
+// architecture-doc features onto a tradingstack.ScanResult, stamps
+// scanner_version, and persists it via db.Create(). A feature that is nil on
+// the FeatureVector (insufficient history, per the never-fabricate rules)
+// persists as NULL in its column. RunScan only ever inserts -- there is no
+// update/mutate path for an existing row's feature values, which is how
+// immutability-of-raw-values is enforced structurally rather than by
+// convention.
 func RunScan(db *gorm.DB, input ScanInput) (*tradingstack.ScanResult, error) {
 	layer1 := RunLayer1(input)
 	if !layer1.Pass {
@@ -41,16 +33,19 @@ func RunScan(db *gorm.DB, input ScanInput) (*tradingstack.ScanResult, error) {
 	dataAsOf := fv.DataAsOf
 
 	sr := &tradingstack.ScanResult{
-		ScannedAt:      fv.ScannedAt,
-		Ticker:         fv.Ticker,
-		RegimeTag:      nilIfEmpty(fv.RegimeTag),
-		Price:          &price,
-		VolumeRatio:    fv.VolumeRatio,
-		Rsi14:          fv.Rsi14,
-		AtrPct:         fv.AtrPct,
-		ShortInterest:  fv.ShortInterest,
-		ScannerVersion: nilIfEmpty(fv.ScannerVersion),
-		DataAsOf:       &dataAsOf,
+		ScannedAt:        fv.ScannedAt,
+		Ticker:           fv.Ticker,
+		RegimeTag:        nilIfEmpty(fv.RegimeTag),
+		Price:            &price,
+		VolumeRatio:      fv.VolumeRatio,
+		Rsi14:            fv.Rsi14,
+		AtrPct:           fv.AtrPct,
+		PriceVs50MA:      fv.PriceVs50MA,
+		CompressionScore: fv.CompressionScore,
+		ShortInterest:    fv.ShortInterest,
+		SectorMomentum:   fv.SectorMomentum10d,
+		ScannerVersion:   nilIfEmpty(fv.ScannerVersion),
+		DataAsOf:         &dataAsOf,
 	}
 
 	if err := db.Create(sr).Error; err != nil {

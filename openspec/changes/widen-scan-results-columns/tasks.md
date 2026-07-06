@@ -7,9 +7,9 @@
 
 ## 2. Persist all eight features in the scanner pipeline
 
-- [ ] 2.1 `src/go/scanner/pipeline.go` — `RunScan` maps `fv.PriceVs50MA`, `fv.CompressionScore`, and `fv.SectorMomentum10d` onto the `ScanResult` (nil stays NULL); remove the five-of-eight gap comment.
-- [ ] 2.2 `src/go/scanner/feature_vector.go` — update the stale computed-not-persisted commentary to reflect all-eight persistence.
-- [ ] 2.3 `src/go/scanner/pipeline_test.go` — a qualifying ticker's persisted row carries all eight features matching the in-memory `FeatureVector`; a <50-close input persists NULL `price_vs_50ma` (never fabricated); immutability (no update on re-run) and `data_as_of` fail-closed cases still pass unchanged.
+- [x] 2.1 `src/go/scanner/pipeline.go` — `RunScan` maps `fv.PriceVs50MA`, `fv.CompressionScore`, and `fv.SectorMomentum10d` onto the `ScanResult` (nil stays NULL); remove the five-of-eight gap comment.
+- [x] 2.2 `src/go/scanner/feature_vector.go` — update the stale computed-not-persisted commentary to reflect all-eight persistence.
+- [x] 2.3 `src/go/scanner/pipeline_test.go` — a qualifying ticker's persisted row carries all eight features matching the in-memory `FeatureVector`; a <50-close input persists NULL `price_vs_50ma` (never fabricated); immutability (no update on re-run) and `data_as_of` fail-closed cases still pass unchanged.
 
 ## 3. Verification gates
 
