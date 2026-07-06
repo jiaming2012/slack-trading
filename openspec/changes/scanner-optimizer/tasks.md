@@ -20,9 +20,9 @@
 
 ## 4. Evidence builder and gate integration
 
-- [ ] 4.1 `evidence.go` — chronological 80/20 in-sample/out-of-sample split; walk-forward folds over the in-sample segment with per-fold re-derivation (fold `Params` = fold's floor/ceiling/feature weights); per-sample measure `EVWeight × PnlPct` over admitted rows; `TrialsCount` 1; `BaselineParams` from the active or default payload.
-- [ ] 4.2 `gate.go` — submit evidence to `overfitting.RunGate`, persist the verdict (pass or fail) via the `overfitting.VerdictStore`.
-- [ ] 4.3 Tests: fold geometry chronological and lookahead-free on a fixture; failing evidence still yields a persisted verdict (via the in-memory fake store).
+- [x] 4.1 `evidence.go` — chronological 80/20 in-sample/out-of-sample split; walk-forward folds over the in-sample segment with per-fold re-derivation (fold `Params` = fold's floor/ceiling/feature weights); per-sample measure `EVWeight × PnlPct` over admitted rows; `TrialsCount` 1; `BaselineParams` from the active or default payload.
+- [x] 4.2 `gate.go` — submit evidence to `overfitting.RunGate`, persist the verdict (pass or fail) via the `overfitting.VerdictStore`.
+- [x] 4.3 Tests: fold geometry chronological and lookahead-free on a fixture; failing evidence still yields a persisted verdict (via the in-memory fake store).
 
 ## 5. Proposal persistence and promotion
 
