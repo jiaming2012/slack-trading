@@ -12,10 +12,22 @@ SHALL trigger companion-stop placement after the fill has been committed and
 saved. Eligible fills are equity entry fills that open or increase a position;
 closes, adjustment orders, system auto-closes, reconciliation-role fills, and
 fills of companion-stop orders themselves SHALL NOT trigger placement (a
-companion stop must never spawn another companion stop). Placement SHALL be
-idempotent per entry order: a redelivered fill event for an entry that already
-has a companion stop SHALL NOT place a second one. A placement failure SHALL NOT
-fail or roll back the fill itself.
+companion stop must never spawn another companion stop). The reserved
+companion-stop tag prefix SHALL be rejected for client-supplied orders at the
+order-placement API boundary with an invalid-argument error, so a client tag
+can never poison the recursion guard or the idempotency lookup.
+
+Placement SHALL be CUMULATIVE per entry order: one strategy order can net into
+multiple broker trades, each committing through the pipeline separately, and
+each committed trade SHALL top up the protective coverage by the
+still-unprotected delta between the entry's total filled quantity and the
+quantity already covered by placed stops — so the total stop quantity tracks
+the total FILLED quantity, never the requested total (an over-sized stop
+reverses instead of flattening). A redelivered fill event carries no new
+filled quantity and SHALL NOT place a duplicate stop. An unprotected remainder
+smaller than one whole share SHALL be skipped with a warning (not the failure
+alert) and SHALL remain tracked so later fills accumulate into whole-share
+protection. A placement failure SHALL NOT fail or roll back the fill itself.
 
 #### Scenario: Stop placed after a live long entry fills
 
@@ -40,7 +52,27 @@ fail or roll back the fill itself.
 #### Scenario: Redelivered fill event places no duplicate stop
 
 - **WHEN** a fill event for an entry order that already has a companion stop is delivered again
-- **THEN** the pipeline SHALL NOT place a second companion stop for that entry order
+- **THEN** the pipeline SHALL NOT place a second companion stop for that entry order, because the redelivered event carries no new filled quantity
+
+#### Scenario: Multi-trade entry fill is protected in full
+
+- **WHEN** one entry order nets into multiple broker trades (for example buy 10 filling as buy_to_cover 4 plus buy 6) and each trade commits through the live fill pipeline
+- **THEN** each committed trade SHALL top up the companion-stop coverage by its still-unprotected delta, and the total stop quantity SHALL equal the entry's total filled quantity
+
+#### Scenario: Top-up placement failure alerts for the unprotected delta
+
+- **WHEN** a later trade's top-up stop placement fails after earlier coverage was placed
+- **THEN** the failure SHALL be recorded and alerted for the unprotected DELTA quantity, and the previously placed coverage SHALL remain tracked so a retry sizes only the missing remainder
+
+#### Scenario: Client-supplied reserved tag rejected at the API boundary
+
+- **WHEN** a client submits an order whose tag carries the reserved companion-stop prefix
+- **THEN** the order-placement API SHALL reject it with an invalid-argument error before any database or broker access
+
+#### Scenario: Fractional remainder below one share skips without alerting
+
+- **WHEN** an entry's unprotected remainder is smaller than one whole share
+- **THEN** placement SHALL be skipped with a warning, no failure SHALL be recorded, and the fraction SHALL remain tracked so accumulation across fills still reaches whole-share protection
 
 ### Requirement: Stop-distance configuration
 

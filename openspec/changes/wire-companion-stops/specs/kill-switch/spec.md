@@ -20,6 +20,21 @@ When a live-Mode (non-Simulation) order is rejected at the halt-gated order-subm
 
 Option-assignment and option-expiration auto-closes generated during a Tick SHALL NOT fail the Tick while the halt is engaged. The system SHALL consult the order gate before placing an auto-close; while the halt is engaged, the constructed auto-close request SHALL be deferred — retained with its fill parameters and retried on each subsequent Tick — and the Tick SHALL complete normally. Once the halt clears, a deferred auto-close SHALL be placed and committed as it would have been originally. Each deferral SHALL be logged as a warning and reflected in the internal Telemetry registry, and an Alert SHALL be raised while deferred auto-closes are outstanding, because a deferred close is open exposure the operator must know about.
 
+Deferrals originate from drain-once assignment/expiration events, so they
+SHALL be persisted when deferred, deleted when their close successfully
+commits, and reloaded when the playground is loaded — a halt followed by a
+process restart SHALL NOT drop a deferred auto-close. A persisted deferral
+whose source order no longer has remaining open quantity SHALL be treated as
+stale at reload and SHALL NOT be replayed (replaying a committed close would
+reverse the position).
+
+The deferred-auto-close Alert SHALL be sticky: it SHALL NOT auto-resolve
+merely because the in-memory condition cleared. It SHALL keep notifying until
+the operator acknowledges it, and it SHALL resolve only when the outstanding
+deferral set is actually empty AND the alert has been acknowledged — a
+restart or reset metric can never fake an all-clear that the persisted
+deferral set contradicts.
+
 #### Scenario: Assignment auto-close during a halt does not fail the tick
 
 - **WHEN** the halt is engaged and an option-assignment event requires an auto-close during a Tick
@@ -34,6 +49,21 @@ Option-assignment and option-expiration auto-closes generated during a Tick SHAL
 
 - **WHEN** one or more auto-closes are deferred because of an engaged halt
 - **THEN** an Alert SHALL be pushed to the operator identifying the deferred exposure
+
+#### Scenario: Deferred auto-closes survive a restart
+
+- **WHEN** auto-closes are deferred under an engaged halt and the process restarts before the halt clears
+- **THEN** the deferrals SHALL be reloaded from their persisted records at playground load, and once the halt clears they SHALL be placed and committed with their retained fill parameters, with the persisted records deleted on commit
+
+#### Scenario: Stale persisted deferral is not replayed
+
+- **WHEN** a persisted deferral's source order no longer has remaining open quantity at reload
+- **THEN** the deferral SHALL be discarded as stale and SHALL NOT be placed again
+
+#### Scenario: Deferred-auto-close Alert is sticky until acknowledged
+
+- **WHEN** the deferred closes commit (the outstanding set becomes empty) before the operator has acknowledged the Alert
+- **THEN** the Alert SHALL NOT auto-resolve — it SHALL keep notifying until acknowledged, and SHALL resolve only once acknowledged with the deferral set empty
 
 #### Scenario: Auto-closes unaffected while clear
 
