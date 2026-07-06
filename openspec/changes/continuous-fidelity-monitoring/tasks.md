@@ -15,10 +15,10 @@
 
 ## 3. Monitor loop and trade source
 
-- [ ] 3.1 `src/go/tradingstack/fidelity/source.go` — `TradeSource` interface (`FetchTradeSet(ctx, period) (TradeSet, error)`), `NoLiveTradesSource`, and an in-memory fixture source; synthetic dataset exposed as a source for demo/tests.
-- [ ] 3.2 `src/go/tradingstack/fidelity/monitor.go` — `Monitor` with `Start(ctx)`: tick every `FIDELITY_CHECK_INTERVAL`, evaluate trailing `FIDELITY_PERIOD` ending at tick time via `RunFidelityCheck`, classify outcome `ok|breach|no_data|error`, persist results (task 2) on result-producing runs, Warn-log-and-continue on errors, injectable clock/ticker for tests. Strictly read-only against trading state.
-- [ ] 3.3 `src/go/tradingstack/fidelity/config.go` (or extend existing config) — env knobs `FIDELITY_MONITOR_ENABLED` (default true), `FIDELITY_CHECK_INTERVAL` (default 24h), `FIDELITY_PERIOD` (default 168h), following the telemetry `envDuration` pattern.
-- [ ] 3.4 Unit tests: tick evaluates the trailing window; `no_data` run persists nothing and changes no alert state; source error → outcome `error`, loop continues; disabled flag → no runs.
+- [x] 3.1 `src/go/tradingstack/fidelity/source.go` — `TradeSource` interface (`FetchTradeSet(ctx, period) (TradeSet, error)`), `NoLiveTradesSource`, and an in-memory fixture source; synthetic dataset exposed as a source for demo/tests.
+- [x] 3.2 `src/go/tradingstack/fidelity/monitor.go` — `Monitor` with `Start(ctx)`: tick every `FIDELITY_CHECK_INTERVAL`, evaluate trailing `FIDELITY_PERIOD` ending at tick time via `RunFidelityCheck`, classify outcome `ok|breach|no_data|error`, persist results (task 2) on result-producing runs, Warn-log-and-continue on errors, injectable clock/ticker for tests. Strictly read-only against trading state.
+- [x] 3.3 `src/go/tradingstack/fidelity/config.go` (or extend existing config) — env knobs `FIDELITY_MONITOR_ENABLED` (default true), `FIDELITY_CHECK_INTERVAL` (default 24h), `FIDELITY_PERIOD` (default 168h), following the telemetry `envDuration` pattern.
+- [x] 3.4 Unit tests: tick evaluates the trailing window; `no_data` run persists nothing and changes no alert state; source error → outcome `error`, loop continues; disabled flag → no runs.
 
 ## 4. Telemetry integration (registry, heartbeat, alert rule)
 

@@ -188,6 +188,50 @@ func TestFidelityPersistence(t *testing.T) {
 		assert.True(t, secondAt.Equal(*got.ComputedAt), "computed_at is refreshed on re-persist")
 	})
 
+	t.Run("a monitor no_data run persists nothing", func(t *testing.T) {
+		before := fidelityRowCount(t, db)
+
+		m, err := NewMonitor(MonitorOptions{Source: NoLiveTradesSource{}, DB: db})
+		require.NoError(t, err)
+		report := m.RunOnce(context.Background(), nowMicro())
+
+		assert.Equal(t, RunNoData, report.Outcome)
+		assert.Equal(t, before, fidelityRowCount(t, db), "no_data must write no simulator_fidelity row")
+	})
+
+	t.Run("a monitor result-producing run persists one row per strategy and upserts on re-run", func(t *testing.T) {
+		// Finite breaching fixture: zero-drift (Proceed) + exit-mismatch
+		// (Pause). ExtremeDriftSet is deliberately excluded — its infinite
+		// drift values exercise score clamping in memory but are not
+		// representable as Postgres numerics.
+		var set TradeSet
+		for _, s := range []TradeSet{ZeroDriftSet(), ExitReasonMismatchSet()} {
+			set.Live = append(set.Live, s.Live...)
+			set.Sim = append(set.Sim, s.Sim...)
+		}
+		m, err := NewMonitor(MonitorOptions{Source: StaticTradeSource{Set: set}, DB: db})
+		require.NoError(t, err)
+
+		strategyIDs := []string{"zero-drift", "exit-mismatch"}
+		at := nowMicro()
+		report := m.RunOnce(context.Background(), at)
+		require.Equal(t, RunBreach, report.Outcome)
+		require.Len(t, report.Results, 2)
+
+		var count int64
+		require.NoError(t, db.Model(&tradingstack.SimulatorFidelity{}).
+			Where("strategy_id IN ?", strategyIDs).Count(&count).Error)
+		assert.Equal(t, int64(2), count)
+
+		// Re-running the monitor for the same evaluation time re-persists the
+		// same periods: still one row per strategy.
+		report = m.RunOnce(context.Background(), at)
+		require.Equal(t, RunBreach, report.Outcome)
+		require.NoError(t, db.Model(&tradingstack.SimulatorFidelity{}).
+			Where("strategy_id IN ?", strategyIDs).Count(&count).Error)
+		assert.Equal(t, int64(2), count, "a re-run of the same period upserts, not duplicates")
+	})
+
 	t.Run("distinct periods accumulate history", func(t *testing.T) {
 		later := Period{Start: period.Start.AddDate(0, 0, 7), End: period.End.AddDate(0, 0, 7)}
 
