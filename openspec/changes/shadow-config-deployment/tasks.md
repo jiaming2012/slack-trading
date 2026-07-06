@@ -28,8 +28,8 @@
 
 ## 5. Operator entry point and Taskfile targets
 
-- [ ] 5.1 `cmd/shadow-scan/main.go` — subcommands `run` (`--synthetic` default true; DB mode behind an explicit flag with proposal id + window) and `report --run <uuid>` (divergence + coverage-explicit outcome evidence + the replayed-observations limitation note); exits non-zero only on internal error, never on high divergence.
-- [ ] 5.2 Add `scanner:shadow`, `scanner:shadow-report`, and `test:shadow-deployment` targets to `taskfile.yml`.
+- [x] 5.1 `cmd/shadow-scan/main.go` — subcommands `run` (`--synthetic` default true; DB mode behind an explicit flag with proposal id + window) and `report --run <uuid>` (divergence + coverage-explicit outcome evidence + the replayed-observations limitation note); exits non-zero only on internal error, never on high divergence.
+- [x] 5.2 Add `scanner:shadow`, `scanner:shadow-report`, and `test:shadow-deployment` targets to `taskfile.yml`.
 
 ## 6. Verification gates
 

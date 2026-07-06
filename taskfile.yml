@@ -316,6 +316,26 @@ tasks:
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
 
+  scanner:shadow:
+    desc: 'Run one Simulation-only shadow config evaluation. Default: synthetic self-check (built-in fixtures, no DB, nothing persisted). DB mode: task scanner:shadow -- --db --proposal <uuid> [--from RFC3339 --to RFC3339]. Places no orders; never mutates configs or proposal statuses; promotion stays with task scanner:promote.'
+    cmds:
+      - 'go run ./cmd/shadow-scan run {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  scanner:shadow-report:
+    desc: 'Print a persisted shadow run''s divergence and outcome evidence: task scanner:shadow-report -- --run <uuid>; without --run, lists persisted shadow runs. Requires the database.'
+    cmds:
+      - 'go run ./cmd/shadow-scan report {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  test:shadow-deployment:
+    desc: 'Run the shadowdeploy package suite (requires Docker for the persistence and RunShadow testcontainers tests)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/shadowdeploy/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   optimizer:propose:
     desc: 'Generate strategy parameter proposals from gated sim outcomes. Default: synthetic dry-run (built-in fixtures, no DB, nothing persisted). DB mode: task optimizer:propose -- --db [--dry-run] [--from RFC3339 --to RFC3339]. Recommendations only -- never applied to any trading config.'
     cmds:
