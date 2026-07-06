@@ -33,8 +33,8 @@
 
 ## 6. Loader (first real consumer of the validation pipeline)
 
-- [ ] 6.1 `loader.go` — `LoadInput(db, from, to) (optvalidation.Input, error)`: inner-join `scan_results` ⋈ `sim_outcomes` in the half-open `scanned_at` window into `TrainingRow`s; load the three reference tables wholesale.
-- [ ] 6.2 Testcontainers tests: outcome-less scan result excluded; out-of-window pair excluded; DB-backed run's tuner input matches the pipeline's documented filtering (timestamp violation and low-confidence rows excluded).
+- [x] 6.1 `loader.go` — `LoadInput(db, from, to) (optvalidation.Input, error)`: inner-join `scan_results` ⋈ `sim_outcomes` in the half-open `scanned_at` window into `TrainingRow`s; load the three reference tables wholesale.
+- [x] 6.2 Testcontainers tests: outcome-less scan result excluded; out-of-window pair excluded; DB-backed run's tuner input matches the pipeline's documented filtering (timestamp violation and low-confidence rows excluded).
 
 ## 7. Operator entry point and Taskfile targets
 
