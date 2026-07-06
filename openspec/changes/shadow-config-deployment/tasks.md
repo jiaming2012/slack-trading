@@ -10,9 +10,9 @@
 
 ## 2. Divergence and outcome comparison
 
-- [ ] 2.1 `divergence.go` — `CompareDecisions(active, shadow) DivergenceReport`: selected-set membership counts, shadow-only/active-only ticker lists with both scores, `DivergencePct` over the union with the max(1, …) guard; deterministic ordering.
-- [ ] 2.2 `outcomes.go` — coverage-explicit per-side outcome comparison (selection count, coverage count/pct, decided count, win rate, mean pnl over covered), breakeven exclusion per ev-computation conventions; never imputes outcomes.
-- [ ] 2.3 Tests: {A,B,C} vs {B,C,D} → 50% divergence fixture; identical selections → 0%; empty selections → 0% without division by zero; seeded outcome summary (75% coverage, 2/3 win rate); uncovered selection affects coverage only.
+- [x] 2.1 `divergence.go` — `CompareDecisions(active, shadow) DivergenceReport`: selected-set membership counts, shadow-only/active-only ticker lists with both scores, `DivergencePct` over the union with the max(1, …) guard; deterministic ordering.
+- [x] 2.2 `outcomes.go` — coverage-explicit per-side outcome comparison (selection count, coverage count/pct, decided count, win rate, mean pnl over covered), breakeven exclusion per ev-computation conventions; never imputes outcomes.
+- [x] 2.3 Tests: {A,B,C} vs {B,C,D} → 50% divergence fixture; identical selections → 0%; empty selections → 0% without division by zero; seeded outcome summary (75% coverage, 2/3 win rate); uncovered selection affects coverage only.
 
 ## 3. Run orchestration, guards, and baseline resolution
 
