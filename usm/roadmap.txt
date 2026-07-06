@@ -48,9 +48,9 @@ Trading stack v4
         strategy-optimizer: |{"bg":"#FFF59D"}
         ev-tracker: |{"bg":"#C5E1A5"}
         net-ev-cost-model: |{"bg":"#C5E1A5"}
-        scanner-optimizer: |{"bg":"#FFF59D"}
+        scanner-optimizer: |{"bg":"#C5E1A5"}
         optimizer-validation-pipeline: |{"bg":"#C5E1A5"}
-        overfitting-countermeasures: |{"bg":"#FFF59D"}
+        overfitting-countermeasures: |{"bg":"#C5E1A5"}
         shadow-config-deployment: |{"bg":"#FFF59D"}
     Recommendations
         recommendation-engine: |{"bg":"#FFFFFF"}
