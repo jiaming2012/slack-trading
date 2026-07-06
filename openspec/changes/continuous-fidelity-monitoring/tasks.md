@@ -34,7 +34,7 @@
 
 ## 6. Operator surface
 
-- [ ] 6.1 `taskfile.yml` — `fidelity:status` target (psql, same shape as `telemetry:status`): latest verdict per strategy, recent history rows, `job/fidelity-monitor` heartbeat and latest run metrics; clean "no fidelity history" path; exits zero including when breaches are displayed.
+- [x] 6.1 `taskfile.yml` — `fidelity:status` target (psql, same shape as `telemetry:status`): latest verdict per strategy, recent history rows, `job/fidelity-monitor` heartbeat and latest run metrics; clean "no fidelity history" path; exits zero including when breaches are displayed.
 
 ## 7. Gates
 

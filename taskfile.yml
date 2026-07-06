@@ -213,6 +213,51 @@ tasks:
     cmds:
       - 'go run ./cmd/fidelity-check {{.CLI_ARGS | default "--synthetic"}}'
 
+  fidelity:status:
+    desc: "Show fidelity-monitor state from the playground DB: latest per-strategy verdicts, recent fidelity history, and the job/fidelity-monitor heartbeat with the latest run metrics. Exits zero even when breaches are shown (a breach is a reportable outcome, not a command failure)."
+    cmds:
+      - |
+        set -eu
+        PSQL="docker compose -f {{.ROOT_DIR}}/infra/docker-compose.yaml exec -T postgres psql -U grodt -d playground -v ON_ERROR_STOP=1"
+        HAS_FIDELITY=$($PSQL -tAc "SELECT (to_regclass('public.simulator_fidelity') IS NOT NULL)::int;")
+        echo "=== Latest fidelity verdict per strategy ==="
+        if [ "$HAS_FIDELITY" != "1" ]; then
+          echo "no fidelity history: the simulator_fidelity table does not exist yet (start the server with the fidelity monitor enabled to migrate it)"
+        else
+          ROWS=$($PSQL -tAc "SELECT count(*) FROM simulator_fidelity;")
+          if [ "$ROWS" = "0" ]; then
+            echo "no fidelity history: simulator_fidelity has no rows yet (production runs report no_data until live-trade ingestion lands)"
+          else
+            $PSQL -c "SELECT DISTINCT ON (strategy_id) strategy_id, round(drift_score, 4) AS drift_score, within_tolerance, period_start, period_end, computed_at FROM simulator_fidelity ORDER BY strategy_id, computed_at DESC NULLS LAST;"
+            echo "=== Recent fidelity history (last 10 rows) ==="
+            $PSQL -c "SELECT strategy_id, round(drift_score, 4) AS drift_score, round(drift_pnl, 4) AS drift_pnl, round(drift_fill, 4) AS drift_fill, within_tolerance, period_start, period_end, computed_at FROM simulator_fidelity ORDER BY computed_at DESC NULLS LAST LIMIT 10;"
+          fi
+        fi
+        echo "=== Fidelity monitor liveness (job/fidelity-monitor heartbeat) ==="
+        HAS_HEARTBEATS=$($PSQL -tAc "SELECT (to_regclass('public.telemetry_heartbeats') IS NOT NULL)::int;")
+        if [ "$HAS_HEARTBEATS" != "1" ]; then
+          echo "no heartbeat data: the telemetry_heartbeats table does not exist yet (has the server ever started?)"
+        else
+          BEATS=$($PSQL -tAc "SELECT count(*) FROM telemetry_heartbeats WHERE source_kind = 'job' AND name = 'fidelity-monitor';")
+          if [ "$BEATS" = "0" ]; then
+            echo "monitor has never heartbeat (FIDELITY_MONITOR_ENABLED=false, or the server has not started since the monitor shipped)"
+          else
+            $PSQL -c "SELECT source_kind, name, meta, EXTRACT(EPOCH FROM (now() - last_seen_at))::int AS seconds_since_beat, (now() - last_seen_at > interval '90 seconds') AS stale, beat_count FROM telemetry_heartbeats WHERE source_kind = 'job' AND name = 'fidelity-monitor';"
+          fi
+        fi
+        echo "=== Latest fidelity run metrics ==="
+        HAS_METRICS=$($PSQL -tAc "SELECT (to_regclass('public.telemetry_metrics') IS NOT NULL)::int;")
+        if [ "$HAS_METRICS" != "1" ]; then
+          echo "no metric data: the telemetry_metrics table does not exist yet (has the server ever started?)"
+        else
+          FIDMETRICS=$($PSQL -tAc "SELECT count(*) FROM telemetry_metrics WHERE name LIKE 'grodt.fidelity.%';")
+          if [ "$FIDMETRICS" = "0" ]; then
+            echo "no fidelity metrics recorded yet (they appear after the first snapshot following a monitor run)"
+          else
+            $PSQL -c "SELECT name, labels, kind, value, recorded_at FROM telemetry_metrics WHERE name LIKE 'grodt.fidelity.%' AND recorded_at = (SELECT max(recorded_at) FROM telemetry_metrics WHERE name LIKE 'grodt.fidelity.%') ORDER BY name, labels;"
+          fi
+        fi
+
   test:ev-tracker:
     desc: 'Run the evtracker EV-computation unit and testcontainers persistence suite (requires Docker)'
     cmds:
