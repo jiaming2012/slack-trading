@@ -13,11 +13,11 @@
 
 ## 3. Verification gates
 
-- [ ] 3.1 `task test:trading-stack` — green (round-trip, invariant, and widening-migration cases).
-- [ ] 3.2 `task test:scanner` — green (all-eight persistence, NULL semantics, existing filter/feature/invariant suite).
-- [ ] 3.3 G1: `go build ./src/go/... ./cmd/...` — green.
-- [ ] 3.4 G2: `task test` — green (backtester suite unaffected).
-- [ ] 3.5 `openspec validate widen-scan-results-columns --strict` — passes.
+- [x] 3.1 `task test:trading-stack` — green (round-trip, invariant, and widening-migration cases).
+- [x] 3.2 `task test:scanner` — green (all-eight persistence, NULL semantics, existing filter/feature/invariant suite).
+- [x] 3.3 G1: `go build ./src/go/... ./cmd/...` — green.
+- [x] 3.4 G2: `task test` — green (backtester suite unaffected).
+- [x] 3.5 `openspec validate widen-scan-results-columns --strict` — passes.
 
 ## 4. Operator-only follow-ups (NEVER autonomous)
 
