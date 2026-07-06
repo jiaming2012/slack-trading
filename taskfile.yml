@@ -289,6 +289,33 @@ tasks:
     dir: "{{.ROOT_DIR}}"
     env:
       TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
+  scanner:optimize:
+    desc: 'Run one scanner optimizer cycle. Default: synthetic self-check (built-in fixtures, no DB, nothing persisted). DB mode: task scanner:optimize -- --db [--from RFC3339 --to RFC3339]. Never applies configs; proposals await operator review.'
+    cmds:
+      - 'go run ./cmd/scanner-optimizer run {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  scanner:proposals:
+    desc: 'List persisted scanner config proposals (id, created_at, status, verdict, evidence summary). Requires the database.'
+    cmds:
+      - 'go run ./cmd/scanner-optimizer list'
+    dir: "{{.ROOT_DIR}}"
+
+  scanner:promote:
+    desc: 'Promote one pending_review scanner config proposal into scanner_configs (operator-only apply path). Usage: task scanner:promote -- --id <uuid>. Refuses gate-rejected and already-promoted proposals.'
+    cmds:
+      - 'go run ./cmd/scanner-optimizer promote {{.CLI_ARGS}}'
+    dir: "{{.ROOT_DIR}}"
+
+  test:scanner-optimizer:
+    desc: 'Run the scannercfg and scanneropt package suites (requires Docker for the persistence and loader tests)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/scannercfg/... ./src/go/tradingstack/scanneropt/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:e2e:
     cmds:
       - task app:build-dev
