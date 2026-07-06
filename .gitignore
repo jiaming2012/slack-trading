@@ -13,6 +13,7 @@ src/env.txt
 .idea/
 **__debug**
 main
+/scanner-optimizer
 .env
 .env.*
 !.env.prod.template
