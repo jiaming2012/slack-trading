@@ -33,10 +33,10 @@
 
 ## 6. Verification gates
 
-- [ ] 6.1 `go build ./src/go/... ./cmd/...` green.
-- [ ] 6.2 `task test` green (existing backtester suite unaffected).
-- [ ] 6.3 `task test:trading-stack` green (tradingstack suite incl. this package's testcontainers tests; requires Docker).
-- [ ] 6.4 `task test:shadow-deployment` green; `task scanner:shadow` (synthetic) runs green locally.
+- [x] 6.1 `go build ./src/go/... ./cmd/...` green.
+- [x] 6.2 `task test` green (existing backtester suite unaffected).
+- [x] 6.3 `task test:trading-stack` green (tradingstack suite incl. this package's testcontainers tests; requires Docker).
+- [x] 6.4 `task test:shadow-deployment` green; `task scanner:shadow` (synthetic) runs green locally.
 
 ## 7. Operator-only follow-ups
 
