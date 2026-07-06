@@ -40,12 +40,12 @@
 
 ## 7. Verification gates
 
-- [ ] 7.1 `task test:portfolio-risk-overlay` — full riskoverlay suite green (engine fail-safe, ×100 mapping, seams, snapshot, telemetry recording, reduction-bypass invariant).
-- [ ] 7.2 G1: `go build ./src/go/... ./cmd/...` — green.
-- [ ] 7.3 G2: `task test` — green (backtester suite unaffected).
-- [ ] 7.4 `task test:smoke` — green (server boots with the gate installed and default-enabled; real Simulation fill unchanged).
+- [x] 7.1 `task test:portfolio-risk-overlay` — full riskoverlay suite green (engine fail-safe, ×100 mapping, seams, snapshot, telemetry recording, reduction-bypass invariant).
+- [x] 7.2 G1: `go build ./src/go/... ./cmd/...` — green.
+- [x] 7.3 G2: `task test` — green (backtester suite unaffected).
+- [x] 7.4 `task test:smoke` — green (server boots with the gate installed and default-enabled; real Simulation fill unchanged).
 - [ ] 7.5 MANDATORY adversarial review (safety-critical, same bar as the parent change): confirms kill-switch-first composition, Simulation-only guard, reduction bypass ahead of all I/O, drawdown fail-safe boundaries, ×100 mapping, and every `>` vs `>=` comparison.
-- [ ] 7.6 `openspec validate wire-risk-overlay-state --strict` — passes.
+- [x] 7.6 `openspec validate wire-risk-overlay-state --strict` — passes.
 
 ## 8. Operator-only follow-ups (NEVER autonomous)
 
