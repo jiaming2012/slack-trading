@@ -54,19 +54,26 @@ func (a *JSONArray) Scan(value interface{}) error {
 	return nil
 }
 
-// baseModel provides the shared UUID primary key and a BeforeCreate hook that
+// BaseModel provides the shared UUID primary key and a BeforeCreate hook that
 // assigns a fresh UUID when the id is unset, mirroring the pattern already
 // established in tradingstack/ids.go. It is intentionally not shared with the
 // tradingstack package's BaseModel so this package stays self-contained: it
 // only reads tradingstack's ScanResult / SimOutcome types, and owns its own
 // persistence primitives.
-type baseModel struct {
+//
+// It MUST be exported: GORM's schema parser silently SKIPS an unexported
+// anonymous struct field, so as `baseModel` the id primary-key column was
+// never created and MigrateCrowdingDetection failed on any real database when
+// adding the foreign keys that reference it (discovered by the
+// wire-risk-overlay-state testcontainers round-trip; the migration had never
+// been run against Postgres before).
+type BaseModel struct {
 	ID uuid.UUID `gorm:"column:id;type:uuid;primaryKey"`
 }
 
 // BeforeCreate populates the primary key with a new UUID when it is the zero
 // value, so callers may leave ID unset and still get a stable, generated id.
-func (b *baseModel) BeforeCreate(tx *gorm.DB) error {
+func (b *BaseModel) BeforeCreate(tx *gorm.DB) error {
 	if b.ID == uuid.Nil {
 		b.ID = uuid.New()
 	}
@@ -75,7 +82,7 @@ func (b *baseModel) BeforeCreate(tx *gorm.DB) error {
 
 // CrowdingMetric is one row per scan-cycle crowding summary.
 type CrowdingMetric struct {
-	baseModel
+	BaseModel
 	ScannedAt             time.Time `gorm:"column:scanned_at;type:timestamptz;not null"`
 	ComputedAt            time.Time `gorm:"column:computed_at;type:timestamptz;not null"`
 	TotalCandidates       int       `gorm:"column:total_candidates;type:integer;not null"`
@@ -93,7 +100,7 @@ func (CrowdingMetric) TableName() string {
 // CrowdingFlaggedCandidate is one row per crowded candidate within a flagged
 // scan cycle, naming the overlapping strategies.
 type CrowdingFlaggedCandidate struct {
-	baseModel
+	BaseModel
 	CrowdingMetricID uuid.UUID `gorm:"column:crowding_metric_id;type:uuid;not null"`
 	ScanResultID     uuid.UUID `gorm:"column:scan_result_id;type:uuid;not null"`
 	Ticker           string    `gorm:"column:ticker;type:text;not null"`
