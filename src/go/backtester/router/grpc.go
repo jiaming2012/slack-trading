@@ -7,10 +7,12 @@ import (
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/twitchtv/twirp"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/jiaming2012/slack-trading/src/go/api"
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/safety"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/models"
@@ -802,6 +804,17 @@ func (s *Server) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb
 	if err := backtester_models.CheckOrderGate(); err != nil {
 		logger.Warnf("PlaceOrder: rejected by kill switch: %v", err)
 		return nil, fmt.Errorf("PlaceOrder: %w", err)
+	}
+
+	// Reserved-tag boundary (wire-companion-stops): the "companion-stop"
+	// tag prefix is the recursion guard and the durable idempotency
+	// association for broker-held protective stops. A client-supplied order
+	// carrying it could poison the eligibility check or the restart-window
+	// stop lookup, so it is rejected here at the API boundary with an
+	// invalid-argument error (HTTP 400 via Twirp).
+	if safety.IsCompanionStopOrderTag(req.Tag) {
+		logger.Warnf("PlaceOrder: rejected reserved tag %q", req.Tag)
+		return nil, twirp.InvalidArgumentError("tag", fmt.Sprintf("tag %q uses the reserved companion-stop prefix; choose a different tag", req.Tag))
 	}
 
 	if orders, err := s.checkOrderExists(ctx, req.ClientRequestId); len(orders) > 0 || err != nil {
