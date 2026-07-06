@@ -38,8 +38,8 @@
 
 ## 7. Operator entry point and Taskfile targets
 
-- [ ] 7.1 `cmd/scanner-optimizer/main.go` — subcommands `run` (`--synthetic` default true; DB mode behind an explicit flag), `list`, `promote --id`; exits non-zero only on internal error; `list` notes that promoted configs take effect only after the future `scanner-config-hot-swap` change.
-- [ ] 7.2 Add `scanner:optimize`, `scanner:proposals`, `scanner:promote`, and `test:scanner-optimizer` targets to `taskfile.yml`.
+- [x] 7.1 `cmd/scanner-optimizer/main.go` — subcommands `run` (`--synthetic` default true; DB mode behind an explicit flag), `list`, `promote --id`; exits non-zero only on internal error; `list` notes that promoted configs take effect only after the future `scanner-config-hot-swap` change.
+- [x] 7.2 Add `scanner:optimize`, `scanner:proposals`, `scanner:promote`, and `test:scanner-optimizer` targets to `taskfile.yml`.
 
 ## 8. Verification gates
 
