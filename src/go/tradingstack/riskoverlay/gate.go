@@ -132,22 +132,31 @@ func (g *SimulationRiskGate) decide(state PortfolioState, proposed ProposedOrder
 	return nil
 }
 
+// optionContractMultiplier converts option contracts to underlying-share
+// notional: one standard contract controls 100 shares.
+const optionContractMultiplier = 100.0
+
 // MapProposedOrder derives a ProposedOrder from an OrderRecord: the ticker and a
 // signed notional (positive for buy/long-opening sides, negative for
 // sell/short-opening sides), and whether the order reduces an existing position
-// (any *_to_close, plain sell, or buy_to_cover side). Sector and strategy
-// attribution from the order's tags is left to the (deferred) end-to-end
-// snapshot wiring and is not populated here.
-//
-// It is a building block for a PortfolioSnapshotFunc; the portfolio-state half
-// (positions, deployed capital, equity series) is deferred per the change's
-// design and supplied by the wiring code.
+// (any *_to_close, plain sell, or buy_to_cover side). Option-class orders carry
+// the x100 contract multiplier in their notional (|quantity| x price x 100);
+// equity and empty-class orders (historically defaulting to equity) do not.
+// Sector and strategy attribution are populated by the snapshot builder
+// (BuildPortfolioSnapshot), which completes the ProposedOrder.
 func MapProposedOrder(order *models.OrderRecord) ProposedOrder {
 	price := order.RequestedPrice
 	if order.Price != nil && *order.Price > 0 {
 		price = *order.Price
 	}
 	notional := math.Abs(order.AbsoluteQuantity) * price
+	if order.Class == models.OrderRecordClassOption {
+		// Nit c (wire-risk-overlay-state): without the contract multiplier an
+		// option order's exposure is understated by 100x. The snapshot builder
+		// applies the same multiplier to option positions so both sides of
+		// every exposure comparison agree.
+		notional *= optionContractMultiplier
+	}
 
 	reduction := isReductionSide(order.Side)
 

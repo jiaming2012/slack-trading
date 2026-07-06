@@ -163,6 +163,73 @@ func TestGate_NonReductionPermissiveOnSnapshotError(t *testing.T) {
 	require.True(t, warned, "expected a loud Warn on fail-permissive snapshot-build error")
 }
 
+// wire-risk-overlay-state nit c — option-class orders carry the x100 contract
+// multiplier in their notional; equity and empty-class orders do not; an
+// option reduction still short-circuits before any I/O.
+func TestMapProposedOrder_OptionContractMultiplier(t *testing.T) {
+	t.Run("option order 3 x 2.50 maps to 750.00 notional", func(t *testing.T) {
+		order := &models.OrderRecord{
+			Symbol:           "AAPL250718C00200000",
+			Class:            models.OrderRecordClassOption,
+			Side:             models.TradierOrderSideBuyToOpen,
+			AbsoluteQuantity: 3,
+			RequestedPrice:   2.50,
+		}
+		p := MapProposedOrder(order)
+		require.Equal(t, 750.00, p.SignedNotional, "3 x 2.50 x 100, not 7.50")
+		require.False(t, p.IsReduction)
+	})
+
+	t.Run("short option order carries the multiplier with negative sign", func(t *testing.T) {
+		order := &models.OrderRecord{
+			Symbol:           "AAPL250718C00200000",
+			Class:            models.OrderRecordClassOption,
+			Side:             models.TradierOrderSideSellToOpen,
+			AbsoluteQuantity: 3,
+			RequestedPrice:   2.50,
+		}
+		p := MapProposedOrder(order)
+		require.Equal(t, -750.00, p.SignedNotional)
+	})
+
+	t.Run("equity order is unchanged", func(t *testing.T) {
+		order := &models.OrderRecord{
+			Symbol:           "AAPL",
+			Class:            models.OrderRecordClassEquity,
+			Side:             models.TradierOrderSideBuy,
+			AbsoluteQuantity: 100,
+			RequestedPrice:   50.00,
+		}
+		p := MapProposedOrder(order)
+		require.Equal(t, 5_000.00, p.SignedNotional)
+	})
+
+	t.Run("empty class defaults to equity semantics", func(t *testing.T) {
+		order := &models.OrderRecord{
+			Symbol:           "AAPL",
+			Side:             models.TradierOrderSideBuy,
+			AbsoluteQuantity: 100,
+			RequestedPrice:   50.00,
+		}
+		p := MapProposedOrder(order)
+		require.Equal(t, 5_000.00, p.SignedNotional)
+	})
+
+	t.Run("option reduction still short-circuits the gate before any I/O", func(t *testing.T) {
+		tight := RiskLimits{MaxGrossExposure: 1, MaxNetExposure: 1, MaxSectorConcentrationPct: 0, MaxDrawdownPct: 0, DeployableCapital: 0, RejectCrowdedEntries: true}
+		gate := NewSimulationRiskGate(true, tight, erroringCrowdingLookup{}, errSnapshot())
+		order := &models.OrderRecord{
+			Symbol:           "AAPL250718C00200000",
+			Class:            models.OrderRecordClassOption,
+			Side:             models.TradierOrderSideSellToClose,
+			AbsoluteQuantity: 3,
+			RequestedPrice:   2.50,
+		}
+		require.NoError(t, gate.EvaluateSimulationOrder(nil, order))
+		require.True(t, MapProposedOrder(order).IsReduction)
+	})
+}
+
 // MapProposedOrder classifies sides and computes signed notional.
 func TestMapProposedOrder_Classification(t *testing.T) {
 	px := 10.0

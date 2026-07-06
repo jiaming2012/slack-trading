@@ -8,8 +8,8 @@
 
 ## 2. Notional mapping (nit c)
 
-- [ ] 2.1 `gate.go` — `MapProposedOrder` applies ×100 to `|quantity| × price` when `order.Class == OrderRecordClassOption`; equity and empty class unchanged.
-- [ ] 2.2 `gate_test.go` — option order 3 × 2.50 maps to 750.00 notional; equity order unchanged; option reduction still short-circuits.
+- [x] 2.1 `gate.go` — `MapProposedOrder` applies ×100 to `|quantity| × price` when `order.Class == OrderRecordClassOption`; equity and empty class unchanged.
+- [x] 2.2 `gate_test.go` — option order 3 × 2.50 maps to 750.00 notional; equity order unchanged; option reduction still short-circuits.
 
 ## 3. Lookup seams (EV weights, sector)
 
