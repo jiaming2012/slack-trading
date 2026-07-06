@@ -18,6 +18,13 @@ const (
 	RuleAutoHalt            = "auto_halt"
 	RuleDeferredAutoClose   = "deferred_auto_close"
 	RuleUnprotectedPosition = "unprotected_position"
+
+	// wire-risk-overlay-state: sustained fail-permissive degradation of the
+	// portfolio risk overlay (the gate is permitting orders it could not
+	// evaluate), and an enabled gate whose EV allocation family is pinned
+	// inactive (an entire limit family silently missing).
+	RuleRiskOverlayDegraded = "riskoverlay_degraded"
+	RuleRiskOverlayEvPinned = "riskoverlay_ev_pinned"
 )
 
 // UnprotectedPosition describes a live position whose broker-held companion
@@ -76,14 +83,17 @@ type AlertEngine struct {
 	reg      *Registry
 	notifier Notifier
 
-	staleAfter     time.Duration
-	errorWindow    time.Duration
-	errorThreshold int
-	renotify       time.Duration
+	staleAfter        time.Duration
+	errorWindow       time.Duration
+	errorThreshold    int
+	renotify          time.Duration
+	degradedWindow    time.Duration
+	degradedThreshold int
 
-	mu         sync.Mutex
-	active     map[string]*activeAlert
-	errSamples []errSample
+	mu              sync.Mutex
+	active          map[string]*activeAlert
+	errSamples      []errSample
+	degradedSamples []errSample
 
 	// haltStatus, when set, feeds the auto_halt rule: it reports whether the
 	// kill switch is engaged, its source ("auto"/"manual"), and the recorded
@@ -138,15 +148,17 @@ func (e *AlertEngine) SetDeferredAutoCloses(fn DeferredAutoCloseCountFunc) {
 // the environment (design D6).
 func NewAlertEngine(db *gorm.DB, tracker *HeartbeatTracker, reg *Registry, notifier Notifier) *AlertEngine {
 	return &AlertEngine{
-		db:             db,
-		tracker:        tracker,
-		reg:            reg,
-		notifier:       notifier,
-		staleAfter:     HeartbeatStaleAfter(),
-		errorWindow:    ErrorWindow(),
-		errorThreshold: ErrorThreshold(),
-		renotify:       RenotifyInterval(),
-		active:         make(map[string]*activeAlert),
+		db:                db,
+		tracker:           tracker,
+		reg:               reg,
+		notifier:          notifier,
+		staleAfter:        HeartbeatStaleAfter(),
+		errorWindow:       ErrorWindow(),
+		errorThreshold:    ErrorThreshold(),
+		renotify:          RenotifyInterval(),
+		degradedWindow:    RiskOverlayDegradedWindow(),
+		degradedThreshold: RiskOverlayDegradedThreshold(),
+		active:            make(map[string]*activeAlert),
 	}
 }
 
@@ -189,21 +201,50 @@ func (e *AlertEngine) errorsTotal() float64 {
 // total and returns how many errors were logged within the rolling window.
 // Callers must hold e.mu.
 func (e *AlertEngine) errorCountInWindow(now time.Time, total float64) int {
-	e.errSamples = append(e.errSamples, errSample{at: now, total: total})
+	return countInWindow(&e.errSamples, e.errorWindow, now, total)
+}
+
+// degradedCountInWindow is the riskoverlay analogue of errorCountInWindow,
+// tracking the cumulative grodt.riskoverlay.degraded total over its own
+// rolling window. Callers must hold e.mu.
+func (e *AlertEngine) degradedCountInWindow(now time.Time, total float64) int {
+	return countInWindow(&e.degradedSamples, e.degradedWindow, now, total)
+}
+
+// countInWindow appends the current cumulative total to the sample history,
+// prunes samples older than the window (keeping one older sample as the
+// baseline), and returns the count accumulated within the rolling window.
+func countInWindow(samples *[]errSample, window time.Duration, now time.Time, total float64) int {
+	*samples = append(*samples, errSample{at: now, total: total})
 
 	// Baseline = the newest sample at or before the window boundary; keep one
 	// sample older than the window so the baseline stays available.
-	boundary := now.Add(-e.errorWindow)
+	boundary := now.Add(-window)
 	baselineIdx := 0
-	for i, s := range e.errSamples {
+	for i, s := range *samples {
 		if s.at.After(boundary) {
 			break
 		}
 		baselineIdx = i
 	}
-	e.errSamples = e.errSamples[baselineIdx:]
+	*samples = (*samples)[baselineIdx:]
 
-	return int(total - e.errSamples[0].total)
+	return int(total - (*samples)[0].total)
+}
+
+// metricValue reads the sum of a named series from the registry snapshot and
+// reports whether the series exists at all — a gauge that has never been set
+// must not be conflated with a gauge reading zero.
+func (e *AlertEngine) metricValue(name string) (float64, bool) {
+	var total float64
+	found := false
+	for _, p := range e.reg.Snapshot() {
+		if p.Name == name {
+			total += p.Value
+			found = true
+		}
+	}
+	return total, found
 }
 
 // Evaluate runs one rule-evaluation cycle at the given time. Exported for
@@ -231,6 +272,32 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 			rule:    RuleErrorRate,
 			subject: "server",
 			message: fmt.Sprintf("error rate spike: %d errors logged in the last %s (threshold %d)", count, e.errorWindow, e.errorThreshold),
+		}
+	}
+
+	// Riskoverlay degradation rule (wire-risk-overlay-state): sustained
+	// fail-permissive permits mean the risk overlay is letting orders through
+	// that it could NOT evaluate — the gate is blind but permitting, and the
+	// operator must know without Grafana.
+	if count := e.degradedCountInWindow(now, e.metricTotal(MetricRiskOverlayDegraded)); count > e.degradedThreshold {
+		want[RuleRiskOverlayDegraded+"|risk-overlay"] = desired{
+			rule:    RuleRiskOverlayDegraded,
+			subject: "risk-overlay",
+			message: fmt.Sprintf("risk overlay DEGRADED: %d fail-permissive/blind evaluations in the last %s (threshold %d) — orders are being permitted without full risk evaluation; check DB health and the grodt.riskoverlay.degraded reasons", count, e.degradedWindow, e.degradedThreshold),
+		}
+	}
+
+	// Riskoverlay EV-pin rule (wire-risk-overlay-state): an ENABLED gate whose
+	// strategy-allocation family is pinned inactive (empty EV-weight set) is
+	// silently missing an entire limit family. Both gauges must exist — a gate
+	// that never evaluated (or was never installed) stays silent.
+	if enabled, okE := e.metricValue(MetricRiskOverlayEnabled); okE && enabled >= 1 {
+		if evActive, okV := e.metricValue(MetricRiskOverlayEvFamilyActive); okV && evActive == 0 {
+			want[RuleRiskOverlayEvPinned+"|risk-overlay"] = desired{
+				rule:    RuleRiskOverlayEvPinned,
+				subject: "risk-overlay",
+				message: "risk overlay EV allocation family PINNED INACTIVE: the gate is enabled but strategy_ev_weights is empty, so per-strategy allocation caps are not enforced — populate EV weights (task ev pipeline) or acknowledge if expected",
+			}
 		}
 	}
 

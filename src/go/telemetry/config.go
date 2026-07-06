@@ -18,6 +18,8 @@ const (
 	defaultRenotifyInterval   = 30 * time.Minute
 	defaultRetention          = 30 * 24 * time.Hour
 	defaultEvaluationInterval = 30 * time.Second
+	defaultDegradedWindow     = 5 * time.Minute
+	defaultDegradedThreshold  = 10
 )
 
 func envDuration(name string, fallback time.Duration) time.Duration {
@@ -69,4 +71,16 @@ func ErrorThreshold() int {
 // RenotifyInterval is how often a firing, unacknowledged alert re-posts.
 func RenotifyInterval() time.Duration {
 	return envDuration("TELEMETRY_ALERT_RENOTIFY_INTERVAL", defaultRenotifyInterval)
+}
+
+// RiskOverlayDegradedWindow is the rolling window for the riskoverlay
+// degradation alert rule (wire-risk-overlay-state).
+func RiskOverlayDegradedWindow() time.Duration {
+	return envDuration("TELEMETRY_RISKOVERLAY_DEGRADED_WINDOW", defaultDegradedWindow)
+}
+
+// RiskOverlayDegradedThreshold is the degradation count within
+// RiskOverlayDegradedWindow that fires the riskoverlay_degraded alert.
+func RiskOverlayDegradedThreshold() int {
+	return envInt("TELEMETRY_RISKOVERLAY_DEGRADED_THRESHOLD", defaultDegradedThreshold)
 }

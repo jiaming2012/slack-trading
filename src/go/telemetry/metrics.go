@@ -34,6 +34,20 @@ var (
 	DeferredAutoCloses    *Gauge
 	CompanionStopsPlaced  *Counter
 	CompanionStopFailures *Counter
+
+	// Portfolio risk overlay instruments (wire-risk-overlay-state).
+	// RiskOverlayDegraded counts every fail-permissive permit or
+	// unknown-sector evaluation, labeled {reason}: the gate stayed permissive
+	// while (partially) blind. RiskOverlayRejections counts rejected orders
+	// once per breached limit family, labeled {limit_type}.
+	// RiskOverlayEnabled is 0/1 gate enablement; RiskOverlayEvFamilyActive is
+	// 0/1 whether the last EV-weight lookup returned a non-empty set (0 =
+	// strategy-allocation family pinned inactive). A DISABLED gate records
+	// nothing on any of these (permissive-blind).
+	RiskOverlayDegraded       *Counter
+	RiskOverlayRejections     *Counter
+	RiskOverlayEnabled        *Gauge
+	RiskOverlayEvFamilyActive *Gauge
 )
 
 // Init constructs the registry and all instruments. It is self-contained:
@@ -60,7 +74,20 @@ func Init() {
 	DeferredAutoCloses = Default.Gauge(MetricDeferredAutoCloses)
 	CompanionStopsPlaced = Default.Counter("safety_companion_stops_placed_total")
 	CompanionStopFailures = Default.Counter("safety_companion_stop_failures_total")
+	RiskOverlayDegraded = Default.Counter(MetricRiskOverlayDegraded)
+	RiskOverlayRejections = Default.Counter(MetricRiskOverlayRejections)
+	RiskOverlayEnabled = Default.Gauge(MetricRiskOverlayEnabled)
+	RiskOverlayEvFamilyActive = Default.Gauge(MetricRiskOverlayEvFamilyActive)
 }
+
+// Risk-overlay metric names, exported because the alert engine reads these
+// series back out of registry snapshots to drive the riskoverlay alert rules.
+const (
+	MetricRiskOverlayDegraded       = "grodt.riskoverlay.degraded"
+	MetricRiskOverlayRejections     = "grodt.riskoverlay.rejections"
+	MetricRiskOverlayEnabled        = "grodt.riskoverlay.enabled"
+	MetricRiskOverlayEvFamilyActive = "grodt.riskoverlay.ev_family_active"
+)
 
 // MetricDeferredAutoCloses is exported by name because the alert engine reads
 // the gauge back out of registry snapshots to drive the deferred-auto-close

@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
 // RejectedError is returned by the gate when the risk overlay rejects an order.
@@ -39,9 +40,19 @@ type PortfolioSnapshotFunc func(p *models.Playground, order *models.OrderRecord)
 // (permits every order) when disabled, when no snapshot builder is wired, or
 // when the resulting Decision is Allowed.
 //
-// Enablement is off by default and, by construction, this adapter is only ever
+// Enablement defaults to true for Simulation (wire-risk-overlay-state) with
+// permissive default limits and, by construction, this adapter is only ever
 // wired into the Simulation path (models.CheckRiskGate is called only for
 // ModeSimulation); it never sees a Paper or Margin order.
+//
+// Observability states (nit e wording):
+//   - DISABLED gate = permissive-BLIND: no evaluation happens and NOTHING is
+//     recorded — no degradation, no rejections, no gauges.
+//   - Enabled gate on a fail-permissive path (snapshot error, crowding-lookup
+//     error, unknown sector) = permissive-OBSERVED: the order is permitted,
+//     a Warn is logged, AND grodt.riskoverlay.degraded is incremented with a
+//     {reason} label, so gate blindness is alertable without any external
+//     observability stack.
 type SimulationRiskGate struct {
 	enabled  bool
 	limits   RiskLimits
@@ -50,9 +61,10 @@ type SimulationRiskGate struct {
 }
 
 // NewSimulationRiskGate constructs a gate. When enabled is false the gate
-// permits every order (permissive-observe). lookup may be nil (treated as an
-// unflagged crowding view); snapshot may be nil (the gate then permits every
-// order, since it cannot build engine inputs).
+// permits every order without evaluating or recording anything
+// (permissive-blind). lookup may be nil (treated as an unflagged crowding
+// view); snapshot may be nil (the gate then permits every order, since it
+// cannot build engine inputs).
 func NewSimulationRiskGate(enabled bool, limits RiskLimits, lookup CrowdingLookup, snapshot PortfolioSnapshotFunc) *SimulationRiskGate {
 	return &SimulationRiskGate{
 		enabled:  enabled,
@@ -87,14 +99,42 @@ func (g *SimulationRiskGate) EvaluateSimulationOrder(p *models.Playground, order
 
 	state, proposed, scannedAt, err := g.snapshot(p, order)
 	if err != nil {
-		// Fail PERMISSIVE: a risk gate that turns snapshot/DB hiccups into trading
-		// halts is a new failure mode. Halting is the kill switch's job, not this
-		// gate's — so we permit the (non-reducing) order and warn loudly.
+		// Fail PERMISSIVE, but OBSERVED: a risk gate that turns snapshot/DB
+		// hiccups into trading halts is a new failure mode. Halting is the kill
+		// switch's job, not this gate's — so we permit the (non-reducing) order,
+		// warn loudly, and count the degradation so a blind-but-permitting gate
+		// pages the operator.
 		log.Warnf("riskoverlay gate: build snapshot failed for order into %q; permitting order (fail-permissive): %v", orderSymbol(order), err)
+		telemetry.RiskOverlayDegraded.Add(1, telemetry.Label{Key: "reason", Value: DegradedReasonSnapshotError})
 		return nil
 	}
+
+	// The EV-family pin state comes from every EV lookup result the gate
+	// evaluates with: 1 = allocation family enforcing, 0 = pinned inactive
+	// (empty EV set — alert-worthy while the gate is enabled).
+	if len(state.EvWeights) > 0 {
+		telemetry.RiskOverlayEvFamilyActive.Set(1)
+	} else {
+		telemetry.RiskOverlayEvFamilyActive.Set(0)
+	}
+
+	// An unknown sector leaves the proposed entry exempt from the
+	// sector-concentration family: still evaluated, but partially blind —
+	// counted as degradation so the partial blindness stays visible.
+	if proposed.Sector == "" {
+		telemetry.RiskOverlayDegraded.Add(1, telemetry.Label{Key: "reason", Value: DegradedReasonSectorUnknown})
+	}
+
 	return g.decide(state, proposed, scannedAt)
 }
+
+// Degradation reasons for the grodt.riskoverlay.degraded counter's {reason}
+// label.
+const (
+	DegradedReasonSnapshotError       = "snapshot_error"
+	DegradedReasonCrowdingLookupError = "crowding_lookup_error"
+	DegradedReasonSectorUnknown       = "sector_unknown"
+)
 
 // orderSymbol renders the order's symbol for a log line, tolerating a nil order.
 func orderSymbol(order *models.OrderRecord) string {
@@ -112,11 +152,13 @@ func (g *SimulationRiskGate) decide(state PortfolioState, proposed ProposedOrder
 	if g.lookup != nil {
 		v, err := g.lookup.ViewForScanCycle(scannedAt)
 		if err != nil {
-			// Fail PERMISSIVE: this path is only reached for NON-reducing orders
-			// (reductions short-circuit before any lookup). A crowding-DB error
-			// must not become a trading halt — the kill switch owns halting, not
-			// this gate — so we permit and warn loudly.
+			// Fail PERMISSIVE, but OBSERVED: this path is only reached for
+			// NON-reducing orders (reductions short-circuit before any lookup).
+			// A crowding-DB error must not become a trading halt — the kill
+			// switch owns halting, not this gate — so we permit, warn loudly,
+			// and count the degradation.
 			log.Warnf("riskoverlay gate: resolve crowding view failed for %q; permitting order (fail-permissive): %v", proposed.Ticker, err)
+			telemetry.RiskOverlayDegraded.Add(1, telemetry.Label{Key: "reason", Value: DegradedReasonCrowdingLookupError})
 			return nil
 		}
 		view = v
@@ -127,6 +169,11 @@ func (g *SimulationRiskGate) decide(state PortfolioState, proposed ProposedOrder
 		return fmt.Errorf("riskoverlay gate: evaluate: %w", err)
 	}
 	if !decision.Allowed {
+		// One increment per breached limit family, so the operator can see
+		// WHAT the overlay is blocking, not just that it blocks.
+		for _, b := range decision.Breaches {
+			telemetry.RiskOverlayRejections.Add(1, telemetry.Label{Key: "limit_type", Value: string(b.Type)})
+		}
 		return &RejectedError{Breaches: decision.Breaches}
 	}
 	return nil

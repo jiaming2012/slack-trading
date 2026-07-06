@@ -25,11 +25,11 @@
 
 ## 5. Telemetry and alerting (internal registry ONLY — no OTel, per ADR-0005)
 
-- [ ] 5.1 `src/go/telemetry/metrics.go` — register instruments in `Init()`: `grodt.riskoverlay.degraded` (Counter), `grodt.riskoverlay.rejections` (Counter), `grodt.riskoverlay.enabled` (Gauge), `grodt.riskoverlay.ev_family_active` (Gauge). Nil-safe like existing instruments.
-- [ ] 5.2 `gate.go` — record: degraded with `reason` label (`snapshot_error` / `crowding_lookup_error` / `sector_unknown`) on each fail-permissive permit alongside the existing Warn; rejections per breached family with `limit_type` label; ev_family_active from each EV lookup result. Disabled gate records nothing (permissive-blind).
-- [ ] 5.3 `src/go/telemetry/alerts.go` — two `AlertEngine` rules with config-tunable thresholds: sustained riskoverlay degradation in the evaluation window; gate enabled while EV family pinned inactive. Both follow existing Slack delivery + re-notify-until-ack semantics.
-- [ ] 5.4 Telemetry tests: degraded/rejections/gauges recorded as spec'd; both alert rules fire and resolve against a seeded registry.
-- [ ] 5.5 Wording fix (nit e): replace "permissive-observe" in `gate.go` (and any other living artifact) — disabled state documented as **permissive-blind**; fail-permissive path documented as observed via the degradation counter.
+- [x] 5.1 `src/go/telemetry/metrics.go` — register instruments in `Init()`: `grodt.riskoverlay.degraded` (Counter), `grodt.riskoverlay.rejections` (Counter), `grodt.riskoverlay.enabled` (Gauge), `grodt.riskoverlay.ev_family_active` (Gauge). Nil-safe like existing instruments.
+- [x] 5.2 `gate.go` — record: degraded with `reason` label (`snapshot_error` / `crowding_lookup_error` / `sector_unknown`) on each fail-permissive permit alongside the existing Warn; rejections per breached family with `limit_type` label; ev_family_active from each EV lookup result. Disabled gate records nothing (permissive-blind).
+- [x] 5.3 `src/go/telemetry/alerts.go` — two `AlertEngine` rules with config-tunable thresholds: sustained riskoverlay degradation in the evaluation window; gate enabled while EV family pinned inactive. Both follow existing Slack delivery + re-notify-until-ack semantics.
+- [x] 5.4 Telemetry tests: degraded/rejections/gauges recorded as spec'd; both alert rules fire and resolve against a seeded registry.
+- [x] 5.5 Wording fix (nit e): replace "permissive-observe" in `gate.go` (and any other living artifact) — disabled state documented as **permissive-blind**; fail-permissive path documented as observed via the degradation counter.
 
 ## 6. Startup wiring, config default, enablement
 

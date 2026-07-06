@@ -40,15 +40,17 @@ func newTestEngine(db *gorm.DB, notifier Notifier) (*AlertEngine, *HeartbeatTrac
 	tracker := NewHeartbeatTracker()
 	reg := NewRegistry()
 	e := &AlertEngine{
-		db:             db,
-		tracker:        tracker,
-		reg:            reg,
-		notifier:       notifier,
-		staleAfter:     90 * time.Second,
-		errorWindow:    5 * time.Minute,
-		errorThreshold: 10,
-		renotify:       30 * time.Minute,
-		active:         make(map[string]*activeAlert),
+		db:                db,
+		tracker:           tracker,
+		reg:               reg,
+		notifier:          notifier,
+		staleAfter:        90 * time.Second,
+		errorWindow:       5 * time.Minute,
+		errorThreshold:    10,
+		renotify:          30 * time.Minute,
+		degradedWindow:    5 * time.Minute,
+		degradedThreshold: 10,
+		active:            make(map[string]*activeAlert),
 	}
 	return e, tracker, reg
 }
@@ -425,3 +427,89 @@ func errorsTotalValue() float64 {
 type nullWriter struct{}
 
 func (nullWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// wire-risk-overlay-state — the two riskoverlay alert rules fire and resolve
+// against a seeded registry with the existing lifecycle semantics.
+func TestAlertEngine_RiskOverlayRules(t *testing.T) {
+	db := newTestDB(t)
+
+	t.Run("sustained degradation fires past the threshold and resolves when it stops", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, reg := newTestEngine(db, notifier)
+		degraded := reg.Counter(MetricRiskOverlayDegraded)
+
+		start := time.Now().UTC()
+		e.Evaluate(start) // baseline sample: zero degradation
+
+		// Below the threshold within the window: silent.
+		degraded.Add(5, Label{Key: "reason", Value: "snapshot_error"})
+		e.Evaluate(start.Add(10 * time.Second))
+		assert.Empty(t, notifier.messages())
+
+		// Past the threshold (labels sum across reasons): fires.
+		degraded.Add(4, Label{Key: "reason", Value: "crowding_lookup_error"})
+		degraded.Add(3, Label{Key: "reason", Value: "sector_unknown"})
+		e.Evaluate(start.Add(30 * time.Second))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleRiskOverlayDegraded)
+		assert.Contains(t, msgs[0], "DEGRADED")
+
+		// Degradation stops; once the window slides past, the alert resolves.
+		e.Evaluate(start.Add(10 * time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2)
+		assert.Contains(t, msgs[1], "RESOLVED")
+	})
+
+	t.Run("enabled gate with EV family pinned inactive fires until the family activates", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, reg := newTestEngine(db, notifier)
+		enabled := reg.Gauge(MetricRiskOverlayEnabled)
+		evActive := reg.Gauge(MetricRiskOverlayEvFamilyActive)
+
+		start := time.Now().UTC()
+
+		// Gauges never set (gate not installed / never evaluated): silent.
+		e.Evaluate(start)
+		assert.Empty(t, notifier.messages())
+
+		// Enabled but the EV gauge still unset: silent (no evaluation yet).
+		enabled.Set(1)
+		e.Evaluate(start.Add(30 * time.Second))
+		assert.Empty(t, notifier.messages())
+
+		// Enabled + pinned inactive: fires.
+		evActive.Set(0)
+		e.Evaluate(start.Add(time.Minute))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleRiskOverlayEvPinned)
+		assert.Contains(t, msgs[0], "PINNED INACTIVE")
+
+		// Unacked within the renotify interval: silent; past it: nags again.
+		e.Evaluate(start.Add(2 * time.Minute))
+		assert.Len(t, notifier.messages(), 1)
+		e.Evaluate(start.Add(31 * time.Minute))
+		require.Len(t, notifier.messages(), 2)
+
+		// EV weights appear: family active, alert resolves.
+		evActive.Set(1)
+		e.Evaluate(start.Add(32 * time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 3)
+		assert.Contains(t, msgs[2], "RESOLVED")
+	})
+
+	t.Run("a disabled gate never fires the EV-pin rule", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, reg := newTestEngine(db, notifier)
+		reg.Gauge(MetricRiskOverlayEnabled).Set(0)
+		reg.Gauge(MetricRiskOverlayEvFamilyActive).Set(0)
+
+		e.Evaluate(time.Now().UTC())
+		assert.Empty(t, notifier.messages())
+	})
+}
