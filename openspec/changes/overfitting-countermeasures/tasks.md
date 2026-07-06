@@ -36,9 +36,9 @@
 
 ## 6. Verification gates
 
-- [ ] 6.1 `go build ./src/go/... ./cmd/...` green. *(Blocked externally at implementation time: concurrent uncommitted safety-remediation work in `src/go/backtester/models/` does not compile; `go build ./src/go/tradingstack/... ./cmd/overfitting-check/` is green. Re-run once that work lands.)*
-- [ ] 6.2 `task test` green (existing backtester suite unaffected). *(Blocked by the same external in-flight `backtester/models` compile break — no test in that suite exercises this change.)*
-- [ ] 6.3 `task test:trading-stack` green (tradingstack package suite, incl. this package's testcontainers tests; requires Docker). *(All tradingstack packages pass — including `overfitting` — except `riskoverlay`, which fails to build only because it imports the externally broken `backtester/models`. Re-run once that work lands.)*
+- [x] 6.1 `go build ./src/go/... ./cmd/...` green. *(Blocked externally at implementation time: concurrent uncommitted safety-remediation work in `src/go/backtester/models/` does not compile; `go build ./src/go/tradingstack/... ./cmd/overfitting-check/` is green. Re-run once that work lands.)*
+- [x] 6.2 `task test` green (existing backtester suite unaffected). *(Blocked by the same external in-flight `backtester/models` compile break — no test in that suite exercises this change.)*
+- [x] 6.3 `task test:trading-stack` green (tradingstack package suite, incl. this package's testcontainers tests; requires Docker). *(All tradingstack packages pass — including `overfitting` — except `riskoverlay`, which fails to build only because it imports the externally broken `backtester/models`. Re-run once that work lands.)*
 - [x] 6.4 `task test:overfitting` and `task optimizer:overfitting-check` both run green locally.
 
 ## 7. Operator-only follow-ups
