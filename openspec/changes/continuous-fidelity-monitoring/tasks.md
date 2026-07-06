@@ -9,7 +9,7 @@
 
 ## 2. Persistence wiring and idempotency (review nit a)
 
-- [ ] 2.1 `src/go/tradingstack/fidelity/` — `MigrateFidelityMonitoring(db)` creating the unique index on `simulator_fidelity (strategy_id, period_start, period_end)`; idempotent; touches nothing else. Call it from the startup path that runs `MigrateTradingStack`.
+- [x] 2.1 `src/go/tradingstack/fidelity/` — `MigrateFidelityMonitoring(db)` creating the unique index on `simulator_fidelity (strategy_id, period_start, period_end)`; idempotent; touches nothing else. Call it from the startup path that runs `MigrateTradingStack`. *(Note: no production startup path ran `MigrateTradingStack` before this change — `cmd/main.go`'s fidelity-monitor block now runs both, gated on `FIDELITY_MONITOR_ENABLED`.)*
 - [x] 2.2 `checker.go` — convert `Persist` to an upsert on the unique key (`ON CONFLICT` update of `computed_at`, drift fields, `within_tolerance`).
 - [x] 2.3 Testcontainers tests: round-trip of persisted rows (field-for-field), same-period re-persist updates not duplicates, distinct periods accumulate history, migration idempotency and no contact with playground or other trading-stack tables.
 
@@ -22,15 +22,15 @@
 
 ## 4. Telemetry integration (registry, heartbeat, alert rule)
 
-- [ ] 4.1 `src/go/telemetry/heartbeat_tracker.go` — add `SourceKindJob = "job"` to the valid source kinds; monitor beats `job/fidelity-monitor` on run completion (meta carries last outcome) plus a 60s idle keepalive.
-- [ ] 4.2 Monitor metrics via the internal registry: `grodt.fidelity.runs.total{status}` counter; `grodt.fidelity.drift_score{strategy_id}` and `grodt.fidelity.within_tolerance{strategy_id}` gauges updated on result-producing runs.
+- [x] 4.1 `src/go/telemetry/heartbeat_tracker.go` — add `SourceKindJob = "job"` to the valid source kinds; monitor beats `job/fidelity-monitor` on run completion (meta carries last outcome) plus a 60s idle keepalive.
+- [x] 4.2 Monitor metrics via the internal registry: `grodt.fidelity.runs.total{status}` counter; `grodt.fidelity.drift_score{strategy_id}` and `grodt.fidelity.within_tolerance{strategy_id}` gauges updated on result-producing runs.
 - [x] 4.3 `src/go/telemetry/alerts.go` — `RuleFidelityDrift = "fidelity_drift"`; `AlertEngine.ReportFidelity(...)` storing the latest per-strategy fidelity snapshot (replaced wholesale per result-producing run); `Evaluate` desires one `fidelity_drift|strategy/<id>` alert per breaching strategy, message carrying strategy id and drift score. Define the report payload as a small telemetry-owned struct so `telemetry` does not import `fidelity` (no import cycle; the monitor maps results into it).
 - [x] 4.4 `alerts_test.go` — breach fires exactly one persisted+notified alert; recovery resolves it; ack silences re-notify while breach persists; `no_data` (no report) preserves last state; existing stale-heartbeat rule picks up a silent `job/fidelity-monitor` source.
 
 ## 5. Server wiring
 
-- [ ] 5.1 `cmd/main.go` — construct the monitor (NoLiveTradesSource for production wiring, `DefaultConfig()` scoring, AlertEngine report hook) and start it alongside the alert engine, gated by `FIDELITY_MONITOR_ENABLED`.
-- [ ] 5.2 Boot log line stating monitor state (enabled/disabled, interval, period, source type) so `no live trades` operation is self-explaining.
+- [x] 5.1 `cmd/main.go` — construct the monitor (NoLiveTradesSource for production wiring, `DefaultConfig()` scoring, AlertEngine report hook) and start it alongside the alert engine, gated by `FIDELITY_MONITOR_ENABLED`.
+- [x] 5.2 Boot log line stating monitor state (enabled/disabled, interval, period, source type) so `no live trades` operation is self-explaining.
 
 ## 6. Operator surface
 

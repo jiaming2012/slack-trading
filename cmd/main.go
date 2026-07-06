@@ -42,6 +42,8 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
+	"github.com/jiaming2012/slack-trading/src/go/tradingstack"
+	"github.com/jiaming2012/slack-trading/src/go/tradingstack/fidelity"
 	"github.com/jiaming2012/slack-trading/src/go/tradingstack/riskoverlay"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 	"github.com/jiaming2012/slack-trading/src/go/workers"
@@ -301,6 +303,85 @@ func main() {
 	alertEngine := telemetry.NewAlertEngine(db, telemetry.Heartbeats, telemetry.Default, slackNotifier)
 	go alertEngine.Start(ctx)
 	slack.SetAckFunc(alertEngine.Ack)
+
+	// Continuous fidelity monitoring (continuous-fidelity-monitoring): a daily
+	// in-server evaluation of the trailing week's simulator-vs-live fidelity.
+	// Production wires the no-live-trades source (design D2): every run is a
+	// clean no_data outcome — heartbeat, run counter, and status surfaces stay
+	// real — until live-trade ingestion lands, at which point the real source
+	// is a one-constructor swap here. Rollback: FIDELITY_MONITOR_ENABLED=false.
+	if fidelity.MonitorEnabled() {
+		// The monitor persists into simulator_fidelity, so its startup path
+		// owns the trading-stack migration (idempotent, additive, playground
+		// tables untouched) plus the fidelity unique-index migration that
+		// makes Persist an upsert.
+		if err := tradingstack.MigrateTradingStack(db); err != nil {
+			log.Fatalf("failed to migrate trading-stack tables for the fidelity monitor: %v", err)
+		}
+		if err := fidelity.MigrateFidelityMonitoring(db); err != nil {
+			log.Fatalf("failed to migrate fidelity monitoring: %v", err)
+		}
+
+		// The job heartbeat: run-completion beats carry the last outcome in
+		// meta; the 60s idle keepalive proves the goroutine is alive between
+		// daily runs (both hooks run on the monitor's single goroutine, so
+		// lastBeatMeta needs no locking). A dead monitor trips the existing
+		// stale-heartbeat alert.
+		var lastBeatMeta map[string]string
+		beat := func(at time.Time) {
+			telemetry.Heartbeats.Beat(telemetry.SourceKindJob, "fidelity-monitor", lastBeatMeta, at)
+			if err := telemetry.UpsertHeartbeat(db, telemetry.SourceKindJob, "fidelity-monitor", lastBeatMeta, at); err != nil {
+				log.Warnf("fidelity monitor: heartbeat upsert failed (row catches up on the next beat): %v", err)
+			}
+		}
+
+		fidelityMonitor, err := fidelity.NewMonitor(fidelity.MonitorOptions{
+			Source:   fidelity.NoLiveTradesSource{},
+			DB:       db,
+			Scoring:  fidelity.DefaultConfig(),
+			Interval: fidelity.MonitorInterval(),
+			Period:   fidelity.MonitorPeriod(),
+			OnRunComplete: func(rep fidelity.RunReport) {
+				telemetry.FidelityRuns.Add(1, telemetry.Label{Key: "status", Value: string(rep.Outcome)})
+				if rep.Results != nil {
+					// A result-producing run (ok|breach): update the
+					// per-strategy gauges and replace the alert engine's
+					// fidelity snapshot wholesale. no_data/error runs skip
+					// this branch, so the last-known alert state stands.
+					statuses := make([]telemetry.FidelityStrategyStatus, 0, len(rep.Results))
+					for _, r := range rep.Results {
+						label := telemetry.Label{Key: "strategy_id", Value: r.StrategyID}
+						telemetry.FidelityDriftScore.Set(r.DriftScore, label)
+						within := 0.0
+						if r.WithinTolerance {
+							within = 1.0
+						}
+						telemetry.FidelityWithinTolerance.Set(within, label)
+						statuses = append(statuses, telemetry.FidelityStrategyStatus{
+							StrategyID:      r.StrategyID,
+							DriftScore:      r.DriftScore,
+							WithinTolerance: r.WithinTolerance,
+						})
+					}
+					alertEngine.ReportFidelity(statuses)
+				}
+				lastBeatMeta = map[string]string{
+					"last_run_outcome": string(rep.Outcome),
+					"last_run_at":      rep.At.Format(time.RFC3339),
+				}
+				beat(rep.At)
+			},
+			OnKeepalive: beat,
+		})
+		if err != nil {
+			log.Fatalf("failed to construct fidelity monitor: %v", err)
+		}
+		go fidelityMonitor.Start(ctx)
+		log.Infof("fidelity monitor ENABLED: evaluate every %s over the trailing %s, source=no-live-trades — runs report no_data (no fidelity rows, no drift alerts) until live-trade ingestion lands; liveness via the job/fidelity-monitor heartbeat (task fidelity:status)",
+			fidelityMonitor.Interval(), fidelityMonitor.Period())
+	} else {
+		log.Warnf("fidelity monitor DISABLED via FIDELITY_MONITOR_ENABLED=false — no scheduled fidelity evaluation, no fidelity heartbeat")
+	}
 
 	// Load options config
 	// OPTIONS_CONFIG_PATH, if set, overrides the default path (useful for worktrees)
