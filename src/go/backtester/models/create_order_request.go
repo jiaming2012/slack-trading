@@ -61,5 +61,15 @@ func (req *CreateOrderRequest) Validate() error {
 		return fmt.Errorf("invalid duration: %w", err)
 	}
 
+	// Reserved-tag boundary (wire-companion-stops): the companion-stop prefix
+	// is the recursion guard and the durable idempotency association for
+	// broker-held protective stops. Enforced here so EVERY order-placement
+	// ingress (single-leg RPC, multi-leg RPC, REST) inherits the rejection —
+	// companion stops themselves are placed at the Broker seam via
+	// PlaceOrderRequest and never pass through this validation.
+	if IsCompanionStopOrderTag(req.Tag) {
+		return fmt.Errorf("tag %q uses the reserved companion-stop prefix; choose a different tag", req.Tag)
+	}
+
 	return nil
 }

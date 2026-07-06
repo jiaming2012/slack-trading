@@ -49,6 +49,30 @@ func TestPlaceOrder_RejectsReservedCompanionStopTag(t *testing.T) {
 	}
 }
 
+// The multi-leg ingress inherits the reserved-tag rejection through
+// CreateOrderRequest.Validate: every leg request built by
+// buildMultiLegRequests carries its leg's client-supplied tag, and validation
+// (run by dbService.PlaceOrders on every request) refuses the reserved
+// prefix.
+func TestPlaceMultiLegOrder_LegRequestsInheritReservedTagRejection(t *testing.T) {
+	requests := buildMultiLegRequests(&pb.PlaceMultiLegOrderRequest{
+		PlaygroundId: "00000000-0000-0000-0000-000000000001",
+		Type:         "market",
+		Duration:     "day",
+		Legs: []*pb.MultiLegOrderLeg{
+			{Symbol: "O:AAPL250703C00210000", AssetClass: "option", Quantity: 1, Side: "sell_to_open", Tag: "companion-stop-42"},
+			{Symbol: "O:AAPL250703C00215000", AssetClass: "option", Quantity: 1, Side: "buy_to_open", Tag: "spread-hedge"},
+		},
+	})
+	require.Len(t, requests, 2)
+
+	err := requests[0].Validate()
+	require.Error(t, err, "a leg carrying the reserved tag must be rejected by request validation")
+	require.Contains(t, err.Error(), "reserved companion-stop prefix")
+
+	require.NoError(t, requests[1].Validate(), "ordinary leg tags must pass")
+}
+
 func TestPlaceOrder_AllowsOrdinaryTagsPastTheBoundary(t *testing.T) {
 	s := &Server{}
 

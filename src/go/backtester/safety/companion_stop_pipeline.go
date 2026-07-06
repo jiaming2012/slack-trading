@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -13,23 +12,23 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
 
-// CompanionStopTag marks broker orders as companion stops. Every companion
-// stop's tag is either exactly this value or CompanionStopTagForEntry's
-// "companion-stop-<entryOrderID>" form; the tag is the recursion guard (a
-// companion stop's own fill must never spawn another companion stop) and the
-// durable per-entry association used for idempotency across restarts.
-const CompanionStopTag = "companion-stop"
+// CompanionStopTag marks broker orders as companion stops. The canonical
+// definitions live in the models package (companion_stop_tag.go) so the
+// request-validation seam enforces the reserved prefix at every ingress
+// without an import cycle; these re-exports keep the safety package's public
+// surface stable.
+const CompanionStopTag = models.CompanionStopTag
 
 // CompanionStopTagForEntry returns the tag carrying the durable association
 // between a companion stop and the entry order it protects.
 func CompanionStopTagForEntry(entryOrderID uint) string {
-	return fmt.Sprintf("%s-%d", CompanionStopTag, entryOrderID)
+	return models.CompanionStopTagForEntry(entryOrderID)
 }
 
 // IsCompanionStopOrderTag reports whether a tag identifies a companion-stop
 // order (either the bare tag or the per-entry form).
 func IsCompanionStopOrderTag(tag string) bool {
-	return tag == CompanionStopTag || strings.HasPrefix(tag, CompanionStopTag+"-")
+	return models.IsCompanionStopOrderTag(tag)
 }
 
 // CompanionStopEligible reports whether a committed live fill must trigger
