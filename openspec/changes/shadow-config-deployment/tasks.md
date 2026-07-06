@@ -16,15 +16,15 @@
 
 ## 3. Run orchestration, guards, and baseline resolution
 
-- [ ] 3.1 `run.go` — `RunShadow(mode, db/store, proposalID, from, to)`: Simulation-only guard first; refuse `rejected_by_gate` proposals (accept `pending_review` and `promoted`); load observations once for the half-open window (`ErrNoObservations` on empty, persist nothing); resolve active payload (latest `scanner_configs` by `created_at`, else `scannercfg.DefaultPayload()` with null active id); evaluate both sides over the identical slice; compare; persist.
-- [ ] 3.2 Tests: Paper and Margin refused with nothing persisted; rejected-by-gate proposal refused; promoted proposal accepted; empty-window sentinel; empty `scanner_configs` falls back to default baseline with null active id; both decision vectors cover identical tickers.
+- [x] 3.1 `run.go` — `RunShadow(mode, db/store, proposalID, from, to)`: Simulation-only guard first; refuse `rejected_by_gate` proposals (accept `pending_review` and `promoted`); load observations once for the half-open window (`ErrNoObservations` on empty, persist nothing); resolve active payload (latest `scanner_configs` by `created_at`, else `scannercfg.DefaultPayload()` with null active id); evaluate both sides over the identical slice; compare; persist.
+- [x] 3.2 Tests: Paper and Margin refused with nothing persisted; rejected-by-gate proposal refused; promoted proposal accepted; empty-window sentinel; empty `scanner_configs` falls back to default baseline with null active id; both decision vectors cover identical tickers.
 
 ## 4. Persistence
 
 - [x] 4.1 `models.go` — GORM models `ShadowRun` (`shadow_runs`) and `ShadowDivergence` (`shadow_divergences`, `kind` CHECK + Go validation); `MigrateShadowDeployment(db)` additive/idempotent (DO-block pattern), clear wrapped error if `scanner_config_proposals` is absent.
 - [x] 4.2 `store.go` — `ShadowStore` interface (`PersistRun`, `FetchRun`, `ListRuns`), GORM implementation, in-memory fake.
 - [x] 4.3 `synthetic.go` — fixture payload pair (active + divergent shadow) and observation batch shared by tests and the CLI `--synthetic` mode.
-- [ ] 4.4 Testcontainers tests: run + divergences round-trip; invalid `kind` rejected; migration creates exactly the two tables, idempotent, alters nothing else; completed run leaves `scanner_configs`/`scanner_config_proposals` (incl. proposal status) untouched.
+- [x] 4.4 Testcontainers tests: run + divergences round-trip; invalid `kind` rejected; migration creates exactly the two tables, idempotent, alters nothing else; completed run leaves `scanner_configs`/`scanner_config_proposals` (incl. proposal status) untouched.
 
 ## 5. Operator entry point and Taskfile targets
 
