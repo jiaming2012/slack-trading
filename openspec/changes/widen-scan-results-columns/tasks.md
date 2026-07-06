@@ -2,8 +2,8 @@
 
 ## 1. Schema widening (tradingstack migration path)
 
-- [ ] 1.1 `src/go/tradingstack/scan_result.go` — add nullable `*float64` fields `PriceVs50MA` (`column:price_vs_50ma;type:numeric`), `CompressionScore` (`column:compression_score;type:numeric`), and `SectorMomentum` (`column:sector_momentum;type:numeric`) to `ScanResult`, matching the existing feature-column style; picked up additively and idempotently by `MigrateTradingStack`'s AutoMigrate.
-- [ ] 1.2 `src/go/tradingstack/tradingstack_test.go` — round-trip coverage: the three columns persist and read back exact values and NULL; migration against a pre-widening table preserves existing rows with NULL in the new columns; second `MigrateTradingStack` run is a nil-error no-op.
+- [x] 1.1 `src/go/tradingstack/scan_result.go` — add nullable `*float64` fields `PriceVs50MA` (`column:price_vs_50ma;type:numeric`), `CompressionScore` (`column:compression_score;type:numeric`), and `SectorMomentum` (`column:sector_momentum;type:numeric`) to `ScanResult`, matching the existing feature-column style; picked up additively and idempotently by `MigrateTradingStack`'s AutoMigrate.
+- [x] 1.2 `src/go/tradingstack/tradingstack_test.go` — round-trip coverage: the three columns persist and read back exact values and NULL; migration against a pre-widening table preserves existing rows with NULL in the new columns; second `MigrateTradingStack` run is a nil-error no-op.
 
 ## 2. Persist all eight features in the scanner pipeline
 

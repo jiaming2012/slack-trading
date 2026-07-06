@@ -19,7 +19,10 @@ type ScanResult struct {
 	VolumeRatio      *float64   `gorm:"column:volume_ratio;type:numeric"`
 	Rsi14            *float64   `gorm:"column:rsi_14;type:numeric"`
 	AtrPct           *float64   `gorm:"column:atr_pct;type:numeric"`
+	PriceVs50MA      *float64   `gorm:"column:price_vs_50ma;type:numeric"`
+	CompressionScore *float64   `gorm:"column:compression_score;type:numeric"`
 	ShortInterest    *float64   `gorm:"column:short_interest;type:numeric"`
+	SectorMomentum   *float64   `gorm:"column:sector_momentum;type:numeric"`
 	Sector           *string    `gorm:"column:sector;type:text"`
 	ScannerScore     *float64   `gorm:"column:scanner_score;type:numeric"`
 	ScannerVersion   *string    `gorm:"column:scanner_version;type:text"`

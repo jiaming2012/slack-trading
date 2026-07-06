@@ -132,7 +132,10 @@ func TestScanResultRoundTrip(t *testing.T) {
 		VolumeRatio:      f64p(1.42),
 		Rsi14:            f64p(61.5),
 		AtrPct:           f64p(0.021),
+		PriceVs50MA:      f64p(3.1),
+		CompressionScore: f64p(42.0),
 		ShortInterest:    f64p(0.033),
+		SectorMomentum:   f64p(0.05),
 		Sector:           strp("technology"),
 		ScannerScore:     f64p(88.0),
 		ScannerVersion:   strp("v1.2.3"),
@@ -153,7 +156,10 @@ func TestScanResultRoundTrip(t *testing.T) {
 	assert.InDelta(t, 1.42, *got.VolumeRatio, 1e-9)
 	assert.InDelta(t, 61.5, *got.Rsi14, 1e-9)
 	assert.InDelta(t, 0.021, *got.AtrPct, 1e-9)
+	assert.InDelta(t, 3.1, *got.PriceVs50MA, 1e-9)
+	assert.InDelta(t, 42.0, *got.CompressionScore, 1e-9)
 	assert.InDelta(t, 0.033, *got.ShortInterest, 1e-9)
+	assert.InDelta(t, 0.05, *got.SectorMomentum, 1e-9)
 	assert.Equal(t, "technology", *got.Sector)
 	assert.InDelta(t, 88.0, *got.ScannerScore, 1e-9)
 	assert.Equal(t, "v1.2.3", *got.ScannerVersion)
@@ -174,7 +180,101 @@ func TestScanResultNullablesRoundTripNull(t *testing.T) {
 	assert.Nil(t, got.RegimeTag)
 	assert.Nil(t, got.Price)
 	assert.Nil(t, got.DataAsOf)
+	assert.Nil(t, got.PriceVs50MA)
+	assert.Nil(t, got.CompressionScore)
+	assert.Nil(t, got.SectorMomentum)
 	assert.Equal(t, "MSFT", got.Ticker)
+}
+
+// TestScanResultWidenedColumnsRoundTripIncludingNull pins the three widened
+// feature columns to their architecture-doc names by reading raw column
+// values: one row persists exact values, another persists NULL for all three.
+func TestScanResultWidenedColumnsRoundTripIncludingNull(t *testing.T) {
+	db := setupTradingStackDB(t)
+	now := nowUTC()
+
+	withValues := &ScanResult{
+		ScannedAt:        now,
+		Ticker:           "AAPL",
+		PriceVs50MA:      f64p(2.5),
+		CompressionScore: f64p(37.0),
+		SectorMomentum:   f64p(0.04),
+	}
+	require.NoError(t, db.Create(withValues).Error)
+
+	allUnset := &ScanResult{ScannedAt: now, Ticker: "MSFT"}
+	require.NoError(t, db.Create(allUnset).Error)
+
+	type widened struct {
+		PriceVs50MA      *float64 `gorm:"column:price_vs_50ma"`
+		CompressionScore *float64 `gorm:"column:compression_score"`
+		SectorMomentum   *float64 `gorm:"column:sector_momentum"`
+	}
+	const query = `SELECT price_vs_50ma, compression_score, sector_momentum
+		FROM scan_results WHERE id = ?`
+
+	var first widened
+	require.NoError(t, db.Raw(query, withValues.ID).Scan(&first).Error)
+	require.NotNil(t, first.PriceVs50MA)
+	assert.InDelta(t, 2.5, *first.PriceVs50MA, 1e-9)
+	require.NotNil(t, first.CompressionScore)
+	assert.InDelta(t, 37.0, *first.CompressionScore, 1e-9)
+	require.NotNil(t, first.SectorMomentum)
+	assert.InDelta(t, 0.04, *first.SectorMomentum, 1e-9)
+
+	var second widened
+	require.NoError(t, db.Raw(query, allUnset.ID).Scan(&second).Error)
+	assert.Nil(t, second.PriceVs50MA)
+	assert.Nil(t, second.CompressionScore)
+	assert.Nil(t, second.SectorMomentum)
+}
+
+// TestMigrateWidensScanResultsAdditivelyAndIdempotently simulates a database
+// whose scan_results table predates the three widened columns: the widening
+// run adds them as nullable numeric columns, preserves every pre-existing row
+// with NULL in them, and a second run is a nil-error no-op.
+func TestMigrateWidensScanResultsAdditivelyAndIdempotently(t *testing.T) {
+	db := setupTradingStackDB(t)
+
+	// Rewind scan_results to its pre-widening shape and seed a row that
+	// predates the three columns.
+	require.NoError(t, db.Exec(`ALTER TABLE scan_results
+		DROP COLUMN price_vs_50ma,
+		DROP COLUMN compression_score,
+		DROP COLUMN sector_momentum`).Error)
+	preID := uuid.New()
+	require.NoError(t, db.Exec(
+		`INSERT INTO scan_results (id, scanned_at, ticker) VALUES (?, ?, ?)`,
+		preID, nowUTC(), "AAPL",
+	).Error)
+
+	// Widening run adds the columns; a second run must be a nil-error no-op.
+	require.NoError(t, MigrateTradingStack(db))
+	require.NoError(t, MigrateTradingStack(db))
+
+	var cols []struct {
+		ColumnName string `gorm:"column:column_name"`
+		DataType   string `gorm:"column:data_type"`
+		IsNullable string `gorm:"column:is_nullable"`
+	}
+	require.NoError(t, db.Raw(`SELECT column_name, data_type, is_nullable
+		FROM information_schema.columns
+		WHERE table_name = 'scan_results'
+		AND column_name IN ('price_vs_50ma', 'compression_score', 'sector_momentum')`,
+	).Scan(&cols).Error)
+	require.Len(t, cols, 3, "all three widened columns must exist after migration")
+	for _, c := range cols {
+		assert.Equal(t, "numeric", c.DataType, "column %s must be numeric", c.ColumnName)
+		assert.Equal(t, "YES", c.IsNullable, "column %s must be nullable", c.ColumnName)
+	}
+
+	// The pre-widening row is preserved and reads back NULL in the new columns.
+	var got ScanResult
+	require.NoError(t, db.First(&got, "id = ?", preID).Error)
+	assert.Equal(t, "AAPL", got.Ticker)
+	assert.Nil(t, got.PriceVs50MA)
+	assert.Nil(t, got.CompressionScore)
+	assert.Nil(t, got.SectorMomentum)
 }
 
 // TestScanResultDataAsOfInvariantRejected verifies data_as_of > scanned_at is
