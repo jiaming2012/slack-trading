@@ -10,8 +10,8 @@
 ## 2. Persistence wiring and idempotency (review nit a)
 
 - [ ] 2.1 `src/go/tradingstack/fidelity/` — `MigrateFidelityMonitoring(db)` creating the unique index on `simulator_fidelity (strategy_id, period_start, period_end)`; idempotent; touches nothing else. Call it from the startup path that runs `MigrateTradingStack`.
-- [ ] 2.2 `checker.go` — convert `Persist` to an upsert on the unique key (`ON CONFLICT` update of `computed_at`, drift fields, `within_tolerance`).
-- [ ] 2.3 Testcontainers tests: round-trip of persisted rows (field-for-field), same-period re-persist updates not duplicates, distinct periods accumulate history, migration idempotency and no contact with playground or other trading-stack tables.
+- [x] 2.2 `checker.go` — convert `Persist` to an upsert on the unique key (`ON CONFLICT` update of `computed_at`, drift fields, `within_tolerance`).
+- [x] 2.3 Testcontainers tests: round-trip of persisted rows (field-for-field), same-period re-persist updates not duplicates, distinct periods accumulate history, migration idempotency and no contact with playground or other trading-stack tables.
 
 ## 3. Monitor loop and trade source
 
