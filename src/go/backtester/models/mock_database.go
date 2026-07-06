@@ -352,15 +352,17 @@ func (m *MockDatabase) SavePlaygroundInMemory(p *Playground) error {
 	return nil
 }
 
+// FindOrder mirrors DatabaseService.FindOrder: it resolves the order by its
+// EXTERNAL (broker) order id over the playground's in-memory orders — the id
+// the live order-update pipeline carries in Tradier status events.
 func (m *MockDatabase) FindOrder(playgroundId uuid.UUID, id uint) (*Playground, *OrderRecord, error) {
 	playground, found := m.playgrounds[playgroundId]
 	if !found {
 		return nil, nil, fmt.Errorf("MockDatabase: playground not found")
 	}
 
-	orders := m.orderRecords[playgroundId]
-	for _, order := range orders {
-		if order.ID == id {
+	for _, order := range playground.GetAllOrders() {
+		if order.ExternalOrderID != nil && *order.ExternalOrderID == id {
 			return playground, order, nil
 		}
 	}

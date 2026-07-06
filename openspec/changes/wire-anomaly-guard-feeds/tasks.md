@@ -27,17 +27,17 @@
 
 ## 5. Live observation feeds
 
-- [ ] 5.1 Rejection outcomes: in `src/go/backtester/services/order_queue.go`, observe `rejected=true` where `DrainTradierOrderQueue` applies a broker rejection and `rejected=false` where `fillPendingOrder` commits a live fill; realtime Modes only
-- [ ] 5.2 Fill deviation + trade rate: at the new-live-trade point in `fillPendingOrder`, call `FillDeviationGuard.ObserveFill(order.RequestedPrice, tradePrice)` (skip non-positive requested price) and `TradesPerHourGuard.ObserveTrade()`
-- [ ] 5.3 Feed staleness: construct a `feedhealth.HeartbeatMonitor` at startup; call `Observe(assetClass, now)` from `TradierApiWorker.updateLiveRepos` when new bars are appended for a realtime Playground; wire it into `FeedStalenessGuard` via `FeedHealthStalenessSignal`
-- [ ] 5.4 Staleness evaluation ticker in `cmd/main.go` (default 30s): call `GuardRegistry.EvaluateFeedStaleness()` only when the market is open (reuse `IsMarketOpen`) and at least one realtime Playground is loaded; calendar-check failure skips the cycle with `Warn`
-- [ ] 5.5 Unit tests driving the real pipeline functions with synthetic events/MockBroker: a rejection event reaches the guard and can trip the shared controller; a fill feeds deviation + trade guards; Simulation paths feed nothing; ticker gating (closed market / no realtime playground / calendar error) never evaluates
+- [x] 5.1 Rejection outcomes: in `src/go/backtester/services/order_queue.go`, observe `rejected=true` where `DrainTradierOrderQueue` applies a broker rejection and `rejected=false` where `fillPendingOrder` commits a live fill; realtime Modes only
+- [x] 5.2 Fill deviation + trade rate: at the new-live-trade point in `fillPendingOrder`, call `FillDeviationGuard.ObserveFill(order.RequestedPrice, tradePrice)` (skip non-positive requested price) and `TradesPerHourGuard.ObserveTrade()`
+- [x] 5.3 Feed staleness: construct a `feedhealth.HeartbeatMonitor` at startup; call `Observe(assetClass, now)` from `TradierApiWorker.updateLiveRepos` when new bars are appended for a realtime Playground; wire it into `FeedStalenessGuard` via `FeedHealthStalenessSignal`
+- [x] 5.4 Staleness evaluation ticker in `cmd/main.go` (default 30s): call `GuardRegistry.EvaluateFeedStaleness()` only when the market is open (reuse `IsMarketOpen`) and at least one realtime Playground is loaded; calendar-check failure skips the cycle with `Warn`
+- [x] 5.5 Unit tests driving the real pipeline functions with synthetic events/MockBroker: a rejection event reaches the guard and can trip the shared controller; a fill feeds deviation + trade guards; Simulation paths feed nothing; ticker gating (closed market / no realtime playground / calendar error) never evaluates
 
 ## 6. Telemetry and Alerts (internal registry, per ADR-0005)
 
 - [x] 6.1 Add `safety_guard_observations_total{guard}` and `safety_guard_trips_total{guard}` counters and `safety_halt_engaged` gauge on `telemetry.Default`; set the gauge on every controller transition and on startup restore
 - [x] 6.2 Push an Alert (AlertEngine → Slack) when a guard trips / the halt engages automatically, naming the guard and reason
-- [ ] 6.3 Unit tests: trip increments counters and sets gauge; release clears gauge; alert emitted on auto-engage
+- [x] 6.3 Unit tests: trip increments counters and sets gauge; release clears gauge; alert emitted on auto-engage
 
 ## 7. Verification gates (autonomous — no live/Paper orders, no prod DB, no push, no new infra)
 

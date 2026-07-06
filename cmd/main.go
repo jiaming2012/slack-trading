@@ -538,8 +538,26 @@ func main() {
 		log.Fatalf("failed to setup backtester router: %v", err)
 	}
 
-	// Start Tradier API worker (must be after backtester router setup)
-	workers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService).Start(ctx)
+	// Start Tradier API worker (must be after backtester router setup). Its
+	// live candle-ingestion path feeds the feed-health heartbeat monitor.
+	tradierApiWorker := workers.NewTradierApiWorker(&wg, tradierMarketTimesalesURL, tradierNonTradesBearerToken, polygonClient, liveOrdersUpdateQueue, calendarURL, db, dbService)
+	tradierApiWorker.SetFeedHeartbeatMonitor(feedHeartbeatMonitor)
+	tradierApiWorker.Start(ctx)
+
+	// Feed-staleness evaluation ticker: evaluates the staleness guard on a
+	// fixed interval, suppressed while the market is closed or no realtime
+	// (Paper/Margin) Playground is loaded — a quiet feed outside trading hours
+	// can never engage the halt. Calendar failures skip the cycle with a Warn.
+	if guardEnvCfg.FeedStalenessEnabled {
+		go safety.RunFeedStalenessTicker(ctx, guardEnvCfg.StalenessEvalInterval, tradierApiWorker.IsMarketOpenErr, func() bool {
+			for _, p := range dbService.GetPlaygrounds() {
+				if p.GetMeta().Mode.IsRealtime() {
+					return true
+				}
+			}
+			return false
+		})
+	}
 
 	// Start heartbeat goroutine (per D-04: every 30 seconds)
 	go telemetry.StartHeartbeat(ctx, dbService.GetHeartbeatStats, time.Now())

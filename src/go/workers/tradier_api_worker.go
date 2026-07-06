@@ -16,6 +16,7 @@ import (
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
+	"github.com/jiaming2012/slack-trading/src/go/feedhealth"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 )
@@ -31,6 +32,46 @@ type TradierApiWorker struct {
 	polygonClient     *marketdata.PolygonTickDataMachine
 	tradesUpdateQueue *models.FIFOQueue[*backtester_models.TradierOrderUpdateEvent]
 	calendarURL       string
+
+	// feedMonitor, when set, receives a wall-clock heartbeat per asset class
+	// whenever the live candle-ingestion path appends new bars for a realtime
+	// Playground. It feeds the feed-staleness anomaly guard
+	// (wire-anomaly-guard-feeds); nil leaves the heartbeat path inert.
+	feedMonitor *feedhealth.HeartbeatMonitor
+}
+
+// SetFeedHeartbeatMonitor installs the feed-health heartbeat monitor observed
+// by the live candle-ingestion path. Optional; nil-safe.
+func (w *TradierApiWorker) SetFeedHeartbeatMonitor(m *feedhealth.HeartbeatMonitor) {
+	w.feedMonitor = m
+}
+
+// observeFeedHeartbeat is the anomaly-guard feed of the live candle-ingestion
+// path (wire-anomaly-guard-feeds): when new bars were appended for a REALTIME
+// Playground's repository, it records a feed-health heartbeat for the repo's
+// asset class at wall-clock RECEIPT time — not the bar timestamp, so delayed-
+// but-arriving data still counts as a live feed (bar-lag detection stays the
+// fidelity checker's job). Simulation/reconciliation repo updates and an
+// unwired monitor are no-ops.
+func (w *TradierApiWorker) observeFeedHeartbeat(symbol models.Instrument, newBarCount int, realtimePlayground bool) {
+	if newBarCount <= 0 || !realtimePlayground || w.feedMonitor == nil {
+		return
+	}
+	w.feedMonitor.Observe(assetClassForInstrument(symbol), time.Now())
+}
+
+// assetClassForInstrument maps a repository's instrument to the feed-health
+// asset class ("equity" or "option"). Unknown instrument types conservatively
+// count into the equity feed — with the composite most-recent-Tick-age signal
+// a misclassified heartbeat can only make the feed look fresher within the
+// same monitor, never invent staleness.
+func assetClassForInstrument(symbol models.Instrument) string {
+	switch symbol.(type) {
+	case models.OptionSymbol, *models.OptionSymbol, *models.OptionContractV3:
+		return "option"
+	default:
+		return "equity"
+	}
 }
 
 func (w *TradierApiWorker) getOrAddOrder(order *models.TradierOrder) (*models.TradierOrder, *backtester_models.TradierOrderCreateEvent) {
@@ -252,7 +293,7 @@ func (w *TradierApiWorker) getStartEndDates(lastTimestamp, now time.Time, period
 	return start, end
 }
 
-func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *backtester_models.CandleRepository) {
+func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *backtester_models.CandleRepository, observeFeedHeartbeat bool) {
 	now := time.Now()
 	period := repo.GetPeriod()
 	periodStr := period.String()
@@ -335,6 +376,8 @@ func (w *TradierApiWorker) updateLiveRepos(playgroundId uuid.UUID, repo *backtes
 		return
 	}
 
+	w.observeFeedHeartbeat(repo.GetSymbol(), len(newCandles), observeFeedHeartbeat)
+
 	if len(newCandles) > 0 {
 		log.Infof("Playground id %s: %s - %s: updated %d candles", playgroundId, repo.GetSymbol().GetTicker(), repo.GetPeriodStr(), len(newCandles))
 	} else {
@@ -357,6 +400,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 	count := 0
 	for _, playground := range playgrounds {
 		if err := playground.GetAccountRole().Validate(); err == nil {
+			isRealtime := playground.GetMeta().Mode.IsRealtime()
 			repos := playground.GetRepositories()
 			for _, repo := range repos {
 				r := repo
@@ -364,7 +408,7 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 				nextUpdateAt := r.GetNextUpdateAt()
 				if nextUpdateAt == nil || now.After(*nextUpdateAt) {
 					count += 1
-					go w.updateLiveRepos(playground.GetId(), r)
+					go w.updateLiveRepos(playground.GetId(), r, isRealtime)
 				}
 			}
 		}
@@ -374,23 +418,36 @@ func (w *TradierApiWorker) ExecuteLiveReposUpdate() {
 }
 
 func (w *TradierApiWorker) IsMarketOpen() bool {
-	now := time.Now()
-	nowEST := now.In(w.location)
-	nowUTC := now.UTC()
-
-	calendar, err := marketdata.FetchMarketCalendar(w.calendarURL, w.quotesBearerToken, nowUTC)
-	if err != nil {
-		log.Errorf("Failed to fetch market calendar: %v", err)
-		return false
-	}
-
-	open, err := marketdata.IsMarketOpen(calendar, nowEST)
+	open, err := w.IsMarketOpenErr()
 	if err != nil {
 		log.Errorf("Failed to check if market is open: %v", err)
 		return false
 	}
 
 	return open
+}
+
+// IsMarketOpenErr reports whether the market is open, surfacing a
+// market-calendar failure as an error instead of a silent false. The
+// feed-staleness evaluation ticker uses this to distinguish "market closed"
+// (suppress evaluation) from "calendar check failed" (skip the cycle with a
+// Warn) per the anomaly-halt-guards spec.
+func (w *TradierApiWorker) IsMarketOpenErr() (bool, error) {
+	now := time.Now()
+	nowEST := now.In(w.location)
+	nowUTC := now.UTC()
+
+	calendar, err := marketdata.FetchMarketCalendar(w.calendarURL, w.quotesBearerToken, nowUTC)
+	if err != nil {
+		return false, fmt.Errorf("IsMarketOpenErr: failed to fetch market calendar: %w", err)
+	}
+
+	open, err := marketdata.IsMarketOpen(calendar, nowEST)
+	if err != nil {
+		return false, fmt.Errorf("IsMarketOpenErr: failed to check if market is open: %w", err)
+	}
+
+	return open, nil
 }
 
 func (w *TradierApiWorker) ExecuteLiveAccountPlotUpdate() {

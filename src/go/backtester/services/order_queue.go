@@ -9,9 +9,24 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
+	"github.com/jiaming2012/slack-trading/src/go/backtester/safety"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
+
+// isLiveOrderPipelinePlayground reports whether a playground participates in
+// the live (Paper/Margin) order pipeline: a realtime-Mode playground or the
+// internal reconciliation container that nets its broker orders. Only those
+// feed the anomaly guards — Simulation fills and rejections are decided by our
+// own fill engine and are meaningless as broker-anomaly signals (and a replay
+// runs days of history in minutes, which would trip the wall-clock
+// trades-per-hour guard instantly).
+func isLiveOrderPipelinePlayground(playground *backtester_models.Playground) bool {
+	if playground == nil {
+		return false
+	}
+	return playground.Meta.Mode.IsRealtime() || playground.Meta.IsReconciliation()
+}
 
 func UpdatePendingMarginOrders(dbService backtester_models.IDatabaseService) error {
 	seekFromPlayground := true
@@ -428,14 +443,29 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 	if newTrade != nil {
 		telemetry.OrdersFilled.Add(1, telemetry.PlaygroundAttrs(playground.Meta.LegacyEnv, string(playground.Meta.Role), telemetry.ClientIDOrEmpty(playground.GetClientId()))...)
 
-		if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
-			fillPrice := orderFillEntry.Price
-			fillQuantity := orderFillEntry.Quantity
-			if orderFillEntry.Trade != nil {
-				fillPrice = orderFillEntry.Trade.Price
-				fillQuantity = orderFillEntry.Trade.Quantity
-			}
+		fillPrice := orderFillEntry.Price
+		fillQuantity := orderFillEntry.Quantity
+		if orderFillEntry.Trade != nil {
+			fillPrice = orderFillEntry.Trade.Price
+			fillQuantity = orderFillEntry.Trade.Quantity
+		}
 
+		// Anomaly-guard feeds (wire-anomaly-guard-feeds): each committed live
+		// fill is one accepted order outcome, one requested-vs-actual price
+		// observation, and one trade. Strictly realtime Modes (Paper/Margin
+		// playgrounds) — Simulation fills, reconciliation-container fills, and
+		// adjustment backfills never feed the guards. Orders with no positive
+		// requested price are skipped rather than evaluated against a
+		// meaningless expectation.
+		if playground.Meta.Mode.IsRealtime() && !order.IsAdjustment {
+			safety.ObserveLiveOrderOutcome(false)
+			if order.RequestedPrice > 0 {
+				safety.ObserveLiveFillDeviation(order.RequestedPrice, fillPrice)
+			}
+			safety.ObserveLiveTrade()
+		}
+
+		if telemetry.ShouldEmitOrderTelemetry(playground.Meta.LegacyEnv) {
 			log.WithFields(log.Fields{
 				"event":         "order_filled",
 				"playground_id": playground.GetId().String(),
@@ -535,6 +565,16 @@ func DrainTradierOrderQueue(source *models.FIFOQueue[*backtester_models.TradierO
 						if err := playground.RejectOrder(order, reason, database); err != nil {
 							log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							continue
+						}
+
+						// Anomaly-guard feed (wire-anomaly-guard-feeds): a
+						// broker rejection applied by the live order-update
+						// pipeline is one rejected outcome for the
+						// rejection-rate guard. The event queue only carries
+						// live-broker updates, but the pipeline gate keeps
+						// Simulation orders out by construction.
+						if isLiveOrderPipelinePlayground(playground) {
+							safety.ObserveLiveOrderOutcome(true)
 						}
 					case string(backtester_models.OrderRecordStatusPending):
 						break
