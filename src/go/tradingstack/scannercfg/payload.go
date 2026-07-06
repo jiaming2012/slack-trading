@@ -145,13 +145,14 @@ func (p Payload) Clone() Payload {
 	if p.RegimeModels != nil {
 		out.RegimeModels = make(map[string]RegimeModel, len(p.RegimeModels))
 		for regime, model := range p.RegimeModels {
-			out.RegimeModels[regime] = model.clone()
+			out.RegimeModels[regime] = model.Clone()
 		}
 	}
 	return out
 }
 
-func (m RegimeModel) clone() RegimeModel {
+// Clone returns a deep copy of the regime model.
+func (m RegimeModel) Clone() RegimeModel {
 	out := RegimeModel{}
 	if m.FeatureWeights != nil {
 		out.FeatureWeights = make(map[string]float64, len(m.FeatureWeights))

@@ -14,9 +14,9 @@
 
 ## 3. Tuner (`scanneropt`)
 
-- [ ] 3.1 Create `src/go/tradingstack/scanneropt/` with `errors.go` and `weighted_stats.go` (EV-weighted mean, pooled std dev, weighted percentile — deterministic, fixture-tested).
-- [ ] 3.2 `tuner.go` — per-regime derivation: win/loss labeling (breakevens excluded), effect-size feature weights over `rsi_14`/`volume_ratio`/`atr_pct` normalized to sum 1 (zero-dispersion → 0; all-zero → carry baseline), winner-percentile overrides (p25 volume_ratio floor, p75 atr_pct ceiling), `score_threshold` carried forward, thin regimes (< `min_labeled_samples` decided) carry the baseline model forward; output is a complete `scannercfg.Payload`.
-- [ ] 3.3 Tuner tests: hand-computed fixture weights/overrides match; thin regime carries baseline; empty regime tags excluded; determinism (run twice, identical payload).
+- [x] 3.1 Create `src/go/tradingstack/scanneropt/` with `errors.go` and `weighted_stats.go` (EV-weighted mean, pooled std dev, weighted percentile — deterministic, fixture-tested).
+- [x] 3.2 `tuner.go` — per-regime derivation: win/loss labeling (breakevens excluded), effect-size feature weights over `rsi_14`/`volume_ratio`/`atr_pct` normalized to sum 1 (zero-dispersion → 0; all-zero → carry baseline), winner-percentile overrides (p25 volume_ratio floor, p75 atr_pct ceiling), `score_threshold` carried forward, thin regimes (< `min_labeled_samples` decided) carry the baseline model forward; output is a complete `scannercfg.Payload`.
+- [x] 3.3 Tuner tests: hand-computed fixture weights/overrides match; thin regime carries baseline; empty regime tags excluded; determinism (run twice, identical payload).
 
 ## 4. Evidence builder and gate integration
 
