@@ -49,3 +49,42 @@ func (s *FeedHealthStalenessSignal) LastTickAge() (time.Duration, bool) {
 	}
 	return age, true
 }
+
+// CompositeStalenessSignal combines several per-asset-class staleness signals
+// into the single signal the FeedStalenessGuard consumes: it reports the age
+// of the most recent Tick across all of them (the minimum available age),
+// because "the Feed is stale" means NO feed has delivered a Tick within the
+// threshold. Signals with no observation yet are skipped, so an asset class
+// that has never ticked (e.g. no option repos loaded) cannot mask or fake
+// staleness; when no signal has any observation the composite is unavailable
+// and the guard stays inactive (cold-start safety).
+type CompositeStalenessSignal struct {
+	signals []StalenessSignal
+}
+
+// NewCompositeStalenessSignal builds the composite over the given signals.
+// Nil entries are tolerated and skipped.
+func NewCompositeStalenessSignal(signals ...StalenessSignal) *CompositeStalenessSignal {
+	return &CompositeStalenessSignal{signals: signals}
+}
+
+// LastTickAge reports the minimum available age across the underlying
+// signals; false when none has an observation yet.
+func (s *CompositeStalenessSignal) LastTickAge() (time.Duration, bool) {
+	var best time.Duration
+	found := false
+	for _, sig := range s.signals {
+		if sig == nil {
+			continue
+		}
+		age, ok := sig.LastTickAge()
+		if !ok {
+			continue
+		}
+		if !found || age < best {
+			best = age
+			found = true
+		}
+	}
+	return best, found
+}

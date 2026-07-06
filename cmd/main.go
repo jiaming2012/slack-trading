@@ -36,6 +36,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/backtester/services"
 	"github.com/jiaming2012/slack-trading/src/go/data"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
+	"github.com/jiaming2012/slack-trading/src/go/feedhealth"
 	"github.com/jiaming2012/slack-trading/src/go/marketdata"
 	"github.com/jiaming2012/slack-trading/src/go/models"
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
@@ -383,6 +384,41 @@ func main() {
 	} else {
 		log.Infof("kill switch initialized (disengaged); state file: %s", killSwitchStatePath)
 	}
+
+	// Anomaly guards (wire-anomaly-guard-feeds): thresholds from GUARD_* env
+	// vars with conservative defaults, per-guard "off" sentinel, Fatal on
+	// unparseable values. The registry binds every guard to the SAME halt
+	// controller the REST surface and order gate use, and is installed via the
+	// package hook so the live order pipeline and workers can observe into it
+	// without constructor threading (nil hook = guards inert).
+	guardEnvCfg, err := safety.LoadGuardEnvConfig()
+	if err != nil {
+		log.Fatalf("invalid anomaly-guard configuration (fix or set the variable to \"off\"): %v", err)
+	}
+	guardEnvCfg.LogEffective()
+
+	// Feed-health heartbeat monitor: the live candle-ingestion path observes a
+	// wall-clock heartbeat per asset class; the composite signal feeds the
+	// feed-staleness guard with the age of the most recent Tick overall.
+	feedThresholds := feedhealth.ThresholdConfig{}
+	if feedCfgPath, cfgErr := feedhealth.ResolveConfigPath(); cfgErr == nil {
+		if loaded, loadErr := feedhealth.LoadThresholdConfig(feedCfgPath); loadErr == nil {
+			feedThresholds = loaded
+		} else {
+			log.Warnf("feedhealth: could not load threshold config (heartbeat monitor still records last-tick ages): %v", loadErr)
+		}
+	} else {
+		log.Warnf("feedhealth: could not resolve config path (heartbeat monitor still records last-tick ages): %v", cfgErr)
+	}
+	feedHeartbeatMonitor := feedhealth.NewHeartbeatMonitor(feedhealth.RealClock{}, feedThresholds)
+	stalenessSignal := safety.NewCompositeStalenessSignal(
+		safety.NewFeedHealthStalenessSignal(feedHeartbeatMonitor, "equity", nil),
+		safety.NewFeedHealthStalenessSignal(feedHeartbeatMonitor, "option", nil),
+	)
+
+	guardRegistry := safety.BuildGuardRegistry(haltController, nil, guardEnvCfg, stalenessSignal)
+	safety.SetGuardRegistry(guardRegistry)
+	log.Info("anomaly-guard registry constructed and bound to the shared halt controller")
 
 	liveOrdersUpdateQueue := models.NewFIFOQueue[*backtester_models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 

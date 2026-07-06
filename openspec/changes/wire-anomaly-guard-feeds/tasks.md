@@ -20,10 +20,10 @@
 
 ## 4. Guard configuration and startup construction
 
-- [ ] 4.1 Add env-var parsing for `GuardConfig` (window/threshold/min-samples/deviation-pct/mean/stddev/staleness threshold/eval interval) with documented conservative defaults, per-guard `off` sentinel, and `Fatal` on unparseable values; log effective config at Info
-- [ ] 4.2 Add a package-level registry hook in `safety` (mirroring `models.SetOrderGate`): `SetGuardRegistry`/accessor, nil-safe so all paths are inert when unwired
-- [ ] 4.3 Construct the `GuardRegistry` in `cmd/main.go` immediately after the `HaltController`, bound to that same controller instance, and install it via the hook
-- [ ] 4.4 Unit tests: env parsing (defaults, overrides, `off`, invalid ⇒ error), nil-hook inertness
+- [x] 4.1 Add env-var parsing for `GuardConfig` (window/threshold/min-samples/deviation-pct/mean/stddev/staleness threshold/eval interval) with documented conservative defaults, per-guard `off` sentinel, and `Fatal` on unparseable values; log effective config at Info
+- [x] 4.2 Add a package-level registry hook in `safety` (mirroring `models.SetOrderGate`): `SetGuardRegistry`/accessor, nil-safe so all paths are inert when unwired
+- [x] 4.3 Construct the `GuardRegistry` in `cmd/main.go` immediately after the `HaltController`, bound to that same controller instance, and install it via the hook
+- [x] 4.4 Unit tests: env parsing (defaults, overrides, `off`, invalid ⇒ error), nil-hook inertness
 
 ## 5. Live observation feeds
 
