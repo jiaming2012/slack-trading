@@ -21,9 +21,9 @@
 
 ## 4. Persistence
 
-- [ ] 4.1 `models.go` — GORM models `ShadowRun` (`shadow_runs`) and `ShadowDivergence` (`shadow_divergences`, `kind` CHECK + Go validation); `MigrateShadowDeployment(db)` additive/idempotent (DO-block pattern), clear wrapped error if `scanner_config_proposals` is absent.
-- [ ] 4.2 `store.go` — `ShadowStore` interface (`PersistRun`, `FetchRun`, `ListRuns`), GORM implementation, in-memory fake.
-- [ ] 4.3 `synthetic.go` — fixture payload pair (active + divergent shadow) and observation batch shared by tests and the CLI `--synthetic` mode.
+- [x] 4.1 `models.go` — GORM models `ShadowRun` (`shadow_runs`) and `ShadowDivergence` (`shadow_divergences`, `kind` CHECK + Go validation); `MigrateShadowDeployment(db)` additive/idempotent (DO-block pattern), clear wrapped error if `scanner_config_proposals` is absent.
+- [x] 4.2 `store.go` — `ShadowStore` interface (`PersistRun`, `FetchRun`, `ListRuns`), GORM implementation, in-memory fake.
+- [x] 4.3 `synthetic.go` — fixture payload pair (active + divergent shadow) and observation batch shared by tests and the CLI `--synthetic` mode.
 - [ ] 4.4 Testcontainers tests: run + divergences round-trip; invalid `kind` rejected; migration creates exactly the two tables, idempotent, alters nothing else; completed run leaves `scanner_configs`/`scanner_config_proposals` (incl. proposal status) untouched.
 
 ## 5. Operator entry point and Taskfile targets
