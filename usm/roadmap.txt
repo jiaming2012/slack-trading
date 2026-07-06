@@ -44,7 +44,7 @@ Trading stack v4
         wire-risk-overlay-state: |{"bg":"#C5E1A5"}
     Feedback loop
         fidelity-checker: |{"bg":"#C5E1A5"}
-        continuous-fidelity-monitoring: |{"bg":"#FFF59D"}
+        continuous-fidelity-monitoring: |{"bg":"#C5E1A5"}
         strategy-optimizer: |{"bg":"#C5E1A5"}
         ev-tracker: |{"bg":"#C5E1A5"}
         net-ev-cost-model: |{"bg":"#C5E1A5"}
