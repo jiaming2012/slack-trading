@@ -12,11 +12,27 @@ import (
 
 // Alert rule names.
 const (
-	RuleStaleHeartbeat    = "stale_heartbeat"
-	RuleErrorRate         = "error_rate"
-	RuleAutoHalt          = "auto_halt"
-	RuleDeferredAutoClose = "deferred_auto_close"
+	RuleStaleHeartbeat      = "stale_heartbeat"
+	RuleErrorRate           = "error_rate"
+	RuleAutoHalt            = "auto_halt"
+	RuleDeferredAutoClose   = "deferred_auto_close"
+	RuleUnprotectedPosition = "unprotected_position"
 )
+
+// UnprotectedPosition describes a live position whose broker-held companion
+// stop failed to place (wire-companion-stops): the position has NO protective
+// exit at the broker until the operator intervenes. The safety package records
+// these; the alert engine fires one alert per position until acknowledged.
+type UnprotectedPosition struct {
+	EntryOrderID uint
+	Symbol       string
+	Quantity     int
+	Reason       string
+}
+
+// UnprotectedPositionsFunc reports the currently known unprotected positions.
+// Wired at startup from the safety package's companion-stop hook.
+type UnprotectedPositionsFunc func() []UnprotectedPosition
 
 // Ack channels.
 const (
@@ -68,6 +84,10 @@ type AlertEngine struct {
 	// kill switch is engaged, its source ("auto"/"manual"), and the recorded
 	// reason (which names the tripping guard). Nil = rule inactive.
 	haltStatus HaltStatusFunc
+
+	// unprotected, when set, feeds the unprotected_position rule with the
+	// positions whose companion stops failed to place. Nil = rule inactive.
+	unprotected UnprotectedPositionsFunc
 }
 
 // HaltStatusFunc reports the kill-switch halt state for the auto_halt alert
@@ -80,6 +100,14 @@ func (e *AlertEngine) SetHaltStatus(fn HaltStatusFunc) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.haltStatus = fn
+}
+
+// SetUnprotectedPositions installs the provider consulted by the
+// unprotected_position rule. Safe to call while the engine is running.
+func (e *AlertEngine) SetUnprotectedPositions(fn UnprotectedPositionsFunc) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.unprotected = fn
 }
 
 // NewAlertEngine wires the engine with the operator-tunable thresholds from
@@ -191,6 +219,22 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 				rule:    RuleAutoHalt,
 				subject: "kill-switch",
 				message: fmt.Sprintf("kill switch AUTO-HALT engaged: %s — order submission is blocked until acknowledge + release (task kill-switch:acknowledge / kill-switch:release)", reason),
+			}
+		}
+	}
+
+	// Unprotected-position rule (wire-companion-stops): a companion-stop
+	// placement failure left a live position with NO broker-held protective
+	// exit. One alert per position, firing (and re-notifying) until the
+	// operator acknowledges; it resolves only if the safety hook reports the
+	// position protected or gone.
+	if e.unprotected != nil {
+		for _, u := range e.unprotected() {
+			subject := fmt.Sprintf("%s/entry-%d", u.Symbol, u.EntryOrderID)
+			want[RuleUnprotectedPosition+"|"+subject] = desired{
+				rule:    RuleUnprotectedPosition,
+				subject: subject,
+				message: fmt.Sprintf("position UNPROTECTED: companion stop failed for %s qty %d (entry order %d): %s — the position has NO broker-held exit; place a protective stop manually", u.Symbol, u.Quantity, u.EntryOrderID, u.Reason),
 			}
 		}
 	}

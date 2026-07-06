@@ -18,14 +18,14 @@
 
 ## 3. Companion-stop configuration (opt-in)
 
-- [ ] 3.1 Parse `COMPANION_STOP_DISTANCE` in `cmd/main.go`: unset ⇒ feature disabled with one loud startup `Warn`; non-positive ⇒ startup `Fatal`; positive ⇒ `CompanionStopConfig` constructed and installed for the live pipeline
-- [ ] 3.2 Unit tests: unset disables, non-positive refuses startup (parse function level), positive enables
+- [x] 3.1 Parse `COMPANION_STOP_DISTANCE` in `cmd/main.go`: unset ⇒ feature disabled with one loud startup `Warn`; non-positive ⇒ startup `Fatal`; positive ⇒ `CompanionStopConfig` constructed and installed for the live pipeline
+- [x] 3.2 Unit tests: unset disables, non-positive refuses startup (parse function level), positive enables
 
 ## 4. Eligibility and idempotency helpers
 
-- [ ] 4.1 Implement fill eligibility in `safety` (or a thin `services` helper): realtime Mode, equity class, entry side (buy/sell_short), no `CloseOrderId`, not adjustment, not system auto-close, not reconciliation-role, tag != `companion-stop`
-- [ ] 4.2 Implement per-entry idempotency: in-memory placed-set keyed by entry order ID plus a durable association (entry order ID attribute on the stop request; lookup against ingested companion-stop orders on restart)
-- [ ] 4.3 Unit tests: each exclusion (close, adjustment, auto-close, reconciliation, companion-stop tag, options class, Simulation), and duplicate-event ⇒ single stop
+- [x] 4.1 Implement fill eligibility in `safety` (or a thin `services` helper): realtime Mode, equity class, entry side (buy/sell_short), no `CloseOrderId`, not adjustment, not system auto-close, not reconciliation-role, tag != `companion-stop`
+- [x] 4.2 Implement per-entry idempotency: in-memory placed-set keyed by entry order ID plus a durable association (entry order ID attribute on the stop request; lookup against ingested companion-stop orders on restart)
+- [x] 4.3 Unit tests: each exclusion (close, adjustment, auto-close, reconciliation, companion-stop tag, options class, Simulation), and duplicate-event ⇒ single stop
 
 ## 5. Live-fill pipeline invocation with halt bypass
 

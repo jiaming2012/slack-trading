@@ -263,6 +263,55 @@ func TestAlertEngine(t *testing.T) {
 		assert.Len(t, notifier.messages(), 2)
 	})
 
+	t.Run("unprotected position fires per position naming symbol and quantity", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, _ := newTestEngine(db, notifier)
+
+		var mu sync.Mutex
+		var positions []UnprotectedPosition
+		e.SetUnprotectedPositions(func() []UnprotectedPosition {
+			mu.Lock()
+			defer mu.Unlock()
+			out := make([]UnprotectedPosition, len(positions))
+			copy(out, positions)
+			return out
+		})
+
+		start := time.Now().UTC()
+
+		// No failures: silent.
+		e.Evaluate(start)
+		assert.Empty(t, notifier.messages())
+
+		// A companion-stop placement failure leaves a position unprotected.
+		mu.Lock()
+		positions = []UnprotectedPosition{{EntryOrderID: 11, Symbol: "AAPL", Quantity: 19, Reason: "broker rejected stop order"}}
+		mu.Unlock()
+
+		e.Evaluate(start.Add(30 * time.Second))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleUnprotectedPosition)
+		assert.Contains(t, msgs[0], "position UNPROTECTED")
+		assert.Contains(t, msgs[0], "AAPL")
+		assert.Contains(t, msgs[0], "qty 19")
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ?", RuleUnprotectedPosition).Order("id desc").First(&row).Error)
+		assert.Equal(t, "AAPL/entry-11", row.Subject)
+
+		// The position becomes protected (or is closed): the alert resolves.
+		mu.Lock()
+		positions = nil
+		mu.Unlock()
+
+		e.Evaluate(start.Add(time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2)
+		assert.Contains(t, msgs[1], "RESOLVED")
+	})
+
 	t.Run("deferred auto-closes fire while outstanding, resolve at zero", func(t *testing.T) {
 		notifier := &fakeNotifier{}
 		e, _, reg := newTestEngine(db, notifier)

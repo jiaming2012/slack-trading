@@ -30,6 +30,12 @@ type EntryFill struct {
 	EntrySide models.TradierOrderSide
 	Quantity  int
 	FillPrice float64
+
+	// EntryOrderID, when non-zero, is the entry order this stop protects. It is
+	// encoded into the stop order's tag (see CompanionStopTagForEntry) — the
+	// durable association that makes placement idempotent per entry order
+	// across event redelivery and process restarts.
+	EntryOrderID uint
 }
 
 // PlaceCompanionStop places a broker-held stop order that protects a just-filled
@@ -78,13 +84,18 @@ func PlaceCompanionStop(ctx context.Context, broker models.IBroker, mode models.
 		return nil, fmt.Errorf("PlaceCompanionStop: %w", err)
 	}
 
+	tag := CompanionStopTag
+	if fill.EntryOrderID > 0 {
+		tag = CompanionStopTagForEntry(fill.EntryOrderID)
+	}
+
 	req := &models.PlaceOrderRequest{
 		Symbol:     fill.Symbol,
 		Quantities: []int{fill.Quantity},
 		Sides:      []models.TradierOrderSide{protectiveSide},
 		OrderType:  models.TradierOrderTypeStop,
 		Class:      models.OrderRecordClassEquity,
-		Tag:        "companion-stop",
+		Tag:        tag,
 		StopPrice:  &stopPrice,
 	}
 

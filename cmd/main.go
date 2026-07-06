@@ -420,6 +420,27 @@ func main() {
 	safety.SetGuardRegistry(guardRegistry)
 	log.Info("anomaly-guard registry constructed and bound to the shared halt controller")
 
+	// Broker-side companion stops (wire-companion-stops): explicit opt-in via
+	// COMPANION_STOP_DISTANCE. Unset = feature disabled with a loud warning (a
+	// guessed default distance is more dangerous than none); non-positive or
+	// unparseable = refuse startup rather than error on every live fill. When
+	// armed, every live (Paper/Margin) equity entry fill places a broker-held
+	// protective stop through the IBroker seam — below the halt-gated
+	// submission path, so an engaged kill switch can never strand an open
+	// position without its protective exit. Placement failures surface through
+	// the alert engine as "position UNPROTECTED" alerts.
+	companionStopCfg, err := safety.LoadCompanionStopEnvConfig()
+	if err != nil {
+		log.Fatalf("invalid companion-stop configuration (set %s to a positive price distance, or unset it to disable): %v", safety.EnvCompanionStopDistance, err)
+	}
+	if companionStopCfg == nil {
+		log.Warnf("%s is NOT set: broker-side companion stops are DISABLED — live entry fills carry NO broker-held protective exit if this process dies with a position open. Set %s (positive absolute price distance) after the operator-only verification to arm them.", safety.EnvCompanionStopDistance, safety.EnvCompanionStopDistance)
+	} else {
+		safety.SetCompanionStopper(safety.NewCompanionStopper(*companionStopCfg))
+		log.Infof("safety: companion stops ARMED (distance=%v) — every live equity entry fill places a broker-held protective stop, including while the kill switch is engaged", companionStopCfg.StopDistance)
+	}
+	alertEngine.SetUnprotectedPositions(safety.UnprotectedPositions)
+
 	liveOrdersUpdateQueue := models.NewFIFOQueue[*backtester_models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 999)
 
 	// Register pprof handlers

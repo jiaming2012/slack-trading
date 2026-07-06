@@ -44,6 +44,7 @@ func (b *MockBroker) fillPlaceEquityTradeRequest(req *PlaceOrderRequest) {
 		AvgFillPrice:              0,
 		LastFillPrice:             0,
 		AbsoluteRemainingQuantity: float64(req.Quantities[0]),
+		Tag:                       req.Tag,
 	}
 
 	// need to get the external order id. Maybe place it on the live order?
