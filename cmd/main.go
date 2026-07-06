@@ -545,11 +545,13 @@ func main() {
 	tradierApiWorker.Start(ctx)
 
 	// Feed-staleness evaluation ticker: evaluates the staleness guard on a
-	// fixed interval, suppressed while the market is closed or no realtime
-	// (Paper/Margin) Playground is loaded — a quiet feed outside trading hours
-	// can never engage the halt. Calendar failures skip the cycle with a Warn.
+	// fixed interval, suppressed while the market is closed, while no realtime
+	// (Paper/Margin) Playground is loaded, and for a grace window equal to the
+	// staleness threshold after each market open — so neither a quiet feed
+	// outside trading hours nor the overnight last-Tick gap at the opening
+	// bell can engage the halt. Calendar failures skip the cycle with a Warn.
 	if guardEnvCfg.FeedStalenessEnabled {
-		go safety.RunFeedStalenessTicker(ctx, guardEnvCfg.StalenessEvalInterval, tradierApiWorker.IsMarketOpenErr, func() bool {
+		go safety.RunFeedStalenessTicker(ctx, guardEnvCfg.StalenessEvalInterval, guardEnvCfg.Guards.FeedStalenessThreshold, tradierApiWorker.IsMarketOpenErr, func() bool {
 			for _, p := range dbService.GetPlaygrounds() {
 				if p.GetMeta().Mode.IsRealtime() {
 					return true

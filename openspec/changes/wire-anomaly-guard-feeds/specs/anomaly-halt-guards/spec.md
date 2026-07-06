@@ -112,7 +112,19 @@ The staleness guard SHALL be evaluated periodically on a ticker, and evaluation
 SHALL be suppressed while the market is closed or while no realtime Playground
 is loaded, so that a quiet feed outside trading hours can never engage the halt.
 A failure of the market-calendar check itself SHALL skip that evaluation cycle
-with a warning rather than tripping the guard.
+with a warning rather than tripping the guard, and SHALL NOT alter the
+open/closed transition tracking.
+
+Evaluation SHALL additionally be suppressed for a grace window equal to the
+staleness threshold after every closed-to-open market transition (a server
+start while the market is already open counts as a transition), so that the
+last-Tick age accrued across the overnight gap — or any closed period — can
+never engage the halt at the opening bell before the feed has had the
+threshold's worth of time to deliver its first bar of the session. After the
+grace window elapses, evaluation SHALL proceed normally: a feed that has
+delivered no Tick since the open SHALL trip once the grace window has elapsed,
+and a feed that ticked after the open and then went quiet SHALL trip per the
+threshold.
 
 #### Scenario: Stale feed trips the halt
 
@@ -133,6 +145,21 @@ with a warning rather than tripping the guard.
 
 - **WHEN** the market is closed and no Ticks have arrived for longer than the staleness threshold
 - **THEN** the periodic evaluation SHALL be suppressed and the guard SHALL NOT engage the halt
+
+#### Scenario: Overnight gap at the market open does not trip
+
+- **WHEN** the market transitions from closed to open (or the server starts while the market is open) and the most recent Tick predates the transition by more than the staleness threshold
+- **THEN** the periodic evaluation SHALL be suppressed for a grace window equal to the staleness threshold after the transition, and the guard SHALL NOT engage the halt during that window
+
+#### Scenario: Feed dead from the open trips after the grace window
+
+- **WHEN** the market opened, the grace window has elapsed, and no Tick has arrived since the open
+- **THEN** the evaluation SHALL proceed and the guard SHALL engage the halt with source automatic and a reason naming the feed-staleness guard
+
+#### Scenario: Genuine staleness after the open still trips
+
+- **WHEN** the feed delivered Ticks after the open and then went quiet for longer than the staleness threshold, with the grace window elapsed
+- **THEN** the guard SHALL engage the halt with source automatic and a reason naming the feed-staleness guard
 
 #### Scenario: Live candle ingestion feeds the heartbeat
 
