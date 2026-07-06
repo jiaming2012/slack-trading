@@ -4,9 +4,9 @@
 
 ## 1. Package scaffold and decision engine
 
-- [ ] 1.1 Create `src/go/tradingstack/shadowdeploy/` with `errors.go` (sentinels incl. `ErrNotSimulation`, `ErrNoObservations`, `ErrProposalRejectedByGate`) and `observation.go` (`Observation` lifted from a persisted `scan_results` row; nullable features as pointers).
-- [ ] 1.2 `engine.go` — `EvaluateConfig(payload, obs) []Decision`: admission via regime `hard_filter_overrides` (absent override / nil feature does not reject), per-feature batch min-max normalization, weighted-sum scoring excluding `drop_features` (nil contributes 0, noted), threshold + top-N selection with ticker-ascending ties, `no_model` marking. Pure, deterministic.
-- [ ] 1.3 Engine tests: hand-computed fixture decisions; floor rejection; `no_model` visible but never selected; determinism incl. top-N tie-break; nil-feature handling.
+- [x] 1.1 Create `src/go/tradingstack/shadowdeploy/` with `errors.go` (sentinels incl. `ErrNotSimulation`, `ErrNoObservations`, `ErrProposalRejectedByGate`) and `observation.go` (`Observation` lifted from a persisted `scan_results` row; nullable features as pointers).
+- [x] 1.2 `engine.go` — `EvaluateConfig(payload, obs) []Decision`: admission via regime `hard_filter_overrides` (absent override / nil feature does not reject), per-feature batch min-max normalization, weighted-sum scoring excluding `drop_features` (nil contributes 0, noted), threshold + top-N selection with ticker-ascending ties, `no_model` marking. Pure, deterministic.
+- [x] 1.3 Engine tests: hand-computed fixture decisions; floor rejection; `no_model` visible but never selected; determinism incl. top-N tie-break; nil-feature handling.
 
 ## 2. Divergence and outcome comparison
 
