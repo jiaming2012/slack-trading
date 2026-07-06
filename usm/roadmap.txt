@@ -31,7 +31,7 @@ Trading stack v4
         db-partitioning-retention: |{"bg":"#C5E1A5"}
     Market scanning
         scanner-l1-l2: |{"bg":"#C5E1A5"}
-        widen-scan-results-columns: |{"bg":"#FFF59D"}
+        widen-scan-results-columns: |{"bg":"#C5E1A5"}
         scanner-ml-ranking: |{"bg":"#FFFFFF"}
         regime-robustness-layer: |{"bg":"#FFFFFF"}
         feed-health-staleness: |{"bg":"#C5E1A5"}
