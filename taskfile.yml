@@ -268,6 +268,20 @@ tasks:
       - 'go run ./cmd/optimizer-validate'
     dir: "{{.ROOT_DIR}}"
 
+  optimizer:overfitting-check:
+    desc: 'Run the shared optimizer overfitting gate self-check over built-in passing and failing synthetic fixtures (no DB required). Exits non-zero only on internal error; the failing fixture verdict is the expected demonstration.'
+    cmds:
+      - 'go run ./cmd/overfitting-check'
+    dir: "{{.ROOT_DIR}}"
+
+  test:overfitting:
+    desc: 'Run the overfitting gate package unit and testcontainers persistence suite (requires Docker)'
+    cmds:
+      - 'go test -count=1 ./src/go/tradingstack/overfitting/...'
+    dir: "{{.ROOT_DIR}}"
+    env:
+      TRADING_PROJECT_DIR: "{{.ROOT_DIR}}"
+
   test:net-ev-cost-model:
     desc: 'Run the costmodel package unit and testcontainers migration suite (requires Docker)'
     cmds:
