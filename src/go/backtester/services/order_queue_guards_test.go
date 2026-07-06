@@ -213,6 +213,46 @@ func TestGuardFeeds_BrokerRejectionReachesGuardAndTripsHalt(t *testing.T) {
 	require.ErrorIs(t, f.controller.AllowOrder(), safety.ErrHalted)
 }
 
+// When the 10s poller laps the drain, the SAME broker rejection is enqueued
+// more than once. RejectOrder is idempotent for the redelivered event, and
+// the guard must see exactly ONE rejected observation — phantom observations
+// from redelivery would inflate the rejection rate toward a spurious halt.
+func TestGuardFeeds_RedeliveredRejectionEventObservedOnce(t *testing.T) {
+	telemetry.Init()
+	f := newGuardPipelineFixture(t)
+
+	installGuardRegistry(t, safety.BuildGuardRegistry(f.controller, nil, safety.GuardEnvConfig{
+		Guards: safety.GuardConfig{
+			RejectionWindow:     time.Hour,
+			RejectionThreshold:  0.99,
+			RejectionMinSamples: 100, // never trips: this test isolates observation counting
+		},
+		RejectionEnabled: true,
+	}, nil))
+
+	f.placeOrder(t, 1, 19)
+	reconcileOrder := f.lastReconcileOrder(t)
+	require.NoError(t, f.broker.FillOrder(*reconcileOrder.ExternalOrderID, 100.0, string(backtester_models.OrderRecordStatusRejected)))
+
+	// The poller runs twice before the drain catches up: the still-pending
+	// order is re-fetched and the identical rejection event is enqueued twice.
+	require.NoError(t, UpdateTradierOrderQueue(f.updateQueue, f.database, 0))
+	require.NoError(t, UpdateTradierOrderQueue(f.updateQueue, f.database, 0))
+
+	_, err := DrainTradierOrderQueue(f.updateQueue, f.database)
+	require.NoError(t, err)
+
+	require.Equal(t, 1.0, guardCounter(t, "safety_guard_observations_total", "rejection-rate guard"),
+		"a redelivered rejection event must not add a phantom observation — only the pending→rejected transition counts")
+
+	// A later drain of yet another redelivery of the same (now rejected)
+	// order also adds nothing.
+	require.NoError(t, UpdateTradierOrderQueue(f.updateQueue, f.database, 0))
+	_, err = DrainTradierOrderQueue(f.updateQueue, f.database)
+	require.NoError(t, err)
+	require.Equal(t, 1.0, guardCounter(t, "safety_guard_observations_total", "rejection-rate guard"))
+}
+
 // A live fill flowing through the REAL pipeline must feed the fill-deviation
 // guard (requested vs actual price), the trades-per-hour guard (exactly ONE
 // trade per broker fill — the reconciliation-container fill of the same broker

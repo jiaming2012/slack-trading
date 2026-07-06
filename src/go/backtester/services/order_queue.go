@@ -562,6 +562,13 @@ func DrainTradierOrderQueue(source *models.FIFOQueue[*backtester_models.TradierO
 							reason = *event.ModifyOrder.Reason
 						}
 
+						// Capture the pre-reject status: RejectOrder is
+						// idempotent (nil for an already-rejected order), and
+						// the 10s poller can re-enqueue the same rejection
+						// event before the drain catches up — only the actual
+						// pending→rejected TRANSITION is one broker rejection.
+						wasAlreadyRejected := order.Status == backtester_models.OrderRecordStatusRejected
+
 						if err := playground.RejectOrder(order, reason, database); err != nil {
 							log.Errorf("handleLiveOrders: failed to reject order: %v", err)
 							continue
@@ -570,10 +577,11 @@ func DrainTradierOrderQueue(source *models.FIFOQueue[*backtester_models.TradierO
 						// Anomaly-guard feed (wire-anomaly-guard-feeds): a
 						// broker rejection applied by the live order-update
 						// pipeline is one rejected outcome for the
-						// rejection-rate guard. The event queue only carries
-						// live-broker updates, but the pipeline gate keeps
-						// Simulation orders out by construction.
-						if isLiveOrderPipelinePlayground(playground) {
+						// rejection-rate guard — observed once per transition,
+						// never per redelivered event. The event queue only
+						// carries live-broker updates, but the pipeline gate
+						// keeps Simulation orders out by construction.
+						if !wasAlreadyRejected && isLiveOrderPipelinePlayground(playground) {
 							safety.ObserveLiveOrderOutcome(true)
 						}
 					case string(backtester_models.OrderRecordStatusPending):
