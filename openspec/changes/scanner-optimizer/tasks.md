@@ -43,10 +43,10 @@
 
 ## 8. Verification gates
 
-- [ ] 8.1 `go build ./src/go/... ./cmd/...` green.
-- [ ] 8.2 `task test` green (existing backtester suite unaffected).
-- [ ] 8.3 `task test:trading-stack` green (tradingstack suite incl. `optvalidation` after the row extension; requires Docker).
-- [ ] 8.4 `task test:scanner-optimizer` green; `task scanner:optimize` (synthetic) and `task optimizer:validate` both run green locally.
+- [x] 8.1 `go build ./src/go/... ./cmd/...` green.
+- [x] 8.2 `task test` green (existing backtester suite unaffected).
+- [x] 8.3 `task test:trading-stack` green (tradingstack suite incl. `optvalidation` after the row extension; requires Docker).
+- [x] 8.4 `task test:scanner-optimizer` green; `task scanner:optimize` (synthetic) and `task optimizer:validate` both run green locally.
 
 ## 9. Operator-only follow-ups
 
