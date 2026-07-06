@@ -2,10 +2,10 @@
 
 ## 1. FillDelta aggregation fix (review nit b)
 
-- [ ] 1.1 `src/go/tradingstack/fidelity/compare.go` — add `FillDeltaAbs` to `PairDelta` (mean of the absolute per-leg deltas, entry and exit); keep `FillDelta` as the mean of the signed leg deltas; update doc comments to state which form feeds which output.
-- [ ] 1.2 `score.go` — `Score` normalizes the mean of `FillDeltaAbs` (replacing mean `|FillDelta|`) for the composite; persisted/reported `DriftFill` stays the signed mean. Verify monotonicity and clamping guarantees still hold by construction.
-- [ ] 1.3 `synthetic.go` — add an offsetting-legs synthetic case (entry +0.50 / exit −0.50) with hand-computed expected magnitude 0.50 and signed delta 0.0.
-- [ ] 1.4 `fidelity_test.go` — tests: opposite-signed legs yield non-zero fill-drift magnitude and non-zero composite contribution; zero-drift pair still scores 0.0; existing scoring fixtures re-pinned where the fix changes them (each re-pin hand-computed, not snapshotted).
+- [x] 1.1 `src/go/tradingstack/fidelity/compare.go` — add `FillDeltaAbs` to `PairDelta` (mean of the absolute per-leg deltas, entry and exit); keep `FillDelta` as the mean of the signed leg deltas; update doc comments to state which form feeds which output.
+- [x] 1.2 `score.go` — `Score` normalizes the mean of `FillDeltaAbs` (replacing mean `|FillDelta|`) for the composite; persisted/reported `DriftFill` stays the signed mean. Verify monotonicity and clamping guarantees still hold by construction.
+- [x] 1.3 `synthetic.go` — add an offsetting-legs synthetic case (entry +0.50 / exit −0.50) with hand-computed expected magnitude 0.50 and signed delta 0.0.
+- [x] 1.4 `fidelity_test.go` — tests: opposite-signed legs yield non-zero fill-drift magnitude and non-zero composite contribution; zero-drift pair still scores 0.0; existing scoring fixtures re-pinned where the fix changes them (each re-pin hand-computed, not snapshotted).
 
 ## 2. Persistence wiring and idempotency (review nit a)
 

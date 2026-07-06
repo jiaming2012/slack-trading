@@ -40,7 +40,9 @@ func DefaultConfig() FidelityConfig {
 type Composite struct {
 	// DriftPnL is the aggregated (summed) simulator-minus-live PnL delta.
 	DriftPnL float64
-	// DriftFill is the average per-pair fill delta.
+	// DriftFill is the average per-pair SIGNED fill delta (the reporting and
+	// persistence form — its sign says whether sim fills flatter live). The
+	// composite score consumes the per-leg absolute magnitude instead.
 	DriftFill float64
 	// DriftScore is the composite drift score, clamped to [0.0, 1.0].
 	DriftScore float64
@@ -73,8 +75,8 @@ func clamp01(v float64) float64 {
 
 // Score reduces a strategy's per-pair deltas into a Composite. The composite
 // drift_score is a fixed weighted sum of three normalized components — mean
-// absolute PnL drift, mean absolute fill drift, and exit-reason mismatch rate —
-// each in [0, 1]. Because the weights sum to 1 the sum is already in [0, 1]; it
+// absolute PnL drift, mean per-leg-absolute fill drift (FillDeltaAbs), and
+// exit-reason mismatch rate — each in [0, 1]. Because the weights sum to 1 the sum is already in [0, 1]; it
 // is clamped as a defensive guarantee. The score is 0.0 for perfect fidelity,
 // clamped to at most 1.0 under arbitrarily large drift, and monotonic
 // non-decreasing in the magnitude of each dimension. An empty delta slice scores
@@ -84,13 +86,18 @@ func Score(deltas []PairDelta, cfg FidelityConfig) Composite {
 		return Composite{}
 	}
 
-	var sumPnL, sumAbsPnL, sumFill, sumAbsFill float64
+	var sumPnL, sumAbsPnL, sumFill, sumFillAbs float64
 	var mismatches int
 	for _, d := range deltas {
 		sumPnL += d.PnLDelta
 		sumAbsPnL += math.Abs(d.PnLDelta)
 		sumFill += d.FillDelta
-		sumAbsFill += math.Abs(d.FillDelta)
+		// The fill magnitude uses the per-leg absolute mean (FillDeltaAbs), NOT
+		// |FillDelta|: opposite-signed entry/exit legs cancel inside the signed
+		// mean, and |signed mean| would score real drift as zero (review nit b).
+		// FillDeltaAbs >= |FillDelta| always holds (triangle inequality), so the
+		// fix can only raise scores — monotonicity and clamping are preserved.
+		sumFillAbs += d.FillDeltaAbs
 		if !d.ExitReasonMatch {
 			mismatches++
 		}
@@ -98,11 +105,12 @@ func Score(deltas []PairDelta, cfg FidelityConfig) Composite {
 
 	n := float64(len(deltas))
 	meanAbsPnL := sumAbsPnL / n
-	meanAbsFill := sumAbsFill / n
+	meanAbsFill := sumFillAbs / n
 	mismatchRate := float64(mismatches) / n
 
 	// The composite blends the drift magnitude on each dimension; magnitudes use
-	// mean absolute deltas so positive and negative pair drifts do not cancel.
+	// mean absolute deltas so positive and negative drifts do not cancel — across
+	// pairs (PnL) and across the entry/exit legs within a pair (fill).
 	nPnL := boundedNorm(meanAbsPnL, cfg.PnLNormK)
 	nFill := boundedNorm(meanAbsFill, cfg.FillNormK)
 	nExit := clamp01(mismatchRate)

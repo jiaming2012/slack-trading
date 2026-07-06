@@ -69,8 +69,34 @@ func TestComparePair_ZeroDrift(t *testing.T) {
 	d := ComparePair(Pair{Live: live, Sim: live})
 	assert.Zero(t, d.PnLDelta)
 	assert.Zero(t, d.FillDelta)
+	assert.Zero(t, d.FillDeltaAbs)
 	assert.Zero(t, d.HoldDelta)
 	assert.True(t, d.ExitReasonMatch)
+}
+
+// Review nit (b): an entry leg drifting +0.50 with an exit leg drifting −0.50
+// must yield a 0.50 fill-drift magnitude (mean of the absolute per-leg deltas)
+// while the signed fill delta cancels to 0.0.
+func TestComparePair_OppositeSignedLegsDoNotCancel(t *testing.T) {
+	live := syntheticLiveBase("s", "AAPL", 0)
+	sim := live
+	sim.EntryFill = live.EntryFill + 0.50
+	sim.ExitFill = live.ExitFill - 0.50
+
+	d := ComparePair(Pair{Live: live, Sim: sim})
+	assert.InDelta(t, 0.0, d.FillDelta, 1e-9, "signed mean cancels by construction")
+	assert.InDelta(t, 0.50, d.FillDeltaAbs, 1e-9, "absolute per-leg mean must not cancel")
+}
+
+// The offsetting-legs pair must contribute non-zero fill drift to the
+// composite. Hand-computed under DefaultConfig: meanAbsFill = 0.50, nFill =
+// 0.5/(0.5+1.0) = 1/3, drift_score = WeightFill * 1/3 = 0.3/3 = 0.1. The
+// persisted/reported DriftFill stays the signed mean: 0.0.
+func TestScore_OffsettingLegsContributeNonZeroFillDrift(t *testing.T) {
+	comp := Score(deltasOf(pairsOf(OffsettingFillDriftSet())), DefaultConfig())
+	assert.InDelta(t, 0.1, comp.DriftScore, 1e-9, "composite must see the fill-drift magnitude")
+	assert.Greater(t, comp.DriftScore, 0.0)
+	assert.InDelta(t, 0.0, comp.DriftFill, 1e-9, "reported drift_fill stays the signed mean")
 }
 
 func TestComparePair_PnLDeltaIsSimMinusLive(t *testing.T) {
@@ -231,14 +257,19 @@ func TestRunFidelityCheck_SyntheticEndToEnd(t *testing.T) {
 	spy := &spyAlerter{}
 	results, decisions, err := RunFidelityCheck(context.Background(), set, period, DefaultConfig(), spy)
 	require.NoError(t, err)
-	require.Len(t, results, 4)
+	require.Len(t, results, 5)
 
 	byID := indexByStrategy(results)
 	assert.Equal(t, Proceed, decisions["zero-drift"])
 	assert.Equal(t, Proceed, decisions["pnl-drift"])
+	assert.Equal(t, Proceed, decisions["offsetting-fill-drift"])
 	assert.Equal(t, Pause, decisions["exit-mismatch"])
 	assert.Equal(t, Pause, decisions["extreme-drift"])
 	assert.Equal(t, 1.0, byID["extreme-drift"].DriftScore)
+	// Offsetting legs score non-zero (0.1 hand-computed) with a signed
+	// drift_fill of 0.0 — the pre-fix aggregation scored this strategy 0.0.
+	assert.InDelta(t, 0.1, byID["offsetting-fill-drift"].DriftScore, 1e-9)
+	assert.InDelta(t, 0.0, byID["offsetting-fill-drift"].DriftFill, 1e-9)
 	// Exactly the two breaching strategies raised alerts.
 	require.Len(t, spy.calls, 2)
 }

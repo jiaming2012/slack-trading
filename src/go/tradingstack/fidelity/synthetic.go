@@ -79,6 +79,28 @@ func ExitReasonMismatchSet() TradeSet {
 	return set
 }
 
+// OffsettingFillDriftSet builds a strategy whose simulator entry fill drifts
+// +0.50 above live while its simulator exit fill drifts −0.50 below live on
+// every pair. The signed per-pair fill delta cancels to 0.0 while the
+// fill-drift magnitude is 0.50 (mean of the absolute per-leg deltas), pinning
+// the review-nit fix: offsetting legs must not hide fill drift from the
+// composite score. Hand-computed under DefaultConfig: nFill = 0.5/(0.5+1.0) =
+// 1/3, drift_score = 0.3 * 1/3 = 0.1 ≤ 0.2 — within tolerance, but visibly
+// non-zero where the pre-fix aggregation scored it 0.0.
+func OffsettingFillDriftSet() TradeSet {
+	const sid = "offsetting-fill-drift"
+	var set TradeSet
+	for i := 0; i < 3; i++ {
+		live := syntheticLiveBase(sid, "AMZN", i)
+		sim := live
+		sim.EntryFill = live.EntryFill + 0.50
+		sim.ExitFill = live.ExitFill - 0.50
+		set.Live = append(set.Live, live)
+		set.Sim = append(set.Sim, sim)
+	}
+	return set
+}
+
 // ExtremeDriftSet builds a strategy whose simulator trades diverge from live on
 // every dimension by arbitrarily large amounts and fully mismatch exit reasons,
 // so its drift_score clamps to 1.0 and it is out of tolerance.
@@ -101,16 +123,18 @@ func ExtremeDriftSet() TradeSet {
 	return set
 }
 
-// SyntheticTradeSet combines the four known-drift strategies into a single
+// SyntheticTradeSet combines the five known-drift strategies into a single
 // TradeSet (with its covering Period) so the operator command's --synthetic mode
-// exercises the full engine with no live-trade input. The zero-drift and small
-// PnL-drift strategies land within tolerance (Proceed); the exit-mismatch and
-// extreme-drift strategies breach tolerance (Pause).
+// exercises the full engine with no live-trade input. The zero-drift, small
+// PnL-drift, and offsetting-fill-drift strategies land within tolerance
+// (Proceed); the exit-mismatch and extreme-drift strategies breach tolerance
+// (Pause).
 func SyntheticTradeSet() (TradeSet, Period) {
 	var set TradeSet
 	for _, s := range []TradeSet{
 		ZeroDriftSet(),
 		FixedPnLDriftSet(5.0),
+		OffsettingFillDriftSet(),
 		ExitReasonMismatchSet(),
 		ExtremeDriftSet(),
 	} {
