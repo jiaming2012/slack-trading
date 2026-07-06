@@ -478,6 +478,13 @@ func fillPendingOrder(playground *backtester_models.Playground, order *backteste
 				"client_id":     telemetry.ClientIDOrEmpty(playground.GetClientId()),
 			}).Info("order filled")
 		}
+
+		// Broker-side companion stop (wire-companion-stops): the fill has
+		// committed and the order record has been re-saved — the earliest
+		// moment the fill price and quantity are authoritative. Placement
+		// failure never fails the fill (it is loud instead), and a nil
+		// stopper / ineligible fill makes this a strict no-op.
+		maybePlaceCompanionStop(playground, order, fillPrice, fillQuantity)
 	}
 
 	return newTrade, resultErr

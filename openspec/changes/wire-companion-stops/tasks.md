@@ -29,14 +29,14 @@
 
 ## 5. Live-fill pipeline invocation with halt bypass
 
-- [ ] 5.1 Invoke `PlaceCompanionStop` at the end of `fillPendingOrder` (`src/go/backtester/services/order_queue.go`) for eligible committed live fills, via the `IBroker` seam directly (below the halt-gated path); placement failure never fails the fill
-- [ ] 5.2 Telemetry + Alert: `safety_companion_stops_placed_total` / `safety_companion_stop_failures_total` counters; Alert on failure naming the unprotected symbol/quantity
-- [ ] 5.3 Unit/e2e tests with MockBroker: long entry ⇒ sell stop below fill; short entry ⇒ buy_to_cover stop above fill; **halt engaged ⇒ stop still placed while ordinary submission stays rejected**; companion-stop fill event fed back through the pipeline ⇒ no second stop; broker error ⇒ fill remains committed, failure counter + Alert
-- [ ] 5.4 Regression: Simulation-Mode fills through the same pipeline place no stop and are byte-for-byte unchanged (existing suites stay green)
+- [x] 5.1 Invoke `PlaceCompanionStop` at the end of `fillPendingOrder` (`src/go/backtester/services/order_queue.go`) for eligible committed live fills, via the `IBroker` seam directly (below the halt-gated path); placement failure never fails the fill
+- [x] 5.2 Telemetry + Alert: `safety_companion_stops_placed_total` / `safety_companion_stop_failures_total` counters; Alert on failure naming the unprotected symbol/quantity
+- [x] 5.3 Unit/e2e tests with MockBroker: long entry ⇒ sell stop below fill; short entry ⇒ buy_to_cover stop above fill; **halt engaged ⇒ stop still placed while ordinary submission stays rejected**; companion-stop fill event fed back through the pipeline ⇒ no second stop; broker error ⇒ fill remains committed, failure counter + Alert
+- [x] 5.4 Regression: Simulation-Mode fills through the same pipeline place no stop and are byte-for-byte unchanged (existing suites stay green)
 
 ## 6. Documentation of the wiring
 
-- [ ] 6.1 Update `openspec/specs`-adjacent operator docs surface only if one exists for kill-switch/stops; otherwise ensure `taskfile.yml` target descriptions and startup log lines are self-explanatory (no new operator-visible command is introduced by this change; if one emerges during implementation, add its matching `task` target in the same commit)
+- [x] 6.1 Update `openspec/specs`-adjacent operator docs surface only if one exists for kill-switch/stops; otherwise ensure `taskfile.yml` target descriptions and startup log lines are self-explanatory (no new operator-visible command is introduced by this change; if one emerges during implementation, add its matching `task` target in the same commit) — no such docs surface exists; no new command introduced; startup log lines document arm/disable states and the halt-bypass behavior
 
 ## 7. Verification gates (autonomous — MockBroker/Simulation only)
 

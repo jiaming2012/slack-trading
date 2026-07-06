@@ -35,6 +35,16 @@ type guardPipelineFixture struct {
 // controller for the guard registry under test.
 func newGuardPipelineFixture(t *testing.T) *guardPipelineFixture {
 	t.Helper()
+	mock := backtester_models.NewMockBroker(1000, nil)
+	return newGuardPipelineFixtureWithBroker(t, mock, mock)
+}
+
+// newGuardPipelineFixtureWithBroker is the injectable-seam variant: liveBroker
+// is what the live account (and therefore the pipeline) talks to, while mock
+// remains available for fill/assertion plumbing. The companion-stop tests use
+// it to wrap MockBroker with selective failures without touching the harness.
+func newGuardPipelineFixtureWithBroker(t *testing.T, liveBroker backtester_models.IBroker, mock *backtester_models.MockBroker) *guardPipelineFixture {
+	t.Helper()
 
 	startTime := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, time.January, 2, 0, 0, 0, 0, time.UTC)
@@ -48,7 +58,7 @@ func newGuardPipelineFixture(t *testing.T) *guardPipelineFixture {
 		{Timestamp: startTime.Add(2 * time.Minute), Close: 30.0},
 	}
 
-	broker := backtester_models.NewMockBroker(1000, nil)
+	broker := liveBroker
 	database := backtester_models.NewMockDatabase()
 	newTradesQueue := models.NewFIFOQueue[*backtester_models.TradeRecord]("newTradesFilledQueue", 4)
 	liveAccount, err := backtester_models.NewLiveAccount(broker, database)
@@ -117,7 +127,7 @@ func newGuardPipelineFixture(t *testing.T) *guardPipelineFixture {
 	require.NoError(t, err)
 
 	return &guardPipelineFixture{
-		broker:         broker,
+		broker:         mock,
 		database:       database,
 		livePlayground: livePlayground,
 		updateQueue:    models.NewFIFOQueue[*backtester_models.TradierOrderUpdateEvent]("liveOrdersUpdateQueue", 4),
