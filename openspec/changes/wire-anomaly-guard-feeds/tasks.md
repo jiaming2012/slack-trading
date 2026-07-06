@@ -41,10 +41,10 @@
 
 ## 7. Verification gates (autonomous — no live/Paper orders, no prod DB, no push, no new infra)
 
-- [ ] 7.1 `go build ./src/go/... ./cmd/...` green
-- [ ] 7.2 `task test` green (backtester suite)
-- [ ] 7.3 Targeted suites green: `go test ./src/go/backtester/safety/... ./src/go/api/killswitchapi/... ./src/go/backtester/services/... ./src/go/telemetry/... ./src/go/workers/...`
-- [ ] 7.4 Simulation-only end-to-end check against a locally run dev server: engage/release/acknowledge via `task kill-switch:*` with a token set, confirm 401 without the token, confirm Simulation ticking is unaffected by guard wiring (no live playgrounds ⇒ no staleness evaluation)
+- [x] 7.1 `go build ./src/go/... ./cmd/...` green
+- [x] 7.2 `task test` green (backtester suite)
+- [x] 7.3 Targeted suites green: `go test ./src/go/backtester/safety/... ./src/go/api/killswitchapi/... ./src/go/backtester/services/... ./src/go/telemetry/... ./src/go/workers/...` (workers carries one pre-existing baseline failure — `Test_TradierOrdersMonitoringWorker_CheckForCreateOrUpdate` uint64/uint assert — present before this change, verified via `git stash` baseline; no failures added)
+- [x] 7.4 Simulation-only end-to-end check against a locally run dev server: engage/release/acknowledge via `task kill-switch:*` with a token set, confirm 401 without the token, confirm Simulation ticking is unaffected by guard wiring (no live playgrounds ⇒ no staleness evaluation) — drill run against a dev server on PORT=8081 (8080 held by an unrelated process); `task test:smoke` green with guards constructed
 
 ## 8. Operator-only follow-ups (NOT part of the autonomous run)
 
