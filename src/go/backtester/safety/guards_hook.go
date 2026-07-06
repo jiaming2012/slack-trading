@@ -122,8 +122,11 @@ func EvaluateFeedStalenessGuard() (bool, string) {
 }
 
 // recordGuardTrip records a guard trip in telemetry and the log. The guard has
-// already engaged the shared halt controller by the time this runs.
+// already engaged the shared halt controller by the time this runs. Warn, not
+// Error: the operator is notified through the auto_halt Alert rule, and the
+// safety path must not feed the error-rate alert counter (which would fire a
+// second, redundant alert off the same event).
 func recordGuardTrip(guardName, reason string) {
 	telemetry.GuardTrips.Add(1, telemetry.GuardLabel(guardName))
-	log.Errorf("safety: %s TRIPPED the kill switch — order submission halted (acknowledge + release to resume): %s", guardName, reason)
+	log.Warnf("safety: %s TRIPPED the kill switch — order submission halted (acknowledge + release to resume): %s", guardName, reason)
 }

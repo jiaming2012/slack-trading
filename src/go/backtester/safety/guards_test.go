@@ -2,9 +2,12 @@ package safety
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -253,6 +256,45 @@ func TestFeedStalenessGuard_AbsentSignalDegradesToInactive(t *testing.T) {
 	tripped, _ = g2.Evaluate()
 	require.False(t, tripped)
 	require.False(t, c.Status().Engaged)
+}
+
+// --- Persist failure during an auto-trip is loud, not silent ---
+
+// failingSaveStore loads clear but refuses every save — the "halt file
+// unwritable during an anomaly" scenario.
+type failingSaveStore struct{}
+
+func (failingSaveStore) Load() (HaltState, error)   { return HaltState{}, nil }
+func (failingSaveStore) Save(state HaltState) error { return errors.New("disk full") }
+
+// A guard trip whose halt-state persist fails must still report tripped and
+// hold the halt in memory (orders stay blocked for this process), and the
+// persist failure must be logged loudly — before this fix the EngageAuto
+// error was discarded, so a crash after the trip booted the server CLEAR
+// with no trace of why.
+func TestGuardTrip_PersistFailureIsLoggedAndHaltHoldsInMemory(t *testing.T) {
+	c, err := NewHaltController(failingSaveStore{})
+	require.NoError(t, err)
+
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	g := NewFillDeviationGuard(0.02, c)
+	tripped, reason := g.ObserveFill(100.0, 150.0)
+
+	require.True(t, tripped, "a persist failure must not suppress the trip result")
+	require.Contains(t, reason, "fill-deviation guard")
+	require.True(t, c.Status().Engaged, "the halt must hold in memory even when persisting it failed")
+	require.ErrorIs(t, c.AllowOrder(), ErrHalted)
+
+	var found bool
+	for _, e := range hook.AllEntries() {
+		if e.Level == log.WarnLevel && strings.Contains(e.Message, "persisting the halt state FAILED") {
+			found = true
+			require.Contains(t, e.Message, "disk full", "the underlying store error must be surfaced")
+		}
+	}
+	require.True(t, found, "a failed halt-state persist during an auto-trip must be logged loudly (Warn)")
 }
 
 // --- Registry wiring: any guard trip halts subsequent orders (source=auto) ---

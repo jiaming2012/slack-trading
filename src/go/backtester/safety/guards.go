@@ -95,8 +95,21 @@ func (g *RejectionRateGuard) prune(now time.Time) {
 }
 
 func (g *RejectionRateGuard) engage(reason string) {
-	if g.engager != nil {
-		_ = g.engager.EngageAuto(reason)
+	engageHalt(g.engager, reason)
+}
+
+// engageHalt trips the shared halt through the engager and loudly surfaces a
+// persist failure: EngageAuto mutates the in-memory halt state BEFORE
+// persisting, so on error the halt IS active for this process but may not
+// survive a restart — silently discarding that error would let a crashed
+// server reboot clear after a real anomaly. Warn, not Error: the safety path
+// must not feed the error-rate alert counter it sits next to.
+func engageHalt(engager HaltEngager, reason string) {
+	if engager == nil {
+		return
+	}
+	if err := engager.EngageAuto(reason); err != nil {
+		log.Warnf("safety: halt ENGAGED in memory but persisting the halt state FAILED — the halt will NOT survive a restart; investigate the state file immediately (reason=%q): %v", reason, err)
 	}
 }
 
@@ -128,9 +141,7 @@ func (g *FillDeviationGuard) ObserveFill(expected, actual float64) (bool, string
 	dev := math.Abs(actual-expected) / expected
 	if dev > g.pct {
 		reason := fmt.Sprintf("%s: fill %.4f deviates %.2f%% from expected %.4f (threshold %.2f%%)", g.Name(), actual, dev*100, expected, g.pct*100)
-		if g.engager != nil {
-			_ = g.engager.EngageAuto(reason)
-		}
+		engageHalt(g.engager, reason)
 		return true, reason
 	}
 	return false, ""
@@ -220,9 +231,7 @@ func (g *TradesPerHourGuard) ObserveTrade() (bool, string) {
 	threshold := g.histMean + g.sigmaFactor*g.histStdDev
 	if rate > threshold {
 		reason := fmt.Sprintf("%s: current rate %.0f trades/hr exceeds mean %.2f + 2σ (%.2f)", g.Name(), rate, g.histMean, threshold)
-		if g.engager != nil {
-			_ = g.engager.EngageAuto(reason)
-		}
+		engageHalt(g.engager, reason)
 		return true, reason
 	}
 	return false, ""
@@ -272,9 +281,7 @@ func (g *FeedStalenessGuard) Evaluate() (bool, string) {
 	}
 	if age > g.threshold {
 		reason := fmt.Sprintf("%s: last tick age %s exceeds threshold %s", g.Name(), age, g.threshold)
-		if g.engager != nil {
-			_ = g.engager.EngageAuto(reason)
-		}
+		engageHalt(g.engager, reason)
 		return true, reason
 	}
 	return false, ""
