@@ -162,9 +162,97 @@ func TestEvaluate_DrawdownBreaker(t *testing.T) {
 	})
 }
 
-// N2 — drawdownPct defensively truncates to the most recent 5 sessions rather
-// than trusting the supplier. A stale, deeper peak outside the trailing window
-// must not trip the breaker.
+// wire-risk-overlay-state nit d — the drawdown breaker fails SAFE on a
+// wiped-out book: a non-empty series whose 5-session peak is <= 0 trips the
+// breaker categorically instead of silently disabling it; an empty series
+// stays inactive; negative values under a positive peak read as ordinary deep
+// drawdown, not a categorical trip.
+func TestEvaluate_DrawdownFailSafe(t *testing.T) {
+	limits := permissiveLimits()
+	limits.MaxDrawdownPct = 5.0
+	entry := ProposedOrder{Ticker: "AAPL", SignedNotional: 1_000}
+
+	t.Run("all-non-positive equity trips the breaker", func(t *testing.T) {
+		state := PortfolioState{EquitySeries: []float64{0, -5_000, -12_000}}
+		dec, err := Evaluate(state, entry, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec.Allowed)
+		require.True(t, dec.HasBreach(LimitDrawdownBreaker))
+		var reason string
+		for _, b := range dec.Breaches {
+			if b.Type == LimitDrawdownBreaker {
+				reason = b.Reason
+			}
+		}
+		require.Contains(t, reason, "non-positive", "breach reason must name the non-positive peak")
+		require.Contains(t, reason, "0.00", "breach reason must carry the peak value")
+	})
+
+	t.Run("a stale positive peak outside the window does not mask a wiped-out trailing window", func(t *testing.T) {
+		// 6 values: the positive peak is OUTSIDE the trailing-5 window; every
+		// value inside the window is <= 0, so the fail-safe trips.
+		state := PortfolioState{EquitySeries: []float64{100_000, 0, -1, -2, -3, -4}}
+		dec, err := Evaluate(state, entry, limits, emptyView())
+		require.NoError(t, err)
+		require.True(t, dec.HasBreach(LimitDrawdownBreaker))
+	})
+
+	t.Run("negative values with a positive peak read as ordinary deep drawdown", func(t *testing.T) {
+		state := PortfolioState{EquitySeries: []float64{100_000, 50_000, -10_000}} // dd = 110%
+		dec, err := Evaluate(state, entry, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec.Allowed)
+		require.True(t, dec.HasBreach(LimitDrawdownBreaker))
+		var reason string
+		for _, b := range dec.Breaches {
+			if b.Type == LimitDrawdownBreaker {
+				reason = b.Reason
+			}
+		}
+		require.Contains(t, reason, "exceeds max", "an ordinary drawdown breach, not the categorical fail-safe")
+		require.NotContains(t, reason, "non-positive")
+	})
+
+	t.Run("empty series leaves the breaker inactive", func(t *testing.T) {
+		state := PortfolioState{EquitySeries: nil}
+		dec, err := Evaluate(state, entry, limits, emptyView())
+		require.NoError(t, err)
+		require.False(t, dec.HasBreach(LimitDrawdownBreaker))
+		require.True(t, dec.Allowed)
+	})
+
+	t.Run("reduction passes even with a wiped-out book", func(t *testing.T) {
+		state := PortfolioState{EquitySeries: []float64{-1, -2, -3}}
+		reduction := ProposedOrder{Ticker: "AAPL", SignedNotional: -1_000, IsReduction: true}
+		dec, err := Evaluate(state, reduction, limits, emptyView())
+		require.NoError(t, err)
+		require.True(t, dec.Allowed)
+		require.Empty(t, dec.Breaches)
+	})
+}
+
+// wire-risk-overlay-state nit a — an EMPTY EV-weight set pins the
+// strategy-allocation family INACTIVE: no strategy_allocation breach for any
+// entry (contrast: a strategy absent from a NON-empty set is capped at zero).
+func TestEvaluate_EmptyEvSetPinsAllocationFamilyInactive(t *testing.T) {
+	limits := permissiveLimits()
+	limits.DeployableCapital = 100_000
+
+	for name, ev := range map[string]map[string]float64{"nil map": nil, "empty map": {}} {
+		t.Run(name, func(t *testing.T) {
+			state := PortfolioState{EvWeights: ev, StrategyDeployed: map[string]float64{"anything": 1e9}}
+			order := ProposedOrder{Ticker: "AAPL", StrategyID: "anything", SignedNotional: 1e9}
+			dec, err := Evaluate(state, order, limits, emptyView())
+			require.NoError(t, err)
+			require.False(t, dec.HasBreach(LimitStrategyAllocation))
+			require.True(t, dec.Allowed)
+		})
+	}
+}
+
+// N2 — the drawdown window defensively truncates to the most recent 5 sessions
+// rather than trusting the supplier. A stale, deeper peak outside the trailing
+// window must not trip the breaker.
 func TestEvaluate_DrawdownTruncatesToFiveSessions(t *testing.T) {
 	limits := permissiveLimits()
 	limits.MaxDrawdownPct = 5.0

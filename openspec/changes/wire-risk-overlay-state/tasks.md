@@ -2,9 +2,9 @@
 
 ## 1. Engine fixes (pure, no I/O)
 
-- [ ] 1.1 `engine.go` — drawdown fail-safe (nit d): a non-empty equity series with 5-session peak `<= 0` trips the breaker (reject entries with a `drawdown_breaker` breach naming the non-positive peak); an empty series stays breaker-inactive. Reductions untouched (short-circuit precedes the breaker).
-- [ ] 1.2 `engine.go` / `state.go` — document the empty-EV-set pin semantics (nit a) at the `EvWeights` field and the allocation check: empty set = family pinned inactive, non-empty set = unlisted strategy capped at zero. Behavior unchanged; wording made explicit.
-- [ ] 1.3 `engine_test.go` — new fixtures: all-non-positive equity trips the breaker; negative-values-with-positive-peak reads as ordinary deep drawdown (no categorical trip); empty series produces no `drawdown_breaker` breach; empty EV set produces no `strategy_allocation` breach.
+- [x] 1.1 `engine.go` — drawdown fail-safe (nit d): a non-empty equity series with 5-session peak `<= 0` trips the breaker (reject entries with a `drawdown_breaker` breach naming the non-positive peak); an empty series stays breaker-inactive. Reductions untouched (short-circuit precedes the breaker).
+- [x] 1.2 `engine.go` / `state.go` — document the empty-EV-set pin semantics (nit a) at the `EvWeights` field and the allocation check: empty set = family pinned inactive, non-empty set = unlisted strategy capped at zero. Behavior unchanged; wording made explicit.
+- [x] 1.3 `engine_test.go` — new fixtures: all-non-positive equity trips the breaker; negative-values-with-positive-peak reads as ordinary deep drawdown (no categorical trip); empty series produces no `drawdown_breaker` breach; empty EV set produces no `strategy_allocation` breach.
 
 ## 2. Notional mapping (nit c)
 

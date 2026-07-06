@@ -34,8 +34,14 @@ type PortfolioState struct {
 
 	// EvWeights maps a strategy ID to its raw strategy_ev_weights.ev_weight
 	// value. The per-strategy allocation cap normalizes these against their
-	// sum. A strategy absent from this map has weight zero. An empty map means
-	// no EV-weight data is participating and the allocation check is skipped.
+	// sum. A strategy absent from a NON-empty map has weight zero (every entry
+	// rejected). An EMPTY map means no EV-weight data is participating at all
+	// and the strategy-allocation family is PINNED INACTIVE — no
+	// strategy_allocation breach is produced for any entry. The pin is a
+	// data-availability semantic, not enforcement; the consuming gate exposes
+	// it via the grodt.riskoverlay.ev_family_active gauge and an operator
+	// alert, because an enabled gate silently missing a limit family must be
+	// operator-visible.
 	EvWeights map[string]float64
 
 	// EquitySeries is the trailing (up to 5-session) portfolio equity series in

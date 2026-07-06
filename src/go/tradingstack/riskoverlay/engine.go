@@ -111,16 +111,42 @@ func Evaluate(state PortfolioState, order ProposedOrder, limits RiskLimits, crow
 
 	// Drawdown circuit breaker: halt entries when trailing drawdown strictly
 	// exceeds the limit. Reductions never reach here (short-circuited above).
-	if dd, ok := drawdownPct(state.EquitySeries); ok && dd > limits.MaxDrawdownPct {
-		breaches = append(breaches, LimitBreach{
-			Type:   LimitDrawdownBreaker,
-			Reason: fmt.Sprintf("trailing drawdown %.2f%% exceeds max %.2f%%; entries halted", dd, limits.MaxDrawdownPct),
-		})
+	//
+	// Fail-safe (wire-risk-overlay-state, review nit d): a NON-EMPTY equity
+	// series whose 5-session peak is <= 0 trips the breaker categorically — a
+	// wiped-out or negative-equity book must halt entries, not silently disable
+	// the breaker exactly when it matters most. An EMPTY series stays
+	// breaker-inactive: absence of data is not evidence of catastrophe (and the
+	// wired production snapshot always carries at least current equity).
+	if window := trailingEquityWindow(state.EquitySeries); len(window) > 0 {
+		peak := window[0]
+		for _, e := range window {
+			if e > peak {
+				peak = e
+			}
+		}
+		if peak <= 0 {
+			breaches = append(breaches, LimitBreach{
+				Type:   LimitDrawdownBreaker,
+				Reason: fmt.Sprintf("trailing 5-session equity peak %.2f is non-positive; breaker tripped fail-safe, entries halted", peak),
+			})
+		} else if dd := (peak - window[len(window)-1]) / peak * 100; dd > limits.MaxDrawdownPct {
+			breaches = append(breaches, LimitBreach{
+				Type:   LimitDrawdownBreaker,
+				Reason: fmt.Sprintf("trailing drawdown %.2f%% exceeds max %.2f%%; entries halted", dd, limits.MaxDrawdownPct),
+			})
+		}
 	}
 
-	// Per-strategy EV-weighted allocation cap. The family is INACTIVE only when
-	// there is no EV-weight data at all (empty map) — that is treated as
-	// unconstrained. When the map is non-empty, every listed strategy is subject
+	// Per-strategy EV-weighted allocation cap. The family is PINNED INACTIVE
+	// when — and only when — there is no EV-weight data at all (empty map): no
+	// strategy_allocation breach can be produced. This pin is a deliberate
+	// data-availability semantic, not enforcement: capping every strategy at
+	// zero for missing data would halt all entries platform-wide, which is the
+	// drawdown breaker's job. The engine stays pure and signals nothing here;
+	// the consuming gate makes the pin observable (ev_family_active gauge +
+	// operator alert — see the simulation-risk-gate telemetry requirements).
+	// When the map is NON-empty, every listed strategy is subject
 	// to a cap and every unlisted strategy has a zero cap. Individual negative
 	// weights (decaying EV) are clamped to zero before normalizing, so a negative
 	// strategy neither inflates another strategy's cap nor gets a positive one.
@@ -155,31 +181,16 @@ func Evaluate(state PortfolioState, order ProposedOrder, limits RiskLimits, crow
 	return Decision{Allowed: len(breaches) == 0, Breaches: breaches}, nil
 }
 
-// drawdownPct computes (peak-current)/peak*100 over the trailing equity series,
-// where peak is the maximum equity in the window and current is the last
-// element. The second return is false when drawdown cannot be computed (empty
-// series or a non-positive peak), in which case the breaker never trips.
-func drawdownPct(equity []float64) (float64, bool) {
-	if len(equity) == 0 {
-		return 0, false
-	}
-	// Defensively truncate to the most recent 5 sessions rather than trusting the
-	// supplier to have windowed it — the breaker is specified over a 5-session
-	// trailing window and a longer series would let a stale, deeper peak trip it.
+// trailingEquityWindow defensively truncates the equity series to the most
+// recent 5 sessions rather than trusting the supplier to have windowed it —
+// the breaker is specified over a 5-session trailing window and a longer
+// series would let a stale, deeper peak trip it. An empty input returns an
+// empty window (breaker inactive: no data is not catastrophe).
+func trailingEquityWindow(equity []float64) []float64 {
 	if len(equity) > 5 {
-		equity = equity[len(equity)-5:]
+		return equity[len(equity)-5:]
 	}
-	peak := equity[0]
-	for _, e := range equity {
-		if e > peak {
-			peak = e
-		}
-	}
-	if peak <= 0 {
-		return 0, false
-	}
-	current := equity[len(equity)-1]
-	return (peak - current) / peak * 100, true
+	return equity
 }
 
 // sumPositiveWeights totals the EV weights used as the normalizer, clamping each
