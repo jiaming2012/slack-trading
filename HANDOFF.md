@@ -2,6 +2,29 @@
 
 **As of:** 2026-07-05 (overnight run complete) · **Branch:** merged to `dev` and pushed to origin (2026-07-05, operator-approved); the run branch `claude/overnight-20260704` is retained locally
 
+## Update 2026-07-06 — Overnight batch #2: safety rails + feedback loop (morning report)
+
+**All 9 signed-off changes implemented, gated, and archived**; roadmap shows all 9 cards green. Branch `dev`, **87 commits ahead of origin, NOT pushed** (push is yours). All three safety changes went through mandatory adversarial review — **all three BLOCKED on first pass with real findings, were remediated, and re-APPROVED**:
+
+1. `wire-anomaly-guard-feeds` — blocked on a proven market-open staleness false-halt (would have fired most mornings); fixed with a post-open grace window + boundary tests.
+2. `wire-companion-stops` — blocked on netted multi-trade fills leaving remainders unprotected, restart-lost deferred auto-closes with a false all-clear, and a poisonable idempotency scan; fixed with cumulative delta-sized stops, a persisted `deferred_auto_closes` table with sticky-until-ack alerting, and validation-layer reserved-tag enforcement.
+3. `wire-risk-overlay-state` — blocked on ITM-exercise settlement legs classified as new entries (tick-wedge once limits are narrowed) and unreadable config silently booting permissive; fixed with an unforgeable system-order bypass and fail-on-unreadable-config.
+
+Feedback-loop stack (gates + strict validation, no adversarial review per sign-off): `widen-scan-results-columns`, `overfitting-countermeasures` (shared 4-check gate), `strategy-optimizer` + `scanner-optimizer` (recommendation-only proposal queues; nothing auto-applies — spec-enforced), `shadow-config-deployment` (Simulation-only side-by-side evidence), `continuous-fidelity-monitoring` (scheduled drift checks + `fidelity_drift` alert + job heartbeats).
+
+**Closing gates (final tree, all green):** `go build ./...` · `task test` · `task test:python` (395 passed) · `task lint:package-names` · `task test:no-gorm-leaks` · `task test:smoke` · `task test:trading-stack` (at the workers' final HEADs). Pre-existing baseline failures (workers uint64/uint, models/utils domain set, marketdata stub) unchanged.
+
+**History rewrite notice:** a broad `git add` during one archive commit swept a concurrent worker's 15MB compiled binary into history; it was scrubbed with filter-branch over the unpushed range (trees verified byte-identical, backup refs dropped, gc'd). Commit hashes after the wire-companion-stops archive therefore differ from any hashes quoted in earlier notes. Attribution blemish remains (one commit carries another worker's CLI/taskfile hunks) — content correct, cosmetic only.
+
+### Operator actions (priority order)
+1. **Arming the safety rails (never autonomous):** set `KILL_SWITCH_TOKEN` in prod; set `COMPANION_STOP_DISTANCE` (feature off until set); narrow `src/go/risk-overlay-config.yaml` limits (ships permissive) and tune the degradation/EV-pin alert thresholds; tune `GUARD_*` thresholds from real Paper stats (staleness threshold must exceed finest bar period + fetch latency); then the drills — supervised Paper session (zero spurious trips), feed-outage drill, halt drill, sandbox companion-stop verification, Margin rollout decision.
+2. **Prod DB:** apply the additive `scan_results` migration (3 columns); watch the first prod boot with `FIDELITY_MONITOR_ENABLED` — `MigrateTradingStack` against partitioned parents is untested in partition-then-migrate order (escape hatch: leave the flag off).
+3. **First review-queue cycles:** `task optimizer:proposals`, `task scanner:proposals`, first real shadow run + promote/hold decision; expect early proposals to be gate-rejected until thresholds tune.
+4. **Carried from before:** telemetry change task 8.3 (deploy + otel-lgtm decommission both boxes + optional Slack slash command) — that change is still the only active one; ROTATE the Google service-account key (still in git history); ADR-0004 decision.
+
+### Follow-up ledger (candidate white cards, from reviewer minors + honest scope cuts)
+Safety: sync-broker-submission-failure guard visibility · persistent-calendar-failure alerting · per-asset-class staleness · unarmed-guard gauge · alert-stickiness restart durability · corrupt-deferral-row boot behavior · sub-share exposure alerting · deferred-close retry backoff · long-ITM-expiry deferral pin · pre-existing `stockOrderRequest` overwrite quirk · PositionsCache `log.Fatalf` hole · pre-existing lock-order inversion · zero-price-order exposure invisibility · 0-byte-config-yields-defaults edge. Feedback loop: proposal `dismissed`-status vocabulary alignment across optimizers · `scanner-config-hot-swap` · `shadow-outcome-backfill` · live-trade ingestion (unlocks real fidelity source) · batch re-simulation (unlocks Bayesian optimization) · strategy-config registry (unlocks absolute proposals).
+
 ## Update 2026-07-05 evening — replace-otel-with-internal-telemetry (implemented, NOT archived)
 
 The signed-off OpenSpec change `replace-otel-with-internal-telemetry` (ADR-0005) is fully implemented and verified on `dev` (7 commits, local only — not pushed). The OTel pipeline is gone: in-process registry → Postgres (`telemetry_metrics`/`telemetry_heartbeats`/`telemetry_alerts`, 30-day prune), `POST /telemetry/heartbeat` ingestion, alert engine with Slack delivery + ack (`task alert:ack ID=<id>` or `ack <id>` via the revived Slack inbound handler) + re-notify-until-acked, `task telemetry:status`, `infra:verify` telemetry-freshness gate. E2E proven locally: real Python heartbeats → rows → forced stale alerts → Slack delivery → both ack channels → resolution. Gates green: build, `task test`, `task test:python` (395 passed), `task test:smoke`; models/utils Go test failures are the pre-existing baseline set (14), byte-identical before/after.
