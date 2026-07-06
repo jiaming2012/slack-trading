@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	backtester_models "github.com/jiaming2012/slack-trading/src/go/backtester/models"
 	"github.com/jiaming2012/slack-trading/src/go/dbutils"
@@ -656,6 +657,7 @@ func (s *DatabaseService) PlaceOrders(playgroundID uuid.UUID, requests []*backte
 
 func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playground, req *backtester_models.CreateOrderRequest, createdOn time.Time) (*backtester_models.OrderRecord, error) {
 	order := &backtester_models.OrderRecord{}
+	rowPreCreated := false
 	if req.Id != nil {
 		order.ID = *req.Id
 	} else {
@@ -665,6 +667,7 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 			if err := s.db.Create(&order).Error; err != nil {
 				return nil, fmt.Errorf("makeOrderRecord: failed to create order record: %w", err)
 			}
+			rowPreCreated = true
 		}
 	}
 
@@ -712,6 +715,17 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 
 	changes, err := playground.PlaceOrder(order)
 	if err != nil {
+		// Halt-rejection hygiene (wire-companion-stops, review nit d): for
+		// non-Simulation modes the order row was pre-created above, BEFORE the
+		// halt-gated Playground.PlaceOrder ran. If placement fails here (halt
+		// rejection or any other placement error), that row would otherwise be
+		// orphaned in the pending state forever — no pipeline finalizes it.
+		// Finalize it as rejected with the reason recorded (marked, not
+		// deleted: an order the system attempted during a halt is
+		// audit-relevant). Simulation pre-creates no row and is untouched.
+		if rowPreCreated {
+			s.finalizePreCreatedOrderRowAsRejected(order, err)
+		}
 		return nil, fmt.Errorf("placeOrder: failed to place order: %w", err)
 	}
 
@@ -736,6 +750,22 @@ func (s *DatabaseService) commitOrderRecord(playground *backtester_models.Playgr
 	}
 
 	return order, nil
+}
+
+// finalizePreCreatedOrderRowAsRejected finalizes the pre-created non-Simulation
+// order row after Playground.PlaceOrder failed: status rejected, rejection
+// reason recorded, full populated record persisted so the row is an audit trail
+// of what was attempted rather than an orphan pending stub. Associations are
+// omitted from the save — the order never entered the pipeline, so it has none,
+// and this failure path must not upsert relationship rows. A persistence
+// failure here is logged loudly but not returned: the caller is already
+// propagating the placement error, which must stay the primary failure.
+func (s *DatabaseService) finalizePreCreatedOrderRowAsRejected(order *backtester_models.OrderRecord, placeErr error) {
+	order.Reject(placeErr)
+
+	if err := s.db.Omit(clause.Associations).Save(order).Error; err != nil {
+		log.Errorf("finalizePreCreatedOrderRowAsRejected: order row %d is ORPHANED in the pending state — failed to persist rejected status (reason %q): %v", order.ID, placeErr.Error(), err)
+	}
 }
 
 func (s *DatabaseService) GetAccountStatsEquity(playgroundID uuid.UUID) ([]*models.EquityPlot, error) {

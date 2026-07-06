@@ -6,8 +6,8 @@
 
 ## 1. Orphan pending row on halt rejection (nit d)
 
-- [ ] 1.1 In `src/go/data/database_service.go` `commitOrderRecord`: when `playground.PlaceOrder` fails after the non-Simulation row was pre-created, finalize the row — status rejected, rejection reason recorded (halt reason when the gate rejected), persisted
-- [ ] 1.2 Unit tests: engaged halt + live-mode order ⇒ row exists with status rejected and halt reason, never pending; non-halt `PlaceOrder` failure also finalizes; Simulation path unchanged (no row pre-created)
+- [x] 1.1 In `src/go/data/database_service.go` `commitOrderRecord`: when `playground.PlaceOrder` fails after the non-Simulation row was pre-created, finalize the row — status rejected, rejection reason recorded (halt reason when the gate rejected), persisted
+- [x] 1.2 Unit tests: engaged halt + live-mode order ⇒ row exists with status rejected and halt reason, never pending; non-halt `PlaceOrder` failure also finalizes; Simulation path unchanged (no row pre-created)
 
 ## 2. Deferred option auto-closes during a halt (nit e)
 
