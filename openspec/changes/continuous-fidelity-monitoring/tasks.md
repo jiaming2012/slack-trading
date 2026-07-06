@@ -38,10 +38,10 @@
 
 ## 7. Gates
 
-- [ ] 7.1 `go build ./...` green.
-- [ ] 7.2 `task test` green (backtester suite unaffected).
-- [ ] 7.3 `task test:trading-stack` green (includes the new fidelity persistence/monitor tests; Docker required).
-- [ ] 7.4 `go test -count=1 ./src/go/telemetry/... ./src/go/tradingstack/fidelity/...` green.
+- [x] 7.1 `go build ./...` green.
+- [x] 7.2 `task test` green (backtester suite unaffected).
+- [x] 7.3 `task test:trading-stack` green (includes the new fidelity persistence/monitor tests; Docker required).
+- [x] 7.4 `go test -count=1 ./src/go/telemetry/... ./src/go/tradingstack/fidelity/...` green.
 
 ## 8. Operator-only follow-ups
 
