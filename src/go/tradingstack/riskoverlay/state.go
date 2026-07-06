@@ -75,11 +75,12 @@ type RiskLimits struct {
 	RejectCrowdedEntries      bool
 
 	// Enabled is the operator enablement flag from the `riskOverlay.enabled`
-	// config key. It defaults to false. NOTE: this flag is delivered but NOT yet
-	// wired into server startup — installing the gate (SetRiskGate) and enabling
-	// it by default for Simulation are DEFERRED to the follow-up change
-	// wire-risk-overlay-state, because enablement without real portfolio state
-	// evaluates a nil snapshot. The pure engine ignores this field; it is carried
-	// on RiskLimits so config load/validate/test exercises the flag today.
+	// config key. It defaults to TRUE (wire-risk-overlay-state): the gate is
+	// installed at server startup (models.SetRiskGate) for the Simulation path
+	// only, fed by the real portfolio snapshot builder, with permissive
+	// default limits so default enablement changes no order outcome. Setting
+	// `enabled: false` makes the gate permissive-blind (no evaluation, nothing
+	// recorded). The pure engine ignores this field; the adapter and the
+	// startup wiring consume it.
 	Enabled bool
 }

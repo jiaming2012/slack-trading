@@ -15,20 +15,27 @@ import (
 var ErrInvalidRiskLimits = errors.New("riskoverlay: invalid risk limits")
 
 // DefaultRiskLimits are the documented, deliberately permissive defaults. They
-// are chosen so an unconfigured gate observes without blocking: the exposure
-// and capital caps are effectively unlimited, the percentage caps sit at their
-// no-op maximum (100), and crowded-entry rejection is off. Enforcement is only
-// meaningful once an operator narrows these values.
+// are chosen so the default-ENABLED gate evaluates and telemeters without
+// blocking: the exposure and capital caps are effectively unlimited, the
+// percentage caps sit at their no-op maximum (100), and crowded-entry
+// rejection is off. Default enablement therefore changes NO order outcome —
+// enforcement begins only when an operator narrows a value in
+// risk-overlay-config.yaml. Rollback is one line: `enabled: false` (the gate
+// then goes permissive-blind).
 //
-//	Enabled                   false  (gate off; installation deferred)
+// Note the drawdown breaker's non-positive-peak fail-safe is categorical and
+// independent of MaxDrawdownPct: even at the permissive default, a wiped-out
+// book halts entries (see the portfolio-risk-limits spec).
+//
+//	Enabled                   true   (installed at startup, Simulation only)
 //	MaxGrossExposure          1e15   (effectively unlimited)
 //	MaxNetExposure            1e15   (effectively unlimited)
 //	MaxSectorConcentrationPct 100.0  (a single sector may be the whole book)
-//	MaxDrawdownPct            100.0  (breaker never trips)
+//	MaxDrawdownPct            100.0  (breaker never trips on drawdown %)
 //	DeployableCapital         1e15   (effectively unlimited)
 //	RejectCrowdedEntries      false  (crowding consumption off)
 var DefaultRiskLimits = RiskLimits{
-	Enabled:                   false,
+	Enabled:                   true,
 	MaxGrossExposure:          1e15,
 	MaxNetExposure:            1e15,
 	MaxSectorConcentrationPct: 100.0,

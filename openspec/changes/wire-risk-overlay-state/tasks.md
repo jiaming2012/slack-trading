@@ -33,10 +33,10 @@
 
 ## 6. Startup wiring, config default, enablement
 
-- [ ] 6.1 `config.go` — flip `DefaultRiskLimits.Enabled` to `true`; update the documented-defaults comment (defaults stay permissive no-ops); adjust config tests.
-- [ ] 6.2 Add sample `src/go/risk-overlay-config.yaml` (the resolved default path) with commented permissive defaults and `enabled: true`.
-- [ ] 6.3 `cmd/main.go` — resolve config (invalid file fails startup with the sentinel; absent file → defaults), construct `GormCrowdingLookup` / `GormEvWeightLookup` / `GormSectorLookup`, build `SimulationRiskGate` with `BuildPortfolioSnapshot`, and `models.SetRiskGate(gate)` immediately after the kill-switch `SetOrderGate` block; set the `grodt.riskoverlay.enabled` gauge.
-- [ ] 6.4 Integration-style test (fixture/smoke level): with default config, an ordinary Simulation order round-trips unchanged; kill switch engaged rejects before the overlay is consulted; Paper/Margin paths never invoke the gate.
+- [x] 6.1 `config.go` — flip `DefaultRiskLimits.Enabled` to `true`; update the documented-defaults comment (defaults stay permissive no-ops); adjust config tests.
+- [x] 6.2 Add sample `src/go/risk-overlay-config.yaml` (the resolved default path) with commented permissive defaults and `enabled: true`.
+- [x] 6.3 `cmd/main.go` — resolve config (invalid file fails startup with the sentinel; absent file → defaults), construct `GormCrowdingLookup` / `GormEvWeightLookup` / `GormSectorLookup`, build `SimulationRiskGate` with `BuildPortfolioSnapshot`, and `models.SetRiskGate(gate)` immediately after the kill-switch `SetOrderGate` block; set the `grodt.riskoverlay.enabled` gauge.
+- [x] 6.4 Integration-style test (fixture/smoke level): with default config, an ordinary Simulation order round-trips unchanged; kill switch engaged rejects before the overlay is consulted; Paper/Margin paths never invoke the gate.
 
 ## 7. Verification gates
 

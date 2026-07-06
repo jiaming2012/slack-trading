@@ -42,6 +42,7 @@ import (
 	"github.com/jiaming2012/slack-trading/src/go/pubsub"
 	"github.com/jiaming2012/slack-trading/src/go/sheets"
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
+	"github.com/jiaming2012/slack-trading/src/go/tradingstack/riskoverlay"
 	"github.com/jiaming2012/slack-trading/src/go/utils"
 	"github.com/jiaming2012/slack-trading/src/go/workers"
 )
@@ -383,6 +384,45 @@ func main() {
 		log.Warnf("kill switch is ENGAGED on startup (source=%s, reason=%q) — order submission is halted until released", st.Source, st.Reason)
 	} else {
 		log.Infof("kill switch initialized (disengaged); state file: %s", killSwitchStatePath)
+	}
+
+	// Portfolio risk overlay (wire-risk-overlay-state): installed immediately
+	// after the kill-switch SetOrderGate block above so the composition order is
+	// visible at the wiring site — Playground.PlaceOrder consults CheckOrderGate
+	// (kill switch, every mode) FIRST, then CheckRiskGate (Simulation only);
+	// installing the overlay can never mask or disable a halt. Default-enabled
+	// with permissive limits (risk-overlay-config.yaml): live and telemetered,
+	// blocking nothing until the operator narrows a limit. Reduction orders
+	// bypass it entirely, before any snapshot build or DB lookup; DB failures
+	// fail PERMISSIVE and are counted in grodt.riskoverlay.degraded. Rollback is
+	// one config line (`enabled: false`) — the gate goes permissive-blind.
+	riskOverlayConfigPath, err := riskoverlay.ResolveConfigPath()
+	if err != nil {
+		log.Fatalf("failed to resolve risk-overlay config path: %v", err)
+	}
+	riskLimits, err := riskoverlay.LoadRiskLimitsFromFile(riskOverlayConfigPath)
+	if err != nil {
+		// A PRESENT-but-invalid config fails startup loudly (sentinel
+		// ErrInvalidRiskLimits); an absent file already yielded the documented
+		// permissive defaults with no error.
+		log.Fatalf("invalid risk-overlay config at %s: %v", riskOverlayConfigPath, err)
+	}
+	riskGate := riskoverlay.NewSimulationRiskGate(
+		riskLimits.Enabled,
+		riskLimits,
+		riskoverlay.NewCachedCrowdingLookup(riskoverlay.NewGormCrowdingLookup(db), riskoverlay.DefaultLookupCacheTTL),
+		riskoverlay.BuildPortfolioSnapshot(
+			riskoverlay.NewCachedEvWeightLookup(riskoverlay.NewGormEvWeightLookup(db), riskoverlay.DefaultLookupCacheTTL),
+			riskoverlay.NewCachedSectorLookup(riskoverlay.NewGormSectorLookup(db), riskoverlay.DefaultLookupCacheTTL),
+		),
+	)
+	backtester_models.SetRiskGate(riskGate)
+	if riskLimits.Enabled {
+		telemetry.RiskOverlayEnabled.Set(1)
+		log.Infof("portfolio risk overlay installed and ENABLED for Simulation (config: %s) — composed after the kill switch; reductions always pass", riskOverlayConfigPath)
+	} else {
+		telemetry.RiskOverlayEnabled.Set(0)
+		log.Warnf("portfolio risk overlay installed but DISABLED (permissive-blind) via %s — Simulation orders are not risk-evaluated", riskOverlayConfigPath)
 	}
 
 	// Anomaly guards (wire-anomaly-guard-feeds): thresholds from GUARD_* env

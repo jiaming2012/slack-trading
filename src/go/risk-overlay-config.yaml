@@ -1,0 +1,47 @@
+# Portfolio risk overlay configuration (wire-risk-overlay-state).
+#
+# Resolved path: $RISK_OVERLAY_CONFIG_PATH, falling back to
+# ${TRADING_PROJECT_DIR}/src/go/risk-overlay-config.yaml (this file).
+# An ABSENT file yields these same documented defaults; a present-but-INVALID
+# file (negative limit, percentage outside 0-100) fails server startup loudly.
+#
+# The gate is consulted ONLY on the Simulation order-placement path, composed
+# AFTER the kill switch (a halt always wins), and risk-REDUCING orders (sell,
+# *_to_close, buy_to_cover) always pass, before any lookup or limit check.
+#
+# The shipped values are deliberately PERMISSIVE no-ops: the gate is live and
+# telemetered (grodt.riskoverlay.* in the internal registry) but blocks
+# nothing until you narrow a limit below.
+#
+# OPERATOR ROLLBACK: set `enabled: false` and restart — the gate goes
+# permissive-blind (no evaluation, nothing recorded) and Simulation behaves
+# exactly as before installation.
+riskOverlay:
+  enabled: true
+
+  # Absolute currency caps. Option notional carries the x100 contract
+  # multiplier. 1e15 = effectively unlimited (the documented default).
+  #max_gross_exposure: 1000000000000000
+  #max_net_exposure: 1000000000000000
+
+  # Max share (%) of resulting gross exposure a single sector may hold.
+  # 100 = a single sector may be the whole book (default no-op).
+  # Tickers with no sector in scan_results are exempt (and counted in the
+  # grodt.riskoverlay.degraded{reason=sector_unknown} telemetry).
+  #max_sector_concentration_pct: 100
+
+  # Rolling 5-session drawdown (%) beyond which NEW ENTRIES are halted
+  # (reductions always pass). 100 = never trips on drawdown percentage.
+  # Independent of this value, a non-positive 5-session equity peak trips the
+  # breaker categorically (fail-safe for a wiped-out book).
+  #max_drawdown_pct: 100
+
+  # Capital base for the per-strategy EV-weighted allocation caps
+  # (strategy_ev_weights). With an EMPTY strategy_ev_weights table the
+  # allocation family is pinned INACTIVE (gauged + alerted, see
+  # grodt.riskoverlay.ev_family_active). 1e15 = effectively unlimited.
+  #deployable_capital: 1000000000000000
+
+  # Reject NEW entries into tickers flagged crowded for the current scan
+  # cycle (crowding_metrics / crowding_flagged_candidates).
+  #reject_crowded_entries: false
