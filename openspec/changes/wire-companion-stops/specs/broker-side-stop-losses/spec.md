@@ -13,9 +13,11 @@ saved. Eligible fills are equity entry fills that open or increase a position;
 closes, adjustment orders, system auto-closes, reconciliation-role fills, and
 fills of companion-stop orders themselves SHALL NOT trigger placement (a
 companion stop must never spawn another companion stop). The reserved
-companion-stop tag prefix SHALL be rejected for client-supplied orders at the
-order-placement API boundary with an invalid-argument error, so a client tag
-can never poison the recursion guard or the idempotency lookup.
+companion-stop tag prefix SHALL be rejected for client-supplied orders at
+order-request validation — inherited by every placement ingress, single-leg
+and multi-leg alike — and additionally at the PlaceOrder RPC boundary with an
+invalid-argument error, so a client tag can never poison the recursion guard
+or the idempotency lookup.
 
 Placement SHALL be CUMULATIVE per entry order: one strategy order can net into
 multiple broker trades, each committing through the pipeline separately, and
@@ -66,8 +68,8 @@ protection. A placement failure SHALL NOT fail or roll back the fill itself.
 
 #### Scenario: Client-supplied reserved tag rejected at the API boundary
 
-- **WHEN** a client submits an order whose tag carries the reserved companion-stop prefix
-- **THEN** the order-placement API SHALL reject it with an invalid-argument error before any database or broker access
+- **WHEN** a client submits an order — single-leg or any leg of a multi-leg order — whose tag carries the reserved companion-stop prefix
+- **THEN** the order placement SHALL be rejected with an invalid-argument error before reaching any Broker
 
 #### Scenario: Fractional remainder below one share skips without alerting
 

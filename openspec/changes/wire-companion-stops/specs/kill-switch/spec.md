@@ -23,10 +23,14 @@ Option-assignment and option-expiration auto-closes generated during a Tick SHAL
 Deferrals originate from drain-once assignment/expiration events, so they
 SHALL be persisted when deferred, deleted when their close successfully
 commits, and reloaded when the playground is loaded — a halt followed by a
-process restart SHALL NOT drop a deferred auto-close. A persisted deferral
-whose source order no longer has remaining open quantity SHALL be treated as
-stale at reload and SHALL NOT be replayed (replaying a committed close would
-reverse the position).
+process restart SHALL NOT drop a deferred auto-close. Staleness at reload SHALL be
+judged per request kind: a deferred CLOSE request is stale when its source
+order no longer has remaining open quantity (the close already committed —
+replaying it would reverse the position); a deferred EXERCISE leg (the
+exercised stock delivery, carrying no close linkage) is independent of the
+source option order's remaining quantity and is stale only when an order
+carrying the leg's own exercise tag already exists (the leg itself was
+already placed). Stale deferrals SHALL NOT be replayed.
 
 The deferred-auto-close Alert SHALL be sticky: it SHALL NOT auto-resolve
 merely because the in-memory condition cleared. It SHALL keep notifying until
@@ -57,8 +61,13 @@ deferral set contradicts.
 
 #### Scenario: Stale persisted deferral is not replayed
 
-- **WHEN** a persisted deferral's source order no longer has remaining open quantity at reload
+- **WHEN** a persisted CLOSE deferral's source order no longer has remaining open quantity at reload
 - **THEN** the deferral SHALL be discarded as stale and SHALL NOT be placed again
+
+#### Scenario: Exercise leg survives its option close committing
+
+- **WHEN** a deferred option close commits and fills while its companion exercise stock leg is still deferred, and the process then restarts
+- **THEN** the exercise leg SHALL be restored and retried at reload — it SHALL NOT be discarded merely because the source option order has no remaining open quantity — and it SHALL be discarded only when an order carrying its exercise tag already exists
 
 #### Scenario: Deferred-auto-close Alert is sticky until acknowledged
 
