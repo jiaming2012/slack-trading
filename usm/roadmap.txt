@@ -41,7 +41,7 @@ Trading stack v4
         crowding-detection: |{"bg":"#C5E1A5"}
         wire-anomaly-guard-feeds: |{"bg":"#C5E1A5"}
         wire-companion-stops: |{"bg":"#C5E1A5"}
-        wire-risk-overlay-state: |{"bg":"#FFF59D"}
+        wire-risk-overlay-state: |{"bg":"#C5E1A5"}
     Feedback loop
         fidelity-checker: |{"bg":"#C5E1A5"}
         continuous-fidelity-monitoring: |{"bg":"#FFF59D"}
