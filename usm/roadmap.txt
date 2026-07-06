@@ -45,7 +45,7 @@ Trading stack v4
     Feedback loop
         fidelity-checker: |{"bg":"#C5E1A5"}
         continuous-fidelity-monitoring: |{"bg":"#FFF59D"}
-        strategy-optimizer: |{"bg":"#FFF59D"}
+        strategy-optimizer: |{"bg":"#C5E1A5"}
         ev-tracker: |{"bg":"#C5E1A5"}
         net-ev-cost-model: |{"bg":"#C5E1A5"}
         scanner-optimizer: |{"bg":"#C5E1A5"}
