@@ -9,6 +9,7 @@ package models
 // TestPostTickProcessing_NoDoubleCloseOnAssignmentAndExpiration).
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -332,6 +333,88 @@ func TestDeferredAutoClose_StaleRecordsNotRestored(t *testing.T) {
 	f.playground.deferredAutoCloses = nil
 	stale := f.playground.RestoreDeferredAutoCloses(persisted)
 	require.Len(t, stale, 2, "records for an already-closed order must be reported stale, never restored")
+	require.Empty(t, f.playground.GetDeferredAutoCloses())
+}
+
+// equityRejectingDB wraps MockDatabase and rejects equity order placement,
+// simulating the exercise stock leg persistently failing while the option
+// close succeeds.
+type equityRejectingDB struct {
+	*MockDatabase
+}
+
+func (m *equityRejectingDB) PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrderRequest) ([]*OrderRecord, error) {
+	if len(requests) == 1 && requests[0].Class == OrderRecordClassEquity {
+		return nil, fmt.Errorf("transient equity placement failure")
+	}
+	return m.MockDatabase.PlaceOrders(playgroundID, requests)
+}
+
+// Re-review refinement 1 (compound path): the option close commits and fills
+// while the equity EXERCISE leg keeps failing; after a restart the source
+// option order has no remaining open quantity — but the exercise leg's
+// staleness is independent, and it MUST be restored and retried. Keying its
+// staleness on the option order's remaining quantity silently lost the
+// exercised stock delivery.
+func TestDeferredAutoClose_ExerciseLegRestoredAfterOptionCloseCommitted(t *testing.T) {
+	telemetry.Init()
+	f := newDeferredAutoCloseFixture(t)
+
+	SetOrderGate(engagedGate{reason: "drill"})
+	t.Cleanup(func() { SetOrderGate(nil) })
+
+	// Both legs deferred (option close with CloseOrderId + equity exercise leg).
+	_, err := f.playground.postTickProcessing(f.assignmentDelta(), f.mockDB)
+	require.NoError(t, err)
+	require.Len(t, f.playground.GetDeferredAutoCloses(), 2)
+
+	// Halt clears, but equity placement persistently fails: the option close
+	// is placed (its persisted row deleted), the equity leg stays deferred and
+	// persisted, and the tick errors loudly.
+	SetOrderGate(nil)
+	failingDB := &equityRejectingDB{MockDatabase: f.mockDB}
+	_, err = f.playground.postTickProcessing(&TickDelta{}, failingDB)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "transient equity placement failure")
+	require.Len(t, f.playground.GetDeferredAutoCloses(), 1, "only the equity exercise leg remains deferred")
+
+	// The next tick fills the placed option close (still failing the equity
+	// retry): the source option order is now FULLY closed.
+	_, err = f.playground.Tick(0, false, failingDB)
+	require.Error(t, err)
+	sourceOrder, err := f.playground.GetOrder(f.order.ID)
+	require.NoError(t, err)
+	remaining, err := sourceOrder.GetRemainingOpenQuantity()
+	require.NoError(t, err)
+	require.Zero(t, remaining, "the option close must be fully committed for the compound path")
+
+	// Process restart: only the equity exercise leg is persisted.
+	persisted, err := f.mockDB.LoadDeferredAutoCloses(f.playground.GetId())
+	require.NoError(t, err)
+	require.Len(t, persisted, 1)
+	require.Nil(t, persisted[0].Request.CloseOrderId, "the surviving deferral is the exercise leg")
+
+	f.playground.deferredAutoCloses = nil
+	stale := f.playground.RestoreDeferredAutoCloses(persisted)
+	require.Empty(t, stale, "the exercise leg must NOT be judged by the option order's remaining quantity")
+	require.Len(t, f.playground.GetDeferredAutoCloses(), 1, "the exercised stock delivery must be restored, not silently lost")
+
+	// A healthy retry commits the stock delivery and clears the persisted row.
+	_, err = f.playground.postTickProcessing(&TickDelta{}, f.mockDB)
+	require.NoError(t, err)
+	require.Empty(t, f.playground.GetDeferredAutoCloses())
+
+	exerciseLegs := f.closeOrders("exercise-call-option-1")
+	require.Len(t, exerciseLegs, 1, "the exercised stock delivery must eventually commit")
+
+	remainingRecords, err := f.mockDB.LoadDeferredAutoCloses(f.playground.GetId())
+	require.NoError(t, err)
+	require.Empty(t, remainingRecords)
+
+	// Replaying the old persisted record now IS stale: the leg's tagged order
+	// exists, so a duplicate stock delivery is refused.
+	stale = f.playground.RestoreDeferredAutoCloses(persisted)
+	require.Len(t, stale, 1, "an already-placed exercise leg must be discarded on replay")
 	require.Empty(t, f.playground.GetDeferredAutoCloses())
 }
 

@@ -130,6 +130,17 @@ func (p *Playground) hasDeferredAutoCloseFor(sourceOrderID uint) bool {
 	return false
 }
 
+// hasOrderWithTag reports whether any order in the playground carries the
+// given tag (used to detect an already-placed exercise leg at restore time).
+func (p *Playground) hasOrderWithTag(tag string) bool {
+	for _, o := range p.GetAllOrders() {
+		if o.Tag == tag {
+			return true
+		}
+	}
+	return false
+}
+
 // deferAutoClose queues an auto-close for retry on subsequent ticks, persists
 // it (deferrals originate from drain-once events and must survive a restart),
 // logs the deferral loudly, and updates the internal-registry gauge
@@ -150,11 +161,34 @@ func (p *Playground) deferAutoClose(dbService IDatabaseService, d *DeferredAutoC
 
 // RestoreDeferredAutoCloses rehydrates the deferred-auto-close list from
 // persisted records at playground load, so a halt followed by a restart does
-// not drop the closes. Deferrals whose source order no longer has remaining
-// open quantity (the close already committed some other way) are returned as
-// stale rather than restored — replaying them would double-close.
+// not drop the closes. Staleness is judged per request kind:
+//
+//   - CLOSE requests (CloseOrderId set) are stale when the source order no
+//     longer has remaining open quantity — the close already committed some
+//     other way, and replaying it would double-close.
+//   - EXERCISE legs (no CloseOrderId — the exercised stock delivery of an
+//     assigned/expired option) are INDEPENDENT of the source option order's
+//     remaining quantity: the option close may have committed while the stock
+//     leg is still owed. They are stale only when an order carrying the leg's
+//     own exercise tag already exists — i.e. the leg itself was already
+//     placed; replaying THAT would double the stock delivery.
 func (p *Playground) RestoreDeferredAutoCloses(deferrals []*DeferredAutoClose) (stale []*DeferredAutoClose) {
 	for _, d := range deferrals {
+		if d.Request != nil && d.Request.CloseOrderId == nil {
+			// Exercise leg.
+			if d.Request.Tag != "" && p.hasOrderWithTag(d.Request.Tag) {
+				log.Warnf("RestoreDeferredAutoCloses: deferred exercise leg row %d (order %d, tag %q) was already placed — treating as stale", d.RecordID, d.SourceOrderID, d.Request.Tag)
+				stale = append(stale, d)
+				continue
+			}
+			if d.Request.Tag == "" {
+				log.Warnf("RestoreDeferredAutoCloses: deferred exercise leg row %d (order %d) carries no tag — restoring and retrying (retry-biased; verify no duplicate stock delivery)", d.RecordID, d.SourceOrderID)
+			}
+
+			p.deferredAutoCloses = append(p.deferredAutoCloses, d)
+			continue
+		}
+
 		order, err := p.GetOrder(d.SourceOrderID)
 		if err != nil {
 			log.Warnf("RestoreDeferredAutoCloses: deferred auto-close row %d references missing order %d — treating as stale", d.RecordID, d.SourceOrderID)
