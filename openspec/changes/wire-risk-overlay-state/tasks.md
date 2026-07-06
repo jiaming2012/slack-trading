@@ -44,7 +44,7 @@
 - [x] 7.2 G1: `go build ./src/go/... ./cmd/...` — green.
 - [x] 7.3 G2: `task test` — green (backtester suite unaffected).
 - [x] 7.4 `task test:smoke` — green (server boots with the gate installed and default-enabled; real Simulation fill unchanged).
-- [ ] 7.5 MANDATORY adversarial review (safety-critical, same bar as the parent change): confirms kill-switch-first composition, Simulation-only guard, reduction bypass ahead of all I/O, drawdown fail-safe boundaries, ×100 mapping, and every `>` vs `>=` comparison.
+- [x] 7.5 MANDATORY adversarial review (safety-critical, same bar as the parent change): confirms kill-switch-first composition, Simulation-only guard, reduction bypass ahead of all I/O, drawdown fail-safe boundaries, ×100 mapping, and every `>` vs `>=` comparison.
 - [x] 7.6 `openspec validate wire-risk-overlay-state --strict` — passes.
 
 ## 8. Operator-only follow-ups (NEVER autonomous)
