@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,10 @@ const (
 	AckViaSlack = "slack"
 	AckViaCLI   = "cli"
 )
+
+// deferredCommittedSuffix marks a sticky deferred-auto-close alert whose
+// deferrals have since committed: it keeps firing until acknowledged.
+const deferredCommittedSuffix = " — the deferred close(s) have since committed; acknowledge to clear this alert"
 
 // Notifier delivers an alert message to the operator. Satisfied by the
 // existing workers.SlackNotifierClient.
@@ -88,7 +93,18 @@ type AlertEngine struct {
 	// unprotected, when set, feeds the unprotected_position rule with the
 	// positions whose companion stops failed to place. Nil = rule inactive.
 	unprotected UnprotectedPositionsFunc
+
+	// deferredCount, when set, is the AUTHORITATIVE count of outstanding
+	// deferred auto-closes (backed by the persisted deferral set, rehydrated
+	// into playground memory at load). When nil the rule falls back to the
+	// internal-registry gauge.
+	deferredCount DeferredAutoCloseCountFunc
 }
+
+// DeferredAutoCloseCountFunc reports how many option auto-closes are currently
+// deferred by an engaged halt, summed across playgrounds. Wired at startup
+// from the database service's in-memory (DB-rehydrated) deferral sets.
+type DeferredAutoCloseCountFunc func() int
 
 // HaltStatusFunc reports the kill-switch halt state for the auto_halt alert
 // rule. Wired at startup from the shared safety.HaltController's Status.
@@ -108,6 +124,14 @@ func (e *AlertEngine) SetUnprotectedPositions(fn UnprotectedPositionsFunc) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.unprotected = fn
+}
+
+// SetDeferredAutoCloses installs the authoritative deferred-auto-close count
+// provider. Safe to call while the engine is running.
+func (e *AlertEngine) SetDeferredAutoCloses(fn DeferredAutoCloseCountFunc) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.deferredCount = fn
 }
 
 // NewAlertEngine wires the engine with the operator-tunable thresholds from
@@ -241,15 +265,41 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 
 	// Deferred-auto-close rule (wire-companion-stops): option auto-closes
 	// deferred by an engaged halt are open exposure the operator must know
-	// about. The rule fires while the internal-registry gauge reports any
-	// outstanding deferral (summed across playgrounds) and resolves once the
-	// halt clears and the deferred closes commit.
-	if n := e.metricTotal(MetricDeferredAutoCloses); n > 0 {
+	// about. The condition comes from the authoritative provider (backed by
+	// the persisted deferral set) when wired, falling back to the
+	// internal-registry gauge otherwise — a reset gauge alone must never
+	// signal an all-clear the persisted set contradicts.
+	deferred := 0
+	if e.deferredCount != nil {
+		deferred = e.deferredCount()
+	} else {
+		deferred = int(e.metricTotal(MetricDeferredAutoCloses))
+	}
+	if deferred > 0 {
 		want[RuleDeferredAutoClose+"|auto-closes"] = desired{
 			rule:    RuleDeferredAutoClose,
 			subject: "auto-closes",
-			message: fmt.Sprintf("%d option auto-close(s) DEFERRED by the engaged kill switch — this is OPEN EXPOSURE that will not close until the halt is released (task kill-switch:release)", int(n)),
+			message: fmt.Sprintf("%d option auto-close(s) DEFERRED by the engaged kill switch — this is OPEN EXPOSURE that will not close until the halt is released (task kill-switch:release)", deferred),
 		}
+	}
+
+	// The deferred-auto-close rule is STICKY: exposure existed, so the alert
+	// must reach the operator — it never auto-resolves just because the
+	// condition cleared. An unacked alert whose deferrals have since
+	// committed keeps firing (with an updated message) until acknowledged;
+	// acknowledged alerts resolve on the next cycle with the condition clear.
+	for key, a := range e.active {
+		if a.rule != RuleDeferredAutoClose || a.acked {
+			continue
+		}
+		if _, still := want[key]; still {
+			continue
+		}
+		msg := a.message
+		if !strings.Contains(msg, deferredCommittedSuffix) {
+			msg += deferredCommittedSuffix
+		}
+		want[key] = desired{rule: a.rule, subject: a.subject, message: msg}
 	}
 
 	// Resolve alerts whose condition cleared — notified whether or not acked.

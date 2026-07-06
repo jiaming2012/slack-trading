@@ -312,11 +312,19 @@ func TestAlertEngine(t *testing.T) {
 		assert.Contains(t, msgs[1], "RESOLVED")
 	})
 
-	t.Run("deferred auto-closes fire while outstanding, resolve at zero", func(t *testing.T) {
+	t.Run("deferred auto-closes fire, stay sticky until acked, resolve only when set empty and acked", func(t *testing.T) {
 		notifier := &fakeNotifier{}
-		e, _, reg := newTestEngine(db, notifier)
+		e, _, _ := newTestEngine(db, notifier)
 
-		gauge := reg.Gauge(MetricDeferredAutoCloses)
+		// Authoritative provider (backed by the persisted deferral set).
+		var mu sync.Mutex
+		deferred := 0
+		e.SetDeferredAutoCloses(func() int {
+			mu.Lock()
+			defer mu.Unlock()
+			return deferred
+		})
+
 		start := time.Now().UTC()
 
 		// Nothing deferred: silent.
@@ -324,7 +332,9 @@ func TestAlertEngine(t *testing.T) {
 		assert.Empty(t, notifier.messages())
 
 		// Two closes deferred by an engaged halt (summed across playgrounds).
-		gauge.Set(2, Label{Key: "playground_id", Value: "pg-1"})
+		mu.Lock()
+		deferred = 2
+		mu.Unlock()
 		e.Evaluate(start.Add(30 * time.Second))
 		msgs := notifier.messages()
 		require.Len(t, msgs, 1)
@@ -338,16 +348,50 @@ func TestAlertEngine(t *testing.T) {
 		assert.Equal(t, "auto-closes", row.Subject)
 		assert.Nil(t, row.ResolvedAt)
 
-		// Halt released, deferred closes committed: the gauge returns to zero
-		// and the alert resolves.
-		gauge.Set(0, Label{Key: "playground_id", Value: "pg-1"})
+		// Halt released, deferred closes committed — but NOT acknowledged:
+		// the alert is sticky. It must NOT resolve, and it keeps re-notifying
+		// with the committed marker until the operator acknowledges.
+		mu.Lock()
+		deferred = 0
+		mu.Unlock()
 		e.Evaluate(start.Add(time.Minute))
 		msgs = notifier.messages()
-		require.Len(t, msgs, 2)
-		assert.Contains(t, msgs[1], "RESOLVED")
+		require.Len(t, msgs, 1, "no RESOLVED and no early renotify: the alert holds")
+
+		e.Evaluate(start.Add(31 * time.Minute)) // past the 30m renotify interval
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2, "the unacked sticky alert must keep re-notifying")
+		assert.Contains(t, msgs[1], "FIRING")
+		assert.Contains(t, msgs[1], "have since committed")
+		assert.NotContains(t, msgs[1], "RESOLVED")
+
+		require.NoError(t, db.Where("rule = ?", RuleDeferredAutoClose).Order("id desc").First(&row).Error)
+		assert.Nil(t, row.ResolvedAt, "an unacked deferred-auto-close alert must never auto-resolve")
+
+		// Acknowledged with the set empty: NOW it resolves.
+		require.NoError(t, e.Ack(row.ID, AckViaCLI, start.Add(32*time.Minute)))
+		e.Evaluate(start.Add(33 * time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 3)
+		assert.Contains(t, msgs[2], "RESOLVED")
 
 		require.NoError(t, db.Where("rule = ?", RuleDeferredAutoClose).Order("id desc").First(&row).Error)
 		assert.NotNil(t, row.ResolvedAt)
+	})
+
+	t.Run("deferred auto-closes fall back to the gauge when no provider is wired", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, reg := newTestEngine(db, notifier)
+
+		gauge := reg.Gauge(MetricDeferredAutoCloses)
+		start := time.Now().UTC()
+
+		gauge.Set(1, Label{Key: "playground_id", Value: "pg-1"})
+		e.Evaluate(start)
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], RuleDeferredAutoClose)
+		assert.Contains(t, msgs[0], "1 option auto-close(s) DEFERRED")
 	})
 }
 

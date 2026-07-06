@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,64 @@ type MockDatabase struct {
 	liveAccounts         map[CreateAccountRequestSource]ILiveAccount
 	orderNounce          uint
 	tradeNounce          uint
+
+	// deferredAutoCloseRecords mirrors the deferred_auto_closes table: keyed
+	// by record ID, storing the SERIALIZED form so tests exercise the same
+	// round-trip the real store performs.
+	deferredAutoCloseRecords map[uint]*DeferredAutoCloseRecord
+	deferredAutoCloseNounce  uint
+}
+
+// SaveDeferredAutoClose persists a deferral into the in-memory table mirror,
+// assigning its record ID exactly like the real store.
+func (m *MockDatabase) SaveDeferredAutoClose(playgroundID uuid.UUID, d *DeferredAutoClose) error {
+	rec, err := d.ToRecord(playgroundID)
+	if err != nil {
+		return fmt.Errorf("MockDatabase.SaveDeferredAutoClose: %w", err)
+	}
+
+	if rec.ID == 0 {
+		m.deferredAutoCloseNounce++
+		rec.ID = m.deferredAutoCloseNounce
+	}
+
+	m.deferredAutoCloseRecords[rec.ID] = rec
+	d.RecordID = rec.ID
+
+	return nil
+}
+
+// DeleteDeferredAutoClose removes a persisted deferral; a zero record ID
+// (never persisted) is a no-op.
+func (m *MockDatabase) DeleteDeferredAutoClose(recordID uint) error {
+	if recordID == 0 {
+		return nil
+	}
+	delete(m.deferredAutoCloseRecords, recordID)
+	return nil
+}
+
+// LoadDeferredAutoCloses deserializes every persisted deferral for the
+// playground, in record-ID order.
+func (m *MockDatabase) LoadDeferredAutoCloses(playgroundID uuid.UUID) ([]*DeferredAutoClose, error) {
+	var ids []uint
+	for id, rec := range m.deferredAutoCloseRecords {
+		if rec.PlaygroundID == playgroundID {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	var out []*DeferredAutoClose
+	for _, id := range ids {
+		d, err := m.deferredAutoCloseRecords[id].ToDeferredAutoClose()
+		if err != nil {
+			return nil, fmt.Errorf("MockDatabase.LoadDeferredAutoCloses: %w", err)
+		}
+		out = append(out, d)
+	}
+
+	return out, nil
 }
 
 func (m *MockDatabase) SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error {
@@ -446,8 +505,9 @@ func (m *MockDatabase) LoadLiveAccounts(brokerMap map[CreateAccountRequestSource
 
 func NewMockDatabase() *MockDatabase {
 	return &MockDatabase{
-		orderRecords:         make(map[uuid.UUID][]*OrderRecord),
-		playgrounds:          make(map[uuid.UUID]*Playground),
-		reconcilePlaygrounds: make(map[CreateAccountRequestSource]IReconcilePlayground),
+		orderRecords:             make(map[uuid.UUID][]*OrderRecord),
+		playgrounds:              make(map[uuid.UUID]*Playground),
+		reconcilePlaygrounds:     make(map[CreateAccountRequestSource]IReconcilePlayground),
+		deferredAutoCloseRecords: make(map[uint]*DeferredAutoCloseRecord),
 	}
 }

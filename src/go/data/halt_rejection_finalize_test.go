@@ -72,7 +72,7 @@ func newTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 
-	require.NoError(t, db.AutoMigrate(&backtester_models.OrderRecord{}))
+	require.NoError(t, db.AutoMigrate(&backtester_models.OrderRecord{}, &backtester_models.DeferredAutoCloseRecord{}))
 
 	return db
 }

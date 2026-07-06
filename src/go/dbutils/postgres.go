@@ -85,6 +85,13 @@ func InitPostgresWithUrl(url string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
+	// Deferred option auto-closes (wire-companion-stops): persisted so a halt
+	// followed by a restart cannot drop a drain-once assignment/expiration
+	// close.
+	if err := db.AutoMigrate(&models.DeferredAutoCloseRecord{}); err != nil {
+		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
 	return db, nil
 }
 

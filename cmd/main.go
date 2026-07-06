@@ -507,6 +507,18 @@ func main() {
 	// Setup database service
 	dbService := data.NewDatabaseService(db, polygonClient, polygonOptionsClient)
 
+	// Deferred-auto-close alert condition (wire-companion-stops): the
+	// authoritative count comes from the playgrounds' in-memory deferral sets,
+	// which mirror the persisted deferred_auto_closes table (rehydrated at
+	// load) — never the gauge alone, so a restart cannot fake an all-clear.
+	alertEngine.SetDeferredAutoCloses(func() int {
+		n := 0
+		for _, p := range dbService.GetPlaygrounds() {
+			n += len(p.GetDeferredAutoCloses())
+		}
+		return n
+	})
+
 	// Setup brokers
 	brokerMap, err := getTradierBrokers()
 	if err != nil {

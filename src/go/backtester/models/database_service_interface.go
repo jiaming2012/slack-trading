@@ -46,4 +46,12 @@ type IDatabaseService interface {
 	FetchReconciliationOrders(reconcileId uint, seekFromPlayground bool) ([]*OrderRecord, error)
 	SaveEquityPlotRecord(playgroundId uuid.UUID, timestamp time.Time, equity float64) error
 	PlaceOrders(playgroundID uuid.UUID, requests []*CreateOrderRequest) ([]*OrderRecord, error)
+
+	// Deferred option auto-closes (wire-companion-stops): deferrals originate
+	// from drain-once assignment/expiration events, so they are persisted on
+	// deferral, deleted on successful placement, and reloaded at playground
+	// load — a halt followed by a restart must not silently drop a close.
+	SaveDeferredAutoClose(playgroundID uuid.UUID, d *DeferredAutoClose) error
+	DeleteDeferredAutoClose(recordID uint) error
+	LoadDeferredAutoCloses(playgroundID uuid.UUID) ([]*DeferredAutoClose, error)
 }

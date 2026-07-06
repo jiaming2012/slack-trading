@@ -254,6 +254,87 @@ func TestDeferredAutoClose_ExpirationDuringHaltDefersAndCommitsOnRelease(t *test
 	require.Equal(t, 0.0, pos.Quantity)
 }
 
+// Adversarial-review finding 2: deferrals originate from drain-once events,
+// so they are persisted on deferral and must survive a process restart — a
+// halt + restart must not silently drop the close. This drives the full
+// mechanism: defer (persisted with record IDs) → memory wiped (restart) →
+// restore from the persisted records → halt clears → the closes commit and
+// their persisted rows are deleted.
+func TestDeferredAutoClose_SurvivesRestartViaPersistedRecords(t *testing.T) {
+	telemetry.Init()
+	f := newDeferredAutoCloseFixture(t)
+
+	SetOrderGate(engagedGate{reason: "drill"})
+	t.Cleanup(func() { SetOrderGate(nil) })
+
+	_, err := f.playground.postTickProcessing(f.assignmentDelta(), f.mockDB)
+	require.NoError(t, err)
+	require.Len(t, f.playground.GetDeferredAutoCloses(), 2)
+
+	// Both deferrals were persisted with record IDs at deferral time.
+	persisted, err := f.mockDB.LoadDeferredAutoCloses(f.playground.GetId())
+	require.NoError(t, err)
+	require.Len(t, persisted, 2)
+	for _, d := range persisted {
+		require.NotZero(t, d.RecordID, "a deferral must be persisted when it is created, not later")
+		require.NotNil(t, d.Request)
+	}
+
+	// Process restart: the in-memory deferral list dies with the process; the
+	// load path restores it from the persisted records.
+	f.playground.deferredAutoCloses = nil
+	stale := f.playground.RestoreDeferredAutoCloses(persisted)
+	require.Empty(t, stale, "the source order is still open, so nothing is stale")
+	require.Len(t, f.playground.GetDeferredAutoCloses(), 2, "deferred closes must survive the restart")
+
+	// The halt clears after the restart: the RESTORED closes commit with
+	// their retained fill parameters, and their persisted rows are deleted.
+	SetOrderGate(nil)
+	delta, err := f.playground.postTickProcessing(&TickDelta{}, f.mockDB)
+	require.NoError(t, err)
+	require.Len(t, delta.NewTrades, 2)
+	require.Empty(t, f.playground.GetDeferredAutoCloses())
+
+	remaining, err := f.mockDB.LoadDeferredAutoCloses(f.playground.GetId())
+	require.NoError(t, err)
+	require.Empty(t, remaining, "committed deferrals must delete their persisted rows so a later restart cannot replay them")
+
+	pos := f.playground.positionCache.Get(f.optionSymbol.GetTicker())
+	require.Equal(t, 0.0, pos.Quantity)
+}
+
+// A persisted deferral whose source order no longer has remaining open
+// quantity (the close already committed) must be reported stale at restore —
+// replaying it would double-close into a reversal.
+func TestDeferredAutoClose_StaleRecordsNotRestored(t *testing.T) {
+	telemetry.Init()
+	f := newDeferredAutoCloseFixture(t)
+
+	SetOrderGate(engagedGate{reason: "drill"})
+	t.Cleanup(func() { SetOrderGate(nil) })
+
+	_, err := f.playground.postTickProcessing(f.assignmentDelta(), f.mockDB)
+	require.NoError(t, err)
+
+	// Capture the persisted records BEFORE the closes commit (simulating a
+	// crash after commit but before the row deletes were themselves durable).
+	persisted, err := f.mockDB.LoadDeferredAutoCloses(f.playground.GetId())
+	require.NoError(t, err)
+	require.Len(t, persisted, 2)
+
+	SetOrderGate(nil)
+	_, err = f.playground.postTickProcessing(&TickDelta{}, f.mockDB)
+	require.NoError(t, err)
+	require.Empty(t, f.playground.GetDeferredAutoCloses())
+
+	// Restart replay of the stale records: the source order is fully closed,
+	// so nothing may be restored.
+	f.playground.deferredAutoCloses = nil
+	stale := f.playground.RestoreDeferredAutoCloses(persisted)
+	require.Len(t, stale, 2, "records for an already-closed order must be reported stale, never restored")
+	require.Empty(t, f.playground.GetDeferredAutoCloses())
+}
+
 // An expiration event arriving on a LATER tick, while the assignment's
 // auto-close is still deferred, must not queue a second close for the same
 // order — that would double-close (flip the position) on release.

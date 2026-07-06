@@ -1,10 +1,14 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/jiaming2012/slack-trading/src/go/telemetry"
 )
@@ -39,6 +43,72 @@ type DeferredAutoClose struct {
 
 	// Reason records the halt error that forced the deferral.
 	Reason string
+
+	// RecordID is the persisted deferred_auto_closes row backing this deferral
+	// (0 = not persisted). Deferrals originate from drain-once events, so they
+	// are written to the database on deferral and deleted on successful
+	// placement — a halt followed by a process restart must not silently drop
+	// an auto-close.
+	RecordID uint
+}
+
+// DeferredAutoCloseRecord is the persisted form of a DeferredAutoClose
+// (adversarial-review finding 2): written on deferral, deleted on successful
+// placement, and reloaded at playground load so deferrals survive a restart.
+type DeferredAutoCloseRecord struct {
+	gorm.Model
+	PlaygroundID        uuid.UUID `gorm:"column:playground_id;type:uuid;index:idx_deferred_auto_close_playground;not null"`
+	SourceOrderID       uint      `gorm:"column:source_order_id;not null"`
+	FillTime            time.Time `gorm:"column:fill_time;type:timestamptz;not null"`
+	EmitAssignmentEvent bool      `gorm:"column:emit_assignment_event;not null"`
+	Reason              string    `gorm:"column:reason;type:text"`
+	RequestJSON         string    `gorm:"column:request_json;type:jsonb;not null"`
+}
+
+// TableName pins the persisted deferral table.
+func (DeferredAutoCloseRecord) TableName() string {
+	return "deferred_auto_closes"
+}
+
+// ToRecord serializes the deferral for persistence.
+func (d *DeferredAutoClose) ToRecord(playgroundID uuid.UUID) (*DeferredAutoCloseRecord, error) {
+	if d.Request == nil {
+		return nil, fmt.Errorf("DeferredAutoClose.ToRecord: request is nil")
+	}
+
+	reqJSON, err := json.Marshal(d.Request)
+	if err != nil {
+		return nil, fmt.Errorf("DeferredAutoClose.ToRecord: failed to serialize close request: %w", err)
+	}
+
+	rec := &DeferredAutoCloseRecord{
+		PlaygroundID:        playgroundID,
+		SourceOrderID:       d.SourceOrderID,
+		FillTime:            d.FillTime,
+		EmitAssignmentEvent: d.EmitAssignmentEvent,
+		Reason:              d.Reason,
+		RequestJSON:         string(reqJSON),
+	}
+	rec.ID = d.RecordID
+
+	return rec, nil
+}
+
+// ToDeferredAutoClose deserializes a persisted deferral.
+func (r *DeferredAutoCloseRecord) ToDeferredAutoClose() (*DeferredAutoClose, error) {
+	var req CreateOrderRequest
+	if err := json.Unmarshal([]byte(r.RequestJSON), &req); err != nil {
+		return nil, fmt.Errorf("DeferredAutoCloseRecord.ToDeferredAutoClose: failed to deserialize close request (row %d): %w", r.ID, err)
+	}
+
+	return &DeferredAutoClose{
+		Request:             &req,
+		SourceOrderID:       r.SourceOrderID,
+		FillTime:            r.FillTime,
+		EmitAssignmentEvent: r.EmitAssignmentEvent,
+		Reason:              r.Reason,
+		RecordID:            r.ID,
+	}, nil
 }
 
 // GetDeferredAutoCloses returns the currently outstanding deferred auto-closes
@@ -60,15 +130,54 @@ func (p *Playground) hasDeferredAutoCloseFor(sourceOrderID uint) bool {
 	return false
 }
 
-// deferAutoClose queues an auto-close for retry on subsequent ticks, logs the
-// deferral loudly, and updates the internal-registry gauge (ADR-0005: internal
-// telemetry only) that the alert engine's deferred-auto-close rule reads.
-func (p *Playground) deferAutoClose(d *DeferredAutoClose) {
+// deferAutoClose queues an auto-close for retry on subsequent ticks, persists
+// it (deferrals originate from drain-once events and must survive a restart),
+// logs the deferral loudly, and updates the internal-registry gauge
+// (ADR-0005: internal telemetry only).
+func (p *Playground) deferAutoClose(dbService IDatabaseService, d *DeferredAutoClose) {
+	if dbService != nil {
+		if err := dbService.SaveDeferredAutoClose(p.ID, d); err != nil {
+			log.Errorf("deferAutoClose: failed to PERSIST deferred auto-close for order %d — the close will be retried while this process lives but will be LOST if it restarts before the halt clears: %v", d.SourceOrderID, err)
+		}
+	}
+
 	p.deferredAutoCloses = append(p.deferredAutoCloses, d)
 	p.updateDeferredAutoCloseGauge()
 
 	log.Warnf("postTickProcessing: option auto-close for order %d (%s, tag %q) DEFERRED — kill switch is engaged (%s); the close is retained and will be retried each tick until the halt clears (%d deferred close(s) outstanding)",
 		d.SourceOrderID, d.Request.Symbol, d.Request.Tag, d.Reason, len(p.deferredAutoCloses))
+}
+
+// RestoreDeferredAutoCloses rehydrates the deferred-auto-close list from
+// persisted records at playground load, so a halt followed by a restart does
+// not drop the closes. Deferrals whose source order no longer has remaining
+// open quantity (the close already committed some other way) are returned as
+// stale rather than restored — replaying them would double-close.
+func (p *Playground) RestoreDeferredAutoCloses(deferrals []*DeferredAutoClose) (stale []*DeferredAutoClose) {
+	for _, d := range deferrals {
+		order, err := p.GetOrder(d.SourceOrderID)
+		if err != nil {
+			log.Warnf("RestoreDeferredAutoCloses: deferred auto-close row %d references missing order %d — treating as stale", d.RecordID, d.SourceOrderID)
+			stale = append(stale, d)
+			continue
+		}
+
+		remaining, err := order.GetRemainingOpenQuantity()
+		if err != nil || math.Abs(remaining) <= 0 {
+			log.Warnf("RestoreDeferredAutoCloses: deferred auto-close row %d for order %d has no remaining open quantity — treating as stale (already closed)", d.RecordID, d.SourceOrderID)
+			stale = append(stale, d)
+			continue
+		}
+
+		p.deferredAutoCloses = append(p.deferredAutoCloses, d)
+	}
+
+	if n := len(p.deferredAutoCloses); n > 0 {
+		log.Warnf("RestoreDeferredAutoCloses: playground %s restored %d deferred option auto-close(s) from the database — open exposure retained across the restart; they will be retried each tick until the halt clears", p.ID, n)
+	}
+
+	p.updateDeferredAutoCloseGauge()
+	return stale
 }
 
 // updateDeferredAutoCloseGauge publishes the outstanding deferral count for
@@ -126,7 +235,7 @@ func (p *Playground) placeAutoClose(dbService IDatabaseService, req *CreateOrder
 // clear it is placed exactly as today.
 func (p *Playground) placeOrDeferAutoClose(dbService IDatabaseService, req *CreateOrderRequest, sourceOrderID uint, emitAssignmentEvent bool, executionRequests map[*OrderRecord]ExecutionFillRequest) (*TickDeltaEvent, error) {
 	if gateErr := CheckOrderGate(); gateErr != nil {
-		p.deferAutoClose(&DeferredAutoClose{
+		p.deferAutoClose(dbService, &DeferredAutoClose{
 			Request:             req,
 			SourceOrderID:       sourceOrderID,
 			FillTime:            p.GetCurrentTime(),
@@ -169,6 +278,14 @@ func (p *Playground) retryDeferredAutoCloses(dbService IDatabaseService, executi
 		p.deferredAutoCloses = p.deferredAutoCloses[1:]
 		if event != nil {
 			events = append(events, event)
+		}
+
+		// The close committed: remove its persisted row so a restart cannot
+		// replay it. A failed delete is loud — a resurrected row would be
+		// rejected by the pending-close quantity check at placement rather
+		// than double-closing, but it would fail ticks until cleaned up.
+		if err := dbService.DeleteDeferredAutoClose(d.RecordID); err != nil {
+			log.Errorf("retryDeferredAutoCloses: deferred auto-close for order %d committed but its persisted row %d could not be deleted — clean it up manually or the restart-time restore will report it stale: %v", d.SourceOrderID, d.RecordID, err)
 		}
 
 		log.Infof("postTickProcessing: deferred option auto-close for order %d (%s) placed after halt release (%d still outstanding)", d.SourceOrderID, d.Request.Symbol, len(p.deferredAutoCloses))
