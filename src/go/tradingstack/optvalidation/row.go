@@ -27,6 +27,14 @@ type TrainingRow struct {
 	RSI14            float64
 	ATRPct           float64
 	ScannerScore     float64
+
+	// PnlPct and OutcomeLabel are carried from the joined SimOutcome for the
+	// scanner optimizer's win/loss labeling. No pipeline stage reads or
+	// alters them. A nil source PnlPct maps to 0 (landing in the optimizer's
+	// excluded breakeven class); a nil source OutcomeLabel maps to the empty
+	// string.
+	PnlPct       float64
+	OutcomeLabel string
 }
 
 // WeightedTrainingRow is a TrainingRow with the ev_weight attached by the
@@ -63,6 +71,9 @@ func NewTrainingRow(sr tradingstack.ScanResult, so tradingstack.SimOutcome) Trai
 		RSI14:            derefFloat64(sr.Rsi14),
 		ATRPct:           derefFloat64(sr.AtrPct),
 		ScannerScore:     derefFloat64(sr.ScannerScore),
+
+		PnlPct:       derefFloat64(so.PnlPct),
+		OutcomeLabel: derefString(so.OutcomeLabel),
 	}
 }
 

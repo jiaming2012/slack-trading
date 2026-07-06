@@ -9,8 +9,8 @@
 
 ## 2. TrainingRow outcome fields (modified `optimizer-validation-pipeline`)
 
-- [ ] 2.1 Extend `optvalidation.TrainingRow` with `PnlPct float64` and `OutcomeLabel string`; map them in `NewTrainingRow` (nil → 0 / empty string). No stage reads the new fields.
-- [ ] 2.2 Tests: outcome fields carried from the `SimOutcome`; pipeline stage survival identical with outcome fields zeroed vs populated.
+- [x] 2.1 Extend `optvalidation.TrainingRow` with `PnlPct float64` and `OutcomeLabel string`; map them in `NewTrainingRow` (nil → 0 / empty string). No stage reads the new fields.
+- [x] 2.2 Tests: outcome fields carried from the `SimOutcome`; pipeline stage survival identical with outcome fields zeroed vs populated.
 
 ## 3. Tuner (`scanneropt`)
 

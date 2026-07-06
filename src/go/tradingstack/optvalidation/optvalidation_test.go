@@ -49,10 +49,14 @@ func TestNewTrainingRow_MapsEveryFieldFromDistinctSource(t *testing.T) {
 		ScannerScore:     &scannerScore,
 		DataAsOf:         &dataAsOf,
 	}
+	pnlPct := 0.034
+	outcomeLabel := "win"
 	so := tradingstack.SimOutcome{
 		BaseModel:    tradingstack.BaseModel{ID: simOutcomeID},
 		ScanResultID: scanResultID,
 		StrategyID:   &strategyID,
+		PnlPct:       &pnlPct,
+		OutcomeLabel: &outcomeLabel,
 	}
 
 	row := NewTrainingRow(sr, so)
@@ -70,6 +74,8 @@ func TestNewTrainingRow_MapsEveryFieldFromDistinctSource(t *testing.T) {
 	assert.Equal(t, rsi14, row.RSI14)
 	assert.Equal(t, atrPct, row.ATRPct)
 	assert.Equal(t, scannerScore, row.ScannerScore)
+	assert.Equal(t, pnlPct, row.PnlPct)
+	assert.Equal(t, outcomeLabel, row.OutcomeLabel)
 }
 
 // TestNewTrainingRow_NilPointerFieldsDerefToZeroValue asserts the documented
@@ -88,6 +94,8 @@ func TestNewTrainingRow_NilPointerFieldsDerefToZeroValue(t *testing.T) {
 	so := tradingstack.SimOutcome{
 		ScanResultID: scanResultID,
 		StrategyID:   nil,
+		PnlPct:       nil,
+		OutcomeLabel: nil,
 	}
 
 	row := NewTrainingRow(sr, so)
@@ -95,6 +103,69 @@ func TestNewTrainingRow_NilPointerFieldsDerefToZeroValue(t *testing.T) {
 	assert.Equal(t, time.Time{}, row.DataAsOf)
 	assert.Equal(t, 0.0, row.RegimeConfidence)
 	assert.Equal(t, "", row.StrategyID)
+	assert.Equal(t, 0.0, row.PnlPct, "a nil source PnlPct maps to 0 (the excluded breakeven class)")
+	assert.Equal(t, "", row.OutcomeLabel)
+}
+
+// TestRun_StageSurvivalUnchangedByOutcomeFields pins the modified-capability
+// contract: running the full five-stage pipeline over the same batch with
+// outcome fields zeroed vs populated keeps the exact same rows in every
+// stage's output, differing only in the carried outcome field values.
+func TestRun_StageSurvivalUnchangedByOutcomeFields(t *testing.T) {
+	zeroed := SyntheticInput()
+
+	// The populated batch is the same rows (same identities) with only the
+	// outcome fields set. TrainingRow is a value type, so copying the slice
+	// isolates the mutation.
+	populated := zeroed
+	populated.Rows = append([]TrainingRow(nil), zeroed.Rows...)
+	for i := range populated.Rows {
+		populated.Rows[i].PnlPct = 0.01 * float64(i+1)
+		populated.Rows[i].OutcomeLabel = "win"
+	}
+
+	zeroedResult, err := Run(zeroed, DefaultConfig())
+	require.NoError(t, err)
+	populatedResult, err := Run(populated, DefaultConfig())
+	require.NoError(t, err)
+
+	cleanIDs := func(rows []WeightedTrainingRow) []uuid.UUID {
+		out := make([]uuid.UUID, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, r.ScanResultID)
+		}
+		return out
+	}
+	rowIDs := func(rows []TrainingRow) []uuid.UUID {
+		out := make([]uuid.UUID, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, r.ScanResultID)
+		}
+		return out
+	}
+	violationIDs := func(violations []Violation) []uuid.UUID {
+		out := make([]uuid.UUID, 0, len(violations))
+		for _, v := range violations {
+			out = append(out, v.ScanResultID)
+		}
+		return out
+	}
+
+	assert.Equal(t, cleanIDs(zeroedResult.Clean), cleanIDs(populatedResult.Clean),
+		"the same rows must survive to the clean set")
+	assert.Equal(t, violationIDs(zeroedResult.Violations), violationIDs(populatedResult.Violations))
+	assert.Equal(t, rowIDs(zeroedResult.DroppedByRegime), rowIDs(populatedResult.DroppedByRegime))
+	assert.Equal(t, rowIDs(zeroedResult.DroppedByFidelity), rowIDs(populatedResult.DroppedByFidelity))
+	assert.Equal(t, zeroedResult.DistributionReport, populatedResult.DistributionReport)
+
+	for _, r := range populatedResult.Clean {
+		assert.NotZero(t, r.PnlPct, "populated outcome values must be carried through the pipeline")
+		assert.Equal(t, "win", r.OutcomeLabel)
+	}
+	for _, r := range zeroedResult.Clean {
+		assert.Zero(t, r.PnlPct)
+		assert.Equal(t, "", r.OutcomeLabel)
+	}
 }
 
 // --- Stage 1: timestamp audit ---------------------------------------------
