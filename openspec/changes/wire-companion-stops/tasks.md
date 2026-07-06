@@ -40,11 +40,11 @@
 
 ## 7. Verification gates (autonomous — MockBroker/Simulation only)
 
-- [ ] 7.1 `go build ./src/go/... ./cmd/...` green
-- [ ] 7.2 `task test` green (backtester suite)
-- [ ] 7.3 Targeted suites green: `go test ./src/go/backtester/safety/... ./src/go/backtester/services/... ./src/go/data/... ./src/go/backtester/models/...`
-- [ ] 7.4 Simulation smoke: run a local Simulation session (`task test:smoke` harness or equivalent) and confirm no companion stops, no deferred-close regressions, ticks green with and without an engaged halt
-- [ ] 7.5 Grep-gate: no autonomous task started a Paper/Margin session; no Tradier sandbox credentials touched by tests added in this change
+- [x] 7.1 `go build ./src/go/... ./cmd/...` green
+- [x] 7.2 `task test` green (backtester suite)
+- [x] 7.3 Targeted suites green: `go test ./src/go/backtester/safety/... ./src/go/backtester/services/... ./src/go/data/... ./src/go/backtester/models/...` (plus `api/killswitchapi` and `telemetry`)
+- [x] 7.4 Simulation smoke: `task test:smoke` green — Simulation session boots, forced order fills, teardown clean, no companion stops (feature unarmed + Simulation excluded by eligibility); engaged-halt tick behavior is pinned by the deferred-auto-close unit tests (ticks complete, closes defer/commit) and the pipeline halt-bypass e2e test, since the smoke's forced-fill assertion is by design incompatible with an engaged halt
+- [x] 7.5 Grep-gate: no autonomous task started a Paper/Margin session; no Tradier sandbox credentials touched by tests added in this change (all ModePaper references are in-memory playgrounds bound to MockBroker)
 
 ## 8. Operator-only follow-ups (NOT part of the autonomous run)
 
