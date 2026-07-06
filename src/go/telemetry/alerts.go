@@ -12,9 +12,10 @@ import (
 
 // Alert rule names.
 const (
-	RuleStaleHeartbeat = "stale_heartbeat"
-	RuleErrorRate      = "error_rate"
-	RuleAutoHalt       = "auto_halt"
+	RuleStaleHeartbeat    = "stale_heartbeat"
+	RuleErrorRate         = "error_rate"
+	RuleAutoHalt          = "auto_halt"
+	RuleDeferredAutoClose = "deferred_auto_close"
 )
 
 // Ack channels.
@@ -115,15 +116,21 @@ func (e *AlertEngine) Start(ctx context.Context) {
 	}
 }
 
-// errorsTotal reads the cumulative error counter from the registry snapshot.
-func (e *AlertEngine) errorsTotal() float64 {
+// metricTotal reads the sum of a named series (across all label sets) from
+// the registry snapshot.
+func (e *AlertEngine) metricTotal(name string) float64 {
 	var total float64
 	for _, p := range e.reg.Snapshot() {
-		if p.Name == "grodt.errors.total" {
+		if p.Name == name {
 			total += p.Value
 		}
 	}
 	return total
+}
+
+// errorsTotal reads the cumulative error counter from the registry snapshot.
+func (e *AlertEngine) errorsTotal() float64 {
+	return e.metricTotal("grodt.errors.total")
 }
 
 // errorCountInWindow updates the sample history with the current cumulative
@@ -185,6 +192,19 @@ func (e *AlertEngine) Evaluate(now time.Time) {
 				subject: "kill-switch",
 				message: fmt.Sprintf("kill switch AUTO-HALT engaged: %s — order submission is blocked until acknowledge + release (task kill-switch:acknowledge / kill-switch:release)", reason),
 			}
+		}
+	}
+
+	// Deferred-auto-close rule (wire-companion-stops): option auto-closes
+	// deferred by an engaged halt are open exposure the operator must know
+	// about. The rule fires while the internal-registry gauge reports any
+	// outstanding deferral (summed across playgrounds) and resolves once the
+	// halt clears and the deferred closes commit.
+	if n := e.metricTotal(MetricDeferredAutoCloses); n > 0 {
+		want[RuleDeferredAutoClose+"|auto-closes"] = desired{
+			rule:    RuleDeferredAutoClose,
+			subject: "auto-closes",
+			message: fmt.Sprintf("%d option auto-close(s) DEFERRED by the engaged kill switch — this is OPEN EXPOSURE that will not close until the halt is released (task kill-switch:release)", int(n)),
 		}
 	}
 

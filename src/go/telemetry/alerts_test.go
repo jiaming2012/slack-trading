@@ -262,6 +262,44 @@ func TestAlertEngine(t *testing.T) {
 		e.Evaluate(start.Add(2 * time.Minute))
 		assert.Len(t, notifier.messages(), 2)
 	})
+
+	t.Run("deferred auto-closes fire while outstanding, resolve at zero", func(t *testing.T) {
+		notifier := &fakeNotifier{}
+		e, _, reg := newTestEngine(db, notifier)
+
+		gauge := reg.Gauge(MetricDeferredAutoCloses)
+		start := time.Now().UTC()
+
+		// Nothing deferred: silent.
+		e.Evaluate(start)
+		assert.Empty(t, notifier.messages())
+
+		// Two closes deferred by an engaged halt (summed across playgrounds).
+		gauge.Set(2, Label{Key: "playground_id", Value: "pg-1"})
+		e.Evaluate(start.Add(30 * time.Second))
+		msgs := notifier.messages()
+		require.Len(t, msgs, 1)
+		assert.Contains(t, msgs[0], "FIRING")
+		assert.Contains(t, msgs[0], RuleDeferredAutoClose)
+		assert.Contains(t, msgs[0], "2 option auto-close(s) DEFERRED")
+		assert.Contains(t, msgs[0], "OPEN EXPOSURE")
+
+		var row AlertRow
+		require.NoError(t, db.Where("rule = ?", RuleDeferredAutoClose).Order("id desc").First(&row).Error)
+		assert.Equal(t, "auto-closes", row.Subject)
+		assert.Nil(t, row.ResolvedAt)
+
+		// Halt released, deferred closes committed: the gauge returns to zero
+		// and the alert resolves.
+		gauge.Set(0, Label{Key: "playground_id", Value: "pg-1"})
+		e.Evaluate(start.Add(time.Minute))
+		msgs = notifier.messages()
+		require.Len(t, msgs, 2)
+		assert.Contains(t, msgs[1], "RESOLVED")
+
+		require.NoError(t, db.Where("rule = ?", RuleDeferredAutoClose).Order("id desc").First(&row).Error)
+		assert.NotNil(t, row.ResolvedAt)
+	})
 }
 
 func TestErrorCounterHook(t *testing.T) {

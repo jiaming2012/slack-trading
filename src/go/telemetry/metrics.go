@@ -24,6 +24,16 @@ var (
 	GuardObservations *Counter
 	GuardTrips        *Counter
 	HaltEngaged       *Gauge
+
+	// Companion-stop / deferred-auto-close instruments (wire-companion-stops).
+	// DeferredAutoCloses carries a {playground_id} label and reports how many
+	// option auto-closes are currently deferred by an engaged halt (open
+	// exposure); the companion-stop counters track broker-held protective
+	// stops placed on live entry fills and placement failures (each failure is
+	// a live position left UNPROTECTED).
+	DeferredAutoCloses    *Gauge
+	CompanionStopsPlaced  *Counter
+	CompanionStopFailures *Counter
 )
 
 // Init constructs the registry and all instruments. It is self-contained:
@@ -47,7 +57,15 @@ func Init() {
 	GuardObservations = Default.Counter("safety_guard_observations_total")
 	GuardTrips = Default.Counter("safety_guard_trips_total")
 	HaltEngaged = Default.Gauge("safety_halt_engaged")
+	DeferredAutoCloses = Default.Gauge(MetricDeferredAutoCloses)
+	CompanionStopsPlaced = Default.Counter("safety_companion_stops_placed_total")
+	CompanionStopFailures = Default.Counter("safety_companion_stop_failures_total")
 }
+
+// MetricDeferredAutoCloses is exported by name because the alert engine reads
+// the gauge back out of registry snapshots to drive the deferred-auto-close
+// alert rule.
+const MetricDeferredAutoCloses = "safety_deferred_auto_closes"
 
 // GuardLabel is the standard {guard} dimension for the guard counters.
 func GuardLabel(guardName string) Label {

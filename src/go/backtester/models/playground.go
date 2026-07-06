@@ -50,6 +50,7 @@ type Playground struct {
 	pendingOrdersQueueMutex     *sync.Mutex                          `json:"-" gorm:"-"`
 	exerciseOptionsRequestQueue *ExerciseOptionRequestQueue          `json:"-" gorm:"-"`
 	signalRepo                  ISignalRepository                    `json:"-" gorm:"-"`
+	deferredAutoCloses          []*DeferredAutoClose                 `json:"-" gorm:"-"`
 }
 
 func (p *Playground) ExerciseOption(orderId uint, assignedQuantity, assignedPrice float64) error {
@@ -1485,6 +1486,18 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 	// Close expired option contracts repos
 	executionRequests := make(map[*OrderRecord]ExecutionFillRequest)
+
+	// Deferred option auto-closes (wire-companion-stops, review nit e): closes
+	// deferred by an engaged halt on earlier ticks are retried FIRST, before
+	// this tick's new events, so a released halt commits the backlog in its
+	// original order and with its retained fill parameters.
+	retriedAssignmentEvents, err := p.retryDeferredAutoCloses(dbService, executionRequests)
+	if err != nil {
+		return nil, err
+	}
+	optionAssignmentEvents = append(optionAssignmentEvents, retriedAssignmentEvents...)
+	p.Events = append(p.Events, retriedAssignmentEvents...)
+
 	// Track orders that already have close orders pending to prevent double-close
 	// when both assignment and expiration events fire for the same order in one tick
 	closedOrderIds := make(map[uint]bool)
@@ -1505,6 +1518,12 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 				continue
 			}
 
+			if p.hasDeferredAutoCloseFor(o.ID) {
+				log.Infof("skipping option assignment for order %d (%s): an auto-close is already deferred for it (halt engaged on an earlier tick)", o.ID, o.Symbol)
+				closedOrderIds[o.ID] = true
+				continue
+			}
+
 			requestedPrice := event.OptionAssignmentEvent.AssignedPrice
 			requestedQuantity := event.OptionAssignmentEvent.AssignedQuantity
 			exercisedOptionOrderRequests, err := o.CreateCloseOrderRequests(p.positionCache, p.GetCurrentTime(), requestedPrice, &requestedQuantity, "auto-closed-on-early-assignment")
@@ -1513,17 +1532,8 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 			}
 
 			for _, orderRequest := range exercisedOptionOrderRequests {
-				placeOrderResults, placeOrderErr := dbService.PlaceOrders(p.ID, []*CreateOrderRequest{orderRequest})
-				if placeOrderErr != nil {
-					return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
-				}
-
-				placeOrderResult := placeOrderResults[0]
-
-				executionRequests[placeOrderResult] = ExecutionFillRequest{
-					Price:    placeOrderResult.RequestedPrice,
-					Time:     p.GetCurrentTime(),
-					Quantity: placeOrderResult.GetQuantity(),
+				if _, err := p.placeOrDeferAutoClose(dbService, orderRequest, o.ID, false, executionRequests); err != nil {
+					return nil, err
 				}
 			}
 
@@ -1545,6 +1555,12 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 
 				if math.Abs(remainingQty) <= 0 {
 					log.Infof("skipping expired option order %d (%s): already fully closed (remaining qty=%.4f)", o.ID, o.Symbol, remainingQty)
+					continue
+				}
+
+				if p.hasDeferredAutoCloseFor(o.ID) {
+					log.Infof("skipping expiration close for order %d (%s): an auto-close is already deferred for it (halt engaged on an earlier tick)", o.ID, o.Symbol)
+					closedOrderIds[o.ID] = true
 					continue
 				}
 
@@ -1579,37 +1595,16 @@ func (p *Playground) postTickProcessing(tickDelta *TickDelta, dbService IDatabas
 				}
 
 				for _, orderRequest := range exercisedOptionOrderRequests {
-					placeOrderResults, placeOrderErr := dbService.PlaceOrders(p.ID, []*CreateOrderRequest{orderRequest})
-					if placeOrderErr != nil {
-						return nil, fmt.Errorf("failed to place close order: %w", placeOrderErr)
+					emitAssignmentEvent := orderRequest.Class == OrderRecordClassEquity
+
+					assignmentEvent, err := p.placeOrDeferAutoClose(dbService, orderRequest, o.ID, emitAssignmentEvent, executionRequests)
+					if err != nil {
+						return nil, err
 					}
 
-					placeOrderResult := placeOrderResults[0]
-
-					executionRequests[placeOrderResult] = ExecutionFillRequest{
-						Price:    placeOrderResult.RequestedPrice,
-						Time:     p.GetCurrentTime(),
-						Quantity: placeOrderResult.GetQuantity(),
-					}
-
-					if orderRequest.Class == OrderRecordClassEquity {
-						multiplier := 1.0
-						if orderRequest.Side == TradierOrderSideSell || orderRequest.Side == TradierOrderSideSellShort {
-							multiplier = -1.0
-						}
-
-						optionAssignmentEvents = append(optionAssignmentEvents, &TickDeltaEvent{
-							Type: TickDeltaEventTypeOptionAssigned,
-							OptionAssignmentEvent: &OptionAssignmentEvent{
-								OrderId:          placeOrderResult.ID,
-								Symbol:           placeOrderResult.GetInstrument(),
-								AssignedQuantity: orderRequest.Quantity * multiplier,
-								AssignedPrice:    orderRequest.RequestedPrice,
-								Timestamp:        p.GetCurrentTime(),
-							},
-						})
-
-						p.Events = append(p.Events, optionAssignmentEvents[len(optionAssignmentEvents)-1])
+					if assignmentEvent != nil {
+						optionAssignmentEvents = append(optionAssignmentEvents, assignmentEvent)
+						p.Events = append(p.Events, assignmentEvent)
 					}
 				}
 

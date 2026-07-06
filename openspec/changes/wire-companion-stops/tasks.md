@@ -11,10 +11,10 @@
 
 ## 2. Deferred option auto-closes during a halt (nit e)
 
-- [ ] 2.1 In `src/go/backtester/models/playground.go` `postTickProcessing`: consult `CheckOrderGate()` before placing assignment/expiration auto-closes; while halted, retain each constructed close request + fill parameters on a playground deferred-auto-close list, log `Warn`, and complete the tick
-- [ ] 2.2 Retry deferred auto-closes at the start of each subsequent tick; on success, commit with the retained fill parameters and clear the entry
-- [ ] 2.3 Telemetry: `safety_deferred_auto_closes` gauge on `telemetry.Default` (internal registry only, per ADR-0005) plus an AlertEngine Alert while deferrals are outstanding
-- [ ] 2.4 Unit tests: assignment during halt ⇒ tick completes, close deferred; expiration during halt ⇒ same; acknowledge+release ⇒ next tick commits deferred closes with original fill parameters; clear halt ⇒ auto-closes behave exactly as today; gauge/Alert emitted
+- [x] 2.1 In `src/go/backtester/models/playground.go` `postTickProcessing`: consult `CheckOrderGate()` before placing assignment/expiration auto-closes; while halted, retain each constructed close request + fill parameters on a playground deferred-auto-close list, log `Warn`, and complete the tick
+- [x] 2.2 Retry deferred auto-closes at the start of each subsequent tick; on success, commit with the retained fill parameters and clear the entry
+- [x] 2.3 Telemetry: `safety_deferred_auto_closes` gauge on `telemetry.Default` (internal registry only, per ADR-0005) plus an AlertEngine Alert while deferrals are outstanding
+- [x] 2.4 Unit tests: assignment during halt ⇒ tick completes, close deferred; expiration during halt ⇒ same; acknowledge+release ⇒ next tick commits deferred closes with original fill parameters; clear halt ⇒ auto-closes behave exactly as today; gauge/Alert emitted
 
 ## 3. Companion-stop configuration (opt-in)
 
