@@ -51,6 +51,6 @@ Trading stack v4
         scanner-optimizer: |{"bg":"#C5E1A5"}
         optimizer-validation-pipeline: |{"bg":"#C5E1A5"}
         overfitting-countermeasures: |{"bg":"#C5E1A5"}
-        shadow-config-deployment: |{"bg":"#FFF59D"}
+        shadow-config-deployment: |{"bg":"#C5E1A5"}
     Recommendations
         recommendation-engine: |{"bg":"#FFFFFF"}
