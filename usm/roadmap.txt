@@ -39,7 +39,7 @@ Trading stack v4
         kill-switch-and-broker-side-stops: |{"bg":"#C5E1A5"}
         portfolio-risk-overlay: |{"bg":"#C5E1A5"}
         crowding-detection: |{"bg":"#C5E1A5"}
-        wire-anomaly-guard-feeds: |{"bg":"#FFF59D"}
+        wire-anomaly-guard-feeds: |{"bg":"#C5E1A5"}
         wire-companion-stops: |{"bg":"#FFF59D"}
         wire-risk-overlay-state: |{"bg":"#FFF59D"}
     Feedback loop
