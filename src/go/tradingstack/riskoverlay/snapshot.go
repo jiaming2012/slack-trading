@@ -120,17 +120,29 @@ func BuildPortfolioSnapshot(evWeights EvWeightLookup, sectors SectorLookup) Port
 		}
 
 		// Trailing 5-session equity series from the in-memory plot, ending with
-		// current equity. The most recent session's stale close is replaced by
-		// the up-to-the-moment equity; an empty plot yields a single-point
-		// series, so the wired snapshot ALWAYS carries at least current equity
-		// (the drawdown breaker's empty-series inactive state can only occur
-		// pre-wiring or in fixtures).
-		series := sessionCloses(p.GetEquityPlot(), 5)
+		// current equity. When the plot already has a point for the CURRENT
+		// session, that session's stale close is replaced by the
+		// up-to-the-moment equity; when the current session has no plot point
+		// yet, current equity is APPENDED as its own session — overwriting the
+		// PRIOR session's close would shorten the effective window and could
+		// understate the peak (adversarial review, minor 5). An empty plot
+		// yields a single-point series, so the wired snapshot ALWAYS carries at
+		// least current equity (the drawdown breaker's empty-series inactive
+		// state can only occur pre-wiring or in fixtures).
+		plot := p.GetEquityPlot()
+		series := sessionCloses(plot, 5)
 		current := p.GetEquity(posCache)
-		if len(series) == 0 {
+		currentSession := p.GetCurrentTime().Format(sessionDateLayout)
+		switch {
+		case len(series) == 0:
 			series = []float64{current}
-		} else {
+		case lastSessionDate(plot) == currentSession:
 			series[len(series)-1] = current
+		default:
+			series = append(series, current)
+			if len(series) > 5 {
+				series = series[len(series)-5:]
+			}
 		}
 		state.EquitySeries = series
 
@@ -224,6 +236,20 @@ func sectorTickerForOrder(order *models.OrderRecord) string {
 	return order.Symbol
 }
 
+// sessionDateLayout is the date-only layout that identifies a session.
+const sessionDateLayout = "2006-01-02"
+
+// lastSessionDate returns the session date of the most recent non-nil plot
+// point, or "" for an empty plot.
+func lastSessionDate(plot []*coremodels.EquityPlot) string {
+	for i := len(plot) - 1; i >= 0; i-- {
+		if plot[i] != nil {
+			return plot[i].Timestamp.Format(sessionDateLayout)
+		}
+	}
+	return ""
+}
+
 // sessionCloses collapses a chronological equity plot into one closing value
 // per distinct session date, returning at most the last max sessions in
 // chronological order.
@@ -239,7 +265,7 @@ func sessionCloses(plot []*coremodels.EquityPlot, max int) []float64 {
 		if plot[i] == nil {
 			continue
 		}
-		d := plot[i].Timestamp.Format("2006-01-02")
+		d := plot[i].Timestamp.Format(sessionDateLayout)
 		if d == lastDate {
 			continue
 		}

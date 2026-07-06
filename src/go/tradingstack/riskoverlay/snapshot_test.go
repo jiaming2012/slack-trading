@@ -94,21 +94,34 @@ func newSnapshotFixture(t *testing.T) *models.Playground {
 	// cache: prices through the cost-basis fallback and resolves no sector.
 	p.GetPositionCache().Set(coremodels.NewStockSymbol("XLE"), &models.Position{Quantity: 10, CostBasis: 80})
 
-	day := func(d int, hour int) time.Time {
-		return time.Date(2026, 6, d, hour, 0, 0, 0, time.UTC)
-	}
-	p.SetEquityPlot([]*coremodels.EquityPlot{
-		{Timestamp: day(25, 20), Value: 100_000},
-		{Timestamp: day(26, 20), Value: 100_100},
-		{Timestamp: day(29, 15), Value: 100_150}, // intraday point...
-		{Timestamp: day(29, 20), Value: 100_200}, // ...same session's close wins
-		{Timestamp: day(30, 20), Value: 100_300},
-		{Timestamp: time.Date(2026, 7, 1, 20, 0, 0, 0, time.UTC), Value: 100_400},
-		{Timestamp: time.Date(2026, 7, 2, 20, 0, 0, 0, time.UTC), Value: 100_450},
-		{Timestamp: time.Date(2026, 7, 3, 19, 0, 0, 0, time.UTC), Value: 99_999}, // stale close, replaced by current equity
-	})
+	// Session dates cohere with the sim clock: the clock sits inside the
+	// 2025-09-03 session, and the plot carries a stale intraday point for that
+	// CURRENT session (so the builder's replace-current-session path applies).
+	p.SetEquityPlot(fixtureEquityPlot(true))
 
 	return p
+}
+
+// fixtureEquityPlot builds the fixture's equity plot; includeCurrentSession
+// controls whether the CURRENT session (2025-09-03, the sim clock's date)
+// carries a stale intraday point.
+func fixtureEquityPlot(includeCurrentSession bool) []*coremodels.EquityPlot {
+	day := func(month time.Month, d, hour int) time.Time {
+		return time.Date(2025, month, d, hour, 0, 0, 0, time.UTC)
+	}
+	plot := []*coremodels.EquityPlot{
+		{Timestamp: day(time.August, 26, 20), Value: 100_000},
+		{Timestamp: day(time.August, 27, 20), Value: 100_100},
+		{Timestamp: day(time.August, 28, 15), Value: 100_150}, // intraday point...
+		{Timestamp: day(time.August, 28, 20), Value: 100_200}, // ...same session's close wins
+		{Timestamp: day(time.August, 29, 20), Value: 100_300},
+		{Timestamp: day(time.September, 1, 20), Value: 100_400},
+		{Timestamp: day(time.September, 2, 20), Value: 100_450},
+	}
+	if includeCurrentSession {
+		plot = append(plot, &coremodels.EquityPlot{Timestamp: day(time.September, 3, 12), Value: 99_999}) // current session's stale point, replaced by current equity
+	}
+	return plot
 }
 
 func findPosition(t *testing.T, positions []LogicalPosition, ticker string) LogicalPosition {
@@ -328,4 +341,27 @@ func TestGate_ReductionBypassesRealSnapshotBuilderBeforeAnyIO(t *testing.T) {
 	require.NoError(t, gate.EvaluateSimulationOrder(p, reduction))
 	require.Equal(t, 0, evFake.Calls, "EV lookup must never be consulted for a reduction")
 	require.Equal(t, 0, secFake.Calls, "sector lookup must never be consulted for a reduction")
+}
+
+// Adversarial review minor 5 — when the CURRENT session has no plot point yet,
+// current equity is APPENDED as a new session instead of overwriting the prior
+// session's close (overwriting would shorten the window and could understate
+// the peak).
+func TestBuildPortfolioSnapshot_EquitySeriesAppendsWhenCurrentSessionHasNoPoint(t *testing.T) {
+	p := newSnapshotFixture(t)
+	p.SetEquityPlot(fixtureEquityPlot(false)) // plot ends 2025-09-02; the clock's session (09-03) has no point
+
+	snapshot := BuildPortfolioSnapshot(
+		NewFakeEvWeightLookup(map[string]float64{"cc-v7": 1}),
+		NewFakeSectorLookup(map[string]string{"MSFT": "technology"}),
+	)
+	order := buyEntry("MSFT")
+	order.Tag = "cc-v7"
+
+	state, _, _, err := snapshot(p, order)
+	require.NoError(t, err)
+
+	// Prior sessions' closes are PRESERVED (100_450 is 09-02's close, not
+	// overwritten) and current equity (100_000 + 500 PL) is its own new point.
+	require.Equal(t, []float64{100_200, 100_300, 100_400, 100_450, 100_500}, state.EquitySeries)
 }

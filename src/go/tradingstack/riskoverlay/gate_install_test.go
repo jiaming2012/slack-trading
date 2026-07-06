@@ -130,3 +130,49 @@ func TestInstalledGate_NarrowedLimitRejectsThroughSeam(t *testing.T) {
 	require.True(t, errors.As(err, &rejected))
 	require.True(t, Decision{Breaches: rejected.Breaches}.HasBreach(LimitGrossExposure))
 }
+
+// Adversarial review MAJOR 1 — a system-generated ITM exercise settlement leg
+// (plain `buy`, IsSystemOrder=true, exactly the shape CreateCloseOrderRequests
+// emits) passes the installed gate even under an operator-NARROWED gross
+// exposure limit, while the identical non-system buy is rejected. Without the
+// bypass, a held call expiring ITM would breach the narrowed limit, error the
+// tick with no deferral, and wedge every subsequent tick.
+func TestInstalledGate_SystemSettlementLegBypassesNarrowedLimit(t *testing.T) {
+	models.SetOrderGate(nil)
+
+	limits := DefaultRiskLimits
+	limits.MaxGrossExposure = 20_000 // fixture gross is 19_000 open; the 23k settlement leg would breach
+
+	gate := NewSimulationRiskGate(true, limits, NewFakeCrowdingLookup(), BuildPortfolioSnapshot(
+		NewFakeEvWeightLookup(map[string]float64{"cc-v7": 1}),
+		NewFakeSectorLookup(map[string]string{"AAPL": "technology"}),
+	))
+	models.SetRiskGate(gate)
+	t.Cleanup(func() { models.SetRiskGate(nil) })
+
+	p := newSnapshotFixture(t)
+
+	// The settlement leg CreateCloseOrderRequests emits for an exercised ITM
+	// call: underlying stock delivery at the strike, side=buy, system order.
+	settlement := &models.OrderRecord{
+		Class:            models.OrderRecordClassEquity,
+		Symbol:           "AAPL",
+		Side:             models.TradierOrderSideBuy,
+		AbsoluteQuantity: 100,
+		RequestedPrice:   230, // strike
+		Tag:              "exercise-call-option-1",
+		IsSystemOrder:    true,
+	}
+	require.NoError(t, models.CheckRiskGate(p, settlement), "a system settlement leg must bypass the overlay so the tick can complete")
+
+	// The identical order WITHOUT the system flag is a real entry and is
+	// rejected by the narrowed limit — proving the bypass is the system flag,
+	// not a hole in the limit.
+	entry := *settlement
+	entry.IsSystemOrder = false
+	entry.Tag = "cc-v7"
+	err := models.CheckRiskGate(p, &entry)
+	require.Error(t, err)
+	var rejected *RejectedError
+	require.True(t, errors.As(err, &rejected))
+}

@@ -12,7 +12,7 @@
 
 ### Requirement: Gate installed at startup and default-enabled for Simulation
 
-The system SHALL install the Simulation risk gate (`models.SetRiskGate`) during server startup, wired with the production portfolio snapshot builder, the crowding lookup, the EV-weight lookup, and the sector lookup, and composed at the Broker seam AFTER the kill-switch order gate so the overlay can never mask or disable a halt. The `riskOverlay.enabled` flag SHALL default to **true**, and the shipped default limit values SHALL be permissive (documented no-op values), so default enablement changes no order outcome until an operator narrows a limit. The gate SHALL be consulted only on the Simulation order-placement path; Paper and Margin order-placement paths SHALL remain ungated by this change, and any future Paper or Margin enablement SHALL require an explicit operator-approved change. A present-but-invalid risk-overlay config SHALL fail startup with the existing sentinel validation error; an absent config SHALL yield the documented defaults and start normally.
+The system SHALL install the Simulation risk gate (`models.SetRiskGate`) during server startup, wired with the production portfolio snapshot builder, the crowding lookup, the EV-weight lookup, and the sector lookup, and composed at the Broker seam AFTER the kill-switch order gate so the overlay can never mask or disable a halt. The `riskOverlay.enabled` flag SHALL default to **true**, and the shipped default limit values SHALL be permissive (documented no-op values), so default enablement changes no order outcome until an operator narrows a limit. The gate SHALL be consulted only on the Simulation order-placement path; Paper and Margin order-placement paths SHALL remain ungated by this change, and any future Paper or Margin enablement SHALL require an explicit operator-approved change. A present-but-invalid risk-overlay config SHALL fail startup with the existing sentinel validation error. A present-but-**unreadable** config (any read failure other than the file not existing — permissions, a bind-mount fault, the path resolving to a directory) SHALL likewise fail startup rather than silently applying the permissive, enabled defaults: the unreadable file may carry the operator's `enabled: false` rollback or narrowed limits, and defaulting would reverse that intent. Only a genuinely ABSENT config SHALL yield the documented defaults and start normally.
 
 #### Scenario: Startup installs an enabled gate under default configuration
 
@@ -33,6 +33,11 @@ The system SHALL install the Simulation risk gate (`models.SetRiskGate`) during 
 
 - **WHEN** an order is placed on the Paper or Margin order-placement path with the gate installed and enabled
 - **THEN** the risk gate is not consulted and the order path behaves exactly as it does today
+
+#### Scenario: An unreadable config fails startup instead of reversing operator intent
+
+- **WHEN** the risk-overlay config file exists but cannot be read (for example a permissions failure or the path resolving to a directory)
+- **THEN** server startup fails loudly, and the gate is never silently booted with the permissive, enabled defaults
 
 ### Requirement: Portfolio state feed built from live playground state
 
@@ -75,6 +80,20 @@ The system SHALL classify reduction orders (any `sell`, `*_to_close`, or `buy_to
 
 - **WHEN** the snapshot builder and every lookup are configured to return errors and a sell-to-close Simulation order is placed
 - **THEN** the order is permitted, no lookup is consulted, and no degradation is recorded for it
+
+### Requirement: System-generated orders bypass the risk overlay
+
+The system SHALL NOT evaluate system-generated orders (order records flagged `IsSystemOrder` — exercise settlement legs, deferred auto-closes, and other broker-internal placements) against the portfolio risk overlay: the gate SHALL permit them BEFORE building any portfolio snapshot or consulting any lookup, exactly like reduction orders. Settlement and auto-close placements are mechanical consequences of positions already held, not new risk decisions — an ITM exercise settlement leg is emitted as a plain `buy`, which side classification alone would treat as a new entry, and rejecting it under an operator-narrowed limit would error the tick with no deferral and wedge every subsequent tick on the unsettled expiry. The kill-switch order gate's treatment of system orders SHALL remain unchanged: it still runs first for every order in every mode.
+
+#### Scenario: An ITM exercise settlement leg passes under a narrowed limit
+
+- **WHEN** an operator has narrowed `max_gross_exposure` below the book's post-settlement gross exposure and a held call expires in the money, producing a system-generated stock-delivery `buy` order
+- **THEN** the risk overlay permits the settlement leg without evaluation, no degradation or rejection is recorded for it, and tick processing completes
+
+#### Scenario: The same order without the system flag is still evaluated
+
+- **WHEN** an identical non-system `buy` order is placed under the same narrowed limit
+- **THEN** the overlay evaluates it and rejects it with the gross-exposure breach
 
 ### Requirement: Fail-permissive degradation is recorded in internal telemetry
 

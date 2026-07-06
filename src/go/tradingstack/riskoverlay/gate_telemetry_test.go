@@ -154,3 +154,46 @@ func TestGateTelemetry_ReductionRecordsNoDegradation(t *testing.T) {
 	_, found := metricValue(t, telemetry.MetricRiskOverlayDegraded, "", "")
 	require.False(t, found, "a reduction must not be recorded as degradation")
 }
+
+// Adversarial review MAJOR 1 — a system-generated order bypasses the overlay
+// BEFORE any snapshot build or lookup, and records nothing, even while every
+// I/O seam is erroring and every limit is impossibly tight.
+func TestGateTelemetry_SystemOrderBypassesBeforeIOAndRecordsNothing(t *testing.T) {
+	telemetry.Init()
+	tight := RiskLimits{MaxGrossExposure: 1, MaxNetExposure: 1, MaxSectorConcentrationPct: 0, MaxDrawdownPct: 0, DeployableCapital: 0, RejectCrowdedEntries: true}
+	gate := NewSimulationRiskGate(true, tight, erroringCrowdingLookup{}, errSnapshot())
+
+	settlement := &models.OrderRecord{
+		Class:            models.OrderRecordClassEquity,
+		Symbol:           "AAPL",
+		Side:             models.TradierOrderSideBuy, // an entry by side classification alone
+		AbsoluteQuantity: 100,
+		RequestedPrice:   230,
+		IsSystemOrder:    true,
+	}
+	require.NoError(t, gate.EvaluateSimulationOrder(nil, settlement))
+
+	_, found := metricValue(t, telemetry.MetricRiskOverlayDegraded, "", "")
+	require.False(t, found, "a system-order bypass must not be recorded as degradation")
+	_, found = metricValue(t, telemetry.MetricRiskOverlayRejections, "", "")
+	require.False(t, found, "a system order must never be rejected by the overlay")
+}
+
+// Adversarial review minor 3 — degradation is scoped to PERMITS: a REJECTED
+// unknown-sector order does not increment sector_unknown.
+func TestGateTelemetry_RejectedUnknownSectorNotCountedAsDegradation(t *testing.T) {
+	telemetry.Init()
+	limits := DefaultRiskLimits
+	limits.MaxGrossExposure = 500 // the 1_000 notional entry breaches
+
+	order := ProposedOrder{Ticker: "ZZZQ", Sector: "", StrategyID: "A", SignedNotional: 1_000}
+	gate := NewSimulationRiskGate(true, limits, nil, fixtureSnapshot(PortfolioState{EvWeights: map[string]float64{"A": 1}}, order, time.Time{}))
+
+	err := gate.EvaluateSimulationOrder(nil, buyEntry("ZZZQ"))
+	var rejected *RejectedError
+	require.True(t, errors.As(err, &rejected))
+
+	got, _ := metricValue(t, telemetry.MetricRiskOverlayDegraded, "reason", DegradedReasonSectorUnknown)
+	require.Equal(t, 0.0, got, "a rejected order must not count sector_unknown degradation")
+	requireCounter(t, telemetry.MetricRiskOverlayRejections, "limit_type", string(LimitGrossExposure), 1)
+}

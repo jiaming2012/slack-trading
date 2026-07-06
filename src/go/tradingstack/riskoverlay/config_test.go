@@ -2,6 +2,8 @@ package riskoverlay
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -114,4 +116,34 @@ func TestShippedSampleConfigLoadsToDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, DefaultRiskLimits, limits)
 	require.True(t, limits.Enabled)
+}
+
+// Adversarial review MAJOR 2 — only a genuinely ABSENT config falls back to
+// the (permissive, enabled) defaults. Any other read failure fails loudly: the
+// operator's file — possibly carrying `enabled: false` or narrowed limits —
+// exists but cannot be read, and silently reversing that intent is the worst
+// possible fallback for a risk gate.
+func TestLoadRiskLimitsFromFile_UnreadableFileFailsInsteadOfDefaults(t *testing.T) {
+	t.Run("missing file still yields defaults", func(t *testing.T) {
+		limits, err := LoadRiskLimitsFromFile(filepath.Join(t.TempDir(), "no-such-risk-overlay-config.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, DefaultRiskLimits, limits)
+	})
+
+	t.Run("path resolving to a directory is a read error, not defaults", func(t *testing.T) {
+		_, err := LoadRiskLimitsFromFile(t.TempDir())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot be read")
+	})
+
+	t.Run("permission-denied file is a read error, not defaults", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("running as root: chmod 000 does not deny reads")
+		}
+		path := filepath.Join(t.TempDir(), "risk-overlay-config.yaml")
+		require.NoError(t, os.WriteFile(path, []byte("riskOverlay:\n  enabled: false\n"), 0o000))
+		_, err := LoadRiskLimitsFromFile(path)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot be read")
+	})
 }

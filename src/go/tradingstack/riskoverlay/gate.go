@@ -86,14 +86,25 @@ func (g *SimulationRiskGate) EvaluateSimulationOrder(p *models.Playground, order
 		return nil
 	}
 
-	// Classify reduction side-first from the raw order — cheaply, before any
-	// snapshot build or crowding lookup. A risk-reducing order ALWAYS passes
-	// (this mirrors the engine's IsReduction short-circuit) and must never be
+	// Classify side-first from the raw order — cheaply, before any snapshot
+	// build or crowding lookup. A risk-reducing order ALWAYS passes (this
+	// mirrors the engine's IsReduction short-circuit) and must never be
 	// blocked by a transient snapshot- or crowding-lookup error. Resolving those
 	// I/O paths before short-circuiting would let a DB hiccup reject a
 	// risk-reducing exit mid-drawdown — the exact opposite of what the overlay is
 	// for.
-	if order != nil && isReductionSide(order.Side) {
+	//
+	// SYSTEM-GENERATED orders bypass the overlay the same way (adversarial
+	// review, MAJOR 1): an ITM exercise settlement leg is emitted as a plain
+	// `buy` with IsSystemOrder=true, which side-classification alone would read
+	// as a NEW entry — under an operator-narrowed limit the overlay would
+	// reject the settlement, error the tick with no deferral, and wedge every
+	// subsequent tick on the unsettled expiry. Settlement and auto-close
+	// placements are mechanical consequences of positions ALREADY held, not new
+	// risk decisions; the instrument to stop them is the kill switch (whose own
+	// system-order semantics are untouched — CheckOrderGate still runs first
+	// for every order in every mode), never this gate.
+	if order != nil && (order.IsSystemOrder || isReductionSide(order.Side)) {
 		return nil
 	}
 
@@ -118,14 +129,18 @@ func (g *SimulationRiskGate) EvaluateSimulationOrder(p *models.Playground, order
 		telemetry.RiskOverlayEvFamilyActive.Set(0)
 	}
 
+	decisionErr := g.decide(state, proposed, scannedAt)
+
 	// An unknown sector leaves the proposed entry exempt from the
-	// sector-concentration family: still evaluated, but partially blind —
-	// counted as degradation so the partial blindness stays visible.
-	if proposed.Sector == "" {
+	// sector-concentration family: still evaluated, but partially blind. The
+	// spec scopes degradation to PERMITS (the gate letting through something it
+	// could not fully see), so a rejected order does not count — only a
+	// permitted one (adversarial review, minor 3).
+	if decisionErr == nil && proposed.Sector == "" {
 		telemetry.RiskOverlayDegraded.Add(1, telemetry.Label{Key: "reason", Value: DegradedReasonSectorUnknown})
 	}
 
-	return g.decide(state, proposed, scannedAt)
+	return decisionErr
 }
 
 // Degradation reasons for the grodt.riskoverlay.degraded counter's {reason}

@@ -134,13 +134,21 @@ func ValidateRiskLimits(l RiskLimits) error {
 }
 
 // LoadRiskLimitsFromFile reads and parses the risk-overlay config file at path.
-// A file that cannot be read yields the documented defaults with no error, so
-// an absent config never blocks startup; a present-but-invalid config yields
-// ErrInvalidRiskLimits.
+// An ABSENT file (os.ErrNotExist) yields the documented defaults with no
+// error, so a missing config never blocks startup. Any OTHER read failure
+// (permissions, a bind-mount hiccup, path resolving to a directory) is an
+// error: the operator's file — possibly carrying `enabled: false` or narrowed
+// limits — exists but cannot be read, and silently booting with the
+// permissive, enabled defaults would reverse their intent (adversarial
+// review, MAJOR 2). A present-but-invalid config yields ErrInvalidRiskLimits.
+// Both error classes fail startup loudly at the wiring site.
 func LoadRiskLimitsFromFile(path string) (RiskLimits, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return DefaultRiskLimits, nil
+		if errors.Is(err, os.ErrNotExist) {
+			return DefaultRiskLimits, nil
+		}
+		return RiskLimits{}, fmt.Errorf("riskoverlay: config %s exists but cannot be read (refusing to fall back to permissive defaults): %w", path, err)
 	}
 	return LoadRiskLimits(raw)
 }
